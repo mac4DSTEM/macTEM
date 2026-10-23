@@ -1,0 +1,13 @@
+# tools/kit-boundary.allow — where the app may touch the GPU or a numerics framework (decision D15).
+#
+# One line per file: <path><TAB><modules the file may import, comma-separated; `-` for a .metal file><TAB><reason>.
+# tools/check-kit-boundary.sh fails on a gated import (Accelerate, vecLib, Metal, MetalKit, MetalPerformanceShaders*,
+# BNNS, simd) in a file or module not listed here, on any vDSP / cblas / vImage / LAPACK / vForce / BNNS / MPS symbol
+# anywhere, and on a .metal file not listed. Numerics belong in the kits; a new line here needs a reason that is display,
+# not science, or a lineage/marks record (app-side provenance).
+
+# Display only: the one Metal pipeline that draws the image and its colormap.
+
+# Tests of the display pipeline and the harness's crystal geometry.
+macTEMTests/ImageExportGPUTests.swift	Metal	GPU image export vs CPU rendering
+tools/parity/crystal-parity/main.swift	simd	harness: SIMD3 vectors for crystal faces, compared against the Python reference

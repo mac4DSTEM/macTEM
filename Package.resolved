@@ -1,0 +1,51 @@
+{
+  "originHash" : "fdd4eb6962af7fceaf5a7ebefc7bdd6f528c1c380e24089db3b60551860acf1f",
+  "pins" : [
+    {
+      "identity" : "diffractokit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mac4DSTEM/DiffractoKit",
+      "state" : {
+        "revision" : "317b280dbe35ce1c2e057e2416d3a1be6eaf1d1f",
+        "version" : "0.10.0"
+      }
+    },
+    {
+      "identity" : "formatokit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mac4DSTEM/FormatoKit",
+      "state" : {
+        "revision" : "7e68615ff8812f3d412429c5edc9022fab0639d3",
+        "version" : "0.11.0"
+      }
+    },
+    {
+      "identity" : "imagokit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mac4DSTEM/ImagoKit",
+      "state" : {
+        "revision" : "41b4b617d108084f8cb2cf22acc4042614eb92d1",
+        "version" : "0.7.0"
+      }
+    },
+    {
+      "identity" : "macemui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mac4DSTEM/MacEMUI",
+      "state" : {
+        "revision" : "b800cab772102f50f04f6281955d1214fe719e61",
+        "version" : "0.3.0"
+      }
+    },
+    {
+      "identity" : "spectrokit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mac4DSTEM/SpectroKit",
+      "state" : {
+        "revision" : "7e8aa8264adb536d1be230eb81cf11fa02021da0",
+        "version" : "0.12.0"
+      }
+    }
+  ],
+  "version" : 3
+}

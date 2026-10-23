@@ -1,0 +1,45 @@
+# macOS and per-developer Xcode state
+.DS_Store
+**/.DS_Store
+**/xcuserdata/
+*.xcuserstate
+
+# SwiftPM and Xcode-generated package state (Package.swift builds TEMCore and TEMSession from the shell)
+.build/
+.swiftpm/
+
+# Pinned references (ncempy and its Python stack, later rosettasciio/py4DSTEM) and the owner's reference
+# trees: machine-local, fetched or provisioned on demand by tools/lib/*, never committed. Test fixtures are
+# committed under macTEMTests/Fixtures/, never here.
+/References
+
+# Local build products (tools/lib/sources.manifest builds the DiffractoKit checkout's modules under build/diffractokit;
+# gate logs and the warm DerivedData live outside the tree, tools/lib/gate-dir.sh)
+/build/
+/DerivedData/
+
+# Python bytecode from the harnesses' reference scripts
+__pycache__/
+
+# Coverage output from instrumented runs
+*.profraw
+
+
+# The owner's datasets (read as $MACEM_DATA), never committed
+/data/
+/MACEM_DATA/
+
+# Private working files: kept on the developer's Mac, never published
+/CLAUDE.md
+/AGENTS.md
+/.claude/
+/ROADMAP.md
+/docs/status.md
+/docs/open-items.md
+/docs/decisions.md
+/docs/decisions/
+/docs/design/
+/docs/archive/
+/tools/hooks/
+/tools/drive/
+/tools/gate.sh

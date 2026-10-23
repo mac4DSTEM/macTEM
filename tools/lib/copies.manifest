@@ -1,0 +1,42 @@
+# tools/lib/copies.manifest — every file macTEM copied from mac4DSTEM, and every file that names the copy header.
+#
+# One line per file: <kind> <copy path in macTEM> <source path in mac4DSTEM, at the pin all copies name>.
+# tools/check-shared-drift.sh (both modes) fails when a file carrying or naming the header is not listed here, a listed
+# file is not found, or a copy's header names another kind or source than its line here. The kinds are documented in
+# that tool's header comment; in short:
+#   verbatim | subset | extract | adapted   a copy with a provenance header (the header's kind and source must match)
+#   asset                                   a file that cannot carry a header, byte-identical to its source
+#   asset-adapted                           a file that cannot carry a header, changed here (reported, not enforced)
+#   mention                                 not a copy: it names the header format (source `-`)
+# A new copy, a re-kind or a removal changes this file in the same commit.
+
+# Sources/ — TEMCore and TEMSession
+# (The crystal, CIF and ellipse copies, their tests and cif-symmetry-test left on 2026-10-15: DiffractoKit 0.0.3 is imported, ADR 025.
+#  FFT2D.swift left the same day with the image-analysis maths: ImagoKit 0.1.0 is imported, ADR 027.)
+verbatim  Sources/TEMCore/Data/DiffractionPattern.swift           mac4DSTEM/Core/Data/DiffractionPattern.swift
+
+# macTEM/ — the app target
+adapted   macTEM/App/macTEMApp.swift                              mac4DSTEM/App/mac4DSTEMApp.swift
+
+# macTEMTests/
+
+# tools/, skills, CI
+adapted   tools/lib/developer-dir.sh                              tools/lib/developer-dir.sh
+adapted   tools/lib/fetch-py4dstem-scattering.sh                 tools/lib/fetch-py4dstem.sh
+adapted   tools/run-tests.sh                                      tools/run-tests.sh
+adapted   .github/workflows/ci.yml                                .github/workflows/ci.yml
+
+# Files that cannot carry a header: the app icon (Icon Composer). The dots are mac4DSTEM's, byte for byte; icon.json
+# is mac4DSTEM's with one fill specialization added (the solid orange default fill).
+# The licence texts of the HDF5 libraries the app carries (FormatoKit's frameworks in Contents/Frameworks since ADR 026 and 0.4.0; the three dylibs are
+# no longer committed here): mac4DSTEM's, byte for byte.
+asset          macTEMTests/Fixtures/ni65cu35-roi6-mean-32x32.f32   mac4DSTEMTests/Fixtures/ni65cu35-roi6-mean-32x32.f32
+asset          Licenses/HDF5-LICENSE.txt                          Licenses/HDF5-LICENSE.txt
+asset          Licenses/libaec-LICENSE.txt                        Licenses/libaec-LICENSE.txt
+asset          macTEM/macTEM.icon/Assets/mac4DSTEM-dots.svg       mac4DSTEM/mac4DSTEM.icon/Assets/mac4DSTEM-dots.svg
+asset-adapted  macTEM/macTEM.icon/icon.json                       mac4DSTEM/mac4DSTEM.icon/icon.json
+
+# Not copies: they name the header format.
+mention   NOTICE                                                  -
+mention   docs/architecture.md                                    -
+mention   tools/check-shared-drift.sh                             -

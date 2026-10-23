@@ -1,0 +1,251 @@
+# tools/lib/sources.manifest — the TEMCore sources each standalone harness compiles, by named group.
+#
+# A harness compiles production files directly with swiftc into one module (no package, no app), so it must name
+# every file its closure needs; a group is that closed list. A new TEMCore file a harness depends on joins its group
+# here, or the harness stops compiling against it. `inventory` fails a tools/*/run.sh that does not, on code lines,
+# source this file, call mactem_sources and compile through mactem_swiftc — or that calls swiftc any other way.
+#
+#   . "$ROOT/tools/lib/sources.manifest"
+#   mactem_sources <repo-root> <group>...   -> fills MACTEM_SOURCES (an array, so paths with spaces survive)
+#   mactem_swiftc <output> <extra source>... -> compiles MACTEM_SOURCES + the extras into one executable, -O, with
+#                                              MACTEM_CORE_FLAGS and -warnings-as-errors (TEMCore builds with zero
+#                                              warnings; the harness's own files are held to the same)
+#
+# MACTEM_CORE_FLAGS are TEMCore's own Swift settings (Package.swift): Swift 6, nonisolated by default, the same
+# upcoming features. `inventory` fails when the two disagree, so a harness never checks code under settings the app
+# does not build it with.
+MACTEM_CORE_FLAGS=(
+  -swift-version 6
+  -enable-upcoming-feature NonisolatedNonsendingByDefault
+  -enable-upcoming-feature InferIsolatedConformances
+  -enable-upcoming-feature MemberImportVisibility
+)
+
+# The kits (ADR 025 DiffractoKit, ADR 026 FormatoKit, ADR 027 ImagoKit) are imported, not compiled into that one module: their files import
+# each other's modules, so a group that names a kit makes `mactem_swiftc` build the kit's modules from the checkout
+# tools/lib/fetch-<kit>.sh pins to Package.resolved (`swiftc -parse-as-library -O -wmo -package-name <kit>`,
+# MACTEM_CORE_FLAGS, -warnings-as-errors; the settings the kit's own Package.swift names, and the fetch script refuses a kit
+# whose upcoming features differ) into build/kits/<kit>/<module key>, and add `-I` and the objects to the harness compile.
+# One build per module: its key is the pin, the flags, the optimisation level, the sha256 of its own overrides and the keys of
+# the modules before it in the kit's list, so a mutated file rebuilds its module and the ones after it, nothing else (list
+# order is dependency order, the least-depended-on last: FormatoDM comes after FormatoEMD for that reason). A harness that
+# mutates a kit file sets MACTEM_KIT_OVERRIDE[Sources/<Module>/<File>.swift]=<edited copy> before `mactem_swiftc` (and
+# unsets it after). MACTEM_KIT_OPT (default -O) is the optimisation level of the kits AND of the harness: -Onone is for the
+# one-off identity check against a Debug unit run, never a gate.
+typeset -gA MACTEM_KIT_OVERRIDE
+typeset -ga MACTEM_KITS=()
+MACTEM_KIT_OPT="${MACTEM_KIT_OPT:--O}"
+typeset -gA MACTEM_KIT_MODULES=(
+  diffractokit "DiffractoCore DiffractoScattering DiffractoGeometry"
+  formatokit   "FormatoCore FormatoHDF5 FormatoEMD FormatoDM FormatoMRC FormatoTIFF"
+  imagokit     "ImagoCore ImagoFFT ImagoFilters"
+)
+
+# ImagoKit (ADR 027): the Micrograph, the 2D FFT, the spectrum, the profile, the spot, the masked inverse and the HRTEM
+# filters. A group that names it takes `mactem_imagokit`; the kit's modules share `package` declarations (-package-name imagokit).
+mactem_imagokit() { MACTEM_KITS+=(imagokit); }
+
+# FormatoKit's readers (ADR 026): macTEM's Velox and DM3/DM4 readers call FormatoDM, FormatoEMD, FormatoHDF5 and FormatoCore,
+# imported as modules from the checkout tools/lib/fetch-formatokit.sh pins. Every group that holds `ImageOpening` takes them
+# and `VeloxImageReader` (ImageOpening dispatches `.emd` to it), so the source checked is the source the app builds.
+mactem_formatokit_readers() {  # <repo-root> -> appends to `want`
+  MACTEM_KITS+=(formatokit)
+  want+=("$1/Sources/TEMCore/Data/VeloxImageReader.swift")
+}
+
+# Builds the wanted kits' modules (with MACTEM_KIT_OVERRIDE applied) and fills MACTEM_KIT_ARGS.
+mactem_kit_build() {  # <repo-root> <kit>...
+  local root=$1 kit dir pin m f rel key out tmp files_glob
+  shift
+  MACTEM_KIT_ARGS=()
+  for kit in "$@"; do
+    dir="$("$root/tools/lib/fetch-$kit.sh")" || { echo "sources.manifest: $kit is not at its pin" >&2; exit 65; }
+    pin="$(git --no-optional-locks -C "$dir" rev-parse HEAD)"
+    for rel in ${(ok)MACTEM_KIT_OVERRIDE}; do
+      [[ "$rel" == Sources/* ]] || { echo "sources.manifest: MACTEM_KIT_OVERRIDE key '$rel' does not start with Sources/" >&2; exit 66; }
+    done
+    local -a modules=(${=MACTEM_KIT_MODULES[$kit]}) incl=()
+    local chain=""
+    for m in $modules; do
+      local ov=""
+      for rel in ${(ok)MACTEM_KIT_OVERRIDE}; do
+        [[ "$rel" == Sources/$m/* ]] || continue
+        [[ -f "$dir/$rel" ]] || { echo "sources.manifest: MACTEM_KIT_OVERRIDE names '$rel', which the kit does not have" >&2; exit 66; }
+        ov+="$rel $(shasum -a 256 < "$MACTEM_KIT_OVERRIDE[$rel]")"$'\n'
+      done
+      key="$({ print -r -- "$kit $m $pin $MACTEM_KIT_OPT ${MACTEM_CORE_FLAGS[*]} $chain"; print -rn -- "$ov"; } | shasum -a 256 | cut -c1-16)"
+      chain="$key"
+      out="$root/build/kits/$kit/$key"
+      if [[ ! -f "$out/$m.o" ]]; then
+        mkdir -p "$root/build/kits/$kit"
+        tmp="$(mktemp -d "$root/build/kits/$kit/.tmp.XXXXXX")"
+        local -a files=()
+        for f in "$dir/Sources/$m"/**/*.swift(N); do
+          rel="Sources/$m/${f#$dir/Sources/$m/}"
+          if (( ${+MACTEM_KIT_OVERRIDE[$rel]} )); then files+=("$MACTEM_KIT_OVERRIDE[$rel]"); else files+=("$f"); fi
+        done
+        xcrun swiftc -parse-as-library -module-name "$m" -package-name "$kit" "$MACTEM_KIT_OPT" -wmo -warnings-as-errors \
+          "${MACTEM_CORE_FLAGS[@]}" "${(@)incl}" -emit-module -emit-module-path "$tmp/$m.swiftmodule" \
+          -c "${files[@]}" -o "$tmp/$m.o" > "$tmp/$m.log" 2>&1 \
+          || { cat "$tmp/$m.log" >&2; echo "sources.manifest: the kit module $m does not compile" >&2; rm -rf "$tmp"; exit 67; }
+        mv "$tmp" "$out" 2>/dev/null || rm -rf "$tmp"      # a parallel build of the same key won the rename
+      fi
+      incl+=(-I "$out")
+      MACTEM_KIT_ARGS+=(-I "$out" "$out/$m.o")
+    done
+  done
+}
+
+mactem_sources() {
+  local root=$1; shift
+  local core="$root/Sources/TEMCore"
+  MACTEM_ROOT=$root
+  MACTEM_KITS=()
+  local -a want=()
+  local group
+  for group in "$@"; do
+    case "$group" in
+      # Open a DM3/DM4 file as a CalibratedImage (ImageOpening and its closure; FormatoKit's readers).
+      dm) want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Data/KitImages.swift"
+            "$core/Data/TIFFImageReader.swift"
+            "$core/Data/MRCImageReader.swift"
+            "$core/Data/ImageOpening.swift"); mactem_formatokit_readers "$root" ;;
+      # Open a TIFF as a CalibratedImage: the DM closure (ImageOpening dispatches on the extension) and the reader.
+      tiff) want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Data/KitImages.swift"
+            "$core/Data/TIFFImageReader.swift"
+            "$core/Data/MRCImageReader.swift"
+            "$core/Data/ImageOpening.swift"); mactem_formatokit_readers "$root" ;;
+      # Open an MRC image as a CalibratedImage: ImageOpening's closure and the reader.
+      mrc) want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Data/KitImages.swift"
+            "$core/Data/TIFFImageReader.swift"
+            "$core/Data/MRCImageReader.swift"
+            "$core/Data/ImageOpening.swift"); mactem_formatokit_readers "$root" ;;
+      # ImagoKit alone (ADR 027): the Micrograph, the FFT, the spectrum, the profile, the spot, the masked inverse, the filters.
+      imago) mactem_imagokit ;;
+      # The centred spectrum of a CalibratedImage (V1-6 slice A): the image type and its seam to the kit's Micrograph;
+      # the FFT, the spectrum, the profile and the masked inverse are ImagoKit's.
+      fft) mactem_imagokit
+           want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Data/CalibratedImage+Micrograph.swift") ;;
+      # The HRTEM filters (V1-6b): the image and its seam; the FFT and the filter are ImagoKit's.
+      hrtem) mactem_imagokit
+             want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Data/CalibratedImage+Micrograph.swift") ;;
+      # The d-spacing of a spectrum spot (V1-6 slice C): the image type and its seam; the estimator is ImagoKit's.
+      spot) mactem_imagokit
+            want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Data/CalibratedImage+Micrograph.swift") ;;
+      # Kinematic reflections of a crystal (Diffraction S1): DiffractoKit's lists and presets (ADR 025).
+      crystal) MACTEM_KITS+=(diffractokit) ;;
+      # DiffractoKit alone (ADR 025): crystal structures, the CIF import, kinematic lists, ring calibration, indexing.
+      kit) MACTEM_KITS+=(diffractokit) ;;
+      # Indexing a measured |q| against the kinematic list (V1-8 S2, S2c): the kit's RingIndexing and presets.
+      indexing) MACTEM_KITS+=(diffractokit) ;;
+      # One ring's ellipse (Diffraction S2): the kit's EllipseCalibration and the pattern type it reads.
+      ellipse) MACTEM_KITS+=(diffractokit) ;;
+      # The camera length from one ring of known d (Diffraction S3-a, S3-b): the kit's RingCalibration and its fit.
+      ring) MACTEM_KITS+=(diffractokit) ;;
+      # The Diffraction room's core (slice 1a): the ring overlay, the reciprocal scale, indexing as displayed, the standards and
+      # the CIF loading, on DiffractoKit (ADR 025); the file's unit conversion.
+      diffraction-room) MACTEM_KITS+=(diffractokit); mactem_imagokit
+               want+=(
+            "$core/Diffraction/StandardCrystals.swift") ;;
+      # The acquisition metadata of a TIFF, an MRC, a Velox .emd and a DM tag map (V1-4a): ImageOpening's closure, the
+      # image readers, and the read(path:) entry that dispatches on the extension and opens the object the open shows;
+      # the value type and the four format readers are FormatoKit's (FormatoCore / DM / MRC / TIFF / EMD, `.app`).
+      metadata) want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Data/KitImages.swift"
+            "$core/Data/TIFFImageReader.swift"
+            "$core/Data/MRCImageReader.swift"
+            "$core/Data/ImageOpening.swift"
+            "$core/Data/AcquisitionMetadata+Read.swift"); mactem_formatokit_readers "$root" ;;
+      # The intensity histogram of a CalibratedImage (V1-4): the image type and the histogram.
+      histogram) mactem_imagokit
+                 want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Compute/IntensityHistogram.swift") ;;
+      # Export from the Image room (V1-10 slice 1), the FFT room (slice 2: the FFT cores and FFTExport) and the Results room (slice 3: ResultRow, ResultsCSV): the PNG and CSV writers, what they draw and write, the canvas they
+      # map (`FloatImage`), the profile they write; a harness adds `dm` to open the real images.
+      export) want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Data/UnitDisplay.swift"
+            "$core/Data/DiffractionPattern.swift"
+            "$core/Compute/LineProfile.swift"
+            "$core/Analysis/ImagePoint+PixelPoint.swift"
+            "$core/Data/ExportFile.swift"
+            "$core/Data/ProfileCSV.swift"
+            "$core/Data/ImageExport.swift"
+            "$core/Data/ImageExport+Overlays.swift"
+            "$core/Data/FFTExport.swift"
+            "$core/Data/ResultRow.swift"
+            "$core/Data/ResultsCSV.swift"
+            "$core/Data/CalibratedImage+Micrograph.swift"); mactem_imagokit; MACTEM_KITS+=(formatokit) ;;
+      # Distance, angle and the line profile of a CalibratedImage (V1-5): the image type and the two measurements.
+      profile) want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Analysis/ImagePoint+PixelPoint.swift"
+            "$core/Data/CalibratedImage+Micrograph.swift"
+            "$core/Compute/LineProfile.swift"); mactem_imagokit ;;
+      # Open a Velox .emd as a CalibratedImage (V1-3a): ImageOpening's closure and FormatoKit's reader (above).
+      velox) want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Data/KitImages.swift"
+            "$core/Data/TIFFImageReader.swift"
+            "$core/Data/MRCImageReader.swift"
+            "$core/Data/ImageOpening.swift"); mactem_formatokit_readers "$root" ;;
+      # The session sidecar (V1-2): the file layer (over FormatoHDF5's HDF5RootAttributes, under its lock), the lineage and the source identity.
+      sidecar) want+=(
+            "$core/Data/CalibratedImage.swift"
+            "$core/Data/SessionSidecarFile.swift"
+            "$core/Data/SessionLineage.swift"
+            "$core/Analysis/ImagePoint+PixelPoint.swift"
+            "$core/Data/SessionMarks.swift"); MACTEM_KITS+=(formatokit); mactem_imagokit ;;
+      *) echo "sources.manifest: unknown group '$group' (known: dm, tiff, mrc, fft, hrtem, spot, imago, crystal, kit, indexing, ellipse, ring, diffraction-room, metadata, histogram, profile, export, velox, sidecar)" >&2; exit 64 ;;
+    esac
+  done
+  # CalibratedImage's axes are ImagoKit's AxisCalibration, so any group that holds the image type builds ImagoKit.
+  local want_src
+  for want_src in "${want[@]}"; do [[ "$want_src" == */CalibratedImage.swift ]] && { mactem_imagokit; break; }; done
+  local -A seen=()
+  local -a out=()
+  local src                       # never `path`: zsh ties it to PATH
+  for src in "${want[@]}"; do
+    (( ${+seen[$src]} )) && continue
+    seen[$src]=1
+    out+=("$src")
+  done
+  for src in "${out[@]}"; do
+    [[ -f "$src" ]] || { echo "sources.manifest: no such source '$src'" >&2; exit 66; }
+  done
+  MACTEM_SOURCES=("${out[@]}")
+}
+
+# The one way a harness compiles Core: the module name, -O (interactive science never runs at -Onone) and TEMCore's
+# own settings are fixed here, so no harness can check Core under settings the app does not build it with.
+mactem_swiftc() {
+  (( $# >= 2 )) || { echo "sources.manifest: usage: mactem_swiftc <output> <extra source>..." >&2; exit 64; }
+  (( ${+MACTEM_SOURCES} )) && (( ${#MACTEM_SOURCES} + ${#MACTEM_KITS} )) \
+    || { echo "sources.manifest: mactem_swiftc before mactem_sources (MACTEM_SOURCES is empty)" >&2; exit 64; }
+  local out=$1; shift
+  local key mod
+  for key in ${(ok)MACTEM_KIT_OVERRIDE}; do      # an override that names no wanted kit's module would be silently ignored: refuse it
+    mod="${${key#Sources/}%%/*}"
+    local ok=0 k
+    for k in "${(u)MACTEM_KITS[@]}"; do [[ " ${MACTEM_KIT_MODULES[$k]} " == *" $mod "* ]] && ok=1; done
+    (( ok )) || { echo "sources.manifest: MACTEM_KIT_OVERRIDE names '$key', which is in no module of the kits this build wants" >&2; exit 66; }
+  done
+  local -a MACTEM_KIT_ARGS=()
+  if (( ${#MACTEM_KITS} )); then mactem_kit_build "${MACTEM_ROOT:?mactem_swiftc: mactem_sources was not given a repo root}" "${(u)MACTEM_KITS[@]}"; fi
+  xcrun swiftc -package-name mactem -parse-as-library "$MACTEM_KIT_OPT" -warnings-as-errors "${MACTEM_CORE_FLAGS[@]}" \
+    "${MACTEM_KIT_ARGS[@]}" "${MACTEM_SOURCES[@]}" "$@" -o "$out"
+}
