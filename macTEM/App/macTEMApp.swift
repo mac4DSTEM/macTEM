@@ -6,6 +6,7 @@
 // Show/Hide Sidebar, and File > Export Image… / Export Profile… (V1-10, `ExportCommands`). Cut:
 // preferences, recents, recovery, the open-dataset registry, mac4DSTEM's export and analysis menus, the precipitate
 // table and the Settings scene — macTEM has none of them yet. Changed (EDX room): the Workspace menu enters the EDX room with no image open.
+// Changed (macEM-suite#21): a `--ui-testing` launch restores no window state (`.restorationBehavior(.disabled)`), as mac4DSTEM's test launch.
 // END PROVENANCE
 import ShellLayout
 import ShellControls
@@ -189,6 +190,7 @@ struct macTEMApp: App {
     // File-menu actions asked for while no window is focused (`MenuActionRelay`): read by the commands, taken
     // by the window they open.
     @State private var menuRelay = MenuActionRelay()
+    private static let isUITesting = LaunchOptions().isUITesting
 
     var body: some Scene {
         Window("macTEM", id: "image") {
@@ -196,6 +198,8 @@ struct macTEMApp: App {
         }
             .handlesExternalEvents(matching: ["*"])
             .defaultLaunchBehavior(.presented)
+            // A UI-testing launch restores nothing, so the window is always presented (a saved "window closed" state hid it); a person's launch restores as usual.
+            .restorationBehavior(Self.isUITesting ? .disabled : .automatic)
             .defaultSize(width: LayoutPolicy.datasetWindowIdealSize.width,
                          height: LayoutPolicy.datasetWindowIdealSize.height)
             .windowStyle(.titleBar)

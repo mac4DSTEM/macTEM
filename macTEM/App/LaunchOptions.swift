@@ -3,7 +3,7 @@
 //  Role: the launch arguments the UI tests (and a person) start the app with, read in the App target only, never in a kit
 //        (docs: macEM-suite process/ui-testing-2026-10-21.md section 2).
 //
-//          --ui-testing            ignore the saved window and split geometry, so every launch is the same window
+//          --ui-testing            ignore the saved window and split geometry and the saved application state, so every launch is the same window
 //          --demo-fixture          open the generated "Demo lattice" image (DemoDocuments, in memory)
 //          --demo-diffraction-fixture open the generated "Demo Au pattern" (a ring pattern with planted centre and scale) in the Diffraction room
 //          --demo-spectrum-fixture open the generated "Demo EDX" spectrum image in the EDX room
@@ -62,5 +62,19 @@ struct LaunchOptions: Equatable {
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("NSWindow Frame") || key.hasPrefix("NSSplitView Subview Frames") {
             defaults.removeObject(forKey: key)
         }
+    }
+
+    /// A UI-testing launch starts from no saved window geometry and no saved application state, before any window is made (mac4DSTEM's
+    /// `UITestingLaunch.resetSavedState`, the same reset). A launch that quit with the window closed (or was killed by the test) leaves a saved state
+    /// that the next launch restores into no window at all, `-ApplePersistenceIgnoreState` notwithstanding (open-items 2026-10-23: only `open -F`
+    /// and a clean quit cleared it); removing the saved state is what `open -F` does. Never for a person's launch.
+    static func resetSavedState(defaults: UserDefaults = .standard, home: String = NSHomeDirectory(),
+                                bundleIdentifier: String? = Bundle.main.bundleIdentifier) {
+        clearSavedGeometry(in: defaults)
+        if let id = bundleIdentifier {
+            let saved = URL(fileURLWithPath: home).appendingPathComponent("Library/Saved Application State/\(id).savedState")
+            try? FileManager.default.removeItem(at: saved)
+        }
+        defaults.set(false, forKey: "NSQuitAlwaysKeepsWindows")
     }
 }

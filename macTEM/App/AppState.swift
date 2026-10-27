@@ -100,7 +100,7 @@ final class AppState {
 
     /// The UI tests' and the demo's starting state (`LaunchOptions`): saved geometry cleared, the generated documents opened.
     private func applyLaunchOptions(_ launch: LaunchOptions) {
-        if launch.isUITesting { LaunchOptions.clearSavedGeometry(); UITestingPlacement.installIfTesting() }
+        if launch.isUITesting { LaunchOptions.resetSavedState(); UITestingPlacement.installIfTesting() }
         if launch.demoImage { open(urls: [DemoDocuments.latticeURL]) }
         if launch.demoPattern { open(urls: [DemoDocuments.patternURL]); navigation.workspaceArea = .diffraction }
         if launch.demoStack, let url = try? DemoDocuments.stackFile() { open(urls: [url]) }

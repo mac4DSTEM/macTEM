@@ -191,9 +191,14 @@ ui_tests() (
   local -a only
   if (( $# > 0 )); then for journeys in "$@"; do only+=("-only-testing:macTEMUITests/$journeys"); done; else only=(-only-testing:macTEMUITests -skip-testing:macTEMUITests/PerformanceJourney); fi
   # Signed (automatic), unlike the unit gate: the app is launched. Packages still need -O or the demo takes 20 times longer.
+  # The runner lives at ONE fixed path, whatever the tree (repo, worktree, scratch mirror) and whatever $TMPDIR: macOS grants Screen Recording
+  # (and Accessibility) to macTEMUITests-Runner.app by where it is, so a runner that moves asks again. The suite's place for both apps' runners is
+  # ~/Library/Caches/macEM-ui-tests/<app> (mac4DSTEM's lane uses the same root); MACEM_UI_DERIVED_DATA overrides the folder for this app.
+  local dd="${MACEM_UI_DERIVED_DATA:-$HOME/Library/Caches/macEM-ui-tests/macTEM}"
+  echo "ui: runner in $dd/Build/Products/Debug/macTEMUITests-Runner.app (grant Screen Recording to it once)"
   # One UI run at a time on the one screen: macTEM and mac4DSTEM share this lock file, so their runs queue instead of fighting for the window.
   lockf -k -t 1200 "${TMPDIR:-/tmp}/macem-ui-tests.lock" xcodebuild test -project "$ROOT/macTEM.xcodeproj" -scheme macTEMUI -configuration Debug -destination 'platform=macOS' \
-    -derivedDataPath "$gate/dd-ui" -resultBundlePath "$result" "${only[@]}" SWIFT_OPTIMIZATION_LEVEL=-O > "$gate/ui.log" 2>&1 && rc=0 || rc=$?
+    -derivedDataPath "$dd" -resultBundlePath "$result" "${only[@]}" SWIFT_OPTIMIZATION_LEVEL=-O > "$gate/ui.log" 2>&1 && rc=0 || rc=$?
   grep -E "error:|TEST (SUCCEEDED|FAILED)" "$gate/ui.log" | tail -20 || true
   echo "ui: xcodebuild exit $rc"
   if ! xcrun xcresulttool get test-results summary --path "$result" > "$gate/ui-summary.json" 2>/dev/null; then
