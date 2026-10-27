@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/banner.png" width="100%" alt="macTEM: TEM images, spectra and diffraction, native on Apple silicon"></p>
+
 # macTEM
 
 TEM images, EDS and EELS spectrum images and electron diffraction, analysed natively on the Mac.
