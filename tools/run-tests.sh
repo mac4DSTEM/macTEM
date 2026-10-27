@@ -426,8 +426,10 @@ inventory() {
   # ../MacEMUI; nightly review 2026-10-23), else none and only this repo's sources are searched.
   local shared="$ROOT/../MacEMUI/Sources" id parent
   if [[ ! -d "$shared" ]]; then
-    shared="$(ls -d "$ROOT"/.build/checkouts/MacEMUI/Sources "$ROOT"/../*/SourcePackages/checkouts/MacEMUI/Sources \
-                    "${MACTEM_GATE_DIR:-/nonexistent}"/*/SourcePackages/checkouts/MacEMUI/Sources 2>/dev/null | head -1)"
+    # (N): a pattern with no match drops out instead of stopping zsh with "no matches found" (CI, 2026-10-27).
+    local -a found=( "$ROOT"/.build/checkouts/MacEMUI/Sources(N/) "$ROOT"/../*/SourcePackages/checkouts/MacEMUI/Sources(N/) \
+                     "${MACTEM_GATE_DIR:-/nonexistent}"/*/SourcePackages/checkouts/MacEMUI/Sources(N/) )
+    shared="${found[1]:-}"
     [[ -n "$shared" ]] || echo "  (no MacEMUI checkout beside this repo: the shell's identifiers are not checked here)"
   fi
   local -a where=("$ROOT/macTEM" "$ROOT/Sources"); [[ -n "$shared" ]] && where+=("$shared")
