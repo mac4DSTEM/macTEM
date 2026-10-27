@@ -31,7 +31,7 @@ let package = Package(
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", exact: "0.12.0"),
         // The window shell, controls and Metal image view both apps share (suite task 8). TEMCore takes ShellMetal only (MetalEngine, ColormapKind, MTLTexture+Float);
         // TEMSession takes ShellLayout (SystemMonitor).
-        .package(url: "https://github.com/mac4DSTEM/MacEMUI", exact: "0.3.0"),
+        .package(url: "https://github.com/mac4DSTEM/MacEMUI", exact: "0.3.1"),
     ],
     targets: [
         .target(

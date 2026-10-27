@@ -80,6 +80,9 @@ jobs:
           # job could never pass until this was set (mac4DSTEM, 2026-09-09). Kept so a rule that compares
           # against the previous commit does not repeat that.
           fetch-depth: 2
+      - name: Resolve the pinned MacEMUI
+        # The UI-journey identifier check reads the shell's sources from .build/checkouts/MacEMUI (no ../MacEMUI here).
+        run: swift package resolve
       - name: Run the inventory
         run: tools/run-tests.sh inventory
 
