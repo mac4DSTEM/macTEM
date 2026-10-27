@@ -272,7 +272,6 @@ nonisolated final class EDXRoomTests: XCTestCase {
 
     // MARK: The periodic table
 
-
     // MARK: The shell's slots
 
     /// What is selected on the right is what the colour mix shows (the scan image included); nothing selected leaves the anchor empty (its placeholder shows). Red under: the old

@@ -839,7 +839,6 @@ struct FFTRoomInspectorInfo: View {
     }
 }
 
-
 /// The finder's three settings: how far above the display's minimum a peak must rise (a fraction of the range), the least distance
 /// between two peaks, and how many spots to put on the spectrum. They apply at the next Find Spots.
 private struct FFTSpotFinderRows: View {

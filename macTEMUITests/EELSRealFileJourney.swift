@@ -170,7 +170,6 @@ nonisolated final class EELSRealFileJourney: Journey {
         let a = XCTAttachment(screenshot: e.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
     }
 
-
     @MainActor func test_TheEELSAcceptanceOn143() throws {
         try step("launch with --open on the 143 file") { openReal(); waitForRoomContent() }
 

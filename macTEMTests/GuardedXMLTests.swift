@@ -13,7 +13,6 @@
 import ImagoCore
 import XCTest
 import TEMCore
-import enum FormatoCore.GuardedXML
 import FormatoCore
 import FormatoTIFF
 @testable import macTEM

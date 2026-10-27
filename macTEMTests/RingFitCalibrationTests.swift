@@ -14,8 +14,6 @@
 
 import XCTest
 import DiffractoGeometry
-import struct DiffractoGeometry.DiffractionPattern
-
 nonisolated final class RingFitCalibrationTests: XCTestCase {
 
     // MARK: The plant
