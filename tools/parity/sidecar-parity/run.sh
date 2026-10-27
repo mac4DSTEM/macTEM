@@ -566,7 +566,7 @@ source_mutant SessionSidecarFile.swift dense-accepted-when-attributes-counted \
 # header read (the header bits are the same), only the structure-aware fuzz can: the second opinion's FRHP windows (17 SIGSEGV and 26 hangs
 # in its 648) crash or spin it, where the header-only read returns on all of them.
 # MEMORY (2026-10-20, FormatoKit 0.5.0 switch): this mutant's child grows to about 30 GB resident before its deadline kills it (two runs:
-# 29.8 and 33.0 GB), over the 24 GB cap, so a full run under `memcap.sh --gb 24` is killed here; run it alone, `--only dense-header-read`, under a
+# 29.8 and 33.0 GB), over the 24 GB cap, so a full run under a 24 GB memory cap is killed here; run it alone, `--only dense-header-read`, under a
 # larger cap on an otherwise idle Mac.
 GATE_EXTRA=(--fuzz-dense)
 source_mutant SessionSidecarFile.swift dense-header-read-with-meta-size \

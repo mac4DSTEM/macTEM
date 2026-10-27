@@ -80,7 +80,7 @@ build `-Onone` in Debug (see "Known limitations").
 | Session owners (`@Observable`), no SwiftUI | `Sources/TEMSession/` |
 | Unit tests; committed fixtures (≤ 1 MiB) in `Fixtures/` | `macTEMTests/` |
 | Reference harnesses, gates, their libraries | `tools/<name>/` — classified in `tools/run-tests.sh` |
-| Docs | `docs/` (the live set is listed in `CLAUDE.md`); dated or superseded → the archive folder |
+| Docs | `docs/` (the live set is listed in `docs/status.md`); dated or superseded → the archive folder |
 | Pinned references, fetched or provisioned | `References/` (gitignored; `tools/lib/python.sh`, `tools/lib/fetch-rsciio.sh`, `tools/lib/fetch-formatokit.sh`, `tools/lib/fetch-diffractokit.sh`, `tools/lib/fetch-imagokit.sh`) |
 | Redistributed binaries and their licences | FormatoKit's three frameworks in `Contents/Frameworks` (`FormatoLibHDF5`, `FormatoLibSZ`, `FormatoLibAEC`; none committed here, ADR 026) and `Licenses/`, named and hashed in `NOTICE` |
 

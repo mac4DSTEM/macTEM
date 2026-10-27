@@ -1,7 +1,7 @@
 //
 //  EDXRealDataTests.swift
 //  The EDS room end to end on the owner's real 1.7 GB Velox spectrum image (data/stem-edx): open, first spectrum, Auto ID, Quantify, a drawn region and its pooled
-//  spectrum, a line profile. Opt-in (the file is the owner's data and the run is heavy): `TEST_RUNNER_MACTEM_REAL_DATA=1` or the flag file named in the skip message, under `tools/memcap.sh`. The test states
+//  spectrum, a line profile. Opt-in (the file is the owner's data and the run is heavy): `TEST_RUNNER_MACTEM_REAL_DATA=1` or the flag file named in the skip message, under a memory cap. The test states
 //  what each step took and the resident memory after it (printed as `REALDATA …` lines); the assertions are only that every step lands and that a region's counts are
 //  the sum of its pixels' counts, so a slow step is a finding, not a failure.
 //

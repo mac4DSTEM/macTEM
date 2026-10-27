@@ -77,7 +77,7 @@ What led here, newest first:
 ### 2026-10-21
 - Kit pins: FormatoKit 0.7.0, DiffractoKit 0.7.1, ImagoKit 0.4.0. The app's copies of the PNG text-chunk writer, the four reference crystals, the
   line-profile fold, the thumbnail maker and the FFT mask defaults are gone; the kits' versions are called. Visible behaviour is unchanged.
-- Dead code from the kit switches removed; docs, ADR statuses, CLAUDE.md and the skills brought to the suite process. No behaviour change.
+- Dead code from the kit switches removed; docs, ADR statuses and the project rules brought to the suite process. No behaviour change.
 
 ### Visible change to announce at the first release
 - A spot on an image whose axes are already reciprocal ("1/nm") reports q in "nm" (it was "1/1/nm") in the Results CSV and the FFT export (ImagoKit 0.1.0 switch, 2026-10-15).
