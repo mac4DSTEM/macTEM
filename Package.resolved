@@ -1,5 +1,5 @@
 {
-  "originHash" : "1695e0b24aa5fce15eb220d71972885dfba172477e893ac0ddc6b5b1de7a7d8c",
+  "originHash" : "328652921d30b605b7fb4f426e5ccb2966595b6b6607b2558d2638981598162b",
   "pins" : [
     {
       "identity" : "diffractokit",
@@ -26,6 +26,14 @@
       "state" : {
         "revision" : "41b4b617d108084f8cb2cf22acc4042614eb92d1",
         "version" : "0.7.0"
+      }
+    },
+    {
+      "identity" : "macemui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mac4DSTEM/MacEMUI",
+      "state" : {
+        "revision" : "1b8d1ac1cc31e960575569b0a932242d66789859"
       }
     },
     {

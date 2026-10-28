@@ -31,7 +31,8 @@ let package = Package(
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", exact: "0.12.0"),
         // The window shell, controls and Metal image view both apps share (suite task 8). TEMCore takes ShellMetal (MetalEngine, ColormapKind, MTLTexture+Float)
         // and ShellEDXModel (the shared EDS room's regions and pins, which the EELS room reuses); TEMSession takes ShellLayout (SystemMonitor) and ShellEDXModel.
-        .package(path: "../MacEMUI"),   // issue 66: the shared EDS room; back to an exact tag once MacEMUI releases it
+        // Issue 66: the shared EDS room, pinned to MacEMUI's PR branch until it is released; back to an exact tag before merge.
+        .package(url: "https://github.com/mac4DSTEM/MacEMUI", revision: "1b8d1ac1cc31e960575569b0a932242d66789859"),
     ],
     targets: [
         .target(
