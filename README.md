@@ -10,7 +10,7 @@ Apple silicon.
 ## Download
 
 Get the signed and notarised DMG from the [latest release](https://github.com/mac4DSTEM/macTEM/releases/latest). It needs
-macOS 27 or later on an Apple silicon Mac.
+macOS 26 or later on an Apple silicon Mac.
 
 ## What it does
 

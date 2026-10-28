@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Runs on macOS 26** (was macOS 27) on Apple silicon. MacEMUI 0.3.2. CI builds and runs the unit tests, on Xcode 26.6.
+
 ## v1.0.0 — 2026-10-23
 
 First release. macTEM analyses TEM images, EDS and EELS spectrum images and diffraction patterns on Apple silicon
