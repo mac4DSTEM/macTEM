@@ -126,10 +126,6 @@ package final class DiffractionAnalysis {
         centre = DiffractionCentre(row: row, column: column, source: .typed)
     }
 
-    package func resetCentre(for image: CalibratedImage) {
-        centre = .imageCentre(width: image.width, height: image.height)
-    }
-
     /// Takes the fitted ring's centre as the pattern's (offered, never applied by itself).
     package func useCentre(ofRing id: UUID) {
         guard let fit = rings.first(where: { $0.id == id })?.fit?.fit else { return }
