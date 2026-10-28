@@ -220,7 +220,7 @@ private struct EELSProcessingSection: View {
     @ViewBuilder private var lambdaRows: some View {
         SegmentedPicker(label: "Mean free path λ", items: [(Kind.none, .title("No λ", help: "t/λ only")), (.given, .title("Typed λ", help: "Type λ in nm: t = λ · t/λ")),
                                                           (.estimate, .title("Estimate λ", help: session.lambdaEstimateBlocker ?? "Iakoubovskii's λ from E₀, α, β and a density"))],
-                        selection: Binding(get: { kind }, set: select))
+                        selection: Binding(get: { kind }, set: { select($0) }))   // a closure: Swift 6.3.3 crashes in IRGen on `set: select`
             .accessibilityIdentifier("eels.mfp")
         switch session.meanFreePath {
         case .none:
