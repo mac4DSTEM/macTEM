@@ -6,7 +6,7 @@
 //        every number and sentence is the kit's (`PooledQuantification`), formatted by `EDXRoomFormat`.
 //
 //        at% rests on a computed or typed k whose validation is "none": it is badged unvalidated wherever it is shown and is
-//        never called validated (CLAUDE.md, "Unvalidated stays labelled").
+//        never called validated ("Unvalidated stays labelled").
 //
 
 import ShellInspector

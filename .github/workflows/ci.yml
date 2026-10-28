@@ -108,3 +108,14 @@ jobs:
       - name: Fail on Accelerate / Metal / vDSP outside the allowlist
         # Decision D15. Plain grep, no build; also part of `inventory`, kept as its own job so the red is named.
         run: tools/check-kit-boundary.sh
+
+  private-refs:
+    name: No private references
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan tracked files
+        run: |
+          if git grep -n -I -E '_archive|CLAUDE\.md|memcap|macEM-suite|setup-python-refs' -- ':!.gitignore' ':!.github/workflows/ci.yml'; then
+            echo "Private references above; this repo is public."; exit 1
+          fi
