@@ -1,7 +1,6 @@
 //
 //  ImageRoomSession.swift
-//  Role: the tail of the Image room's Measure section (V1-2 slice B's UI, archive: v12-session-ui-design-2026-10-14.md,
-//        sections 1 and 2): where the marks are kept, said in words — "Not saved", "Restored from …", "Saved at …", why a
+//  Role: the tail of the Image room's Measure section: where the marks are kept, said in words — "Not saved", "Restored from …", "Saved at …", why a
 //        session file was not used — with Save to Session when something changed, Show in Finder and Choose Session File…
 //        where the design puts them. It replaces the note "Marks stay while the file is open; they are not saved yet." The
 //        reason a Save is off is drawn here, never only in the menu (mac4DSTEM's drive 14 shipped a dimmed Save with none).

@@ -1,6 +1,6 @@
 //
 //  EELSRoomInspector.swift
-//  Role: the EELS room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the standard order (docs/design/eels-room.md):
+//  Role: the EELS room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the standard order:
 //        Maps (one full-width control: ZLP · t/λ · t · at% · wt%, a segment off with its reason until its stage ran, one caption), Tools (the region tool and the
 //        Regions list), Edges (the periodic table answered from the session), Processing (Align, Threshold, λ, Deconvolution; the stage's state on the title),
 //        Fitting (model, background, convolution, E0 α β with their source) and Export. Info: the file, its grid and energy axis.
@@ -61,7 +61,7 @@ private struct EELSMapsSection: View {
     }
 }
 
-/// Tools: the region tool, one full-width control of icons, as in the EDS room. The regions live on the anchor tile and in the results' Regions table (Paul,
+/// Tools: the region tool, one full-width control of icons, as in the EDS room. The regions live on the anchor tile and in the results' Regions table (the owner,
 /// 2026-10-23: no region rows in the inspector).
 private struct EELSToolsSection: View {
     @Bindable var state: EELSRoomState
@@ -135,7 +135,7 @@ private struct EELSEdgesSection: View {
             } else {
                 InspectorNote("Quantify: " + session.pickedEdges.map { "\(EELSFitCompute.title($0)) \(EELSRoomFormat.sig($0.onsetEV, 5)) eV" }.joined(separator: ", "))
                     .accessibilityIdentifier("eels.edges.picked")
-                // Back to the kit's default windows after a drag (Paul's drive, 2026-10-23: "how do I go back to the default?"); one edge: double-click its window.
+                // Back to the kit's default windows after a drag (the owner's drive, 2026-10-23: "how do I go back to the default?"); one edge: double-click its window.
                 InspectorActionRow {
                     Button("Reset Windows") { session.resetAllWindows() }
                         .disabled(!session.hasEditedWindows)
@@ -371,7 +371,7 @@ private struct EELSReferencesBlock: View {
 }
 
 /// Export: the buttons the session can serve today, each disabled with its reason before its stage ran.
-/// Export: the EDS room's rows (Paul's drive, 2026-10-23): Results and Spectrum, Regions and Maps, the per-pixel thickness and the method; the maps' region switch.
+/// Export: the EDS room's rows (the owner's drive, 2026-10-23): Results and Spectrum, Regions and Maps, the per-pixel thickness and the method; the maps' region switch.
 private struct EELSExportSection: View {
     @Environment(AppState.self) private var appState
     let session: EELSSession

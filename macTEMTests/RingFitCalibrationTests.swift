@@ -1,6 +1,6 @@
 //
 //  RingFitCalibrationTests.swift
-//  archive: roadmap-registrations-2026-10-15.md "Diffraction S3, Camera length from one ring of known d", slice S3-b: the fit-driven calibration
+//   "Diffraction S3, Camera length from one ring of known d", slice S3-b: the fit-driven calibration
 //  (`RingCalibration.fit`) on rings planted here, in Swift, with their truth known. No Python at run time; the many-plant
 //  tiers and their distributions are tools/parity/ring-calibration-parity's fit stage.
 //

@@ -54,7 +54,7 @@ struct WorkspaceView: View {
         InfobarRunPolicy.showsFit(area: appState.navigation.workspaceArea, fitting: appState.openItems.selected?.diffraction.isFitting ?? false)
     }
 
-    /// A room's pass in flight, in the infobar where every run of the suite sits (Paul, 2026-10-23: not a bar over the maps): the bar, the percent and Stop.
+    /// A room's pass in flight, in the infobar where every run of the suite sits (the owner, 2026-10-23: not a bar over the maps): the bar, the percent and Stop.
     @ViewBuilder
     private var runSlot: some View {
         if showsFit, let analysis = appState.openItems.selected?.diffraction {
@@ -66,7 +66,7 @@ struct WorkspaceView: View {
         }
     }
 
-    /// The standing fact: this app's memory, in Finder's decimal style (the engine's name tells nothing, ADR 011).
+    /// The standing fact: this app's memory, in Finder's decimal style (the engine's name tells nothing).
     private var glanceSlot: some View {
         InfobarGlance(help: "This app's memory footprint") {
             OperationMetricsFormat.glance(residentMB: SystemMonitor.residentMemoryMB() * 1.048576)
@@ -88,8 +88,8 @@ struct WorkspaceView: View {
                 // and pan (`ImagePane`), not the last pane's. (Not `canvas.contentVersion`: two files with equal
                 // pixels are two items.)
                 Group {
-                    // The room switch: the FFT room shows the image beside its transform (V1-6), the Results room the file's
-                    // measurements (V1-10 slice 3); the Image room its pane.
+                    // The room switch: the FFT room shows the image beside its transform, the Results room the file's
+                    // measurements; the Image room its pane.
                     if appState.navigation.workspaceArea == .fft {
                         FFTRoom(image: image, canvas: canvas, item: item)
                     } else if appState.navigation.workspaceArea == .results {

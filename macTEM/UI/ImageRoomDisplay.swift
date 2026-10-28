@@ -1,7 +1,6 @@
 //
 //  ImageRoomDisplay.swift
-//  Role: the Image room's Display section (Settings tab, under Calibration; archive: roadmap-registrations-2026-10-15.md V1-4, the design in
-//        archive: image-room-design-2026-10-13.md): the colormap, the histogram with the contrast window, the gamma,
+//  Role: the Image room's Display section (Settings tab, under Calibration): the colormap, the histogram with the contrast window, the gamma,
 //        Show Scale Bar — each the open file's own (`ImagePresentation`). Display only: nothing here reaches a number.
 //
 

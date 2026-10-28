@@ -1,6 +1,6 @@
 //
 //  ImageMeasurementsSessionTests.swift
-//  The session record of `ImageMeasurements`, the one owner of the marks on a file (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, the core):
+//  The session record of `ImageMeasurements`, the one owner of the marks on a file (the core):
 //  every mutator records (a new mark adds its node, a move or a width change replaces it in place, R3; a removal removes
 //  it), points and widths are clamped as the room clamps them, a lineage that can take no node refuses the mark by name,
 //  a read-only lineage draws and records nothing, a save is one Sendable request and `didSave` marks its revision saved, a
@@ -302,7 +302,7 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
         XCTAssertNil(fresh.add(distance((0, 0), (3, 4)), on: image))
     }
 
-    // MARK: The byte budget (ADR 023 a)
+    // MARK: The byte budget
 
     /// The saved text of `owner` for `identity`: the request's total (what the writer holds to 60,000).
     @MainActor private func savedBytes(_ owner: ImageMeasurements, _ identity: SessionSourceIdentity) throws -> Int {

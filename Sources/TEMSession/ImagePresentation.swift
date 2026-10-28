@@ -1,10 +1,10 @@
 //
 //  ImagePresentation.swift
 //  Role: the one owner of how one open file is drawn — the display-normalised pixels the canvas uploads, the
-//        colormap, the contrast window, the gamma and whether the scale bar shows (V1-4). Never a scientific number:
+//        colormap, the contrast window, the gamma and whether the scale bar shows. Never a scientific number:
 //        nothing here is measured, exported or saved, and no measurement reads the canvas (V1-5 reads the image's own
 //        pixels). The intensity histogram the Display section draws is computed once with the canvas, off the main
-//        actor, from the RAW pixels (`IntensityHistogram`, ImagoKit ImagoCore with an app default-bins extension; archive: roadmap-registrations-2026-10-15.md V1-4, gated against numpy).
+//        actor, from the RAW pixels (`IntensityHistogram`; ImagoKit ImagoCore with an app default-bins extension; gated against numpy).
 //
 
 import ShellMetal
@@ -66,7 +66,7 @@ package final class ImagePresentation {
     package var windowHigh: Float?
     /// The display gamma, 0.2–5; 1 is linear.
     package var gamma: Double = 1
-    /// Whether the pane draws its scale bar (ADR 017: the toggle joins V1-4). The calibration is never hidden.
+    /// Whether the pane draws its scale bar. The calibration is never hidden.
     package var showsScaleBar = true
 
     /// The window as the shader takes it (`DisplayWindow.fractions`).
@@ -75,7 +75,7 @@ package final class ImagePresentation {
     }
 
     /// Takes `other`'s settings — colormap, window, gamma, scale bar — and none of its pixels: an item that goes cold
-    /// is drawn as it was when it is read again (V1-13).
+    /// is drawn as it was when it is read again.
     package func keepSettings(of other: ImagePresentation) {
         colormap = other.colormap
         windowLow = other.windowLow

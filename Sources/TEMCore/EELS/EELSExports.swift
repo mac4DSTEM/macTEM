@@ -1,4 +1,4 @@
-// The EELS room's text exports beside the per-pixel CSV and the method JSON (Paul's drive, 2026-10-23: "the options could be like in the EDS room"): the results
+// The EELS room's text exports beside the per-pixel CSV and the method JSON (the owner's drive, 2026-10-23: "the options could be like in the EDS room"): the results
 // table, the shown spectrum and the regions' rows as CSV. Pure strings from the session's values; every file carries its provenance and the unvalidated badge.
 import Foundation
 

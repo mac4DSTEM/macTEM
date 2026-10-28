@@ -20,7 +20,7 @@ struct WorkspaceSidebar: View {
         // Two Lists, not one: a shared selection would drop the active room's highlight when a file is chosen. With
         // files open the rooms list is as tall as its rows and the files take the rest; with none it fills the column.
         // The height is a constant per system sidebar size: measuring it from the rows' positions either left a gap on
-        // a first layout or, written to state during layout, crashed AppKit's layout loop guard (Gate D, 2026-10-13).
+        // a first layout or, written to state during layout, crashed AppKit's layout loop guard (2026-10-13).
         let hasItems = !appState.openItems.items.isEmpty
         VStack(spacing: 0) {
             roomsList

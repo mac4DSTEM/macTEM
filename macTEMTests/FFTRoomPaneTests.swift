@@ -1,6 +1,6 @@
 //
 //  FFTRoomPaneTests.swift
-//  The FFT room's two panes (archive: roadmap-registrations-2026-10-15.md V1-6, "The room"; the design in archive: fft-room-design-2026-10-13.md): what
+//  The FFT room's two panes ("The room"): what
 //  they say (`FFTPaneFormat`), which pixels the source pane draws and how (`FFTSourceLayer`), where the region's outline,
 //  handles and drags sit in pane points (`FFTRegionGeometry`, through `MarkGeometry`), and where the transform's bins,
 //  spots and mask circles sit on a non-square box (`FFTSpectrumLayout`, `FFTSpotMarkers`). Every number is the closed form

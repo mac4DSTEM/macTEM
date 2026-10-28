@@ -1,7 +1,6 @@
 //
 //  ImageRoomMeasure.swift
-//  Role: the Image room's Measure section (Settings tab, under Display; archive: roadmap-registrations-2026-10-15.md V1-5, the design in
-//        archive: image-room-design-2026-10-13.md): the tool, the list of marks on the open file, and, for a
+//  Role: the Image room's Measure section (Settings tab, under Display): the tool, the list of marks on the open file, and, for a
 //        selected profile, its chart and width. Presentation only: the marks and their profiles are the file's
 //        `ImageMeasurements` (TEMSession), the numbers TEMCore's (`ImageMeasurement`, `LineProfile`), the tool the
 //        window's `ImageRoomTools`. What a mark's value READS as is `MarkFormat`, pure so a test pins it.
@@ -29,7 +28,7 @@ struct ImageRoomMeasureSection: View {
     let image: CalibratedImage
     let measurements: ImageMeasurements
     let tools: ImageRoomTools
-    /// The selected item, whose session state the tail shows (V1-2); nil with no file open.
+    /// The selected item, whose session state the tail shows; nil with no file open.
     let item: OpenItem?
 
     var body: some View {
@@ -266,7 +265,7 @@ private struct MeasureProfileChart: View {
             let samples = zip(shown.positions, profile.samples).enumerated()
                 .map { Sample(id: $0.offset, position: $0.element.0, value: $0.element.1) }
             // A String, not an interpolated literal: `.value("Position (\(…))", …)` takes the LocalizedStringKey overload,
-            // which traps Charts' layout now and then (archive: fft-chart-trap-gate-d-2026-10-14.md).
+            // which traps Charts' layout now and then.
             let xTitle = "Position (\(shown.unit))"
             Chart(samples) { sample in
                 LineMark(x: .value(xTitle, sample.position),

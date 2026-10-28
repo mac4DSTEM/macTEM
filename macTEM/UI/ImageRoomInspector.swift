@@ -20,7 +20,7 @@ import TEMSession
 #endif
 
 /// The room's Settings: the calibration a distance in this room is measured in (readiness, first), then the
-/// display of the selected file (V1-4) and its marks (V1-5).
+/// display of the selected file and its marks.
 struct ImageRoomSettings: View {
     let image: CalibratedImage
     @Environment(AppState.self) private var appState
@@ -32,11 +32,11 @@ struct ImageRoomSettings: View {
         ImageRoomDisplaySection(presentation: appState.presentation)
         ImageRoomMeasureSection(image: image, measurements: appState.measurements, tools: appState.imageRoomTools,
                                 item: appState.openItems.selected)
-        // The Particles view (docs/design/rooms-2026-10-21.md section 4): objects found on the image, outlined over it.
+        // The Particles view: objects found on the image, outlined over it.
         if let item = appState.openItems.selected {
             ImageRoomParticlesSection(image: image, item: item, rawRange: appState.presentation.canvas?.rawRange)
         }
-        // The record of those marks (V1-2): collapsed, drawn only when there is something to show.
+        // The record of those marks: collapsed, drawn only when there is something to show.
         if let item = appState.openItems.selected { ImageRoomLineageSection(image: image, item: item) }
     }
 }
@@ -70,7 +70,7 @@ struct ImageInfoSection: View {
 
     var body: some View {
         imageSection
-        // What the file records about the acquisition (V1-4a, ImageRoomAcquisition.swift).
+        // What the file records about the acquisition (ImageRoomAcquisition.swift).
         AcquisitionSection(metadata: appState.imageSession.metadata,
                            formatExtension: (image.fileName as NSString).pathExtension)
     }

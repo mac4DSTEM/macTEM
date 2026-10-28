@@ -1,7 +1,6 @@
 //
 //  ResultsExportSnapshot.swift
-//  Role: what Export Results… takes from the selected file when its panel opens (V1-10 slice 3, archive: results-room-design-
-//        2026-10-15.md, section 5): every finished measurement as `ResultRow`s (`ResultsLedger`, ALL groups: the Show switches
+//  Role: what Export Results… takes from the selected file when its panel opens: every finished measurement as `ResultRow`s (`ResultsLedger`, ALL groups: the Show switches
 //        filter the table, not the file), the file's source as the file states it, the session sentence, the name and the
 //        words. As `ExportSnapshot` does for the other rooms: a Sendable value taken once; the write that follows runs off the
 //        main actor on it, through the one hand-over `write(to:)` that the panel only calls.

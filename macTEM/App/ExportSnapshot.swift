@@ -1,7 +1,6 @@
 //
 //  ExportSnapshot.swift
-//  Role: what an export takes from the selected file when its panel opens (V1-10 slice 1, archive: roadmap-registrations-2026-10-15.md "Completed at
-//        pickup — slice 1"; archive: export-design-2026-10-13.md). Pure functions from the file's own owners (its
+//  Role: what an export takes from the selected file when its panel opens. Pure functions from the file's own owners (its
 //        image, `ImagePresentation`, `ImageMeasurements`) to TEMCore's inputs (`ExportSource`, `ImageExport.Display`,
 //        `ImageExport.Mark`, a profile and its ends) and to the words a panel shows: the default names, the message
 //        lines, the status lines, the defaults of the options, and when the two commands are enabled. Nothing is stored
@@ -103,7 +102,7 @@ nonisolated struct ExportAvailability: Sendable, Equatable {
 
 enum ExportSnapshot {
 
-    /// The labels in the PNG are not the reader's: a de_DE user still gets "12.43 nm" in a figure (archive: roadmap-registrations-2026-10-15.md V1-10).
+    /// The labels in the PNG are not the reader's: a de_DE user still gets "12.43 nm" in a figure.
     nonisolated static let labelLocale = Locale(identifier: "en_US_POSIX")
 
     // MARK: Software
@@ -151,7 +150,7 @@ enum ExportSnapshot {
     nonisolated static func exportingLine(name: String) -> String { "Exporting \(name)…" }
 
     /// The infobar, and the VoiceOver announcement, when the PNG is written. What was left out comes right after the name:
-    /// the infobar is one line cut at its tail (Gate B U5), and the notice is the part the user needs.
+    /// the infobar is one line cut at its tail, and the notice is the part the user needs.
     nonisolated static func imageDoneLine(name: String, width: Int, height: Int, barLeftOut: Bool) -> String {
         let size = "\(width) × \(height) px"
         return barLeftOut ? "Exported \(name) without the scale bar (the image is too small) — \(size)"

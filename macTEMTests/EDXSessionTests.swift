@@ -9,7 +9,7 @@
 //  WHAT IS PINNED, and how (D12): sums, windows and maps are integer counts and are exact; the fit through the room is the
 //  kit's own `PooledQuantifier.run` on the same input and must equal it to the bit (the room adds no arithmetic); and the
 //  fitted areas are compared with the planted truth within a tolerance written where it is used. The kit's own gates
-//  (SpectroKit docs/edx-stage-gates-registration.md) are the reference for the kit's numbers; these tests are the room's wiring.
+//   are the reference for the kit's numbers; these tests are the room's wiring.
 //
 
 import XCTest
@@ -374,7 +374,7 @@ nonisolated final class EDXSessionTests: XCTestCase {
         XCTAssertTrue(session.dismissed.isEmpty)
     }
 
-    /// A region still under the pointer: the spectrum follows it while the drag runs (Paul's drive, 2026-10-23: "I can drag it but see the
+    /// A region still under the pointer: the spectrum follows it while the drag runs (the owner's drive, 2026-10-23: "I can drag it but see the
     /// changes only after I let go"); the selected region, the results and the fit wait for the release. Ending the preview without a new
     /// region puts the selected region's spectrum back; a region committed on release wins over a preview still in flight.
     @MainActor func testADragPreviewsTheSpectrumAndTheReleaseCommits() async {

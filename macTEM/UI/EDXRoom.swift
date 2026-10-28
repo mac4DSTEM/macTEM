@@ -1,6 +1,6 @@
 //
 //  EDXRoom.swift
-//  Role: the EDX room (mac4DSTEM's Spectroscopy room, ADR 056 "maps first", cut to macTEM): a spectrum image from a Velox
+//  Role: the EDX room (mac4DSTEM's Spectroscopy room; cut to macTEM): a spectrum image from a Velox
 //        .emd or a GMS .dm4 shown as maps, one spectrum and one results table, mounted by `WorkspaceView`'s room switch.
 //        The room has its own document, the spectrum image, which is not an open image: it is opened from here
 //        (`EDXRoomState.requestImport`) and held by `EDXSession`, so the Image, FFT and Results rooms keep their files.

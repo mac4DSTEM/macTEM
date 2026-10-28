@@ -1,6 +1,6 @@
 //
 //  FFTRoom.swift
-//  Role: the FFT room (archive: roadmap-registrations-2026-10-15.md V1-6 + 6a + 6b; the design in archive: fft-room-design-2026-10-13.md): the image
+//  Role: the FFT room: the image
 //        beside its transform, mounted by `WorkspaceView`'s room switch; its inspector content mounted by
 //        `WorkspaceInspector`'s Settings and Info switches.
 //

@@ -1,12 +1,12 @@
 //
 //  FFTRoomFormatTests.swift
-//  Pins what the FFT room's inspector READS as (`FFTRoomFormat`, macTEM/UI/FFTRoomFormat.swift; archive: roadmap-registrations-2026-10-15.md V1-6 "The room" and
-//  archive: fft-room-design-2026-10-13.md): what is transformed, the typed Left/Top/Size, Δq and the Nyquist frequency,
+//  Pins what the FFT room's inspector READS as (`FFTRoomFormat`, macTEM/UI/FFTRoomFormat.swift V1-6 "The room" and
+//  ): what is transformed, the typed Left/Top/Size, Δq and the Nyquist frequency,
 //  a spot's d and |q| in the shown units with the design's refusals, notes and accuracy rule, the radial chart's bins and
 //  its readout (an interval of |q|, never a d), the mask count, the filters' seven parameters against the core's own ranges,
 //  the status line and the words of the badge. The numbers are TEMCore's (gated); this is only their spelling and the few
 //  rules the inspector adds, so every expected string is a literal worked out in the test's comment, never read back from
-//  the formatter. The units follow archive: roadmap-registrations-2026-10-15.md R8 (nm and nm⁻¹ for a length, the file's own unit otherwise, px and px⁻¹).
+//  the formatter. The units follow R8 (nm and nm⁻¹ for a length, the file's own unit otherwise, px and px⁻¹).
 //
 //  App-hosted (`@testable import macTEM`), and ALSO compiled bare by a scratch SwiftPM package that symlinks this file and
 //  FFTRoomFormat.swift into one test target (no app host), which is how the mutations were run: the file imports only XCTest,
@@ -649,7 +649,7 @@ nonisolated final class FFTRoomFormatTests: XCTestCase {
 
     // MARK: The design's words
 
-    /// The sentences the design note fixes, word for word (archive: fft-room-design-2026-10-13.md, "The badge and the
+    /// The sentences the design note fixes, word for word ("The badge and the
     /// notes, in these words", and the inspector and Info tables), and the few the inspector adds. Red under: any word
     /// changed.
     func testTheDesignsWordsAreExact() {

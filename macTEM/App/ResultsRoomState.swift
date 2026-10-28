@@ -1,6 +1,6 @@
 //
 //  ResultsRoomState.swift
-//  Role: the Results room's own state (V1-10 slice 3, archive: results-room-design-2026-10-15.md, section 4): which rows are
+//  Role: the Results room's own state: which rows are
 //        selected and which groups are shown. Window-wide and not saved; composed by `AppState` as `ImageRoomTools` is. The
 //        room has no data of its own: the rows are `ResultsLedger`'s, derived from the file's owners on every read, and this
 //        holds only ids (`ResultRow.id`, stable while a measurement stands).

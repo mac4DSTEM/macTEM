@@ -1,6 +1,6 @@
 //
 //  MarkEdits.swift
-//  Role: the Image room's mark edits that the record can refuse (V1-2 slice B's UI, with ADR 023 a): a move or a width
+//  Role: the Image room's mark edits that the record can refuse: a move or a width
 //        whose longer number would take the saved text past the 60,000-byte budget is declined by `ImageMeasurements` and the
 //        mark is put back — it returns nothing, so this reads the mark before and after to tell a refusal from a no-op, and
 //        the caller says so (`MarkRefusalText`). An add returns its refusal itself and needs no help here.

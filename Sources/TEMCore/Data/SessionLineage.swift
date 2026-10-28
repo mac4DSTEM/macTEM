@@ -1,7 +1,7 @@
 //
 //  SessionLineage.swift
-//  Role: the session sidecar's records as pure data and pure rules (archive: roadmap-registrations-2026-10-15.md V1-2, slice A; ADR 020, adapted from
-//        mac4DSTEM's ADR 047): the lineage — one node per completed measurement on the opened image — with its
+//  Role: the session sidecar's records as pure data and pure rules (adapted from
+//        mac4DSTEM's): the lineage — one node per completed measurement on the opened image — with its
 //        canonical JSON and the guards that read it; the identity of the image a sidecar describes; and the verdict
 //        that decides, before anything is adopted, whether a sidecar belongs to the image just opened. No HDF5, no
 //        file, no SwiftUI, no AppState: `SessionSidecarFile` stores the two JSON strings these types produce and
@@ -16,7 +16,7 @@
 //    - An unknown lineage `version` is a read-only lineage with no nodes (047: "read as v1"; macTEM has no v1).
 //    - No replay record, no `head`, no `frame`, no `product`.
 //
-//  THE FORMAT (one root attribute, a fixed-length UTF-8 string: ADR 021): sorted keys, every number an integer, every
+//  THE FORMAT (one root attribute): sorted keys, every number an integer, every
 //  coordinate or measurement a STRING (Swift's shortest round-trip `Double.description`, parsed back bit-exact by
 //  `coordinate(from:)`), so no float is ever re-rounded by a JSON layer on the way through h5py or back. Byte-stable on
 //  re-encode.
@@ -78,7 +78,7 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
         }
     }
 
-    /// An input from outside the session (reserved, V1-8's CIF): a name and a content fingerprint, never an
+    /// An input from outside the session (reserved): a name and a content fingerprint, never an
     /// absolute path — the repo is public and sidecars travel.
     package nonisolated struct External: Codable, Equatable, Sendable {
         package var name: String
@@ -174,7 +174,7 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
         case unsupportedVersion(Int)
         /// `add` only: every id up to the bound has been minted.
         case idsExhausted
-        /// The owner only (ADR 023 a): the record, saved, would be `bytes` of text, over the `limit` a sidecar may hold.
+        /// The owner only: the record, saved, would be `bytes` of text, over the `limit` a sidecar may hold.
         case tooLargeToSave(bytes: Int, limit: Int)
         /// The owner only: a mark's point is not a finite number, so it is not a place on the image.
         case notFinite
@@ -244,7 +244,7 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
     // MARK: - Recording
 
     /// Why `add` would refuse any node now — a read-only lineage, 2 000 nodes (removed and other kinds count), or every
-    /// id spent — or nil. What a tool asks before a gesture (archive: roadmap-registrations-2026-10-15.md V1-2 slice B: `recordingRefusal`).
+    /// id spent — or nil. What a tool asks before a gesture.
     package var mintRefusal: Refusal? {
         if isReadOnly { return .unsupportedVersion(fileVersion) }
         if nodes.count >= Self.maximumNodes { return .tooManyNodes(nodes.count + 1) }
