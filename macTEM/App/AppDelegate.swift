@@ -2,7 +2,7 @@
 //  AppDelegate.swift
 //  Role: the two things SwiftUI's scene API cannot do for a single-`Window` app (spike 2026-10-12, E1/E4):
 //        it quits when the last window closes, and `.onOpenURL` gets only the first file of a multi-file open.
-//        This is the AppKit named under CLAUDE.md's rule ("AppKit only where SwiftUI cannot do the job"),
+//        This is the AppKit named under the suite's rule ("AppKit only where SwiftUI cannot do the job"),
 //        bridged with `@NSApplicationDelegateAdaptor` in `macTEMApp`. ADR 007: closing the window keeps the app
 //        running and its files open.
 //
