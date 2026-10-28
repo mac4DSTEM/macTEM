@@ -212,7 +212,7 @@ nonisolated final class FFTExportTests: XCTestCase {
 
     private func display(_ w: Int, _ h: Int) -> ImageExport.Display {
         ImageExport.Display(normalized: [Float](repeating: 0, count: w * h), width: w, height: h, low: 0, high: 1, gamma: 1,
-                            lut: (0..<1024).map { $0 % 4 == 3 ? 255 : UInt8($0 / 4) }, colormap: "gray")
+                            lut: (0..<1024).map { (i: Int) -> UInt8 in i % 4 == 3 ? 255 : UInt8(i / 4) }, colormap: "gray")
     }
 
     private func description(_ png: Data) throws -> [String: Any] {

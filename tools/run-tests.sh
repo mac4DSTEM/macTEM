@@ -145,6 +145,11 @@ unit_tests() (
       SWIFT_OPTIMIZATION_LEVEL=-O \
       CODE_SIGNING_ALLOWED=NO > "$work/unit.log" 2>&1 && rc=0 || rc=$?
   grep -E "error:|: error|\) failed |TEST (SUCCEEDED|FAILED)" "$work/unit.log" | tail -40 || true
+  # xcodebuild states some failures only in its "Testing failed:" block, without an `error:` line (a runner without a
+  # matching platform, a test host that will not launch); print that block too.
+  grep -A12 "^Testing failed:" "$work/unit.log" | head -30 || true
+  # A compiler crash prints no `error:` either: its signal and stack dump are the reason.
+  grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/unit.log" | head -40 || true
   echo "unit: xcodebuild exit $rc"
   # Counted from the result bundle, not the log: Xcode 27's parallel runner prints no suite summary, and its
   # stdout can drop a result line when its own debug output interleaves (measured 2026-10-12).
@@ -426,8 +431,10 @@ inventory() {
   # ../MacEMUI; nightly review 2026-10-23), else none and only this repo's sources are searched.
   local shared="$ROOT/../MacEMUI/Sources" id parent
   if [[ ! -d "$shared" ]]; then
-    shared="$(ls -d "$ROOT"/.build/checkouts/MacEMUI/Sources "$ROOT"/../*/SourcePackages/checkouts/MacEMUI/Sources \
-                    "${MACTEM_GATE_DIR:-/nonexistent}"/*/SourcePackages/checkouts/MacEMUI/Sources 2>/dev/null | head -1)"
+    # (N): a pattern with no match drops out instead of stopping zsh with "no matches found" (CI, 2026-10-27).
+    local -a found=( "$ROOT"/.build/checkouts/MacEMUI/Sources(N/) "$ROOT"/../*/SourcePackages/checkouts/MacEMUI/Sources(N/) \
+                     "${MACTEM_GATE_DIR:-/nonexistent}"/*/SourcePackages/checkouts/MacEMUI/Sources(N/) )
+    shared="${found[1]:-}"
     [[ -n "$shared" ]] || echo "  (no MacEMUI checkout beside this repo: the shell's identifiers are not checked here)"
   fi
   local -a where=("$ROOT/macTEM" "$ROOT/Sources"); [[ -n "$shared" ]] && where+=("$shared")

@@ -13,10 +13,11 @@
 #     copy check is `tools/check-shared-drift.sh --static` (headers, pin, copy list). Comparing the copies' bodies
 #     with mac4DSTEM needs that checkout, so it runs on the dev Mac (tools/hooks/pre-push), not here.
 #
-# PAUSED from day one: `unit`, the XCTest suite. The app targets macOS 27 and no GitHub runner image can build a
-# macOS 27 app; mac4DSTEM paused its unit job for the same reason (its ADR 040, "Four owed decisions settled",
-# decision 4). The job stays below with `if: false` and comes back, as the independent gate a one-machine setup
-# lacks, once GitHub offers a macOS 27 image. Until then `unit` runs locally (`tools/run-tests.sh unit`).
+#   * `tools/run-tests.sh unit`      — the XCTest suite. Paused while the app targeted macOS 27; runs since the app
+#     and MacEMUI 0.3.2 deploy to macOS 26 (2026-10-28).
+#
+# XCODE: every job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
+# change the toolchain on an unchanged tree.
 #
 # NOT RUN YET: `scientific`. Its reference stack is a venv that tools/lib/python.sh builds on CPython 3.14 from
 # tools/lib/references-lock.txt (the full closure, as wheels), and the harnesses fetch further pinned sources
@@ -25,9 +26,7 @@
 # EXCLUDED: on-screen verification. The app is driven by hand; no runner can stand in for it.
 #
 # KNOWN CAVEATS, so a green run is not made to claim too much:
-#   * `core` builds with the image's default Xcode 26 and its macOS 26 SDK although Package.swift declares
-#     .macOS("27.0"), exactly as mac4DSTEM's core job does (green there on 2026-10-08: Xcode 26.6, Swift 6.3.3).
-#     The dev Mac builds with Xcode 27. A source that uses an API only in the macOS 27 SDK, or a Swift 6 language
+#   * CI builds with Xcode 26.6 and its macOS 26 SDK; the dev Mac builds with Xcode 27. A source that uses an API only in the macOS 27 SDK, or a Swift 6 language
 #     mode diagnostic (now including a warning) only one of the two compilers emits, will part the two results;
 #     that is the runner's limit, stated here, not a flake.
 #   * The timeouts are margin, not measurement; nothing has timed these jobs off the dev Mac yet.
@@ -44,12 +43,13 @@ concurrency:
   # Superseded branch/PR runs cancel; main runs always complete: on main each commit's finished run is the record.
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+env:
+  # Pinned: the macos-26 image's Xcode 26.6 (Swift 6.3, macOS 26 SDK). Bump on purpose.
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
 jobs:
   unit:
     name: unit (XCTest)
-    # PAUSED (mac4DSTEM ADR 040): no runner image can build a macOS 27 app, so this job could only ever be red.
-    # To resume: delete this `if` and set `runs-on` to the first macOS 27 image.
-    if: false
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -80,6 +80,9 @@ jobs:
           # job could never pass until this was set (mac4DSTEM, 2026-09-09). Kept so a rule that compares
           # against the previous commit does not repeat that.
           fetch-depth: 2
+      - name: Resolve the pinned MacEMUI
+        # The UI-journey identifier check reads the shell's sources from .build/checkouts/MacEMUI (no ../MacEMUI here).
+        run: swift package resolve
       - name: Run the inventory
         run: tools/run-tests.sh inventory
 

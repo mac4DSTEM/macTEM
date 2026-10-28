@@ -124,10 +124,12 @@ nonisolated final class EDXRoomTests: XCTestCase {
         XCTAssertTrue(block.contains("tile.mode == .net ? .off : chosen"), "net maps are never filtered")
         XCTAssertTrue(block.contains("filteredTag: spec.filtered"))
         XCTAssertFalse(block.contains("width: width, adjustment"), "no hatching on a composition tile")
-        let tile = squeezed(try source("../MacEMUI/Sources/ShellSpectroscopy/MapTileView.swift"))
+        XCTAssertEqual(EDXRoomState().mapFilter, .mean3x3, "the 3 × 3 average is the default")
+        // MacEMUI's tile is read from the sibling checkout, which only the dev Mac has (CI resolves MacEMUI as a package).
+        guard let tileSource = try? source("../MacEMUI/Sources/ShellSpectroscopy/MapTileView.swift") else { return }
+        let tile = squeezed(tileSource)
         XCTAssertFalse(tile.contains("maps.hoverChip")); XCTAssertFalse(tile.contains("MapColorbarView(spec: colorbar)"))
         XCTAssertTrue(tile.contains("maps.filteredTag"))
-        XCTAssertEqual(EDXRoomState().mapFilter, .mean3x3, "the 3 × 3 average is the default")
     }
 
     @MainActor func testTheMapsStartInTheElementsOwnColours() {
