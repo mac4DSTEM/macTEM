@@ -1,6 +1,4 @@
-# PROVENANCE: mac4DSTEM df1e6c994ea5b49c7ec08737628631b204736974 .github/workflows/ci.yml adapted
-# mac4DSTEM's core and inventory jobs on its runner image; its paused unit job kept paused; no scientific job yet.
-# END PROVENANCE
+# Adapted from mac4DSTEM (.github/workflows/ci.yml).
 #
 # CI — what a public checkout can reproduce, on every push and pull request.
 #
@@ -9,9 +7,7 @@
 #     from a fresh scratch path: the layering gate. It fails the moment Core reaches into Session or either
 #     reaches into the app, and on any compiler warning.
 #   * `tools/run-tests.sh inventory` — the repo's own review. Its checks are listed in tools/run-tests.sh, not
-#     here, so this comment cannot go stale. It needs neither the mac4DSTEM checkout nor the reference venv: its
-#     copy check is `tools/check-shared-drift.sh --static` (headers, pin, copy list). Comparing the copies' bodies
-#     with mac4DSTEM needs that checkout, so it runs on the dev Mac (tools/hooks/pre-push), not here.
+#     here, so this comment cannot go stale. It needs no sibling checkout and no reference venv.
 #
 #   * `tools/run-tests.sh unit`      — the XCTest suite. Paused while the app targeted macOS 27; runs since the app
 #     and MacEMUI 0.3.2 deploy to macOS 26 (2026-10-28).

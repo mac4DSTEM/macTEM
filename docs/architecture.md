@@ -87,7 +87,7 @@ build `-Onone` in Debug (see "Known limitations").
 The app's folder is a synchronized group: placement is wiring. Fixtures land flat in the test bundle's resources, so
 two fixtures may not share a name.
 
-## The kits, and what is still copied from mac4DSTEM
+## The kits, and what came from mac4DSTEM
 
 **The kits are imported at exact tags, never copied** (`Package.swift` is the truth for versions; the Xcode project and `Package.resolved` follow):
 
@@ -104,31 +104,8 @@ module, so `tools/lib/fetch-formatokit.sh`, `fetch-diffractokit.sh` and `fetch-i
 `tools/lib/sources.manifest` builds the kits' modules under TEMCore's flags. Where a file names both TEMCore's `DiffractionPattern` and the kit's,
 `import struct DiffractoGeometry.DiffractionPattern` picks the kit's. No other name is shared: the app's twins are gone (2026-10-21).
 
-**What is still copied from mac4DSTEM** is the shell (`ContentView`, `WorkspaceView`, `WorkspaceInspector`, `LayoutPolicy`, `WorkspaceNavigation`), the inspector
-kit (`InspectorRows`), zoom and pan, the menu relays, Metal glue, a few tests and the scripts. mac4DSTEM declares its API `package`, so these are copies held
-to their source by a provenance header:
-
-```text
-  // PROVENANCE: mac4DSTEM <40-hex commit> <path in the mac4DSTEM repo> <kind>
-  // (optional: what changed and why)
-  // END PROVENANCE
-```
-
-The header is the file's first lines, every line a comment (`#` in Python and shell). Every copy names the same commit (today `df1e6c99`) and is listed with its
-kind and source in `tools/lib/copies.manifest`. mac4DSTEM's names become macTEM's before comparing (DSTEMCore / DSTEMSession → TEMCore / TEMSession,
-`@testable import mac4DSTEM` → `macTEM`). The kinds:
-
-| kind | the copy is | checked by |
-|---|---|---|
-| verbatim | the source | identical |
-| subset | exactly the source lines its `// KEEPS:` header line names; a changed line ends in `// DEVIATION:` | line for line |
-| extract | contiguous blocks of the source; a gap is a comment-only `EXTRACT-GAP` line | each block contiguous, in order |
-| adapted | mac4DSTEM's structure, macTEM's content (the shell, scripts, skills) | reported, not enforced |
-| asset | a file that cannot carry a header | byte-identical |
-
-`tools/check-shared-drift.sh` checks each copy against the pinned source from git blobs (a failure is an error) and reports whether the source has moved on
-(never failing); `--static` checks headers, the single pin and the manifest without the sibling checkout. Shared code with a clear scope and a pinned
-reference becomes a kit (own repo, `public` API, a tag per app); the remaining copies are reviewed one library at a time after macTEM v1.
+**What came from mac4DSTEM** is the app entry point, the scripts and the CI workflow, adapted; each says so in its first lines. The shared
+window shell, controls, inspector kit and Metal image view are the MacEMUI package, imported, never copied.
 
 ## The UI contract
 
