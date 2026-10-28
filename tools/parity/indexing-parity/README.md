@@ -35,7 +35,7 @@ Swift). `./run.sh` is the gate; classified `scientific` in `tools/run-tests.sh` 
   `beyondKMax` verdict is compared here (`T<n> reach`, the margin's band 1e-9 max(1, reach)).
 - **Known limit**: `validation: "none"`: chance acceptance and the real sigma are unmeasured until a pattern of known phase is indexed.
 
-**Memory cap** (suite rule, 2026-10-15): run under `tools/memcap.sh --gb 24` of the suite folder, one at a time, nothing else heavy running. Measured peak 17.5 GB resident over 2 processes (the Swift harness and the numpy reference over 2,950,840 plants; 2026-10-15, killed at 16 GB).
+**Memory cap** (suite rule, 2026-10-15): run under a 24 GB memory cap, one at a time, nothing else heavy running. Measured peak 17.5 GB resident over 2 processes (the Swift harness and the numpy reference over 2,950,840 plants; 2026-10-15, killed at 16 GB).
 
 ## S2c: CIF import and monoclinic cells (archive: roadmap-registrations-2026-10-15.md V1-8 "S2c", ADR 024)
 

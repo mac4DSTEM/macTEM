@@ -3,7 +3,7 @@
 //  The EDS room's acceptance lines (docs/design/eds-room-behaviour.md) driven through `EDXSession` on the owner's real Velox spectrum images
 //  (data/stem-edx): Auto ID with nothing selected, with a region, after a deselect-all; regions drawn, moved, deleted, overlaid; Quantify with a sigma per
 //  element; the wt% maps over the whole scan; the six exports; and the Open Files selection following a document switch. Opt-in like `EDXRealDataTests`
-//  (`TEST_RUNNER_MACTEM_REAL_DATA=1` or the flag file), under `tools/memcap.sh`. Each test opens the one file it needs and lets the session go before it
+//  (`TEST_RUNNER_MACTEM_REAL_DATA=1` or the flag file), under a memory cap. Each test opens the one file it needs and lets the session go before it
 //  returns (1456 is 1.7 GB and is opened by one test only). Every number is printed as a `ROOM …` line to stdout and to $TMPDIR/realdata-timings.txt.
 //  Two Auto ID tests are RED today by design (Mg is missed on 1339 and 1840); they stay red until the proposer finds Mg.
 //
