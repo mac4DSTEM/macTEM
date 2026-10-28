@@ -10,7 +10,7 @@ authors:
   - family-names: Lobpreis
     given-names: Paul
     # TODO(Paul): add orcid: "https://orcid.org/…" and affiliation: "…" here
-license: GPL-3.0-or-later
+license: GPL-3.0-only
 repository-code: https://github.com/mac4DSTEM/macTEM
 keywords:
   - transmission electron microscopy

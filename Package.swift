@@ -1,4 +1,5 @@
 // swift-tools-version: 6.2
+// SPDX-License-Identifier: GPL-3.0-only
 // TEMCore (Sources/TEMCore) and TEMSession (Sources/TEMSession), the SwiftPM
 // default layout, so no `path:` is needed. The Xcode app target links these
 // two products (packageProductDependencies); their sources live OUTSIDE the
