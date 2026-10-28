@@ -30,7 +30,10 @@
 name: CI
 
 on:
+  # main and tags only: a PR branch's pushes run once, through pull_request (macEM-suite#77).
   push:
+    branches: [main]
+    tags: ['*']
   pull_request:
   workflow_dispatch:
 
@@ -49,7 +52,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Toolchain on record
         run: |
           sw_vers
@@ -70,7 +73,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # mac4DSTEM's inventory reads HEAD^ on a clean tree, which the default depth of 1 does not have; its
           # job could never pass until this was set (mac4DSTEM, 2026-09-09). Kept so a rule that compares
@@ -87,7 +90,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Toolchain on record
         run: |
           xcode-select -p
@@ -100,7 +103,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Fail on Accelerate / Metal / vDSP outside the allowlist
         # Decision D15. Plain grep, no build; also part of `inventory`, kept as its own job so the red is named.
         run: tools/check-kit-boundary.sh
@@ -109,7 +112,7 @@ jobs:
     name: No private references
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Scan tracked files
         run: |
           if git grep -n -I -E '_archive|CLAUDE\.md|memcap|macEM-suite|setup-python-refs' -- ':!.gitignore' ':!.github/workflows/ci.yml'; then
