@@ -147,7 +147,9 @@ mac4DSTEM's, unchanged (its `docs/architecture.md`, "The UI contract"):
 
 ## Requirements, build, test
 
-- macOS 27 on Apple silicon; Xcode 27; Swift 6.4. `ARCHS = arm64`.
+- macOS 26 or later on Apple silicon (`MACOSX_DEPLOYMENT_TARGET = 26.0`, `.macOS(.v26)`, lowered from 27 on 2026-10-28);
+  Xcode 27 (Swift 6.4) on the dev Mac, Xcode 26.6 (Swift 6.3) on CI. An API newer than macOS 26.0 sits behind `if #available`.
+  `ARCHS = arm64`.
 - Build: open `macTEM.xcodeproj`, scheme `macTEM`, ⌘R; or `xcodebuild -project macTEM.xcodeproj -scheme macTEM -destination 'platform=macOS' build`.
 - Gates: `tools/run-tests.sh unit | core | scientific | inventory`; the `scientific` array in that script is the
   harness roster. A harness compiles TEMCore sources from `tools/lib/sources.manifest` with TEMCore's own Swift
