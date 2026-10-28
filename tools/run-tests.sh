@@ -148,6 +148,8 @@ unit_tests() (
   # xcodebuild states some failures only in its "Testing failed:" block, without an `error:` line (a runner without a
   # matching platform, a test host that will not launch); print that block too.
   grep -A12 "^Testing failed:" "$work/unit.log" | head -30 || true
+  # A compiler crash prints no `error:` either: its signal and stack dump are the reason.
+  grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/unit.log" | head -40 || true
   echo "unit: xcodebuild exit $rc"
   # Counted from the result bundle, not the log: Xcode 27's parallel runner prints no suite summary, and its
   # stdout can drop a result line when its own debug output interleaves (measured 2026-10-12).
