@@ -236,7 +236,7 @@ core_build() (
   if (( rc != 0 )); then echo "core: swift build exit $rc" >&2; return $rc; fi
   warnings="$(grep -E 'warning:' "$work/core.log" || true)"
   if [[ -n "$warnings" ]]; then
-    echo "core: swift build exit 0 but with warnings; TEMCore and TEMSession build with zero (CLAUDE.md):" >&2
+    echo "core: swift build exit 0 but with warnings; TEMCore and TEMSession build with zero:" >&2
     print -r -- "$warnings" >&2
     return 1
   fi
