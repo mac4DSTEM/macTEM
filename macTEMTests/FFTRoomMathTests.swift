@@ -463,7 +463,10 @@ nonisolated final class FFTRoomMathTests: XCTestCase {
     /// nearest neighbours (n = 1 and n = 2: 2√2 = 2.83). Red under: a bin drawn at k·w; the DC drawn (a point at bin 0); empty bins drawn.
     func testChartPointsAreBinsFromOneAtTheirCentresSkippingEmptyOnes() throws {
         let image = CalibratedImage(width: 32, height: 32,
-                                    pixels: (0..<1024).map { i in Float(5 + 3 * cos(Double(i % 32) * 0.7) + Double(i / 32 % 7)) },
+                                    pixels: (0..<1024).map { i -> Float in
+                                        let value: Double = 5 + 3 * cos(Double(i % 32) * 0.7) + Double(i / 32 % 7)
+                                        return Float(value)
+                                    },
                                     x: AxisCalibration(scale: 0.5, unit: "nm", origin: 0), y: AxisCalibration(scale: 0.5, unit: "nm", origin: 0),
                                     fileName: "c", source: "", voltage: nil)
         let spectrum = try PowerSpectrum.compute(image.micrograph)

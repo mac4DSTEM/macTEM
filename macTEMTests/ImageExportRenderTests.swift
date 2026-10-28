@@ -31,7 +31,7 @@ nonisolated final class ImageExportRenderTests: XCTestCase {
     private static let angstrom = "\u{00C5}"
 
     /// Entry i is (i, i, i, 255): black at 0.
-    private static let grayLUT: [UInt8] = (0..<1024).map { $0 % 4 == 3 ? 255 : UInt8($0 / 4) }
+    private static let grayLUT: [UInt8] = (0..<1024).map { (i: Int) -> UInt8 in i % 4 == 3 ? 255 : UInt8(i / 4) }
 
     private func source(_ w: Int, _ h: Int, x: AxisCalibration? = nil, y: AxisCalibration? = nil, fileName: String = "planted.dm4",
                         object: String = "ImageList.1", notes: [String] = []) -> ExportSource {
