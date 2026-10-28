@@ -16,6 +16,7 @@ import SpectroEELS
 #if canImport(TEMCore)
 import TEMCore
 #endif
+import ShellEDXModel
 
 @Observable
 package final class EELSSession {
@@ -638,7 +639,7 @@ package final class EELSSession {
             return c.width > 0 && c.height > 0 ? c : nil
         }
         switch region {
-        case .wholeMap: return nil
+        case .wholeMap, .pool: return nil   // the EELS room keeps drawn shapes only; a pool is the EDS room's
         case .rectangle(let r): return box(r).map { .rectangle($0) }
         case .ellipse(let r): return box(r).map { .ellipse($0) }
         case .polygon(let v): return v.count >= 3 ? .polygon(v) : nil

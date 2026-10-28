@@ -12,6 +12,7 @@ import TEMSession
 #endif
 import SpectroEDX
 import SpectroEELS
+import ShellEDXModel
 
 enum EELSRegionBridge {
     static func set(_ session: EELSSession, linesFocused: Bool) -> SpectralRegionSet {

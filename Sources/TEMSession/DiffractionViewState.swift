@@ -12,6 +12,7 @@ import ShellMetal
 #if canImport(TEMCore)
 import TEMCore
 #endif
+import ShellEDXModel
 
 @Observable
 package final class DiffractionViewState {

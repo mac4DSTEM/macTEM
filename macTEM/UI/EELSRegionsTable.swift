@@ -12,6 +12,7 @@ import SwiftUI
 import TEMCore
 import TEMSession
 #endif
+import ShellEDXModel
 
 struct EELSRegionsTable: View {
     let session: EELSSession

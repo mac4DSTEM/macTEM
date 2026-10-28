@@ -17,6 +17,7 @@
 		B00000000000000000000132 /* ShellInspector in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000131 /* ShellInspector */; };
 		B00000000000000000000142 /* ShellLayout in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000141 /* ShellLayout */; };
 		B00000000000000000000152 /* ShellSpectroscopy in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000151 /* ShellSpectroscopy */; };
+		B00000000000000000000162 /* ShellEDXModel in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000161 /* ShellEDXModel */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,6 +88,7 @@
 				B00000000000000000000132 /* ShellInspector in Frameworks */,
 				B00000000000000000000142 /* ShellLayout in Frameworks */,
 				B00000000000000000000152 /* ShellSpectroscopy in Frameworks */,
+				B00000000000000000000162 /* ShellEDXModel in Frameworks */,
 			);
 		};
 		C00000000000000000000006 /* Frameworks */ = {
@@ -150,6 +152,7 @@
 				B00000000000000000000131 /* ShellInspector */,
 				B00000000000000000000141 /* ShellLayout */,
 				B00000000000000000000151 /* ShellSpectroscopy */,
+				B00000000000000000000161 /* ShellEDXModel */,
 			);
 			productName = macTEM;
 			productReference = B00000000000000000000002 /* macTEM.app */;
@@ -764,6 +767,10 @@
 		B00000000000000000000151 /* ShellSpectroscopy */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ShellSpectroscopy;
+		};
+		B00000000000000000000161 /* ShellEDXModel */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellEDXModel;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

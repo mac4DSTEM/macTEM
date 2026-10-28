@@ -11,6 +11,7 @@ import SwiftUI
 import TEMCore
 import TEMSession
 #endif
+import ShellEDXModel
 
 /// How far the running spectrum-image work is, for the toolbar's busy display: the EDS room's open, or the EELS room's pass (align, thickness, fit); nil while idle
 /// or when the work reports no fraction.

@@ -14,6 +14,7 @@ import ImagoCore
 import TEMCore
 import TEMSession
 #endif
+import ShellEDXModel
 
 extension AppState {
     /// Every open ends here — the panel, a drop, Finder: one item per file not open yet, read one at a time in this

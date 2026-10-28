@@ -29,9 +29,9 @@ let package = Package(
         .package(url: "https://github.com/mac4DSTEM/DiffractoKit", exact: "0.10.0"),
         .package(url: "https://github.com/mac4DSTEM/ImagoKit", exact: "0.7.0"),
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", exact: "0.12.0"),
-        // The window shell, controls and Metal image view both apps share (suite task 8). TEMCore takes ShellMetal only (MetalEngine, ColormapKind, MTLTexture+Float);
-        // TEMSession takes ShellLayout (SystemMonitor).
-        .package(url: "https://github.com/mac4DSTEM/MacEMUI", exact: "0.3.2"),
+        // The window shell, controls and Metal image view both apps share (suite task 8). TEMCore takes ShellMetal (MetalEngine, ColormapKind, MTLTexture+Float)
+        // and ShellEDXModel (the shared EDS room's regions and pins, which the EELS room reuses); TEMSession takes ShellLayout (SystemMonitor) and ShellEDXModel.
+        .package(path: "../MacEMUI"),   // issue 66: the shared EDS room; back to an exact tag once MacEMUI releases it
     ],
     targets: [
         .target(
@@ -55,6 +55,7 @@ let package = Package(
                 .product(name: "SpectroEDX", package: "SpectroKit"),
                 .product(name: "SpectroEELS", package: "SpectroKit"),
                 .product(name: "ShellMetal", package: "MacEMUI"),
+                .product(name: "ShellEDXModel", package: "MacEMUI"),
             ],
             swiftSettings: [
                 // Optimised in Debug too, as mac4DSTEM (Gate D 2026-09-30).
@@ -78,6 +79,7 @@ let package = Package(
                 .product(name: "SpectroEELS", package: "SpectroKit"),
                 .product(name: "ShellMetal", package: "MacEMUI"),
                 .product(name: "ShellLayout", package: "MacEMUI"),
+                .product(name: "ShellEDXModel", package: "MacEMUI"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-O"], .when(configuration: .debug)),

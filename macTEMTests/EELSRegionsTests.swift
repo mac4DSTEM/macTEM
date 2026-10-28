@@ -15,6 +15,7 @@ import TEMCore
 import TEMSession
 #endif
 @testable import macTEM
+import ShellEDXModel
 
 nonisolated final class EELSRegionsTests: XCTestCase {
 

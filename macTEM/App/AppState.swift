@@ -16,6 +16,8 @@ import Foundation
 import TEMCore
 import TEMSession
 #endif
+import ShellEDXModel
+import ShellSpectroscopy
 
 @Observable
 final class AppState {
@@ -24,7 +26,7 @@ final class AppState {
     let activityLog = ActivityLog()
     let imageRoomTools = ImageRoomTools()
     let resultsRoom = ResultsRoomState()
-    let edx = EDXSession()
+    let edx = EDXSession(host: .macTEM)
     let edxRoom = EDXRoomState()
     let eels = EELSSession()
 
@@ -125,6 +127,12 @@ final class AppState {
     func selectWorkspace(_ area: WorkspaceArea) {
         guard roomUnavailableReason(area) == nil else { return }
         navigation.workspaceArea = area
+    }
+
+    /// What the shared EDS room's views ask of this window: the status line, the error sheet, a UI journey's export folder.
+    var edxActions: EDXRoomActions {
+        EDXRoomActions(report: { [weak self] in self?.statusText = $0 }, present: { [weak self] in self?.present($0) },
+                       exportDirectory: { [weak self] in self?.exportDirectory })
     }
 
     func present(_ error: any Error) {

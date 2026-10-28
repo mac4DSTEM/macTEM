@@ -11,6 +11,7 @@ import Foundation
 import TEMCore
 import TEMSession
 #endif
+import ShellEDXModel
 
 /// What the window holds, as plain values.
 nonisolated struct RoomHoldings: Equatable, Sendable {
