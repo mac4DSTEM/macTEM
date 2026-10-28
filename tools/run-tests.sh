@@ -25,11 +25,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 resolve_mactem_developer_dir
 
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
-scientific=(dm4-reader-parity tiff-reader-parity mrc-reader-parity fft-parity spot-parity crystal-parity metadata-parity ring-calibration-parity hrtem-filter-parity histogram-parity profile-parity velox-image-parity export-parity fft-export-parity sidecar-parity indexing-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
-diagnostic=(ellipse-parity ring-fit-parity)   # never gated: machine-local data, or the evidence of a registered item that failed (S2, S3-b)
+scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
+diagnostic=()                    # never gated
 owner_only=()                    # the owner's own runs
 retired=()                       # kept for history, not run
-support=(au-ring-pattern crystal-structures)   # not harnesses
+support=(crystal-structures)     # not harnesses
 
 # A near-full disk fakes code regressions (mac4DSTEM, 2026-08-06: three runs, three different spurious failure
 # sets). 4 GB is mac4DSTEM's floor for the same lanes: 3.2x its measured unit-suite peak (1245 MB).

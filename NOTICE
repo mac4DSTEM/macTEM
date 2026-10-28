@@ -112,11 +112,11 @@ Validation references (used by the test harnesses; not part of the app)
 
 ncempy 1.16 (https://github.com/ercius/openNCEM, tag v1.16, commit f3c09f96dab1d108861db5a6e8477984455c59f3),
 GPL-3.0-or-later; its io package is dual-licensed GPLv3/MIT. Installed into the gitignored References/ by
-tools/lib/python.sh; tools/parity/dm4-reader-parity compares macTEM's DM reader against it.
+tools/lib/python.sh; tools/parity/metadata-parity compares the metadata macTEM reads against it.
 
 RosettaSciIO (https://github.com/hyperspy/rosettasciio, commit 049e7d7070e84779b499adaf3295beee9facb004),
 GPL-3.0-or-later. Its DigitalMicrograph test files are fetched into References/ by tools/lib/fetch-rsciio.sh and read
-by tools/parity/dm4-reader-parity; none is committed or distributed.
+by tools/parity/metadata-parity; none is committed or distributed.
 
 The committed test fixture macTEMTests/Fixtures/planted-2d.dm4 is synthetic, written by this repository's
-tools/parity/dm4-reader-parity/make_fixture.py.
+tools/parity/metadata-parity/make_dm4_fixture.py.
