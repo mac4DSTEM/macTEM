@@ -14,6 +14,8 @@
 
 import XCTest
 import DiffractoGeometry
+// swiftformat:disable:next duplicateImports
+import struct DiffractoGeometry.DiffractionPattern
 nonisolated final class RingFitCalibrationTests: XCTestCase {
 
     // MARK: The plant

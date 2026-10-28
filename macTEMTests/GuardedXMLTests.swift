@@ -13,6 +13,8 @@
 import ImagoCore
 import XCTest
 import TEMCore
+// swiftformat:disable:next duplicateImports
+import enum FormatoCore.GuardedXML
 import FormatoCore
 import FormatoTIFF
 @testable import macTEM
