@@ -3,7 +3,7 @@
 //  The EELS room's stages driven through `EELSSession` on the owner's three GMS STEM spectrum images (data/eels: 142, 143, 145; low loss and core loss):
 //  open and settle, the t/λ map, the core-loss axis and the summed core-loss tail (the "collapse above 1 keV" diagnosis: printed, not asserted), Align, the
 //  C, N and O K edges picked and fitted, and the ZLP shift tile. Opt-in like `EDXRealDataTests` (`TEST_RUNNER_MACTEM_REAL_DATA=1` or the flag file), under
-//  `tools/memcap.sh`; one file open at a time. Every number is printed as an `EELSROOM …` line (stdout and $TMPDIR/realdata-timings.txt).
+//  a memory cap; one file open at a time. Every number is printed as an `EELSROOM …` line (stdout and $TMPDIR/realdata-timings.txt).
 //  The three edge rows must each have I > 0 and an at% strictly between 0 and 100. The windows handed to the kit, the exponent r of each edge and the same rows with
 //  Convolve off are printed (not asserted) for the diagnosis.
 //
