@@ -13,8 +13,10 @@
 import ImagoCore
 import XCTest
 import TEMCore
+// swiftlint:disable duplicate_imports
 // swiftformat:disable:next duplicateImports
 import enum FormatoCore.GuardedXML
+// swiftlint:enable duplicate_imports
 import FormatoCore
 import FormatoTIFF
 @testable import macTEM

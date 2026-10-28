@@ -2,8 +2,10 @@
 // plants in its own EllipseNoisyRingTests); it runs the kit's fit in this app's Debug build, on this repo's 4 KB real-pattern fixture.
 import XCTest
 import DiffractoGeometry
+// swiftlint:disable duplicate_imports
 // swiftformat:disable:next duplicateImports
 import struct DiffractoGeometry.DiffractionPattern
+// swiftlint:enable duplicate_imports
 @testable import macTEM
 
 /// The profile ring fit (`EllipseCalibration.fitAmorphousRing`, behind the Fit
