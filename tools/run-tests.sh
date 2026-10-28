@@ -145,6 +145,9 @@ unit_tests() (
       SWIFT_OPTIMIZATION_LEVEL=-O \
       CODE_SIGNING_ALLOWED=NO > "$work/unit.log" 2>&1 && rc=0 || rc=$?
   grep -E "error:|: error|\) failed |TEST (SUCCEEDED|FAILED)" "$work/unit.log" | tail -40 || true
+  # xcodebuild states some failures only in its "Testing failed:" block, without an `error:` line (a runner without a
+  # matching platform, a test host that will not launch); print that block too.
+  grep -A12 "^Testing failed:" "$work/unit.log" | head -30 || true
   echo "unit: xcodebuild exit $rc"
   # Counted from the result bundle, not the log: Xcode 27's parallel runner prints no suite summary, and its
   # stdout can drop a result line when its own debug output interleaves (measured 2026-10-12).
