@@ -565,7 +565,7 @@ def plant(dm4, truth_path, rsciio, out):
     gy, gx = np.mgrid[0:128, 0:128].astype(np.float64)
     lattice = (1000 + 120 * np.cos(2 * np.pi * (0.1731 * gx + 0.0627 * gy)) + 0.01 * gx).astype(np.float32)
     add("results-lattice", lattice, axis(0.0731, "nm"), axis(0.0789, "nm"), "results.dm4", "ImageList.1 · lattice")
-    # the same pixels in a file whose reader says it is unvalidated: every claim the CSV makes carries that qualifier (CLAUDE.md)
+    # the same pixels in a file whose reader says it is unvalidated: every claim the CSV makes carries that qualifier
     add("results-lattice-unvalidated", lattice, axis(0.0731, "nm"), axis(0.0789, "nm"), "results-unvalidated.dm4",
         "ImageList.1 · lattice", notes=["Unvalidated scale (test)"])
 
