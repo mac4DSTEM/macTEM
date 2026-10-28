@@ -19,10 +19,8 @@
 
 import SwiftUI
 import AppKit
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 @MainActor
 enum SessionPanels {

@@ -14,10 +14,8 @@
 
 import ShellInspector
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// The Export menu's words and states, as pure data: the view draws exactly these (pinned by FFTExportMenuTests).
 nonisolated enum FFTExportMenu {

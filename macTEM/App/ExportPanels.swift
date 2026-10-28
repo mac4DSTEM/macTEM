@@ -37,10 +37,8 @@ import ImagoCore
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 @MainActor
 enum ExportPanels {

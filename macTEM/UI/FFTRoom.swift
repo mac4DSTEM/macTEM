@@ -20,10 +20,8 @@
 import ShellLayout
 import ShellMetal
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// The room's canvas: the source pane beside the transform pane.
 struct FFTRoom: View {

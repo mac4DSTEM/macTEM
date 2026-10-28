@@ -17,10 +17,8 @@ import ShellLayout
 import ShellSpectroscopy
 import SwiftUI
 import UniformTypeIdentifiers
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 struct EDXRoom: View {
     @Environment(AppState.self) private var appState

@@ -10,10 +10,8 @@ import Observation
 import ShellSpectroscopy
 import SpectroCore
 import UniformTypeIdentifiers
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// What the Export section writes: text (the results, the method, the spectrum as CSV or `.msa`, the pins) or the maps as a PNG.
 nonisolated enum EDXExportKind: String, Identifiable, CaseIterable {

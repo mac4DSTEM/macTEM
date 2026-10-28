@@ -13,9 +13,7 @@ import Observation
 import SpectroCore
 import SpectroEDX
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 @Observable
 package final class EELSSession {

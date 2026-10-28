@@ -16,9 +16,7 @@ import ImagoCore
 import DiffractoCore
 import DiffractoScattering
 import DiffractoGeometry
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 /// The crystal indexing is done against: a standard of the room, or one opened from a CIF.
 package enum DiffractionCrystal: Sendable, Equatable {

@@ -12,10 +12,8 @@ import XCTest
 import Darwin
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class EDXRoomRealDataTests: XCTestCase {

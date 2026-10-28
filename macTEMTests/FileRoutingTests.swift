@@ -8,10 +8,8 @@
 
 import XCTest
 import SpectroCore
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class FileRoutingTests: XCTestCase {

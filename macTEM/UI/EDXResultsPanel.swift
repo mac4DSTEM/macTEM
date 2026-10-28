@@ -13,10 +13,8 @@ import ShellInspector
 import ShellLayout
 import SwiftUI
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 struct EDXResultsPanel: View {
     let session: EDXSession

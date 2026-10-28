@@ -12,10 +12,8 @@ import SpectroCore
 import SpectroEDX
 import ImageIO
 import UniformTypeIdentifiers
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// One picture of the figure made by its room (the EELS room's maps and colour mix): the title, the detail beside it, the RGBA pixels and the footer.
 struct EDXFigureCell: Identifiable {

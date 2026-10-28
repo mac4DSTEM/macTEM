@@ -11,10 +11,8 @@
 
 import Foundation
 import Observation
-#if canImport(TEMCore)
 import FormatoCore
 import TEMCore
-#endif
 
 @Observable
 package final class ImageSession {

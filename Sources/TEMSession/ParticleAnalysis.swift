@@ -11,9 +11,7 @@
 
 import Foundation
 import Observation
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 /// The mask the preview tints: the object side of the threshold, one flag per pixel.
 package nonisolated struct ParticleMask: Equatable, Sendable {

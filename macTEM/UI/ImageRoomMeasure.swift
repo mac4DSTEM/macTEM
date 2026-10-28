@@ -16,10 +16,8 @@ import ShellLayout
 import ImagoCore
 import SwiftUI
 import Charts
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 // MARK: - The section
 

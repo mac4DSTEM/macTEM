@@ -12,10 +12,8 @@
 import XCTest
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class EDXMapsTests: XCTestCase {
