@@ -5,7 +5,7 @@
 //        a sheet on the window, ask `ExportSnapshot` for what the selected file gives, and hand TEMCore's `@concurrent`
 //        writers the values; the infobar and the alert report. Nothing is rendered or written here.
 //
-//  WHY APPKIT (CLAUDE.md: AppKit only where SwiftUI cannot do the job, named where used): the macOS 27 SDK's
+//  WHY APPKIT (the suite's rule: AppKit only where SwiftUI cannot do the job, named where used): the macOS 27 SDK's
 //  `fileExporter` overloads and `fileDialog*` modifiers offer no accessory, and the options belong in the save panel
 //  (Preview's export is the model). A SwiftUI options sheet followed by `fileExporter` would be two dialogs for one act and
 //  would have to render the PNG before the place is chosen. `NSSavePanel` and the `NSHostingView` accessory live here

@@ -6,7 +6,7 @@
 //        file the user chose. What is saved and restored is TEMSession's (`SessionSaving`, `SessionOpening`,
 //        `OpenItem.adopt`); the bookmarks are `SessionGrants`'; nothing is written here.
 //
-//  WHY APPKIT (CLAUDE.md: only where SwiftUI cannot do the job, named where used): `NSSavePanel` and its delegate's
+//  WHY APPKIT (the suite's rule: only where SwiftUI cannot do the job, named where used): `NSSavePanel` and its delegate's
 //  `panel(_:validate:)`. SwiftUI's `fileExporter` writes the bytes itself, which would leave an empty file where
 //  `SessionSidecarFile.write` refuses to replace a non-sidecar, and has no hook to hold the name and the folder to the
 //  derived ones (restore finds the file by them). The fourth named AppKit use, after the Metal view, Show in Finder and
