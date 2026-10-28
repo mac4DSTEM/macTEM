@@ -34,7 +34,10 @@
 name: CI
 
 on:
+  # main and tags only: a PR branch's pushes run once, through pull_request (macEM-suite#77).
   push:
+    branches: [main]
+    tags: ['*']
   pull_request:
   workflow_dispatch:
 
