@@ -18,7 +18,7 @@ Updated 2026-10-14 for the Gate B review of slice A (the refuter's plants and th
 and the refused add, a newer schema, the minimum reader judged first, the name limit in UTF-16 units, a link to nothing, dates
 to the nearest millisecond, the writer's own limits, and the library check, each with a control that breaks it.
 
-**Memory cap** (suite rule, 2026-10-15): run under `tools/memcap.sh --gb 24` of the suite folder, one at a time, nothing else heavy running. Measured peak 18.3 GB resident over 8 processes (the negative controls' parallel mutant builds and the h5py read-backs; 2026-10-15, killed at 16 GB); the main run fits 8 GB. The negative controls move to the nightly set.
+**Memory cap** (suite rule, 2026-10-15): run under a 24 GB memory cap, one at a time, nothing else heavy running. Measured peak 18.3 GB resident over 8 processes (the negative controls' parallel mutant builds and the h5py read-backs; 2026-10-15, killed at 16 GB); the main run fits 8 GB. The negative controls move to the nightly set.
 
 ## Two directions, two independent libraries
 
@@ -201,7 +201,7 @@ FormatoKit checkout (`$FORMATO_KIT`), copied to the mutant's directory and hande
 `MACTEM_KIT_OVERRIDE[Sources/FormatoHDF5/HDF5RootAttributes.swift]` (tools/lib/sources.manifest); the other edits of the same mutant
 apply to the macTEM file as before. 24 controls were re-aimed this way (the variable-length, padding, string-class, writer-form,
 library-bounds, not-permitted, dense-storage and NUL ones); two others were adapted to the app's three kit reads
-(`dense-check-in-the-read-only`, `dense-check-after-the-first-attribute`). Count of 2026-10-21, one full run under `memcap.sh --gb 40` alone on the machine (peak 37.7 GB) plus a rerun of the two controls re-aimed after the read moved under the HDF5 lock: 105 of 105 caught. `dense-header-read-with-meta-size` (the header read also walks the dense-storage heap; its fuzz child grows to about 30 GB resident) is killed under the 24 GB cap, so run the controls under `--gb 40` with nothing else heavy running.
+(`dense-check-in-the-read-only`, `dense-check-after-the-first-attribute`). Count of 2026-10-21, one full run under a 40 GB memory cap alone on the machine (peak 37.7 GB) plus a rerun of the two controls re-aimed after the read moved under the HDF5 lock: 105 of 105 caught. `dense-header-read-with-meta-size` (the header read also walks the dense-storage heap; its fuzz child grows to about 30 GB resident) is killed under the 24 GB cap, so run the controls under `--gb 40` with nothing else heavy running.
 
 Controls 1-14: the nine registered mutations (1-9) and five of the same kind (10-14). Re-aimed 2026-10-14: control 5 (the
 cascade after a delete is now `sweepOrphans()`) and control 13 (the writer's check is now `requireReplaceable`).
