@@ -411,7 +411,7 @@ nonisolated final class DSpacingIndexingTests: XCTestCase {
         XCTAssertGreaterThan(shortAmbiguous, 0)
     }
 
-    /// The label is carried (CLAUDE.md, "Unvalidated stays labelled"): it begins "none", and an assignment reports it.
+    /// The label is carried ("Unvalidated stays labelled"): it begins "none", and an assignment reports it.
     func testValidationLabelIsNone() throws {
         XCTAssertTrue(Index.validation.hasPrefix("none:"))
         let a = try XCTUnwrap(accepted(verdict(1, 0.125, try Self.dyadic([1, 1.5, 2]))))
