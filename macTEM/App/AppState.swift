@@ -2,7 +2,7 @@
 //  AppState.swift
 //  Role: the window's composition root — the app's one window (ADR 007). It composes the owners and holds only
 //        the shell's own feedback channels. A feature's state lives in its owner, never here: a new stored
-//        property names its owner first (CLAUDE.md).
+//        property names its owner first.
 //
 //  Owners: `navigation` (rooms and panes, App/), `openItems` (the files open in the window, each with its own
 //  session, presentation, marks and viewport, TEMSession), `activityLog` (the Output pane, App/), `imageRoomTools`
