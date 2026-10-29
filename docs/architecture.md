@@ -1,7 +1,7 @@
 # Architecture
 
 What the app is made of, how the layers depend on each other, where a new file goes, and how the code shared with
-mac4DSTEM is held. Live status is `status.md`; the plan is `../ROADMAP.md`.
+mac4DSTEM is held.
 
 ## Layers and the dependency rule
 
@@ -161,8 +161,8 @@ mac4DSTEM's, unchanged (its `docs/architecture.md`, "The UI contract"):
 
 ## Known limitations
 
-- Reads 2D images from DM3/DM4, TIFF, one-image MRC and Velox `.emd` (its first frame, labelled "frame 1 of N"); image stacks are V1-3c-ii. An `.emd`'s
-  magnification, camera length, exposure and mode are not read (`docs/open-items.md`).
+- Reads 2D images from DM3/DM4, TIFF, one-image MRC and Velox `.emd`; a stack opens at "frame 1 of N" and steps through its frames with ← and →. An `.emd`'s
+  magnification, camera length, exposure and mode are not read.
 - The kits compile at `-Onone` in a Debug build (a versioned dependency carries no `-O`): one DiffractoKit ring fit takes 2.0 s there and 0.04 s at `-O`, so the
   fit tests are the slow part of a unit run, and a room that runs the fit from a Debug build waits seconds.
 - A 2D object larger than 1 GiB is refused, not streamed. Pixel types decoded: int8/16/32, uint8/16/32, float32/64; complex, packed-complex FFT, RGB and bool
