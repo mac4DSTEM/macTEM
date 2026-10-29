@@ -10,11 +10,9 @@ import ShellInspector
 import ShellLayout
 import ShellMetal
 import SwiftUI
-#if canImport(TEMCore)
 import ImagoCore
 import TEMCore
 import TEMSession
-#endif
 
 /// Colormap, histogram and window, gamma, scale bar — for the selected file. The one Display section of the image rooms (control
 /// placement §5): the Diffraction room draws it for its pattern with the log switch in place of the scale bar (its pane has none).

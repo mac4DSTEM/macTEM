@@ -24,9 +24,7 @@
 import ImagoCore
 import Foundation
 import Observation
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 /// One mark on an image.
 package nonisolated struct ImageMark: Sendable, Equatable, Identifiable {

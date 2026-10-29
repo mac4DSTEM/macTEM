@@ -10,10 +10,8 @@ import XCTest
 import DiffractoCore
 import DiffractoScattering
 import DiffractoGeometry
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class DiffractionAnalysisTests: XCTestCase {

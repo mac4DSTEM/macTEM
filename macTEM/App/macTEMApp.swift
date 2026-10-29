@@ -3,10 +3,8 @@ import ShellLayout
 import ShellControls
 import SwiftUI
 import AppKit
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// Finder integration stays in App/; the window and its controls stay SwiftUI.
 @MainActor enum DatasetLocationActions {

@@ -12,10 +12,8 @@ import SwiftUI
 import CoreGraphics
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// Pixels of a map, pure: row-major RGBA, opaque.
 nonisolated enum EDXMapRaster {

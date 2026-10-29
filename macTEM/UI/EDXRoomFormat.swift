@@ -8,10 +8,8 @@
 import Foundation
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// The EDX room's own sizes, named once (the chrome's numbers are `LayoutPolicy`'s, a frozen shell file; these belong to the
 /// room's content and are the room's explained constants: UI contract rule 4).

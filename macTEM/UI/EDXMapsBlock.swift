@@ -14,10 +14,8 @@ import SwiftUI
 import CoreGraphics
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// One tile of the block: the scan image, an element's map or the colour mix.
 struct EDXGridItem: Identifiable {

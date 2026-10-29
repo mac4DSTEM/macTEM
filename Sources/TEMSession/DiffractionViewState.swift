@@ -9,9 +9,7 @@
 import Foundation
 import Observation
 import ShellMetal
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 @Observable
 package final class DiffractionViewState {

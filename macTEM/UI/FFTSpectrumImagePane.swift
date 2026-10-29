@@ -41,12 +41,10 @@ import ShellControls
 import ShellLayout
 import ShellMetal
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoCore
 import ImagoFFT
-#endif
 
 // MARK: - What the panes say (pure)
 

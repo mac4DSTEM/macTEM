@@ -14,9 +14,7 @@ import Foundation
 import Observation
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 /// One element's net-count map, as the tile shows it.
 package nonisolated struct EDXMapTile: Identifiable, Equatable {

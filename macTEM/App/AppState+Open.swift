@@ -8,12 +8,10 @@
 import ShellMetal
 import Foundation
 import SwiftUI
-#if canImport(TEMCore)
 import FormatoCore
 import ImagoCore
 import TEMCore
 import TEMSession
-#endif
 
 extension AppState {
     /// Every open ends here — the panel, a drop, Finder: one item per file not open yet, read one at a time in this

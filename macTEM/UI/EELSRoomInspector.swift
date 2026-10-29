@@ -14,10 +14,8 @@ import ShellSpectroscopy
 import SwiftUI
 import UniformTypeIdentifiers
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 struct EELSRoomSettings: View {
     @Environment(AppState.self) private var appState

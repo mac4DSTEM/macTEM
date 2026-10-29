@@ -7,10 +7,8 @@
 import ShellLayout
 import XCTest
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class EELSOpeningTests: XCTestCase {

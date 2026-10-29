@@ -16,9 +16,7 @@
 
 import Foundation
 import ImagoCore
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 package enum ResultsLedger {
 

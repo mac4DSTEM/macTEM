@@ -6,10 +6,8 @@
 
 import ShellSpectroscopy
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 import SpectroEDX
 import SpectroEELS
 

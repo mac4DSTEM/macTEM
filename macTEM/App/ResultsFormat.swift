@@ -13,9 +13,7 @@
 
 import ImagoCore
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 nonisolated enum ResultsFormat {
 

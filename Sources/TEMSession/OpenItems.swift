@@ -29,11 +29,9 @@
 import CoreGraphics
 import Foundation
 import Observation
-#if canImport(TEMCore)
 import FormatoCore
 import ImagoCore
 import TEMCore
-#endif
 
 // MARK: - Values
 

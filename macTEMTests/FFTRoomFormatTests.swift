@@ -56,9 +56,7 @@ import TEMSession
 import ImagoCore
 import ImagoFFT
 import ImagoFilters
-#if canImport(macTEM)
 @testable import macTEM
-#endif
 
 nonisolated final class FFTRoomFormatTests: XCTestCase {
     private static let posix = Locale(identifier: "en_US_POSIX")

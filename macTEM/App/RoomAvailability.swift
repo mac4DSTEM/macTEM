@@ -7,10 +7,8 @@
 //
 
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// What the window holds, as plain values.
 nonisolated struct RoomHoldings: Equatable, Sendable {
