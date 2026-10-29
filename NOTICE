@@ -15,9 +15,9 @@ You should have received a copy of the GNU General Public License along with thi
 Code copied from mac4DSTEM
 ================================================================================
 
-Source files carrying a "PROVENANCE: mac4DSTEM <commit> <path>" header are copied, whole or in part, from mac4DSTEM
-(https://github.com/mac4DSTEM/mac4DSTEM), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-or-later, at the commit the
-header names. tools/check-shared-drift.sh compares each against that source. mac4DSTEM's own third-party notices
+Parts of the app shell, the scripts and the CI workflow are adapted from mac4DSTEM
+(https://github.com/mac4DSTEM/mac4DSTEM), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-or-later; such a file says so in its
+first lines. mac4DSTEM's own third-party notices
 (py4DSTEM, HyperSpy/eXSpy) apply to the parts it ported and are in its NOTICE.
 
 ================================================================================
