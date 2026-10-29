@@ -49,4 +49,4 @@ Please open an issue. Bug reports with the file type and what you expected help 
 
 ## Licence
 
-GPL-3.0-or-later ([`LICENSE`](LICENSE)). Third-party notices are in [`NOTICE`](NOTICE).
+GPL-3.0-only ([`LICENSE`](LICENSE)). Third-party notices are in [`NOTICE`](NOTICE).

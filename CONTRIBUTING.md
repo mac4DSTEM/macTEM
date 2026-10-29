@@ -53,5 +53,5 @@ the kit's repository and reaches the app when `Package.swift` moves to the kit's
 
 ## Licence
 
-By contributing you agree that your contribution is licensed under the GNU General Public License v3.0 or later, as the
+By contributing you agree that your contribution is licensed under the GNU General Public License v3.0 only (GPL-3.0-only), as the
 project is. See `LICENSE` and `NOTICE`.
