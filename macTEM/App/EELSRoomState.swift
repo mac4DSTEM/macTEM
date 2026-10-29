@@ -9,10 +9,8 @@ import Foundation
 import Observation
 import UniformTypeIdentifiers
 import ShellSpectroscopy
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 import ShellEDXModel
 
 @Observable

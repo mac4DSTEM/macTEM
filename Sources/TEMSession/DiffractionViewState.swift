@@ -9,9 +9,7 @@
 import Foundation
 import Observation
 import ShellMetal
-#if canImport(TEMCore)
 import TEMCore
-#endif
 import ShellEDXModel
 
 @Observable
@@ -65,5 +63,4 @@ package final class DiffractionViewState {
     }
 
     package func fitView() { zoomHalfSide = nil }
-    package func showWholeImage(_ image: CalibratedImage) { zoomHalfSide = Double(min(image.width, image.height)) / 2 }
 }

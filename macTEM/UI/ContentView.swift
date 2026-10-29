@@ -2,10 +2,8 @@ import ShellLayout
 import SwiftUI
 import UniformTypeIdentifiers
 import SpectroCore
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 import ShellEDXModel
 import ShellSpectroscopy
 

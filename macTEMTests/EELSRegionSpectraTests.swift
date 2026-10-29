@@ -12,10 +12,8 @@ import XCTest
 import ShellSpectroscopy
 import SpectroEDX
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 import ShellEDXModel
 

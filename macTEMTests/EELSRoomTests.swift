@@ -15,10 +15,8 @@ import ShellSpectroscopy
 import SpectroCore
 import SpectroEDX
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 import ShellEDXModel
 
@@ -128,21 +126,7 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(reasons.count, 1); XCTAssertEqual(reasons[0].count, 1)
     }
 
-    // MARK: Pointer, Stop
-
-    /// The pixel under the pointer is the kit's pixel and its stored spectrum; off the grid there is none.
-    @MainActor func testThePointerReadsTheKitsPixelAndTheStoredSpectrum() async throws {
-        let session = try await openRoom()
-        session.movePointer(to: EELSCompute.Pixel(x: 2, y: 1))
-        XCTAssertEqual(session.pointerPixel, session.map?[2, 1])
-        let spectrum = try XCTUnwrap(session.pointerSpectrum)
-        XCTAssertEqual(spectrum.count, Self.channels)
-        XCTAssertEqual(spectrum[10], 1400)
-        session.movePointer(to: EELSCompute.Pixel(x: 9, y: 9))
-        XCTAssertNil(session.pointerPixel); XCTAssertNil(session.pointerSpectrum)
-        session.movePointer(to: nil)
-        XCTAssertNil(session.pointerPixel)
-    }
+    // MARK: Stop
 
     /// Stop ends the pass and leaves the room usable. Red under: the busy flag stuck; a stopped pass landing.
     @MainActor func testStopEndsThePassAndTheRoomStillWorks() async throws {
@@ -243,15 +227,11 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(state.windowTitle, "macTEM", "no spectrum image open: the app's name")
     }
 
-    /// The reasons a pixel has no t/λ are held by the session once per map, and a hover that stays on its pixel changes nothing.
-    @MainActor func testTheUnavailableReasonsLandWithTheMapAndASamePixelHoverIsQuiet() async throws {
+    /// The reasons a pixel has no t/λ are held by the session once per map.
+    @MainActor func testTheUnavailableReasonsLandWithTheMap() async throws {
         let session = try await openRoom(unavailablePixel: 5)
         XCTAssertEqual(session.unavailableReasons.count, 1)
         XCTAssertEqual(session.unavailableReasons.first?.count, 1)
-        session.movePointer(to: EELSCompute.Pixel(x: 1, y: 1))
-        let seen = session.pointer
-        session.movePointer(to: EELSCompute.Pixel(x: 1, y: 1))
-        XCTAssertEqual(session.pointer, seen)
     }
 
     /// The toolbar's busy display gets the EELS pass's fraction while it computes and nothing while idle; the EDS room reports its open. Red under: progress left nil (a
@@ -475,13 +455,8 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(EELSRoomFormat.readout(x: 5, y: 5, tiles: tiles, refusal: nil, locale: en), "row 5 · col 5", "off the grid: no values")
     }
 
-    /// The Processing section's state is Align and Thickness as one; its line says what Align did or that it has not run.
-    func testTheProcessingStateIsAlignAndThicknessAsOne() {
-        XCTAssertEqual(EELSRoomFormat.processingState(align: .notRun, thickness: .current), .notRun, "opened: Align —")
-        XCTAssertEqual(EELSRoomFormat.processingState(align: .current, thickness: .current), .current)
-        XCTAssertEqual(EELSRoomFormat.processingState(align: .current, thickness: .stale), .stale)
-        XCTAssertEqual(EELSRoomFormat.processingState(align: .notRun, thickness: .stale), .stale)
-        XCTAssertEqual(EELSRoomFormat.processingState(align: .current, thickness: .notRun), .notRun)
+    /// The Processing section's line says what Align did or that it has not run.
+    func testTheProcessingLineSaysWhatAlignDid() {
         XCTAssertEqual(EELSRoomFormat.processingLine(align: .notRun, thickness: .current, alignmentReadout: nil), "Align —: Run aligns the zero-loss peak.")
         XCTAssertEqual(EELSRoomFormat.processingLine(align: .current, thickness: .current, alignmentReadout: "offset -1.000 → 0.000 eV, 9 of 10 channels kept"),
                        "Aligned: offset -1.000 → 0.000 eV, 9 of 10 channels kept")

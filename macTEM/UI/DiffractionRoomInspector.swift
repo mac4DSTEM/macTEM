@@ -10,12 +10,10 @@ import ShellControls
 import ShellInspector
 import SwiftUI
 import UniformTypeIdentifiers
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import DiffractoCore
 import DiffractoGeometry
-#endif
 
 struct DiffractionRoomSettings: View {
     let image: CalibratedImage

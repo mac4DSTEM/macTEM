@@ -14,10 +14,8 @@ import XCTest
 import ImagoCore
 import ImagoFFT
 import ImagoFilters
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class FFTPreprocessTests: XCTestCase {

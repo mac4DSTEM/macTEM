@@ -1,10 +1,8 @@
 import ShellInspector
 import ShellLayout
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 import ShellEDXModel
 import ShellSpectroscopy
 

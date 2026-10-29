@@ -9,10 +9,8 @@ import ImagoCore
 import SpectroCore
 import SpectroEELS
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 import ShellEDXModel
 

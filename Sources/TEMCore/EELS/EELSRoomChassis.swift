@@ -434,13 +434,6 @@ extension EELSRoomFormat {
         return parts.joined(separator: " · ")
     }
 
-    /// The Processing section's state: Align and Thickness as one.
-    package static func processingState(align: EELSStageState, thickness: EELSStageState) -> EELSStageState {
-        if align == .stale || thickness == .stale { return .stale }
-        if align == .notRun || thickness == .notRun { return .notRun }
-        return .current
-    }
-
     /// The Processing section's one note: the line, and that the core loss follows the alignment when the file has one.
     package static func processingNote(align: EELSStageState, thickness: EELSStageState, alignmentReadout: String?, coreAligned: Bool) -> String {
         processingLine(align: align, thickness: thickness, alignmentReadout: alignmentReadout) + (coreAligned ? " The core loss is aligned with it." : "")

@@ -1,8 +1,5 @@
 #!/bin/zsh
-# PROVENANCE: mac4DSTEM df1e6c994ea5b49c7ec08737628631b204736974 tools/lib/fetch-py4dstem.sh adapted
-# Adapted: the same py4DSTEM lock commit, but one file is fetched, not the whole checkout, and its sha256 is asserted.
-# macTEM needs only the Lobato-Van Dyck parameter table that py4DSTEM's single_atom_scatter reads.
-# END PROVENANCE
+# Adapted from mac4DSTEM (tools/lib/fetch-py4dstem.sh).
 # The py4DSTEM electron-scattering-factor table lock — fetched, not vendored.
 #
 # tools/parity/crystal-parity builds its reference f_e from THIS table, not from Sources/TEMCore/Crystal/ScatteringFactors.swift

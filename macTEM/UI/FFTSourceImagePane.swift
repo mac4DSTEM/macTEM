@@ -41,12 +41,10 @@ import ShellControls
 import ShellLayout
 import ShellMetal
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoFFT
 import ImagoCore
-#endif
 
 // MARK: - The region in pane points (pure)
 

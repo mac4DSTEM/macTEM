@@ -15,10 +15,8 @@
 import ShellInspector
 import SwiftUI
 import UniformTypeIdentifiers
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 // MARK: - The words
 

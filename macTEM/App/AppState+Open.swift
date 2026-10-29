@@ -8,12 +8,10 @@
 import ShellMetal
 import Foundation
 import SwiftUI
-#if canImport(TEMCore)
 import FormatoCore
 import ImagoCore
 import TEMCore
 import TEMSession
-#endif
 import ShellEDXModel
 
 extension AppState {

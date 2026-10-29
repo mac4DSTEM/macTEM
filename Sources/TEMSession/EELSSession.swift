@@ -13,9 +13,7 @@ import Observation
 import SpectroCore
 import SpectroEDX
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
-#endif
 import ShellEDXModel
 
 @Observable
@@ -106,8 +104,6 @@ package final class EELSSession {
     package private(set) var isComputing = false
     package private(set) var progress = 0.0
     package private(set) var failure: String?
-    /// The pixel under the pointer, in scan pixels.
-    package private(set) var pointer: EELSCompute.Pixel?
     /// Why pixels have no t/λ and how many, from the map on screen (made once when a map lands).
     package private(set) var unavailableReasons: [EELSCompute.UnavailableReason] = []
 
@@ -261,19 +257,6 @@ package final class EELSSession {
         return regionRows
     }
 
-    /// The kit's pixel under the pointer, or nil.
-    package var pointerPixel: ThicknessPixel? {
-        guard let map, let pointer, pointer.x >= 0, pointer.y >= 0, pointer.x < map.nx, pointer.y < map.ny else { return nil }
-        return map[pointer.x, pointer.y]
-    }
-
-    /// The spectrum of the pixel under the pointer, as stored.
-    package var pointerSpectrum: [Double]? {
-        guard let image = source?.image, let pointer, pointer.x >= 0, pointer.y >= 0, pointer.x < image.nx, pointer.y < image.ny else { return nil }
-        let start = (pointer.y * image.nx + pointer.x) * image.channels
-        return Array(image.counts[start..<(start + image.channels)])
-    }
-
     // MARK: Opening
 
     @discardableResult
@@ -313,7 +296,7 @@ package final class EELSSession {
         alignment = nil; alignmentTile = nil; alignmentShiftTile = nil; inputVersion += 1; fitUsed = nil
         pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""
         typedConvergenceMrad = nil; typedCollectionMrad = nil
-        map = nil; tiles = []; unavailableReasons = []; failure = nil; pointer = nil
+        map = nil; tiles = []; unavailableReasons = []; failure = nil
         resetRegions()
         editedWindows = [:]; references = []; referenceNotice = nil; backgroundChoice = .powerLaw; backgroundNotice = nil; coreDeadStretches = []
         refreshDeadStretches()
@@ -327,7 +310,7 @@ package final class EELSSession {
         openTask?.cancel(); openTask = nil; isOpening = false
         plotTask?.cancel(); plot = nil; wholeMapPlot = nil; fitUsed = nil; alignmentShiftTile = nil
         deadTask?.cancel(); coreDeadStretches = []; editedWindows = [:]; references = []
-        source = nil; alignment = nil; alignmentTile = nil; pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""; map = nil; tiles = []; unavailableReasons = []; failure = nil; pointer = nil
+        source = nil; alignment = nil; alignmentTile = nil; pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""; map = nil; tiles = []; unavailableReasons = []; failure = nil
         resetRegions()
     }
 
@@ -352,7 +335,6 @@ package final class EELSSession {
     }
 
 
-    package func movePointer(to p: EELSCompute.Pixel?) { if pointer != p { pointer = p } }
 
     // MARK: Pass
 

@@ -8,10 +8,8 @@
 import ShellLayout
 import ShellSpectroscopy
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 import ShellEDXModel
 
 struct EELSRegionsTable: View {
