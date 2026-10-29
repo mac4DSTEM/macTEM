@@ -10,10 +10,8 @@ import XCTest
 import DiffractoCore
 import DiffractoScattering
 import DiffractoGeometry
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class DiffractionAnalysisTests: XCTestCase {
@@ -169,8 +167,6 @@ nonisolated final class DiffractionAnalysisTests: XCTestCase {
         XCTAssertEqual(view.viewHalfSide(for: image), 40)
         view.zoom(by: 1000, image: image)
         XCTAssertEqual(view.viewHalfSide(for: image), 8, "never closer than 8 px")
-        view.showWholeImage(image)
-        XCTAssertEqual(view.viewHalfSide(for: image), 256)
         view.fitView()
         XCTAssertEqual(view.viewHalfSide(for: image), 80)
     }

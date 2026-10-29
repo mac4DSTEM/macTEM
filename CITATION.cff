@@ -2,19 +2,22 @@ cff-version: 1.2.0
 message: "If you use macTEM in published work, please cite it, and please also cite HyperSpy and exSpy, whose methods its EDX room follows."
 title: macTEM
 abstract: >-
-  A native macOS application for calibrated TEM images and electron diffraction on Apple Silicon: FFT, lattice
-  analysis, ring calibration, indexing and EDX, built on the macEM Swift kits and checked against their Python
-  reference packages.
+  A native macOS application for calibrated TEM images, electron diffraction and spectrum imaging on Apple Silicon:
+  FFT, lattice analysis, ring calibration, indexing, EDX and EELS, built on the macEM Swift kits and checked against
+  their Python reference packages.
 type: software
 authors:
   - family-names: Lobpreis
     given-names: Paul
-    # TODO(Paul): add orcid: "https://orcid.org/…" and affiliation: "…" here
+version: 1.0.0
+date-released: 2026-10-23
 license: GPL-3.0-only
 repository-code: https://github.com/mac4DSTEM/macTEM
 keywords:
   - transmission electron microscopy
   - electron diffraction
+  - EDX
+  - EELS
   - macOS
   - Swift
 references:

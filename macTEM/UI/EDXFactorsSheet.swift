@@ -7,10 +7,8 @@
 //
 
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 struct EDXFactorsSheet: View {
     let session: EDXSession

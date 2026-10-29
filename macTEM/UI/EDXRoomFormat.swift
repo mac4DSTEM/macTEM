@@ -8,10 +8,8 @@
 import Foundation
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// The EDX room's own sizes, named once (the chrome's numbers are `LayoutPolicy`'s, a frozen shell file; these belong to the
 /// room's content and are the room's explained constants: UI contract rule 4).
@@ -25,8 +23,7 @@ nonisolated enum EDXLayout {
     static let factorsSheetWidth: CGFloat = 400
     /// The scale bar's thickness in a figure.
     static let figureBarThickness: CGFloat = 3
-    /// The EELS header's progress bar; the particle table sheet's smallest size.
-    static let progressBarWidth: CGFloat = 90
+    /// The particle table sheet's smallest size.
     static let tableSheetMinimum = CGSize(width: 560, height: 360)
     /// The opening bar.
     static let openingBarWidth: CGFloat = 260
@@ -77,11 +74,6 @@ nonisolated enum EDXRoomFormat {
         case .ellipse(let p): "Ellipse · x \(p.x0)–\(p.x1 - 1), y \(p.y0)–\(p.y1 - 1) · \(counts(Double(pixels))) px"
         case .polygon(let v): "Polygon · \(v.count) vertices · \(counts(Double(pixels))) px"
         }
-    }
-
-    /// The infobar-sized line under the room's title: the counts in the region.
-    static func spectrumSubtitle(counts total: UInt64, region r: EDXRegion, pixels: Int) -> String {
-        "\(counts(Double(total))) counts · " + region(r, pixels: pixels)
     }
 
     /// The toolbar's display after the file and the room: the grid, what the spectrum sums and what the fit is doing, e.g. "215 × 926 px · 16 090 312 counts · Region 1 · 5 092 px · Quantified".

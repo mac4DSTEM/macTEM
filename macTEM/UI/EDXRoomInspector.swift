@@ -19,10 +19,8 @@ import ShellLayout
 import SwiftUI
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 // MARK: - Settings
 

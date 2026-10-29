@@ -9,10 +9,8 @@
 import ShellControls
 import ShellSpectroscopy
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// The energy window's arithmetic, pure: it always stays inside the spectrum's range and never gets narrower than two channels.
 nonisolated enum EDXSpectrumWindow {

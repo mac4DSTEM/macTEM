@@ -12,9 +12,7 @@
 //
 
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 /// What the sidecar beside a file made of the file's first read.
 package nonisolated enum SidecarOutcome: Sendable, Equatable {

@@ -13,10 +13,8 @@ import ShellInspector
 import SwiftUI
 import ImagoCore
 import UniformTypeIdentifiers
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 struct ImageRoomParticlesSection: View {
     let image: CalibratedImage

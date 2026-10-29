@@ -7,10 +7,8 @@
 
 import SwiftUI
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 struct EDXTypedKSheet: View {
     let session: EDXSession

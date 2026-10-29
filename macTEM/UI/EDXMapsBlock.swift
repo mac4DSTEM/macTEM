@@ -14,10 +14,8 @@ import SwiftUI
 import CoreGraphics
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// One tile of the block: the scan image, an element's map or the colour mix.
 struct EDXGridItem: Identifiable {
@@ -119,10 +117,6 @@ private struct EDXMapTileHost: View {
 
     private var appearance: MapAppearance { state.appearance }
 
-    /// Every tile but the colour mix is selected by a click: what is selected is what the mix on the left shows.
-    private func inMixNow(_ id: String) -> Bool {
-        EDXMapsComposition.selection(appearance.mix, scan: session.source?.scanImage, tiles: session.shownTiles).contains(id)
-    }
     private var isMix: Bool { if case .mix = item.kind { true } else { false } }
     private var tileID: String? { switch item.kind { case .scan: "haadf"; case .map(let tile): tile.symbol; case .mix: nil } }
     private var selectable: [String] { EDXMapsComposition.selectable(scan: session.source?.scanImage, tiles: session.shownTiles) }

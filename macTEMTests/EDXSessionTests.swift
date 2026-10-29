@@ -15,10 +15,8 @@
 import XCTest
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 nonisolated final class EDXSessionTests: XCTestCase {
 

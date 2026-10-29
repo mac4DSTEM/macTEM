@@ -15,10 +15,8 @@ import SpectroCore
 import SpectroEDX
 import ShellSpectroscopy
 import FormatoMSA
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class EDXRegionsTests: XCTestCase {

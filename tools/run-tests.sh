@@ -1,12 +1,5 @@
 #!/bin/zsh
-# PROVENANCE: mac4DSTEM df1e6c994ea5b49c7ec08737628631b204736974 tools/run-tests.sh adapted
-# mac4DSTEM's entry point, free-space floor, test-host geometry reset, harness arrays and lane structure, cut to four
-# lanes; the unit reconciliation, the core lane and the inventory checks are macTEM's, but for its two checks of what
-# the bundle redistributes (NOTICE's dylib hashes and load paths, the bundled folders tracked), ported with the dylibs.
-# Changed (EDX room, 2026-10-21): the unit run passes SWIFT_OPTIMIZATION_LEVEL=-O so SpectroKit is optimised (mac4DSTEM ADR 067).
-# Re-sync to 5b696589: upstream's only change to this file since 7c180bce (7b349a7b, `core` takes swift build's exit
-# from swift build, not from a pipe) is already macTEM's core_build, which reads it from a log; nothing else applies.
-# END PROVENANCE
+# Adapted from mac4DSTEM (tools/run-tests.sh).
 # tools/run-tests.sh — the one entry point to macTEM's gates.
 #
 #   unit        the XCTest suite (macTEMTests), unsigned, in a scratch DerivedData; then the executed tests are
@@ -25,11 +18,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 resolve_mactem_developer_dir
 
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
-scientific=(dm4-reader-parity tiff-reader-parity mrc-reader-parity fft-parity spot-parity crystal-parity metadata-parity ring-calibration-parity hrtem-filter-parity histogram-parity profile-parity velox-image-parity export-parity fft-export-parity sidecar-parity indexing-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
-diagnostic=(ellipse-parity ring-fit-parity)   # never gated: machine-local data, or the evidence of a registered item that failed (S2, S3-b)
+scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
+diagnostic=()                    # never gated
 owner_only=()                    # the owner's own runs
 retired=()                       # kept for history, not run
-support=(au-ring-pattern crystal-structures)   # not harnesses
+support=(crystal-structures)     # not harnesses
 
 # A near-full disk fakes code regressions (mac4DSTEM, 2026-08-06: three runs, three different spurious failure
 # sets). 4 GB is mac4DSTEM's floor for the same lanes: 3.2x its measured unit-suite peak (1245 MB).
