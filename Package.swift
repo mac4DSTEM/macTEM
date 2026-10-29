@@ -14,7 +14,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/mac4DSTEM/FormatoKit", exact: "0.11.0"),
         .package(url: "https://github.com/mac4DSTEM/DiffractoKit", exact: "0.10.0"),
-        .package(url: "https://github.com/mac4DSTEM/ImagoKit", exact: "0.7.0"),
+        .package(url: "https://github.com/mac4DSTEM/ImagoKit", exact: "0.8.0"),
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", exact: "0.12.0"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
