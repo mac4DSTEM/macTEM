@@ -21,6 +21,7 @@ import SpectroEDX
 import SpectroEELS
 import TEMCore
 import TEMSession
+import ShellEDXModel
 
 /// What the EELS room's Export section writes, as the EDS room's (Paul's drive, 2026-10-23): the results, the spectrum, the regions, the maps as one PNG, the
 /// per-pixel thickness and the method.

@@ -10,6 +10,7 @@ import Foundation
 import Observation
 import ShellMetal
 import TEMCore
+import ShellEDXModel
 
 @Observable
 package final class DiffractionViewState {

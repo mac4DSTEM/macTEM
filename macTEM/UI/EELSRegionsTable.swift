@@ -10,6 +10,7 @@ import ShellSpectroscopy
 import SwiftUI
 import TEMCore
 import TEMSession
+import ShellEDXModel
 
 struct EELSRegionsTable: View {
     let session: EELSSession

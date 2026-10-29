@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
 import ShellSpectroscopy
 import TEMCore
 import TEMSession
+import ShellEDXModel
 
 @Observable
 final class EELSRoomState {

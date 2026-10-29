@@ -1,7 +1,7 @@
 // swift-tools-version: 6.2
 // SPDX-License-Identifier: GPL-3.0-only
 // TEMCore and TEMSession, the app's two library targets (`tools/run-tests.sh core` builds them standalone: the layering
-// gate). Kits at exact tags. No UI below the app: TEMCore takes no MacEMUI product.
+// gate). Kits at exact tags. No UI below the app: TEMCore takes only ShellEDXModel from MacEMUI (the shared EDS room's model, no SwiftUI).
 import PackageDescription
 
 let package = Package(
@@ -16,8 +16,9 @@ let package = Package(
         .package(url: "https://github.com/mac4DSTEM/DiffractoKit", exact: "0.10.0"),
         .package(url: "https://github.com/mac4DSTEM/ImagoKit", exact: "0.7.0"),
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", exact: "0.12.0"),
-        // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind).
-        .package(url: "https://github.com/mac4DSTEM/MacEMUI", exact: "0.3.2"),
+        // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
+        // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
+        .package(url: "https://github.com/mac4DSTEM/MacEMUI", exact: "0.4.0"),
     ],
     targets: [
         .target(
@@ -40,6 +41,7 @@ let package = Package(
                 .product(name: "SpectroCore", package: "SpectroKit"),
                 .product(name: "SpectroEDX", package: "SpectroKit"),
                 .product(name: "SpectroEELS", package: "SpectroKit"),
+                .product(name: "ShellEDXModel", package: "MacEMUI"),
             ],
             swiftSettings: [
                 // Optimised in Debug too.
@@ -65,6 +67,7 @@ let package = Package(
                 .product(name: "SpectroEDX", package: "SpectroKit"),
                 .product(name: "SpectroEELS", package: "SpectroKit"),
                 .product(name: "ShellMetal", package: "MacEMUI"),
+                .product(name: "ShellEDXModel", package: "MacEMUI"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-O"], .when(configuration: .debug)),

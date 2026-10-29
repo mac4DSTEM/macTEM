@@ -11,6 +11,7 @@ import SpectroCore
 import TEMCore
 import TEMSession
 @testable import macTEM
+import ShellEDXModel
 
 nonisolated final class FileRoutingTests: XCTestCase {
 
@@ -75,7 +76,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
     func testAnMSAFileIsAOnePixelSpectrumImage() throws {
         let counts: [UInt64] = (0..<256).map { UInt64($0 % 17) * 3 + 1 }
         let axis = EnergyAxis(offset: -0.1, scale: 0.01, size: counts.count)
-        let url = try Self.temp("planted.msa", try EDXExports.msa(counts: counts, axis: axis, title: "planted", beamEnergyKeV: 200))
+        let url = try Self.temp("planted.msa", try EDXExports.msa(counts: counts, axis: axis, title: "planted", beamEnergyKeV: 200, host: .macTEM))
         XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(singleSpectrum: true))
         XCTAssertTrue(FileRouting.isSingleSpectrum(path: url.path))
         let loaded = try FileRouting.spectrumFile(path: url.path)
@@ -85,7 +86,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertEqual(loaded.energyAxis.offset, -0.1, accuracy: 1e-9); XCTAssertEqual(loaded.energyAxis.scale, 0.01, accuracy: 1e-9)
         XCTAssertEqual(loaded.metadata.energyDispersionEV, 10, accuracy: 1e-6)
         XCTAssertEqual(loaded.image.sum(mask: nil), counts, "the counts, exactly")
-        let negative = try Self.temp("neg.msa", try EDXExports.msa(counts: [1, 2, 3], axis: axis, title: "x", beamEnergyKeV: nil).replacingBytes("1.000000", with: "-1.000000"))
+        let negative = try Self.temp("neg.msa", try EDXExports.msa(counts: [1, 2, 3], axis: axis, title: "x", beamEnergyKeV: nil, host: .macTEM).replacingBytes("1.000000", with: "-1.000000"))
         XCTAssertThrowsError(try FileRouting.spectrumFile(path: negative.path)) {
             XCTAssertEqual(($0 as? LocalizedError)?.errorDescription, "The spectrum holds negative or non-finite values: it is not a count spectrum.")
         }
@@ -108,7 +109,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
     /// (no room change); a refused file raises the alert with its sentence. Red under: everything opened as an image.
     @MainActor func testTheAppsOpenRoutesASpectrumToTheEDXRoomAndAnImageToTheImageRoom() async throws {
         let counts: [UInt64] = (0..<512).map { UInt64($0 % 23) * 2 + 1 }
-        let msa = try Self.temp("spectrum.msa", try EDXExports.msa(counts: counts, axis: EnergyAxis(offset: 0, scale: 0.01, size: counts.count), title: "t", beamEnergyKeV: 200))
+        let msa = try Self.temp("spectrum.msa", try EDXExports.msa(counts: counts, axis: EnergyAxis(offset: 0, scale: 0.01, size: counts.count), title: "t", beamEnergyKeV: 200, host: .macTEM))
         let state = AppState(launch: LaunchOptions(arguments: []))
         XCTAssertEqual(state.navigation.workspaceArea, .image)
         await state.open(urls: [msa])?.value

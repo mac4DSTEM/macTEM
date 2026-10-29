@@ -15,6 +15,8 @@ import ImagoCore
 import UniformTypeIdentifiers
 import TEMCore
 import TEMSession
+import ShellEDXModel
+import ShellSpectroscopy
 
 struct ImageRoomParticlesSection: View {
     let image: CalibratedImage
