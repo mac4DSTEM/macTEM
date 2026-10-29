@@ -68,7 +68,7 @@ nonisolated final class EDXRoomTests: XCTestCase {
 
     @MainActor func testTheRoomStatesStartWithNothingSolo() {
         XCTAssertNil(EDXRoomState().soloTile)
-        XCTAssertEqual(EELSRoomState().tileSize, .medium); XCTAssertNil(EELSRoomState().soloTile)
+        XCTAssertNil(EELSRoomState().soloTile)
     }
 
     // MARK: The shell's slots

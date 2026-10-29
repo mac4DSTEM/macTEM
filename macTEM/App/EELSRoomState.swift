@@ -17,8 +17,7 @@ import ShellEDXModel
 final class EELSRoomState {
     /// Bumped by every "Open EELS Spectrum Image…" gesture; the room presents the open panel when it changes.
     private(set) var importRequest = 0
-    /// The tile shown alone (nil: the block). Kept with `tileSize` for the old room's tests; delete `tileSize` with them.
-    var tileSize: MapTileSize = .medium
+    /// The tile shown alone (nil: the block).
     var soloTile: String?
     /// The zoom and position every map shares (pinch, scroll, drag; a double click resets).
     var mapView = MapViewTransform()
