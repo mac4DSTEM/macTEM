@@ -2,8 +2,7 @@ macTEM
 Copyright (C) 2026 Paul Lobpreis
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
-License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
-version.
+License as published by the Free Software Foundation, version 3 of the License only (LICENSE).
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
 warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
@@ -16,7 +15,7 @@ Code copied from mac4DSTEM
 ================================================================================
 
 Parts of the app shell, the scripts and the CI workflow are adapted from mac4DSTEM
-(https://github.com/mac4DSTEM/mac4DSTEM), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-or-later; such a file says so in its
+(https://github.com/mac4DSTEM/mac4DSTEM), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only; such a file says so in its
 first lines. mac4DSTEM's own third-party notices
 (py4DSTEM, HyperSpy/eXSpy) apply to the parts it ported and are in its NOTICE.
 
@@ -25,7 +24,7 @@ SpectroKit (a Swift package the app is built with)
 ================================================================================
 
 The app links SpectroKit (https://github.com/mac4DSTEM/SpectroKit, tag 0.12.0, commit
-7e8aa8264adb536d1be230eb81cf11fa02021da0), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-or-later, for the EDS and EELS rooms: the spectrum image, line
+7e8aa8264adb536d1be230eb81cf11fa02021da0), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the EDS and EELS rooms: the spectrum image, line
 windows and maps, Auto ID, the pooled Cliff-Lorimer quantification, and the EELS alignment, thickness and edge fits. The app embeds its resource bundle
 `SpectroKit_SpectroEDX.bundle` in Contents/Resources: the NIST EPQ mass-absorption, line-weight, ionisation cross-section and Krause fluorescence-yield
 tables, with the terms and citations in SpectroKit's NOTICE, which applies to them here. For the EELS room it embeds `SpectroKit_SpectroEELS.bundle`: the
@@ -38,7 +37,7 @@ FormatoKit (a Swift package the app is built with)
 ================================================================================
 
 The app links FormatoKit (https://github.com/mac4DSTEM/FormatoKit, tag 0.11.0, commit
-7e68615ff8812f3d412429c5edc9022fab0639d3), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-or-later, for its DM3/DM4, Velox EMD, TIFF
+7e68615ff8812f3d412429c5edc9022fab0639d3), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for its DM3/DM4, Velox EMD, TIFF
 and MRC readers and its HDF5 layer, which SpectroKit held until 0.4.0, including the root-attribute file layer
 (`HDF5RootAttributes`) the session sidecar is written and read through since FormatoKit 0.5.0: it was this app's own HDF5 binding (an adapted
 copy of mac4DSTEM's BraggVectorEMDWriter binding), moved into the kit, and the app no longer carries a copy. Its own third-party notices
@@ -49,7 +48,7 @@ DiffractoKit (a Swift package the app is built with)
 ================================================================================
 
 The app links DiffractoKit (https://github.com/mac4DSTEM/DiffractoKit, tag 0.10.0, commit
-317b280dbe35ce1c2e057e2416d3a1be6eaf1d1f), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-or-later, for crystal structures, the CIF
+317b280dbe35ce1c2e057e2416d3a1be6eaf1d1f), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
 import, kinematic reflection lists, ring and ellipse calibration and the indexing of a measured |q|. Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
 its oracle and none of its code is copied. Its own third-party notices are in its NOTICE.
 
@@ -58,7 +57,7 @@ ImagoKit (a Swift package the app is built with)
 ================================================================================
 
 The app links ImagoKit (https://github.com/mac4DSTEM/ImagoKit, tag 0.7.0, commit
-41b4b617d108084f8cb2cf22acc4042614eb92d1), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-or-later, for the exact-length 2D FFT, the
+41b4b617d108084f8cb2cf22acc4042614eb92d1), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the exact-length 2D FFT, the
 centred power spectrum, the radial profile, the spot spacing, the masked inverse FFT, the HRTEM filters, line profiles and the
 histogram. Its references are NumPy, SciPy and scikit-image; none of their code is copied. Its own notices are in its NOTICE.
 
@@ -67,7 +66,7 @@ MacEMUI (a Swift package the app is built with)
 ================================================================================
 
 The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.3.0, commit
-b800cab772102f50f04f6281955d1214fe719e61), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-or-later: the window shell, the
+b800cab772102f50f04f6281955d1214fe719e61), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
 inspector, the controls and the Metal image view macTEM shares with mac4DSTEM.
 
 ================================================================================

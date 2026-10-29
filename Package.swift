@@ -1,4 +1,5 @@
 // swift-tools-version: 6.2
+// SPDX-License-Identifier: GPL-3.0-only
 // TEMCore and TEMSession, the app's two library targets (`tools/run-tests.sh core` builds them standalone: the layering
 // gate). Kits at exact tags. No UI below the app: TEMCore takes no MacEMUI product.
 import PackageDescription
