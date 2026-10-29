@@ -620,7 +620,7 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
     /// A save after a re-read with other pixels is refused, so marks are never written over pixels they were not drawn on;
     /// the user's Save Anyway lets it through once, and that save makes the new pixels the ones the marks are drawn on. The
     /// same pixels, or nothing drawn, save as before. Red under: `saveRequest` not comparing the opened identity with the
-    /// one the marks were drawn on (macEM-suite#24); Save Anyway not offered for this refusal.
+    /// one the marks were drawn on; Save Anyway not offered for this refusal.
     @MainActor func testASaveAfterARereadWithOtherPixelsIsRefusedUntilSaveAnyway() throws {
         let image = Self.image(), clock = SessionTestClock()
         let a = identity(of: image), b = identity(of: Self.image(shift: 1))
