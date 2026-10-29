@@ -104,7 +104,8 @@ jobs:
 
   kit-boundary:
     name: kit boundary (no numerics frameworks in the app)
-    runs-on: macos-26
+    # Plain bash, grep and awk: Linux runs it (checked with mawk), off the macOS runner queue.
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
