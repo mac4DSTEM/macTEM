@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""The planted-truth fixtures of tools/parity/dm4-reader-parity and the unit gate.
+"""The planted-truth DM4 fixtures of the unit tests (macTEMTests/Fixtures/planted-2d.dm4 and its truth).
 
-    make_fixture.py <fixture.dm4> <truth.json>    the committed fixture (run.sh --make-fixture; commit both files)
-    make_fixture.py --types <dir>                 one planted DM4 per pixel type, and its truth, into <dir>
-                                                  (run.sh writes them into its scratch directory at every run)
+    make_dm4_fixture.py <fixture.dm4> <truth.json>    the committed fixture (commit both files)
+    make_dm4_fixture.py --types <dir>                 one planted DM4 per pixel type, and its truth, into <dir>
 
 Writes small DM4s whose every number is chosen, and the truth those choices are, beside each. Each choice is there
 to make a specific reader error visible. The committed fixture:

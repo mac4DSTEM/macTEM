@@ -41,7 +41,7 @@ import numpy as np
 import tifffile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "dm4-reader-parity"))    # `python -I` drops the script's directory
+sys.path.insert(0, HERE)                                             # `python -I` drops the script's directory
 import dm4_writer                                                    # noqa: E402  (the verbatim copy of mac4DSTEM's)
 from dm4_writer import Group, image_object, write_dm4                # noqa: E402
 
