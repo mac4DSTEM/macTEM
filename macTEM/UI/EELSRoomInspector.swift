@@ -47,7 +47,7 @@ private struct EELSMapsSection: View {
         let selection = availability.effective(state.maps)
         InspectorSection("Maps") {
             // MacEMUI's SegmentedPicker has no disabled segment: a segment that is off carries its reason in its tooltip, a pick of it leaves the control where it was
-            // and the one caption says why (delete at: SegmentedPicker takes a disabled segment).
+            // and the one caption says why (delete at mac4DSTEM/MacEMUI#22: SegmentedPicker takes a disabled segment).
             SegmentedPicker(label: "Maps", items: EELSMapsSegment.allCases.map { s in (s, .title(s.title, help: availability.disabledReason(s).map { "Off: \($0)" })) },
                             selection: Binding(get: { selection }, set: { new in
                                 if let why = availability.disabledReason(new) { state.mapsNotice = why } else { state.maps = new; state.mapsNotice = nil }
@@ -76,7 +76,7 @@ private struct EELSToolsSection: View {
 
 /// The periodic table answered from the session: only the elements with a bundled edge are live, and only those the core loss reaches. A click picks the default
 /// edge (K where bundled, else L₂,₃) to quantify, a second click takes it off; a right-click gives the edge, Quantify and Off.
-/// "Fit only" has no effect of its own yet (the composition is over every fitted edge), so it picks the edge like Quantify (delete at the next slice).
+/// "Fit only" has no effect of its own yet (the composition is over every fitted edge), so it picks the edge like Quantify until the next EELS slice.
 enum EELSPeriodicActions {
     static func make(_ session: EELSSession) -> PeriodicTableActions {
         func symbol(_ z: Int) -> String { PeriodicTableGrid.symbol(z) }
@@ -197,7 +197,7 @@ private struct EELSProcessingSection: View {
             }
             lambdaRows
             InspectorRow("Deconvolution") {
-                // delete at: the deconvolution slice (the kit has Fourier-log, Fourier-ratio and Richardson-Lucy; the session does not call them yet)
+                // Until the deconvolution slice (the kit has Fourier-log, Fourier-ratio and Richardson-Lucy; the session does not call them yet)
                 Picker("Deconvolution", selection: .constant("Off")) {
                     ForEach(["Off", "Fourier-log", "Fourier-ratio", "Richardson-Lucy"], id: \.self) { Text($0) }
                 }
@@ -269,7 +269,7 @@ private struct EELSFittingSection: View {
     var body: some View {
         let file = session.source
         InspectorSection("Fitting") {
-            // delete at: the MLLS slice (the kit has EELSMLLS; the session fits by exact NNLS only). A pick of MLLS changes nothing.
+            // Until the MLLS slice (the kit has EELSMLLS; the session fits by exact NNLS only). A pick of MLLS changes nothing.
             SegmentedPicker(label: "Model", items: [("Exact NNLS", .title("Exact NNLS")), ("MLLS", .title("MLLS", help: "Off: the MLLS fit arrives with the next slice."))],
                             selection: .constant("Exact NNLS"))
                 .accessibilityIdentifier("eels.model")

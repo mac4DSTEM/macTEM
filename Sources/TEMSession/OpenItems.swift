@@ -421,6 +421,8 @@ package final class OpenItem: Identifiable {
         // and only the read that is still the current one reaches here (`finishOpen`'s token above).
         if let identity = opened.identity {
             let first = !hasBeenRead
+            // The particle report belongs to the pixels it was measured on: a re-read with other pixels drops it.
+            if !first, let old = openedIdentity, old.pixelSHA256 != identity.pixelSHA256 { particles.reset() }
             measurements.noteOpened(identity)
             openedIdentity = identity
             if first { adopt(opened.sidecar, identity: identity, on: opened.image) }
