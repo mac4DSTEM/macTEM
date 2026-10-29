@@ -173,6 +173,8 @@ package final class ImageMeasurements {
     /// The lineage the sidecar on disk held when it was restored or last saved; a save checks it is still there.
     @ObservationIgnored private var onDisk: String?
     @ObservationIgnored private var replacing = false
+    /// The user chose Save Anyway after a re-read with other pixels: the next save takes the new image.
+    @ObservationIgnored private var acceptingNewPixels = false
     @ObservationIgnored private let now: @Sendable () -> Date
 
     /// `now` stamps every node's `recorded` (a test passes its own clock).
@@ -289,6 +291,9 @@ package final class ImageMeasurements {
     /// the restore's own checks. Take it on the main actor; write it with `SessionSave.write` off it; then `didSave`.
     package func saveRequest(opened identity: SessionSourceIdentity) throws(SessionSave.Refusal) -> SessionSave.Request {
         if let refusal = savingRefusal { throw refusal }
+        if !acceptingNewPixels, let drawnOn, drawnOn.pixelSHA256 != identity.pixelSHA256, !marks.isEmpty || !lineage.nodes.isEmpty {
+            throw .pixelsChanged
+        }
         return try SessionSave.request(identity: identity, lineage: lineage, revision: revision,
                                        expectedOnDisk: onDisk, replacing: replacing)
     }
@@ -299,6 +304,7 @@ package final class ImageMeasurements {
         savedRevision = request.revision
         onDisk = request.lineage
         replacing = false
+        acceptingNewPixels = false
         sidecar = .saved
         drawnOn = identity
         notes = []
@@ -308,6 +314,11 @@ package final class ImageMeasurements {
     /// read): the next save writes over it.
     package func replaceRefusedSidecar() {
         replacing = true
+    }
+
+    /// The user chose Save Anyway after a re-read with other pixels: the next save writes the marks against the new image.
+    package func acceptNewPixels() {
+        acceptingNewPixels = true
     }
 
     // MARK: Restore

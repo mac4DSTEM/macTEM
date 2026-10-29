@@ -94,6 +94,12 @@ package nonisolated enum SessionSaving {
             return false
         }
 
+        /// The image was read again with other pixels: the one refusal the user may answer with Save Anyway.
+        package var offersSaveAnyway: Bool {
+            if case .refused(_, .pixelsChanged) = self { return true }
+            return false
+        }
+
         package var dropsGrant: Bool {
             switch self {
             case .grantLost: true
@@ -186,6 +192,14 @@ package nonisolated enum SessionSaving {
     @MainActor
     package static func replaceAndSave(_ item: OpenItem, to target: Target) async throws -> Saved {
         item.measurements.replaceRefusedSidecar()
+        return try await save(item, to: target)
+    }
+
+    /// The user chose Save Anyway after a re-read with other pixels: the next save writes the marks against the image as it
+    /// is now, once. Not a way round any other refusal.
+    @MainActor
+    package static func saveAnyway(_ item: OpenItem, to target: Target) async throws -> Saved {
+        item.measurements.acceptNewPixels()
         return try await save(item, to: target)
     }
 

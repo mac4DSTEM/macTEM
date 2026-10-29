@@ -89,6 +89,10 @@ enum SessionPanels {
                                appState: AppState) async {
         let failure = error as? SessionSaving.Failure
         if failure?.dropsGrant == true { SessionGrants.drop(forSource: item.url) }
+        if failure?.offersSaveAnyway == true, let window = ExportPanels.hostWindow() {
+            await saveAnyway(item: item, target: target, on: window, appState: appState)
+            return
+        }
         guard failure?.offersReplace == true, let window = ExportPanels.hostWindow() else {
             appState.present(error)
             return
@@ -106,14 +110,38 @@ enum SessionPanels {
         }
     }
 
+    /// The image was read again with other pixels: the alert says so and offers Save Anyway (the marks are then written
+    /// against the image as it is now) and Cancel.
+    private static func saveAnyway(item: OpenItem, target: () -> SessionSaving.Target, on window: NSWindow,
+                                   appState: AppState) async {
+        let name = item.sessionFileName ?? "the session file"
+        guard await confirm(title: SessionFormat.pixelsChangedTitle(image: item.url.lastPathComponent),
+                            detail: SessionFormat.pixelsChangedDetail(name: name), action: "Save Anyway", on: window) else {
+            appState.statusText = "Not saved: \(name) was left as it is"
+            return
+        }
+        do {
+            finish(try await SessionSaving.saveAnyway(item, to: target()), item: item, appState: appState)
+        } catch {
+            if (error as? SessionSaving.Failure)?.dropsGrant == true { SessionGrants.drop(forSource: item.url) }
+            appState.present(error)
+        }
+    }
+
     /// WHY APPKIT: SwiftUI's alert cannot be raised from here, `ContentView`'s alert (the shell, frozen) has no second
     /// choice, and `NSAlert` gives the destructive role and the sheet. True when the user chose Replace.
     private static func confirmReplace(name: String, on window: NSWindow) async -> Bool {
+        await confirm(title: SessionFormat.replaceTitle(name: name), detail: SessionFormat.replaceDetail(name: name),
+                      action: "Replace", on: window)
+    }
+
+    /// A warning sheet with a destructive `action` and Cancel (Esc); true when the user chose `action`.
+    private static func confirm(title: String, detail: String, action: String, on window: NSWindow) async -> Bool {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = SessionFormat.replaceTitle(name: name)
-        alert.informativeText = SessionFormat.replaceDetail(name: name)
-        let replace = alert.addButton(withTitle: "Replace")
+        alert.messageText = title
+        alert.informativeText = detail
+        let replace = alert.addButton(withTitle: action)
         replace.hasDestructiveAction = true
         let cancel = alert.addButton(withTitle: "Cancel")
         cancel.keyEquivalent = "\u{1b}"
