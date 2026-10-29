@@ -642,17 +642,6 @@ package final class EDXSession {
         pinRows = rows
     }
 
-    /// Replaces the pins with a set read from a pins CSV, regions clipped away when they hold no pixel of this image.
-    @discardableResult
-    package func loadPins(_ loaded: [EDXPin]) -> Int {
-        guard let source else { return 0 }
-        let usable = loaded.filter { $0.region.pixelCount(nx: source.nx, ny: source.ny) > 0 }
-        pins = usable
-        colorsIssued = usable.count
-        refreshPinData()
-        return usable.count
-    }
-
     /// The pins CSV: each pin's pixels, counts, net counts and (with complete factors) composition, summed off the main actor.
     package func pinsCSV() async -> String? {
         guard let source, !pins.isEmpty else { return nil }
