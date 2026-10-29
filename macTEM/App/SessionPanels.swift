@@ -123,8 +123,7 @@ enum SessionPanels {
         do {
             finish(try await SessionSaving.saveAnyway(item, to: target()), item: item, appState: appState)
         } catch {
-            if (error as? SessionSaving.Failure)?.dropsGrant == true { SessionGrants.drop(forSource: item.url) }
-            appState.present(error)
+            await failed(error, item: item, target: target, appState: appState)   // a file changed on disk still offers Replace
         }
     }
 

@@ -199,7 +199,7 @@ package nonisolated enum SessionSaving {
     /// is now, once. Not a way round any other refusal.
     @MainActor
     package static func saveAnyway(_ item: OpenItem, to target: Target) async throws -> Saved {
-        item.measurements.acceptNewPixels()
+        if let identity = item.openedIdentity { item.measurements.acceptNewPixels(identity) }
         return try await save(item, to: target)
     }
 
