@@ -4,6 +4,7 @@
 import Foundation
 import SpectroCore
 import SpectroEELS
+import ShellEDXModel
 
 // MARK: - The Maps control
 

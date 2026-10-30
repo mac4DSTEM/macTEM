@@ -1,7 +1,6 @@
 //
 //  FFTAnalysis.swift
-//  Role: the one owner of the FFT room's state for one open file (archive: roadmap-registrations-2026-10-15.md V1-6 + 6a + 6b, "The room"; the design in
-//        archive: fft-room-design-2026-10-13.md): the region transformed, the spots measured on its transform, what
+//  Role: the one owner of the FFT room's state for one open file: the region transformed, the spots measured on its transform, what
 //        the source pane shows, the mask's radius and edge, the HRTEM filters' parameters and the spectrum's display
 //        window — small values, kept while the file is cold, as the marks are (`OpenItem.fft`, beside `measurements`) —
 //        and, while the room shows the file, the products: the spectrum ready to draw with its radial profile, the
@@ -9,7 +8,7 @@
 //        `MaskedInverseFFT`, `HRTEMFilter`, ADR 027; the room's region, bin and unit rules are ImagoFFT's `FFTRegion`, `SpectrumBin`, `FFTUnits`; `FFTMask` is ImagoFFT's); this owner asks for them and
 //        publishes what it is answered, by the live-update rule R2.
 //
-//        NOT SAVED: the session sidecar (V1-2) is not built, so the room's state lives with its open file and goes when
+//        NOT SAVED: the session sidecar is not built, so the room's state lives with its open file and goes when
 //        it closes, as the marks do.
 //
 //  R2, THE LANES: four kinds of work — the spectrum (with its profile and display), a spot, the masked inverse, the

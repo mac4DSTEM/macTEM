@@ -1,6 +1,6 @@
 //
 //  OpenItemRowFormatTests.swift
-//  Pins the text of the open-files list (V1-13): a row's size-and-calibration line, the spoken sentence, the parent
+//  Pins the text of the open-files list: a row's size-and-calibration line, the spoken sentence, the parent
 //  folder that tells two same-named files apart, the formats the open prompt names, and the colour a thumbnail pixel gets.
 //  The numbers use the conversions `AppState.openedLine` uses (DisplaySampling + CalibrationUnitConversion).
 //

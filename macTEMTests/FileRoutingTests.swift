@@ -11,6 +11,7 @@ import SpectroCore
 import TEMCore
 import TEMSession
 @testable import macTEM
+import ShellEDXModel
 
 nonisolated final class FileRoutingTests: XCTestCase {
 
@@ -33,7 +34,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
         let candidates = [root.appendingPathComponent("References/\(relative)").path,
                           root.deletingLastPathComponent().appendingPathComponent("References/\(relative)").path]
         guard let path = candidates.first(where: { FileManager.default.fileExists(atPath: $0) }) else {
-            throw XCTSkip("not skipped on Paul's Mac: \(relative) is not here")
+            throw XCTSkip("\(relative) is not in the data folder ($MACEM_DATA)")
         }
         return path
     }
@@ -75,7 +76,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
     func testAnMSAFileIsAOnePixelSpectrumImage() throws {
         let counts: [UInt64] = (0..<256).map { UInt64($0 % 17) * 3 + 1 }
         let axis = EnergyAxis(offset: -0.1, scale: 0.01, size: counts.count)
-        let url = try Self.temp("planted.msa", try EDXExports.msa(counts: counts, axis: axis, title: "planted", beamEnergyKeV: 200))
+        let url = try Self.temp("planted.msa", try EDXExports.msa(counts: counts, axis: axis, title: "planted", beamEnergyKeV: 200, host: .macTEM))
         XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(singleSpectrum: true))
         XCTAssertTrue(FileRouting.isSingleSpectrum(path: url.path))
         let loaded = try FileRouting.spectrumFile(path: url.path)
@@ -85,7 +86,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertEqual(loaded.energyAxis.offset, -0.1, accuracy: 1e-9); XCTAssertEqual(loaded.energyAxis.scale, 0.01, accuracy: 1e-9)
         XCTAssertEqual(loaded.metadata.energyDispersionEV, 10, accuracy: 1e-6)
         XCTAssertEqual(loaded.image.sum(mask: nil), counts, "the counts, exactly")
-        let negative = try Self.temp("neg.msa", try EDXExports.msa(counts: [1, 2, 3], axis: axis, title: "x", beamEnergyKeV: nil).replacingBytes("1.000000", with: "-1.000000"))
+        let negative = try Self.temp("neg.msa", try EDXExports.msa(counts: [1, 2, 3], axis: axis, title: "x", beamEnergyKeV: nil, host: .macTEM).replacingBytes("1.000000", with: "-1.000000"))
         XCTAssertThrowsError(try FileRouting.spectrumFile(path: negative.path)) {
             XCTAssertEqual(($0 as? LocalizedError)?.errorDescription, "The spectrum holds negative or non-finite values: it is not a count spectrum.")
         }
@@ -108,7 +109,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
     /// (no room change); a refused file raises the alert with its sentence. Red under: everything opened as an image.
     @MainActor func testTheAppsOpenRoutesASpectrumToTheEDXRoomAndAnImageToTheImageRoom() async throws {
         let counts: [UInt64] = (0..<512).map { UInt64($0 % 23) * 2 + 1 }
-        let msa = try Self.temp("spectrum.msa", try EDXExports.msa(counts: counts, axis: EnergyAxis(offset: 0, scale: 0.01, size: counts.count), title: "t", beamEnergyKeV: 200))
+        let msa = try Self.temp("spectrum.msa", try EDXExports.msa(counts: counts, axis: EnergyAxis(offset: 0, scale: 0.01, size: counts.count), title: "t", beamEnergyKeV: 200, host: .macTEM))
         let state = AppState(launch: LaunchOptions(arguments: []))
         XCTAssertEqual(state.navigation.workspaceArea, .image)
         await state.open(urls: [msa])?.value
@@ -159,9 +160,8 @@ nonisolated final class FileRoutingTests: XCTestCase {
 
     /// The study's own file (1.7 GB, in the data folder): inventoried from its group names without reading a pixel.
     func testTheStudyFileIsAnImageAndAnEDSCube() throws {
-        let data = ProcessInfo.processInfo.environment["MACEM_DATA"] ?? URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("data").path
-        let path = data + "/stem-edx/SI HAADF 1456 77000 x 20260420.emd"
-        try XCTSkipUnless(FileManager.default.fileExists(atPath: path), "not skipped on Paul's Mac: the study file is not here")
+        let path = RealDataFolder.path + "/stem-edx/SI HAADF 1456 77000 x 20260420.emd"
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: path), "the study file is not in the data folder ($MACEM_DATA)")
         XCTAssertEqual(FileRouting.inventory(path: path), FileInventory(image: true, edsSpectrumImage: true))
     }
 

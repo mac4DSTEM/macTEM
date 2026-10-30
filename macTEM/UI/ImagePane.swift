@@ -28,7 +28,7 @@ struct ImagePane: View {
     let image: CalibratedImage
     let canvas: CanvasPixels
     /// The item this pane shows: its committed zoom and pan are where `zp` starts and where a finished gesture writes
-    /// back (V1-13), so switching items and back restores them exactly. The pane is keyed by the item's id.
+    /// back, so switching items and back restores them exactly. The pane is keyed by the item's id.
     let item: OpenItem
     @State private var zoomModel: PaneZoomModel
     private var zp: ZoomPan { zoomModel.state }
@@ -67,7 +67,7 @@ struct ImagePane: View {
     }
 
     /// The status line's cursor readout (control placement §7): the pixel under the pointer and its raw value. No crosshair over the
-    /// picture (Paul, 2026-10-23: the system pointer is enough, as in Velox, GMS and Preview).
+    /// picture (the owner, 2026-10-23: the system pointer is enough, as in Velox, GMS and Preview).
     private func hovered(_ phase: HoverPhase, box: CGSize) {
         switch phase {
         case .active(let p):

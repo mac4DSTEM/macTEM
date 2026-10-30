@@ -1,6 +1,6 @@
 //
 //  OpenItems.swift
-//  Role: the one owner of the files open in the window (V1-13, ADR 007) — the ordered list, which one is selected,
+//  Role: the one owner of the files open in the window — the ordered list, which one is selected,
 //        and for each item its own ImageSession, ImagePresentation and viewport, so switching restores what the
 //        reader left. Opening a batch, closing, selecting, stepping with wrap, and the memory rule (a byte budget
 //        that sends the least recently selected items cold) are decided here as plain operations on values.
@@ -144,7 +144,7 @@ package nonisolated struct OpenedImage: Sendable {
     /// The bookmark made (or re-made) inside the live scope; nil when none could be made, and then the item is never
     /// evicted — its pixels are the only copy.
     package let bookmark: Data?
-    /// The identity of the pixels just read (V1-2: what the marks are drawn on), made off the main actor by the reader;
+    /// The identity of the pixels just read, made off the main actor by the reader;
     /// nil for a reader that makes none (a test's).
     package let identity: SessionSourceIdentity?
     /// What the sidecar beside the file made of this read, decided off the main actor. Only a file's first read acts on it.
@@ -261,10 +261,10 @@ package final class OpenItem: Identifiable {
     /// reads them through the item each time.
     package fileprivate(set) var session = ImageSession()
     package fileprivate(set) var presentation = ImagePresentation()
-    /// The marks on this file (V1-5). Never swapped: they hold no pixels, so they stay while the item is cold; its
+    /// The marks on this file. Never swapped: they hold no pixels, so they stay while the item is cold; its
     /// profiles are computed again when the file is read again (`publish`).
     package let measurements = ImageMeasurements()
-    /// The FFT room's state for this file (V1-6): its region, spots and settings. Never swapped, as the marks; its
+    /// The FFT room's state for this file: its region, spots and settings. Never swapped, as the marks; its
     /// products are held only while the room shows this file.
     package let fft = FFTAnalysis()
     /// The Particles view's settings, mask preview and report for this file. Never swapped: it holds labels and numbers, no pixels.
@@ -293,7 +293,7 @@ package final class OpenItem: Identifiable {
     /// Why the last read failed, for a row that cannot show its image; nil after a read that succeeded.
     package fileprivate(set) var readFailure: String?
 
-    // MARK: The session record's per-file state (V1-2 slice B's UI; the marks and the lineage are `measurements`')
+    // MARK: The session record's per-file state (the marks and the lineage are `measurements`')
 
     /// The identity of the pixels of the latest read: what a save describes. Kept while cold.
     @ObservationIgnored package fileprivate(set) var openedIdentity: SessionSourceIdentity?
@@ -302,7 +302,7 @@ package final class OpenItem: Identifiable {
     package var sidecarNeedsAccess = false
     /// A save is writing (the HDF5 lock can make it wait).
     package private(set) var isSaving = false
-    /// Saves that asked while one was writing, in the order they asked (slice B core's Gate B finding 5: saves are serialised).
+    /// Saves that asked while one was writing, in the order they asked.
     @ObservationIgnored private var saveWaiters: [CheckedContinuation<Void, Never>] = []
     /// What the last save of this window wrote, for a save that waited and found its marks already written.
     @ObservationIgnored package var lastSaved: SessionSaving.Saved?
@@ -417,10 +417,12 @@ package final class OpenItem: Identifiable {
         }
         presentation.show(opened.canvas)
         measurements.refresh(on: opened.image)
-        // The session record (V1-2): only a file's first read restores — a re-read of a cold item never swaps the marks —
+        // The session record: only a file's first read restores — a re-read of a cold item never swaps the marks —
         // and only the read that is still the current one reaches here (`finishOpen`'s token above).
         if let identity = opened.identity {
             let first = !hasBeenRead
+            // The particle report belongs to the pixels it was measured on: a re-read with other pixels drops it.
+            if !first, let old = openedIdentity, old.pixelSHA256 != identity.pixelSHA256 { particles.reset() }
             measurements.noteOpened(identity)
             openedIdentity = identity
             if first { adopt(opened.sidecar, identity: identity, on: opened.image) }
@@ -662,7 +664,7 @@ package final class OpenItems {
     /// Puts the selected item's read ahead of any still waiting: a cold item is asked to be read again, and an item still
     /// queued for its read (a file of a batch not yet reached) moves to the front of the queue, as it is, without a
     /// second start. An item whose read is already running, or that is resident, is left alone. The caller waits for
-    /// the selection to rest first (V1-13: 150 ms); a re-read is dropped if the selection leaves before it ends.
+    /// the selection to rest first; a re-read is dropped if the selection leaves before it ends.
     package func restoreSelected() {
         guard let item = selected else { return }
         switch item.residency {

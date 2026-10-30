@@ -1,7 +1,6 @@
 //
 //  ResultsLedger.swift
-//  Role: every finished measurement of one open file, as `ResultRow`s (V1-10 slice 3; the Results room,
-//        archive: results-room-design-2026-10-15.md, section 4). DERIVED, NEVER STORED: each call reads the owners — the
+//  Role: every finished measurement of one open file, as `ResultRow`s for the Results room. DERIVED, NEVER STORED: each call reads the owners — the
 //        marks (`ImageMeasurements`) and the FFT spots (`FFTAnalysis`) — and builds the rows again, so a mark moved, a spot
 //        re-measured or a file closed is the next call's answer and no copy can go stale. It makes no number: TEMCore's
 //        builders (`ResultRow`) take the owners' values and the file's axes.

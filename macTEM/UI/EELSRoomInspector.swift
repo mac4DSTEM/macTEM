@@ -1,6 +1,6 @@
 //
 //  EELSRoomInspector.swift
-//  Role: the EELS room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the standard order (docs/design/eels-room.md):
+//  Role: the EELS room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the standard order:
 //        Maps (one full-width control: ZLP · t/λ · t · at% · wt%, a segment off with its reason until its stage ran, one caption), Tools (the region tool and the
 //        Regions list), Edges (the periodic table answered from the session), Processing (Align, Threshold, λ, Deconvolution; the stage's state on the title),
 //        Fitting (model, background, convolution, E0 α β with their source) and Export. Info: the file, its grid and energy axis.
@@ -47,7 +47,7 @@ private struct EELSMapsSection: View {
         let selection = availability.effective(state.maps)
         InspectorSection("Maps") {
             // MacEMUI's SegmentedPicker has no disabled segment: a segment that is off carries its reason in its tooltip, a pick of it leaves the control where it was
-            // and the one caption says why (delete at: SegmentedPicker takes a disabled segment).
+            // and the one caption says why (delete at mac4DSTEM/MacEMUI#22: SegmentedPicker takes a disabled segment).
             SegmentedPicker(label: "Maps", items: EELSMapsSegment.allCases.map { s in (s, .title(s.title, help: availability.disabledReason(s).map { "Off: \($0)" })) },
                             selection: Binding(get: { selection }, set: { new in
                                 if let why = availability.disabledReason(new) { state.mapsNotice = why } else { state.maps = new; state.mapsNotice = nil }
@@ -59,7 +59,7 @@ private struct EELSMapsSection: View {
     }
 }
 
-/// Tools: the region tool, one full-width control of icons, as in the EDS room. The regions live on the anchor tile and in the results' Regions table (Paul,
+/// Tools: the region tool, one full-width control of icons, as in the EDS room. The regions live on the anchor tile and in the results' Regions table (the owner,
 /// 2026-10-23: no region rows in the inspector).
 private struct EELSToolsSection: View {
     @Bindable var state: EELSRoomState
@@ -76,7 +76,7 @@ private struct EELSToolsSection: View {
 
 /// The periodic table answered from the session: only the elements with a bundled edge are live, and only those the core loss reaches. A click picks the default
 /// edge (K where bundled, else L₂,₃) to quantify, a second click takes it off; a right-click gives the edge, Quantify and Off.
-/// "Fit only" has no effect of its own yet (the composition is over every fitted edge), so it picks the edge like Quantify (delete at the next slice).
+/// "Fit only" has no effect of its own yet (the composition is over every fitted edge), so it picks the edge like Quantify until the next EELS slice.
 enum EELSPeriodicActions {
     static func make(_ session: EELSSession) -> PeriodicTableActions {
         func symbol(_ z: Int) -> String { PeriodicTableGrid.symbol(z) }
@@ -133,7 +133,7 @@ private struct EELSEdgesSection: View {
             } else {
                 InspectorNote("Quantify: " + session.pickedEdges.map { "\(EELSFitCompute.title($0)) \(EELSRoomFormat.sig($0.onsetEV, 5)) eV" }.joined(separator: ", "))
                     .accessibilityIdentifier("eels.edges.picked")
-                // Back to the kit's default windows after a drag (Paul's drive, 2026-10-23: "how do I go back to the default?"); one edge: double-click its window.
+                // Back to the kit's default windows after a drag (the owner's drive, 2026-10-23: "how do I go back to the default?"); one edge: double-click its window.
                 InspectorActionRow {
                     Button("Reset Windows") { session.resetAllWindows() }
                         .disabled(!session.hasEditedWindows)
@@ -197,7 +197,7 @@ private struct EELSProcessingSection: View {
             }
             lambdaRows
             InspectorRow("Deconvolution") {
-                // delete at: the deconvolution slice (the kit has Fourier-log, Fourier-ratio and Richardson-Lucy; the session does not call them yet)
+                // Until the deconvolution slice (the kit has Fourier-log, Fourier-ratio and Richardson-Lucy; the session does not call them yet)
                 Picker("Deconvolution", selection: .constant("Off")) {
                     ForEach(["Off", "Fourier-log", "Fourier-ratio", "Richardson-Lucy"], id: \.self) { Text($0) }
                 }
@@ -269,7 +269,7 @@ private struct EELSFittingSection: View {
     var body: some View {
         let file = session.source
         InspectorSection("Fitting") {
-            // delete at: the MLLS slice (the kit has EELSMLLS; the session fits by exact NNLS only). A pick of MLLS changes nothing.
+            // Until the MLLS slice (the kit has EELSMLLS; the session fits by exact NNLS only). A pick of MLLS changes nothing.
             SegmentedPicker(label: "Model", items: [("Exact NNLS", .title("Exact NNLS")), ("MLLS", .title("MLLS", help: "Off: the MLLS fit arrives with the next slice."))],
                             selection: .constant("Exact NNLS"))
                 .accessibilityIdentifier("eels.model")
@@ -369,7 +369,7 @@ private struct EELSReferencesBlock: View {
 }
 
 /// Export: the buttons the session can serve today, each disabled with its reason before its stage ran.
-/// Export: the EDS room's rows (Paul's drive, 2026-10-23): Results and Spectrum, Regions and Maps, the per-pixel thickness and the method; the maps' region switch.
+/// Export: the EDS room's rows (the owner's drive, 2026-10-23): Results and Spectrum, Regions and Maps, the per-pixel thickness and the method; the maps' region switch.
 private struct EELSExportSection: View {
     @Environment(AppState.self) private var appState
     let session: EELSSession

@@ -1,6 +1,6 @@
 //
 //  MarkFormatTests.swift
-//  Pins what a mark's value READS as in the Measure section (`MarkFormat`, archive: roadmap-registrations-2026-10-15.md V1-5): a distance in the shown
+//  Pins what a mark's value READS as in the Measure section (`MarkFormat`): a distance in the shown
 //  unit with its pixel length beside it, an angle with its plane named when it is the pixel grid, a profile with its
 //  length, "—" for an angle that has no arm, the reader's decimal mark, the profile chart's positions in the same unit,
 //  and what VoiceOver is told. The numbers themselves are TEMCore's (gated against the closed form and scikit-image);

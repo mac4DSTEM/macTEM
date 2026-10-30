@@ -9,6 +9,7 @@ import ShellLayout
 import SwiftUI
 import TEMCore
 import TEMSession
+import ShellEDXModel
 
 /// How far the running spectrum-image work is, for the toolbar's busy display: the EDS room's open, or the EELS room's pass (align, thickness, fit); nil while idle
 /// or when the work reports no fraction.
@@ -32,7 +33,7 @@ enum RoomPrimaryAction {
             let session = appState.edx
             if session.isOpening {
                 // Opening: the verb is the running state, so the toolbar shows Stop (as ⌘.); the read ends at its next check and the room
-                // returns to what it showed (Paul's drive, 2026-10-23: an open could not be stopped from the window).
+                // returns to what it showed (the owner's drive, 2026-10-23: an open could not be stopped from the window).
                 return PrimaryAction(title: "Quantify", isEnabled: false, help: "Opening the spectrum image", hint: "Opening the spectrum image",
                                      isRunning: true, operationName: appState.statusText, stop: { session.stop() }, run: {})
             }

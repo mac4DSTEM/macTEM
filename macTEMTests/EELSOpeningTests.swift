@@ -17,7 +17,7 @@ nonisolated final class EELSOpeningTests: XCTestCase {
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
         let candidates = [root.appendingPathComponent("References/\(relative)"), root.deletingLastPathComponent().appendingPathComponent("References/\(relative)")]
         guard let url = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
-            throw XCTSkip("not skipped on Paul's Mac: \(relative) is not here")
+            throw XCTSkip("\(relative) is not in the data folder ($MACEM_DATA)")
         }
         return url
     }

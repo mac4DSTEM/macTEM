@@ -424,7 +424,7 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
         XCTAssertFalse(rest.contains("ScaleBar("), "no bare ScaleBar elsewhere in the pane")
     }
 
-    /// Gate D (fft-chart-trap-gate-d-2026-10-14.md): an interpolated string literal given to a Charts `.value(…)` takes the
+    /// Gate D: an interpolated string literal given to a Charts `.value(…)` takes the
     /// LocalizedStringKey overload and traps Charts' layout in ~1 % of fresh processes ("Duplicate keys of type 'HashableText'").
     /// A title with `\(…)` goes through a String variable. Probabilistic, so pinned at the source, not by rendering.
     func testNoChartsValueTitleIsAnInterpolatedLiteral() throws {

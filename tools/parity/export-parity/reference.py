@@ -63,11 +63,11 @@ UM = "µm"                 # the DM files' micro sign, U+00B5
 ANGSTROM = "Å"            # U+00C5
 SOFTWARE = "macTEM 0.1.0 (1)"
 VALIDATION_PNG = ("display rendering: window, gamma, 8-bit colour, not intensities; "
-                  "the scale bar's length checked against its label (export-parity P3)")
-LINEAGE_PNG = "none — marks carry no lineage id until V1-2; the marks' parameters stand in"
+                  "the scale bar's length checked against its label (export-parity)")
+LINEAGE_PNG = "none — marks carry no lineage id; the marks' parameters stand in"
 LINEAGE_CSV = "none — marks carry no lineage id until V1-2; the mark's parameters above stand in"
-VALIDATION_CSV = ("samples compared with scikit-image 0.26.0 profile_line(order=1, mode=\"reflect\", reduce_func=mean), "
-                  "V1-5 P2 (1e-5 relative; 1e-5 of the image's largest magnitude near zero); calibration: as the file states it")
+VALIDATION_CSV = ("samples compared with scikit-image 0.26.0 profile_line(order=1, mode=\"reflect\", reduce_func=mean) "
+                  "(1e-5 relative; 1e-5 of the image's largest magnitude near zero); calibration: as the file states it")
 NUMBERS_CSV = "%.17g (exact round trip); nan where a NaN pixel enters a sample"
 MASKED_GREY = (82, 82, 87)     # (0.32, 0.32, 0.34) x 255 rounded
 

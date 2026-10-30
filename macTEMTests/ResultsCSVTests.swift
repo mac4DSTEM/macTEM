@@ -388,7 +388,7 @@ nonisolated final class ResultsCSVTests: XCTestCase {
         XCTAssertTrue(ImageMeasurement.validation.contains("tools/parity/profile-parity"))
         XCTAssertTrue(ImageMeasurement.validation.contains("as the file states it"))
         XCTAssertTrue(ProfileCSV.validation.contains("scikit-image 0.26.0"))
-        XCTAssertTrue(FFTExport.spotsValidation.contains("tools/parity/spot-parity"))
+        XCTAssertTrue(FFTExport.spotsValidation.contains("ImagoKit's parity tests"))
     }
 
     /// The profile CSV's `# validation:` line is still its constant (the line was moved into `ProfileCSV.validation`, byte for byte),

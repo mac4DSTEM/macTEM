@@ -13,6 +13,7 @@ import SpectroEDX
 import TEMCore
 import TEMSession
 @testable import macTEM
+import ShellEDXModel
 
 nonisolated final class EDXRealDataTests: XCTestCase {
 
@@ -37,13 +38,9 @@ nonisolated final class EDXRealDataTests: XCTestCase {
 
     @MainActor func testTheOwnersVeloxSpectrumImageEndToEnd() async throws {
         // Opt-in: the environment variable, or a flag file (the host app of the unit tests does not always see the runner's environment).
-        let flag = FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag") || FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag")
+        let flag = FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag")
         guard ProcessInfo.processInfo.environment["MACTEM_REAL_DATA"] == "1" || flag else { throw XCTSkip("opt-in: TEST_RUNNER_MACTEM_REAL_DATA=1, or create $TMPDIR/macTEM-real-data.flag") }
-        let data = ProcessInfo.processInfo.environment["MACEM_DATA"] ?? URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("data").path
-        var url = URL(fileURLWithPath: data + "/stem-edx/SI HAADF 1456 77000 x 20260420.emd")
-        if !FileManager.default.fileExists(atPath: url.path) {   // a worktree outside the organization folder: its relative ../data is not the owner's
-            url = URL(fileURLWithPath: NSHomeDirectory() + "/GitHub/mac4DSTEM_Organization/data/stem-edx/SI HAADF 1456 77000 x 20260420.emd")
-        }
+        let url = URL(fileURLWithPath: RealDataFolder.path + "/stem-edx/SI HAADF 1456 77000 x 20260420.emd")
         try XCTSkipUnless(FileManager.default.fileExists(atPath: url.path), "no real file at \(url.path)")
 
         var t = Date()
@@ -53,7 +50,7 @@ nonisolated final class EDXRealDataTests: XCTestCase {
         let (nx, ny, channels) = (loaded.metadata.scanWidth, loaded.metadata.scanHeight, loaded.metadata.channelCount)
         say("REALDATA grid \(nx) x \(ny) px, \(channels) channels, beam \(loaded.metadata.beamEnergyKeV.map { "\($0) keV" } ?? "not stated")")
 
-        let session = EDXSession()
+        let session = EDXSession(host: .macTEM)
         t = Date()
         await session.bind(loaded).value
         line("bind + first spectrum + Auto ID", t)
@@ -102,7 +99,7 @@ nonisolated final class EDXRealDataTests: XCTestCase {
     @MainActor func testTheProposerOnTheThreeLabelledFiles() async throws {
         let flag = FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag")
         guard ProcessInfo.processInfo.environment["MACTEM_REAL_DATA"] == "1" || flag else { throw XCTSkip("opt-in") }
-        let base = NSHomeDirectory() + "/GitHub/mac4DSTEM_Organization/data/stem-edx/"
+        let base = RealDataFolder.path + "/stem-edx/"
         let files: [(name: String, truth: Set<String>, allowed: Set<String>)] = [
             ("SI HAADF 1456 77000 x 20260420.emd", ["O", "Si", "Ni", "Ge", "Pt"], ["Cu", "Ga", "Zr"]),
             ("SI HAADF 1339 65000 x 20260508.emd", ["O", "Mg", "Al", "Si", "Cu"], ["Fe", "Mn", "Zr"]),
@@ -122,7 +119,7 @@ nonisolated final class EDXRealDataTests: XCTestCase {
             XCTAssert(file.truth.isSubset(of: picks), "\(file.name): the app's Auto ID missed \(file.truth.subtracting(picks).sorted())")
             XCTAssert(picks.isSubset(of: file.truth.union(file.allowed)), "\(file.name): the app's Auto ID added \(picks.subtracting(file.truth.union(file.allowed)).sorted())")
             // The room's own path, as drive 6 ran it: open (Auto ID at open), deselect every element, press Auto ID.
-            let session = EDXSession()
+            let session = EDXSession(host: .macTEM)
             await session.bind(loaded).value
             await session.settled()
             for pick in session.picks { session.toggle(pick.symbol) }

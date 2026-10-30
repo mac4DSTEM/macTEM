@@ -1,7 +1,6 @@
 //
 //  SessionOpening.swift
-//  Role: the session sidecar's two crossings between a file and the app (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, the UI slice; the design
-//        is archive: v12-session-ui-design-2026-10-14.md): what the sidecar beside a file made of its first read
+//  Role: the session sidecar's two crossings between a file and the app: what the sidecar beside a file made of its first read
 //        (`SessionOpening.outcome`, run off the main actor by the reader, before anything is adopted), and a save
 //        (`SessionSaving.save`, the request taken on the main actor, the write off it).
 //
@@ -94,6 +93,12 @@ package nonisolated enum SessionSaving {
             return false
         }
 
+        /// The image was read again with other pixels: the one refusal the user may answer with Save Anyway.
+        package var offersSaveAnyway: Bool {
+            if case .refused(_, .pixelsChanged) = self { return true }
+            return false
+        }
+
         package var dropsGrant: Bool {
             switch self {
             case .grantLost: true
@@ -140,7 +145,7 @@ package nonisolated enum SessionSaving {
     /// Takes the request on the main actor, writes it off it and marks the revision it wrote as saved. A refusal that
     /// shows the file at the path is not a session file this build may replace moves the file's state to refused.
     ///
-    /// SERIALISED (slice B core's Gate B finding 5): a save that asks while another writes waits for it, in order, and then
+    /// SERIALISED: a save that asks while another writes waits for it, in order, and then
     /// takes its request afresh — so it sees what the first one recorded (`didSave`) and neither a false "changed on disk"
     /// nor a revision moved backwards can happen. A save that waited and finds nothing left to write returns what the one
     /// ahead wrote.
@@ -189,6 +194,14 @@ package nonisolated enum SessionSaving {
         return try await save(item, to: target)
     }
 
+    /// The user chose Save Anyway after a re-read with other pixels: the next save writes the marks against the image as it
+    /// is now, once. Not a way round any other refusal.
+    @MainActor
+    package static func saveAnyway(_ item: OpenItem, to target: Target) async throws -> Saved {
+        if let identity = item.openedIdentity { item.measurements.acceptNewPixels(identity) }
+        return try await save(item, to: target)
+    }
+
     /// The write, off the main actor: the bookmark resolved (or the panel's URL used), its scope held for the write only,
     /// the file published, and a fresh bookmark made of it (the file is new, so an old one may be stale).
     @concurrent
@@ -229,7 +242,7 @@ package nonisolated enum SessionSaving {
 }
 
 extension SessionSave.Refusal {
-    /// The bytes the record would take, when the refusal is that it is over the budget (ADR 023 a): from the writer's
+    /// The bytes the record would take, when the refusal is that it is over the budget: from the writer's
     /// `sidecarTooLarge` or the owner's `tooLargeToSave`; nil for any other.
     package nonisolated var tooLargeBytes: Int? {
         switch self {

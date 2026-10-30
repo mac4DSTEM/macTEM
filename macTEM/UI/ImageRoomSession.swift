@@ -1,7 +1,6 @@
 //
 //  ImageRoomSession.swift
-//  Role: the tail of the Image room's Measure section (V1-2 slice B's UI, archive: v12-session-ui-design-2026-10-14.md,
-//        sections 1 and 2): where the marks are kept, said in words — "Not saved", "Restored from …", "Saved at …", why a
+//  Role: the tail of the Image room's Measure section: where the marks are kept, said in words — "Not saved", "Restored from …", "Saved at …", why a
 //        session file was not used — with Save to Session when something changed, Show in Finder and Choose Session File…
 //        where the design puts them. It replaces the note "Marks stay while the file is open; they are not saved yet." The
 //        reason a Save is off is drawn here, never only in the menu (mac4DSTEM's drive 14 shipped a dimmed Save with none).
@@ -137,6 +136,13 @@ enum SessionFormat {
     static func replaceDetail(name: String) -> String {
         "Another app wrote it. Replace it with the marks in this window, or cancel and keep it as it is. "
             + "Replacing loses what the other file holds."
+    }
+
+    /// The Save Anyway alert's two sentences, for an image read again with other pixels than the marks were drawn on.
+    static func pixelsChangedTitle(image: String) -> String { "\(image) has changed since the marks were drawn." }
+    static func pixelsChangedDetail(name: String) -> String {
+        "The image was read again and its pixels differ. Save Anyway writes the marks to \(name) against the image as it is "
+            + "now; they may no longer sit on what they measured. Cancel keeps \(name) as it is."
     }
 
     /// The infobar's line after Choose Session File…, by what became of the file (never "chosen" for a file that did nothing).

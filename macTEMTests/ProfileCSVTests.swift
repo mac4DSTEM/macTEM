@@ -106,7 +106,7 @@ nonisolated final class ProfileCSVTests: XCTestCase {
                 + "mean of 1 samples 1 px apart along the perpendicular on the pixel grid",
             "# notes: none",
             "# validation: samples compared with scikit-image 0.26.0 profile_line(order=1, mode=\"reflect\", "
-                + "reduce_func=mean), V1-5 P2 (1e-5 relative; 1e-5 of the image's largest magnitude near zero); "
+                + "reduce_func=mean) (1e-5 relative; 1e-5 of the image's largest magnitude near zero); "
                 + "calibration: as the file states it",
             "# lineage: none \u{2014} marks carry no lineage id until V1-2; the mark's parameters above stand in",
             "# numbers: %.17g (exact round trip); nan where a NaN pixel enters a sample",
@@ -487,7 +487,7 @@ nonisolated final class ProfileCSVTests: XCTestCase {
             return try XCTUnwrap(header.first { $0.hasPrefix("# validation: ") })
         }
         let plain = "# validation: samples compared with scikit-image 0.26.0 profile_line(order=1, mode=\"reflect\", "
-            + "reduce_func=mean), V1-5 P2 (1e-5 relative; 1e-5 of the image's largest magnitude near zero); "
+            + "reduce_func=mean) (1e-5 relative; 1e-5 of the image's largest magnitude near zero); "
             + "calibration: as the file states it"
         XCTAssertEqual(try validation([]), plain)
         XCTAssertEqual(try validation(["8-bit render, not counts"]), plain, "a note that does not say unvalidated")

@@ -1,6 +1,6 @@
 //
 //  SessionUITests.swift
-//  The app's side of the session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, the UI slice; archive: v12-session-ui-design-2026-10-14.md):
+//  The app's side of the session sidecar (the UI slice):
 //  what the sidecar beside a file made of its first read (`SessionOpening.outcome`: none, restored, refused, needs access),
 //  how `OpenItems` acts on it — the first read restores, a re-read never does, a read that was closed under it adopts
 //  nothing, a re-read of other pixels notes the difference —, `SessionSaving` (the first save to a chosen URL, a later one,
@@ -245,6 +245,30 @@ nonisolated final class SessionUITests: XCTestCase {
         items.restoreSelected()
         await items.settled()
         XCTAssertEqual(item.measurements.notes, [.pixelsDiffer])
+    }
+
+    /// The particle report is measured on the pixels of the read that made it: a re-read with other pixels drops it, a re-read
+    /// with the same pixels keeps it. Red under: `particles.reset()` not called in `OpenItem.publish` (the report of the old
+    /// pixels stays on the new image).
+    @MainActor func testAReReadOfOtherPixelsDropsTheParticleReport() async throws {
+        for (shift, kept) in [(5, false), (0, true)] {
+            let source = URL(fileURLWithPath: "/data/scan.dm4"), other = URL(fileURLWithPath: "/data/other.dm4")
+            let reader = Reader()
+            await reader.script(outcomes: [], shifts: [0, 0, shift])
+            let items = makeItems(reader)
+            items.open(urls: [source, other])
+            await items.settled()
+            let item = try XCTUnwrap(items.items.first { $0.url == source })
+            await item.particles.analyse(image: try XCTUnwrap(item.session.image)).value
+            XCTAssertNotNil(item.particles.report, "set-up: a report on the first read")
+            items.select(try XCTUnwrap(items.items.first { $0.url == other }).id)
+            items.budgetBytes = 100
+            XCTAssertEqual(item.residency, .cold, "set-up")
+            items.select(item.id)
+            items.restoreSelected()
+            await items.settled()
+            XCTAssertEqual(item.particles.report != nil, kept, "shift \(shift)")
+        }
     }
 
     /// Red under: `.needsAccess` not setting the item's flag.

@@ -5,14 +5,14 @@ The Diffraction room's slice 1a (archive: roadmap-registrations-2026-10-15.md "D
 core is `Sources/TEMCore/Diffraction/` (`StandardCrystals`; `RingOverlay`, `IndexingDisplay` and `CrystalLoading` are DiffractoKit's since the 2026-10-20 switch); it calls (RingScale is DiffractoGeometry's since 0.4.0)
 DiffractoKit `0.3.1` directly (no `RingMeasurement` or `RingGeometry` interim, by the addendum). `scientific` in `tools/run-tests.sh`.
 **R8, the seed-rule grid, is not built**: `plants.py` writes it, nothing reads it yet (`run.sh` asks for the half grid, which is cheap).
-`run.sh` (about five minutes: the fits dominate) runs plants.py, reference.py, `main.swift` (sources: `tools/lib/sources.manifest` group
-`diffraction-room`), then 34 negative controls; each must exit 1 with a FAIL line of its named kind on a run that passed unmutated.
+`run.sh` (about five minutes: the fits dominate) runs plants.py, reference.py, `main.swift` (Package.swift's
+`DiffractionRoomParity` target), then 34 negative controls; each must exit 1 with a FAIL line of its named kind on a run that passed unmutated.
 
 ## Files
 
 | file | what |
 |---|---|
-| `plants.py <out> [--r8 full\|half]` | R1's 48 new planted rings (+ ring-fit-parity's 84 clean, listed unchanged), R4's 48 two-ring plants, R8's 144 images and 10368 cells (or the half grid), `rfp/` (ring-fit-parity's 275 plants, for R2), `manifest.json`. Seeds are fixed in the file (`SEED_R8_GEOM = 2026101581`, `SEED_R8_NOISE = 2026101582`; R1 and R4 are deterministic). |
+| `plants.py <out> [--r8 full\|half]` | R1's 48 new planted rings (+ the retired ring-fit harness's 84 clean, listed unchanged), R4's 48 two-ring plants, R8's 144 images and 10368 cells (or the half grid), `rfp/` (the retired ring-fit harness's 275 plants, for R2), `manifest.json`. Seeds are fixed in the file (`SEED_R8_GEOM = 2026101581`, `SEED_R8_NOISE = 2026101582`; R1 and R4 are deterministic). |
 | `reference.py <scattering_factors.txt> <out> [--plants <plants-out>] [--cif-dir D]...` | `reference.json` (R3, R4, R5, R6, R7, R9, the ellipse-distance vectors, the mutation-moves) and `r9/*.cif` (the planted CIF byte files). Exits 1 on any failed self-check. |
 | `reference.py --distance-check in.json out.json` | the R1 polyline helper: the orthogonal distance of points to an ellipse (`{"items":[{"name","cx","cy","a","b","theta","points":[[x,y],...]}]}` in, distances out; x = column, y = row, the plants' axes). |
 
@@ -24,7 +24,7 @@ infinities are the strings `"NaN"`, `"Infinity"`, `"-Infinity"`. Run with the lo
 | clause | reference | notes |
 |---|---|---|
 | R1 | `manifest.json` `r1`: truth (`x_truth` = column, `y_truth` = row, `a`, `b`, `theta`; the kit's order is (row, column)) | the polyline checks use `--distance-check` or a Swift port of the same Newton iteration, compared to `ellipse_distance_vectors` (576 points, exact to 1e-13 px) |
-| R2 | `rfp/planted.json` (ring-fit-parity's `plants.py`, unchanged) | the Swift side compares two calls of its own; the plants are the only input from here |
+| R2 | `rfp/planted.json` (`ring_fit_plants.py`, the retired ring-fit harness's plants, unchanged) | the Swift side compares two calls of its own; the plants are the only input from here |
 | R3 | `reference.json` `r3`: 320 cases x 7 radii, `invalid` | inputs are the written float64 `lambda_A` and `l_px`; expected values are evaluated from exactly those in 60-digit decimal |
 | R4 | `r4.radii` (680, = R(g) for each case and each family of its material), `r4.ellipses` (48, the scaled ellipse of each R4 plant) | R4's plants are the three physical Au pairs (see `plants.py`), ring 2 at its flat-detector radius |
 | R5 | `r5`: 694 spellings (incl. case, space, decomposed-accent, padded variants), 19 rejects, 15 invalid values, 96 fit-vs-file pairs | |
@@ -34,7 +34,7 @@ infinities are the strings `"NaN"`, `"Infinity"`, `"-Infinity"`. Run with the lo
 | R9 | `r9.files`: SHA-256 of every CIF in `--cif-dir` and of the planted files | the cap files are exactly 5 MiB and 5 MiB + 1 |
 
 `reference.py`'s self-check (what it proves before anything counts): Au {111} d = 2.3545498678091317 Å; λ(200 kV) equal to
-`ring-calibration-parity`'s decimal chain; R -> q -> R within 1e-9 px over all cases; the numpy route against the decimal
+the decimal chain of the retired ring-calibration harness (now DiffractoKit's parity target); R -> q -> R within 1e-9 px over all cases; the numpy route against the decimal
 chain at 3e-16; the exact-vs-linear difference; Au 8 / 22, Si 10 families; every T4 verdict equal to the rule's; the distance
 helper exact to 1e-9 px; every registered mutation moves its target by more than 1e-6 (the ones R3 to R7 name).
 

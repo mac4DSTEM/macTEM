@@ -1,6 +1,6 @@
 //
 //  ImageRoomParticles.swift
-//  Role: the Particles view (docs/design/rooms-2026-10-21.md section 4), a section of the Image room's inspector: precipitates on
+//  Role: the Particles view, a section of the Image room's inspector: precipitates on
 //        a 2D image, found by a threshold on the raw range (bright or dark objects), optional Gaussian smoothing, connected-component
 //        labelling and the objects' moments, then counted (not on the edge, not below the minimum area). The image keeps its marks;
 //        the objects are outlined over it (`ParticleOverlay`), the mask can be tinted while the settings are edited, and an object
@@ -15,6 +15,8 @@ import ImagoCore
 import UniformTypeIdentifiers
 import TEMCore
 import TEMSession
+import ShellEDXModel
+import ShellSpectroscopy
 
 struct ImageRoomParticlesSection: View {
     let image: CalibratedImage

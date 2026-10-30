@@ -1,6 +1,6 @@
 //
 //  SessionMarksTests.swift
-//  The marks of the session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, the core; ADR 020 D2, "A mark's node"): a mark to its lineage
+//  The marks of the session sidecar (the core; "A mark's node"): a mark to its lineage
 //  node and back (the points as pixel coordinates, x the column and y the row, a pixel's centre at integers; an angle's
 //  vertex is point 2; a profile's width; the results in the file's own units at full precision), the checks a node passes
 //  (the coordinate grammar, the inclusive image bounds, the width, the keys) with the refusal naming the node, the
@@ -1085,7 +1085,7 @@ nonisolated final class SessionMarksTests: XCTestCase {
     }
 
     func testChoosingToReplaceDoesNotOverwriteAFileMacTEMCannotReadBack() throws {
-        // REPORTED, not approved: archive: roadmap-registrations-2026-10-15.md says a save after an unreadable or refused sidecar waits "until the user chooses to
+        // REPORTED, not approved: says a save after an unreadable or refused sidecar waits "until the user chooses to
         // replace it", and SessionSave.Request.replacing says "whatever it holds". The file layer still refuses a file that is not
         // HDF5, one with no identity marker, and (by its header) a newer minimum reader or schema, so for those the choice
         // reaches the same named refusal as not choosing. Replacing works over a readable sidecar whose marks were refused

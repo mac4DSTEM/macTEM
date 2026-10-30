@@ -1,6 +1,6 @@
 #!/bin/zsh
 # tools/parity/sidecar-parity — macTEM's session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice A, ADR 020; slice B step 1, ADR 021: `SidecarHDF5`,
-# `SessionSidecarFile` and `SessionLineage`, TEMCore, compiled into one module from tools/lib/sources.manifest group `sidecar`)
+# `SessionSidecarFile` and `SessionLineage`, TEMCore, through Package.swift's SidecarParity target)
 # against h5py 3.16.0 (pinned: tools/lib/references-lock.txt, tools/lib/python.sh). Classified `scientific` in tools/run-tests.sh.
 # Pre-registration: archive: roadmap-registrations-2026-10-15.md "V1-2 Session sidecar", the block "Completed at pickup (2026-10-13 night)" (slice A: P1–P4) and
 # "Slice B, step 1 — ADR 021, registered 2026-10-14, before code" (the fixed-length strings: P1–P3, the fuzz). README.md says more.
@@ -23,12 +23,12 @@
 # Pass: "sidecar-parity: all passed", then "sidecar-parity: negative controls: N of N caught by their checks", exit 0.
 # The controls are the nine registered mutations and then every guard and rule the plan reaches (the Gate B refuter's plants and
 # the fixes that review led to: the removal cascade, the refused add, the newer schema, the minimum reader first, the name in
-# UTF-16 units, the link to nothing, dates to the nearest millisecond, a slash written as it is), ADR 021's (the variable-length
-# check removed, moved after the read, or refusing as malformed; the cap; the padding; the writer's form), and the controls of
+# UTF-16 units, the link to nothing, dates to the nearest millisecond, a slash written as it is), the writer's text cap, and the controls of
 # the harness itself (the HDF5 library it loads is the named copy; the fuzz driver reports a hang, a crash, a silent change and
-# an unnamed outcome from a stub reader).
-# TEMCore sources come from tools/lib/sources.manifest, group `sidecar` (FormatoKit's FormatoHDF5 module from the checkout its
-# pin names); libhdf5 is FormatoKit's, from its pin, re-signed in the scratch directory and named by FORMATO_HDF5_PATH (the
+# an unnamed outcome from a stub reader). Only the app's own files are mutated: the HDF5 file layer (the variable-length
+# check, the padding, the writer's form, the dense-storage refusal) is FormatoKit's HDF5RootAttributes since 0.5.0, and its controls
+# belong to FormatoKit's tests.
+# TEMCore and FormatoKit come through SwiftPM (tools/lib/harness.sh); libhdf5 is FormatoKit's FormatoLibHDF5 framework, which the harness links, named by FORMATO_HDF5_PATH (the
 # kit's loader reads that variable first; the app has no loader of its own since the FormatoKit 0.5.0 switch). h5py reads and writes with its own bundled HDF5.
 set -euo pipefail
 ONLY=""
@@ -51,9 +51,13 @@ resolve_mactem_python "$ROOT"
 . "$ROOT/tools/lib/developer-dir.sh"
 resolve_mactem_developer_dir
 
-# libhdf5 finds libsz and libaec beside itself (@loader_path), so the three are copied together and signed ad hoc again.
-# They are FormatoKit's, the vendored files its three framework binaries are built from (ADR 026; no copy is committed here): the pinned checkout's.
-FORMATO_KIT="$("$ROOT/tools/lib/fetch-formatokit.sh" | tail -1)" || { echo "sidecar-parity: FormatoKit is not at its pin"; exit 65; }
+# The harness links FormatoKit's FormatoLibHDF5 framework (beside it: tools/lib/harness.sh), and FORMATO_HDF5_PATH names that
+# framework's binary, so the kit's loader opens the image the process already holds and `libhdf5 is the named copy` sees one.
+# Each run of a harness names the framework beside THAT harness (a mutant's is its own build's): `harness_hdf5` below.
+# The plain dylibs (FormatoKit's vendored files its three framework binaries are built from; libhdf5 finds libsz and libaec beside
+# itself) are copied and signed ad hoc for control 41 only, the fallback the named library must not be.
+. "$ROOT/tools/lib/harness.sh"
+FORMATO_KIT="$(mactem_harness_checkout FormatoKit)" || { echo "sidecar-parity: FormatoKit's checkout is not resolved"; exit 65; }
 mkdir -p "$WORK/hdf5"
 for lib in libhdf5.dylib libaec.0.dylib libsz.2.dylib; do
   [[ -f "$FORMATO_KIT/tools/xcframework/vendored/$lib" ]] || { echo "sidecar-parity: $lib is not in FormatoKit's tools/xcframework/vendored"; exit 66; }
@@ -61,20 +65,20 @@ for lib in libhdf5.dylib libaec.0.dylib libsz.2.dylib; do
   codesign -f -s - "$WORK/hdf5/$lib" > /dev/null 2>&1
   codesign --verify "$WORK/hdf5/$lib"
 done
-export FORMATO_HDF5_PATH="$WORK/hdf5/libhdf5.dylib"
+harness_hdf5() { print -r -- "${1:h}/FormatoLibHDF5.framework/Versions/A/FormatoLibHDF5"; }   # <harness>
+export FORMATO_HDF5_PATH="$(harness_hdf5 "$WORK/harness")"
 
 if (( ! CHECK_EDITS )); then "$PYTHON_BIN" -I -B "$HERE/reference.py" plant "$WORK/ref"; fi
 
-. "$ROOT/tools/lib/sources.manifest"
-mactem_sources "$ROOT" sidecar
-SWIFT_FILES=("$HERE/main.swift" "$HERE/fuzz.swift" "$HERE/marks.swift" "$ROOT/macTEMTests/TestHDF5Binding.swift")   # the planting binding is the unit tests'
-if (( ! CHECK_EDITS )); then mactem_swiftc "$WORK/harness" "${SWIFT_FILES[@]}"; fi
+# The harness is Package.swift's SidecarParity target (main.swift, fuzz.swift, marks.swift and the unit tests' planting binding).
+if (( ! CHECK_EDITS )); then mactem_harness_build SidecarParity "$WORK/harness"; fi
 
 # gate <harness> <out-dir> [--fuzz]: Swift writes the planted sessions, h5py reads them back, the harness checks everything
 # and merges h5py's reading in; with --fuzz it also fuzzes the sidecars it wrote (the one unmutated run). Its exit status is
 # the harness's own (0 passed, 1 failures).
 gate() {
   local harness=$1 out=$2; shift 2
+  local -x FORMATO_HDF5_PATH="$(harness_hdf5 "$harness")"
   set -- "$@" "${GATE_EXTRA[@]}"
   mkdir -p "$out"
   "$harness" --write "$WORK/ref" "$out" || echo "sidecar-parity: the write step exited $?"
@@ -88,7 +92,7 @@ if (( ! CHECK_EDITS )); then
   if [[ -n "$ONLY" && -z "${SIDECAR_PARITY_FUZZ:-}" ]]; then gate "$WORK/harness" "$WORK/out"; else gate "$WORK/harness" "$WORK/out" --fuzz; fi
 fi
 
-# Negative controls. The files below are macTEM's own and are never edited here: each mutant compiles the harness again
+# Negative controls. The files below are macTEM's own and are never edited here: each mutant builds the harness again
 # against an edited COPY of one of them (SessionSidecarFile.swift or SessionLineage.swift) in the scratch directory. The edit
 # must apply exactly once (a changed line makes the mutation fail LOUDLY, to be re-aimed), the build must succeed, and the
 # mutant must then be caught: the harness exits exactly 1 (its own failure exit; a crash by signal is never a catch) AND its
@@ -112,25 +116,15 @@ selected() {       # selected <control name>: does this run include the control?
   [[ -z "$ONLY" ]] || [[ "$1" =~ $ONLY ]]
 }
 
-KIT_FILE="Sources/FormatoHDF5/HDF5RootAttributes.swift"   # the file layer moved into FormatoKit 0.5.0 (the session sidecar's file layer)
 source_mutant() {  # source_mutant <file in Sources/TEMCore/Data> <name> <targets> <old> <new> [<old> <new>]...
-  # An <old> that starts with `KIT:` is an edit of FormatoKit's HDF5RootAttributes.swift (the pinned checkout's copy, overridden
-  # for this one build), where the code that SessionSidecarFile.swift used to hold now lives; the rest are edits of FILE.
   local FILE=$1 name=$2 spec=$3; shift 3
   selected "$name" || return 0
   total=$(( total + 1 ))
-  local dir="$WORK/source-$name" copy kitcopy="" old
+  local dir="$WORK/source-$name" copy
   mkdir -p "$dir"
   copy="$dir/$FILE"
   cp "$DATA/$FILE" "$copy"
   while (( $# >= 2 )); do
-    old=$1
-    local target="$copy" label="$FILE"
-    if [[ "$old" == KIT:* ]]; then
-      old="${old#KIT:}"
-      if [[ -z "$kitcopy" ]]; then kitcopy="$dir/kit-HDF5RootAttributes.swift"; cp "$FORMATO_KIT/$KIT_FILE" "$kitcopy"; fi
-      target="$kitcopy"; label="FormatoKit's HDF5RootAttributes.swift"
-    fi
     "$PYTHON_BIN" -I -B -c '
 import sys
 path, old, new = sys.argv[1:4]
@@ -138,28 +132,15 @@ text = open(path, encoding="utf-8").read()
 if text.count(old) != 1:
     sys.exit("source mutation: expected exactly one occurrence of the edit target, found %d: %s" % (text.count(old), old))
 open(path, "w", encoding="utf-8").write(text.replace(old, new))
-' "$target" "$old" "$2" || { echo "  FAIL  source mutation '$name' does not apply to $label"; return; }
+' "$copy" "$1" "$2" || { echo "  FAIL  source mutation '$name' does not apply to $FILE"; return; }
     shift 2
   done
-  if (( CHECK_EDITS )); then caught=$(( caught + 1 )); echo "  ok    the edits of '$name' apply to $FILE${kitcopy:+ and the kit's file}"; return; fi
-  local -a saved=("${MACTEM_SOURCES[@]}") edited=()
-  local src
-  for src in "${saved[@]}"; do
-    if [[ "${src:t}" == "$FILE" ]]; then edited+=("$copy"); else edited+=("$src"); fi
-  done
-  if [[ "${edited[(r)$copy]}" != "$copy" ]]; then
-    echo "  FAIL  source mutation '$name': $FILE is not among the harness's sources (tools/lib/sources.manifest, group sidecar)"
-    return
-  fi
-  MACTEM_SOURCES=("${edited[@]}")
-  if [[ -n "$kitcopy" ]]; then MACTEM_KIT_OVERRIDE[$KIT_FILE]="$kitcopy"; fi
-  if ! mactem_swiftc "$dir/harness" "${SWIFT_FILES[@]}" > "$dir/build.log" 2>&1; then
-    MACTEM_SOURCES=("${saved[@]}"); unset "MACTEM_KIT_OVERRIDE[$KIT_FILE]"
+  if (( CHECK_EDITS )); then caught=$(( caught + 1 )); echo "  ok    the edits of '$name' apply to $FILE"; return; fi
+  if ! mactem_harness_mutant SidecarParity "$dir/harness" "Sources/TEMCore/Data/$FILE" "$copy" > "$dir/build.log" 2>&1; then
     echo "  FAIL  source mutation '$name' does not compile:"
     sed 's/^/        /' "$dir/build.log"
     return
   fi
-  MACTEM_SOURCES=("${saved[@]}"); unset "MACTEM_KIT_OVERRIDE[$KIT_FILE]"
   local log="$dir/mutant.log" rc
   set +e
   gate "$dir/harness" "$dir/out" > "$log" 2>&1
@@ -305,16 +286,7 @@ source_mutant SessionLineage.swift ms-clamp-lower-moved \
 source_mutant SessionLineage.swift ms-clamp-upper-moved \
   'h5py dates s8 recorded' \
   'Int64(min(max(ms, -9e15), 9e15))' 'Int64(min(max(ms, -9e15), 9e18))'
-# 31. a null-dataspace attribute (no element) is read as the empty string.
-source_mutant SessionSidecarFile.swift null-dataspace-read-as-empty \
-  'swift reads null-dataspace-source' \
-  'KIT:guard h5.h5sgetNdims(space) == 0, h5.h5sgetNpoints(space) == 1 else {' \
-  'guard h5.h5sgetNdims(space) == 0 else {'
 # 32-33. the writer's own limits: a NUL in a string, and a string over 4 MiB.
-source_mutant SessionSidecarFile.swift nul-written \
-  'swift writer nul-lineage|swift writer nul-source' \
-  'guard !value.utf8.contains(0) else { throw Refusal.embeddedNUL(name) }' '' \
-  'KIT:for (name, value) in attributes where value.utf8.contains(0) { throw HDF5FileError.embeddedNUL(name) }' ''
 source_mutant SessionSidecarFile.swift write-cap-removed \
   'swift writer cap-plus-one-lineage|swift writer cap-plus-one-source' \
   'guard bytes <= maxStringBytes else { throw Refusal.stringTooLong(attribute: name, bytes: bytes) }' '_ = bytes'
@@ -351,61 +323,6 @@ source_mutant SessionLineage.swift identity-cap-removed \
 # parses the damaged heap fails "swift reads hangcase-flip" by timing out (the 10 s are in the mutant's run) instead of
 # stalling the gate.
 VL_READS='swift reads vl-identity|swift reads vl-min-reader|swift reads vl-source|swift reads vl-lineage|swift reads hangcase-flip'
-# 42. the variable-length check removed: a variable-length string is read (as the pointer it is, into a buffer the size of one),
-#     and the damaged one spins in H5Aread.
-source_mutant SessionSidecarFile.swift vl-check-removed \
-  "$VL_READS" \
-  'KIT:guard variable == 0 else { throw HDF5FileError.variableLengthString(name) }' ''
-# 43. the variable-length check AFTER the read: every plant is still refused by name, but the hang file's H5Aread never returns
-#     (the read's and the replace check's alike).
-source_mutant SessionSidecarFile.swift vl-check-after-the-read \
-  'swift reads hangcase-flip|swift refuses to overwrite hangcase-flip' \
-  'KIT:guard variable == 0 else { throw HDF5FileError.variableLengthString(name) }' '' \
-  'KIT:        // The text, then only padding:' $'        guard variable == 0 else { throw HDF5FileError.variableLengthString(name) }\n        // The text, then only padding:'
-# 44. a variable-length string refused as malformed, not by name.
-source_mutant SessionSidecarFile.swift vl-refused-as-malformed \
-  "$VL_READS|swift refuses to overwrite vl-identity|swift refuses to overwrite hangcase-flip" \
-  'KIT:throw HDF5FileError.variableLengthString(name)' 'throw HDF5FileError.malformedAttribute(name)'
-# 45. (retired 2026-10-14, ADR 023 d') the cap at `<`: equivalent for the same reason as control 3.
-# 46. the padding check removed: a NUL followed by more text is read as the text before it, the rest silently lost.
-source_mutant SessionSidecarFile.swift padding-check-removed \
-  'swift reads nul-then-text-lineage|swift reads nul-then-text-source|swift reads nul-first-lineage|swift reads nul-then-text-identity' \
-  'KIT:guard storage[length...].allSatisfy({ $0 == 0 }) else { throw HDF5FileError.malformedAttribute(name) }' ''
-# 47. the whole storage taken as the text, padding and all (no cut at the first NUL).
-source_mutant SessionSidecarFile.swift padding-taken-as-text \
-  'swift reads padded-lineage|swift reads padded-markers|swift reads valid-empty-strings|swift reads all-nul-lineage' \
-  'KIT:let length = storage.firstIndex(of: 0) ?? size' 'let length = size'
-# 48. the string class not checked: an integer attribute is read as text.
-source_mutant SessionSidecarFile.swift string-class-unchecked \
-  'swift reads integer-source' \
-  'KIT:guard h5.h5tgetClass(type) == 3 else { throw HDF5FileError.malformedAttribute(name) }' ''
-# 49-52. the writer's form, each held by the property h5py reads: variable-length (slice A's writer), NULLTERM, one byte longer,
-#     ASCII.
-# (Re-aimed 2026-10-14: the first aim, h5py's `type` check of the attribute, was never reached. The harness's write step reads
-#  every file it wrote back with the Swift reader (P1), and that reader refuses the variable-length string it was just handed,
-#  by name: `swift writes marks` fails, no file is recorded, and h5py is told "Swift did not write it" (`h5py marks file`). The
-#  control is caught by the two checks that do fail; the writer's form is held by h5py's `type` check in the four controls
-#  around it only where the Swift reader would not stand in.)
-source_mutant SessionSidecarFile.swift writer-variable-length \
-  'swift writes marks|swift writes unicode|h5py marks file' \
-  'KIT:guard h5.h5tsetSize(type, stored.count) >= 0, h5.h5tsetCset(type, 1) >= 0, h5.h5tsetStrpad(type, 1) >= 0 else {' \
-  'guard h5.h5tsetSize(type, Int(bitPattern: UInt.max) &+ stored.count &* 0) >= 0, h5.h5tsetCset(type, 1) >= 0 else {' \
-  'KIT:guard stored.withUnsafeBytes({ h5.h5awrite(attribute, type, $0.baseAddress) }) >= 0 else {' \
-  $'guard value.withCString({ characters in\n            var pointer: UnsafePointer<CChar>? = characters\n            return withUnsafePointer(to: &pointer) { h5.h5awrite(attribute, type, $0) }\n        }) >= 0 else {'
-source_mutant SessionSidecarFile.swift writer-null-terminated \
-  'h5py marks mactem_source strpad|h5py marks mactem_lineage strpad|h5py marks mactem_session_schema strpad' \
-  'KIT:h5.h5tsetStrpad(type, 1) >= 0' 'h5.h5tsetStrpad(type, 0) >= 0'
-source_mutant SessionSidecarFile.swift writer-one-byte-longer \
-  'h5py marks mactem_source size|h5py marks mactem_lineage size|h5py marks mactem_session_schema size|h5py marks mactem_lineage bytes' \
-  'KIT:let stored = value.isEmpty ? [UInt8(0)] : Array(value.utf8)' 'let stored = Array(value.utf8) + [UInt8(0)]'
-source_mutant SessionSidecarFile.swift writer-ascii \
-  'h5py marks mactem_source charset|h5py marks mactem_lineage charset|h5py unicode mactem_lineage charset' \
-  'KIT:h5.h5tsetCset(type, 1) >= 0' 'h5.h5tsetCset(type, 0) >= 0'
-# 53. the library-version bounds set to (earliest, V18) ((earliest, earliest) is refused by HDF5 2.x as an invalid pair): the file is in the oldest format (superblock version 0, version-1
-#     object headers), in which a text over about 65,499 bytes cannot be written at all (Gate B 2026-10-14, finding 2).
-source_mutant SessionSidecarFile.swift writer-libver-earliest \
-  'h5py marks superblock|h5py marks object headers' \
-  'KIT:h5.h5psetLibverBounds(access, 1, 5)' 'h5.h5psetLibverBounds(access, 0, 1)'
 
 # Slice B, the core (archive: roadmap-registrations-2026-10-15.md V1-2, "Slice B, the core"): SessionMarks, SessionRestore and SessionSave through marks.swift and
 # marks_reference.py (P1 the restore equals the save; P2 every refusal by name, naming the node; P3 the verdict and the calibration
@@ -486,7 +403,7 @@ source_mutant SessionMarks.swift marks-plane-swapped \
   'results["plane"] = angle.plane == .physical ? "physical" : "pixel"' 'results["plane"] = angle.plane == .physical ? "pixel" : "physical"'
 source_mutant SessionMarks.swift marks-unit-kept-for-mixed-units \
   'h5py mk mixed s1 results keys' \
-  'if let length = distance.physical, let unit = distance.unit {' 'if let unit = distance.unit ?? x?.units { let length = distance.physical ?? distance.pixels'
+  'if let length = distance.physical, let unit = distance.unit {' 'if let unit = distance.unit ?? x?.unit { let length = distance.physical ?? distance.pixels'
 source_mutant SessionMarks.swift marks-verdict-skipped \
   'swift marks refuses verdict-other-object' \
   'if case .refuse(let sentence) = verdict { throw .otherImage(sentence) }' '_ = verdict'
@@ -525,27 +442,10 @@ source_mutant SessionMarks.swift marks-lineage-text-not-kept \
 source_mutant SessionMarks.swift marks-kept-count-not-counted \
   'swift marks kept restore-three-kinds-and-kept' \
   'guard let mark else { kept += 1; continue }' 'guard let mark else { kept += 0; continue }'
-source_mutant SessionSidecarFile.swift marks-not-permitted-probe-removed \
-  'swift reads unreadable' \
-  'KIT:if code == EPERM || code == EACCES { throw HDF5FileError.notPermitted(String(cString: strerror(code))) }' 'if code == EPERM || code == EACCES { _ = code }'
-source_mutant SessionSidecarFile.swift marks-not-permitted-eacces-left-out \
-  'swift reads unreadable' \
-  'KIT:if code == EPERM || code == EACCES {' 'if code == EPERM {'
-source_mutant SessionSidecarFile.swift marks-not-permitted-any-failed-probe \
-  'swift reads absent|swift reads dangling-link' \
-  'KIT:if code == EPERM || code == EACCES {' 'if code != 0 {'
 
 # ADR 023 d' (slice B step 2): the reader's header-only refusal of dense attribute storage. Each dense plant is one h5py wrote and h5py
 # proves is in dense storage (the plant's `dense` flag); the compact ones that must not be refused are the valid and foreign plants.
 DENSE_READS='swift reads dense-attributes-tracked-order|swift reads dense-attributes-many|swift reads lineage-100kb|swift reads lineage-4mib-exact'
-source_mutant SessionSidecarFile.swift dense-check-skipped \
-  "$DENSE_READS|swift refuses to overwrite lineage-65600" \
-  'KIT:if refuseDenseStorage { try requireCompactAttributes(of: file, h5) }' ''
-source_mutant SessionSidecarFile.swift dense-check-after-the-first-attribute \
-  'swift reads dense-variable-length-identity|swift refuses to overwrite dense-variable-length-identity' \
-  'KIT:if refuseDenseStorage { try requireCompactAttributes(of: file, h5) }' '' \
-  'KIT:if let text = try readString(name, of: file, maximumStringBytes: maximumStringBytes, h5) { out[name] = text }' \
-  $'if let text = try readString(name, of: file, maximumStringBytes: maximumStringBytes, h5) { out[name] = text }\n                if refuseDenseStorage { try requireCompactAttributes(of: file, h5) }'
 # The replace check (the header reads) without the dense refusal, the read's first act keeping it: only the overwrite is held to it.
 source_mutant SessionSidecarFile.swift dense-check-in-the-read-only \
   'swift refuses to overwrite dense-attributes-many|swift refuses to overwrite lineage-4mib-exact' \
@@ -553,26 +453,6 @@ source_mutant SessionSidecarFile.swift dense-check-in-the-read-only \
   'from: url)[minReaderAttribute] else {' 'from: url, refuseDenseStorage: false)[minReaderAttribute] else {' \
   $'                let before = HDF5FileIdentity(ofItemAt: url.path)\n                let header = try readHeader(of: url)' \
   $'                let before = HDF5FileIdentity(ofItemAt: url.path)\n                _ = try HDF5RootAttributes.read([], from: url)\n                let header = try readHeader(of: url)'
-source_mutant SessionSidecarFile.swift dense-attribute-message-bit-inverted \
-  "swift reads valid-libver-latest|swift reads valid-compact-attributes-tracked-order|$DENSE_READS" \
-  'KIT:present & (UInt64(1) << 12) == 0 {' 'present & (UInt64(1) << 12) != 0 {'
-source_mutant SessionSidecarFile.swift dense-attribute-count-not-asked \
-  'swift reads foreign-no-attributes' \
-  'KIT:if present & (UInt64(1) << 21) != 0, present' 'if true, present'
-source_mutant SessionSidecarFile.swift dense-accepted-when-attributes-counted \
-  "swift reads foreign-no-attributes|$DENSE_READS" \
-  'KIT:if present & (UInt64(1) << 21) != 0, present' 'if present & (UInt64(1) << 21) == 0, present'
-# The header read together with META_SIZE, which walks the fractal heap and the B-tree: the unit and plain checks cannot tell it from the
-# header read (the header bits are the same), only the structure-aware fuzz can: the second opinion's FRHP windows (17 SIGSEGV and 26 hangs
-# in its 648) crash or spin it, where the header-only read returns on all of them.
-# MEMORY (2026-10-20, FormatoKit 0.5.0 switch): this mutant's child grows to about 30 GB resident before its deadline kills it (two runs:
-# 29.8 and 33.0 GB), over the 24 GB cap, so a full run under a 24 GB memory cap is killed here; run it alone, `--only dense-header-read`, under a
-# larger cap on an otherwise idle Mac.
-GATE_EXTRA=(--fuzz-dense)
-source_mutant SessionSidecarFile.swift dense-header-read-with-meta-size \
-  'fuzz dense-70k crashes|fuzz dense-70k hangs' \
-  'KIT:private static let fieldHeader: UInt32 = 0x0008' 'private static let fieldHeader: UInt32 = 0x0018'
-GATE_EXTRA=()
 
 # ADR 023 a (slice B step 2): the writer's 60,000-byte cap on the four attributes' text, the save request's check of the same.
 # The cap is held by the raw writes (exactly at it written, one byte over refused by name, and a split between the source and the

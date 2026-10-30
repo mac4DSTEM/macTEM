@@ -1,6 +1,6 @@
 //
 //  AppState+Open.swift
-//  Role: open files into the window (V1-13). Which files are open, which is selected and what each holds is
+//  Role: open files into the window. Which files are open, which is selected and what each holds is
 //        `OpenItems`'; here are the reader it is given — the file, its metadata, the display copy, the row's thumbnail
 //        and a security-scoped bookmark, all off the main actor — and the infobar's events.
 //
@@ -12,6 +12,7 @@ import FormatoCore
 import ImagoCore
 import TEMCore
 import TEMSession
+import ShellEDXModel
 
 extension AppState {
     /// Every open ends here — the panel, a drop, Finder: one item per file not open yet, read one at a time in this
@@ -149,7 +150,7 @@ extension AppState {
         let (image, canvas, metadata) = try await read(url)
         try Task.checkCancellation()
         // The identity of the pixels just read (what saved marks describe), and — for a file's first read only; a cold
-        // item's re-read never restores — what the sidecar beside it makes of it (V1-2). Inside the live scope.
+        // item's re-read never restores — what the sidecar beside it makes of it. Inside the live scope.
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
         let identity = SessionSourceIdentity.of(image, fileByteSize: size)
         let sidecar = request.bookmark == nil
