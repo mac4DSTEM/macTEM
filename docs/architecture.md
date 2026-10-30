@@ -81,7 +81,7 @@ build `-Onone` in Debug (see "Known limitations").
 | Unit tests; committed fixtures (≤ 1 MiB) in `Fixtures/` | `macTEMTests/` |
 | Reference harnesses, gates, their libraries | `tools/<name>/` — classified in `tools/run-tests.sh` |
 | Docs | `docs/` (the live set is listed in `docs/status.md`); dated or superseded → the archive folder |
-| Pinned references, fetched or provisioned | `References/` (gitignored; `tools/lib/python.sh`, `tools/lib/fetch-rsciio.sh`, `tools/lib/fetch-formatokit.sh`, `tools/lib/fetch-diffractokit.sh`, `tools/lib/fetch-imagokit.sh`) |
+| Pinned references, fetched or provisioned | `References/` (gitignored; `tools/lib/python.sh`, `tools/lib/fetch-rsciio.sh`, `tools/lib/fetch-py4dstem-scattering.sh`) |
 | Redistributed binaries and their licences | FormatoKit's three frameworks in `Contents/Frameworks` (`FormatoLibHDF5`, `FormatoLibSZ`, `FormatoLibAEC`; none committed here, ADR 026) and `Licenses/`, named and hashed in `NOTICE` |
 
 The app's folder is a synchronized group: placement is wiring. Fixtures land flat in the test bundle's resources, so
@@ -99,9 +99,8 @@ two fixtures may not share a name.
 | ImagoKit | 0.5.0 | the calibrated axis (`AxisCalibration`), the unit and scale-bar numbers, the CSV writers (profile, tidy results, FFT), distance and angle, the display mapping, the 2D FFT, spectrum and radial profile, spot spacing, masked inverse FFT, HRTEM filters, the region / bin / unit / shape rules, the histogram, the line-profile numbers | 027 |
 
 TEMCore keeps thin seams over the kits: `CalibratedImage+Micrograph` (the kit's `Micrograph`), `KitImages`,
-`MRCImageReader`, `TIFFImageReader`, `VeloxImageReader`, `Compute/LineProfile` (the kit's `LineProfile` with the app's two refusals), `ImagePoint+PixelPoint`, `ProfileCSV`, `ResultsCSV` and `FFTExport` (the app's titles and validation sentences over the kit's CSV writers) and `UnitDisplay` (how a unit and a number are shown). A harness cannot compile a kit into TEMCore's one
-module, so `tools/lib/fetch-formatokit.sh`, `fetch-diffractokit.sh` and `fetch-imagokit.sh` pin `References/<Kit>` to `Package.resolved`, and
-`tools/lib/sources.manifest` builds the kits' modules under TEMCore's flags. Where a file names both TEMCore's `DiffractionPattern` and the kit's,
+`MRCImageReader`, `TIFFImageReader`, `VeloxImageReader`, `Compute/LineProfile` (the kit's `LineProfile` with the app's two refusals), `ImagePoint+PixelPoint`, `ProfileCSV`, `ResultsCSV` and `FFTExport` (the app's titles and validation sentences over the kit's CSV writers) and `UnitDisplay` (how a unit and a number are shown). A harness is an executable target in
+`Package.swift` over TEMCore, so it links the kits `Package.resolved` pins. Where a file names both TEMCore's `DiffractionPattern` and the kit's,
 `import struct DiffractoGeometry.DiffractionPattern` picks the kit's. No other name is shared: the app's twins are gone (2026-10-21).
 
 **What came from mac4DSTEM** is the app entry point, the scripts and the CI workflow, adapted; each says so in its first lines. The shared
@@ -129,8 +128,8 @@ mac4DSTEM's, unchanged (its `docs/architecture.md`, "The UI contract"):
   `ARCHS = arm64`.
 - Build: open `macTEM.xcodeproj`, scheme `macTEM`, ⌘R; or `xcodebuild -project macTEM.xcodeproj -scheme macTEM -destination 'platform=macOS' build`.
 - Gates: `tools/run-tests.sh unit | core | scientific | inventory`; the `scientific` array in that script is the
-  harness roster. A harness compiles TEMCore sources from `tools/lib/sources.manifest` with TEMCore's own Swift
-  settings (`MACTEM_CORE_FLAGS`, held equal to `Package.swift` by `inventory`) and compares against a reference
+  harness roster. A harness is an executable target in `Package.swift` (`parityHarness`, TEMCore's own Swift
+  settings, held equal by `inventory`), built by `tools/lib/harness.sh`, and compares against a reference
   pinned in `tools/lib/references-lock.txt` (Python, provisioned into `References/python-venv`) or fetched at a
   commit (`tools/lib/fetch-rsciio.sh`).
 - Signing: local builds are signed ad hoc with no team; Hardened Runtime is off in Debug and on in Release, as in

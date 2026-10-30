@@ -13,6 +13,7 @@
 //
 // A refusal is written as one sentence on both sides, for example `mark.badCoordinate s2 x1 0x1p3`.
 
+@testable import TEMCore
 import ImagoCore
 import Darwin
 import Foundation

@@ -1,5 +1,5 @@
-// tools/parity/metadata-parity/main.swift — macTEM's AcquisitionMetadata readers (TEMCore, compiled in from
-// tools/lib/sources.manifest group `metadata`) against reference.py's expectations from the pinned references.
+// tools/parity/metadata-parity/main.swift — macTEM's AcquisitionMetadata readers (TEMCore, through
+// Package.swift's MetadataParity target) against reference.py's expectations from the pinned references.
 //
 //     harness <out-dir-of-reference.py>
 //
@@ -53,7 +53,7 @@
 //   tiff-65027-skipped   INPUT  rsciio-dm-tiff-65027: the file with the tag renamed 65028 (a reader that never looks at 65027)
 //   tiff-dm-before-velox INPUT  planted-tiff-velox-and-dm: the file with its Velox tag removed, so the real reader meets only
 //                                the 120 kV DM block (what a reader that tries DM before Velox shows)
-// The eighteen SOURCE mutations (the kit's tag walker, tiff(data:) and TIFF slice guard, the app's open and read(path:)) are run.sh's: it compiles the harness again
+// The six SOURCE mutations (the app's open and read(path:)) are run.sh's: it builds the harness again
 // against an edited copy of the one file; the four wiring mutations above are their mirrored twins.
 // An unknown name exits 64 before any case.
 //
@@ -64,6 +64,7 @@
 // exits 1 with the targeted check among its failures, so a trap in the unisolated harness would be no catch (a signal is not
 // an exit 1); in the child it is.
 
+@testable import TEMCore
 import Foundation
 import FormatoCore
 import FormatoDM

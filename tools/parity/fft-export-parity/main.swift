@@ -1,5 +1,5 @@
 // tools/parity/fft-export-parity/main.swift — macTEM's FFT-room export (V1-10 slice 2: `FFTExport`, `RadialProfileCSV`, `SpotsCSV`,
-// `ImageExport` with a provenance and spot marks; TEMCore, compiled in from tools/lib/sources.manifest group `export`) WRITES what
+// `ImageExport` with a provenance and spot marks; TEMCore, through Package.swift's FFTExportParity target) WRITES what
 // reference.py planted; reference.py `check` reads it back with Pillow, numpy and Python's own `float`.
 //
 //     harness <planted dir of reference.py> <out dir> [<case,case...|all>]
@@ -11,6 +11,7 @@
 // numbers) for the reader to hold the files against. `windowFractions` restates `DisplayWindow.fractions` (TEMSession is not in
 // the closure). Exit codes: 0 written, 2 any failure (never 1: reference.py's failure exit is the only 1 a mutant is credited with).
 
+@testable import TEMCore
 import CoreGraphics
 import Foundation
 import ImagoCore
