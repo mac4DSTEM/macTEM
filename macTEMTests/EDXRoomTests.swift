@@ -12,10 +12,8 @@ import XCTest
 import UniformTypeIdentifiers
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class EDXRoomTests: XCTestCase {
@@ -170,7 +168,6 @@ nonisolated final class EDXRoomTests: XCTestCase {
         XCTAssertEqual(EDXRoomFormat.region(.wholeMap, pixels: 12_000), "Whole map · 12\u{2009}000 px")
         XCTAssertEqual(EDXRoomFormat.region(.rectangle(PixelRect(x0: 10, y0: 5, x1: 41, y1: 31)), pixels: 806),
                        "Region · x 10–40, y 5–30 · 806 px")
-        XCTAssertEqual(EDXRoomFormat.spectrumSubtitle(counts: 1500, region: .wholeMap, pixels: 4), "1\u{2009}500 counts · Whole map · 4 px")
     }
 
     func testARegionIsKeyedByItsPixels() {

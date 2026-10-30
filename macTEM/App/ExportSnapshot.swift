@@ -21,10 +21,8 @@
 import ShellMetal
 import ImagoCore
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 // MARK: - Values
 

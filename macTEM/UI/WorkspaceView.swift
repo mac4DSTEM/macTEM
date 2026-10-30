@@ -1,9 +1,7 @@
 import ShellLayout
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// The detail column: the science, and the infobar + process area along its bottom edge. The column's chassis (the divider,
 /// its drag, the infobar, the process area and their scene-stored fractions) is ShellLayout's `WorkspaceColumn` (suite task 8,

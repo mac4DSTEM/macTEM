@@ -1,10 +1,8 @@
 import ShellInspector
 import ShellLayout
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// The inspector: the window's right column, in two tabs. **Settings** is the room's readiness first, then
 /// every control the selected room owns. **Info** is what the open image actually *is*. The frame (the tab

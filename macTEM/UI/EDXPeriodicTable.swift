@@ -8,10 +8,8 @@
 import ShellSpectroscopy
 import SwiftUI
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 enum EDXPeriodicActions {
     /// The table's questions and changes, answered from `session`; nothing is picked before a spectrum image is open.

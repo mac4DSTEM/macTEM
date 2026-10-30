@@ -13,9 +13,7 @@ import ImagoCore
 import SpectroCore
 import SpectroEDX
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 package nonisolated enum DemoDocuments {
 

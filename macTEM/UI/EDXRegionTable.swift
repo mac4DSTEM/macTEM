@@ -8,10 +8,8 @@
 import ShellLayout
 import ShellSpectroscopy
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 struct EDXRegionTable: View {
     let rows: [EDXPins.Row]

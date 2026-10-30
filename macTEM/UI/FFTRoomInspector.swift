@@ -34,13 +34,11 @@ import ShellInspector
 import ShellLayout
 import SwiftUI
 import Charts
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoCore
 import ImagoFFT
 import ImagoFilters
-#endif
 
 // MARK: - Settings
 
