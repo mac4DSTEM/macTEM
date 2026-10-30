@@ -11,11 +11,10 @@
 import XCTest
 import SpectroCore
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
+import ShellEDXModel
 
 nonisolated final class EELSRoomRealDataTests: XCTestCase {
 

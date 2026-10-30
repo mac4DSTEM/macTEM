@@ -15,10 +15,8 @@
 import ShellInspector
 import SwiftUI
 import UniformTypeIdentifiers
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 // MARK: - The words
 
@@ -139,6 +137,13 @@ enum SessionFormat {
     static func replaceDetail(name: String) -> String {
         "Another app wrote it. Replace it with the marks in this window, or cancel and keep it as it is. "
             + "Replacing loses what the other file holds."
+    }
+
+    /// The Save Anyway alert's two sentences, for an image read again with other pixels than the marks were drawn on.
+    static func pixelsChangedTitle(image: String) -> String { "\(image) has changed since the marks were drawn." }
+    static func pixelsChangedDetail(name: String) -> String {
+        "The image was read again and its pixels differ. Save Anyway writes the marks to \(name) against the image as it is "
+            + "now; they may no longer sit on what they measured. Cancel keeps \(name) as it is."
     }
 
     /// The infobar's line after Choose Session File…, by what became of the file (never "chosen" for a file that did nothing).

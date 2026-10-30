@@ -6,11 +6,9 @@ import ShellInspector
 import XCTest
 import SwiftUI
 import AppKit
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoFFT
-#endif
 @testable import macTEM
 
 nonisolated final class FFTRoomWiringTests: XCTestCase {

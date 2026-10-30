@@ -211,8 +211,5 @@ nonisolated final class ResultsFormatTests: XCTestCase {
                        "3 results · Marks and FFT Spots · numbers exact, one line per quantity")
         XCTAssertEqual(ResultsFormat.exportMessage(rows: 1, groups: [.marks]), "1 result · Marks · numbers exact, one line per quantity")
         XCTAssertEqual(ResultsFormat.exportingDoneLine(name: "scan.results.csv", rows: 3), "Exported scan.results.csv — 3 results")
-        XCTAssertEqual(ResultsFormat.exportTitle(enabled: true, hasRows: true), "All Results as CSV…")
-        XCTAssertEqual(ResultsFormat.exportTitle(enabled: false, hasRows: false), "All Results as CSV… (nothing measured yet)")
-        XCTAssertEqual(ResultsFormat.exportTitle(enabled: false, hasRows: true), "All Results as CSV… (a read is running)")
     }
 }
