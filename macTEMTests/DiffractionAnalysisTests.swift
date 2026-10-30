@@ -133,7 +133,7 @@ nonisolated final class DiffractionAnalysisTests: XCTestCase {
 
     /// The beta'' CIF opened as the room's crystal lists the kit's own families: the room's list IS `kinematicReflections` of the loaded structure.
     @MainActor func testACIFCrystalListsTheKitsFamiliesInTheRoom() throws {
-        let loaded = try CrystalLoading.load(bytes: Data(MonoclinicIndexingTests.betaCIF.utf8), fileName: "beta.cif")
+        let loaded = try CrystalLoading.load(bytes: Data(BetaDoublePrimeCIF.text.utf8), fileName: "beta.cif")
         let analysis = DiffractionAnalysis()
         analysis.setCrystal(.cif(loaded))
         analysis.setKMax(1.2)
