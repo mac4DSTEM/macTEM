@@ -1,6 +1,7 @@
-# Weekly unused-code scan (Periphery). A copy of the suite's template; edit it there.
-# Builds the package and its tests, scans with --retain-public (a kit's public API is used by the apps), and keeps one
-# open issue, "Periphery weekly scan", up to date with the findings. Findings are for triage; nothing is deleted here.
+# Weekly unused-code scan (Periphery). The suite template, adapted for an app: Periphery builds the Xcode project's
+# macTEM scheme itself (the app, its package layers and its tests), so the app target is scanned too, not only Package.swift.
+# No --retain-public: an app has no outside consumers. Keeps one open issue, "Periphery weekly scan", up to date with the
+# findings. Findings are for triage; nothing is deleted here.
 name: Periphery
 
 on:
@@ -18,14 +19,17 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Ensure the Metal toolchain component
+        run: |
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            sudo xcodebuild -downloadComponent MetalToolchain
+          fi
       - name: Install Periphery
         run: brew install periphery && periphery version
-      - name: Build with the index store
-        run: swift build --build-system native --build-tests
-      - name: Scan
+      - name: Build and scan the Xcode project
         run: |
-          periphery scan --retain-public --skip-build --index-store-path .build/debug/index/store \
-            --format csv --relative-results > periphery.csv
+          periphery scan --project macTEM.xcodeproj --schemes macTEM --format csv --relative-results \
+            -- CODE_SIGNING_ALLOWED=NO > periphery.csv
           echo "count=$(( $(wc -l < periphery.csv) - 1 ))" >> "$GITHUB_ENV"
       - name: Update the issue
         env:
