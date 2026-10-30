@@ -139,6 +139,13 @@ enum SessionFormat {
             + "Replacing loses what the other file holds."
     }
 
+    /// The Save Anyway alert's two sentences, for an image read again with other pixels than the marks were drawn on.
+    static func pixelsChangedTitle(image: String) -> String { "\(image) has changed since the marks were drawn." }
+    static func pixelsChangedDetail(name: String) -> String {
+        "The image was read again and its pixels differ. Save Anyway writes the marks to \(name) against the image as it is "
+            + "now; they may no longer sit on what they measured. Cancel keeps \(name) as it is."
+    }
+
     /// The infobar's line after Choose Session File…, by what became of the file (never "chosen" for a file that did nothing).
     static func chosenLine(_ outcome: SidecarOutcome, adopted: Bool, name: String) -> String {
         switch outcome {
