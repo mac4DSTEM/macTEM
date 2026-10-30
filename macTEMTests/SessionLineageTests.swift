@@ -477,11 +477,32 @@ nonisolated final class SessionLineageTests: XCTestCase {
         XCTAssertEqual(try lineage.jsonString(), json)
     }
 
-    func testAbsentCollectionsAreEmptyAndUnknownKeysAreIgnored() throws {
+    func testAbsentCollectionsAreEmptyAndUnknownKeysAreKept() throws {
         let json = #"{"extra":[1,2],"next_id":2,"nodes":[{"colour":"red","id":"s1","kind":"angle","recorded":9}],"version":1}"#
         let lineage = try SessionLineage.decode(json)
-        XCTAssertEqual(lineage.nodes, [SessionLineage.Node(id: "s1", kind: "angle", parameters: [:], recorded: 9)])
+        XCTAssertEqual(lineage.nodes, [SessionLineage.Node(id: "s1", kind: "angle", parameters: [:], recorded: 9,
+                                                           unknown: ["colour": .string("red")])])
         XCTAssertEqual(lineage.nextID, 2)
+        XCTAssertEqual(lineage.unknownKeys, ["extra": .array([.integer(1), .integer(2)])])
+    }
+
+    func testUnknownNodesAndKeysSurviveARewriteAndAnEdit() throws {
+        // Another writer's version-1 lineage: a root key, a node key and a node of a kind this build does not know, with
+        // every JSON shape a value can take.
+        let json = #"{"next_id":3,"nodes":[{"external":[],"id":"s1","inputs":[],"kind":"distance","note":{"by":"them","n":[1,2.5,-0.003,true,null]},"parameters":{"x1":"1.0"},"recorded":5,"results":{}},{"external":[],"id":"s2","inputs":[],"kind":"their_kind","parameters":{},"recorded":6,"results":{},"weight":0.25}],"producer":{"name":"other","version":"2.1"},"version":1}"#
+        var lineage = try SessionLineage.decode(json)
+        XCTAssertEqual(try lineage.jsonString(), json, "kept byte for byte through a rewrite")
+        XCTAssertEqual(try SessionLineage.decode(try lineage.jsonString()), lineage)
+        // An edit of the known node and a new node leave every unknown key where it was.
+        XCTAssertTrue(lineage.replace(id: "s1", parameters: ["x1": "2.0"], results: [:], recorded: 7))
+        try lineage.add(kind: "angle", parameters: [:], recorded: 8)
+        let edited = try SessionLineage.decode(try lineage.jsonString())
+        XCTAssertEqual(edited.unknownKeys["producer"], .object(["name": .string("other"), "version": .string("2.1")]))
+        XCTAssertEqual(edited.node(id: "s1")?.unknown["note"], lineage.node(id: "s1")?.unknown["note"])
+        XCTAssertEqual(edited.node(id: "s2")?.unknown, ["weight": .number(0.25)])
+        XCTAssertEqual(edited.node(id: "s2")?.kind, "their_kind")
+        XCTAssertEqual(edited.node(id: "s3")?.unknown, [:])
+        // Red under: unknown keys ignored by the reader (the rewrite drops "producer", "note" and "weight").
     }
 
     // MARK: - The R8 refusals

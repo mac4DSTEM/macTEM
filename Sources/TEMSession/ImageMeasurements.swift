@@ -172,6 +172,8 @@ package final class ImageMeasurements {
     @ObservationIgnored private var drawnOn: SessionSourceIdentity?
     /// The lineage the sidecar on disk held when it was restored or last saved; a save checks it is still there.
     @ObservationIgnored private var onDisk: String?
+    /// The source attribute the sidecar on disk held then; a save checks it too.
+    @ObservationIgnored private var sourceOnDisk: String?
     @ObservationIgnored private var replacing = false
     /// The pixels the user chose Save Anyway for after a re-read: a save of exactly those takes the new image.
     @ObservationIgnored private var acceptedPixels: String?
@@ -297,7 +299,7 @@ package final class ImageMeasurements {
             throw .pixelsChanged
         }
         return try SessionSave.request(identity: identity, lineage: lineage, revision: revision,
-                                       expectedOnDisk: onDisk, replacing: replacing)
+                                       expectedOnDisk: onDisk, expectedSource: sourceOnDisk, replacing: replacing)
     }
 
     /// `request` was written: its revision is saved (a mark changed during the write leaves the file unsaved), the image
@@ -305,6 +307,7 @@ package final class ImageMeasurements {
     package func didSave(_ request: SessionSave.Request, opened identity: SessionSourceIdentity) {
         savedRevision = request.revision
         onDisk = request.lineage
+        sourceOnDisk = request.source
         replacing = false
         acceptedPixels = nil
         sidecar = .saved
@@ -357,6 +360,7 @@ package final class ImageMeasurements {
         notes = newNotes
         sidecar = .restored
         onDisk = restored.lineageText
+        sourceOnDisk = restored.sourceText
         drawnOn = identity
         replacing = false
         savedRevision = revision

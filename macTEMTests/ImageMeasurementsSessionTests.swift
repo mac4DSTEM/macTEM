@@ -558,6 +558,7 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
         XCTAssertEqual(request.lineage, try o.lineage.jsonString())
         XCTAssertEqual(request.revision, 2)
         XCTAssertNil(request.expectedOnDisk)
+        XCTAssertNil(request.expectedSource)
         XCTAssertFalse(request.replacing)
         // The image the save describes is another shape: the nodes are outside it, refused by name.
         let small = SessionSourceIdentity(fileName: "scan.dm4", byteSize: 1, object: image.source, width: 8, height: 6,
@@ -568,6 +569,8 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
         // After a restore the file on disk should hold the lineage as it was read.
         let back = try restoredOwner(o.lineage, image: image, clock: clock)
         XCTAssertEqual(try back.saveRequest(opened: identity).expectedOnDisk, request.lineage)
+        // And the source attribute as it was read (red under: the changed-on-disk check fed the lineage only).
+        XCTAssertEqual(try back.saveRequest(opened: identity).expectedSource, request.source)
     }
 
     /// `didSave` marks the REQUEST's revision saved: a mark added while the write ran leaves the file unsaved. It sets the
@@ -592,6 +595,7 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
         XCTAssertTrue(o.notes.isEmpty)
         let next = try o.saveRequest(opened: identity)
         XCTAssertEqual(next.expectedOnDisk, request.lineage)
+        XCTAssertEqual(next.expectedSource, request.source)
         o.didSave(next, opened: identity)
         XCTAssertFalse(o.isDirty)
     }

@@ -25,7 +25,8 @@
 //      "results":{"length":"29.75","unit":"nm"}}],"version":1}
 //  A node is written with `external`, `id`, `inputs`, `kind`, `parameters`, `recorded`, `results` always and
 //  `removed` only when set. The reader requires `version`, `next_id`, `nodes` and each node's `id`, `kind`,
-//  `recorded`; an absent `parameters`, `results`, `inputs` or `external` is empty; unknown keys are ignored.
+//  `recorded`; an absent `parameters`, `results`, `inputs` or `external` is empty; a key it does not know, at the
+//  root or on a node, is kept as read (`JSONValue`) and written back, so a re-save never drops another writer's keys.
 //
 //  THE GUARDS (R8), each a named `Refusal`, never a partial graph: over 4 MiB of UTF-8, not JSON or the wrong shape,
 //  more than 2 000 nodes, `next_id` outside 1…1 000 000, an id not `s` + a decimal 1…1 000 000 without leading zeros,
@@ -107,9 +108,13 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
         package var recorded: Int64
         /// Set only on a node the user removed that another node still cites; nil on every live node.
         package var removed: Int64?
+        /// Keys this build does not know (another writer's, or a later build's within version 1), kept as read and
+        /// written back, so a re-save never drops them.
+        package var unknown: [String: JSONValue]
 
         package init(id: String, kind: String, parameters: [String: String], results: [String: String] = [:],
-                     inputs: [Edge] = [], external: [External] = [], recorded: Int64, removed: Int64? = nil) {
+                     inputs: [Edge] = [], external: [External] = [], recorded: Int64, removed: Int64? = nil,
+                     unknown: [String: JSONValue] = [:]) {
             self.id = id
             self.kind = kind
             self.parameters = parameters
@@ -118,9 +123,10 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
             self.external = external
             self.recorded = recorded
             self.removed = removed
+            self.unknown = unknown
         }
 
-        private enum CodingKeys: String, CodingKey {
+        private enum CodingKeys: String, CodingKey, CaseIterable {
             case id, kind, parameters, results, inputs, external, recorded, removed
         }
 
@@ -134,6 +140,20 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
             external = try container.decodeIfPresent([External].self, forKey: .external) ?? []
             recorded = try container.decode(Int64.self, forKey: .recorded)
             removed = try container.decodeIfPresent(Int64.self, forKey: .removed)
+            unknown = try JSONValue.unknownKeys(in: decoder, known: Set(CodingKeys.allCases.map(\.rawValue)))
+        }
+
+        package func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(id, forKey: .id)
+            try container.encode(kind, forKey: .kind)
+            try container.encode(parameters, forKey: .parameters)
+            try container.encode(results, forKey: .results)
+            try container.encode(inputs, forKey: .inputs)
+            try container.encode(external, forKey: .external)
+            try container.encode(recorded, forKey: .recorded)
+            try container.encodeIfPresent(removed, forKey: .removed)
+            try JSONValue.encode(unknown, to: encoder)
         }
     }
 
@@ -394,12 +414,39 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
         var version: Int
         var nextID: Int
         var nodes: [Node]
+        var unknown: [String: JSONValue]
 
-        private enum CodingKeys: String, CodingKey {
+        init(version: Int, nextID: Int, nodes: [Node], unknown: [String: JSONValue]) {
+            self.version = version
+            self.nextID = nextID
+            self.nodes = nodes
+            self.unknown = unknown
+        }
+
+        private enum CodingKeys: String, CodingKey, CaseIterable {
             case version, nodes
             case nextID = "next_id"
         }
+
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            version = try container.decode(Int.self, forKey: .version)
+            nextID = try container.decode(Int.self, forKey: .nextID)
+            nodes = try container.decode([Node].self, forKey: .nodes)
+            unknown = try JSONValue.unknownKeys(in: decoder, known: Set(CodingKeys.allCases.map(\.rawValue)))
+        }
+
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(version, forKey: .version)
+            try container.encode(nextID, forKey: .nextID)
+            try container.encode(nodes, forKey: .nodes)
+            try JSONValue.encode(unknown, to: encoder)
+        }
     }
+
+    /// Root keys this build does not know, kept as read and written back.
+    package private(set) var unknownKeys: [String: JSONValue] = [:]
 
     /// The canonical JSON: sorted keys, integer numbers, byte-stable on re-encode. The writer checks what it writes
     /// as the reader does and reads its own output back; a lineage from a newer version is never written.
@@ -410,7 +457,7 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         // try? OK: strings, integers and string dictionaries have no encoding failure; nil is `.malformed`, which
         // the caller turns into "nothing written".
-        guard let data = try? encoder.encode(Wire(version: Self.version, nextID: nextID, nodes: nodes)),
+        guard let data = try? encoder.encode(Wire(version: Self.version, nextID: nextID, nodes: nodes, unknown: unknownKeys)),
               let json = String(data: data, encoding: .utf8) else { throw .malformed }
         guard try Self.decode(json) == self else { throw .malformed }
         return json
@@ -438,8 +485,74 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
         var lineage = SessionLineage()
         lineage.nextID = wire.nextID
         lineage.nodes = wire.nodes
+        lineage.unknownKeys = wire.unknown
         try lineage.validate()
         return lineage
+    }
+}
+
+// MARK: - Keys another writer added
+
+/// Any JSON value, kept as read so a key this build does not know survives a re-save. An integral number that fits
+/// Int64 is always `.integer`, so a value reads back equal to itself after a write.
+package nonisolated enum JSONValue: Codable, Equatable, Sendable {
+    case null
+    case bool(Bool)
+    case integer(Int64)
+    case number(Double)
+    case string(String)
+    case array([JSONValue])
+    case object([String: JSONValue])
+
+    package init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() { self = .null }
+        else if let value = try? container.decode(Bool.self) { self = .bool(value) }
+        else if let value = try? container.decode(Int64.self) { self = .integer(value) }
+        else if let value = try? container.decode(Double.self) {
+            if value.rounded() == value, let integer = Int64(exactly: value) { self = .integer(integer) }
+            else { self = .number(value) }
+        }
+        else if let value = try? container.decode(String.self) { self = .string(value) }
+        else if let value = try? container.decode([JSONValue].self) { self = .array(value) }
+        else { self = .object(try container.decode([String: JSONValue].self)) }
+    }
+
+    package func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .null: try container.encodeNil()
+        case .bool(let value): try container.encode(value)
+        case .integer(let value): try container.encode(value)
+        case .number(let value): try container.encode(value)
+        case .string(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
+        case .object(let value): try container.encode(value)
+        }
+    }
+
+    private struct AnyKey: CodingKey {
+        var stringValue: String
+        var intValue: Int? { nil }
+        init(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+
+    /// The keys of the object `decoder` reads that are not in `known`, with their values.
+    package static func unknownKeys(in decoder: any Decoder, known: Set<String>) throws -> [String: JSONValue] {
+        let container = try decoder.container(keyedBy: AnyKey.self)
+        var unknown: [String: JSONValue] = [:]
+        for key in container.allKeys where !known.contains(key.stringValue) {
+            unknown[key.stringValue] = try container.decode(JSONValue.self, forKey: key)
+        }
+        return unknown
+    }
+
+    /// Writes `unknown` into the object `encoder` is writing, beside the known keys.
+    package static func encode(_ unknown: [String: JSONValue], to encoder: any Encoder) throws {
+        guard !unknown.isEmpty else { return }
+        var container = encoder.container(keyedBy: AnyKey.self)
+        for (key, value) in unknown { try container.encode(value, forKey: AnyKey(stringValue: key)) }
     }
 }
 
