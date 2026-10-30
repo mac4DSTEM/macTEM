@@ -674,7 +674,9 @@ struct Harness {
                 guard case .ambiguous(let c)? = r else { return [] }
                 return c.map { indexOf($0.family.g, in: l) }
             }
-            func compare(_ rec: [String: Any], _ l: KinematicReflectionList, _ label: String, families: [ReflectionFamily]? = nil) {
+            func compare(_ record: [String: Any], _ l: KinematicReflectionList, _ label: String, families: [ReflectionFamily]? = nil) {
+                // Read only, on this one thread: Swift 6.3 otherwise reports `rec` as sent into each check's message closure.
+                nonisolated(unsafe) let rec = record
                 let q = num(rec["q"])
                 var tolPct = num(rec["tol_pct"])
                 if mutation == "tol-fraction" { tolPct /= 100 }

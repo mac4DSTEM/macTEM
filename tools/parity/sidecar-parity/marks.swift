@@ -166,6 +166,7 @@ func sentence(_ refusal: SessionSave.Refusal) -> String {
     case .identity(let inner): sentence(inner)
     case .lineage(let inner): "lineage.\(lineageName(inner))"
     case .changedOnDisk: "changedOnDisk"
+    case .pixelsChanged: "pixelsChanged"
     case .file(let inner): "file." + (refusalLine(inner).split(separator: " ").dropFirst().first.map(String.init) ?? "?")
     }
 }
