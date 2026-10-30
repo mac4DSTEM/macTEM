@@ -2,13 +2,13 @@
 //  VeloxImageReader.swift
 //  Role: open a Thermo Fisher Velox `.emd` as macTEM's `CalibratedImage` — one frame of one image stack — through
 //        SpectroKit's Velox reader (`VeloxEMDReader`, SpectroCore 0.1.0, its public API only: one Velox parser in the
-//        suite, ADR 004 D1 and ADR 019). Pre-registered as archive: roadmap-registrations-2026-10-15.md V1-3a; checked by tools/parity/velox-image-parity
+//        suite, ADR 004 D1 and ADR 019). Pre-registered as V1-3a; checked by tools/parity/velox-image-parity
 //        against RosettaSciIO 049e7d70 and h5py.
 //
 //  OBJECT RULE AND AXES are FormatoKit's `VeloxImageSelection` (FormatoEMD, the first consumer's named option beside
 //  `VeloxImageSignals`, pinned in the kit to this app's source) and `VeloxImageInfo.resolvedDetector` / `.detectorType`;
 //  this file keeps the frame read, the refusal wording, the "frame 1 of N" note, `describe`, and the build of the
-//  `CalibratedImage` (the kit has no image type for Velox). The rule, as registered (one refinement after Gate B, inert on every gated file): a candidate is an entry of
+//  `CalibratedImage` (the kit has no image type for Velox). The rule, as registered (inert on every gated file): a candidate is an entry of
 //  `images()` whose `BinaryResult.DetectorIndex` resolves in the file's detector table — to the entry the image's own
 //  `BinaryResult.Detector` names when the indexed one is another (`resolvedDetector`) — to a detector whose type is
 //  not "AnalyticalDetector" (an EDX map), and whose stored type a

@@ -1,6 +1,6 @@
 //
 //  IntensityHistogram.swift
-//  Role: the Image room's histogram of the RAW pixels, on ImagoKit's `IntensityHistogram` (ImagoCore, ADR 027): the kit's
+//  Role: the Image room's histogram of the RAW pixels, on ImagoKit's `IntensityHistogram` (ImagoCore): the kit's
 //        `compute(_:bins:range:)` is numpy's `np.histogram` of the finite pixels (gated by tools/parity/histogram-parity at
 //        96 bins). What stays here is the room's choice of 96 bins.
 //

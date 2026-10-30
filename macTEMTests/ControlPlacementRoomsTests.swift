@@ -117,7 +117,7 @@ nonisolated final class ControlPlacementRoomsTests: XCTestCase {
         XCTAssertTrue(pane.contains(".zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, box: box) }) .zoomPanWheel(zoomModel, box: box) .zoomCommandTarget(zoomModel, isTarget: true)"))
         XCTAssertTrue(pane.contains("appState.imageRoomTools.readout = ImageReadout.text(image, at: geometry.imagePoint(atPanePoint: p))"))
         XCTAssertTrue(pane.contains("} trailing: { zoomBadge }") && pane.contains(".accessibilityIdentifier(\"image.zoomBadge\")"))
-        XCTAssertFalse(pane.contains("Crosshair"), "no crosshair over the picture (Paul, 2026-10-23)")
+        XCTAssertFalse(pane.contains("Crosshair"), "no crosshair over the picture")
         XCTAssertTrue(try ui("WorkspaceView.swift").contains("case .image: appState.imageRoomTools.readout"))
         let app = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("macTEM/App/macTEMApp.swift")

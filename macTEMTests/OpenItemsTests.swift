@@ -1,6 +1,6 @@
 //
 //  OpenItemsTests.swift
-//  Pins `OpenItems`, the owner of the files open in one window (V1-13, ADR 007), through a fake reader and a
+//  Pins `OpenItems`, the owner of the files open in one window, through a fake reader and a
 //  path-only file identity: one file by several spellings is one item and a name in two folders is two (the real
 //  resolver, on temp files); a batch opens each file once, in order, and selects its first; a file open already is
 //  selected, not read again; a failed first read removes its item and returns the selection; closing selects the next,

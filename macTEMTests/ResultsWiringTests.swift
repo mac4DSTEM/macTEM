@@ -1,6 +1,6 @@
 //
 //  ResultsWiringTests.swift
-//  The Results room's call sites (V1-10 slice 3): the room is built and can be entered, the shell's slots mount it (the room switch in
+//  The Results room's call sites: the room is built and can be entered, the shell's slots mount it (the room switch in
 //  `WorkspaceView`, the Settings and Info switches in `WorkspaceInspector`), `AppState` composes its state in one line, File > Export
 //  Results… is on ⇧⌥⌘E (a key no other item has) and enabled by `ExportSnapshot.availability`, the snapshot of the selected file is what
 //  the panel's OK writes (a real file read back), the room's state resets its selection with a file switch, and the table is a
@@ -52,7 +52,7 @@ nonisolated final class ResultsWiringTests: XCTestCase {
 
     // MARK: The room is built
 
-    /// The rooms 1.0 ships, every one built, in the order of the work; Prepare is not among them (Paul, 2026-10-23: "It shouldn't ship
+    /// The rooms 1.0 ships, every one built, in the order of the work; Prepare is not among them (the owner, 2026-10-23: "It shouldn't ship
     /// in macTEM"). Red under: Prepare back in the list, a room listed but not built, Results not ⌘6.
     @MainActor func testTheResultsRoomIsBuiltAndCanBeEntered() {
         XCTAssertEqual(WorkspaceArea.allCases, [.image, .fft, .edx, .eels, .diffraction, .results])

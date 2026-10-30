@@ -2,7 +2,7 @@
 //  ImageOpeningTests.swift
 //  Pins `ImageOpening` and the value it returns: the pre-registered object rule (the first object, in file order,
 //  that is not the thumbnail, has exactly two dimensions larger than one and whose axes do not carry two different
-//  units — archive: roadmap-registrations-2026-10-15.md V1-1 and V1-1a), the two refusals by name (an unknown
+//  units — V1-1 and V1-1a), the two refusals by name (an unknown
 //  extension; a file with no 2D image, whose message lists what the file holds), `calibratedImage(_:fileName:)`
 //  carrying origin, scale and units unchanged with a missing axis staying nil, `CalibratedImage.hasSquarePixels`
 //  (exact, units included), and `AxisCalibration.value(at:)` = (i − origin) · scale.

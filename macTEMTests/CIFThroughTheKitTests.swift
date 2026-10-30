@@ -3,7 +3,7 @@ import DiffractoCore
 import DiffractoScattering
 import TEMCore
 
-/// macTEM's own CIF plants through DiffractoKit's `CIFImport.read` (ADR 025, archive: roadmap-registrations-2026-10-15.md "DiffractoKit 0.0.3" and its
+/// macTEM's own CIF plants through DiffractoKit's `CIFImport.read` (ADR 025 "DiffractoKit 0.0.3" and its
 /// correction addendum): the literals of the verbatim mac4DSTEM tests that left with the copies (`CIFImportTests`,
 /// `CIFSpaceGroupOrderTests`, `CIFSymmetryBijectionTests`), each asserted where its outcome MOVED (old -> new in the test's
 /// doc comment) or where HEAD's refusal must be kept. The kit holds the rest (its own CIFImportTests, SymmetryOperationTests,
@@ -138,7 +138,7 @@ nonisolated final class CIFThroughTheKitTests: XCTestCase {
         XCTAssertNotEqual(completed.laueClass, .mThreeBarM)
     }
 
-    /// HCP magnesium written with 0.3333333 / 0.6666667 (a P1 file whose atoms are the 6_3 screw's): HEAD `.hexagonal`
+    /// HCP magnesium written with 0.3333333 / 0.6666667: HEAD `.hexagonal`
     /// (the rotation had to carry its translation); now 6/mmm. Mutant: the translation required to be zero (read as -3m or lower).
     func testMagnesiumViaScrewAxisIsSixOverMmm() throws {
         let s = try Self.read(Self.magnesium, "magnesium")

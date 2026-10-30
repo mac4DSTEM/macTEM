@@ -1,6 +1,6 @@
 //
 //  EDXRealFileJourney.swift
-//  The EDS room on the owner's real Velox file (docs/design/eds-room-behaviour.md is the spec this drive checks). Opt-in: skipped
+//  The EDS room on the owner's real Velox file. Opt-in: skipped
 //  unless MACTEM_REAL_DATA=1 reaches the runner and the file exists. xcodebuild hands the runner only variables named
 //  TEST_RUNNER_*, so run it as
 //      TEST_RUNNER_MACTEM_REAL_DATA=1 MACTEM_REAL_DATA=1 tools/run-tests.sh ui EDXRealFileJourney

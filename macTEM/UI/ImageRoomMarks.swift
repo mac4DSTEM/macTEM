@@ -1,6 +1,6 @@
 //
 //  ImageRoomMarks.swift
-//  Role: the Image room's marks on the image (archive: roadmap-registrations-2026-10-15.md V1-5; the design in archive: image-room-design-2026-10-13.md):
+//  Role: the Image room's marks on the image:
 //        the drawing of every distance, angle and profile of the selected file, and the gestures that make and move
 //        them. The marks are the file's (`ImageMeasurements`); the numbers are TEMCore's; this file maps and draws.
 //
@@ -9,7 +9,7 @@
 //  (its `uv(atPanePoint:)` is the inverse; `panePoint(of:)` is its forward chain, pinned against it by
 //  `MarkGeometryTests`). The marks are drawn in one pane-sized `Canvas` OUTSIDE the zoomed layer, so a stroke keeps its
 //  width at any zoom and a mark moves exactly as the image does — both are drawn from the one zoom and offset, so an
-//  animated zoom reset cannot slip one from the other (V1-5's check on the first overlay).
+//  animated zoom reset cannot slip one from the other.
 //
 //  THE GESTURES, only with a tool chosen (Pan keeps the pane's drag-to-pan; a pinch zooms in every tool):
 //  Distance and Profile — press, drag, release; Angle — drag the first arm from A to the vertex B, then click C, the
