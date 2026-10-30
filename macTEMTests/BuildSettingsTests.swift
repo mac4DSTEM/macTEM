@@ -21,4 +21,13 @@ nonisolated final class BuildSettingsTests: XCTestCase {
         XCTAssertEqual(project.components(separatedBy: "MTL_FAST_MATH = NO;").count - 1, 3,
                        "the project's Debug, Release and Develop configurations each set MTL_FAST_MATH = NO")
     }
+
+    /// The unit tests run optimised. Xcode's own ⌘U builds the Test action at -Onone and that setting reaches the SpectroKit
+    /// package, whose fits are then about 20 times slower (the EDX tests take minutes). `tools/run-tests.sh unit` passes
+    /// SWIFT_OPTIMIZATION_LEVEL=-O on the command line, which reaches every target, this one too: an -Onone build of this
+    /// test is a run that did not come through the script. Red under: `xcodebuild test` without that override (or ⌘U).
+    func testTheUnitTestsAreRunThroughTheScriptNotCommandU() {
+        XCTAssertFalse(_isDebugAssertConfiguration(),
+                       "These tests were built at -Onone (⌘U): run tools/run-tests.sh unit, which builds them and SpectroKit optimised.")
+    }
 }
