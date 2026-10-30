@@ -12,6 +12,7 @@
 
 import XCTest
 import ImagoCore
+import ImagoFilters
 import TEMCore
 import TEMSession
 @testable import macTEM
@@ -48,7 +49,7 @@ nonisolated final class ParticleTests: XCTestCase {
     /// counted; the small object dropped from the list.
     func testPlantedEllipsesAreRecoveredWithinTheMomentsTolerance() throws {
         let report = try ParticleCompute.analyse(pixels: Self.planted(), width: Self.width, height: Self.height, settings: ParticleSettings())
-        XCTAssertEqual(report.objects.count, 5)
+        XCTAssertEqual(report.objects.count, 4, "the 1-px object is below the minimum area and removed")
         XCTAssertEqual(report.summary.total, 5)
         XCTAssertEqual(report.summary.counted, 3)
         XCTAssertEqual(report.summary.edge, 1)
@@ -56,8 +57,8 @@ nonisolated final class ParticleTests: XCTestCase {
         XCTAssertEqual(report.summary.counted + report.summary.edge + report.summary.small, report.summary.total)
         XCTAssertEqual(report.thresholdValue, 55, accuracy: 1e-4, "half of the range 10 to 100")
 
-        let small = try XCTUnwrap(report.objects.first { $0.moments.area == 1 })
-        XCTAssertTrue(small.isSmall); XCTAssertFalse(small.isCounted)
+        XCTAssertFalse(report.objects.contains { $0.moments.area == 1 })
+        XCTAssertFalse(report.labels.labels[5 * Self.width + 5] > 0, "removed from the labels too")
         let edge = try XCTUnwrap(report.objects.first { $0.touchesEdge })
         XCTAssertEqual(edge.moments.area, 24); XCTAssertFalse(edge.isCounted)
 
@@ -102,12 +103,15 @@ nonisolated final class ParticleTests: XCTestCase {
         XCTAssertEqual(inverse.objects.count, 1, "the background is one connected object")
         XCTAssertTrue(inverse.objects[0].touchesEdge)
         var high = ParticleSettings(); high.thresholdFraction = 0.99
-        XCTAssertEqual(try ParticleCompute.analyse(pixels: px, width: Self.width, height: Self.height, settings: high).objects.count, 5, "100 is above 0.99 of the range")
+        XCTAssertEqual(try ParticleCompute.analyse(pixels: px, width: Self.width, height: Self.height, settings: high).summary.total, 5, "100 is above 0.99 of the range")
         high.thresholdFraction = 1
         let none = try ParticleCompute.analyse(pixels: px, width: Self.width, height: Self.height, settings: high)
         XCTAssertTrue(none.objects.isEmpty, "nothing exceeds the maximum")
         var strict = ParticleSettings(); strict.minimumArea = 30
-        XCTAssertEqual(try ParticleCompute.analyse(pixels: px, width: Self.width, height: Self.height, settings: strict).summary.small, 1, "the 24-pixel block is on the edge; only the 1-px object is small")
+        let removed = try ParticleCompute.analyse(pixels: px, width: Self.width, height: Self.height, settings: strict).summary
+        XCTAssertEqual(removed.small, 2, "the 1-px object and the 24-px edge block are below 30 px and removed")
+        XCTAssertEqual(removed.edge, 0)
+        XCTAssertEqual(removed.counted, 3)
         XCTAssertEqual(ParticleFormat.sizes(none.summary, scale: ParticleScale(perPixel: 1, unit: "px")), "No objects above the threshold.")
     }
 
@@ -146,8 +150,62 @@ nonisolated final class ParticleTests: XCTestCase {
         let lines = csv.split(separator: "\n").map(String.init)
         XCTAssertTrue(lines[0].hasSuffix("validation: none"), lines[0])
         XCTAssertTrue(lines[1].contains("fraction 0.5 of the raw range = 55"), lines[1])
-        XCTAssertTrue(lines.contains("label,counted,touches_edge,small,area_px,centroid_x_px,centroid_y_px,length_px,width_px,angle_deg,length_nm,width_nm,area_nm2"))
-        XCTAssertEqual(lines.filter { !$0.hasPrefix("#") && !$0.hasPrefix("label,") }.count, 5)
+        XCTAssertTrue(lines.contains("label,counted,touches_edge,area_px,centroid_x_px,centroid_y_px,length_px,width_px,angle_deg,length_nm,width_nm,area_nm2"))
+        XCTAssertEqual(lines.filter { !$0.hasPrefix("#") && !$0.hasPrefix("label,") }.count, 4)
+        XCTAssertTrue(lines.contains("# areal density: none (the image is not calibrated)"), "no pixel size was given")
+    }
+
+    // MARK: Otsu, minimum area and density (ImagoKit 0.8.0)
+
+    /// Otsu's level is ImagoKit's on the pixels the mask is cut from: on the two-level planted image the first bin past the background
+    /// (10 + half a bin of 90/256) separates the ellipses exactly; the CSV says which threshold. Red under: the method ignored (55).
+    func testOtsuChoosesTheLevelFromThePixels() throws {
+        var s = ParticleSettings(); s.method = .otsu
+        let report = try ParticleCompute.analyse(pixels: Self.planted(), width: Self.width, height: Self.height, settings: s)
+        XCTAssertEqual(report.thresholdValue, 10 + 90.0 / 512, accuracy: 1e-4)
+        XCTAssertEqual(report.thresholdValue, Float(try Thresholding.otsu(.float32(Self.planted()))), "the kit's number")
+        XCTAssertEqual(report.summary.counted, 3)
+        let csv = ParticleFormat.csv(report, scale: ParticleScale(perPixel: 1, unit: "px"), fileName: "p.dm4")
+        XCTAssertTrue(csv.contains("Otsu (ImagoKit Thresholding.otsu, 256 bins) = 10.2"), csv)
+        // Smoothed, Otsu reads the smoothed pixels (a level inside their narrower range).
+        s.sigma = 2
+        let smoothed = try ParticleCompute.analyse(pixels: Self.planted(), width: Self.width, height: Self.height, settings: s)
+        let data = try ParticleCompute.smoothed(Self.planted(), width: Self.width, height: Self.height, sigma: 2, low: 10)
+        XCTAssertEqual(smoothed.thresholdValue, Float(try Thresholding.otsu(.float32(data))))
+    }
+
+    /// The areal density is ImagoKit's Miles–Lantuéjoul density of the counted objects, per the scale's unit squared, and nil without a
+    /// pixel size. Three counted ellipses in 100 × 80 px at 0.5 nm/px: 3 / 2000 nm² before the edge weights, which only raise it.
+    /// Red under: the pixel size not passed (nil); the edge block counted; the density over the found labels before the small removal.
+    func testTheArealDensityIsTheKitsOverTheCountedObjects() throws {
+        let report = try ParticleCompute.analyse(pixels: Self.planted(), width: Self.width, height: Self.height,
+                                                 settings: ParticleSettings(), pixelSize: 0.5)
+        let kit = try ObjectStatistics.arealDensity(labels: report.labels, pixelSize: 0.5)
+        let density = try XCTUnwrap(report.summary.arealDensity)
+        XCTAssertEqual(density, try XCTUnwrap(kit.arealDensity))
+        XCTAssertGreaterThan(density, 3.0 / 2000)
+        // Σ of the three counted objects' edge weights over the frame of 100 × 80 px at 0.25 nm² each.
+        let weights = try report.objects.filter(\.isCounted).map { try ObjectStatistics.edgeWeight($0.moments, frameWidth: Self.width, frameHeight: Self.height) }
+        XCTAssertEqual(weights.count, 3)
+        XCTAssertEqual(density, weights.reduce(0, +) / (Double(Self.width * Self.height) * 0.25), accuracy: 1e-15)
+        XCTAssertEqual(ParticleFormat.density(report.summary, scale: ParticleScale(perPixel: 0.5, unit: "nm")),
+                       "areal density \(ParticleFormat.number(density)) /nm² (edge-corrected)")
+        let csv = ParticleFormat.csv(report, scale: ParticleScale(perPixel: 0.5, unit: "nm"), fileName: "p.dm4")
+        XCTAssertTrue(csv.contains("# areal density: \(String(format: "%.6g", density)) per nm^2"), csv)
+        let uncalibrated = try ParticleCompute.analyse(pixels: Self.planted(), width: Self.width, height: Self.height, settings: ParticleSettings())
+        XCTAssertNil(uncalibrated.summary.arealDensity)
+        XCTAssertEqual(ParticleFormat.density(uncalibrated.summary, scale: ParticleScale(perPixel: 1, unit: "px")),
+                       "No areal density: the image is not calibrated.")
+    }
+
+    /// The owner passes the image's pixel size: a calibrated image's report has a density, an uncalibrated one's none.
+    /// Red under: `ParticleAnalysis.analyse` not passing the scale.
+    @MainActor func testTheOwnersReportHasADensityForACalibratedImage() async throws {
+        let axis = AxisCalibration(scale: 0.5, unit: "nm")
+        let image = CalibratedImage(width: Self.width, height: Self.height, pixels: Self.planted(), x: axis, y: axis, fileName: "p.dm4", source: "", voltage: nil)
+        let analysis = ParticleAnalysis()
+        await analysis.analyse(image: image).value
+        XCTAssertNotNil(try XCTUnwrap(analysis.report).summary.arealDensity)
     }
 
     // MARK: The owner

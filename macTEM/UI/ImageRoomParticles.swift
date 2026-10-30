@@ -41,8 +41,15 @@ struct ImageRoomParticlesSection: View {
             SegmentedPicker(label: "Objects", items: ParticleSettings.Polarity.allCases.map { ($0, .title($0.title)) },
                             selection: Binding(get: { settings.polarity }, set: { new in analysis.setSettings { $0.polarity = new } }))
                 .accessibilityIdentifier("particles.polarity")
-            if let range = rawRange, range.upperBound > range.lowerBound {
-                AdjustmentSlider("Threshold",
+            SegmentedPicker(label: "Threshold", items: ParticleSettings.Method.allCases.map { ($0, .title($0.title)) },
+                            selection: Binding(get: { settings.method }, set: { new in analysis.setSettings { $0.method = new } }))
+                .accessibilityIdentifier("particles.method")
+            if settings.method == .otsu {
+                InspectorNote(analysis.report.map { $0.settings.method == .otsu && analysis.isCurrent
+                    ? "Otsu's level: \(ParticleFormat.number(Double($0.thresholdValue)))" : "Otsu's level is found with the objects." }
+                    ?? "Otsu's level is found with the objects.")
+            } else if let range = rawRange, range.upperBound > range.lowerBound {
+                AdjustmentSlider("Level",
                                  value: Binding(get: { Double(range.lowerBound) + settings.thresholdFraction * Double(range.upperBound - range.lowerBound) },
                                                 set: { v in analysis.setSettings { $0.thresholdFraction = (v - Double(range.lowerBound)) / Double(range.upperBound - range.lowerBound) } }),
                                  in: Double(range.lowerBound)...Double(range.upperBound),
@@ -85,9 +92,11 @@ struct ImageRoomParticlesSection: View {
                     .accessibilityIdentifier("particles.counts")
                     .accessibilityValue("\(report.summary.counted)")
                 InspectorNote(ParticleFormat.sizes(report.summary, scale: scale))
+                InspectorNote(ParticleFormat.density(report.summary, scale: scale))
+                    .accessibilityIdentifier("particles.density")
                 if !scale.isCalibrated { InspectorNote("The image is not calibrated (or its pixels are not square): sizes are in pixels.") }
             } else if !analysis.isComputing {
-                InspectorNote("Choose bright or dark objects, drag the threshold, then Show Objects. Counts and sizes only: no density yet.")
+                InspectorNote("Choose bright or dark objects and a threshold, then Show Objects.")
             }
             InspectorNote("validation: none · no sample of known particle sizes yet; the moments are ImagoKit's.")
         }
@@ -123,7 +132,7 @@ nonisolated struct ParticleRow: Identifiable, Hashable, Sendable {
 
     init(_ o: ParticleObject, scale: ParticleScale) {
         id = o.id; counted = o.isCounted
-        note = o.touchesEdge ? "edge" : (o.isSmall ? "small" : "")
+        note = o.touchesEdge ? "edge" : ""
         area = Double(o.moments.area) * scale.perPixel * scale.perPixel
         length = o.moments.lengthPx * scale.perPixel
         width = o.moments.widthPx * scale.perPixel
