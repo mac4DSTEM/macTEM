@@ -1,6 +1,6 @@
 // tools/parity/sidecar-parity/main.swift — macTEM's session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice A, ADR 020; slice B step 1, ADR 021:
-// SessionSidecarFile (over FormatoHDF5's HDF5RootAttributes) and SessionLineage, compiled into this one module from tools/lib/sources.manifest group
-// `sidecar`, with fuzz.swift) against h5py 3.16.0, through reference.py's plan and truth (manifest.json) and its reading of what
+// SessionSidecarFile (over FormatoHDF5's HDF5RootAttributes) and SessionLineage, through Package.swift's
+// SidecarParity target, with fuzz.swift) against h5py 3.16.0, through reference.py's plan and truth (manifest.json) and its reading of what
 // Swift wrote (readback.json).
 //
 //     harness --write <ref-dir> <out-dir>      Swift writes the planted sessions to <out-dir>/swift/ and records what it passed
@@ -43,6 +43,7 @@
 // Failures are the mutations' evidence: tools/parity/sidecar-parity/run.sh breaks the sources under test in scratch copies and requires
 // each mutant to fail the check named for it.
 
+@testable import TEMCore
 import CryptoKit
 import Darwin
 import Foundation

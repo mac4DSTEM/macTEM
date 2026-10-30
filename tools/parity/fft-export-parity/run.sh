@@ -7,10 +7,10 @@
 #   run.sh   reference.py plants two images with lattices on whole bins, their calibrations, regions, windows and clicks; the harness
 #            (main.swift) transforms, measures and writes with the production code and dumps what it held in memory; reference.py
 #            reads it all back and checks it (F-1 to F-6); then every mutation of the transform export must turn its check red, or the gate
-#            fails for being blind. A mutation edits a COPY of one file (never the file in Sources/) and compiles the harness against it.
+#            fails for being blind. A mutation edits a COPY of one file (never the file in Sources/) and builds the harness against it.
 #
 # Pass: "fft-export-parity: all passed", then "negative controls: N of N caught by their checks", exit 0.
-# TEMCore sources come from tools/lib/sources.manifest, group `export` (which holds the FFT cores).
+# The harness is Package.swift's FFTExportParity target over TEMCore (tools/lib/harness.sh builds it).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
@@ -24,9 +24,8 @@ resolve_mactem_developer_dir
 
 "$PYTHON_BIN" -I -B "$HERE/reference.py" plant "$WORK/ref"
 
-. "$ROOT/tools/lib/sources.manifest"
-mactem_sources "$ROOT" export
-mactem_swiftc "$WORK/harness" "$HERE/main.swift"
+. "$ROOT/tools/lib/harness.sh"
+mactem_harness_build FFTExportParity "$WORK/harness"
 
 "$WORK/harness" "$WORK/ref" "$WORK/out"
 "$PYTHON_BIN" -I -B "$HERE/reference.py" check "$WORK/ref" "$WORK/out"
@@ -35,7 +34,7 @@ mactem_swiftc "$WORK/harness" "$HERE/main.swift"
 # mutation targets (`|` separates them; a target also names every check below it: "F-1-values" is "F-1-values/whole", ...). Each edit
 # applies to a COPY of the file, must match its target text exactly once, and the harness must compile against it with no warning.
 CORE="$ROOT/Sources/TEMCore/Data"
-JOBS=6
+JOBS=${MACTEM_PARITY_JOBS:-6}   # mutants run at a time (their builds take turns: tools/lib/harness.sh)
 failed_check() {
   awk -v want="$2" 'index($0, "  FAIL  ") == 1 { rest = substr($0, 9); if (index(rest, want ": ") == 1 || index(rest, want "/") == 1) hit = 1 } END { exit !hit }' "$1"
 }
@@ -63,13 +62,7 @@ open(path, "w", encoding="utf-8").write(text.replace(old, new))
 ' "$copy" "$1" "$2" || { { echo missed; echo "  FAIL  mutation '$name' does not apply to $file"; } > "$res"; return; }
     shift 2
   done
-  local -a edited=()
-  local src
-  for src in "${MACTEM_SOURCES[@]}"; do
-    if [[ "${src:t}" == "${file:t}" ]]; then edited+=("$copy"); else edited+=("$src"); fi
-  done
-  MACTEM_SOURCES=("${edited[@]}")
-  if ! mactem_swiftc "$dir/harness" "$HERE/main.swift" > "$dir/build.log" 2>&1; then
+  if ! mactem_harness_mutant FFTExportParity "$dir/harness" "Sources/TEMCore/Data/$file" "$copy" > "$dir/build.log" 2>&1; then
     { echo missed; echo "  FAIL  mutation '$name' does not compile:"; sed 's/^/        /' "$dir/build.log" | head -20; } > "$res"
     return
   fi

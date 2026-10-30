@@ -5,8 +5,8 @@ The Diffraction room's slice 1a (archive: roadmap-registrations-2026-10-15.md "D
 core is `Sources/TEMCore/Diffraction/` (`StandardCrystals`; `RingOverlay`, `IndexingDisplay` and `CrystalLoading` are DiffractoKit's since the 2026-10-20 switch); it calls (RingScale is DiffractoGeometry's since 0.4.0)
 DiffractoKit `0.3.1` directly (no `RingMeasurement` or `RingGeometry` interim, by the addendum). `scientific` in `tools/run-tests.sh`.
 **R8, the seed-rule grid, is not built**: `plants.py` writes it, nothing reads it yet (`run.sh` asks for the half grid, which is cheap).
-`run.sh` (about five minutes: the fits dominate) runs plants.py, reference.py, `main.swift` (sources: `tools/lib/sources.manifest` group
-`diffraction-room`), then 34 negative controls; each must exit 1 with a FAIL line of its named kind on a run that passed unmutated.
+`run.sh` (about five minutes: the fits dominate) runs plants.py, reference.py, `main.swift` (Package.swift's
+`DiffractionRoomParity` target), then 34 negative controls; each must exit 1 with a FAIL line of its named kind on a run that passed unmutated.
 
 ## Files
 

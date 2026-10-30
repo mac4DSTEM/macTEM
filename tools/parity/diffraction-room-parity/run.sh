@@ -22,14 +22,12 @@ resolve_mactem_python "$ROOT"
 resolve_mactem_developer_dir
 
 "$ROOT/tools/lib/fetch-py4dstem-scattering.sh" > /dev/null
-"$ROOT/tools/lib/fetch-diffractokit.sh" > /dev/null
 "$PYTHON_BIN" -I -B "$HERE/plants.py" "$WORK/plants" --r8 half
 "$PYTHON_BIN" -I -B "$HERE/reference.py" "$ROOT/References/py4dstem-scattering/scattering_factors.txt" "$WORK/ref" \
   --plants "$WORK/plants" --cif-dir "$ROOT/References/crystal-structures"
 
-. "$ROOT/tools/lib/sources.manifest"
-mactem_sources "$ROOT" diffraction-room
-mactem_swiftc "$WORK/harness" "$HERE/main.swift"
+. "$ROOT/tools/lib/harness.sh"
+mactem_harness_build DiffractionRoomParity "$WORK/harness"
 
 set +e
 "$WORK/harness" "$WORK/plants" "$WORK/ref" "$ROOT/References/crystal-structures"

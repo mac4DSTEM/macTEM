@@ -1,5 +1,5 @@
-// tools/parity/diffraction-room-parity/main.swift — the Diffraction room's core (slice 1a: TEMCore/Diffraction, built by
-// tools/lib/sources.manifest group `diffraction-room` over DiffractoKit's three modules) against reference.py's numpy and decimal
+// tools/parity/diffraction-room-parity/main.swift — the Diffraction room's core (slice 1a: TEMCore/Diffraction, Package.swift's
+// DiffractionRoomParity target over DiffractoKit's three modules) against reference.py's numpy and decimal
 // tables and plants.py's planted rings (archive: roadmap-registrations-2026-10-15.md "Diffraction room, slice 1a" and its addendum).
 //
 //     harness <plants-out> <reference-out> <crystal-structures-dir>
@@ -28,6 +28,7 @@
 //   R5: x10 x2pi mrad-no-lambda ratio-inverted                         R6: delta-over-measured pct-x10 tol-fraction odds-margin z-no-tol sigma-pct
 //   R7: au-4.0872 no-diamond occupancy-ignored                         R9: fp-reencoded cap-off-by-one
 
+@testable import TEMCore
 import Foundation
 import DiffractoCore
 import DiffractoScattering
@@ -168,7 +169,7 @@ struct Job: Sendable {
     let d: Double?
     let volts: Double?
     let pitch: Double?
-    var pattern: DiffractionPattern { DiffractionPattern(width: cols, height: rows, pixels: pixels) }
+    var pattern: DiffractoGeometry.DiffractionPattern { DiffractoGeometry.DiffractionPattern(width: cols, height: rows, pixels: pixels) }
 }
 
 struct JobOut: Sendable {
@@ -673,7 +674,9 @@ struct Harness {
                 guard case .ambiguous(let c)? = r else { return [] }
                 return c.map { indexOf($0.family.g, in: l) }
             }
-            func compare(_ rec: [String: Any], _ l: KinematicReflectionList, _ label: String, families: [ReflectionFamily]? = nil) {
+            func compare(_ record: [String: Any], _ l: KinematicReflectionList, _ label: String, families: [ReflectionFamily]? = nil) {
+                // Read only, on this one thread: Swift 6.3 otherwise reports `rec` as sent into each check's message closure.
+                nonisolated(unsafe) let rec = record
                 let q = num(rec["q"])
                 var tolPct = num(rec["tol_pct"])
                 if mutation == "tol-fraction" { tolPct /= 100 }

@@ -1,5 +1,5 @@
 {
-  "originHash" : "457d573404db73bfa08285ead783a9db2f25036cb3f97e15b060c168e13999e7",
+  "originHash" : "e4ae7a0dac05002b8769de4d487c5b8777605c2fdd25215c54a9388cb7d7797a",
   "pins" : [
     {
       "identity" : "diffractokit",
@@ -24,7 +24,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/ImagoKit",
       "state" : {
-        "revision" : "bb9eb220bf3d24d10b63935f37d3dc40aa527672",
+        "revision" : "27a6eaef6658d175d2b386819773e0f236b5f115",
         "version" : "0.8.0"
       }
     },
