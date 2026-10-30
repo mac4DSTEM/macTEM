@@ -33,12 +33,12 @@ nonisolated final class EDXRoomRealDataTests: XCTestCase {
     private static let wrong = ["Ba", "Eu", "Dy", "Hf", "Os"]
 
     private func optIn() throws {
-        let flag = FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag") || FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag")
+        let flag = FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag")
         guard ProcessInfo.processInfo.environment["MACTEM_REAL_DATA"] == "1" || flag else { throw XCTSkip("opt-in: TEST_RUNNER_MACTEM_REAL_DATA=1, or create $TMPDIR/macTEM-real-data.flag") }
     }
 
     private func url(_ name: String) throws -> URL {
-        let data = ProcessInfo.processInfo.environment["MACEM_DATA"] ?? NSHomeDirectory() + "/GitHub/mac4DSTEM_Organization/data"
+        let data = RealDataFolder.path
         let url = URL(fileURLWithPath: data + "/stem-edx/" + name)
         try XCTSkipUnless(FileManager.default.fileExists(atPath: url.path), "no real file at \(url.path)")
         return url
