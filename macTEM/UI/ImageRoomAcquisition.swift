@@ -23,10 +23,8 @@
 
 import ShellInspector
 import SwiftUI
-#if canImport(TEMCore)
 import FormatoCore
 import TEMCore
-#endif
 
 // MARK: The formatter
 

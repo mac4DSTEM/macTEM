@@ -10,11 +10,9 @@
 
 import XCTest
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoCore
-#endif
 @testable import macTEM
 
 nonisolated final class PaneKeysTests: XCTestCase {

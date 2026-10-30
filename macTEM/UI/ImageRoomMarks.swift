@@ -22,10 +22,8 @@
 
 import ShellMetal
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// Image coordinates ↔ pane points, through the shader's own transform.
 nonisolated struct MarkGeometry: Equatable {

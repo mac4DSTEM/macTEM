@@ -15,11 +15,9 @@
 import ImagoCore
 import XCTest
 import AppKit
-#if canImport(TEMCore)
 import FormatoCore
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class ResultsWiringTests: XCTestCase {

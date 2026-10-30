@@ -12,13 +12,10 @@
 
 import ShellMetal
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoCore
 import ImagoFFT
-
-#endif
 
 // MARK: - Values
 

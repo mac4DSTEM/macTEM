@@ -3,10 +3,8 @@
 //  What stays here: the open files below the rooms (two Lists, each with its own selection) and the rooms list's height.
 import ShellLayout
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// Navigation and nothing else: the five rooms, then the open files. A room that is not built is listed, dimmed — the
 /// window shows where the app is going — and cannot be selected.

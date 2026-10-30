@@ -10,10 +10,8 @@
 //
 
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 nonisolated enum SessionGrants {
     private static let keyPrefix = "session.grant."

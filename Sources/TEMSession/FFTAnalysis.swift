@@ -26,9 +26,7 @@ import Synchronization
 import ImagoCore
 import ImagoFFT
 import ImagoFilters
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 // MARK: - Keys
 

@@ -15,10 +15,8 @@
 import ShellInspector
 import ImagoCore
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 // MARK: - The rows
 

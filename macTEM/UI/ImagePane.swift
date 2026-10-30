@@ -21,10 +21,8 @@ import ShellLayout
 import ShellMetal
 import ImagoCore
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 struct ImagePane: View {
     let image: CalibratedImage

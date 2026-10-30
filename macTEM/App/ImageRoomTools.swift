@@ -7,9 +7,7 @@
 
 import Foundation
 import Observation
-#if canImport(TEMCore)
 import TEMSession
-#endif
 
 @Observable
 final class ImageRoomTools {

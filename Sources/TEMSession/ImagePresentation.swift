@@ -10,10 +10,8 @@
 import ShellMetal
 import Foundation
 import Observation
-#if canImport(TEMCore)
 import ImagoCore
 import TEMCore
-#endif
 
 /// What the canvas uploads: the image normalised to [0, 1] over its finite range, with non-finite pixels at
 /// `FloatImage.invalidDisplayValue` (drawn as the masked colour). Built off the main actor at open.

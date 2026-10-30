@@ -19,10 +19,9 @@ import UniformTypeIdentifiers
 import SpectroCore
 import SpectroEDX
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
+import ShellEDXModel
 
 /// What the EELS room's Export section writes, as the EDS room's (the owner's drive, 2026-10-23): the results, the spectrum, the regions, the maps as one PNG, the
 /// per-pixel thickness and the method.

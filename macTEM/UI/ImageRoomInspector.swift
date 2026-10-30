@@ -14,10 +14,8 @@
 import ShellInspector
 import ImagoCore
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// The room's Settings: the calibration a distance in this room is measured in (readiness, first), then the
 /// display of the selected file and its marks.

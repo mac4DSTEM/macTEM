@@ -9,10 +9,8 @@
 //
 
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 @MainActor
 enum MarkEdits {

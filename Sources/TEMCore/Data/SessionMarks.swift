@@ -330,6 +330,9 @@ package nonisolated enum SessionSave {
         /// The sidecar on disk is not the one this session restored or last saved (another app or machine wrote it), or
         /// there is one this session never read.
         case changedOnDisk
+        /// The image was read again and its pixels differ from those the marks were drawn on; saving waits for the user's
+        /// Save Anyway.
+        case pixelsChanged
         case file(SessionSidecarFile.Refusal)
 
         package var reason: String {
@@ -341,6 +344,7 @@ package nonisolated enum SessionSave {
             case .identity(let refusal): refusal.reason
             case .lineage(let refusal): refusal.reason
             case .changedOnDisk: "the session file beside it has changed since this window read it"
+            case .pixelsChanged: "the image was read again and its pixels differ from those the marks were drawn on"
             case .file(let refusal): refusal.reason
             }
         }

@@ -11,9 +11,7 @@
 
 import Foundation
 import Observation
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 /// One group of the table: its rows, in the ledger's order.
 struct ResultsSection: Identifiable {

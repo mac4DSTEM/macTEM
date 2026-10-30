@@ -11,9 +11,7 @@
 //
 
 import SwiftUI
-#if canImport(TEMSession)
 import TEMSession
-#endif
 
 struct SessionCommands: Commands {
     @FocusedValue(\.appState) private var appState

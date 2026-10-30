@@ -14,11 +14,9 @@
 import ShellLayout
 import ShellMetal
 import SwiftUI
-#if canImport(TEMCore)
 import ImagoCore
 import TEMCore
 import TEMSession
-#endif
 
 // MARK: - Pure text
 

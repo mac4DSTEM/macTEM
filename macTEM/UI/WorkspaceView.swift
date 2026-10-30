@@ -1,9 +1,9 @@
 import ShellLayout
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
+import ShellEDXModel
+import ShellSpectroscopy
 
 /// The detail column: the science, and the infobar + process area along its bottom edge. The column's chassis (the divider,
 /// its drag, the infobar, the process area and their scene-stored fractions) is ShellLayout's `WorkspaceColumn` (suite task 8,
@@ -79,7 +79,7 @@ struct WorkspaceView: View {
     @ViewBuilder
     private var content: some View {
         if appState.navigation.workspaceArea == .edx {
-            EDXRoom()
+            EDXRoom(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions)
         } else if appState.navigation.workspaceArea == .eels {
             EELSRoom()
         } else if let item = appState.openItems.selected {

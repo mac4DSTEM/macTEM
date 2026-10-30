@@ -11,9 +11,7 @@
 //
 
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 /// What the sidecar beside a file made of the file's first read.
 package nonisolated enum SidecarOutcome: Sendable, Equatable {
@@ -92,6 +90,12 @@ package nonisolated enum SessionSaving {
         /// The file on disk changed since this window read it: the one refusal the user may answer with Replace.
         package var offersReplace: Bool {
             if case .refused(_, .changedOnDisk) = self { return true }
+            return false
+        }
+
+        /// The image was read again with other pixels: the one refusal the user may answer with Save Anyway.
+        package var offersSaveAnyway: Bool {
+            if case .refused(_, .pixelsChanged) = self { return true }
             return false
         }
 
@@ -187,6 +191,14 @@ package nonisolated enum SessionSaving {
     @MainActor
     package static func replaceAndSave(_ item: OpenItem, to target: Target) async throws -> Saved {
         item.measurements.replaceRefusedSidecar()
+        return try await save(item, to: target)
+    }
+
+    /// The user chose Save Anyway after a re-read with other pixels: the next save writes the marks against the image as it
+    /// is now, once. Not a way round any other refusal.
+    @MainActor
+    package static func saveAnyway(_ item: OpenItem, to target: Target) async throws -> Saved {
+        if let identity = item.openedIdentity { item.measurements.acceptNewPixels(identity) }
         return try await save(item, to: target)
     }
 

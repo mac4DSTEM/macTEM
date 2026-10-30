@@ -7,10 +7,8 @@
 //
 
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// Everything Export Results… needs.
 nonisolated struct ExportResultsSnapshot: Sendable {

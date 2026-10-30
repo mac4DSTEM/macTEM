@@ -10,11 +10,10 @@ import XCTest
 import Darwin
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
+import ShellEDXModel
 
 nonisolated final class EDXRealDataTests: XCTestCase {
 
@@ -55,7 +54,7 @@ nonisolated final class EDXRealDataTests: XCTestCase {
         let (nx, ny, channels) = (loaded.metadata.scanWidth, loaded.metadata.scanHeight, loaded.metadata.channelCount)
         say("REALDATA grid \(nx) x \(ny) px, \(channels) channels, beam \(loaded.metadata.beamEnergyKeV.map { "\($0) keV" } ?? "not stated")")
 
-        let session = EDXSession()
+        let session = EDXSession(host: .macTEM)
         t = Date()
         await session.bind(loaded).value
         line("bind + first spectrum + Auto ID", t)
@@ -124,7 +123,7 @@ nonisolated final class EDXRealDataTests: XCTestCase {
             XCTAssert(file.truth.isSubset(of: picks), "\(file.name): the app's Auto ID missed \(file.truth.subtracting(picks).sorted())")
             XCTAssert(picks.isSubset(of: file.truth.union(file.allowed)), "\(file.name): the app's Auto ID added \(picks.subtracting(file.truth.union(file.allowed)).sorted())")
             // The room's own path, as drive 6 ran it: open (Auto ID at open), deselect every element, press Auto ID.
-            let session = EDXSession()
+            let session = EDXSession(host: .macTEM)
             await session.bind(loaded).value
             await session.settled()
             for pick in session.picks { session.toggle(pick.symbol) }

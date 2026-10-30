@@ -7,10 +7,8 @@
 import ShellLayout
 import XCTest
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class EELSOpeningTests: XCTestCase {
@@ -58,9 +56,7 @@ nonisolated final class EELSOpeningTests: XCTestCase {
         return try LowLossSpectrumImage(nx: nx, ny: ny, channels: channels, counts: counts, energyOffsetEV: -5, energyScaleEV: 0.5)
     }
 
-    func testThePipelineTextIsOneWordAndOneGlyphPerStage() {
-        XCTAssertEqual(EELSRoomFormat.pipelineText([(.align, .notRun), (.thickness, .notRun)]), "Align — Thickness —")
-        XCTAssertEqual(EELSRoomFormat.pipelineText([(.align, .current), (.thickness, .stale)]), "Align ✓ Thickness ●")
+    func testTheAlignmentReadout() {
         XCTAssertEqual(EELSRoomFormat.alignmentReadout(offsetBefore: -21.5026, offsetAfter: -0.0001, kept: 2041, of: 2048, locale: Locale(identifier: "en_US")),
                        "offset -21.5 → 0 eV, 2041 of 2048 channels kept")
     }

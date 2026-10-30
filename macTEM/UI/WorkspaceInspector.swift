@@ -1,10 +1,10 @@
 import ShellInspector
 import ShellLayout
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
+import ShellEDXModel
+import ShellSpectroscopy
 
 /// The inspector: the window's right column, in two tabs. **Settings** is the room's readiness first, then
 /// every control the selected room owns. **Info** is what the open image actually *is*. The frame (the tab
@@ -31,7 +31,7 @@ private struct InspectorSettingsTab: View {
     var body: some View {
         if appState.navigation.workspaceArea == .edx {
             InspectorScrollColumn {
-                EDXRoomSettings()
+                EDXRoomSettings(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions)
                     .environment(\.inspectorScope, "settings.edx")
             }
             .environment(\.inspectorScope, "settings")
@@ -87,7 +87,7 @@ private struct InspectorInfoTab: View {
     var body: some View {
         if appState.navigation.workspaceArea == .edx {
             InspectorScrollColumn {
-                EDXRoomInfo()
+                EDXRoomInfo(session: appState.edx)
             }
             .environment(\.inspectorScope, "info")
         } else if appState.navigation.workspaceArea == .eels {
