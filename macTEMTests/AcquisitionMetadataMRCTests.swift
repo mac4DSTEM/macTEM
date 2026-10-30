@@ -13,7 +13,6 @@
 //  not stored" (the two pinned files disagree on the zone, so the note must not say "local time").
 //
 
-
 import XCTest
 import FormatoCore
 import FormatoMRC

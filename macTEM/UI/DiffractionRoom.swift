@@ -149,7 +149,6 @@ private nonisolated struct DiffractionLayout {
     var pointsPerPixel: CGFloat { scaleX * zoom }
 }
 
-
 private struct DiffractionPatternPane: View {
     let image: CalibratedImage
     let analysis: DiffractionAnalysis
@@ -274,7 +273,6 @@ nonisolated enum DiffractionReadoutText {
         return "\(pixel) · R \(Num.fixed(r, 1)) px · q \(Num.fixed(q, 4)) Å⁻¹ · d \(Num.fixed(1 / q, 3)) Å"
     }
 }
-
 
 // MARK: - Overlays
 
