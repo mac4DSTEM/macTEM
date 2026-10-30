@@ -236,7 +236,7 @@ nonisolated final class CIFThroughTheKitTests: XCTestCase {
     /// to the same completeness and imports. 3 the four centring-translated operations removed: refused by name with 4 of 8. 4 the primitive
     /// C2/m cell with beta = 90: 6 sites, not refused, and its first two operations alone are refused (2 of 4).
     func testCentredMonoclinicCellsAfterDiffractoKit090() throws {
-        let beta = MonoclinicIndexingTests.betaCIF
+        let beta = BetaDoublePrimeCIF.text
         // 1
         let one = try Self.load(beta)
         XCTAssertEqual(one.structure.sites.count, 22)
