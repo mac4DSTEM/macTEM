@@ -17,8 +17,19 @@ nonisolated final class InfoPlistTypesTests: XCTestCase {
         let bundle = Bundle(for: AppDelegate.self)
         let types = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CFBundleDocumentTypes") as? [[String: Any]])
         let declared = types.flatMap { ($0["CFBundleTypeExtensions"] as? [String]) ?? [] }
-        XCTAssertEqual(Set(declared), Set(ImageOpening.readableExtensions))
+        XCTAssertEqual(Set(declared), Set(FileRouting.openableExtensions))
         XCTAssertEqual(declared.count, Set(declared).count, "an extension is declared once")
+    }
+
+    /// Every extension a room reads is one an Open routes: a single `.msa` spectrum opens in the EDS room from Finder,
+    /// the Open panel and a drop. Mutation: a room's extensions left out of `openableExtensions`.
+    func testEveryRoomsExtensionsAreOpenable() {
+        let openable = Set(FileRouting.openableExtensions)
+        XCTAssertTrue(openable.isSuperset(of: ImageOpening.readableExtensions))
+        XCTAssertTrue(openable.isSuperset(of: EDXOpening.readableExtensions))
+        XCTAssertTrue(openable.isSuperset(of: EELSOpening.readableExtensions))
+        XCTAssertTrue(openable.contains("msa"))
+        XCTAssertEqual(FileRouting.openableExtensions.count, openable.count, "each once")
     }
 
     /// A closed file's pixels go back to the system (ADR 012): libmalloc keeps freed large blocks resident as a cache
