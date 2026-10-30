@@ -1,6 +1,6 @@
 //
 //  VeloxImageReaderTests.swift
-//  The Velox image reader (archive: roadmap-registrations-2026-10-15.md V1-3a) on small Velox-shaped files whose truth is the numbers planted by
+//  The Velox image reader on small Velox-shaped files whose truth is the numbers planted by
 //  tools/parity/velox-image-parity/make_fixture.py (Fixtures/velox-*.emd, each under 64 KiB; velox.truth.json carries their
 //  sha256). The parity against RosettaSciIO and h5py is tools/parity/velox-image-parity; these pin the reader's own rules
 //  without Python — the object rule, the calibration, the frame, the refusals — and that the XCTest host finds the
@@ -154,7 +154,7 @@ nonisolated final class VeloxImageReaderTests: XCTestCase {
 
     // MARK: The library
 
-    /// The XCTest host is the app, so `Bundle.main` is macTEM.app. The app embeds no libhdf5 of its own (ADR 026): the one
+    /// The XCTest host is the app, so `Bundle.main` is macTEM.app. The app embeds no libhdf5 of its own: the one
     /// it carries is FormatoKit's, the FormatoLibHDF5 framework in `Contents/Frameworks` (FormatoKit 0.4.0). With no override the
     /// reader's own lookup must load THAT one: the file opens, and the one libhdf5 the process has loaded is the framework's.
     /// A bare `swift test` has no such host and cannot run this.

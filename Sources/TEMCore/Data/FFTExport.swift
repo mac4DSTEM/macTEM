@@ -24,13 +24,13 @@ package nonisolated enum FFTExport {
 
     package static let displayNote = "picture: v = log10(|F|^2 / (W*H)^2) per bin, the DC bin masked, normalised over the finite range, "
         + "then the window shown, grey, gamma 1"
-    package static let transformValidation = "the transform compared with numpy 2.5.4 (tools/parity/fft-parity, V1-6 slice A); display "
+    package static let transformValidation = "the transform compared with numpy 2.5.4 (ImagoKit's parity tests); display "
         + "rendering: log scaling, window, 8-bit grey, not intensities; the scale bar's length checked against its label (export-parity)"
-    package static let profileValidation = "the radial profile compared with numpy 2.5.4 (tools/parity/fft-parity, V1-6 slices A and B); "
+    package static let profileValidation = "the radial profile compared with numpy 2.5.4 (ImagoKit's parity tests); "
         + "the calibration as the file states it"
-    package static let spotsValidation = "the spot centroid compared with planted spots (tools/parity/spot-parity, V1-6a slice C'); the "
+    package static let spotsValidation = "the spot centroid compared with planted spots (ImagoKit's parity tests); the "
         + "calibration as the file states it"
-    package static let lineage = "none \u{2014} the FFT room's state carries no lineage id until V1-2; the region, spots and parameters "
+    package static let lineage = "none \u{2014} the FFT room's state carries no lineage id; the region, spots and parameters "
         + "above stand in"
 
     // MARK: The transform's PNG

@@ -1,6 +1,6 @@
 //
 //  EELSRoom.swift
-//  Role: the EELS room on the EDS room's chassis (docs/design/eels-room.md, slice 1). Centre: the maps block on top (the t/λ map is the anchor tile where regions are
+//  Role: the EELS room on the EDS room's chassis. Centre: the maps block on top (the t/λ map is the anchor tile where regions are
 //        drawn and edited, the ZLP shift after Align and one tile per fitted edge on the right, one shared zoom, one cursor into the status line), the spectrum
 //        below (the region's low loss and core loss on one energy axis with a marked gap) with the results beside it. The tools, the Maps control, the edges,
 //        the processing and fitting choices and the exports are the inspector's (`EELSRoomInspector.swift`). The room has its own document, the spectrum image,
@@ -23,7 +23,7 @@ import TEMCore
 import TEMSession
 import ShellEDXModel
 
-/// What the EELS room's Export section writes, as the EDS room's (Paul's drive, 2026-10-23): the results, the spectrum, the regions, the maps as one PNG, the
+/// What the EELS room's Export section writes, as the EDS room's (the owner's drive, 2026-10-23): the results, the spectrum, the regions, the maps as one PNG, the
 /// per-pixel thickness and the method.
 nonisolated enum EELSExportKind: String, CaseIterable, Identifiable {
     case results, spectrum, regions, mapsPNG, diagnostics, method
@@ -178,7 +178,7 @@ struct EELSGridItem: Identifiable {
     static let mixID = "colourMix"
 }
 
-/// The colour mix of the EELS maps, as the EDS room's (`EDXMapsComposition`; Paul, 2026-10-23: "i can't overlay maps in a colormix on the left"): the mix is the
+/// The colour mix of the EELS maps, as the EDS room's (`EDXMapsComposition`; the owner, 2026-10-23: "i can't overlay maps in a colormix on the left"): the mix is the
 /// anchor on the left, where regions are drawn; every map the Maps control shows is a tile on the right, and a click on one puts it in the mix or takes it out.
 nonisolated enum EELSMixComposition {
     static let placeholder = "Select maps on the right to build the colour mix"
@@ -448,7 +448,7 @@ struct EELSLowerPane: View {
     static func layers(_ session: EELSSession) -> [SpectrumLayer] {
         guard let plot = session.plot else { return [] }
         var out: [SpectrumLayer] = []
-        // A region is selected: the whole map in grey under it, so the region reads against the whole (Paul's drive, 2026-10-23).
+        // A region is selected: the whole map in grey under it, so the region reads against the whole (the owner's drive, 2026-10-23).
         if session.selectedPinID != nil, let whole = session.wholeMapPlot {
             let grey = RegionColor(red: 0.55, green: 0.55, blue: 0.55)
             out.append(SpectrumLayer(id: "wholeMap-low", name: "Whole map", color: grey, origin: whole.low.origin, step: whole.low.step, counts: whole.low.counts))
@@ -647,7 +647,7 @@ private struct EELSSpectrumView: View {
                         Button("Reset All Windows") { onResetWindows(nil) }.disabled(!hasEditedWindows)
                     }
                 }
-                // The region's name on the right: the counts axis's title owns the top left (they overlapped, Paul's drive 2026-10-23).
+                // The region's name on the right: the counts axis's title owns the top left (they overlapped, the owner's drive 2026-10-23).
                 .overlay(alignment: .topTrailing) {
                     Text("\(plot.regionName) · \(plot.pixels) px").font(.caption).foregroundStyle(.secondary).padding(.trailing, Self.right + 4).padding(.top, 2)
                 }
@@ -776,7 +776,7 @@ private struct EELSSpectrumView: View {
             context.stroke(path(curve, values: layer.counts, within: layer.id.hasSuffix("-low") ? axis.lowShown : axis.coreShown), with: .color(layer.color.color), lineWidth: 1)
         }
         // Where the low loss gives way to the core loss on a shared stretch (a Dual-EELS pair: no gap to mark), a dashed rule and the two names, so the step between
-        // the two acquisitions (the core loss is exposed longer) reads as two spectra, not one broken trace (Paul's drive, 2026-10-23).
+        // the two acquisitions (the core loss is exposed longer) reads as two spectra, not one broken trace (the owner's drive, 2026-10-23).
         if axis.gap == nil, axis.segments.count == 2 {
             let jx = area.minX + CGFloat(axis.segments[1].x.lowerBound)
             var rule = Path(); rule.move(to: CGPoint(x: jx, y: area.minY)); rule.addLine(to: CGPoint(x: jx, y: area.maxY))

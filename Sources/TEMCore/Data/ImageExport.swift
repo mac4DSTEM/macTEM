@@ -297,8 +297,8 @@ package nonisolated enum ImageExport {
             "overlay_scale": .int(u),
             "scale_bar": scaleBar, "marks": markList, "anisotropic": .bool(anisotropic),
             "validation": .string("display rendering: window, gamma, 8-bit colour, not intensities; "
-                                  + "the scale bar's length checked against its label (export-parity P3)"),
-            "lineage": .string("none — marks carry no lineage id until V1-2; the marks' parameters stand in"),
+                                  + "the scale bar's length checked against its label (export-parity)"),
+            "lineage": .string("none — marks carry no lineage id; the marks' parameters stand in"),
         ]
         if options.marks, drawn.count < marks.count { object["marks_skipped"] = .int(marks.count - drawn.count) }
         if let provenance {

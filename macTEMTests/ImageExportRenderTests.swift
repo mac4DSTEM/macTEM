@@ -539,7 +539,7 @@ nonisolated final class ImageExportRenderTests: XCTestCase {
         XCTAssertTrue(json["marks"] is NSNull, "not asked for")
         XCTAssertEqual(json["anisotropic"] as? Bool, false)
         XCTAssertTrue((json["validation"] as? String)?.hasPrefix("display rendering: window, gamma, 8-bit colour, not intensities") == true)
-        XCTAssertTrue((json["lineage"] as? String)?.hasPrefix("none \u{2014} marks carry no lineage id until V1-2") == true)
+        XCTAssertTrue((json["lineage"] as? String)?.hasPrefix("none \u{2014} marks carry no lineage id;") == true)
         // The same image with a missing range and an open window: null, not 0.
         let open = try ImageExport.render(source: src, display: display(w, h, normalized: canvas), marks: [],
                                           options: ImageExport.Options(scaleBar: false, marks: false))

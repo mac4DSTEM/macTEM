@@ -3,7 +3,7 @@ import XCTest
 import DiffractoGeometry
 import TEMCore
 
-/// The Diffraction room's reciprocal scale (slice 1a, R3, R4's radius, R5), pinned to tools/parity/diffraction-room-parity's 60-digit
+/// The Diffraction room's reciprocal scale (R3; R4's radius; R5), pinned to tools/parity/diffraction-room-parity's 60-digit
 /// decimal values for Au {111} at 200 kV, calibrated on a ring of radius 80 px at a 0.014 mm pixel (L_px 7510.403862920632,
 /// lambda 0.025079340450548004 A, dq 0.005308870358150892 per px). The 320-case sweep is the harness (R3, R4, R5).
 /// Every pinned constant (L_px, lambda, dq, q, linear products) is the case 'Au111-200kV-R80-p0.014' of reference.json written by tools/parity/diffraction-room-parity/reference.py (numpy 2.5.4, 60-digit decimal chain; no Swift output), not Swift output.

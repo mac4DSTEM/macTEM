@@ -11,19 +11,24 @@ macTEM/App/ (AppState, …)      own the window, compose the owners, dispatch   
 Sources/TEMSession             the owners of session state: the open files, each      package
                                image, its presentation and marks, the sidecar,
                                lineage and results — no SwiftUI, no AppState
-Sources/TEMCore                readers, the calibrated image, algorithms, writers,    package
-                               the Metal engine — no SwiftUI, no AppState, no Session
-FormatoKit (FormatoCore,       the suite's file-format library, exact 0.8.0: the      package dependency
- FormatoDM, FormatoEMD,        DM3/DM4, Velox EMD, MRC and TIFF readers, the HDF5
- FormatoHDF5, FormatoMRC,      layer, the libhdf5 it ships (ADR 026)
- FormatoTIFF)
-DiffractoKit (DiffractoCore,   the suite's crystallography and diffraction library,   package dependency
- DiffractoScattering,          exact 0.8.1: cells, symmetry, CIF import, kinematic
- DiffractoGeometry)            lists, ring calibration and fit, indexing (ADR 025)
-ImagoKit (ImagoCore, ImagoFFT, the suite's image-analysis library, exact 0.5.0:       package dependency
- ImagoFilters)                 FFT, spectrum display, profiles, filters (ADR 027)
-macTEM/Shaders/                Metal kernels (compiled into the app's default.metallib) app target
+Sources/TEMCore                readers, the calibrated image, the rooms' compute      package
+                               over the kits, writers — no SwiftUI, no AppState,
+                               no Session
+FormatoKit                     the suite's file-format library: the DM3/DM4, Velox    package dependency
+                               EMD, MRC and TIFF readers, the HDF5 layer, the
+                               libhdf5 it ships
+DiffractoKit                   crystallography and diffraction: cells, symmetry,      package dependency
+                               CIF import, kinematic lists, ring calibration and
+                               fit, indexing
+ImagoKit                       image analysis: FFT, spectrum display, profiles,       package dependency
+                               filters, objects
+SpectroKit                     EDS and EELS: spectrum images, line and edge windows,  package dependency
+                               maps, Auto ID, quantification, the EELS pipeline
+MacEMUI                        the window shell, controls, the Metal image view and   package dependency
+                               the shared EDS room
 ```
+
+The versions are exact tags in `Package.swift`, the one place that states them.
 
 Each layer knows nothing above it, and that is a module boundary: `Package.swift` builds `Sources/TEMCore` and
 `Sources/TEMSession` as SwiftPM targets, the app target links them as package products, and `swift build`
@@ -46,9 +51,9 @@ build `-Onone` in Debug (see "Known limitations").
    open panel; Finder's Open With arrives through `.onOpenURL`. Both reach `AppState.open(urls:)`
    (`App/AppState+Open.swift`).
 2. **Read, off the main actor.** `AppState.read` holds the sandbox scope only while the file is read, then calls
-   `ImageOpening.openNow` (`TEMCore/Data/ImageOpening.swift`): the reader by extension, then the object rule
-   registered in the archived registrations (V1-1, V1-1a: the first object that is not the thumbnail, has exactly two dimensions
-   larger than one, and whose axes do not carry two different units). DM3/DM4, TIFF, MRC and Velox `.emd` are all FormatoKit's readings (ADR 019, 026) behind TEMCore's thin seams (`TIFFImageReader`, `MRCImageReader`,
+   `ImageOpening.openNow` (`TEMCore/Data/ImageOpening.swift`): the reader by extension, then the object rule (the
+   first object that is not the thumbnail, has exactly two dimensions larger than one, and whose axes do not carry
+   two different units). DM3/DM4, TIFF, MRC and Velox `.emd` are all FormatoKit's readings behind TEMCore's thin seams (`TIFFImageReader`, `MRCImageReader`,
    `VeloxImageReader` over one frame and one hyperslab, `KitImages`); the libhdf5 the `.emd` reader loads is FormatoKit's FormatoLibHDF5 framework in `Contents/Frameworks`; the result is a `CalibratedImage`
    (`TEMCore/Data/CalibratedImage.swift`): Float32 pixels, row-major, and each axis's origin, scale and unit exactly
    as the file states them.
@@ -58,12 +63,12 @@ build `-Onone` in Debug (see "Known limitations").
 4. **Publish.** `ImageSession.finishOpen` publishes only the latest open's result (a slower, earlier read is
    dropped, and its failure is not reported over the newer image); `ImagePresentation.show` takes the canvas pixels.
    An open in flight is drawn over the image already shown, which stays if it fails.
-5. **Show.** `ImagePane` letterboxes the image at its pixel aspect, draws it through `MetalImageView` (the one
+5. **Show.** `ImagePane` letterboxes the image at its pixel aspect, draws it through MacEMUI's `MetalImageView` (the one
    SwiftUI↔Metal bridge) inside one `scaleEffect`/`offset` container (`ZoomPan`), and puts the scale bar in a
    `PaneFooter` outside that container. The bar measures the screen horizontal, so it uses the x axis's sampling
    (`ImageScaleBar`), and counts pixels when x is not calibrated — a unit and a finite, positive scale
    (`AxisCalibration.isCalibrated`), the one definition the inspector shares. The contrast window and gamma reach only the
-   shader (`DisplayWindow`); the marks (V1-5) are drawn in one pane-sized `Canvas` mapped through the shader's own
+   shader (`DisplayWindow`); the marks are drawn in one pane-sized `Canvas` mapped through the shader's own
    transform (`MarkGeometry`), and their numbers come from the file's pixels, never the canvas.
 
 ## Project structure and where files go
@@ -72,17 +77,19 @@ build `-Onone` in Debug (see "Known limitations").
 |---|---|
 | App entry, `AppState` and its orchestration extensions, window-level state, menus | `macTEM/App/` |
 | SwiftUI views, the inspector kit, the canvas, overlays | `macTEM/UI/` |
-| Metal kernels | `macTEM/Shaders/` |
 | Readers, the image and calibration model, writers | `Sources/TEMCore/Data/` |
-| The Metal engine, GPU helpers, the line-profile seam (the FFT and its display rules are ImagoKit's) | `Sources/TEMCore/Compute/` |
+| The histogram, the line-profile seam, the signposts (the FFT and its display rules are ImagoKit's) | `Sources/TEMCore/Compute/` |
+| The FFT room's preprocessing over ImagoKit | `Sources/TEMCore/FFT/` |
+| The particle pass over ImagoKit | `Sources/TEMCore/Particles/` |
 | The Diffraction room's pure core (the standards, calling DiffractoKit directly) | `Sources/TEMCore/Diffraction/` |
-| The EDX room's compute: SpectroKit called with the room's choices (spectra, maps, Auto ID, the pooled fit, exports) | `Sources/TEMCore/EDX/` |
+| Opening an EDS spectrum image (the room itself is MacEMUI's) | `Sources/TEMCore/EDX/` |
+| The EELS room's compute: SpectroKit called with the room's choices (stages, windows, fits, regions, exports) | `Sources/TEMCore/EELS/` |
 | Session owners (`@Observable`), no SwiftUI | `Sources/TEMSession/` |
 | Unit tests; committed fixtures (≤ 1 MiB) in `Fixtures/` | `macTEMTests/` |
 | Reference harnesses, gates, their libraries | `tools/<name>/` — classified in `tools/run-tests.sh` |
-| Docs | `docs/` (the live set is listed in `docs/status.md`); dated or superseded → the archive folder |
+| Docs | `docs/` |
 | Pinned references, fetched or provisioned | `References/` (gitignored; `tools/lib/python.sh`, `tools/lib/fetch-rsciio.sh`, `tools/lib/fetch-formatokit.sh`, `tools/lib/fetch-diffractokit.sh`, `tools/lib/fetch-imagokit.sh`) |
-| Redistributed binaries and their licences | FormatoKit's three frameworks in `Contents/Frameworks` (`FormatoLibHDF5`, `FormatoLibSZ`, `FormatoLibAEC`; none committed here, ADR 026) and `Licenses/`, named and hashed in `NOTICE` |
+| Redistributed binaries and their licences | FormatoKit's three frameworks in `Contents/Frameworks` (`FormatoLibHDF5`, `FormatoLibSZ`, `FormatoLibAEC`; none committed here) and `Licenses/`, named and hashed in `NOTICE` |
 
 The app's folder is a synchronized group: placement is wiring. Fixtures land flat in the test bundle's resources, so
 two fixtures may not share a name.
@@ -91,12 +98,13 @@ two fixtures may not share a name.
 
 **The kits are imported at exact tags, never copied** (`Package.swift` is the truth for versions; the Xcode project and `Package.resolved` follow):
 
-| Kit | Tag | What the app takes | ADR |
-|---|---|---|---|
-| FormatoKit | 0.8.0 | the DM3/DM4, Velox EMD, MRC and TIFF readings and metadata, the HDF5 layer and libhdf5 as three frameworks in `Contents/Frameworks`, the PNG text chunks, the thumbnail maker; the sidecar's HDF5 root attributes | 019, 026 |
-| DiffractoKit | 0.8.1 | cells, symmetry, CIF import, kinematic lists, the reference crystals (`CrystalPresets`), ring calibration and fit, indexing | 025 |
-| SpectroKit | 0.7.1 | the EDX room's numbers: the spectrum image and its Velox / GMS opening (over FormatoKit), line windows and net-count maps, the element proposer, the pooled Cliff-Lorimer fit with computed k and absorption, the unlisted-line check, the results CSV and method JSON; its NIST EPQ tables ride in a resource bundle in `Contents/Resources` | 028 |
-| ImagoKit | 0.5.0 | the calibrated axis (`AxisCalibration`), the unit and scale-bar numbers, the CSV writers (profile, tidy results, FFT), distance and angle, the display mapping, the 2D FFT, spectrum and radial profile, spot spacing, masked inverse FFT, HRTEM filters, the region / bin / unit / shape rules, the histogram, the line-profile numbers | 027 |
+| Kit | What the app takes |
+|---|---|
+| FormatoKit | the DM3/DM4, Velox EMD, MRC and TIFF readings and metadata, the HDF5 layer and libhdf5 as three frameworks in `Contents/Frameworks`, the PNG text chunks, the thumbnail maker; the sidecar's HDF5 root attributes |
+| DiffractoKit | cells, symmetry, CIF import, kinematic lists, the reference crystals (`CrystalPresets`), ring calibration and fit, indexing |
+| SpectroKit | the EDS and EELS numbers: the spectrum image and its Velox / GMS opening (over FormatoKit), line windows and net-count maps, Auto ID, the pooled Cliff-Lorimer fit with computed k and absorption, the EELS alignment, thickness and edge fits, the results CSV and method JSON; its NIST EPQ tables and the EELS generalised oscillator strengths ride in resource bundles in `Contents/Resources` |
+| ImagoKit | the calibrated axis (`AxisCalibration`), the unit and scale-bar numbers, the CSV writers (profile, tidy results, FFT), distance and angle, the display mapping, the 2D FFT, spectrum and radial profile, spot spacing, masked inverse FFT, HRTEM filters, the region / bin / unit / shape rules, the histogram, the line-profile numbers, objects and their moments |
+| MacEMUI | the window skeleton, toolbar, sidebar and inspector, the controls, the scale bar and histogram, the Metal image view and engine, and the EDS room (`ShellEDXModel`, `ShellSpectroscopy`) shared with mac4DSTEM |
 
 TEMCore keeps thin seams over the kits: `CalibratedImage+Micrograph` (the kit's `Micrograph`), `KitImages`,
 `MRCImageReader`, `TIFFImageReader`, `VeloxImageReader`, `Compute/LineProfile` (the kit's `LineProfile` with the app's two refusals), `ImagePoint+PixelPoint`, `ProfileCSV`, `ResultsCSV` and `FFTExport` (the app's titles and validation sentences over the kit's CSV writers) and `UnitDisplay` (how a unit and a number are shown). A harness cannot compile a kit into TEMCore's one
@@ -138,11 +146,10 @@ mac4DSTEM's, unchanged (its `docs/architecture.md`, "The UI contract"):
 
 ## Known limitations
 
-- Reads 2D images from DM3/DM4, TIFF, one-image MRC and Velox `.emd`; a stack opens at "frame 1 of N" and steps through its frames with ← and →. An `.emd`'s
-  magnification, camera length, exposure and mode are not read.
+- Reads 2D images from DM3/DM4, TIFF, one-image MRC and Velox `.emd`; a stack opens at "frame 1 of N" and steps through its frames with ← and →.
 - The kits compile at `-Onone` in a Debug build (a versioned dependency carries no `-O`): one DiffractoKit ring fit takes 2.0 s there and 0.04 s at `-O`, so the
   fit tests are the slow part of a unit run, and a room that runs the fit from a Debug build waits seconds.
 - A 2D object larger than 1 GiB is refused, not streamed. Pixel types decoded: int8/16/32, uint8/16/32, float32/64; complex, packed-complex FFT, RGB and bool
   are refused by name. Pixels become Float32 (integers above 2^24 and float64 values round). Only little-endian DM files are read.
 - The image is drawn at its pixel aspect; when the axes differ the Info tab says so and the horizontal scale bar uses x.
-- No non-Metal fallback: `MetalEngine` stops the app without a device or without `default.metallib`.
+- No non-Metal fallback: MacEMUI's `MetalEngine` stops the app without a Metal device or when its shaders cannot be built.
