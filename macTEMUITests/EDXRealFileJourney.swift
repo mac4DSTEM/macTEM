@@ -343,4 +343,24 @@ nonisolated final class EDXRealFileJourney: Journey {
         }
         XCTAssertTrue(text(display).contains(first.contains("1840") ? "1339" : "1840"), "the room's file did not change: \"\(text(display))\"")
     }
+
+    // MARK: 12. The Results room lists the composition
+
+    @MainActor func test12_QuantifiedCompositionIsListedInTheResultsRoom() throws {
+        try step("launch, Quantify") {
+            openReal(); waitForRoomContent(); quantify()
+            waitFor("edx.composition.Al", timeout: 120)
+        }
+        try step("the Results room has a row for Al, with at% and wt%") {
+            let results = waitFor("workspace.results", timeout: 60)
+            XCTAssertTrue(results.isEnabled, "the Results room is not available for the file")
+            results.click()
+            waitFor("results.table", timeout: 30)
+            let row = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'results.row.eds:' AND identifier CONTAINS ':Al:'")).firstMatch
+            XCTAssertTrue(row.waitForExistence(timeout: 30), "no EDS row for Al")
+            let value = app.staticTexts.matching(NSPredicate(format: "label CONTAINS ' at% · ' OR value CONTAINS ' at% · '")).firstMatch
+            XCTAssertTrue(value.waitForExistence(timeout: 10), "no Value cell reads at% and wt%")
+            attach("an EDS value", text(value))
+        }
+    }
 }

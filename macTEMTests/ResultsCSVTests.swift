@@ -18,6 +18,7 @@ import DiffractoGeometry
 import TEMCore
 import ImagoCore
 import ImagoFFT
+import SpectroEDX
 
 nonisolated final class ResultsCSVTests: XCTestCase {
 
@@ -324,11 +325,13 @@ nonisolated final class ResultsCSVTests: XCTestCase {
             // The kit's own self-reported sentence (validation: none) for the indexing; the calibration's is the room's statement of what its numbers are.
             case .ring: producers = RingIndexing.validation
             case .calibration: producers = product.validation
+            // SpectroKit's own constant for a composition, after the words that say what the numbers are.
+            case .edsComposition: producers = ResultRow.Product.edsCompositionLead + PooledQuantification.abundanceValidation
             }
             XCTAssertEqual(product.validation, producers, "\(product): not the producer's constant")
             XCTAssertFalse(product.validation.isEmpty)
             XCTAssertFalse(product.badge.isEmpty)
-            XCTAssertTrue(product.badge.hasPrefix(product == .ring ? "Unvalidated · " : "Checked · "), "\(product): \(product.badge)")
+            XCTAssertTrue(product.badge.hasPrefix([.ring, .edsComposition].contains(product) ? "Unvalidated · " : "Checked · "), "\(product): \(product.badge)")
         }
         XCTAssertTrue(ResultRow.Product.profile.validation.hasPrefix(ImageMeasurement.validation), "the row's numbers are closed forms")
         XCTAssertTrue(ResultRow.Product.profile.validation.hasSuffix(ProfileCSV.validation), "the samples are scikit-image's")
@@ -340,18 +343,20 @@ nonisolated final class ResultsCSVTests: XCTestCase {
             case .spots: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .spots }.count, 1)
             case .calibration: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .calibration }.count, 1)
             case .rings: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .rings }.count, 1)
+            case .eds: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .eds }.count, 1)
             }
         }
     }
 
-    /// All six badges, as worded: three claims of a closed form (a profile row's numbers are the line's length and width, not the
-    /// samples), one of planted spots, the calibration's closed forms and the ring's honest "unvalidated"; no version is written in a
-    /// badge. Red under: the profile badge naming scikit-image again; a badge reworded.
-    func testTheSixBadges() {
+    /// All seven badges, as worded: three claims of a closed form (a profile row's numbers are the line's length and width, not the
+    /// samples), one of planted spots, the calibration's closed forms, the ring's and the EDS composition's honest "unvalidated"; no version
+    /// is written in a badge. Red under: the profile badge naming scikit-image again; a badge reworded.
+    func testTheSevenBadges() {
         XCTAssertEqual(ResultRow.Product.allCases.map(\.badge), ["Checked · closed form", "Checked · closed form",
                                                                 "Checked · closed form", "Checked · planted spots",
-                                                                "Checked · closed form", "Unvalidated · indexing"])
-        XCTAssertEqual(ResultRow.Product.allCases.map(\.rawValue), ["distance", "angle", "profile", "spot", "calibration", "ring"])
+                                                                "Checked · closed form", "Unvalidated · indexing",
+                                                                "Unvalidated · composition"])
+        XCTAssertEqual(ResultRow.Product.allCases.map(\.rawValue), ["distance", "angle", "profile", "spot", "calibration", "ring", "edsComposition"])
     }
 
     /// A file whose reader notes say it is unvalidated keeps the qualifier on every claim the CSV makes: the header's validation
@@ -414,7 +419,9 @@ nonisolated final class ResultsCSVTests: XCTestCase {
                                                 deltaQ: 0.0125, wavelength: 0.0251, lengthPixels: 7510, lengthMM: nil, fitVersusFilePercent: -1)
         let ring = ResultRow.ring(id: "diffraction:1", label: "Ring 1", radius: 39.24, q: 0.49, d: 2.039, family: "{200}", dListed: 2.0391,
                                   deltaPercent: 0.01, odds: "> 10⁶ : 1", verdict: "accepted", refusal: nil)
-        let rows = [distance(), angle(), profile(), try spot(), calibration, ring]
+        let eds = ResultRow(id: "eds:Whole map:Mg:Mg_Ka", product: .edsComposition, label: "Mg · Whole map",
+                            entries: [ResultRow.Entry("net", 7242, unit: "counts"), ResultRow.Entry("wt", 12.5, unit: "wt%")])
+        let rows = [distance(), angle(), profile(), try spot(), calibration, ring, eds]
         let text = try XCTUnwrap(ResultsCSV.text(rows, source: source(), session: "s"))
         let parts = split(text)
         for product in ResultRow.Product.allCases {

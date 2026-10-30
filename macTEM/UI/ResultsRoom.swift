@@ -31,7 +31,7 @@ struct ResultsRoom: View {
     var body: some View {
         // One read of the ledger and of the state, here.
         let state = appState.resultsRoom
-        let rows = ResultsLedger.rows(of: item)
+        let rows = appState.resultRows(of: item)
         let sections = state.sections(rows)
         let shown = sections.reduce(0) { $0 + $1.rows.count }
         VStack(spacing: 0) {
