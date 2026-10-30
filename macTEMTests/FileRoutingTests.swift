@@ -34,7 +34,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
         let candidates = [root.appendingPathComponent("References/\(relative)").path,
                           root.deletingLastPathComponent().appendingPathComponent("References/\(relative)").path]
         guard let path = candidates.first(where: { FileManager.default.fileExists(atPath: $0) }) else {
-            throw XCTSkip("not skipped on Paul's Mac: \(relative) is not here")
+            throw XCTSkip("\(relative) is not in the data folder ($MACEM_DATA)")
         }
         return path
     }
@@ -160,9 +160,8 @@ nonisolated final class FileRoutingTests: XCTestCase {
 
     /// The study's own file (1.7 GB, in the data folder): inventoried from its group names without reading a pixel.
     func testTheStudyFileIsAnImageAndAnEDSCube() throws {
-        let data = ProcessInfo.processInfo.environment["MACEM_DATA"] ?? URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("data").path
-        let path = data + "/stem-edx/SI HAADF 1456 77000 x 20260420.emd"
-        try XCTSkipUnless(FileManager.default.fileExists(atPath: path), "not skipped on Paul's Mac: the study file is not here")
+        let path = RealDataFolder.path + "/stem-edx/SI HAADF 1456 77000 x 20260420.emd"
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: path), "the study file is not in the data folder ($MACEM_DATA)")
         XCTAssertEqual(FileRouting.inventory(path: path), FileInventory(image: true, edsSpectrumImage: true))
     }
 

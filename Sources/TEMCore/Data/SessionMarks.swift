@@ -1,6 +1,6 @@
 //
 //  SessionMarks.swift
-//  Role: the Image room's marks as the session sidecar records them (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, ADR 020 D2): a mark to its
+//  Role: the Image room's marks as the session sidecar records them: a mark to its
 //        lineage node and back, the checks a mark node passes (the reader's, and the writer's before a save), the restore
 //        — a read sidecar to the marks it restores, or one named refusal, decided whole before anything is adopted — and
 //        the save's request and its write. Pure but for `SessionSave.write`, which goes through SessionSidecarFile. No
@@ -9,7 +9,7 @@
 //  THE NODE of a mark (kind `distance`, `angle` or `profile`). Coordinates are image pixel coordinates: x the column, y
 //  the row, a pixel's centre at integers, the image from −0.5 to W − 0.5 and −0.5 to H − 0.5.
 //    parameters  x1 y1 x2 y2 (an angle also x3 y3; its VERTEX is point 2), a profile's `width` (1…25), `object` (the
-//                opened image's `CalibratedImage.source`), `frame` ("0": the frame the reader opened; V1-3c-ii's seam)
+//                opened image's `CalibratedImage.source`), `frame` ("0": the frame the reader opened)
 //    results     what was measured when the mark was made or last changed, in the file's own units at full precision
 //                (never the display's rounded text): distance `pixels`, and `length` + `unit` when both axes are
 //                calibrated in one unit; angle `degrees` (absent for a zero-length arm) and `plane` (`physical` |
@@ -56,7 +56,7 @@ package nonisolated struct SessionMark: Sendable, Equatable {
 package nonisolated enum SessionMarks {
     /// The widest profile the room offers and the reader accepts, in pixels.
     package static let maximumWidth = 25
-    /// The frame a node records: the reader opens frame 0 of a stack (V1-3c-ii gives the choice).
+    /// The frame a node records: the reader opens frame 0 of a stack.
     package static let openedFrame = "0"
 
     private static let pointKeys = [("x1", "y1"), ("x2", "y2"), ("x3", "y3")]

@@ -1,6 +1,6 @@
 //
 //  SidebarLayoutTests.swift
-//  Pins the rooms list's height per system sidebar size (ADR 011, no gap under the rooms): the values measured on the
+//  Pins the rooms list's height per system sidebar size (no gap under the rooms): the values measured on the
 //  2026-10-13 scratch builds, and that a larger sidebar size never gets a shorter list. Mutations each test must go red
 //  under: two sizes' heights swapped; a size falling through to another's height.
 //

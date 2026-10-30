@@ -1,6 +1,6 @@
 //
 //  TIFFImageReaderTests.swift
-//  The TIFF reader (archive: roadmap-registrations-2026-10-15.md V1-3b) on TIFFs built in memory with known values: the planted truth is the bytes
+//  The TIFF reader on TIFFs built in memory with known values: the planted truth is the bytes
 //  written here. The parity against RosettaSciIO and tifffile is tools/parity/tiff-reader-parity; these pin the reader's
 //  own rules without Python — sample types and byte order, the grey-render rule, the refusals, and the Velox
 //  convention's cross-check.

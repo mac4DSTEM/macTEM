@@ -1,7 +1,7 @@
 //
 //  ExportSnapshotTests.swift
 //  Pins what an export takes from the selected file when its panel opens (`ExportSnapshot`, `ExportPanels`, V1-10 slice 1,
-//  archive: export-design-2026-10-13.md): the default names (the bare stem, never an extension), the message and status
+//  ): the default names (the bare stem, never an extension), the message and status
 //  lines, the options' defaults, when the two commands are enabled, the display settings as the shader gets them, the marks
 //  labelled in en_US_POSIX whatever the reader's locale, a profile after its width changed equal to `LineProfile.sample` on
 //  the current image, the selected item and nothing else, and the save panels' configuration and the accessory's size.
@@ -140,7 +140,7 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
     }
 
     /// The infobar's lines: working, then the file written, and what the bar's plate could not hold. The infobar is one
-    /// line cut at its tail, so the notice comes right after the name, before the size (Gate B U5). Red under: the
+    /// line cut at its tail, so the notice comes right after the name, before the size. Red under: the
     /// ellipsis written as three dots; the left-out clause dropped; the notice put back at the tail.
     func testTheStatusLinesNameTheFileAndWhatWasLeftOut() {
         XCTAssertEqual(ExportSnapshot.exportingLine(name: "scan.png"), "Exporting scan.png\u{2026}")
@@ -422,7 +422,7 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
         XCTAssertEqual(snapshot()?.end, first.points[1])
         XCTAssertEqual(ExportSnapshot.selectedProfile(in: o.measurements)?.count, 2)
 
-        // A profile with no samples. The owner clamps every point onto the image (V1-2 slice B), so a coordinate of 2e15
+        // A profile with no samples. The owner clamps every point onto the image, so a coordinate of 2e15
         // is no longer reachable through `add`; the state the owner CAN hold is a line longer than LineProfile's cap of
         // 2^24 samples, which only a 2^24-pixel-wide image has: its full row is 2^24 pixels long, one over the cap.
         let wide = Self.image(width: 1 << 24, height: 1)
@@ -818,7 +818,7 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
     }
 
     /// A window closed under its sheet cancels the sheet: AppKit takes the sheet away with the window and never calls the
-    /// completion handler, so without the observer the await never returns (Gate B U1, measured on `close()`). A test
+    /// completion handler, so without the observer the await never returns (measured on `close`). A test
     /// window, a real PNG panel as its sheet, the window closed; the await returns `.cancel` within three seconds.
     /// Red under: the willClose observer not registered (the response stays nil, and the test cancels the panel itself so
     /// nothing is left suspended).

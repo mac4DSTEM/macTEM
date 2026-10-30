@@ -1,4 +1,4 @@
-// macTEM's own since DiffractoKit 0.0.3 (ADR 025): ported from mac4DSTEM 7d6fdbd1's EllipseNoisyRingTests (the kit holds the same
+// macTEM's own since DiffractoKit 0.0.3: ported from mac4DSTEM 7d6fdbd1's EllipseNoisyRingTests (the kit holds the same
 // plants in its own EllipseNoisyRingTests); it runs the kit's fit in this app's Debug build, on this repo's 4 KB real-pattern fixture.
 import XCTest
 import DiffractoGeometry

@@ -4,8 +4,8 @@ import DiffractoScattering
 import DiffractoGeometry
 import TEMCore
 
-/// V1-8 S2c (ADR 024): monoclinic cells (unique axis b, 2/m) in the family lists, and the beta'' CIF through the import, on
-/// DiffractoKit since the switch (ADR 025), with no Python. The numpy and gemmi parity is tools/parity/indexing-parity, whose
+/// V1-8 S2c: monoclinic cells (unique axis b, 2/m) in the family lists, and the beta'' CIF through the import, on
+/// DiffractoKit since the switch, with no Python. The numpy and gemmi parity is tools/parity/indexing-parity, whose
 /// source controls (now on the kit's files) these tests share; each test names the ones that turn it red. The cells: M-P
 /// (a 7.2, b 4.9, c 5.6 A, beta 104 deg, one Al at the origin), M-C (the same, C-centred), M-sq (a = c = 5, b = 4,
 /// cos beta = -1/4: accidental (h,k,l) ~ (l,k,h) coincidences) and beta'' (Mg5Si6, C2/m, Andersen et al. 1998, the CIF below
@@ -154,7 +154,7 @@ nonisolated final class MonoclinicIndexingTests: XCTestCase {
         XCTAssertFalse(try XCTUnwrap(Self.family(l, Self.hkl(1, 0, 1))).members.contains(Self.hkl(1, 0, -1)))
     }
 
-    /// beta'': (2 0 1) and (2 0 -1) are two rings, 4.3246 and 5.6555 A (closed forms in the registration); the orbit rule
+    /// beta'': (2 0 1) and (2 0 -1) are two rings, 4.3246 and 5.6555 A; the orbit rule
     /// that ignores the sign of l (m1) or folds it (m2) puts them in one.
     func testPlusAndMinusLAreDifferentFamilies() throws {
         let l = try Self.list(try Self.beta())
@@ -166,7 +166,7 @@ nonisolated final class MonoclinicIndexingTests: XCTestCase {
         XCTAssertEqual(m.name, "{2 0 -1}")
     }
 
-    /// An acute beta (added after Gate B, F1): M-P with beta 76 deg is M-P with beta 104 deg and the sign of l mirrored, so the same
+    /// An acute beta (F1): M-P with beta 76 deg is M-P with beta 104 deg and the sign of l mirrored, so the same
     /// rings carry the swapped names: the ring named {1 0 1} at 76 deg has the d of 104 deg's {1 0 -1}, and the other way round.
     /// The cell is monoclinic b for beta < 90 deg too. Mutant m16: the family test restricted to beta > 90 deg.
     func testAcuteBetaSwapsTheNamesOfPlusAndMinusL() throws {

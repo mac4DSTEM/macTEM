@@ -1,6 +1,6 @@
 //
 //  AcquisitionMetadataMRCTests.swift
-//  The MRC reader of AcquisitionMetadata (archive: roadmap-registrations-2026-10-15.md V1-4a, slice S-a: AcquisitionMetadata+MRC.swift) on FEI1/FEI2
+//  The MRC reader of AcquisitionMetadata on FEI1/FEI2
 //  files built in memory with known values: the planted truth is the bytes written here. The record's field table
 //  below is mrcfile 1.5.4's (generated from `fei2_dtype_big_endian`, widths only); offsets and bitmask bits are
 //  derived by walking it, so these tests do not share the production code's constants. Two real first records

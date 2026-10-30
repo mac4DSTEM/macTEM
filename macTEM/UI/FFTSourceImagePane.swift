@@ -1,7 +1,6 @@
 //
 //  FFTSourceImagePane.swift
-//  Role: the FFT room's left pane (archive: roadmap-registrations-2026-10-15.md V1-6 + 6a + 6b, "The room"; the design in
-//        archive: fft-room-design-2026-10-13.md): the file as the Image room draws it with the region transformed
+//  Role: the FFT room's left pane: the file as the Image room draws it with the region transformed
 //        outlined on it, or the transformed pixels alone, or a product of them (the masked inverse, ABSF, Wiener) —
 //        one picture at a time, chosen by the header's View menu. The structure is `ImagePane`'s: a single-line header,
 //        a `GeometryReader` letterboxing with `LayoutPolicy.fitted`, one zoom (`ZoomPan`) applied by the shader

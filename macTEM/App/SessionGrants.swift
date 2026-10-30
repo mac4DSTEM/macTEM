@@ -1,7 +1,6 @@
 //
 //  SessionGrants.swift
-//  Role: the sandbox grant for a session file (V1-2 slice B's UI, archive: v12-session-ui-design-2026-10-14.md,
-//        "The sandbox grant for a sidecar"). Opening an image grants that file only, so the sidecar beside it is
+//  Role: the sandbox grant for a session file. Opening an image grants that file only, so the sidecar beside it is
 //        reachable through a security-scoped bookmark made when the user chose it in the save panel (or Choose Session
 //        File…), kept in UserDefaults by the image's path — mac4DSTEM's way. `@AppStorage` does nothing in an
 //        `@Observable`, so the defaults are read directly. A grant is a fact about the process and the file system, not
