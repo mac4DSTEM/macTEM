@@ -407,6 +407,14 @@ private struct FFTSpotRow: View {
                 .frame(width: Self.numberWidth, alignment: .trailing)
             outcome
             Spacer(minLength: 0)
+            if let contrast = FFTRoomFormat.contrastText(spot) {
+                Text(contrast)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .help(FFTRoomFormat.contrastHelp)
+                    .accessibilityLabel("contrast \(contrast)")
+            }
         }
         .contentShape(Rectangle())
     }
