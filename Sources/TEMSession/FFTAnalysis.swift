@@ -91,10 +91,13 @@ package nonisolated struct FFTSpot: Sendable, Identifiable {
     package var outcome: Outcome
     /// Whether the masked inverse passes this spot (only a measured one: a refused spot, or one with no peak, has no centroid).
     package var inMask: Bool
+    /// The finder's local contrast for a found spot (`FFTSpotFinder.Found.contrast`, display units); nil for a clicked one.
+    package let contrast: Float?
 
     package init(id: UUID = UUID(), number: Int, row: Int, col: Int, spectrumKey: FFTSpectrumKey,
-                 outcome: Outcome = .measuring, inMask: Bool = true) {
+                 outcome: Outcome = .measuring, inMask: Bool = true, contrast: Float? = nil) {
         self.id = id
+        self.contrast = contrast
         self.number = number
         self.row = row
         self.col = col
@@ -644,7 +647,7 @@ package final class FFTAnalysis {
             dropSpots()
             reconcileMask()
             if peaks.isEmpty { findSpotsFailure = "No spot stands out of the transform: lower the threshold or the minimum distance." }
-            for p in peaks { measureSpot(row: p.row, col: p.column) }
+            for p in peaks { measureSpot(row: p.row, col: p.column, contrast: p.contrast) }
         } catch {
             findSpotsFailure = (error as? LocalizedError)?.errorDescription ?? "The finder could not run: \(error)"
         }
@@ -652,14 +655,14 @@ package final class FFTAnalysis {
 
     /// A click on the spectrum shown (or Measure at…): a new spot at that bin, measured off the main actor. A click on
     /// the bin of a spot already there selects that spot.
-    package func measureSpot(row: Int, col: Int) {
+    package func measureSpot(row: Int, col: Int, contrast: Float? = nil) {
         guard isSpectrumCurrent, let key = spectrum?.key else { return }
         if let existing = spots.first(where: { $0.row == row && $0.col == col && $0.spectrumKey == key }) {
             selection = existing.id
             return
         }
         lastSpotNumber += 1
-        let spot = FFTSpot(number: lastSpotNumber, row: row, col: col, spectrumKey: key)
+        let spot = FFTSpot(number: lastSpotNumber, row: row, col: col, spectrumKey: key, contrast: contrast)
         spots.append(spot)
         selection = spot.id
         spotQueue.append(spot.id)

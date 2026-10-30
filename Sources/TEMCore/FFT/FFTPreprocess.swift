@@ -99,9 +99,23 @@ package nonisolated enum FFTSpotFinder {
         package init() {}
     }
 
-    /// The peaks as (row, column) bins of the spectrum, strongest first. `values` are the display's, row-major `width` x `height`; a
-    /// spectrum is centrosymmetric, so a peak and its mirror are both found: only the half-plane with the larger (row, column) is kept.
-    package static func find(values: [Float], width: Int, height: Int, settings: Settings) throws -> [(row: Int, column: Int)] {
+    /// One peak the finder kept: its bin and its local contrast.
+    package struct Found: Equatable, Sendable {
+        package let row: Int
+        package let column: Int
+        /// The peak's display value minus the median of the ring around it (`ringRadii`, in bins): how far a sharp reflection
+        /// stands out of its neighbourhood. A broad hump (a non-periodic feature's low-frequency power) is high but not contrasted.
+        package let contrast: Float
+    }
+
+    /// The ring a peak's contrast is taken against: bins at a distance from `inner` to `outer` (inclusive) from the peak.
+    package static let ringRadii = (inner: 3, outer: 6)
+
+    /// The peaks as bins of the spectrum, highest local contrast first (`Found.contrast`; equal contrasts keep the kit's order,
+    /// strongest first). `values` are the display's, row-major `width` x `height`; a spectrum is centrosymmetric, so a peak and its
+    /// mirror are both found: only the half-plane with the larger (row, column) is kept. Every peak above the threshold is ranked
+    /// before the cut to `count`, so a bright hump cannot crowd out a sharper reflection.
+    package static func find(values: [Float], width: Int, height: Int, settings: Settings) throws -> [Found] {
         let finite = values.map { $0.isFinite ? $0 : -Float.infinity }
         guard let lo = finite.filter({ $0.isFinite }).min(), let hi = finite.max(), hi > lo else { return [] }
         let clean = finite.map { $0.isFinite ? $0 : lo }
@@ -109,7 +123,31 @@ package nonisolated enum FFTSpotFinder {
         let symmetry = SpectrumSymmetry(centreRow: height / 2, centreColumn: width / 2, excludedRadius: settings.centreExclusion)
         let peaks = try PeakLocalMax.find(clean, rows: height, columns: width, minDistance: settings.minDistance,
                                           thresholdAbs: Double(lo) + settings.thresholdFraction * Double(hi - lo),
-                                          numPeaks: settings.count, symmetry: symmetry)
-        return peaks.map { ($0.row, $0.column) }
+                                          numPeaks: nil, symmetry: symmetry)
+        let found = peaks.map { Found(row: $0.row, column: $0.column,
+                                      contrast: contrast(clean, width: width, height: height, row: $0.row, column: $0.column)) }
+        let ranked = found.enumerated().sorted { a, b in
+            a.element.contrast > b.element.contrast || (a.element.contrast == b.element.contrast && a.offset < b.offset)
+        }
+        return ranked.prefix(max(settings.count, 0)).map(\.element)
+    }
+
+    /// The value at (`row`, `column`) minus the median of the ring around it (the lower middle of an even count); 0 when the ring
+    /// holds no bin inside the spectrum.
+    package static func contrast(_ values: [Float], width: Int, height: Int, row: Int, column: Int) -> Float {
+        let (inner, outer) = ringRadii
+        var ring: [Float] = []
+        for dr in -outer...outer {
+            for dc in -outer...outer {
+                let d2 = dr * dr + dc * dc
+                guard d2 >= inner * inner, d2 <= outer * outer else { continue }
+                let r = row + dr, c = column + dc
+                guard r >= 0, r < height, c >= 0, c < width else { continue }
+                ring.append(values[r * width + c])
+            }
+        }
+        guard !ring.isEmpty else { return 0 }
+        ring.sort()
+        return values[row * width + column] - ring[(ring.count - 1) / 2]
     }
 }
