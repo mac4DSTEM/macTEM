@@ -239,7 +239,7 @@ struct ImageRoomSessionTail: View {
         if tail.showsSave || tail.showsFinder || tail.chooseFile != nil {
             InspectorActionRow {
                 if tail.showsSave {
-                    Button(SessionGrants.bookmark(forSource: item.url) == nil ? "Save to Session…" : "Save to Session") { SessionPanels.save(appState: appState) }
+                    Button(SessionGrants.saveTitle(for: item)) { SessionPanels.save(appState: appState) }
                         .help("Keep the marks in the session file beside the image (⌘S)")
                 }
                 if tail.showsFinder {

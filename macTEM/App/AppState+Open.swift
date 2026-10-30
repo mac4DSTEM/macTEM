@@ -163,7 +163,8 @@ extension AppState {
         let bookmark = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil,
                                              relativeTo: nil)
         return OpenedImage(image: image, canvas: canvas, metadata: metadata, url: url,
-                           thumbnail: thumbnail, bookmark: bookmark, identity: identity, sidecar: sidecar)
+                           thumbnail: thumbnail, bookmark: bookmark, identity: identity, sidecar: sidecar,
+                           hasGrant: SessionGrants.bookmark(forSource: url) != nil)
     }
 
     /// One frame of an open stack: the page's pixels and the canvas, off the main actor. The stack holds its own scope.

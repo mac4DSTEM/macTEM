@@ -36,6 +36,23 @@ nonisolated enum SessionGrants {
         defaults.removeObject(forKey: key(forSource: source))
     }
 
+    /// Stores `bookmark` for `item`'s file (or drops the grant when nil) and says so on the item, whose `hasGrant` the
+    /// Save titles observe (the defaults are not observed).
+    @MainActor static func store(_ bookmark: Data?, for item: OpenItem, defaults: UserDefaults = .standard) {
+        store(bookmark, forSource: item.url, defaults: defaults)
+        item.hasGrant = bookmark != nil
+    }
+
+    @MainActor static func drop(for item: OpenItem, defaults: UserDefaults = .standard) {
+        drop(forSource: item.url, defaults: defaults)
+        item.hasGrant = false
+    }
+
+    /// The Save command's title: with an ellipsis while a save will ask where (no grant stored, or no file selected).
+    @MainActor static func saveTitle(for item: OpenItem?) -> String {
+        item?.hasGrant == true ? "Save to Session" : "Save to Session…"
+    }
+
     /// What the sidecar beside `source` made of its first read, off the main actor: through the stored grant when there is
     /// one (its scope held for the read), else the derived name beside the image. A grant that no longer resolves is
     /// no grant, and the derived name is tried (the sandbox then says `needsAccess`).
