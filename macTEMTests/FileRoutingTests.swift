@@ -34,7 +34,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
         let candidates = [root.appendingPathComponent("References/\(relative)").path,
                           root.deletingLastPathComponent().appendingPathComponent("References/\(relative)").path]
         guard let path = candidates.first(where: { FileManager.default.fileExists(atPath: $0) }) else {
-            throw XCTSkip("not skipped on Paul's Mac: \(relative) is not here")
+            throw XCTSkip("\(relative) is not in the data folder ($MACEM_DATA)")
         }
         return path
     }

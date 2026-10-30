@@ -1,7 +1,6 @@
 //
 //  ResultRow.swift
-//  Role: one finished measurement of one file, as the Results room lists it and `ResultsCSV` writes it (V1-10 slice 3,
-//        archive: roadmap-registrations-2026-10-15.md "Slice 3, the Results room and one tidy CSV"; archive: results-room-design-2026-10-15.md). A value:
+//  Role: one finished measurement of one file, as the Results room lists it and `ResultsCSV` writes it. A value:
 //        derived by `ResultsLedger` (TEMSession) from the owners of the marks and the FFT spots, never stored, and holding
 //        every number as the owner's own Double.
 //

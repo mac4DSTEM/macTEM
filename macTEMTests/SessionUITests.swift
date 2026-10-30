@@ -1,6 +1,6 @@
 //
 //  SessionUITests.swift
-//  The app's side of the session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, the UI slice; archive: v12-session-ui-design-2026-10-14.md):
+//  The app's side of the session sidecar (the UI slice):
 //  what the sidecar beside a file made of its first read (`SessionOpening.outcome`: none, restored, refused, needs access),
 //  how `OpenItems` acts on it — the first read restores, a re-read never does, a read that was closed under it adopts
 //  nothing, a re-read of other pixels notes the difference —, `SessionSaving` (the first save to a chosen URL, a later one,

@@ -1,6 +1,6 @@
 //
 //  ImageMeasurementTests.swift
-//  Distance and angle (archive: roadmap-registrations-2026-10-15.md V1-5) on planted points with closed-form truth: a 3-4-5 triangle in anisotropic pixels,
+//  Distance and angle on planted points with closed-form truth: a 3-4-5 triangle in anisotropic pixels,
 //  an angle that is right in the physical plane and not in pixel space, and the refusals (no calibration, two units,
 //  a zero arm). The parity at 1e-12 on generated cases is tools/parity/profile-parity.
 //
@@ -124,7 +124,7 @@ nonisolated final class ImageMeasurementTests: XCTestCase {
         XCTAssertEqual(Set([p, decoded]).count, 1)
     }
 
-    /// An axis with no usable scale is uncalibrated whichever axis it is (Gate B 2026-10-13: only x's were tested). Red
+    /// An axis with no usable scale is uncalibrated whichever axis it is. Red
     /// under: `y.isCalibrated` dropped from `physicalScales`.
     func testAnAxisWithNoUsableScaleIsNotCalibratedWhicheverAxisItIs() {
         let nm = AxisCalibration(scale: 0.5, unit: "nm", origin: 0)

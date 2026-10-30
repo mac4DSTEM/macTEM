@@ -1,12 +1,12 @@
 //
 //  RingCalibrationTests.swift
-//  archive: roadmap-registrations-2026-10-15.md "Diffraction S3, Camera length from one ring of known d", slice S3-a: the closed forms (λ, 2θ, L_px, Δq,
+//   "Diffraction S3, Camera length from one ring of known d", slice S3-a: the closed forms (λ, 2θ, L_px, Δq,
 //  L_mm) against hand arithmetic, and every registered refusal by its own name. No fit, no Python at run time: the
 //  expected numbers below were worked once, by hand, in 60-digit decimal arithmetic from the CODATA 2018 constants
 //  stated in DiffractoKit's RingCalibration.swift (h and c and e exact, m₀ = 9.1093837015e-31 kg) and are typed here as literals. The
 //  parity with a numpy script over many cases is tools/parity/ring-calibration-parity.
 //
-//  Every test names under "RED UNDER" the production mutation that turns it red: archive: roadmap-registrations-2026-10-15.md's list for this item where a
+//  Every test names under "RED UNDER" the production mutation that turns it red:'s list for this item where a
 //  mutation reaches a closed form or a refusal (the ones that need a fit or a harness, `recover` and `centre`, are
 //  S3-b's), plus the ones the refusals and guards here add.
 //
@@ -35,7 +35,7 @@ nonisolated final class RingCalibrationTests: XCTestCase {
     private let lambda200 = 0.025079340450548003
     private let lambda300 = 0.019687489006848796
 
-    // Au {111}: d = 2.3546 Å (archive: roadmap-registrations-2026-10-15.md), at 200 kV, R = 150 px:
+    // Au {111}: d = 2.3546 Å, at 200 kV, R = 150 px:
     //   λ/2d = 0.025079340450548003 / 4.7092 = 0.0053256052940091742;  2θ = 2 arcsin(.) = 0.010651260937060768 rad;
     //   tan 2θ = 0.010651663748250814;  L_px = 150 / tan 2θ = 14082.307097295722;
     //   Δq = (1/d)/R = 0.4247005860868088 / 150 = 0.0028313372405787253 Å⁻¹ per pixel;
@@ -47,7 +47,7 @@ nonisolated final class RingCalibrationTests: XCTestCase {
     private let deltaQAu111R150 = 0.0028313372405787253
     private let lengthMMAu111At200P14 = 197.15229936214011
 
-    // Au {422} at 80 kV, d = 0.8325 Å (archive: roadmap-registrations-2026-10-15.md's example, a/√24 with a = 4.0782 Å is 0.83246), R = 150 px:
+    // Au {422} at 80 kV, d = 0.8325 Å (a/√24 with a = 4.0782 Å is 0.83246), R = 150 px:
     //   λ/2d = 0.041757160772834212 / 1.665 = 0.025079375839540067;  2θ = 0.050164011268796932 rad;
     //   tan 2θ = 0.050206131707820426;  L_px = 150 / tan 2θ = 2987.6828765247223.
     private let dAu422 = 0.8325
@@ -55,8 +55,8 @@ nonisolated final class RingCalibrationTests: XCTestCase {
     private let lengthPixelsAu422At80R150 = 2987.6828765247223
 
     // The small-angle form L = R d / λ, divided by the exact L, minus 1 (= tan 2θ · d/λ − 1):
-    //   200 kV Au {111}, R = 150:  14082.906234971683 / 14082.307097295722 − 1 = 4.2545420422e-5  (archive: roadmap-registrations-2026-10-15.md: "4e-5")
-    //    80 kV Au {422}, R = 150:  2990.5050460528300 / 2987.6828765247223 − 1 = 9.4460143353e-4  (archive: roadmap-registrations-2026-10-15.md: "9.5e-4";
+    //   200 kV Au {111}, R = 150:  14082.906234971683 / 14082.307097295722 − 1 = 4.2545420422e-5
+    //    80 kV Au {422}, R = 150:  2990.5050460528300 / 2987.6828765247223 − 1 = 9.4460143353e-4  (: "9.5e-4";
     //    to two figures it is 9.4e-4: the registered figure is rounded up by 0.6 %)
     private let smallAngleExcessAu111At200 = 4.2545420422e-5
     private let smallAngleExcessAu422At80 = 9.4460143353e-4
@@ -93,7 +93,7 @@ nonisolated final class RingCalibrationTests: XCTestCase {
         assertClose(RingCalibration.wavelengthAngstroms(volts: 300_000), lambda300, "300 kV")
     }
 
-    /// A second source for the same four wavelengths: the study's script (archive: s3-camera-length-plan-2026-10-12.md
+    /// A second source for the same four wavelengths: the study's script (
     /// §2.1, "[calc]"), 80 kV 4.17572 pm, 120 kV 3.34922, 200 kV 2.50793, 300 kV 1.96875, given to six figures (so to
     /// 3e-6 relative here). It was written before this file and does not share its arithmetic.
     /// RED UNDER: kV as V; non-relativistic λ; a wrong constant.
@@ -149,7 +149,7 @@ nonisolated final class RingCalibrationTests: XCTestCase {
     }
 
     /// The small-angle camera constant λL = Rd is not used: the exact L differs from it by tan 2θ·d/λ − 1, which is
-    /// 4.3e-5 at 200 kV Au {111} (archive: roadmap-registrations-2026-10-15.md: 4e-5) and 9.4e-4 at 80 kV Au {422} (archive: roadmap-registrations-2026-10-15.md: 9.5e-4).
+    /// 4.3e-5 at 200 kV Au {111} and 9.4e-4 at 80 kV Au {422}.
     /// RED UNDER: small-angle L (the difference is then 0); `radius / tan(twoTheta)` written `radius / twoTheta` (the
     /// difference is then 4.7e-6 at 200 kV Au {111}, against the registered 4e-5).
     func testTheExactLengthDiffersFromTheSmallAngleOneByTheRegisteredAmount() throws {
@@ -305,7 +305,7 @@ nonisolated final class RingCalibrationTests: XCTestCase {
     }
 
     /// R is (a + b)/2 and a/b − 1 uses the larger axis over the smaller, in either order.
-    /// RED UNDER: radius = a (the archive: roadmap-registrations-2026-10-15.md's `radius` mutation: 101.5 for 100, 1.5 %); radius = b; the axes taken as given
+    /// RED UNDER: radius = a (1.5 %); radius = b; the axes taken as given
     /// when b > a (the ellipticity negative, never refused).
     func testTheRadiusIsTheMeanOfTheSemiAxesAndTheEllipticityIsTheirRatioMinusOne() {
         var fit = cleanFit()
@@ -318,7 +318,7 @@ nonisolated final class RingCalibrationTests: XCTestCase {
     }
 
     /// Model ≠ asymmetricGaussian: the conic's radius is not offered. The conic has no ring sigmas (nil).
-    /// RED UNDER: the conic accepted (the model check removed: archive: roadmap-registrations-2026-10-15.md's `refuse-conic`).
+    /// RED UNDER: the conic accepted.
     func testAConicFitIsRefusedAsModelNotAsymmetricGaussian() {
         var fit = cleanFit()
         fit.model = .conic; fit.innerSigma = nil; fit.outerSigma = nil
@@ -326,7 +326,7 @@ nonisolated final class RingCalibrationTests: XCTestCase {
     }
 
     /// Fewer than 30 of 36 bins: 29 is refused (with its count), 30 is not.
-    /// RED UNDER: the bound at ≤ 30 (30 refused) or ≥ 30 off by one (29 accepted); the bound removed (archive: roadmap-registrations-2026-10-15.md's
+    /// RED UNDER: the bound at ≤ 30 (30 refused) or ≥ 30 off by one (29 accepted); the bound removed ('s
     /// `refuse-gap`: a 120° gap ring has 24 of 36).
     func testFewerThanThirtyOfThirtySixBinsIsRefusedByCount() {
         var fit = cleanFit()
@@ -340,7 +340,7 @@ nonisolated final class RingCalibrationTests: XCTestCase {
     }
 
     /// A fit accepted only because the caller asserted one ring in a sparse annulus is refused, even at full coverage.
-    /// RED UNDER: `sparseCoverage` ignored (archive: roadmap-registrations-2026-10-15.md's `acceptSparseCoverage: true`).
+    /// RED UNDER: `sparseCoverage` ignored.
     func testASparseCoverageFitIsRefusedEvenWhenAllBinsAreOccupied() {
         var fit = cleanFit()
         fit.sparseCoverage = true
@@ -349,7 +349,7 @@ nonisolated final class RingCalibrationTests: XCTestCase {
     }
 
     /// A ring sigma at or above the annulus width is refused (the larger of the two is reported); just below is not.
-    /// RED UNDER: the sigma bound unchecked (archive: roadmap-registrations-2026-10-15.md's `refuse-bound`: the 1/r³ background plant's σ is the fit's bound
+    /// RED UNDER: the sigma bound unchecked ('s `refuse-bound`: the 1/r³ background plant's σ is the fit's bound
     /// of 243 px at a 40 px annulus); the bound at > rather than ≥; only the inner or only the outer sigma tested.
     func testARingSigmaAtOrAboveTheAnnulusWidthIsRefusedAndTheLargerIsReported() {
         var fit = cleanFit()                      // annulus width 40
@@ -392,7 +392,7 @@ nonisolated final class RingCalibrationTests: XCTestCase {
     }
 
     /// No high tension: refused by name (the refusal that leaves Δq given), and the same fit with V is not.
-    /// RED UNDER: V defaulted to 200 kV (archive: roadmap-registrations-2026-10-15.md's `refuse-noV`).
+    /// RED UNDER: V defaulted to 200 kV.
     func testAMissingHighTensionIsRefusedByName() {
         XCTAssertEqual(RingCalibration.refusals(cleanFit(), highTensionVolts: nil), [.noHighTension])
         XCTAssertEqual(RingCalibration.refusals(cleanFit(), highTensionVolts: 80_000), [])

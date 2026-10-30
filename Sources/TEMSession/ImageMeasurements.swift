@@ -1,6 +1,6 @@
 //
 //  ImageMeasurements.swift
-//  Role: the one owner of the marks on one open file (archive: roadmap-registrations-2026-10-15.md V1-5): distances, angles and line profiles, each its
+//  Role: the one owner of the marks on one open file: distances, angles and line profiles, each its
 //        points in the image's pixel coordinates (`ImagePoint`: column x, row y, a pixel's centre at integers), a
 //        profile's width, and which mark is selected. The numbers are TEMCore's (`ImageMeasurement`, `LineProfile`,
 //        gated against the closed form and scikit-image); this owner holds the marks and the profiles computed from
@@ -11,7 +11,7 @@
 //        passes (the file's own `CalibratedImage`, never the display canvas: no contrast setting reaches a number), and
 //        again for every profile when the file is read again (`refresh`), in case the file changed on disk.
 //
-//        THE SESSION RECORD (archive: roadmap-registrations-2026-10-15.md V1-2, "Slice B, the core"). Every mutator records: a new mark adds its node, a move
+//        THE SESSION RECORD ("Slice B; the core"). Every mutator records: a new mark adds its node, a move
 //        or a width change replaces it in place (R3), a removal removes it. Points and widths are clamped here as the
 //        room clamps them (the image from −0.5 to W − 0.5; widths 1…25), so the owner never holds a mark the reader would
 //        refuse. Nodes are a verbatim record: `refresh` and `restore` never rewrite one. A save is taken here as one
@@ -119,7 +119,7 @@ package final class ImageMeasurements {
         case notEmpty
     }
 
-    /// One node per mark, from the first mark (ADR 020); other kinds and removed nodes a restore kept.
+    /// One node per mark, from the first mark; other kinds and removed nodes a restore kept.
     package private(set) var lineage = SessionLineage()
     package private(set) var sidecar = Sidecar.none
     package private(set) var notes: [Note] = []
@@ -371,7 +371,7 @@ package final class ImageMeasurements {
     // MARK: Helpers
 
     /// Records the change of `mark` in its node (R3). False, changing nothing, when the replaced node would take the saved
-    /// text past the budget (a longer number costs bytes: ADR 023 a): the caller puts the mark back.
+    /// text past the budget: the caller puts the mark back.
     private func changed(_ mark: ImageMark, on image: CalibratedImage) -> Bool {
         let profile = Self.profile(of: mark, on: image)
         guard let node = nodeIDs[mark.id] else { profiles[mark.id] = profile; return true }

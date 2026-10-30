@@ -1,7 +1,6 @@
 //
 //  ResultsCSV.swift
-//  Role: every finished measurement of one file as ONE tidy CSV (V1-10 slice 3; archive: roadmap-registrations-2026-10-15.md "Slice 3, the Results room and one
-//        tidy CSV", clauses R-P1 and R-P2; archive: results-room-design-2026-10-15.md, section 5): a `# key: value` header,
+//  Role: every finished measurement of one file as ONE tidy CSV: a `# key: value` header,
 //        then `group,id,label,quantity,value,unit,text,validation,lineage` and one line per quantity of each `ResultRow`.
 //        Pure text; `export` writes it through `ExportFile.write` off the main actor. One long format because rows differ in
 //        columns and a script wants one shape.
