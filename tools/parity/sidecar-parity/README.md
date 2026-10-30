@@ -313,7 +313,7 @@ library (it is the same one); only the check that the loaded copy is the named o
   25 MB: the 5 MiB lineage and source plants and the 4 MiB pair are the bulk. `reference.py plant` also makes and removes a
   few empty files there to measure the file system's name limit.
 - **libhdf5** is the committed one, copied with `libaec.0.dylib` and `libsz.2.dylib`, re-signed ad hoc and named by
-  `FORMATO_HDF5_PATH`, which FormatoKit's loader reads first, as `tools/parity/velox-image-parity` does. The loader falls back to
+  `FORMATO_HDF5_PATH`, which FormatoKit's loader reads first. The loader falls back to
   other paths when that copy does not load, so the harness checks which library it got (`libhdf5 is the named copy`).
 - **A mode-000 file** needs a user that cannot read it; where `reference.py` can read it anyway (a privileged user) it says so
   and drops that case.
