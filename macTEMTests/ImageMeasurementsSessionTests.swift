@@ -617,6 +617,59 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
         XCTAssertEqual(o.notes, [.pixelsDiffer])
     }
 
+    /// A save after a re-read with other pixels is refused, so marks are never written over pixels they were not drawn on;
+    /// the user's Save Anyway lets it through once, and that save makes the new pixels the ones the marks are drawn on. The
+    /// same pixels, or nothing drawn, save as before. Red under: `saveRequest` not comparing the opened identity with the
+    /// one the marks were drawn on; Save Anyway not offered for this refusal.
+    @MainActor func testASaveAfterARereadWithOtherPixelsIsRefusedUntilSaveAnyway() throws {
+        let image = Self.image(), clock = SessionTestClock()
+        let a = identity(of: image), b = identity(of: Self.image(shift: 1))
+        let empty = owner(clock)
+        empty.noteOpened(a)
+        XCTAssertNoThrow(try empty.saveRequest(opened: b), "nothing drawn, nothing to protect")
+        let o = owner(clock)
+        o.noteOpened(a)
+        o.add(distance((0, 0), (3, 4)), on: image)
+        XCTAssertNoThrow(try o.saveRequest(opened: a))
+        o.noteOpened(b)
+        XCTAssertThrowsError(try o.saveRequest(opened: b)) { XCTAssertEqual($0 as? SessionSave.Refusal, .pixelsChanged) }
+        XCTAssertTrue(SessionSaving.Failure.refused(name: "scan.mactem.h5", .pixelsChanged).offersSaveAnyway)
+        XCTAssertFalse(SessionSaving.Failure.refused(name: "scan.mactem.h5", .changedOnDisk).offersSaveAnyway)
+        o.acceptNewPixels(b)
+        let request = try o.saveRequest(opened: b)
+        o.didSave(request, opened: b)
+        o.add(distance((1, 1), (4, 5)), on: image)
+        XCTAssertNoThrow(try o.saveRequest(opened: b), "the save made b the image the marks are drawn on")
+    }
+
+    /// Save Anyway takes the pixels the user saw, not every later image: accepted for b, a save that never happened leaves
+    /// a re-read with yet other pixels (c) refused again. Red under: the acceptance kept as a flag that only a save clears.
+    @MainActor func testSaveAnywayAcceptsOnlyThePixelsTheUserSaw() throws {
+        let image = Self.image(), clock = SessionTestClock()
+        let a = identity(of: image), b = identity(of: Self.image(shift: 1)), c = identity(of: Self.image(shift: 2))
+        let o = owner(clock)
+        o.noteOpened(a)
+        o.add(distance((0, 0), (3, 4)), on: image)
+        o.noteOpened(b)
+        o.acceptNewPixels(b)
+        XCTAssertNoThrow(try o.saveRequest(opened: b))
+        o.noteOpened(c)
+        XCTAssertThrowsError(try o.saveRequest(opened: c)) { XCTAssertEqual($0 as? SessionSave.Refusal, .pixelsChanged) }
+    }
+
+    /// Marks first drawn after a re-read are drawn on the image re-read: a file opened, left without a mark, read again
+    /// with other pixels and then marked saves without a refusal. Red under: only the first read setting the image the
+    /// marks are drawn on.
+    @MainActor func testMarksFirstDrawnAfterARereadSaveWithoutARefusal() throws {
+        let image = Self.image(), clock = SessionTestClock()
+        let a = identity(of: image), b = identity(of: Self.image(shift: 1))
+        let o = owner(clock)
+        o.noteOpened(a)
+        o.noteOpened(b)
+        o.add(distance((0, 0), (3, 4)), on: image)
+        XCTAssertNoThrow(try o.saveRequest(opened: b))
+    }
+
     // MARK: Restoring
 
     /// P1, a restore equals the save: for a lineage this build wrote — marks of the three kinds, a removed node kept for an

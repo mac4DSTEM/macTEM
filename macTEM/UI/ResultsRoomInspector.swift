@@ -16,10 +16,8 @@
 
 import ShellInspector
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// The room's Settings tab content.
 struct ResultsRoomSettings: View {

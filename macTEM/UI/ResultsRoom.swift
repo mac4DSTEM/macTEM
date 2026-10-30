@@ -20,10 +20,8 @@
 
 import ShellLayout
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 struct ResultsRoom: View {
     let image: CalibratedImage

@@ -12,11 +12,11 @@ import XCTest
 import Darwin
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
+import ShellEDXModel
+import ShellSpectroscopy
 
 nonisolated final class EDXRoomRealDataTests: XCTestCase {
 
@@ -49,7 +49,7 @@ nonisolated final class EDXRoomRealDataTests: XCTestCase {
         try optIn()
         let file = try url(name)
         let loaded = try await Task.detached { try EDXOpening.open(url: file) }.value
-        let session = EDXSession()
+        let session = EDXSession(host: .macTEM)
         await session.bind(loaded).value
         await session.settled()
         say("ROOM open \(name): \(loaded.metadata.scanWidth) x \(loaded.metadata.scanHeight) px, \(loaded.metadata.channelCount) channels; picks at open: \(picksText(session))")

@@ -12,11 +12,10 @@ import XCTest
 import ShellSpectroscopy
 import SpectroEDX
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
+import ShellEDXModel
 
 nonisolated final class EELSRegionSpectraTests: XCTestCase {
     static let nx = 2, ny = 2, coreChannels = 300   // 300 to 599 eV: N K and O K are offered

@@ -13,9 +13,7 @@
 
 import ImagoCore
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 nonisolated enum ResultsFormat {
 
@@ -179,10 +177,4 @@ nonisolated enum ResultsFormat {
     }
 
     static func exportingDoneLine(name: String, rows: Int) -> String { "Exported \(name) — \(count(rows))" }
-
-    /// The Export menu's item: a disabled one carries its reason in its title (a tooltip on a menu item is not reliable).
-    static func exportTitle(enabled: Bool, hasRows: Bool) -> String {
-        guard !enabled else { return "All Results as CSV…" }
-        return hasRows ? "All Results as CSV… (a read is running)" : "All Results as CSV… (nothing measured yet)"
-    }
 }

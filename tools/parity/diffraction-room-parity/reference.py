@@ -697,7 +697,7 @@ def make_r9(out, cif_dirs):
 
 # -------------------------------------------------------------------------------------------------- self-check / mutations
 def sibling_decimal_wavelength(volts):
-    path = os.path.join(HERE, "..", "ring-calibration-parity", "reference.py")
+    path = os.path.join(HERE, "ring_calibration_reference.py")
     spec = importlib.util.spec_from_file_location("ring_calibration_reference", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

@@ -2,10 +2,10 @@ import ShellLayout
 import SwiftUI
 import UniformTypeIdentifiers
 import SpectroCore
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
+import ShellEDXModel
+import ShellSpectroscopy
 
 /// The app's window: a SwiftUI-only shell. The skeleton (the split view, the inspector, where the toolbar is declared, the
 /// width at which the sidebar steps aside, the scene-stored panel intent, the launch flags and the drop outline) is ShellLayout's
