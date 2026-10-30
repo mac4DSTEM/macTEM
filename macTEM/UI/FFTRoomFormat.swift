@@ -157,6 +157,14 @@ nonisolated enum FFTRoomFormat {
         return "\(parts.d) · \(parts.q)"
     }
 
+    /// "+0.23": a found spot's local contrast (its display value above the median of the ring around it), two decimals; nil for a
+    /// clicked spot, which the finder did not rank.
+    static func contrastText(_ spot: FFTSpot, locale: Locale = .autoupdatingCurrent) -> String? {
+        spot.contrast.map { "+" + Num.fixed(Double($0), 2, locale: locale) }
+    }
+
+    static let contrastHelp = "Local contrast: how far the peak stands above the median of the ring 3 to 6 bins around it. Find Spots ranks by it."
+
     /// "35.2° to 1": a spot's angle to the reference spot (the first measured one), one decimal.
     static func angleText(_ angle: FFTSpotAngles.Angle, locale: Locale = .autoupdatingCurrent) -> String {
         "\(Num.fixed(angle.degrees, 1, locale: locale))° to \(angle.reference)"
