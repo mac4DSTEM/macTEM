@@ -73,7 +73,10 @@ struct ImagePane: View {
         case .active(let p):
             let geometry = MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box, zoom: zp.drawZoom, offset: zp.effectiveOffset),
                                         imageWidth: canvas.width, imageHeight: canvas.height)
-            appState.imageRoomTools.readout = ImageReadout.text(image, at: geometry.imagePoint(atPanePoint: p))
+            // While the Particles view shows its objects, the object under the pointer is named after the pixel.
+            appState.imageRoomTools.readout = ImageReadout.text(image, at: geometry.imagePoint(atPanePoint: p),
+                                                                particles: item.particles.showsObjects ? item.particles.report : nil,
+                                                                scale: ParticleCompute.scale(of: image))
         case .ended:
             appState.imageRoomTools.readout = nil
         }
@@ -246,6 +249,19 @@ nonisolated enum ImageReadout {
         let c = Int(q.x.rounded()), r = Int(q.y.rounded())
         guard c >= 0, c < image.width, r >= 0, r < image.height else { return nil }
         return "x \(c), y \(r) · \(Num.sig(Double(image.pixels[r * image.width + c]), 5))"
+    }
+
+    /// The pixel readout, then the found object under the pointer when there is one: "x 30, y 30 · 100 · object 2: 15.9 × 6.1 nm", its
+    /// length and width (ImagoKit's moments) in the scale's unit, "(edge)" when it is cut by the image edge. `particles` nil: the pixel alone.
+    static func text(_ image: CalibratedImage, at q: ImagePoint, particles: ParticleReport?, scale: ParticleScale) -> String? {
+        guard let pixel = text(image, at: q) else { return nil }
+        guard let report = particles, report.width == image.width, report.height == image.height else { return pixel }
+        let c = Int(q.x.rounded()), r = Int(q.y.rounded())
+        let label = report.labels.labels[r * report.width + c]
+        guard label > 0, let object = report.objects.first(where: { $0.id == label }) else { return pixel }
+        let m = object.moments
+        let size = "\(ParticleFormat.number(m.lengthPx * scale.perPixel)) × \(ParticleFormat.number(m.widthPx * scale.perPixel)) \(scale.unit)"
+        return pixel + " · object \(label): " + size + (object.touchesEdge ? " (edge)" : "")
     }
 }
 
