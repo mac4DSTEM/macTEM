@@ -15,19 +15,69 @@
 
 import Foundation
 import ImagoCore
+import SpectroEDX
+import SpectroEELS
+import ShellEDXModel
 import TEMCore
 
 package enum ResultsLedger {
 
+    /// The EDS room's finished fit of one region of this file: the window holds one EDS document, so the app hands it in only when it
+    /// is this file's (`AppState.edsFitBelongs`).
+    package struct EDSResults {
+        package let regionName: String
+        package let fit: PooledQuantification
+
+        package init(regionName: String, fit: PooledQuantification) {
+            self.regionName = regionName
+            self.fit = fit
+        }
+    }
+
+    /// The EELS room's settled results of this file (the app hands them in only when the room holds this file and is not recomputing,
+    /// `AppState.eelsResults`): the whole map's thickness map and summed fit, and each drawn region's row. `map` is nil, and `edges` empty,
+    /// when that stage is not current; `regionThickness` and `regionEdges` say whether the regions' t/λ and edges are.
+    package struct EELSResults {
+        package let map: ThicknessMap?
+        package let lambdaSource: String?
+        package let edges: [EELSEdgeRow]
+        /// The fit's own validation word (`EELSModelResult.validation`).
+        package let fitValidation: String
+        package let regions: [EELSRegionRow]
+        package let regionThickness: Bool
+        package let regionEdges: Bool
+
+        package init(map: ThicknessMap?, lambdaSource: String?, edges: [EELSEdgeRow], fitValidation: String, regions: [EELSRegionRow],
+                     regionThickness: Bool, regionEdges: Bool) {
+            self.map = map; self.lambdaSource = lambdaSource; self.edges = edges; self.fitValidation = fitValidation
+            self.regions = regions; self.regionThickness = regionThickness; self.regionEdges = regionEdges
+        }
+
+        /// What the room holds that is settled and current, or nil. Nothing while it opens, computes or holds a refusal (the previous map or fit
+        /// stays on screen there and would be listed under the new choices); of what is left, a result counts only when it was made from the
+        /// inputs now (`thicknessState`, `fitState`: a map from before Align, a stopped pass or a refused choice, a fit from before an edge was
+        /// picked or a window moved, is not), and the regions' rows only when they were made from the same inputs and are not being made again.
+        @MainActor package static func settled(_ room: EELSSession) -> EELSResults? {
+            guard room.hasImage, !room.isBusy, room.failure == nil else { return nil }
+            let thickness = room.thicknessState == .current && room.map != nil
+            let fit = room.fitState == .current && room.fitRefusal == nil && room.regionModel != nil
+            guard thickness || fit else { return nil }
+            return EELSResults(map: thickness ? room.map : nil, lambdaSource: EELSRoomFormat.lambdaSource(room.meanFreePath),
+                               edges: fit ? room.regionRows : [], fitValidation: room.regionModel?.validation ?? "",
+                               regions: room.pinRows, regionThickness: thickness && room.pinRowsThicknessCurrent,
+                               regionEdges: fit && room.pinRowsFitCurrent)
+        }
+    }
+
     /// The selected file's rows; none while the file holds no pixels (cold, or still being read).
-    package static func rows(of item: OpenItem) -> [ResultRow] {
+    package static func rows(of item: OpenItem, eds: EDSResults? = nil, eels: EELSResults? = nil) -> [ResultRow] {
         guard let image = item.session.image else { return [] }
-        return rows(image: image, measurements: item.measurements, analysis: item.fft, diffraction: item.diffraction)
+        return rows(image: image, measurements: item.measurements, analysis: item.fft, diffraction: item.diffraction, eds: eds, eels: eels)
     }
 
     /// All the rows of `image`'s owners, group by group.
     package static func rows(image: CalibratedImage, measurements: ImageMeasurements, analysis: FFTAnalysis,
-                             diffraction: DiffractionAnalysis? = nil) -> [ResultRow] {
+                             diffraction: DiffractionAnalysis? = nil, eds: EDSResults? = nil, eels: EELSResults? = nil) -> [ResultRow] {
         let diffractionRows = diffraction?.resultRows(image: image) ?? []
         return ResultRow.Group.allCases.flatMap { group -> [ResultRow] in
             switch group {
@@ -35,6 +85,9 @@ package enum ResultsLedger {
             case .spots: spotRows(image: image, analysis: analysis)
             case .calibration: diffractionRows.filter { $0.group == .calibration }
             case .rings: diffractionRows.filter { $0.group == .rings }
+            case .eds: eds.map(edsRows) ?? []
+            case .eelsThickness: eels.map(eelsThicknessRows) ?? []
+            case .eelsEdges: eels.map(eelsEdgeRows) ?? []
             }
         }
     }
@@ -68,6 +121,43 @@ package enum ResultsLedger {
         case .angle: "Angle"
         case .profile: "Profile"
         }
+    }
+
+    // MARK: EDS
+
+    /// One row per element of the fit, in the fit's order.
+    private static func edsRows(_ eds: EDSResults) -> [ResultRow] {
+        eds.fit.rows.map { row in
+            .edsComposition(id: "eds:\(eds.regionName):\(row.element):\(row.groupID)", row: row, regionName: eds.regionName,
+                            abundanceRefusal: eds.fit.abundanceRefusal, abundanceCaveat: eds.fit.abundanceCaveat)
+        }
+    }
+
+    // MARK: EELS
+
+    /// The whole map's thickness, then each region's, in the order they were drawn.
+    private static func eelsThicknessRows(_ eels: EELSResults) -> [ResultRow] {
+        var out: [ResultRow] = []
+        if let map = eels.map { out.append(.eelsWholeMapThickness(id: "eels:thickness:whole", map: map, lambdaSource: eels.lambdaSource)) }
+        if eels.regionThickness {
+            out += eels.regions.map { .eelsRegionThickness(id: "eels:thickness:\($0.pin.id)", row: $0, validation: eels.map?.validation ?? ResultRow.Product.eelsKitValidation) }
+        }
+        return out
+    }
+
+    /// The whole map's fitted edges in onset order, then each region's.
+    private static func eelsEdgeRows(_ eels: EELSResults) -> [ResultRow] {
+        var out = eels.edges.map { ResultRow.eelsEdge(id: "eels:edge:whole:\($0.id)", row: $0, regionName: "Whole map", validation: eels.fitValidation) }
+        if eels.regionEdges {
+            for region in eels.regions {
+                if let why = region.edgesUnavailable {
+                    out.append(.eelsRegionEdgesRefused(id: "eels:edge:\(region.pin.id):refused", regionName: region.pin.name, reason: why,
+                                                      validation: eels.fitValidation))
+                }
+                out += region.edges.map { .eelsEdge(id: "eels:edge:\(region.pin.id):\($0.id)", row: $0, regionName: region.pin.name, validation: eels.fitValidation) }
+            }
+        }
+        return out
     }
 
     // MARK: FFT spots

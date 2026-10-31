@@ -27,7 +27,7 @@ struct ResultsRoomSettings: View {
 
     var body: some View {
         let state = appState.resultsRoom
-        let rows = ResultsLedger.rows(of: item)
+        let rows = appState.resultRows(of: item)
         let availability = ExportSnapshot.availability(hasImage: appState.hasImage, area: appState.navigation.workspaceArea,
                                                        isLoading: appState.imageSession.isLoading,
                                                        profileHasSamples: false, resultRows: rows.count)
@@ -76,7 +76,7 @@ struct ResultsRoomInfo: View {
 
     var body: some View {
         let state = appState.resultsRoom
-        let rows = ResultsLedger.rows(of: item)
+        let rows = appState.resultRows(of: item)
         InspectorSection("Result") {
             if let row = state.selected(in: rows) {
                 let value = ResultsFormat.value(row, x: image.x, y: image.y)

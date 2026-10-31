@@ -198,7 +198,7 @@ enum ExportSnapshot {
     static func availability(of appState: AppState) -> ExportAvailability {
         // The ledger is read only where its count decides something: the Results room.
         let rows = appState.navigation.workspaceArea == .results
-            ? appState.openItems.selected.map { ResultsLedger.rows(of: $0).count } ?? 0 : 0
+            ? appState.openItems.selected.map { appState.resultRows(of: $0).count } ?? 0 : 0
         return availability(hasImage: appState.hasImage, area: appState.navigation.workspaceArea,
                             isLoading: appState.imageSession.isLoading,
                             profileHasSamples: selectedProfile(in: appState.measurements) != nil, resultRows: rows)

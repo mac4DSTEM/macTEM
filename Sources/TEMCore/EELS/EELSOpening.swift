@@ -35,13 +35,18 @@ package struct LoadedEELS: Sendable {
     /// RosettaSciIO's x axis `scale` and `units`); nil where the file states none. The maps' scale bar and the "Maps…" export draw from it.
     package let scanPixelSize: Double?
     package let scanPixelUnit: String?
+    /// The file's path as it was opened ("" for a document made in memory): the Results room lists the room's numbers only under this file, so two
+    /// files of one name in two folders are told apart (`AppState.eelsResultsBelong`).
+    package let filePath: String
 
     package init(fileName: String, image: LowLossSpectrumImage, beamEnergyKeV: Double?, convergenceMrad: Double?, collectionMrad: Double?, origin: String,
-                 coreLoss: CoreLossSpectrumImage? = nil, coreLossOrigin: String? = nil, scanPixelSize: Double? = nil, scanPixelUnit: String? = nil) {
+                 coreLoss: CoreLossSpectrumImage? = nil, coreLossOrigin: String? = nil, scanPixelSize: Double? = nil, scanPixelUnit: String? = nil,
+                 filePath: String = "") {
         self.fileName = fileName; self.image = image; self.beamEnergyKeV = beamEnergyKeV
         self.convergenceMrad = convergenceMrad; self.collectionMrad = collectionMrad; self.origin = origin
         self.coreLoss = coreLoss; self.coreLossOrigin = coreLossOrigin
         self.scanPixelSize = scanPixelSize; self.scanPixelUnit = scanPixelUnit
+        self.filePath = filePath
     }
 }
 
@@ -106,6 +111,6 @@ package enum EELSOpening {
         let image = try LowLossSpectrumImage(nx: low.nx, ny: low.ny, channels: low.channels, counts: low.counts, energyOffsetEV: low.offsetEV, energyScaleEV: low.scaleEV)
         let coreImage = try core.map { try CoreLossSpectrumImage(nx: $0.nx, ny: $0.ny, channels: $0.channels, counts: $0.counts, energyOffsetEV: $0.offsetEV, energyScaleEV: $0.scaleEV) }
         return LoadedEELS(fileName: name, image: image, beamEnergyKeV: beam, convergenceMrad: convergence, collectionMrad: collection, origin: low.origin,
-                          coreLoss: coreImage, coreLossOrigin: core?.origin, scanPixelSize: pixel?.size, scanPixelUnit: pixel?.unit)
+                          coreLoss: coreImage, coreLossOrigin: core?.origin, scanPixelSize: pixel?.size, scanPixelUnit: pixel?.unit, filePath: url.path)
     }
 }
