@@ -65,7 +65,7 @@ nonisolated final class ParticleViewTests: XCTestCase {
 
     /// The object table opens in its own window, so it stays beside the image while rows are selected; the inspector no longer presents a
     /// sheet. Red under: the sheet back.
-    func testTheObjectTableIsAWindow() throws {
+    @MainActor func testTheObjectTableIsAWindow() throws {
         let section = squeezed(try source("macTEM/UI/ImageRoomParticles.swift"))
         XCTAssertTrue(section.contains("Button(\"Object Table…\") { openWindow(id: ParticleTableWindow.id) }"))
         XCTAssertFalse(section.contains(".sheet(isPresented: $showTable)"))
