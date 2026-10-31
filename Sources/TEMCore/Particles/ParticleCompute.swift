@@ -124,7 +124,12 @@ package nonisolated enum ParticleCompute {
 }
 
 package nonisolated enum ParticleFormat {
-    package static func number(_ v: Double) -> String { String(format: "%.3g", v) }
+    /// A number a person reads (the object table, the inspector, the pointer readout): three significant digits in the locale's decimal
+    /// mark, never grouped, as `UnitDisplay.number` writes every other number in the Image room ("0,873" in de_DE).
+    package static func number(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { UnitDisplay.number(v, digits: 3, locale: locale) }
+
+    /// The same number for the CSV a script reads: printf's `%.3g`, always a point.
+    package static func csvNumber(_ v: Double) -> String { String(format: "%.3g", v) }
 
     /// "128 objects · 97 counted · 19 edge · 12 small".
     package static func counts(_ s: ParticleSummary) -> String {
@@ -132,18 +137,18 @@ package nonisolated enum ParticleFormat {
     }
 
     /// "median length 18.2 nm · mean width 5.9 nm", or why there is none.
-    package static func sizes(_ s: ParticleSummary, scale: ParticleScale) -> String {
+    package static func sizes(_ s: ParticleSummary, scale: ParticleScale, locale: Locale = .autoupdatingCurrent) -> String {
         guard let l = s.medianLengthPx, let w = s.meanWidthPx else { return s.total == 0 ? "No objects above the threshold." : "No object is counted." }
-        return "median length \(number(l * scale.perPixel)) \(scale.unit) · mean width \(number(w * scale.perPixel)) \(scale.unit)"
+        return "median length \(number(l * scale.perPixel, locale: locale)) \(scale.unit) · mean width \(number(w * scale.perPixel, locale: locale)) \(scale.unit)"
     }
 
     /// The objects as CSV with provenance comment lines; lengths in the scale's unit beside the pixels.
     package static func csv(_ r: ParticleReport, scale: ParticleScale, fileName: String) -> String {
         let u = scale.isCalibrated ? scale.unit : "px"
         var out = ["# macTEM particles, file: \(fileName), validation: none",
-                   "# threshold: \(r.settings.polarity.rawValue) objects, fraction \(number(r.settings.thresholdFraction)) of the raw range = \(number(Double(r.thresholdValue))), smoothing sigma \(number(r.settings.sigma)) px, connectivity \(r.settings.connectivity.rawValue), minimum area \(r.settings.minimumArea) px",
+                   "# threshold: \(r.settings.polarity.rawValue) objects, fraction \(csvNumber(r.settings.thresholdFraction)) of the raw range = \(csvNumber(Double(r.thresholdValue))), smoothing sigma \(csvNumber(r.settings.sigma)) px, connectivity \(r.settings.connectivity.rawValue), minimum area \(r.settings.minimumArea) px",
                    "# \(ParticleFormat.counts(r.summary)); labels, centroids, lengths, widths and angles: ImagoKit Segmentation.objectMoments; counted = not touching the image edge and not below the minimum area",
-                   "# length_ and width_ in \(u) (pixel size \(number(scale.perPixel)) \(scale.unit)/px); angle: long axis from +x toward +y, degrees",
+                   "# length_ and width_ in \(u) (pixel size \(csvNumber(scale.perPixel)) \(scale.unit)/px); angle: long axis from +x toward +y, degrees",
                    "label,counted,touches_edge,small,area_px,centroid_x_px,centroid_y_px,length_px,width_px,angle_deg,length_\(u),width_\(u),area_\(u)2"]
         for o in r.objects {
             let m = o.moments
