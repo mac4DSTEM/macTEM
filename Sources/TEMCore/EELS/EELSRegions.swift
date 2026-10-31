@@ -15,9 +15,21 @@ package nonisolated struct EELSRegionRow: Equatable, Sendable, Identifiable {
     package let totalCounts: Double
     package let tOverLambda: Double?
     package let edges: [EELSEdgeRow]
+    /// Why `tOverLambda` is nil, in the kit's words (`ThicknessUnavailable`, or the error the call threw).
+    package let tUnavailable: String?
+    /// Why the edge fit of the region gave no rows though it was asked for, in the kit's words (a window refused on the summed core loss).
+    package let edgesUnavailable: String?
     package var id: EDXPin.ID { pin.id }
-    package init(pin: EDXPin, pixels: Int, totalCounts: Double, tOverLambda: Double?, edges: [EELSEdgeRow]) {
+    package init(pin: EDXPin, pixels: Int, totalCounts: Double, tOverLambda: Double?, edges: [EELSEdgeRow], tUnavailable: String? = nil,
+                 edgesUnavailable: String? = nil) {
         self.pin = pin; self.pixels = pixels; self.totalCounts = totalCounts; self.tOverLambda = tOverLambda; self.edges = edges
+        self.tUnavailable = tUnavailable; self.edgesUnavailable = edgesUnavailable
+    }
+
+    /// The same row under another pin (a rename, a colour).
+    package func renamed(_ pin: EDXPin) -> EELSRegionRow {
+        EELSRegionRow(pin: pin, pixels: pixels, totalCounts: totalCounts, tOverLambda: tOverLambda, edges: edges, tUnavailable: tUnavailable,
+                      edgesUnavailable: edgesUnavailable)
     }
 }
 
@@ -33,16 +45,28 @@ package nonisolated enum EELSRegionCompute {
                             convolve: Bool, threshold: EELSThresholdChoice, meanFreePath: MeanFreePathSource?, edgeWindows: [EdgeWindows]? = nil) -> EELSRegionRow? {
         guard let lowSum = summedLowLoss(low, region: pin.region) else { return nil }
         let pixels = pin.region.pixelCount(nx: low.nx, ny: low.ny)
-        let t = (try? EELSCompute.map(image: lowSum, threshold: threshold, meanFreePath: meanFreePath))?.pixels.first?.tOverLambda
+        let t: Double?, tWhy: String?
+        do {
+            let pixel = try EELSCompute.map(image: lowSum, threshold: threshold, meanFreePath: meanFreePath).pixels.first
+            t = pixel?.tOverLambda
+            tWhy = t != nil ? nil : (pixel?.unavailable?.description ?? "the kit gave no t/λ for the summed spectrum")
+        } catch {
+            t = nil
+            tWhy = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+        }
         var edgeRows: [EELSEdgeRow] = []
+        var edgesWhy: String?
         if let core, !edges.isEmpty, let microscope, core.nx == low.nx, core.ny == low.ny {
-            let coreSum: CoreLossSpectrumImage?
-            if let mask = pin.region.mask(nx: core.nx, ny: core.ny) { coreSum = try? core.sum(mask: mask) } else { coreSum = try? core.sum(mask: [Bool](repeating: true, count: (core.nx * core.ny))) }
-            if let coreSum, let fit = try? EELSFitCompute.fit(coreLoss: coreSum, edges: edges, microscope: microscope, lowLoss: convolve ? lowSum : nil,
-                                                           edgeWindows: edgeWindows) {
+            do {
+                let mask = pin.region.mask(nx: core.nx, ny: core.ny) ?? [Bool](repeating: true, count: core.nx * core.ny)
+                let coreSum = try core.sum(mask: mask)
+                let fit = try EELSFitCompute.fit(coreLoss: coreSum, edges: edges, microscope: microscope, lowLoss: convolve ? lowSum : nil, edgeWindows: edgeWindows)
                 edgeRows = EELSFitCompute.rows(fit, composition: EELSFitCompute.composition(fit))
+            } catch {
+                edgesWhy = EELSWindowPlan.sentence(for: error) ?? (error as? LocalizedError)?.errorDescription ?? "\(error)"
             }
         }
-        return EELSRegionRow(pin: pin, pixels: pixels, totalCounts: lowSum.counts.reduce(0, +), tOverLambda: t, edges: edgeRows)
+        return EELSRegionRow(pin: pin, pixels: pixels, totalCounts: lowSum.counts.reduce(0, +), tOverLambda: t, edges: edgeRows, tUnavailable: tWhy,
+                             edgesUnavailable: edgesWhy)
     }
 }

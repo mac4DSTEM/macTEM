@@ -327,11 +327,15 @@ nonisolated final class ResultsCSVTests: XCTestCase {
             case .calibration: producers = product.validation
             // SpectroKit's own constant for a composition, after the words that say what the numbers are.
             case .edsComposition: producers = ResultRow.Product.edsCompositionLead + PooledQuantification.abundanceValidation
+            // SpectroKit's EELS results carry their validation word on each result ("none"); ResultsLedgerTests holds a real map's and fit's equal to it.
+            case .eelsThickness: producers = ResultRow.Product.eelsThicknessLead + ResultRow.Product.eelsKitValidation
+            case .eelsEdge: producers = ResultRow.Product.eelsEdgeLead + ResultRow.Product.eelsKitValidation
             }
             XCTAssertEqual(product.validation, producers, "\(product): not the producer's constant")
             XCTAssertFalse(product.validation.isEmpty)
             XCTAssertFalse(product.badge.isEmpty)
-            XCTAssertTrue(product.badge.hasPrefix([.ring, .edsComposition].contains(product) ? "Unvalidated · " : "Checked · "), "\(product): \(product.badge)")
+            let unvalidated: [ResultRow.Product] = [.ring, .edsComposition, .eelsThickness, .eelsEdge]
+            XCTAssertTrue(product.badge.hasPrefix(unvalidated.contains(product) ? "Unvalidated · " : "Checked · "), "\(product): \(product.badge)")
         }
         XCTAssertTrue(ResultRow.Product.profile.validation.hasPrefix(ImageMeasurement.validation), "the row's numbers are closed forms")
         XCTAssertTrue(ResultRow.Product.profile.validation.hasSuffix(ProfileCSV.validation), "the samples are scikit-image's")
@@ -344,19 +348,23 @@ nonisolated final class ResultsCSVTests: XCTestCase {
             case .calibration: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .calibration }.count, 1)
             case .rings: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .rings }.count, 1)
             case .eds: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .eds }.count, 1)
+            case .eelsThickness: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .eelsThickness }.count, 1)
+            case .eelsEdges: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .eelsEdges }.count, 1)
             }
         }
     }
 
-    /// All seven badges, as worded: three claims of a closed form (a profile row's numbers are the line's length and width, not the
-    /// samples), one of planted spots, the calibration's closed forms, the ring's and the EDS composition's honest "unvalidated"; no version
-    /// is written in a badge. Red under: the profile badge naming scikit-image again; a badge reworded.
-    func testTheSevenBadges() {
+    /// All nine badges, as worded: three claims of a closed form (a profile row's numbers are the line's length and width, not the
+    /// samples), one of planted spots, the calibration's closed forms, the ring's, the EDS composition's and the two EELS products' honest
+    /// "unvalidated"; no version is written in a badge. Red under: the profile badge naming scikit-image again; a badge reworded.
+    func testTheNineBadges() {
         XCTAssertEqual(ResultRow.Product.allCases.map(\.badge), ["Checked · closed form", "Checked · closed form",
                                                                 "Checked · closed form", "Checked · planted spots",
                                                                 "Checked · closed form", "Unvalidated · indexing",
-                                                                "Unvalidated · composition"])
-        XCTAssertEqual(ResultRow.Product.allCases.map(\.rawValue), ["distance", "angle", "profile", "spot", "calibration", "ring", "edsComposition"])
+                                                                "Unvalidated · composition", "Unvalidated · thickness",
+                                                                "Unvalidated · edge model"])
+        XCTAssertEqual(ResultRow.Product.allCases.map(\.rawValue), ["distance", "angle", "profile", "spot", "calibration", "ring", "edsComposition",
+                                                                   "eelsThickness", "eelsEdge"])
     }
 
     /// A file whose reader notes say it is unvalidated keeps the qualifier on every claim the CSV makes: the header's validation
@@ -421,7 +429,11 @@ nonisolated final class ResultsCSVTests: XCTestCase {
                                   deltaPercent: 0.01, odds: "> 10⁶ : 1", verdict: "accepted", refusal: nil)
         let eds = ResultRow(id: "eds:Whole map:Mg:Mg_Ka", product: .edsComposition, label: "Mg · Whole map",
                             entries: [ResultRow.Entry("net", 7242, unit: "counts"), ResultRow.Entry("wt", 12.5, unit: "wt%")])
-        let rows = [distance(), angle(), profile(), try spot(), calibration, ring, eds]
+        let thickness = ResultRow(id: "eels:thickness:whole", product: .eelsThickness, label: "t/λ · Whole map",
+                                  entries: [ResultRow.Entry("t_over_lambda", 0.52), ResultRow.Entry("thickness", nil, unit: "nm", text: ResultRow.eelsNeedsLambda)])
+        let edge = ResultRow(id: "eels:edge:whole:C-K1", product: .eelsEdge, label: "C K · Whole map",
+                             entries: [ResultRow.Entry("intensity", 4.3e7), ResultRow.Entry("at", 34.5, unit: "at%")])
+        let rows = [distance(), angle(), profile(), try spot(), calibration, ring, eds, thickness, edge]
         let text = try XCTUnwrap(ResultsCSV.text(rows, source: source(), session: "s"))
         let parts = split(text)
         for product in ResultRow.Product.allCases {

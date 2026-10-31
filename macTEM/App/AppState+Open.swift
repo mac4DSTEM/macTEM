@@ -255,8 +255,22 @@ extension AppState {
         return ResultsLedger.EDSResults(regionName: edx.regionName, fit: fit)
     }
 
-    /// Every finished result of `item`: its own owners' and, when the EDS room holds its file, the room's composition.
-    func resultRows(of item: OpenItem) -> [ResultRow] { ResultsLedger.rows(of: item, eds: edsResults(for: item)) }
+    /// Whether the EELS room's results are `url`'s: the same rule as the EDS room's (`edsFitBelongs`), as the window holds one EELS document too.
+    nonisolated static func eelsResultsBelong(to url: URL, eelsFiles: Set<URL>, eelsFile: String, eelsPath: String = "", eelsOpening: Bool) -> Bool {
+        edsFitBelongs(to: url, edsFiles: eelsFiles, edsFile: eelsFile, edsPath: eelsPath, edsOpening: eelsOpening)
+    }
+
+    /// The EELS room's settled results (`ResultsLedger.EELSResults.settled`), when they are `item`'s file's (`eelsResultsBelong`).
+    func eelsResults(for item: OpenItem) -> ResultsLedger.EELSResults? {
+        guard Self.eelsResultsBelong(to: item.url, eelsFiles: eelsFiles, eelsFile: eels.fileName, eelsPath: eels.filePath, eelsOpening: eels.isOpening)
+        else { return nil }
+        return .settled(eels)
+    }
+
+    /// Every finished result of `item`: its own owners' and, when the EDS or EELS room holds its file, the room's numbers.
+    func resultRows(of item: OpenItem) -> [ResultRow] {
+        ResultsLedger.rows(of: item, eds: edsResults(for: item), eels: eelsResults(for: item))
+    }
 
     /// The spectrum rooms follow the selected file (see `roomsToFollow`); called when the Open Files selection changes.
     func spectrumRoomsFollowSelection() {
