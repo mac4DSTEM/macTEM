@@ -40,6 +40,10 @@ struct WorkspaceSidebar: View {
                 isAvailable: { appState.roomUnavailableReason($0) == nil },
                 unavailableHelp: { appState.roomUnavailableReason($0) ?? "" })
         }
+        // Rebuilt when a room becomes available or unavailable: a row whose selection is disabled kept its highlight when the selection
+        // moved off it (the Image row stayed lit beside EDS after a lone .msa opened, which leaves Image unavailable). Interim: delete at
+        // the MacEMUI release that deselects such a row itself.
+        .id(WorkspaceArea.allCases.map { appState.roomUnavailableReason($0) == nil })
     }
 }
 
