@@ -219,6 +219,21 @@ nonisolated final class EDXRealFileJourney: Journey {
         try step("Mg listed: \(mgListed)") {}
     }
 
+    /// While Quantify runs on the real file, the toolbar's busy line carries a clock after the operation ("… · 3 s").
+    @MainActor func test05b_QuantifyBusyLineHasAClock() throws {
+        try step("launch") { openReal(); waitForRoomContent() }
+        try step("Quantify; the busy line ticks") {
+            let verb = waitFor("workspace.primaryAction", timeout: 60)
+            let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == true"), object: verb)
+            XCTAssertEqual(XCTWaiter().wait(for: [enabled], timeout: 120), .completed, "Quantify never became enabled")
+            verb.click()
+            // Found by its text: the identifier inside the toolbar's ticking TimelineView is not resolved by XCUITest.
+            let busy = app.toolbars.staticTexts.matching(NSPredicate(format: "label MATCHES %@", ".* · [0-9]+( s|:[0-9][0-9])( · ETA .*)?")).firstMatch
+            XCTAssertTrue(busy.waitForExistence(timeout: 60), "no busy line with a clock in the toolbar")
+            attach("busy line", busy.exists ? busy.label : "(gone)")
+        }
+    }
+
     // MARK: 6. wt% and at% maps carry the filtered tag; Filter Off removes it
 
     @MainActor func test06_FilteredTagAndFilterOff() throws {

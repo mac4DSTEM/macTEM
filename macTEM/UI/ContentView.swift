@@ -34,6 +34,9 @@ struct ContentView: View {
         .background { SelectionRestorer() }
         .onChange(of: appState.roomHoldings) { appState.reconcileRoom() }
         .onChange(of: appState.openImageRequest) { showImporter = true }
+        // The busy clock's start: each spectrum room's busy edge, whichever room is shown.
+        .onChange(of: appState.edx.isBusy, initial: true) { appState.markBusy(.edx, appState.edx.isBusy) }
+        .onChange(of: appState.eels.isBusy, initial: true) { appState.markBusy(.eels, appState.eels.isBusy) }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: imageTypes,
@@ -79,7 +82,8 @@ struct ContentView: View {
             guard !appState.windowTitle.isEmpty, appState.windowTitle != "macTEM" else { return nil }
             let busy = room == .edx ? appState.edx.isBusy : appState.eels.isBusy
             if busy {
-                return .busy(operation: appState.statusText.isEmpty ? room.title : appState.statusText, progress: RoomProgress.fraction(room: room, appState: appState), metrics: { _ in nil })
+                return .busy(operation: appState.statusText.isEmpty ? room.title : appState.statusText, progress: RoomProgress.fraction(room: room, appState: appState),
+                             metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
             let detail = room == .edx ? EDXRoomFormat.capsuleDetail(appState.edx) : "spectrum image"
             return .idle(file: appState.windowTitle, room: room.title, detail: detail, help: nil)

@@ -75,6 +75,9 @@ final class AppState {
     /// The files that opened into the EDS room and into the EELS room: a room follows the selected file (`spectrumRoomsFollowSelection`).
     var edsFiles: Set<URL> = []
     var eelsFiles: Set<URL> = []
+    /// When each spectrum room last became busy (`markBusy`): the start of the toolbar's busy clock (`RunClock`). Not observed: the
+    /// clock ticks on its own.
+    @ObservationIgnored var busySince: [WorkspaceArea: Date] = [:]
 
     /// The launch arguments this window started with (`--export-dir` is read where an export chooses its URL).
     let launch: LaunchOptions
