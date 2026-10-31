@@ -152,11 +152,16 @@ package nonisolated struct OpenedImage: Sendable {
     /// Set when the file is an image stack read on demand: `image` is its first frame and the item keeps the source, which reads the
     /// others one at a time (`OpenItems.showFrame`). Such an item has no bookmark, so it is never evicted: only one frame is resident.
     package let stack: ImageStackSource?
+    /// Whether a grant for the session file is stored after this read (its first read may drop one that no longer
+    /// resolves); nil leaves the item's `hasGrant` as it was.
+    package let hasGrant: Bool?
 
     package init(image: CalibratedImage, canvas: CanvasPixels, metadata: AcquisitionMetadata,
                  url: URL, thumbnail: Thumbnail?, bookmark: Data?,
-                 identity: SessionSourceIdentity? = nil, sidecar: SidecarOutcome = .none, stack: ImageStackSource? = nil) {
+                 identity: SessionSourceIdentity? = nil, sidecar: SidecarOutcome = .none, stack: ImageStackSource? = nil,
+                 hasGrant: Bool? = nil) {
         self.stack = stack
+        self.hasGrant = hasGrant
         self.identity = identity
         self.sidecar = sidecar
         self.image = image
@@ -300,6 +305,9 @@ package final class OpenItem: Identifiable {
     /// A session file is beside the image and macOS has not given the app access to read it: saving is off until the
     /// user chooses it.
     package var sidecarNeedsAccess = false
+    /// A grant for the session file is stored, so a save writes without asking where ("Save to Session" without the
+    /// ellipsis). Observed, unlike the defaults it mirrors: set by a read and wherever the app stores or drops a grant.
+    package var hasGrant = false
     /// A save is writing (the HDF5 lock can make it wait).
     package private(set) var isSaving = false
     /// Saves that asked while one was writing, in the order they asked.
@@ -436,6 +444,7 @@ package final class OpenItem: Identifiable {
         // Wholesale, the thumbnail too: a file changed on disk since the last read must not keep the old picture.
         summary = ImageSummary(opened.image, thumbnail: opened.thumbnail)
         if let renewed = opened.bookmark { bookmark = renewed }
+        if let granted = opened.hasGrant { hasGrant = granted }
         readFailure = nil
         residency = .resident
     }

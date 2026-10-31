@@ -49,6 +49,38 @@ nonisolated final class FFTJourney: Journey {
         try step("read the spacing of the first found spot") { try readFirstSpacing() }
     }
 
+    /// The spot list takes the keys after a click on a row: ↓ selects the next spot and Delete removes it, without a second click
+    /// (the list is `.focusable()`; whether a click gives it focus was unverified on screen).
+    @MainActor func testAClickedSpotRowTakesTheKeys() throws {
+        try step("launch with the demo image, FFT room, inspector") {
+            launch(["--demo-fixture"])
+            XCTAssertTrue(app.staticTexts["Demo lattice"].firstMatch.waitForExistence(timeout: 30))
+            waitFor("workspace.fft").click()
+            waitFor("fft.room", timeout: 30)
+            if !element("fft.region.centredSquare").waitForExistence(timeout: 3) { app.typeKey("i", modifierFlags: [.command, .option]) }
+            waitFor("fft.region.centredSquare", timeout: 20)
+        }
+        let removes = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Remove spot '"))
+        try step("find spots") {
+            let find = waitFor("fft.spots.find", timeout: 60)
+            let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == true"), object: find)
+            XCTAssertEqual(XCTWaiter().wait(for: [enabled], timeout: 60), .completed)
+            find.click()
+            let several = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in removes.count >= 3 }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [several], timeout: 60), .completed, "Find Spots listed \(removes.count) spots")
+        }
+        let before = removes.count
+        try step("click the first row, then Down and Delete") {
+            waitFor("fft.spotSpacing", timeout: 60).click()
+            app.typeKey(.downArrow, modifierFlags: [])
+            app.typeKey(.delete, modifierFlags: [])
+            let fewer = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in removes.count == before - 1 }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [fewer], timeout: 10), .completed, "Delete after a click left \(removes.count) of \(before) spots")
+            XCTAssertTrue(app.buttons["Remove spot 1"].exists, "spot 1 stays: Down moved the selection to spot 2 first")
+            XCTAssertFalse(app.buttons["Remove spot 2"].exists, "spot 2 was the one removed")
+        }
+    }
+
     /// The first spot's d from the inspector: "0.2351 nm", a number and its unit, within one bin of the planted 0.235 nm.
     @MainActor private func readFirstSpacing() throws {
         let value = waitValue("fft.spotSpacing", timeout: 60) { !$0.isEmpty }

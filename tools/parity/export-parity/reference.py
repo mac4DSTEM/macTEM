@@ -1261,6 +1261,10 @@ def check_open(rep, ld, image):
 
 
 RESULTS_COLUMNS = ["group", "id", "label", "quantity", "value", "unit", "text", "validation", "lineage"]
+# Every product of the Results room (ResultRow.Product, in its order); the harness dumps one sentence per product. The planted cases
+# use the first four; calibration and ring come from the Diffraction room. macTEMTests/ExportParityReferenceTests holds this line
+# equal to the app's list on every unit run.
+RESULTS_PRODUCTS = ("distance", "angle", "profile", "spot", "calibration", "ring")
 
 
 def check_results(rep, stats, ld, c):
@@ -1277,7 +1281,7 @@ def check_results(rep, stats, ld, c):
     raw = open(os.path.join(out, f"{name}.csv"), encoding="utf-8", newline="").read()
 
     # R-P2's reference side: every product has its sentence, and "validated" is never claimed (only "unvalidated" may contain it).
-    rep.check(set(sentences) == {"distance", "angle", "profile", "spot"} and all(sentences.values()), f"R-P2/sentences/{name}",
+    rep.check(set(sentences) == set(RESULTS_PRODUCTS) and all(sentences.values()), f"R-P2/sentences/{name}",
               f"the producers' constants: {sorted(sentences)}")
     rep.check(not any("validated" in v.lower().replace("unvalidated", "") for v in sentences.values()), f"R-P2/never-validated/{name}",
               "a validation sentence claims 'validated'")
@@ -1292,7 +1296,7 @@ def check_results(rep, stats, ld, c):
     for h in header[1:]:
         key, _, value = h[2:].partition(": ")
         parsed[key] = value
-    present = [p for p in ("distance", "angle", "profile", "spot") if any(r["product"] == p for r in rows)]
+    present = [p for p in RESULTS_PRODUCTS if any(r["product"] == p for r in rows)]
     got_validation = {key[len("validation ("):-1]: v for key, v in parsed.items() if key.startswith("validation (")}
     problems = []
     # a file whose reader notes say "unvalidated" keeps the qualifier on every claim (header lines and the validation column)
