@@ -244,7 +244,7 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         XCTAssertEqual(holders, ["ExportCommands.swift"], "exactly one item takes ⇧⌥⌘E")
         let panels = squeezed(try source("macTEM/App/ExportPanels.swift"))
         XCTAssertTrue(panels.contains("static func exportResults(appState: AppState) { guard ExportSnapshot.availability(of: appState).results,"
-                                        + " let snapshot = ExportSnapshot.resultsSnapshot(in: appState.openItems)"))
+                                        + " let snapshot = ExportSnapshot.resultsSnapshot(in: appState)"))
         let inspector = squeezed(try source("macTEM/UI/ResultsRoomInspector.swift"))
         XCTAssertTrue(inspector.contains("ExportPanels.exportResults(appState: appState) } .disabled(!availability.results)"))
     }

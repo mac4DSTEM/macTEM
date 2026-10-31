@@ -1262,9 +1262,9 @@ def check_open(rep, ld, image):
 
 RESULTS_COLUMNS = ["group", "id", "label", "quantity", "value", "unit", "text", "validation", "lineage"]
 # Every product of the Results room (ResultRow.Product, in its order); the harness dumps one sentence per product. The planted cases
-# use the first four; calibration and ring come from the Diffraction room. macTEMTests/ExportParityReferenceTests holds this line
+# use the first four; calibration and ring come from the Diffraction room, edsComposition from the EDS room, eelsThickness and eelsEdge from the EELS room. macTEMTests/ExportParityReferenceTests holds this line
 # equal to the app's list on every unit run.
-RESULTS_PRODUCTS = ("distance", "angle", "profile", "spot", "calibration", "ring")
+RESULTS_PRODUCTS = ("distance", "angle", "profile", "spot", "calibration", "ring", "edsComposition", "eelsThickness", "eelsEdge")
 
 
 def check_results(rep, stats, ld, c):
