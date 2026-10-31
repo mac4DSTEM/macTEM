@@ -1,9 +1,8 @@
 //
 //  VeloxImageReader.swift
 //  Role: open a Thermo Fisher Velox `.emd` as macTEM's `CalibratedImage` — one frame of one image stack — through
-//        SpectroKit's Velox reader (`VeloxEMDReader`, SpectroCore 0.1.0, its public API only: one Velox parser in the
-//        suite, ADR 004 D1 and ADR 019). Pre-registered as V1-3a; checked by tools/parity/velox-image-parity
-//        against RosettaSciIO 049e7d70 and h5py.
+//        SpectroKit's Velox reader (`VeloxEMDReader`, SpectroCore 0.1.0, its public API only: one Velox parser for both
+//        apps). The parity against RosettaSciIO 049e7d70 and h5py is the kits'.
 //
 //  OBJECT RULE AND AXES are FormatoKit's `VeloxImageSelection` (FormatoEMD, the first consumer's named option beside
 //  `VeloxImageSignals`, pinned in the kit to this app's source) and `VeloxImageInfo.resolvedDetector` / `.detectorType`;
@@ -123,8 +122,8 @@ package nonisolated enum VeloxImageReader {
         } catch let cancelled as FormatoCancelled {
             throw cancelled
         } catch {
-            // A damaged `Metadata` column: FormatoKit's JSON parse throws a Foundation error (velox-image-parity's
-            // planted-bad-metadata), which must reach the user as a named refusal, not a raw Cocoa error.
+            // A damaged `Metadata` column: FormatoKit's JSON parse throws a Foundation error (the test fixture
+            // velox-bad-metadata.emd), which must reach the user as a named refusal, not a raw Cocoa error.
             throw Refusal.unreadable(error.localizedDescription)
         }
     }

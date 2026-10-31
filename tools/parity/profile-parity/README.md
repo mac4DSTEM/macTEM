@@ -46,8 +46,8 @@ equal the analytic value at the sample points (same 1e-5 band).
 - `planted-2d.dm4`: the committed 40 × 24 fixture (value 1000 r + c − 12000, linear: analytic too on interior lines), with its
   own calibration, read from `planted-2d.truth.json` (whose sha256 must match the file).
 - Two real RosettaSciIO images at the lock commit `049e7d70` (the registry's sha256 is pinned, as in
-  `tools/parity/dm4-reader-parity`): `test_STEM_image.dm3` (68 × 68, nm) and `test_diffraction_pattern.dm3` (87 × 87, 1/nm). Their
-  pixels and calibration are what ncempy 1.16 reads; the reader itself is `tools/parity/dm4-reader-parity`'s, so this harness does not
+  `tools/parity/metadata-parity`): `test_STEM_image.dm3` (68 × 68, nm) and `test_diffraction_pattern.dm3` (87 × 87, 1/nm). Their
+  pixels and calibration are what ncempy 1.16 reads; the reader itself is FormatoKit's to check, so this harness does not
   open DM files (`ImageOpening`'s closure is not in group `profile`).
 - Three thin images with seeded noise, 1 × 15, 17 × 1 and 2 × 3: scipy maps a length-1 axis to index 0, and every coordinate of
   a length-2 axis is within one pixel of an edge.

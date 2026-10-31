@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Truth for tools/parity/ring-calibration-parity: the closed forms of archive: roadmap-registrations-2026-10-15.md "Diffraction S3, Camera length from one ring of
+"""Truth of the retired ring-calibration harness, kept here because reference.py beside it loads it: the closed forms of archive: roadmap-registrations-2026-10-15.md "Diffraction S3, Camera length from one ring of
 known d" (slice S3-a: no fit), and the registered refusals as plain thresholds, from the definitions.
 
     reference.py <out-dir>
 
-Written from the definitions, NOT from Sources/TEMCore/Analysis/RingCalibration.swift (nothing of the Swift code is read; the
+Written from the definitions, NOT from DiffractoKit's RingCalibration (nothing of the Swift code is read; the
 refusal NAMES below are the Swift enum's, because the harness compares names).
 
 Constants, CODATA 2018 (Tiesinga, Mohr, Newell, Taylor, Rev. Mod. Phys. 93, 025010 (2021); physics.nist.gov/cuu/Constants):
@@ -28,7 +28,7 @@ then rounded once to float64. numpy's own arcsin/tan route is computed beside it
 Cases (320): V in {60, 80, 120, 200, 300} kV; the d of Au {111} {200} {220} {311} {422} (a = 4.0782 Å) and Al {111} {200}
 {220} (a = 4.0495 Å), d = a / sqrt(h^2 + k^2 + l^2) for the cubic cell; R in {40, 80, 200, 250} px; p in {0.014, 0.05} mm.
 The lattice constants are the ones Diffraction S1 uses and names as the reference until a CIF is pinned (archive: roadmap-registrations-2026-10-15.md V1-8
-"S1"; tools/parity/crystal-parity/reference.py CASES; mac4DSTEM's presets, Sources/TEMCore/Crystal/Crystal.swift `gold`, `aluminum`).
+"S1"; mac4DSTEM's presets, Sources/TEMCore/Crystal/Crystal.swift `gold`, `aluminum`).
 A reflection must be fcc-allowed (h, k, l all odd or all even).
 
 Refusals (refusal_table): each registered refusal planted alone, on its own boundary, just inside (accepted) and just outside

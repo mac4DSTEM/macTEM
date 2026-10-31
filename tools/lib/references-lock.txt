@@ -3,30 +3,30 @@
 # (arm64): pip check clean, `from ncempy.io import dm` imports.
 #
 # ncempy 1.16 = tag v1.16, commit f3c09f96dab1d108861db5a6e8477984455c59f3; its ncempy/io/dm.py has sha256
-# 09edae58936747ae5c01437f0afb3bbee177746e3e30040b90817e24a47daa75, asserted by tools/parity/dm4-reader-parity/reference.py.
+# 09edae58936747ae5c01437f0afb3bbee177746e3e30040b90817e24a47daa75, asserted by the reference.py of export-parity
+# and of metadata-parity.
 # mac4DSTEM pins ncempy 1.11.1; the fields compared here (fileDM.getDataset: data, pixelSize, pixelOrigin, pixelUnit)
 # are parsed identically in both, and 1.16 fixes the sign of dmReader's coordinates for a positive origin.
 #
-# Added 2026-10-12 for tools/parity/tiff-reader-parity: tifffile 2026.9.20 (RosettaSciIO's TIFF reader, and the writer of the
+# Added 2026-10-12 for the TIFF reader harness (retired; metadata-parity still reads with tifffile and RosettaSciIO's TIFF reader): tifffile 2026.9.20 (RosettaSciIO's TIFF reader, and the writer of the
 # planted TIFFs), python-box 7.4.1 (rsciio.utils._dictionary imports `box`; the newest release inside rsciio's
 # ">=6,<8,!=7.3.1", from 2026-02) and imagecodecs 2026.8.16 (tifffile's LZW codec, for the compressed refusal case;
 # 2026.10.10 is under two weeks old). `from rsciio.tiff import file_reader` with References/rosettasciio on sys.path
 # imports nothing else (rsciio itself is not installed: its dask, pint and pyyaml are not reached by the TIFF reader).
 #
-# Added 2026-10-12 for tools/parity/mrc-reader-parity: mrcfile 1.5.4 (BSD, pure Python py2.py3-none-any, uploaded 2025-01-22;
+# Added 2026-10-12 for the MRC reader harness (retired; metadata-parity still reads with it): mrcfile 1.5.4 (BSD, pure Python py2.py3-none-any, uploaded 2025-01-22;
 # its only dependency is numpy>=1.16, already locked), the reference for MRC pixels, mode, byte order, voxel size.
 # RosettaSciIO's rsciio/mrc is named, not run (it needs dask).
 #
 # Added 2026-10-13 for tools/parity/profile-parity: scikit-image 0.26.0 and its closure (lazy-loader 0.5, networkx 3.6.1,
 # ImageIO 2.37.4 — `pip freeze` spells it so); reference.py asserts skimage/measure/profile.py's sha256. And for
-# tools/parity/velox-image-parity: Pint 0.26.1 with flexcache, flexparser, platformdirs and typing_extensions (RosettaSciIO's
+# the Velox image harness (retired): Pint 0.26.1 with flexcache, flexparser, platformdirs and typing_extensions (RosettaSciIO's
 # rsciio.utils._units imports pint); dask and pyyaml are not reached by the image path, and sparse is stubbed by
 # reference.py (it is only tested for existence before an EDS stream is read). Each release is at least two weeks old.
 #
-# Added 2026-10-14 for tools/parity/indexing-parity (V1-8 S2c): gemmi 0.7.5 (MPL-2.0, no dependencies, abi3 wheel for CPython
-# 3.14 on macOS arm64), the independent reader of the beta'' CIF: UnitCell.calculate_d, the C 1 2/m space group's
-# systematic absences and rotation parts. Released well over two weeks before; pymatgen, the second recorded check, is NOT
-# here (its 38-wheel closure lives in tools/lib/references-lock-pymatgen.txt, References/python-venv-pymatgen).
+# Added 2026-10-14 for the indexing harness (retired; no kept harness imports it): gemmi 0.7.5 (MPL-2.0, no dependencies,
+# abi3 wheel for CPython 3.14 on macOS arm64), the independent reader of the beta'' CIF: UnitCell.calculate_d, the
+# C 1 2/m space group's systematic absences and rotation parts. Released well over two weeks before.
 contourpy==1.4.0
 cycler==0.12.1
 flexcache==0.3

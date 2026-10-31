@@ -10,7 +10,7 @@ deliberately differ as a named, commented OVERRIDE step. Where no pinned referen
 (k), (m) below) the rule is macTEM's own and is restated here in Python: it is held to the truth hand-written in the
 plants, not to an independent reader.
 
-References (versions and source hashes asserted below, as tools/parity/dm4-reader-parity/reference.py does for dm.py):
+References (versions and source hashes asserted below, as tools/parity/export-parity/reference.py does for dm.py):
   DM       ncempy 1.16 `fileDM(...).allTags` for the tag maps (the sha256 of ncempy/io/dm.py pinned); RosettaSciIO
            049e7d70 `rsciio/digitalmicrograph/_api.py` -- `ImageObject.get_mapping()`, RosettaSciIO's own method,
            applied to those tags (below, "How the DM mapping is applied"); dateutil for the date text (through it).
@@ -252,7 +252,7 @@ def registry(root):
 def import_rsciio(root):
     """-> (rsciio.tiff.file_reader, rsciio.digitalmicrograph._api, Box). See the module docstring for the one stand-in."""
     sys.path.insert(0, root)
-    from rsciio.tiff import file_reader           # imports in tools/parity/tiff-reader-parity unchanged
+    from rsciio.tiff import file_reader           # imports as it is: no stand-in needed
     stand_in = types.ModuleType("rsciio.utils.file")
     stand_in.memmap_distributed = None            # DEVIATION: dask is not in the lock; get_mapping never calls it
     sys.modules["rsciio.utils.file"] = stand_in

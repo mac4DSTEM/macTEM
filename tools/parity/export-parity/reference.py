@@ -702,7 +702,7 @@ class Loader:
 
     def identity(self, image):
         """fileName, object, notes: planted for synthetic images; for the real ones, what Swift opened (the readers' naming
-        of the object and their notes are tools/parity/dm4-reader-parity's to check)."""
+        of the object and their notes are FormatoKit's to check)."""
         img = self.manifest["images"][image]
         if img["open"]:
             path = os.path.join(self.out, "opened", f"{image}.json")

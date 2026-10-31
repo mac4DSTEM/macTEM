@@ -1,8 +1,8 @@
 //
 //  VeloxImageReaderTests.swift
-//  The Velox image reader on small Velox-shaped files whose truth is the numbers planted by
-//  tools/parity/velox-image-parity/make_fixture.py (Fixtures/velox-*.emd, each under 64 KiB; velox.truth.json carries their
-//  sha256). The parity against RosettaSciIO and h5py is tools/parity/velox-image-parity; these pin the reader's own rules
+//  The Velox image reader on small Velox-shaped files whose truth is the numbers planted by the make_fixture.py of a
+//  retired reader harness (in git history before commit 1d9b1c6; Fixtures/velox-*.emd, each under 64 KiB;
+//  velox.truth.json carries their sha256). The parity against RosettaSciIO and h5py is the kits'; these pin the reader's own rules
 //  without Python — the object rule, the calibration, the frame, the refusals — and that the XCTest host finds the
 //  HDF5 library the app embeds. The files are opened through the app's own entry point, `ImageOpening.openNow`.
 //
@@ -175,7 +175,7 @@ nonisolated final class VeloxImageReaderTests: XCTestCase {
     // MARK: The files
 
     /// The fixtures are the bytes the truth was written from: a regenerated file that moved a number fails here even when
-    /// the tests above were edited to follow it (`tools/parity/velox-image-parity/run.sh --make-fixture`).
+    /// the tests above were edited to follow it.
     func testTheFixturesAreTheOnesTheTruthWasWrittenFrom() throws {
         struct Truth: Decodable {
             struct Case: Decodable {

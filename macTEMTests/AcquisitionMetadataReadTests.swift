@@ -130,7 +130,7 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
             case "mrc":
                 plant = Plant.fei2MRC(voltage: 300_000)
             case "emd":
-                // HDF5 cannot be written from Swift here: the planted Velox file h5py wrote (tools/parity/velox-image-parity),
+                // HDF5 cannot be written from Swift here: the planted Velox fixture h5py wrote,
                 // 200 kV, its HAADF last in key order.
                 let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "velox-haadf-last", withExtension: "emd"),
                                         "velox-haadf-last.emd is not in the test bundle")

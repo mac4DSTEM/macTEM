@@ -14,7 +14,7 @@ to make a specific reader error visible. The committed fixture:
 - x and y have different scales (0.0123 and 0.0246 nm) and different, non-integer, opposite-sign origins
   (12 and -4.5 px): a reader that swaps the axes, drops the origin or flips its sign is wrong.
 - Every Dimension group carries Origin, Scale and Units, the layout GMS writes (ncempy gives a dimension without
-  an Origin the last Origin it read: tools/parity/dm4-reader-parity/README.md).
+  an Origin the last Origin it read).
 
 The Format fixtures (--types, with the per-type ones; archive: roadmap-registrations-2026-10-15.md V1-1b): GMS tags a spectrum image `ImageTags.Meta Data.Format`
 = "Spectrum image". planted-si.dm4 holds a thumbnail and one 6 x 3 object with BOTH axes in nm and that Format (no

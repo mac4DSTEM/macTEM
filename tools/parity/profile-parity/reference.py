@@ -46,7 +46,7 @@ NUMPY_VERSION = "2.5.4"
 PYTHON_MINOR = "3.14"          # tools/lib/python.sh MACTEM_PYTHON_MINOR: the lock was verified on it
 # sha256 of skimage/measure/profile.py in the scikit-image 0.26.0 wheel (cp314, macosx arm64; the file is pure Python).
 PROFILE_PY_SHA256 = "fabf6c23d892b2ee7bcda14ab46734ac4e7ec755b96603ff5e5791fdb012d1dd"
-# rsciio/tests/registry.txt at the lock commit 049e7d70 (the git blob's sha256, as tools/parity/dm4-reader-parity pins it) and the
+# rsciio/tests/registry.txt at the lock commit 049e7d70 (the git blob's sha256, as tools/parity/metadata-parity pins it) and the
 # two real files this harness reads from it.
 REGISTRY_SHA256 = "31417482938f80160be2c03525ba58dd810c7f16b1790f597470ece8dd0b1bcb"
 REAL_IMAGES = [

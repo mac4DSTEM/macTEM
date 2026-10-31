@@ -9,7 +9,7 @@ Writes <out-dir>/planted.json and the planted files beside it:
     reproduce every one of them (`layout` in planted.json) before it reads anything;
   * Velox TIFFs (tag 34683 XML) and FEI SEM TIFFs (tag 34682 / 34680 INI text), written with tifffile;
   * DM image-object tag maps ({numbers, strings}, keys relative to "ImageList.N.ImageTags.") as JSON;
-  * (slice S-b, the DM wiring and tag 65027) DM4 files by tools/parity/dm4-reader-parity/dm4_writer.py (the verbatim copy there,
+  * (slice S-b, the DM wiring and tag 65027) DM4 files by dm4_writer.py beside this script (the verbatim copy,
     imported, not copied again) and TIFFs holding a DM4 tag stream in tag 65027, listed under `reads` in planted.json: the
     inputs of AcquisitionMetadata.read(path:) end to end, each with the hand-written truth of what it must show.
 

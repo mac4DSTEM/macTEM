@@ -9,7 +9,7 @@
 //                       centre is within 0.05 px of the plant's; on-fit: the 180-point polyline lies on the fitted ellipse (1e-9 px);
 //                       on-truth: it lies within 0.5 px of the planted ring (predicted 0.3 px; the worst is printed);
 //                       distance-helper: RingOverlay.distance equals reference.py's exact distances (1e-9 px) on 576 points.
-//   R2  pin             RingCalibration.fit == calibrating(fitRing(...)) on every one of the 275 ring-fit-parity plants, with and
+//   R2  pin             RingCalibration.fit == calibrating(fitRing(...)) on every one of the 275 ring_fit_plants.py plants, with and
 //                       without V (RingFitCalibration ==; equal error text where thrown).
 //   R3  q, radius, roundtrip, cal-ring, linear, invalid   RingScale (the kit's closed forms; Δq·R without a beam energy) on 320 cases
 //   R4  radius, ellipse, on-truth   the predicted rings: radius per family, the scaled ellipse, the polyline on the planted ring 2
@@ -405,7 +405,7 @@ struct Harness {
                              "x \(e.x) y \(e.y) a \(e.a) b \(e.b) theta \(e.theta); the kit's (row \(fit.centerQX), column \(fit.centerQY), a \(fit.a), b \(fit.b), theta \(fit.theta))")
                 let xt = num(c["x_truth"]), yt = num(c["y_truth"])
                 let centre = max(abs(e.x - xt), abs(e.y - yt))
-                // The 0.05 px centre band is ring-fit-parity's, gated there on whole rings; a plant with a 60 degree gap is held to the 0.5 px polyline band only.
+                // The 0.05 px centre band is the retired ring-fit harness's, gated there on whole rings; a plant with a 60 degree gap is held to the 0.5 px polyline band only.
                 let whole = (optNum(c["gap_deg"]) ?? 0) == 0
                 if whole { worstCentre = max(worstCentre, centre) }
                 report.check(centre <= 0.05 || !whole, "R1 ellipse", name, String(format: "centre (x %.4f, y %.4f), planted (%.4f, %.4f): %.4f px", e.x, e.y, xt, yt, centre))
