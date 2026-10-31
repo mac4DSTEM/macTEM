@@ -4,8 +4,7 @@
 //  to the REAL display pipeline on this Mac's GPU. The shader maps the window and gamma in Float32 and filters the LUT
 //  with the GPU's fixed-point weights, then converts to 8-bit unorm; the export does the same arithmetic in Double with an
 //  exact LUT interpolation and `.rounded()`. They cannot agree on every code value, so the difference is MEASURED and
-//  asserted at a bound (archive: roadmap-registrations-2026-10-15.md V1-10: "the shader's mapping ... pinned to the real display pipeline on this Mac's GPU, its
-//  measured difference registered"): the largest per-channel difference in 8-bit levels (a hard bound, the measured 1) and
+//  asserted at a bound: the largest per-channel difference in 8-bit levels (a hard bound, the measured 1) and
 //  the share of channels that differ at all, over the grid below (a fraction with a margin, not an exact count: another GPU's
 //  fixed-point filter weights move the count a little, and Gate B R1 measured no second GPU). A bound on the share catches
 //  what a bound on the maximum cannot: a rounding that truncates instead of rounding stays within one level and differs on

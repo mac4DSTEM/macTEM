@@ -8,11 +8,11 @@
 #            and the bar each case must draw, worked by hand); the harness (main.swift) writes the PNGs and CSVs with the
 #            production code and dumps what it held in memory; reference.py reads it all back and checks it; then every
 #            mutation of the app's export code (the CSV writers are ImagoKit's since 0.5.0; their mutants live in the kit) must fail the check it targets, or the gate fails for being blind. Each
-#            mutation edits a COPY of one of the files (never the file in Sources/) and compiles the harness against it.
+#            mutation edits a COPY of one of the files (never the file in Sources/) and builds the harness against it.
 #
 # Pass: "export-parity: all passed", the extra controls line, then "negative controls: 16 of 16 caught by their checks", exit 0.
-# TEMCore sources (the Results room's `ResultRow` and `ResultsCSV` included, V1-10 slice 3) come from tools/lib/sources.manifest, groups `dm` and `export` (the planted DM fixture and the real
-# RosettaSciIO image enter through ImageOpening, whose closure `dm` is; the readers themselves are tools/parity/dm4-reader-parity's).
+# The harness is Package.swift's ExportParity target over TEMCore (tools/lib/harness.sh builds it); the planted DM fixture and the
+# real RosettaSciIO image enter through ImageOpening (the readers themselves are FormatoKit's).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
@@ -29,9 +29,8 @@ resolve_mactem_developer_dir
 
 "$PYTHON_BIN" -I -B "$HERE/reference.py" plant "$FIXTURE" "$PLANTED" "$ROOT/References/rosettasciio" "$WORK/ref"
 
-. "$ROOT/tools/lib/sources.manifest"
-mactem_sources "$ROOT" dm export
-mactem_swiftc "$WORK/harness" "$HERE/main.swift"
+. "$ROOT/tools/lib/harness.sh"
+mactem_harness_build ExportParity "$WORK/harness"
 
 "$WORK/harness" "$WORK/ref" "$WORK/out"
 "$PYTHON_BIN" -I -B "$HERE/reference.py" check "$WORK/ref" "$WORK/out"
@@ -46,7 +45,7 @@ mactem_swiftc "$WORK/harness" "$HERE/main.swift"
 # SAME planted inputs as the unmutated run. The mutants are independent, so they build and run in batches of JOBS at a time;
 # their results are printed in order.
 CORE="$ROOT/Sources/TEMCore/Data"
-JOBS=6
+JOBS=${MACTEM_PARITY_JOBS:-6}   # mutants run at a time (their builds take turns: tools/lib/harness.sh)
 failed_check() {   # failed_check <log> <target>: does <log> hold a "  FAIL  " line of that check (or of one below it)?
   awk -v want="$2" 'index($0, "  FAIL  ") == 1 { rest = substr($0, 9); if (index(rest, want ": ") == 1 || index(rest, want "/") == 1) hit = 1 } END { exit !hit }' "$1"
 }
@@ -76,17 +75,7 @@ open(path, "w", encoding="utf-8").write(text.replace(old, new))
 ' "$copy" "$1" "$2" || { { echo missed; echo "  FAIL  mutation '$name' does not apply to $file"; } > "$res"; return; }
     shift 2
   done
-  local -a edited=()
-  local src
-  for src in "${MACTEM_SOURCES[@]}"; do
-    if [[ "${src:t}" == "${file:t}" ]]; then edited+=("$copy"); else edited+=("$src"); fi
-  done
-  if [[ "${edited[(r)$copy]}" != "$copy" ]]; then
-    { echo missed; echo "  FAIL  mutation '$name': ${file:t} is not among the harness's sources (tools/lib/sources.manifest, group export)"; } > "$res"
-    return
-  fi
-  MACTEM_SOURCES=("${edited[@]}")
-  if ! mactem_swiftc "$dir/harness" "$HERE/main.swift" > "$dir/build.log" 2>&1; then
+  if ! mactem_harness_mutant ExportParity "$dir/harness" "Sources/TEMCore/Data/$file" "$copy" > "$dir/build.log" 2>&1; then
     { echo missed; echo "  FAIL  mutation '$name' does not compile:"; sed 's/^/        /' "$dir/build.log"; } > "$res"
     return
   fi

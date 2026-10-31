@@ -1,6 +1,6 @@
 //
 //  ImageMeasurementsSessionTests.swift
-//  The session record of `ImageMeasurements`, the one owner of the marks on a file (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, the core):
+//  The session record of `ImageMeasurements`, the one owner of the marks on a file (the core):
 //  every mutator records (a new mark adds its node, a move or a width change replaces it in place, R3; a removal removes
 //  it), points and widths are clamped as the room clamps them, a lineage that can take no node refuses the mark by name,
 //  a read-only lineage draws and records nothing, a save is one Sendable request and `didSave` marks its revision saved, a
@@ -302,7 +302,7 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
         XCTAssertNil(fresh.add(distance((0, 0), (3, 4)), on: image))
     }
 
-    // MARK: The byte budget (ADR 023 a)
+    // MARK: The byte budget
 
     /// The saved text of `owner` for `identity`: the request's total (what the writer holds to 60,000).
     @MainActor private func savedBytes(_ owner: ImageMeasurements, _ identity: SessionSourceIdentity) throws -> Int {
@@ -558,6 +558,7 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
         XCTAssertEqual(request.lineage, try o.lineage.jsonString())
         XCTAssertEqual(request.revision, 2)
         XCTAssertNil(request.expectedOnDisk)
+        XCTAssertNil(request.expectedSource)
         XCTAssertFalse(request.replacing)
         // The image the save describes is another shape: the nodes are outside it, refused by name.
         let small = SessionSourceIdentity(fileName: "scan.dm4", byteSize: 1, object: image.source, width: 8, height: 6,
@@ -568,6 +569,8 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
         // After a restore the file on disk should hold the lineage as it was read.
         let back = try restoredOwner(o.lineage, image: image, clock: clock)
         XCTAssertEqual(try back.saveRequest(opened: identity).expectedOnDisk, request.lineage)
+        // And the source attribute as it was read (red under: the changed-on-disk check fed the lineage only).
+        XCTAssertEqual(try back.saveRequest(opened: identity).expectedSource, request.source)
     }
 
     /// `didSave` marks the REQUEST's revision saved: a mark added while the write ran leaves the file unsaved. It sets the
@@ -592,6 +595,7 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
         XCTAssertTrue(o.notes.isEmpty)
         let next = try o.saveRequest(opened: identity)
         XCTAssertEqual(next.expectedOnDisk, request.lineage)
+        XCTAssertEqual(next.expectedSource, request.source)
         o.didSave(next, opened: identity)
         XCTAssertFalse(o.isDirty)
     }

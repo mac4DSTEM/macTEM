@@ -1,6 +1,6 @@
 //
 //  FFTRoomClickTests.swift
-//  P2 of the FFT room (archive: roadmap-registrations-2026-10-15.md V1-6, "The room"), end to end through the panes' own map: a region drawn between two PANE
+//  P2 of the FFT room ("The room"), end to end through the panes' own map: a region drawn between two PANE
 //  points, a click at the pane position of the planted peak, and d. The maps are built exactly as `ImagePane` builds
 //  them — `MarkGeometry` over `MetalDisplayTransform(paneSize: box, imageBox: box, zoom:, offset:)`, the box from
 //  `LayoutPolicy.fitted` — at two pane sizes, zoom 1 and 3, and an offset; the spectrum's box from

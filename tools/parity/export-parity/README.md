@@ -1,7 +1,7 @@
 # export-parity
 
-macTEM's export from the Image room (V1-10 slice 1: `ImageExport.render`, `ProfileCSV.text`, `ExportFile`; TEMCore, compiled from
-`tools/lib/sources.manifest` groups `dm` and `export`) read back with Pillow 12.3.0, numpy 2.5.4 and Python's own `float`
+macTEM's export from the Image room (V1-10 slice 1: `ImageExport.render`, `ProfileCSV.text`, `ExportFile`; TEMCore, through
+Package.swift's `ExportParity` target) read back with Pillow 12.3.0, numpy 2.5.4 and Python's own `float`
 (pinned: `tools/lib/references-lock.txt`; `reference.py` refuses any other version, and the sha256 of ncempy's `dm.py`).
 A `scientific` gate (`tools/run-tests.sh scientific`); the pre-registration is archive: roadmap-registrations-2026-10-15.md V1-10, "Completed at pickup — slice 1"
 (P1, P3, P4 and the two added checks P5 and P6; Gate B round 1 added to P3 and P5 and the check P7, below). Run
@@ -23,7 +23,7 @@ caught by their checks` and, last, `negative controls: 36 of 36 caught by their 
    the finite range) and restates `DisplayWindow.fractions` (TEMSession is not in the closure).
 3. `reference.py check` reads all of it back and prints one `  FAIL  <check>: <detail>` line per failure, then
    `export-parity: N FAILURES in M checks` (exit 1) or `export-parity: all passed — …` (exit 0).
-4. The negative controls (below) compile the harness against edited COPIES of `ProfileCSV.swift`, `ImageExport.swift` and
+4. The negative controls (below) build the harness against edited COPIES of `ProfileCSV.swift`, `ImageExport.swift` and
    `ImageExport+Overlays.swift` and must each turn `check` red on the check they target.
 
 ## What is checked

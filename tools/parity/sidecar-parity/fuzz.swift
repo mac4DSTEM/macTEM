@@ -26,6 +26,7 @@
 // Pass: no hang, no crash, no unnamed outcome, and no silent change on the files the plan gates (those whose text lies within the
 // roughly 65,499 bytes the checksummed object header holds). The other file's silent changes are counted and printed, not gated.
 
+@testable import TEMCore
 import CryptoKit
 import Darwin
 import Foundation

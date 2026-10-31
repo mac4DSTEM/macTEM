@@ -1,6 +1,6 @@
 //
 //  MarkGeometryTests.swift
-//  The marks' map (V1-5, `MarkGeometry` in UI/ImageRoomMarks.swift): image coordinates (a pixel's centre at integers)
+//  The marks' map (`MarkGeometry` in UI/ImageRoomMarks.swift): image coordinates (a pixel's centre at integers)
 //  to pane points through the shader's own `MetalDisplayTransform`, so a mark sits on the pixel it names at every zoom
 //  and pan. Each test names the mutation that turns it red.
 //

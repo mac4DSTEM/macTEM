@@ -1,7 +1,7 @@
 //
 //  GuardedXMLTests.swift
 //  The one loader of the XML a file carries (FormatoCore's GuardedXML, moved there from Sources/TEMCore/Data at FormatoKit 0.3.0; Gate B 2026-10-12, found by the
-//  review of archive: roadmap-registrations-2026-10-15.md V1-4a slice S-a). Its two callers, `AcquisitionMetadata.tiff` and `TIFFImageReader.read`, read a
+//  review of V1-4a slice S-a). Its two callers, `AcquisitionMetadata.tiff` and `TIFFImageReader.read`, read a
 //  Velox TIFF's tag 34683 through it, and each test below runs the same document through the loader and through both
 //  callers: a refused document reads as no tag (nothing recorded; uncalibrated) and a document that passes reads as it
 //  always did. The planted truth is the document written here; the documents are built in memory.
@@ -13,7 +13,10 @@
 import ImagoCore
 import XCTest
 import TEMCore
+// swiftlint:disable duplicate_imports
+// swiftformat:disable:next duplicateImports
 import enum FormatoCore.GuardedXML
+// swiftlint:enable duplicate_imports
 import FormatoCore
 import FormatoTIFF
 @testable import macTEM

@@ -334,8 +334,6 @@ package final class EELSSession {
         if case .iakoubovskii = meanFreePath { refresh() }
     }
 
-
-
     // MARK: Pass
 
     private func cancelPass() {
@@ -590,7 +588,6 @@ package final class EELSSession {
 
     /// The region table's rows: the whole map's summed spectra fitted as one pixel.
     package var regionRows: [EELSEdgeRow] { regionModel.map { EELSFitCompute.rows($0, composition: regionComposition) } ?? [] }
-
 
     // MARK: Regions and lines
 
@@ -920,7 +917,6 @@ package final class EELSSession {
     package var regionsCSV: String? { pinRows.isEmpty ? nil : EELSExports.regionsCSV(pinRows, fileName: fileName) }
     package var methodJSON: String? { map.map { EELSCompute.methodJSON($0, fileName: fileName, origin: source?.origin ?? "") } }
 }
-
 
 /// Lets a progress fraction through when it has moved by a percent since the last one that went (and at the end). Called from the compute
 /// thread; the lock makes it safe to share.

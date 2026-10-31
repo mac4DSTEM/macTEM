@@ -1,6 +1,6 @@
 //
 //  DiffractionRoom.swift
-//  Role: the Diffraction room's centre (docs/design/diffraction-room-2026-10-21.md, slice 1): the pattern (log display), the centre, the
+//  Role: the Diffraction room's centre: the pattern (log display), the centre, the
 //        annulus being dragged, the fitted rings and the clicked spots drawn over it, and the readout table under it. The selected file
 //        is the pattern; the state is `DiffractionAnalysis` (TEMSession, `OpenItem.diffraction`), every number DiffractoKit's.
 //        Pure SwiftUI. Zoom (control placement §6): the wheel and a pinch zoom about the pattern's centre, a double-click (Ring tool) fits again;
@@ -149,7 +149,6 @@ private nonisolated struct DiffractionLayout {
     var pointsPerPixel: CGFloat { scaleX * zoom }
 }
 
-
 private struct DiffractionPatternPane: View {
     let image: CalibratedImage
     let analysis: DiffractionAnalysis
@@ -274,7 +273,6 @@ nonisolated enum DiffractionReadoutText {
         return "\(pixel) · R \(Num.fixed(r, 1)) px · q \(Num.fixed(q, 4)) Å⁻¹ · d \(Num.fixed(1 / q, 3)) Å"
     }
 }
-
 
 // MARK: - Overlays
 

@@ -1,7 +1,6 @@
 //
 //  FFTAnalysis.swift
-//  Role: the one owner of the FFT room's state for one open file (archive: roadmap-registrations-2026-10-15.md V1-6 + 6a + 6b, "The room"; the design in
-//        archive: fft-room-design-2026-10-13.md): the region transformed, the spots measured on its transform, what
+//  Role: the one owner of the FFT room's state for one open file: the region transformed, the spots measured on its transform, what
 //        the source pane shows, the mask's radius and edge, the HRTEM filters' parameters and the spectrum's display
 //        window — small values, kept while the file is cold, as the marks are (`OpenItem.fft`, beside `measurements`) —
 //        and, while the room shows the file, the products: the spectrum ready to draw with its radial profile, the
@@ -9,7 +8,7 @@
 //        `MaskedInverseFFT`, `HRTEMFilter`, ADR 027; the room's region, bin and unit rules are ImagoFFT's `FFTRegion`, `SpectrumBin`, `FFTUnits`; `FFTMask` is ImagoFFT's); this owner asks for them and
 //        publishes what it is answered, by the live-update rule R2.
 //
-//        NOT SAVED: the session sidecar (V1-2) is not built, so the room's state lives with its open file and goes when
+//        NOT SAVED: the session sidecar is not built, so the room's state lives with its open file and goes when
 //        it closes, as the marks do.
 //
 //  R2, THE LANES: four kinds of work — the spectrum (with its profile and display), a spot, the masked inverse, the
@@ -91,10 +90,13 @@ package nonisolated struct FFTSpot: Sendable, Identifiable {
     package var outcome: Outcome
     /// Whether the masked inverse passes this spot (only a measured one: a refused spot, or one with no peak, has no centroid).
     package var inMask: Bool
+    /// The finder's local contrast for a found spot (`FFTSpotFinder.Found.contrast`, display units); nil for a clicked one.
+    package let contrast: Float?
 
     package init(id: UUID = UUID(), number: Int, row: Int, col: Int, spectrumKey: FFTSpectrumKey,
-                 outcome: Outcome = .measuring, inMask: Bool = true) {
+                 outcome: Outcome = .measuring, inMask: Bool = true, contrast: Float? = nil) {
         self.id = id
+        self.contrast = contrast
         self.number = number
         self.row = row
         self.col = col
@@ -644,7 +646,7 @@ package final class FFTAnalysis {
             dropSpots()
             reconcileMask()
             if peaks.isEmpty { findSpotsFailure = "No spot stands out of the transform: lower the threshold or the minimum distance." }
-            for p in peaks { measureSpot(row: p.row, col: p.column) }
+            for p in peaks { measureSpot(row: p.row, col: p.column, contrast: p.contrast) }
         } catch {
             findSpotsFailure = (error as? LocalizedError)?.errorDescription ?? "The finder could not run: \(error)"
         }
@@ -652,14 +654,14 @@ package final class FFTAnalysis {
 
     /// A click on the spectrum shown (or Measure at…): a new spot at that bin, measured off the main actor. A click on
     /// the bin of a spot already there selects that spot.
-    package func measureSpot(row: Int, col: Int) {
+    package func measureSpot(row: Int, col: Int, contrast: Float? = nil) {
         guard isSpectrumCurrent, let key = spectrum?.key else { return }
         if let existing = spots.first(where: { $0.row == row && $0.col == col && $0.spectrumKey == key }) {
             selection = existing.id
             return
         }
         lastSpotNumber += 1
-        let spot = FFTSpot(number: lastSpotNumber, row: row, col: col, spectrumKey: key)
+        let spot = FFTSpot(number: lastSpotNumber, row: row, col: col, spectrumKey: key, contrast: contrast)
         spots.append(spot)
         selection = spot.id
         spotQueue.append(spot.id)

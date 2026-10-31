@@ -1,6 +1,6 @@
 //
 //  AcquisitionMetadataReadTests.swift
-//  The wiring of acquisition metadata (archive: roadmap-registrations-2026-10-15.md V1-4a, slice S-b): `AcquisitionMetadata.read(path:)` reaching the three
+//  The wiring of acquisition metadata: `AcquisitionMetadata.read(path:)` reaching the three
 //  format readers by extension, the DM image object it describes being the one `ImageOpening.openNow` shows, a
 //  DM-saved TIFF's tag 65027 read through mac4DSTEM's tag walker (precedence FEI SEM, Velox, DM), and the open's token
 //  publishing the metadata with its image (`ImageSession.finishOpen(_:image:url:metadata:)`).
@@ -182,7 +182,7 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
     // MARK: A DM-saved TIFF: tag 65027
 
     /// A DM-saved TIFF's tag 65027 is a bare DM4 stream; its tags are read with the DM rules and equal what the same
-    /// ImageTags give inside a .dm4. Planted to mirror what the registration predicted for RosettaSciIO's
+    /// ImageTags give inside a.dm4. Planted to mirror what the registration predicted for RosettaSciIO's
     /// test_loading_image_saved_with_DM.tif (200 kV, 51× — Actual 83 ignored —, no camera length in TEM imaging whatever
     /// `STEM Camera Length` (255) says, 0.5 s, the day-first date, "FEI Tecnai"), written here, not copied from the file.
     /// Mutations (each red): `tiff-65027-skipped` (the branch removed or the tag id patched), `tiff-65027-strings-lost`
@@ -579,4 +579,3 @@ nonisolated final class VeloxAcquisitionReadTests: XCTestCase {
         XCTAssertTrue(m.unread.isEmpty)
     }
 }
-

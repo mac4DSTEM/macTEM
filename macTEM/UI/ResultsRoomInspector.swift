@@ -1,6 +1,6 @@
 //
 //  ResultsRoomInspector.swift
-//  Role: the Results room's inspector content (V1-10 slice 3; archive: results-room-design-2026-10-15.md, section 3),
+//  Role: the Results room's inspector content,
 //        mounted by `WorkspaceInspector`'s Settings and Info switches.
 //        Settings: Show (one switch per group), Session (the Image room's tail: where the marks are kept, Save to Session) and
 //        Export (one full-width button: All results as CSV…, the twin of File > Export Results…, ⇧⌥⌘E).

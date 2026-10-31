@@ -13,7 +13,7 @@
 # committed under macTEMTests/Fixtures/, never here.
 /References
 
-# Local build products (tools/lib/sources.manifest builds the DiffractoKit checkout's modules under build/diffractokit;
+# Local build products (the harnesses build in the gate dir, not here;
 # gate logs and the warm DerivedData live outside the tree, tools/lib/gate-dir.sh)
 /build/
 /DerivedData/

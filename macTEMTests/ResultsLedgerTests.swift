@@ -1,6 +1,6 @@
 //
 //  ResultsLedgerTests.swift
-//  The Results room's ledger (V1-10 slice 3, `ResultsLedger`, TEMSession): the rows of a file's marks and FFT spots, derived from
+//  The Results room's ledger (`ResultsLedger`; TEMSession): the rows of a file's marks and FFT spots, derived from
 //  their owners and never stored — marks in creation order with the owner's own numbers and their lineage node, spots as the FFT
 //  room numbered them, a refused spot and one with no peak listed with their reasons, a spot still measuring absent, the region a spot
 //  was made on, the groups in their order, the next call answering for a mark removed or moved. Tier 2.

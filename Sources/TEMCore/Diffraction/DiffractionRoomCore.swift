@@ -1,6 +1,6 @@
 //
 //  DiffractionRoomCore.swift
-//  Role: the Diffraction room's facts and flow without a view (docs/design/diffraction-room-2026-10-21.md, slice 1): the centre, the
+//  Role: the Diffraction room's facts and flow without a view: the centre, the
 //        calibration it resolves (a ring fit on a standard, else the file's reciprocal axis, else a typed Δq), a measured ring, a
 //        measured spot, the camera pixel pitches, the words of a kit refusal. Every number is DiffractoKit's (`RingFitCalibration`,
 //        `RingScale`, `IndexingDisplay`, `RingOverlay`); the app holds the flow.

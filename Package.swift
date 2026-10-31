@@ -77,6 +77,53 @@ let package = Package(
                 .enableUpcomingFeature("MemberImportVisibility"),
             ]
         ),
+        // The parity harnesses (tools/parity): each is an executable over TEMCore, so the kits are the ones Package.resolved pins.
+        // tools/lib/harness.sh builds them; they run in the nightly, never per session.
+        parityHarness("DiffractionRoomParity", "diffraction-room-parity",
+                      exclude: ["README.md", "plants.py", "reference.py", "ring_calibration_reference.py", "ring_fit_plants.py", "run.sh"],
+                      sources: ["main.swift"],
+                      kits: [("DiffractoCore", "DiffractoKit"), ("DiffractoScattering", "DiffractoKit"), ("DiffractoGeometry", "DiffractoKit"),
+                             ("ImagoCore", "ImagoKit")]),
+        parityHarness("ExportParity", "export-parity",
+                      exclude: ["README.md", "reference.py", "run.sh"],
+                      sources: ["main.swift"],
+                      kits: [("ImagoCore", "ImagoKit"), ("ImagoFFT", "ImagoKit")]),
+        parityHarness("FFTExportParity", "fft-export-parity",
+                      exclude: ["README.md", "reference.py", "run.sh"],
+                      sources: ["main.swift"],
+                      kits: [("ImagoCore", "ImagoKit"), ("ImagoFFT", "ImagoKit")]),
+        parityHarness("MetadataParity", "metadata-parity",
+                      exclude: ["README.md", "dm4_writer.py", "make_dm4_fixture.py", "make_fixture.py", "reference.py", "run.sh"],
+                      sources: ["main.swift"],
+                      kits: [("FormatoCore", "FormatoKit"), ("FormatoDM", "FormatoKit"), ("FormatoMRC", "FormatoKit"), ("FormatoTIFF", "FormatoKit")]),
+        parityHarness("ProfileParity", "profile-parity",
+                      exclude: ["README.md", "reference.py", "run.sh"],
+                      sources: ["main.swift"],
+                      kits: [("ImagoCore", "ImagoKit")]),
+        // The planting binding is the unit tests' (macTEMTests/TestHDF5Binding.swift), linked here as a symlink.
+        parityHarness("SidecarParity", "sidecar-parity",
+                      exclude: ["README.md", "dense_fuzz.py", "fixtures", "marks_reference.py", "reference.py", "run.sh"],
+                      sources: ["main.swift", "fuzz.swift", "marks.swift", "TestHDF5Binding.swift"],
+                      kits: [("FormatoHDF5", "FormatoKit"), ("ImagoCore", "ImagoKit")]),
     ],
     swiftLanguageModes: [.v6]
 )
+
+/// A parity harness: an executable over TEMCore at the settings TEMCore builds with (optimised in Debug too, Swift 6, the same
+/// upcoming features); `-parse-as-library` because each `main.swift` declares an `@main` type.
+func parityHarness(_ name: String, _ folder: String, exclude: [String], sources: [String], kits: [(String, String)]) -> Target {
+    .executableTarget(
+        name: name,
+        dependencies: ["TEMCore"] + kits.map { .product(name: $0.0, package: $0.1) },
+        path: "tools/parity/\(folder)",
+        exclude: exclude,
+        sources: sources,
+        swiftSettings: [
+            .unsafeFlags(["-O"], .when(configuration: .debug)),
+            .unsafeFlags(["-parse-as-library"]),
+            .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+            .enableUpcomingFeature("InferIsolatedConformances"),
+            .enableUpcomingFeature("MemberImportVisibility"),
+        ]
+    )
+}

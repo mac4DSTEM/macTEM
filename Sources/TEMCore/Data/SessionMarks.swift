@@ -1,6 +1,6 @@
 //
 //  SessionMarks.swift
-//  Role: the Image room's marks as the session sidecar records them (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, ADR 020 D2): a mark to its
+//  Role: the Image room's marks as the session sidecar records them: a mark to its
 //        lineage node and back, the checks a mark node passes (the reader's, and the writer's before a save), the restore
 //        — a read sidecar to the marks it restores, or one named refusal, decided whole before anything is adopted — and
 //        the save's request and its write. Pure but for `SessionSave.write`, which goes through SessionSidecarFile. No
@@ -9,7 +9,7 @@
 //  THE NODE of a mark (kind `distance`, `angle` or `profile`). Coordinates are image pixel coordinates: x the column, y
 //  the row, a pixel's centre at integers, the image from −0.5 to W − 0.5 and −0.5 to H − 0.5.
 //    parameters  x1 y1 x2 y2 (an angle also x3 y3; its VERTEX is point 2), a profile's `width` (1…25), `object` (the
-//                opened image's `CalibratedImage.source`), `frame` ("0": the frame the reader opened; V1-3c-ii's seam)
+//                opened image's `CalibratedImage.source`), `frame` ("0": the frame the reader opened)
 //    results     what was measured when the mark was made or last changed, in the file's own units at full precision
 //                (never the display's rounded text): distance `pixels`, and `length` + `unit` when both axes are
 //                calibrated in one unit; angle `degrees` (absent for a zero-length arm) and `plane` (`physical` |
@@ -56,7 +56,7 @@ package nonisolated struct SessionMark: Sendable, Equatable {
 package nonisolated enum SessionMarks {
     /// The widest profile the room offers and the reader accepts, in pixels.
     package static let maximumWidth = 25
-    /// The frame a node records: the reader opens frame 0 of a stack (V1-3c-ii gives the choice).
+    /// The frame a node records: the reader opens frame 0 of a stack.
     package static let openedFrame = "0"
 
     private static let pointKeys = [("x1", "y1"), ("x2", "y2"), ("x3", "y3")]
@@ -241,6 +241,8 @@ package nonisolated enum SessionRestore {
         package let calibrationDiffers: Bool
         /// The lineage attribute as it was read: a later save checks the file still holds it.
         package let lineageText: String
+        /// The source attribute as it was read: a later save checks the file still holds it too.
+        package let sourceText: String
     }
 
     package nonisolated enum Refusal: Error, Equatable, Sendable, CustomStringConvertible {
@@ -292,7 +294,7 @@ package nonisolated enum SessionRestore {
             if SessionMarks.calibrationDiffers(node, x: x, y: y) { calibrationDiffers = true }
         }
         return Restored(verdict: verdict, lineage: lineage, marks: marks, kept: kept,
-                        calibrationDiffers: calibrationDiffers, lineageText: lineageText)
+                        calibrationDiffers: calibrationDiffers, lineageText: lineageText, sourceText: sourceText)
     }
 }
 
@@ -307,14 +309,18 @@ package nonisolated enum SessionSave {
         package let revision: Int
         /// The lineage the sidecar on disk held when it was restored or last saved; nil when this session has read none.
         package let expectedOnDisk: String?
+        /// The source attribute the sidecar on disk held then; nil checks the lineage only.
+        package let expectedSource: String?
         /// The user chose to replace the sidecar on disk, whatever it holds (a refused or unread one).
         package let replacing: Bool
 
-        package init(source: String, lineage: String, revision: Int, expectedOnDisk: String?, replacing: Bool) {
+        package init(source: String, lineage: String, revision: Int, expectedOnDisk: String?,
+                     expectedSource: String? = nil, replacing: Bool) {
             self.source = source
             self.lineage = lineage
             self.revision = revision
             self.expectedOnDisk = expectedOnDisk
+            self.expectedSource = expectedSource
             self.replacing = replacing
         }
     }
@@ -355,7 +361,8 @@ package nonisolated enum SessionSave {
     /// The two strings of a save of `lineage` on the image `identity` describes (its object is the one the marks were
     /// drawn on), each mark node checked first with the restore's own checks.
     package static func request(identity: SessionSourceIdentity, lineage: SessionLineage, revision: Int,
-                                expectedOnDisk: String?, replacing: Bool) throws(Refusal) -> Request {
+                                expectedOnDisk: String?, expectedSource: String? = nil,
+                                replacing: Bool) throws(Refusal) -> Request {
         guard !lineage.isReadOnly else { throw .readOnly(lineage.fileVersion) }
         do throws(SessionMarks.Refusal) {
             try SessionMarks.check(lineage, width: identity.width, height: identity.height, object: identity.object)
@@ -366,11 +373,13 @@ package nonisolated enum SessionSave {
         do throws(SessionLineage.Refusal) { text = try lineage.jsonString() } catch { throw .lineage(error) }
         let total = SessionSidecarFile.totalTextBytes(sourceBytes: source.utf8.count, lineageBytes: text.utf8.count)
         guard total <= SessionSidecarFile.maxTotalTextBytes else { throw .file(.sidecarTooLarge(bytes: total)) }
-        return Request(source: source, lineage: text, revision: revision, expectedOnDisk: expectedOnDisk, replacing: replacing)
+        return Request(source: source, lineage: text, revision: revision, expectedOnDisk: expectedOnDisk,
+                       expectedSource: expectedSource, replacing: replacing)
     }
 
     /// Writes `request` to the sidecar at `url`, unless the file there is not the one this session read: what it holds
-    /// must be `expectedOnDisk` (or nothing, when that is nil), unless the user chose to replace it. Blocks on the HDF5
+    /// must be `expectedOnDisk` and `expectedSource` (or nothing, when `expectedOnDisk` is nil; a sidecar this session
+    /// read or wrote and that is gone since is a change too), unless the user chose to replace it. Blocks on the HDF5
     /// lock and the disk: call it off the main actor.
     package static func write(_ request: Request, to url: URL) throws(Refusal) {
         if !request.replacing {
@@ -382,6 +391,9 @@ package nonisolated enum SessionSave {
                 catch let refusal as SessionSidecarFile.Refusal { throw .file(refusal) }
                 catch { throw .file(.cannotOpen("\(error)")) }
                 guard let expected = request.expectedOnDisk, onDisk.lineage == expected else { throw .changedOnDisk }
+                if let source = request.expectedSource, onDisk.source != source { throw .changedOnDisk }
+            } else if request.expectedOnDisk != nil {
+                throw .changedOnDisk
             }
         }
         do { try SessionSidecarFile.write(source: request.source, lineage: request.lineage, to: url) }

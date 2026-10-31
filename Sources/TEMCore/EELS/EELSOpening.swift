@@ -1,5 +1,5 @@
 // Opening a low-loss EELS spectrum image: a GMS .dm4 with an EELS spectrum-image object (FormatoKit's `DM4Experiment.readEELSSpectrumImage`)
-// or a Velox .emd with an EELS stream (`VeloxSpectrumImageSignals`; NOT yet verified on a real Velox EELS file, docs/open-items.md).
+// or a Velox.emd with an EELS stream (`VeloxSpectrumImageSignals`; NOT yet verified on a real Velox EELS file).
 // The counts stay as stored. What the file states (E0, the two angles) rides along for the mean free path; nothing is assumed.
 import Foundation
 import FormatoCore

@@ -1,6 +1,6 @@
 //
 //  SessionMarksTests.swift
-//  The marks of the session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, the core; ADR 020 D2, "A mark's node"): a mark to its lineage
+//  The marks of the session sidecar (the core; "A mark's node"): a mark to its lineage
 //  node and back (the points as pixel coordinates, x the column and y the row, a pixel's centre at integers; an angle's
 //  vertex is point 2; a profile's width; the results in the file's own units at full precision), the checks a node passes
 //  (the coordinate grammar, the inclusive image bounds, the width, the keys) with the refusal naming the node, the
@@ -1039,11 +1039,45 @@ nonisolated final class SessionMarksTests: XCTestCase {
         // Nothing was restored or saved by this window (expectedOnDisk is nil), yet a sidecar is there.
         XCTAssertEqual(writeRefusal(try XCTUnwrap(saveRequest(second, expected: nil)), to: url), .changedOnDisk)
         XCTAssertEqual(try Data(contentsOf: url), before)
-        // A sidecar that was deleted since is written anew: there is nothing of anyone's to lose.
+        // A sidecar that was never there is written anew: there is nothing of anyone's to lose.
         try FileManager.default.removeItem(at: url)
-        XCTAssertNil(writeRefusal(try XCTUnwrap(saveRequest(second, expected: try first.jsonString())), to: url))
+        XCTAssertNil(writeRefusal(try XCTUnwrap(saveRequest(second, expected: nil)), to: url))
         XCTAssertEqual(try SessionSidecarFile.read(url: url).lineage, try second.jsonString())
         // Red under: an unread file treated as matching (expected nil skipping the check); the check made against an absent file.
+    }
+
+    func testASaveRefusesASidecarDeletedSinceThisSessionReadIt() throws {
+        let url = try scratchDirectory().appendingPathComponent("scan.dm4.mactem.h5")
+        let (first, second) = try twoLineages()
+        XCTAssertNil(writeRefusal(try XCTUnwrap(saveRequest(first)), to: url))
+        // Someone deleted the sidecar this session saved: that is a choice about its marks, not an empty place.
+        try FileManager.default.removeItem(at: url)
+        XCTAssertEqual(writeRefusal(try XCTUnwrap(saveRequest(second, expected: try first.jsonString())), to: url), .changedOnDisk)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "refused, so nothing written")
+        // Replace writes it.
+        XCTAssertNil(writeRefusal(try XCTUnwrap(saveRequest(second, expected: try first.jsonString(), replacing: true)), to: url))
+        XCTAssertEqual(try SessionSidecarFile.read(url: url).lineage, try second.jsonString())
+        // Red under: an absent file treated as nothing to lose when this session had read or written one.
+    }
+
+    func testASaveRefusesASidecarWhoseSourceWasRewritten() throws {
+        let url = try scratchDirectory().appendingPathComponent("scan.dm4.mactem.h5")
+        let first = try lineage([("distance", distanceParameters)])
+        let request = try XCTUnwrap(saveRequest(first))
+        XCTAssertNil(writeRefusal(request, to: url))
+        // Another writer kept the lineage and rewrote the source attribute (another image named in it).
+        let otherSource = try identity(name: "other.dm4", bytes: 1).jsonString()
+        XCTAssertNotEqual(otherSource, request.source)
+        try SessionSidecarFile.write(source: otherSource, lineage: request.lineage, to: url)
+        let before = try Data(contentsOf: url)
+        let mine = try SessionSave.request(identity: identity(), lineage: first, revision: 4, expectedOnDisk: request.lineage,
+                                           expectedSource: request.source, replacing: false)
+        XCTAssertEqual(writeRefusal(mine, to: url), .changedOnDisk)
+        XCTAssertEqual(try Data(contentsOf: url), before)
+        // The source as this session read it passes.
+        try SessionSidecarFile.write(source: request.source, lineage: request.lineage, to: url)
+        XCTAssertNil(writeRefusal(mine, to: url))
+        // Red under: the changed-on-disk check comparing the lineage text only.
     }
 
     func testChoosingToReplaceWritesOverAFileThatChangedOrWasNeverRead() throws {
@@ -1085,7 +1119,7 @@ nonisolated final class SessionMarksTests: XCTestCase {
     }
 
     func testChoosingToReplaceDoesNotOverwriteAFileMacTEMCannotReadBack() throws {
-        // REPORTED, not approved: archive: roadmap-registrations-2026-10-15.md says a save after an unreadable or refused sidecar waits "until the user chooses to
+        // REPORTED, not approved: says a save after an unreadable or refused sidecar waits "until the user chooses to
         // replace it", and SessionSave.Request.replacing says "whatever it holds". The file layer still refuses a file that is not
         // HDF5, one with no identity marker, and (by its header) a newer minimum reader or schema, so for those the choice
         // reaches the same named refusal as not choosing. Replacing works over a readable sidecar whose marks were refused

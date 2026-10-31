@@ -111,6 +111,16 @@ jobs:
         # Decision D15. Plain grep, no build; also part of `inventory`, kept as its own job so the red is named.
         run: tools/check-kit-boundary.sh
 
+  lint:
+    name: Lint (shared SwiftLint and SwiftFormat config)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: SwiftLint
+        run: docker run --rm -v "$PWD:/work" -w /work --entrypoint swiftlint ghcr.io/realm/swiftlint:0.65.1 lint --strict --quiet
+      - name: SwiftFormat
+        run: docker run --rm -v "$PWD:/work" -w /work --entrypoint swiftformat ghcr.io/nicklockwood/swiftformat:0.64.4 --lint .
+
   private-refs:
     name: No private references
     runs-on: ubuntu-latest

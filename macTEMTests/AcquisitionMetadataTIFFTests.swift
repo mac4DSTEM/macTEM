@@ -1,6 +1,6 @@
 //
 //  AcquisitionMetadataTIFFTests.swift
-//  The TIFF reader of acquisition metadata (archive: roadmap-registrations-2026-10-15.md V1-4a, the compute core, slice S-a) on TIFFs built in memory with
+//  The TIFF reader of acquisition metadata (the compute core) on TIFFs built in memory with
 //  known values: the planted truth is the bytes written here. The parity against the references and the real files is
 //  tools/parity/metadata-parity; these pin the reader's own rules without Python — each unit conversion, camera length only
 //  where the mode makes it real, FrameTime never a dwell, the named detector's exposure, a second start stamp kept
@@ -99,7 +99,7 @@ nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
         XCTAssertNil(try plant.read().dwellUS, "FrameTime is a frame time (these files store no dwell)")
         plant.operating = "STEM"
         XCTAssertNil(try plant.read().dwellUS, "not in STEM either")
-        // Where a STEM dwell would sit is unobserved (archive: roadmap-registrations-2026-10-15.md V1-4a, "Owed"), so a DwellTime element is not guessed at.
+        // Where a STEM dwell would sit is unobserved ("Owed"), so a DwellTime element is not guessed at.
         plant.dwellDecoy = "5e-06"
         XCTAssertNil(try plant.read().dwellUS, "dwell stays not recorded until a Velox STEM TIFF shows its path")
     }
@@ -157,7 +157,7 @@ nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
     }
 
     func testAnUnsetSecondStampIsNotACopyOfTheFirst() throws {
-        // Changed behaviour (Gate B 2026-10-12): a second stamp before 1990 is an unset field (RosettaSciIO's Velox EMDs
+        // Changed behaviour: a second stamp before 1990 is an unset field (RosettaSciIO's Velox EMDs
         // store an unset AcquisitionDatetime as unix 0), so no `otherCopy`. Mutations that turn this red: the year guard
         // removed (every stamp below is then a copy); the floor lowered to 1970 or below (the 1970 stamps, the local-zone
         // epoch 01:00:00 included, and 1989 are copies); the floor raised above 1990 (1990-01-01 is no longer kept).
@@ -316,7 +316,7 @@ nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
     }
 
     func testFEIDateIsMonthFirstAndCarriesOnlyTheLocalTimeNote() throws {
-        // Changed behaviour (Gate B 2026-10-12): the FEI INI date is month-first by format, as mapping_fei's dateutil
+        // Changed behaviour: the FEI INI date is month-first by format, as mapping_fei's dateutil
         // reads it, so an ambiguous date is no guess and carries no "month-first order assumed" note (that note is the
         // DM date's). Mutation that turns this red: appending a month-first note to an ambiguous FEI date (as the
         // reader did before), which fails the exact-note comparison of the 05/06/2016 and 5/6/2016 cases.
@@ -333,7 +333,7 @@ nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
 
     func testFEIARepeatedKeyTakesItsLastLineEvenWhenItIsEmpty() throws {
         // tifffile's read_fei_metadata stores `Key=` as the empty string, replacing an earlier value of the key (checked
-        // against tifffile 2026.9.20 on `[Beam] HV=5000` then `HV=`: HV is ''). New (Gate B 2026-10-12). Mutation that
+        // against tifffile 2026.9.20 on `[Beam] HV=5000` then `HV=`: HV is ''). New. Mutation that
         // turns this red: `line.split(separator: "=", maxSplits: 1)` with the default omittingEmptySubsequences, which
         // skips `HV=` so the earlier 5000 survives (5 kV shown for a file whose last word on HV is empty).
         XCTAssertNil(try fei(crlf("[Beam]", "HV=5000", "HV=", "[Scan]", "Dwelltime=1e-005", "Dwelltime=")).highTensionKV,
@@ -376,7 +376,7 @@ nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
 
     func testFEILinesSplitAndTrimWherePythonSplitsAndTrims() throws {
         // tifffile uses str.splitlines (which also splits at U+001C..U+001E, U+0085, U+2028, U+2029) and str.strip (which
-        // also strips U+001F, U+00A0 and the Unicode spaces). New (Gate B 2026-10-12). Mutations that turn this red:
+        // also strips U+001F, U+00A0 and the Unicode spaces). New. Mutations that turn this red:
         // splitting with Character.isNewline alone (the U+001C..U+001E cases read nothing); trimming with
         // CharacterSet.whitespaces or whitespacesAndNewlines (the U+001F case keeps the separator in the value).
         for separator in ["\u{1C}", "\u{1D}", "\u{1E}", "\u{85}", "\u{2028}", "\u{2029}", "\u{0B}", "\u{0C}", "\r", "\n"] {
@@ -390,7 +390,7 @@ nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
 
     func testFEIATagOfByteTypeIsNotRead() throws {
         // The documented DEVIATION from tifffile, which reads the INI whatever the tag's type: only ASCII or UNDEFINED
-        // reads here, as TIFFImageReader.calibration gates the same tag. New (Gate B 2026-10-12). Mutation that turns
+        // reads here, as TIFFImageReader.calibration gates the same tag. New. Mutation that turns
         // this red: iniText accepting `entry.type == 1`.
         var tiff = PlantedTIFF()
         tiff.extra[34682] = .byteArray(Array(crlf("[Beam]", "HV=5000").utf8))
@@ -426,12 +426,12 @@ nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
     // MARK: Nothing recorded, and files that are not read
 
     func testATIFFWithoutAConventionReadsEmptyWhateverElseItHolds() throws {
-        // Changed (Gate B 2026-10-12): the old comment said a Digital Micrograph export holds "none of it an acquisition
+        // Changed: the old comment said a Digital Micrograph export holds "none of it an acquisition
         // value", which is false of a DM-saved TIFF as a whole. The tags planted here hold none: the calibration tags
         // (65003..65010) and ImageJ's description hold calibration only, and the standard DateTime / Model / Software tags
         // describe the file's writer. What a DM-saved TIFF may also carry is its whole DM tag tree in tag 65027 (a DM4
         // serialisation; RosettaSciIO's test_loading_image_saved_with_DM.tif holds 10,585 bytes of it, stating 200 kV, 51x
-        // and a 0.5 s exposure): slice S-a does NOT read it, that is archive: roadmap-registrations-2026-10-15.md V1-4a slice S-b's, so such a file reads empty
+        // and a 0.5 s exposure): slice S-a does NOT read it, that is V1-4a slice S-b's, so such a file reads empty
         // here although it states values. It is not planted below: a block that is not a real tree catches no mutation
         // in S-a, and S-b is where a real one is built. Mutation that turns this red: a reader that returns a value from
         // 272, 305, 306 or 65003..65010.
@@ -470,7 +470,7 @@ nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
     func testAnExternalEntityNamedInTheXMLIsNeverLoaded() throws {
         // With XMLDocument's default options a DOCTYPE that names a local file puts that file's text into the element
         // (measured 2026-10-12): a TIFF must not be able to read the viewer's files into the metadata panel. Changed
-        // (Gate B 2026-10-12): GuardedXML now refuses a document whose DTD declares any entity, so the whole tag reads as
+        // : GuardedXML now refuses a document whose DTD declares any entity, so the whole tag reads as
         // no tag (the old test asserted only that the sentinel was absent, which also passed when the XML failed to parse;
         // `isEmpty` below needs the document to have been parsed AND refused: the 200 kV beside the entity is not shown).
         // That each defence stands alone is pinned in GuardedXMLTests (the tree check; the file never opened). Mutation

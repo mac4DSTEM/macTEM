@@ -1,11 +1,11 @@
 //
 //  SessionSidecarFile.swift
-//  Role: the session sidecar's HDF5 file layer (archive: roadmap-registrations-2026-10-15.md V1-2 slice A; ADR 020): where the sidecar lives, and how four
+//  Role: the session sidecar's HDF5 file layer: where the sidecar lives, and how four
 //        strings are written to and read back from it. It moves strings; what they mean (the source identity, the
 //        lineage's nodes, the restore verdict) is SessionLineage's. Checked by tools/parity/sidecar-parity against h5py 3.16.0.
 //
-//  THE FILE: `<source name on disk>.mactem.h5` beside the source (ADR 020 D1). Four root attributes, each a scalar
-//  fixed-length, null-padded UTF-8 string as long as its text (ADR 021): `mactem_session_schema` (the identity marker,
+//  THE FILE: `<source name on disk>.mactem.h5` beside the source. Four root attributes, each a scalar
+//  fixed-length, null-padded UTF-8 string as long as its text: `mactem_session_schema` (the identity marker,
 //  whose value is the schema, "1"),
 //  `mactem_min_reader_schema` ("1": the oldest reader that can read the file without misreading it),
 //  `mactem_source` and `mactem_lineage` (JSON). A `.mactem.h5` without the identity marker is foreign.
@@ -16,13 +16,13 @@
 //  (we cannot say it is ours, and a dangling link is one), one whose minimum reader is newer than this build's, or one
 //  written by a newer schema (a replace would drop what this build cannot parse, and mark the file as the older schema) is
 //  refused and left as it was. The writer holds itself to the reader's limits: no string over 4 MiB, and none holding a NUL
-//  (a C string would end there and silently lose the rest) and, tighter (ADR 023 a),
+//  (a C string would end there and silently lose the rest) and, tighter,
 //  the four attributes' text together at most `maxTotalTextBytes` (60,000), so every file macTEM writes keeps its attributes in
 //  HDF5's checksummed object header and never in dense storage, which a crafted file can make the library hang or crash on.
 //  A write over that is refused by name (`.sidecarTooLarge`) before the library is touched. The reader still takes up to 4 MiB
 //  a string: a file from elsewhere may hold more than macTEM writes.
 //
-//  PUBLISH, and the race between the check and the rename (Gate B, 2026-10-13): the existing file is checked by opening
+//  PUBLISH, and the race between the check and the rename (2026-10-13): the existing file is checked by opening
 //  it, the rename comes later, and a plain `rename` replaces whatever is at the path by then. So the target's (device,
 //  inode) is taken BEFORE it is opened, and the new file is published only over that very file. When nothing was there,
 //  `renamex_np(RENAME_EXCL)` refuses to replace anything that has appeared since. When a file was there, its identity is
@@ -41,18 +41,17 @@
 //  a string over 4 MiB, invalid UTF-8, a NUL followed by anything but padding. An ASCII-charset string is read as it is
 //  (h5py writes UTF-8, but ASCII is a subset).
 //
-//  NO VARIABLE-LENGTH STRING IS READ (ADR 021). A variable-length string lives in the file's global heap, which has no
+//  NO VARIABLE-LENGTH STRING IS READ. A variable-length string lives in the file's global heap, which has no
 //  checksum, and `H5Aread` of one whose heap holds a damaged object size spins forever while SpectroKit's process-wide
 //  `HDF5Serial` lock is held: every later HDF5 call, and Quit, waits on it. So each attribute's type is asked first and a
 //  variable-length one is refused by name before any `H5Aread`; the global heap is never parsed. A fixed-length string
 //  sits in the attribute's own message: in the checksummed object header while it stays in compact storage (a text up to
-//  about 65,499 bytes, measured by Gate B 2026-10-14; the switch to dense storage is not at exactly 64 KiB), in dense
-//  storage above, which a crafted file with repaired checksums can still make HDF5 hang or crash on (docs/open-items.md,
-//  archive: sidecar-dense-hang-2026-10-14/sheet.md: the owner's decision). A variable-length sidecar from slice A's
-//  build is therefore refused, and a save cannot replace it (the replace check reads the file as the reader does): the
+//  about 65,499 bytes, measured 2026-10-14; the switch to dense storage is not at exactly 64 KiB), in dense
+//  storage above, which a crafted file with repaired checksums can still make HDF5 hang or crash on. A variable-length
+//  sidecar from an earlier build is therefore refused, and a save cannot replace it (the replace check reads the file as the reader does): the
 //  refusal tells the user to delete it.
 //
-//  NO DENSE ATTRIBUTE STORAGE IS OPENED (ADR 023 d'). Before any attribute is opened or asked for, the root object is opened and its
+//  NO DENSE ATTRIBUTE STORAGE IS OPENED. Before any attribute is opened or asked for, the root object is opened and its
 //  header alone is read (`H5Oget_native_info` with `H5O_NATIVE_INFO_HDR`, which reads the checksummed object header and walks no heap):
 //  a root that has attributes but no attribute message in its header keeps them in dense storage, a fractal heap and a B-tree, a form
 //  macTEM never writes (the writer's cap keeps every file it writes in the header) and the library has crashed or spun on when a crafted
@@ -74,7 +73,7 @@
 //  more than the text.
 //
 //  THE FORMAT BOUNDS: the writer sets the file-access property list's library-version bounds to (V18, LATEST) itself, by
-//  `H5Pset_libver_bounds` (Gate B 2026-10-14). With an 'earliest' bound a text over about 65,499 bytes cannot be written (the
+//  `H5Pset_libver_bounds`. With an 'earliest' bound a text over about 65,499 bytes cannot be written (the
 //  old object header cannot hold it); the bundled library's default is already (V18, V200), but a sidecar's format should
 //  not depend on a default. A file so written has superblock version 2 or later and version-2 object headers ("OHDR").
 //
@@ -105,7 +104,7 @@ package nonisolated enum SessionSidecarFile {
     /// The longest string, in UTF-8 bytes, that is READ (a file from elsewhere may hold up to this; the writer holds itself to
     /// `maxTotalTextBytes` below, which is far under it).
     package static let maxStringBytes = 4 << 20
-    /// The most text, in UTF-8 bytes, the four root attributes may hold together when macTEM WRITES a sidecar (ADR 023 a): below
+    /// The most text, in UTF-8 bytes, the four root attributes may hold together when macTEM WRITES a sidecar: below
     /// the measured switch of HDF5 to dense attribute storage (a lineage of about 65,499 bytes) with margin, so every file macTEM
     /// writes keeps its attributes in the checksummed object header. A harness clause holds every file at the cap compact.
     package static let maxTotalTextBytes = 60_000
@@ -158,7 +157,7 @@ package nonisolated enum SessionSidecarFile {
         /// An attribute that is not a scalar fixed-length string, text followed by anything but NUL padding, or a marker
         /// that is not a whole number from 1.
         case malformedAttribute(String)
-        /// A variable-length string: refused from its type, never read (ADR 021: a damaged one can hang HDF5).
+        /// A variable-length string: refused from its type, never read.
         case variableLengthString(String)
         /// The file demands a newer reader than this build.
         case newerMinReader(found: Int, supported: Int)
@@ -171,9 +170,9 @@ package nonisolated enum SessionSidecarFile {
         /// A string to write holds a NUL byte.
         case embeddedNUL(String)
         /// The root has attributes and no attribute message in its object header: they are in dense storage (a fractal heap
-        /// and a B-tree), a form macTEM never writes and refuses to open (ADR 023 d'): a crafted one can crash or hang libhdf5.
+        /// and a B-tree), a form macTEM never writes and refuses to open: a crafted one can crash or hang libhdf5.
         case denseAttributeStorage
-        /// The four attributes' text together is over `maxTotalTextBytes` (ADR 023 a): not written, so that no file macTEM
+        /// The four attributes' text together is over `maxTotalTextBytes`: not written, so that no file macTEM
         /// writes outgrows HDF5's checksummed object header.
         case sidecarTooLarge(bytes: Int)
         /// The write failed; the target was left as it was.
@@ -291,7 +290,7 @@ package nonisolated enum SessionSidecarFile {
     /// The identity and the minimum reader, in the order that makes P2 true: nothing else is read, and nothing is
     /// returned, for a file that demands a newer reader — and that includes a file whose identity marker is spelled in a
     /// way this build does not know ("v2"): the minimum reader decides before the identity's own form is judged
-    /// (Gate B, 2026-10-13; the identity must still be present, or the file is foreign). One kit read per marker, in the
+    /// (2026-10-13; the identity must still be present; or the file is foreign). One kit read per marker, in the
     /// order of the checks: a file without the identity is foreign whatever its other attributes are.
     private static func readHeader(of url: URL) throws -> (schema: Int, minReader: Int) {
         guard let identity = try HDF5RootAttributes.read([identityAttribute], from: url)[identityAttribute] else {
