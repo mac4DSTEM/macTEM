@@ -26,6 +26,8 @@ nonisolated enum ResultsFormat {
         case .calibration: "Calibration"
         case .rings: "Rings and spots"
         case .eds: "EDS composition"
+        case .eelsThickness: "EELS thickness"
+        case .eelsEdges: "EELS edges"
         }
     }
 
@@ -36,6 +38,7 @@ nonisolated enum ResultsFormat {
         case .spots: "the FFT room"
         case .calibration, .rings: "the Diffraction room"
         case .eds: "the EDS room"
+        case .eelsThickness, .eelsEdges: "the EELS room"
         }
     }
 
@@ -79,7 +82,42 @@ nonisolated enum ResultsFormat {
             return "d \(number(d, 5, locale)) Å\(family.isEmpty ? "" : " · \(family)")"
         case .edsComposition:
             return edsValue(row, locale: locale)
+        case .eelsThickness:
+            return eelsThicknessValue(row, locale: locale)
+        case .eelsEdge:
+            return eelsEdgeValue(row, locale: locale)
         }
+    }
+
+    /// An EELS thickness row as the EELS room's thickness line reads it (`EELSRoomFormat.thicknessLine`): "t/λ 0.523 (IQR 0.481–0.571) · t 62.8 nm"
+    /// over the whole map, "t/λ 0.512" for a drawn region's summed spectrum; a t the room cannot give says it needs λ, never a number.
+    static func eelsThicknessValue(_ row: ResultRow, locale: Locale = .autoupdatingCurrent) -> String {
+        guard let t = row.entry("t_over_lambda")?.value else { return "—" }
+        var text = "t/λ \(EELSRoomFormat.fixed(t, 3, locale: locale))"
+        if let q1 = row.entry("t_over_lambda_q1")?.value, let q3 = row.entry("t_over_lambda_q3")?.value {
+            text += " (IQR \(EELSRoomFormat.fixed(q1, 3, locale: locale))–\(EELSRoomFormat.fixed(q3, 3, locale: locale)))"
+        }
+        if let thickness = row.entry("thickness") {
+            text += " · " + (thickness.value.map { "t \(EELSRoomFormat.sig($0, 3, locale: locale)) nm" } ?? thickness.text)
+        }
+        return text
+    }
+
+    /// An EELS edge row: "34.5 at% · 30.1 wt% · I 4.318e7 ± 2.1e5" when the fit gave a composition (the room's at% and I cells), else I and why
+    /// there is no at%; an edge at or under 3σ reads "below detection" in place of its at%, never a bare number.
+    static func eelsEdgeValue(_ row: ResultRow, locale: Locale = .autoupdatingCurrent) -> String {
+        var intensity: String?
+        if let i = row.entry("intensity")?.value {
+            intensity = "I " + EELSRoomFormat.scientific(i, 4, locale: locale)
+                + (row.entry("intensity_sigma")?.value.map { " ± " + EELSRoomFormat.scientific($0, 2, locale: locale) } ?? "")
+        }
+        if row.entry("below_detection") != nil { return ([intensity].compactMap { $0 } + ["below detection"]).joined(separator: " · ") }
+        var parts: [String] = []
+        if let at = row.entry("at")?.value { parts.append("\(EELSRoomFormat.fixed(at, 1, locale: locale)) at%") }
+        if let wt = row.entry("wt")?.value { parts.append("\(EELSRoomFormat.fixed(wt, 1, locale: locale)) wt%") }
+        if let intensity { parts.append(intensity) }
+        if row.entry("at")?.value == nil, let why = row.entry("at")?.text, !why.isEmpty { parts.append("at%: \(why)") }
+        return parts.isEmpty ? "—" : parts.joined(separator: " · ")
     }
 
     /// An EDS row: "12.3 ± 0.4 at% · 10.1 ± 0.3 wt%" when the fit gave a composition, else its net counts and why there is no at%,
@@ -121,6 +159,8 @@ nonisolated enum ResultsFormat {
             return "Diffraction"
         case .eds:
             return "EDS · \(row.entry("region")?.text ?? "")"
+        case .eelsThickness, .eelsEdges:
+            return "EELS · \(row.entry("region")?.text ?? "")"
         }
     }
 
