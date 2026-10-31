@@ -23,16 +23,11 @@
 # the Velox image harness (retired): Pint 0.26.1 with flexcache, flexparser, platformdirs and typing_extensions (RosettaSciIO's
 # rsciio.utils._units imports pint); dask and pyyaml are not reached by the image path, and sparse is stubbed by
 # reference.py (it is only tested for existence before an EDS stream is read). Each release is at least two weeks old.
-#
-# Added 2026-10-14 for the indexing harness (retired; no kept harness imports it): gemmi 0.7.5 (MPL-2.0, no dependencies,
-# abi3 wheel for CPython 3.14 on macOS arm64), the independent reader of the beta'' CIF: UnitCell.calculate_d, the
-# C 1 2/m space group's systematic absences and rotation parts. Released well over two weeks before.
 contourpy==1.4.0
 cycler==0.12.1
 flexcache==0.3
 flexparser==0.4
 fonttools==4.66.1
-gemmi==0.7.5
 h5py==3.16.0
 hdf5plugin==7.1.0
 imagecodecs==2026.8.16
