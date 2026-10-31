@@ -21,11 +21,10 @@ struct SessionCommands: Commands {
         let item = appState?.openItems.selected
         let inImageRoom = appState?.navigation.workspaceArea == .image
         let enabled = inImageRoom && item?.canSave == true
-        // The title follows whether a grant is stored; a save changes `sidecar`, which re-evaluates this body.
-        let sidecar = item?.measurements.sidecar
-        let asks = sidecar == nil || item.map { SessionGrants.bookmark(forSource: $0.url) == nil } ?? true
+        // The title follows whether a grant is stored (`OpenItem.hasGrant`, observed).
+        let title = SessionGrants.saveTitle(for: item)
         CommandGroup(after: .saveItem) {
-            Button(asks ? "Save to Session…" : "Save to Session") {
+            Button(title) {
                 if let appState { SessionPanels.save(appState: appState) }
             }
             .keyboardShortcut("s", modifiers: .command)

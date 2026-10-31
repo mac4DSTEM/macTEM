@@ -47,7 +47,7 @@ enum SessionPanels {
                 finish(saved, item: item, appState: appState)
                 return
             } catch SessionSaving.Failure.grantLost {
-                SessionGrants.drop(forSource: item.url)   // no grant: the next step is a first save
+                SessionGrants.drop(for: item)   // no grant: the next step is a first save
             } catch {
                 await failed(error, item: item, target: { .bookmark(grant) }, appState: appState)
                 return
@@ -88,7 +88,7 @@ enum SessionPanels {
     private static func failed(_ error: any Error, item: OpenItem, target: () -> SessionSaving.Target,
                                appState: AppState) async {
         let failure = error as? SessionSaving.Failure
-        if failure?.dropsGrant == true { SessionGrants.drop(forSource: item.url) }
+        if failure?.dropsGrant == true { SessionGrants.drop(for: item) }
         if failure?.offersSaveAnyway == true, let window = ExportPanels.hostWindow() {
             await saveAnyway(item: item, target: target, on: window, appState: appState)
             return
@@ -105,7 +105,7 @@ enum SessionPanels {
         do {
             finish(try await SessionSaving.replaceAndSave(item, to: target()), item: item, appState: appState)
         } catch {
-            if (error as? SessionSaving.Failure)?.dropsGrant == true { SessionGrants.drop(forSource: item.url) }
+            if (error as? SessionSaving.Failure)?.dropsGrant == true { SessionGrants.drop(for: item) }
             appState.present(error)
         }
     }
@@ -150,7 +150,7 @@ enum SessionPanels {
     }
 
     private static func finish(_ saved: SessionSaving.Saved, item: OpenItem, appState: AppState) {
-        SessionGrants.store(saved.bookmark, forSource: item.url)
+        SessionGrants.store(saved.bookmark, for: item)
         let line = SessionSaving.savedLine(name: saved.url.lastPathComponent, marks: saved.marks)
         appState.statusText = line
         AccessibilityNotification.Announcement(ExportPanels.announcement(line)).post()
@@ -207,7 +207,7 @@ enum SessionPanels {
         let bookmark = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
         let outcome = await read(url, source: item.url, identity: identity, image: image)
         if case .needsAccess = outcome { return }
-        if case .none = outcome {} else { SessionGrants.store(bookmark, forSource: item.url) }
+        if case .none = outcome {} else { SessionGrants.store(bookmark, for: item) }
         let adopted = item.adopt(outcome, identity: identity, on: image)
         appState.statusText = SessionFormat.chosenLine(outcome, adopted: adopted, name: expected.lastPathComponent)
             + (adopted ? AppState.sessionSuffix(of: item) : "")
