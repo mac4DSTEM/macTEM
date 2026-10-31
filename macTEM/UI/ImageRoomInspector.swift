@@ -1,7 +1,7 @@
 //
 //  ImageRoomInspector.swift
 //  Role: the Image room's inspector content. Settings: the calibration a distance in this room is measured
-//        in (readiness, the first section), then Display (ImageRoomDisplay.swift) and Measure (ImageRoomMeasure.swift).
+//        in (readiness, the first section), then Display (ImageRoomDisplay.swift), Particles (ImageRoomParticles.swift) and Measure (ImageRoomMeasure.swift).
 //        Info: what the open image is, as the file states it, then what it records about the acquisition
 //        (ImageRoomAcquisition.swift).
 //
@@ -28,12 +28,12 @@ struct ImageRoomSettings: View {
         // An image stack read on demand (a multi-page TIFF): the frame shown and the slider that moves it.
         if let item = appState.openItems.selected, item.stack != nil { ImageRoomStackSection(item: item, items: appState.openItems) }
         ImageRoomDisplaySection(presentation: appState.presentation)
-        ImageRoomMeasureSection(image: image, measurements: appState.measurements, tools: appState.imageRoomTools,
-                                item: appState.openItems.selected)
-        // The Particles view: objects found on the image, outlined over it.
+        // The Particles view: objects found on the image, outlined over it. Above Measure, so it is in view without scrolling past the tools.
         if let item = appState.openItems.selected {
             ImageRoomParticlesSection(image: image, item: item, rawRange: appState.presentation.canvas?.rawRange)
         }
+        ImageRoomMeasureSection(image: image, measurements: appState.measurements, tools: appState.imageRoomTools,
+                                item: appState.openItems.selected)
         // The record of those marks: collapsed, drawn only when there is something to show.
         if let item = appState.openItems.selected { ImageRoomLineageSection(image: image, item: item) }
     }

@@ -199,5 +199,10 @@ struct macTEMApp: App {
                 // View > Zoom In, Zoom Out, Zoom to Fit (⌘+ ⌘− ⌘0) on the pane that publishes its zoom (control placement §6).
                 ZoomCommands()
             }
+        // The Particles view's object table, beside the image (ImageRoomParticles.swift); never opened at launch.
+        Window("Objects", id: ParticleTableWindow.id) { ParticleTableWindow(appState: appState) }
+            .defaultLaunchBehavior(.suppressed)
+            .restorationBehavior(.disabled)
+            .defaultSize(width: 640, height: 420)
     }
 }
