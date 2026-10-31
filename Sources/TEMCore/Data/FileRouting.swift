@@ -46,6 +46,14 @@ package nonisolated struct FileInventory: Equatable, Sendable {
 }
 
 package nonisolated enum FileRouting {
+    /// Every extension an Open routes somewhere (an image, an EDS or EELS spectrum image, a single spectrum), each once:
+    /// what the Open panel offers, a drop takes, and the app declares as document types for Finder's Open With.
+    package static let openableExtensions: [String] = {
+        var seen = Set<String>()
+        return (ImageOpening.readableExtensions + EDXOpening.readableExtensions + EELSOpening.readableExtensions)
+            .filter { seen.insert($0).inserted }
+    }()
+
     package struct SpectrumReadError: Error, LocalizedError, Equatable {
         package var text: String
         package var errorDescription: String? { text }

@@ -148,9 +148,11 @@ package nonisolated enum ParticleCompute {
 }
 
 package nonisolated enum ParticleFormat {
-    package static func number(_ v: Double) -> String { String(format: "%.3g", v) }
+    /// A number a person reads (the object table, the inspector, the pointer readout): three significant digits in the locale's decimal
+    /// mark, never grouped, as `UnitDisplay.number` writes every other number in the Image room ("0,873" in de_DE).
+    package static func number(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { UnitDisplay.number(v, digits: 3, locale: locale) }
 
-    /// The same number for the CSV a script reads: printf's `%.3g`, always a point, whatever the shown numbers do.
+    /// The same number for the CSV a script reads: printf's `%.3g`, always a point.
     package static func csvNumber(_ v: Double) -> String { String(format: "%.3g", v) }
 
     /// "128 objects · 97 counted · 19 edge · 12 small".
@@ -159,9 +161,9 @@ package nonisolated enum ParticleFormat {
     }
 
     /// "median length 18.2 nm · mean width 5.9 nm", or why there is none.
-    package static func sizes(_ s: ParticleSummary, scale: ParticleScale) -> String {
+    package static func sizes(_ s: ParticleSummary, scale: ParticleScale, locale: Locale = .autoupdatingCurrent) -> String {
         guard let l = s.medianLengthPx, let w = s.meanWidthPx else { return s.total == 0 ? "No objects above the threshold." : "No object is counted." }
-        return "median length \(number(l * scale.perPixel)) \(scale.unit) · mean width \(number(w * scale.perPixel)) \(scale.unit)"
+        return "median length \(number(l * scale.perPixel, locale: locale)) \(scale.unit) · mean width \(number(w * scale.perPixel, locale: locale)) \(scale.unit)"
     }
 
     /// "areal density 0.00123 /nm² (edge-corrected)", or why there is none.
