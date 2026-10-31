@@ -12,7 +12,7 @@ import TEMCore
 nonisolated extension SessionSidecarFileTests {
     // MARK: What a stored attribute may be
 
-    /// A variable-length string is refused BY NAME, from its type, before any `H5Aread` (ADR 021): the global heap that holds
+    /// A variable-length string is refused BY NAME, from its type, before any `H5Aread`: the global heap that holds
     /// its characters has no checksum, and reading a damaged one can spin forever. Each of the four attributes, planted
     /// variable-length in a sidecar that is otherwise valid (the same sidecar with the attribute fixed-length reads, the
     /// control, so the refusal is the type's and nothing else's). The identity is refused as a variable-length string, not
@@ -71,7 +71,7 @@ nonisolated extension SessionSidecarFileTests {
 
     /// A variable-length string is refused from its type and its characters are never fetched. The sidecars here have the
     /// signature of their global heap broken, where an `H5Aread` of the string fails at once (the damaged object SIZE that
-    /// makes it spin forever, ADR 021, cannot be planted in a test that must be able to fail: the signature can). So the
+    /// makes it spin forever, cannot be planted in a test that must be able to fail: the signature can). So the
     /// refusal is the variable-length one, in each of the four attributes, on a read and on the check a write makes; had the
     /// string been read first, the refusal would be `.hdf5`, reading the attribute. Each file really has its heap broken
     /// (counted), and the write leaves the file as it was. Red under: the variable-length check moved after the read; the
@@ -95,7 +95,7 @@ nonisolated extension SessionSidecarFileTests {
     }
 
     /// An integer, which is not a string at all, is refused by name, in the lineage and in the source. (A fixed-length
-    /// string used to be on this list: since ADR 021 it is the right kind, and a variable-length one has its own
+    /// string used to be on this list: since the fixed-length rule it is the right kind, and a variable-length one has its own
     /// refusal, above.) Red under: the class check removed (the integer's four bytes are then read as text).
     func testAnAttributeThatIsNotAStringIsRefused() throws {
         let directory = try scratchDirectory()
@@ -143,9 +143,9 @@ nonisolated extension SessionSidecarFileTests {
     }
 
     /// The writer's cap on a string is exact: 4 MiB + 1 is refused with its size, in the source and in the lineage, creating
-    /// nothing (ADR 023 a puts 60,000 bytes of text in all far below it, so these refusals are the per-string check that comes
+    /// nothing (the save budget puts 60,000 bytes of text in all far below it, so these refusals are the per-string check that comes
     /// first). A stored text of 4 MiB, 4 MiB + 1 or 5 MiB is in dense attribute storage and the reader refuses the file as
-    /// that, `.denseAttributeStorage`, before any attribute is looked at (ADR 023 d'); the reader's own 4 MiB cap on a
+    /// that, `.denseAttributeStorage`, before any attribute is looked at; the reader's own 4 MiB cap on a
     /// declared size is therefore unreachable and is not tested. Red under: the cap removed from the write; the writer's
     /// comparison made strict (`>=`); the dense refusal removed (the 4 MiB text is then read whole).
     func testTheFourMebibyteWriteCapIsExactAndAStoredFourMebibyteIsRefusedAsDense() throws {
@@ -170,7 +170,7 @@ nonisolated extension SessionSidecarFileTests {
         XCTAssertFalse(FileManager.default.fileExists(atPath: none.path))
     }
 
-    /// ADR 023 d', P3. A sidecar whose root keeps its attributes in dense storage (a fractal heap and a B-tree) is refused by
+    /// P3. A sidecar whose root keeps its attributes in dense storage (a fractal heap and a B-tree) is refused by
     /// name, `.denseAttributeStorage`, from the root's object header alone, before any attribute is opened: whichever of the
     /// four attributes is the big one, at 65,600 bytes, 100,000, 4 MiB and 4 MiB + 1; and a file whose attributes are many
     /// (44 small ones, which the library also moves to dense storage) the same. "Before any attribute is opened" is seen in
@@ -228,7 +228,7 @@ nonisolated extension SessionSidecarFileTests {
         XCTAssertTrue(reason.contains("dense") && reason.contains("delete the file"), reason)
     }
 
-    /// ADR 023 d', the other side: what is not dense is not refused as dense. A root with no attributes at all (an HDF5 file
+    /// The other side: what is not dense is not refused as dense. A root with no attributes at all (an HDF5 file
     /// that is not a sidecar) and a root with attributes that are not ours are `.foreign`, as before; a sidecar of eight
     /// attributes (four of ours and four more, the most the header keeps) and every file the writer writes up to the cap read
     /// whole. Red under: the attribute count not asked (the empty root is refused as dense); the attribute-message bit tested
@@ -299,7 +299,7 @@ nonisolated extension SessionSidecarFileTests {
         XCTAssertEqual(try Sidecar.read(url: terminated), Sidecar.Contents(schema: 1, minReader: 1, source: "{}", lineage: ""))
     }
 
-    /// What the reader does with the two other paddings, written down (Gate B 2026-10-14, finding 4): NULLTERM reads as the
+    /// What the reader does with the two other paddings, written down (a review, 2026-10-14): NULLTERM reads as the
     /// text before its terminator (above, with the empty text); SPACEPAD has no NUL at all, so the whole field is the text
     /// and the spaces are part of it — the reader trims nothing, and a source or lineage written by such a tool would carry
     /// its padding into JSON (where trailing whitespace is harmless) but into the identity marker it makes "1  " malformed,
@@ -321,7 +321,7 @@ nonisolated extension SessionSidecarFileTests {
     /// The text is stored and read byte for byte, in whichever normal form it came: "é" composed (C3 A9) and decomposed
     /// (65 CC 81) are one string to Swift's `==`, so a round trip compared with `==` cannot see a layer that normalises on
     /// write or on read. Compared here by UTF-8 bytes, in the file and after the read, in the source and in the lineage; the
-    /// two files differ from each other (Gate B 2026-10-14, finding 4). Red under: the writer storing the composed form
+    /// two files differ from each other (a review, 2026-10-14). Red under: the writer storing the composed form
     /// (`precomposedStringWithCanonicalMapping`); the reader returning the decomposed form.
     func testTheTextIsStoredAndReadByteForByteInTheNormalFormItCameIn() throws {
         let directory = try scratchDirectory()
@@ -344,9 +344,9 @@ nonisolated extension SessionSidecarFileTests {
         XCTAssertNotEqual(seen[0], seen[1], "the two normal forms came back as one")
     }
 
-    /// The file is written in the library's latest format, which the writer sets itself (Gate B 2026-10-14, finding 2): a
+    /// The file is written in the library's latest format, which the writer sets itself (a review, 2026-10-14): a
     /// text over about 65,499 bytes does not fit an old-format object header and goes to dense storage, which the 'earliest'
-    /// bound cannot write at all. For sizes up to the writer's cap (ADR 023 a; the switch itself is beyond it), the file is written, reads
+    /// bound cannot write at all. For sizes up to the writer's cap (60,000 bytes of text; the switch itself is beyond it), the file is written, reads
     /// back equal, and has a superblock of version 2 or later and version-2 object headers ("OHDR") — the layout every
     /// current reader, h5py included, takes. (The bundled library's own default is already this bound, so removing the
     /// writer's setting is not seen here; setting the bound to 'earliest' is.) Red under: the writer's bounds set to
@@ -365,7 +365,7 @@ nonisolated extension SessionSidecarFileTests {
         }
     }
 
-    /// ADR 023 a, P1 and P2. The writer refuses, by name, a save whose four attributes' text together is over 60,000 bytes (the
+    /// P1 and P2. The writer refuses, by name, a save whose four attributes' text together is over 60,000 bytes (the
     /// identity marker and the minimum reader one byte each, the source and the lineage): exactly 60,000 is written, one byte
     /// more is `.sidecarTooLarge(bytes:)` and NOTHING is written or changed (no file where there was none, the old file's
     /// bytes, nothing left in the folder), whether the bytes are in the lineage, in the source, or split between them (each
@@ -416,9 +416,9 @@ nonisolated extension SessionSidecarFileTests {
     }
 
     /// A sidecar whose lineage attribute is missing reads as `lineage == nil` — not as an empty text and not as an error —
-    /// and that is the file layer's whole contract (Gate B 2026-10-14, finding 3: damage to the NAME of a lineage makes the
+    /// and that is the file layer's whole contract (a review, 2026-10-14: damage to the NAME of a lineage makes the
     /// attribute unfindable and the file then looks exactly like this; in dense storage, over 65,499 bytes, it is refused
-    /// before that, ADR 023 d', so the plant is a compact one of 30,000 bytes). What the
+    /// before that, so the plant is a compact one of 30,000 bytes). What the
     /// restore does with nil is `SessionRestore`'s, which refuses it by name (`.missingLineage`, slice B's tests). The
     /// control is the same file with the lineage under its right name. Red under: nil read as "".
     func testAMissingLineageAttributeReadsAsNilNotAsEmptyAndTheSourceStillReads() throws {
@@ -438,7 +438,7 @@ nonisolated extension SessionSidecarFileTests {
     }
 
     /// The refusal of a variable-length string says what to do, because nothing else can: slice A's variable-length
-    /// sidecar is refused by the read and by the replace check of a save, so a save never replaces it (Gate B 2026-10-14,
+    /// sidecar is refused by the read and by the replace check of a save, so a save never replaces it (a review, 2026-10-14,
     /// finding 4). The sentence names the attribute and tells the user to delete the file. Red under: the sentence without
     /// "delete the file".
     func testTheVariableLengthRefusalTellsTheUserToDeleteTheSidecar() throws {

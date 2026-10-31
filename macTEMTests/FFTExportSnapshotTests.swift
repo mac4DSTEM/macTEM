@@ -1,7 +1,7 @@
 //
 //  FFTExportSnapshotTests.swift
 //  Pins what the FFT room's three exports take from the selected file when their panel opens (`FFTExportSnapshot`,
-//  `ExportPanels`, `ExportCommands`; V1-10 slice 2): when each command is
+//  `ExportPanels`, `ExportCommands`): when each command is
 //  enabled, that nothing is exported while the spectrum is updating, the owner's window (not the product's default) going to
 //  the shader's inputs, one ring per measured spot on THIS spectrum, the names and words, the panels' configuration and the
 //  one hand-over from a snapshot to its writer (a real file written and read back). Real `FFTAnalysis` with the live cores on

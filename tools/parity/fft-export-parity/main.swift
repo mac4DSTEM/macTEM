@@ -1,4 +1,4 @@
-// tools/parity/fft-export-parity/main.swift — macTEM's FFT-room export (V1-10 slice 2: `FFTExport`, `RadialProfileCSV`, `SpotsCSV`,
+// tools/parity/fft-export-parity/main.swift — macTEM's FFT-room export (`FFTExport`, `RadialProfileCSV`, `SpotsCSV`,
 // `ImageExport` with a provenance and spot marks; TEMCore, through Package.swift's FFTExportParity target) WRITES what
 // reference.py planted; reference.py `check` reads it back with Pillow, numpy and Python's own `float`.
 //

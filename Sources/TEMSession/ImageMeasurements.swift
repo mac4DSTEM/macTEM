@@ -4,8 +4,8 @@
 //        points in the image's pixel coordinates (`ImagePoint`: column x, row y, a pixel's centre at integers), a
 //        profile's width, and which mark is selected. The numbers are TEMCore's (`ImageMeasurement`, `LineProfile`,
 //        gated against the closed form and scikit-image); this owner holds the marks and the profiles computed from
-//        them, and — since V1-2 slice B — the file's session record: the live lineage (one node per mark, from the
-//        first mark, ADR 020) and what saving and restoring it need.
+//        them, and the file's session record: the live lineage (one node per mark, from the
+//        first mark) and what saving and restoring it need.
 //
 //        A profile needs the pixels, so it is computed when its mark is made or changed, against the image the caller
 //        passes (the file's own `CalibratedImage`, never the display canvas: no contrast setting reaches a number), and
@@ -129,7 +129,7 @@ package final class ImageMeasurements {
     package var isDirty: Bool { revision != savedRevision }
 
     /// Why a new mark would not be recorded now, or nil: what the tools ask before a gesture. The one place the limits meet
-    /// (`mintRefusal`'s: a read-only lineage, 2 000 nodes, every id spent; and ADR 023's byte budget: the smallest node a mark
+    /// (`mintRefusal`'s: a read-only lineage, 2 000 nodes, every id spent; and the sidecar's byte budget: the smallest node a mark
     /// can record would take the saved text past `SessionSidecarFile.maxTotalTextBytes`). `add` is the exact check.
     package var recordingRefusal: SessionLineage.Refusal? {
         if let refusal = lineage.mintRefusal { return refusal }
@@ -152,7 +152,7 @@ package final class ImageMeasurements {
         (try? lineage.jsonString())?.utf8.count
     }
 
-    /// ADR 023 a: the refusal for a lineage that, saved, would hold more than a sidecar may, or nil.
+    /// The refusal for a lineage that, saved, would hold more than a sidecar may, or nil.
     private func budgetRefusal(of candidate: SessionLineage) -> SessionLineage.Refusal? {
         let limit = SessionSidecarFile.maxTotalTextBytes
         guard let bytes = Self.lineageBytes(candidate) else { return .tooLargeToSave(bytes: SessionLineage.maximumJSONBytes, limit: limit) }

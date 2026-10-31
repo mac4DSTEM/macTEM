@@ -1,8 +1,8 @@
 #!/bin/zsh
 # tools/parity/profile-parity — macTEM's distance, angle and line profile (`ImageMeasurement`, `LineProfile`) against the closed
 # forms and scikit-image 0.26.0's `measure.profile_line` with scipy 1.18.1 (pinned: tools/lib/references-lock.txt,
-# reference.py). Classified `scientific` in tools/run-tests.sh. Pre-registration: archive: roadmap-registrations-2026-10-15.md "V1-5 Measure distance, angle and
-# line profile" ("Completed at pickup"). README.md says more.
+# reference.py). Classified `scientific` in tools/run-tests.sh.
+# README.md says more.
 #
 #   run.sh   reference.py checks scikit-image against an independent interpolation and the analytic ramps, then writes its
 #            profiles and the closed forms (manifest.json); the Swift code must match them (main.swift); then every source

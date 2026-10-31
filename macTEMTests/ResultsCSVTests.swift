@@ -1,6 +1,6 @@
 //
 //  ResultsCSVTests.swift
-//  The Results room's CSV and its rows (V1-10 slice 3, `ResultsCSV`, `ResultRow`): the header's keys in order and one validation
+//  The Results room's CSV and its rows (`ResultsCSV`, `ResultRow`): the header's keys in order and one validation
 //  line per product present, the columns, one line per quantity and a line for a refusal, the numbers exact (`nan`, `inf`, `-inf`,
 //  -0), RFC 4180 quoting of a cell with a comma, a quote and a newline, a header value that cannot end its line, an empty ledger that is
 //  no file, the builders' quantities against the owners' own (`ImageMeasurement`, `SpotMeasurement`), and R-P2 — every validation sentence
@@ -282,7 +282,7 @@ nonisolated final class ResultsCSVTests: XCTestCase {
     }
 
     /// A spot measured on an image whose axes are already reciprocal ("1/nm", a diffraction pattern) writes the unit of q, qx and qy
-    /// as "nm", not "1/1/nm" (ImagoKit's `SpotMeasurement.reciprocalUnits`; macTEM's `SpotMeasure` wrote "1/1/nm", ADR 027): the
+    /// as "nm", not "1/1/nm" (ImagoKit's `SpotMeasurement.reciprocalUnits`; macTEM's `SpotMeasure` wrote "1/1/nm"): the
     /// Results ledger and its CSV carry this string. Red under: the reciprocal of a reciprocal unit written as "1/" + unit.
     func testASpotOnAReciprocalAxisImageNamesItsReciprocalUnitNm() throws {
         let axis = AxisCalibration(scale: 0.05, unit: "1/nm", origin: 0)
@@ -387,7 +387,7 @@ nonisolated final class ResultsCSVTests: XCTestCase {
     }
 
     /// "Validated" is never claimed: no sentence the room or the CSV shows contains it (only "unvalidated" may), and the distance
-    /// and angle sentence claims what V1-5's P1 gated — closed forms, 1e-12, tools/parity/profile-parity — and the file's scale as stated.
+    /// and angle sentence claims what the profile harness gated — closed forms, 1e-12, tools/parity/profile-parity — and the file's scale as stated.
     /// Red under: "validated" written into a sentence; the 1e-12 or the tool's name dropped.
     func testNoSentenceClaimsValidated() {
         for product in ResultRow.Product.allCases {

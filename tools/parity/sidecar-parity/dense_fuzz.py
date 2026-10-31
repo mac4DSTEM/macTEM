@@ -1,8 +1,8 @@
-"""tools/parity/sidecar-parity/dense_fuzz.py -- ADR 023 d', P3: the structure-aware fuzz of dense-storage sidecars, and the forged header.
+"""tools/parity/sidecar-parity/dense_fuzz.py -- P3: the structure-aware fuzz of dense-storage sidecars, and the forged header.
 
 A file whose root keeps its attributes in HDF5's dense storage (a fractal heap, FRHP, and a version-2 B-tree, BTHD with its
 leaf BTLF) was crashed or hung by editing those blocks and recomputing the block's checksum, so the library's integrity test
-passes (archive: sidecar-dense-hang-2026-10-14/: the sheet's `gbhang_run_meta.py` method, the second opinion's 648 FRHP windows).
+passes (an earlier investigation's method and its 648 FRHP windows).
 This module makes the same mutations, as patches to a base file the harness applies (the Swift reader then reads each in a child
 process with a deadline, fuzz.swift): for every byte of each FRHP, BTHD and BTLF block of an h5py-written dense file, six byte
 operations, and every 2-, 4- and 8-byte window set to the sheet's values, with the block's lookup3 checksum recomputed (the

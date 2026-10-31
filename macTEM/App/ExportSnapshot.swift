@@ -13,7 +13,7 @@
 //        display-converted one (`MarkFormat.shown`) only names the unit a profile's positions are shown in.
 //
 //        THE HAND-OVER to TEMCore's writers is one function on each snapshot (`write(to:)`), and the panels only call it:
-//        the one place the snapshot's values meet the writer is then a place a unit test can reach (Gate B R2 F1: two
+//        the one place the snapshot's values meet the writer is then a place a unit test can reach (a review: two
 //        mutations there — the ends swapped, the shown unit dropped — had passed every gate while it lived in the panel).
 //
 
@@ -176,8 +176,8 @@ enum ExportSnapshot {
     // MARK: Enabled
 
     /// The first two commands need an image with its pixels in the Image room, no read running; the second also a profile with
-    /// samples selected. Export Results… needs the Results room, an image, no read running and `resultRows` of them (V1-10
-    /// slice 3). Exhaustive over the rooms on purpose: a room that is built later decides here whether it exports.
+    /// samples selected. Export Results… needs the Results room, an image, no read running and `resultRows` of them.
+    /// Exhaustive over the rooms on purpose: a room that is built later decides here whether it exports.
     static func availability(hasImage: Bool, area: WorkspaceArea, isLoading: Bool, profileHasSamples: Bool,
                              resultRows: Int = 0) -> ExportAvailability {
         let inExportingRoom: Bool

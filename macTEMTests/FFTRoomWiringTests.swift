@@ -242,7 +242,7 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
     /// grid lines at the chosen decades with a label on every decade (X06); the labels removed (X07); labels in a 30 pt font
     /// (X09); a mark beyond the chosen ones (X12). Not caught, judged benign: a label drawn twice on itself (X10: the label's
     /// ink is darker, its place and size are the same).
-    /// Known flake, Gate D 2026-10-14: rendering the real chart in a fresh process traps in Charts ("Duplicate keys of type
+    /// Known flake, seen 2026-10-14: rendering the real chart in a fresh process traps in Charts ("Duplicate keys of type
     /// 'HashableText'") in about 0.3 to 1 % of processes, because `FFTRadialChart` gives `.value(…)` an interpolated
     /// LocalizedStringKey as its x title; a String there takes another overload and traps in none of 2400 processes. Land this
     /// test with that change, not before.
@@ -424,7 +424,7 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
         XCTAssertFalse(rest.contains("ScaleBar("), "no bare ScaleBar elsewhere in the pane")
     }
 
-    /// Gate D: an interpolated string literal given to a Charts `.value(…)` takes the
+    /// Found in a drive: an interpolated string literal given to a Charts `.value(…)` takes the
     /// LocalizedStringKey overload and traps Charts' layout in ~1 % of fresh processes ("Duplicate keys of type 'HashableText'").
     /// A title with `\(…)` goes through a String variable. Probabilistic, so pinned at the source, not by rendering.
     func testNoChartsValueTitleIsAnInterpolatedLiteral() throws {

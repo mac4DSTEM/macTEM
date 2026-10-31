@@ -167,7 +167,7 @@ enum SessionFormat {
 
 // MARK: - A mark the record would not take
 
-/// What is said when the session record cannot take a mark, a move or a width (ADR 023 a: the saved text is at most 60,000
+/// What is said when the session record cannot take a mark, a move or a width (the saved text is at most 60,000
 /// bytes; the record also holds at most 2,000 entries): in plain words, what happened and what to do. Pure, so a test pins
 /// every sentence. Never a silent no-op: the gesture's caller shows `refused`, and the Measure tail shows `standing`
 /// while the next mark would be refused.
