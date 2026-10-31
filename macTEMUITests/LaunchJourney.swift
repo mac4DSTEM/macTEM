@@ -13,6 +13,8 @@ nonisolated final class LaunchJourney: Journey {
             XCTAssertTrue(app.staticTexts["Demo lattice"].firstMatch.waitForExistence(timeout: 30), "the sidebar never listed Demo lattice")
         }
         try step("the status bar says it opened") {
+            // While the pointer rests on the image the status line is its hover readout (control placement §7): rest it on the sidebar first.
+            waitFor("sidebar.openItems", timeout: 30).hover()
             let bar = waitFor("status.bar", timeout: 30)
             let predicate = NSPredicate(format: "label CONTAINS[c] 'Opened' OR value CONTAINS[c] 'Opened'")
             let done = XCTNSPredicateExpectation(predicate: predicate, object: bar)

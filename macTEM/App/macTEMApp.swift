@@ -179,6 +179,7 @@ struct macTEMApp: App {
     // File-menu actions asked for while no window is focused (`MenuActionRelay`): read by the commands, taken
     // by the window they open.
     @State private var menuRelay = MenuActionRelay()
+    private static let isUITesting = LaunchOptions().isUITesting
 
     var body: some Scene {
         Window("macTEM", id: "image") {
@@ -186,6 +187,8 @@ struct macTEMApp: App {
         }
             .handlesExternalEvents(matching: ["*"])
             .defaultLaunchBehavior(.presented)
+            // A UI-testing launch restores nothing, so the window is always presented (a saved "window closed" state hid it); a person's launch restores as usual.
+            .restorationBehavior(Self.isUITesting ? .disabled : .automatic)
             .defaultSize(width: LayoutPolicy.datasetWindowIdealSize.width,
                          height: LayoutPolicy.datasetWindowIdealSize.height)
             .windowStyle(.titleBar)
@@ -199,5 +202,10 @@ struct macTEMApp: App {
                 // View > Zoom In, Zoom Out, Zoom to Fit (⌘+ ⌘− ⌘0) on the pane that publishes its zoom (control placement §6).
                 ZoomCommands()
             }
+        // The Particles view's object table, beside the image (ImageRoomParticles.swift); never opened at launch.
+        Window("Objects", id: ParticleTableWindow.id) { ParticleTableWindow(appState: appState) }
+            .defaultLaunchBehavior(.suppressed)
+            .restorationBehavior(.disabled)
+            .defaultSize(width: 640, height: 420)
     }
 }

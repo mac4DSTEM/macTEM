@@ -382,6 +382,11 @@ private struct FFTSpotRow: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(FFTRoomFormat.spotSpoken(spot))
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
+                // The value a UI test reads: d as a number and its unit, "0.2351 nm" (never parsed from the label), on the button itself.
+                // A button is one leaf to accessibility: an identifier on a view inside its label is never exposed (why `FFTJourney` never
+                // found `fft.spotSpacing`); the Image room's mark rows carry `image.mark` the same way. A measured spot only.
+                .accessibilityIdentifier(spot.measured == nil ? "" : "fft.spotSpacing")
+                .accessibilityValue(spot.measured.map { String(format: "%.5g %@", $0.d, $0.units) } ?? "")
             neighbourFlag
             Toggle("In Mask, spot \(spot.number)", isOn: inMask)
                 .labelsHidden()
@@ -439,13 +444,6 @@ private struct FFTSpotRow: View {
                     }
                     .monospacedDigit()
                 }
-                // The value a UI test reads: d as a number and its unit, "0.2351 nm" (never parsed from the label). One leaf element: a `ViewThatFits`
-                // with an identifier alone is not resolved by XCUITest on macOS 27.
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Spot spacing")
-                .accessibilityIdentifier("fft.spotSpacing")
-                .accessibilityValue(spot.measured.map { String(format: "%.5g %@", $0.d, $0.units) } ?? "")
-                .overlay { if let angle { Color.clear.accessibilityIdentifier("fft.spotAngle").accessibilityValue(String(format: "%.1f", angle.degrees)).accessibilityLabel("Angle to spot \(angle.reference)") } }
             }
         case .refused(let failure):
             InspectorNote(FFTRoomFormat.refusal(failure))

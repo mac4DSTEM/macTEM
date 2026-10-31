@@ -82,7 +82,7 @@ struct ContentView: View {
             guard !appState.windowTitle.isEmpty, appState.windowTitle != "macTEM" else { return nil }
             let busy = room == .edx ? appState.edx.isBusy : appState.eels.isBusy
             if busy {
-                return .busy(operation: appState.statusText.isEmpty ? room.title : appState.statusText, progress: RoomProgress.fraction(room: room, appState: appState),
+                return .busy(operation: BusyOperation.name(room: room, appState: appState) ?? room.title, progress: RoomProgress.fraction(room: room, appState: appState),
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
             let detail = room == .edx ? EDXRoomFormat.capsuleDetail(appState.edx) : "spectrum image"

@@ -35,7 +35,7 @@ enum RoomPrimaryAction {
                 // Opening: the verb is the running state, so the toolbar shows Stop (as ⌘.); the read ends at its next check and the room
                 // returns to what it showed (the owner's drive, 2026-10-23: an open could not be stopped from the window).
                 return PrimaryAction(title: "Quantify", isEnabled: false, help: "Opening the spectrum image", hint: "Opening the spectrum image",
-                                     isRunning: true, operationName: appState.statusText, stop: { session.stop() }, run: {})
+                                     isRunning: true, operationName: BusyOperation.name(room: .edx, appState: appState), stop: { session.stop() }, run: {})
             }
             guard session.hasImage else { return nil }
             return PrimaryAction(
@@ -44,7 +44,7 @@ enum RoomPrimaryAction {
                 help: session.quantifyBlocker ?? "Fit the region's spectrum and compute the composition; from then on it follows every change",
                 hint: "Fits the region's spectrum and computes the composition",
                 isRunning: session.isBusy,
-                operationName: appState.statusText,
+                operationName: BusyOperation.name(room: .edx, appState: appState),
                 stop: { session.stop() },
                 run: { session.quantify() })
         case .eels:
@@ -57,7 +57,7 @@ enum RoomPrimaryAction {
                 help: next.map { "Run the stages that are not current, starting with \($0.stage.title)" } ?? "Every stage is current",
                 hint: "Aligns the zero-loss peak, maps the thickness and fits the picked edges",
                 isRunning: session.isBusy,
-                operationName: appState.statusText,
+                operationName: BusyOperation.name(room: .eels, appState: appState),
                 stop: { session.stop() },
                 run: { session.run() })
         default:
