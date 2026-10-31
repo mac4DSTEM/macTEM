@@ -1,4 +1,4 @@
-"""marks_reference.py — the truth for the marks of tools/parity/sidecar-parity (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, the core: `SessionMarks`,
+"""marks_reference.py — the truth for the marks of tools/parity/sidecar-parity (the core: `SessionMarks`,
 `SessionRestore`, `SessionSave`). Imported by reference.py, whose helpers it uses (`__main__`).
 
     plan(ref)                 the plan the Swift harness reads (manifest["marks"]) and the sidecars h5py writes for it

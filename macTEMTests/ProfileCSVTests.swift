@@ -1,6 +1,6 @@
 //
 //  ProfileCSVTests.swift
-//  The line-profile CSV (archive: roadmap-registrations-2026-10-15.md V1-10 slice 1, `ProfileCSV`): the whole text for a planted profile, the header's keys
+//  The line-profile CSV (`ProfileCSV`): the whole text for a planted profile, the header's keys
 //  in order, the one line that says what the app shows the positions in, the sanitising of every value that comes from
 //  outside the program, `nan` / `inf` / `-inf`, RFC 4180 quoting of the column header, a number that ignores the user's
 //  locale, a bit-exact round trip of every number, an empty profile that is not a file, and the "unvalidated" clause.
@@ -11,7 +11,7 @@
 //  the x and y scale lines swapped; the start's x and y swapped; an uncalibrated axis printed; `headerValue` skipping
 //  U+2028, or turning every non-ASCII scalar into a space; the object not passed through `headerValue`; the column
 //  header written unquoted; an empty profile giving "" instead of nil; the unvalidated test made case-sensitive;
-//  CRLF line ends in the written file; (Gate B R2) the y scale line's origin or unit written from x, the method line's
+//  CRLF line ends in the written file; (found in review) the y scale line's origin or unit written from x, the method line's
 //  width written as a constant.
 //
 

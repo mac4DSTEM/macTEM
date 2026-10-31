@@ -1,6 +1,6 @@
 //
 //  ExportPanels.swift
-//  Role: the two save panels of the Image room's export (V1-10 slice 1, archive: export-design-2026-10-13.md): Export
+//  Role: the two save panels of the Image room's export: Export
 //        Image… (a PNG, with the Scale bar and Marks options) and Export Profile… (a CSV, no options). They present
 //        a sheet on the window, ask `ExportSnapshot` for what the selected file gives, and hand TEMCore's `@concurrent`
 //        writers the values; the infobar and the alert report. Nothing is rendered or written here.
@@ -17,7 +17,7 @@
 //  point beeps, as AppKit does for a refused action, and so it does while an export is still writing. The panel is begun
 //  synchronously (`Task.immediate`), so a second ⇧⌘E before the first sheet is up finds it. Anything but OK is a silent
 //  cancel, a window closed under the sheet included: AppKit takes the sheet away with its window and never calls the
-//  completion handler, so `present` cancels the panel when its window is about to close (Gate B U1, measured for
+//  completion handler, so `present` cancels the panel when its window is about to close (measured for
 //  `close()`). `orderOut` takes the sheet away the same way and posts no willClose (measured: only the sheet-ended and
 //  occlusion notifications), so it is not covered; nothing in macTEM orders the image window out. Nothing keeps the panel
 //  or the options alive by hand: both are read after the await, which keeps them.
@@ -119,7 +119,7 @@ enum ExportPanels {
     }
 
     /// The host window, or a beep and nil when an export is writing or a sheet is up: an enabled command that did nothing
-    /// and said nothing would read as broken (Gate B U2, U3).
+    /// and said nothing would read as broken.
     private static func hostWindowOrBeep() -> NSWindow? {
         if writing == 0, let window = hostWindow() { return window }
         NSSound.beep()
@@ -187,7 +187,7 @@ enum ExportPanels {
 
     /// `panel` as a sheet on `window`, and how it ended. A window that closes under its sheet takes the sheet with it
     /// and the completion handler is never called, so the await would hang for the life of the process holding the
-    /// panel, the options and the snapshot (Gate B U1: after `close()` the continuation stayed suspended; after
+    /// panel, the options and the snapshot (a review found: after `close()` the continuation stayed suspended; after
     /// `cancel(nil)` it resumed at once). The panel is cancelled when the window is about to close, and the observer
     /// goes when the sheet is over.
     static func present(_ panel: NSSavePanel, on window: NSWindow) async -> NSApplication.ModalResponse {
@@ -322,7 +322,7 @@ enum ExportPanels {
     }
 
     /// The words VoiceOver is given, at high priority: the line is posted as the sheet goes away, while VoiceOver speaks
-    /// the focus returning to the window, and a default-priority announcement can be cut by it (Gate B U4, which could
+    /// the focus returning to the window, and a default-priority announcement can be cut by it (a review, which could
     /// not hear it, so the drive does).
     static func announcement(_ line: String) -> AttributedString {
         var spoken = AttributedString(line)

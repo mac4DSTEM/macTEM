@@ -1,7 +1,7 @@
 //
 //  SessionPanels.swift
-//  Role: File > Save to Session and the actions of the Measure tail (V1-2 slice B's UI,
-//        archive: v12-session-ui-design-2026-10-14.md, sections 1 and 2): the first save's panel, the later saves
+//  Role: File > Save to Session and the actions of the Measure tail:
+//        the first save's panel, the later saves
 //        through the stored grant, the refusal alert, the infobar event, Show in Finder, and restoring from a session
 //        file the user chose. What is saved and restored is TEMSession's (`SessionSaving`, `SessionOpening`,
 //        `OpenItem.adopt`); the bookmarks are `SessionGrants`'; nothing is written here.
@@ -170,7 +170,7 @@ enum SessionPanels {
 
     // MARK: A mark the record would not take
 
-    /// Says why a mark, a move or a width was not recorded (ADR 023 a): the alert, the infobar and an announcement. A
+    /// Says why a mark, a move or a width was not recorded: the alert, the infobar and an announcement. A
     /// nil refusal on `.added` is a mark that was taken, and says nothing.
     static func markRefused(_ refusal: SessionLineage.Refusal?, _ action: MarkRefusalText.Action, appState: AppState) {
         if action == .added, refusal == nil { return }

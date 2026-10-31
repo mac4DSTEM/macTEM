@@ -1,6 +1,6 @@
 // tools/parity/diffraction-room-parity/main.swift — the Diffraction room's core (slice 1a: TEMCore/Diffraction, Package.swift's
 // DiffractionRoomParity target over DiffractoKit's three modules) against reference.py's numpy and decimal
-// tables and plants.py's planted rings (archive: roadmap-registrations-2026-10-15.md "Diffraction room, slice 1a" and its addendum).
+// tables and plants.py's planted rings (the Diffraction room's first slice).
 //
 //     harness <plants-out> <reference-out> <crystal-structures-dir>
 //

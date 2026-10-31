@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Truth for tools/parity/diffraction-room-parity (archive: roadmap-registrations-2026-10-15.md "Diffraction room, slice 1a: the core and tools/parity/diffraction-room-parity",
+"""Truth for tools/parity/diffraction-room-parity (the Diffraction room's first slice,
 clauses R1, R3, R4, R5, R6, R7, R9): closed forms and tables from the definitions, in 60-digit decimal arithmetic where a
 closed form is the quantity, numpy where a list is.
 

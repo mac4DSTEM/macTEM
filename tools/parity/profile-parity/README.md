@@ -3,8 +3,8 @@
 macTEM's distance, angle and line profile (`ImageMeasurement.distance` / `.angle`, `LineProfile.sample`; TEMCore, through
 Package.swift's `ProfileParity` target) against the closed forms and scikit-image 0.26.0's `measure.profile_line`
 with scipy 1.18.1 and numpy 2.5.4 (pinned: `tools/lib/references-lock.txt`; `reference.py` also pins the sha256 of
-`skimage/measure/profile.py`). A `scientific` gate (`tools/run-tests.sh scientific`); the pre-registration is archive: roadmap-registrations-2026-10-15.md V1-5
-("Completed at pickup"). Run `tools/parity/profile-parity/run.sh`, redirect it to a log, and read the exit code on its own line.
+`skimage/measure/profile.py`). A `scientific` gate (`tools/run-tests.sh scientific`).
+Run `tools/parity/profile-parity/run.sh`, redirect it to a log, and read the exit code on its own line.
 
 Pass lines: `profile-parity: all passed — …`, `extra controls (not registered): 4 of 4 caught by their checks` and, last,
 `negative controls: 8 of 8 caught by their checks`. A `measured:` line reports the largest differences seen and a `timing:`
@@ -38,7 +38,7 @@ equal the analytic value at the sample points (same 1e-5 band).
   matters. Lines: horizontal, vertical, diagonal, reverse diagonal, sub-pixel, short sub-pixel, the 3-4-5 diagonal (n = 6
   exactly), length 10 exactly, length 10 + 1e-7 (one sample more), crossing the border, far outside it, starting outside,
   along the top and right edges, of zero length and of length 1e-7 (two samples), anti-diagonals in both senses and exact
-  45° lines in both senses (added after Gate B, 2026-10-13: five wrong-profile mutants passed without them); widths 1, 2,
+  45° lines in both senses (added after a review, 2026-10-13: five wrong-profile mutants passed without them); widths 1, 2,
   3 and 4, and 5 and 25 on some lines.
   `wave uncalibrated` and `wave units differ` (nm and µm) carry four lines each: positions in pixels.
 - `ramp`: the same size, 1000 + 3.7 r + 2.1 c + 0.013 r·c, bilinear, so bilinear interpolation reproduces it exactly: five

@@ -1,6 +1,6 @@
 //
 //  ImageRoomStateTests.swift
-//  The Image room's two owners of V1-4 and V1-5: the display window the shader takes (`DisplayWindow`, in
+//  The Image room's two owners of the display and the measuring tools: the display window the shader takes (`DisplayWindow`, in
 //  TEMSession/ImagePresentation.swift) and the marks on a file (`ImageMeasurements`). Each test names the mutation that
 //  turns it red.
 //

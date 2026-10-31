@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Planted rings for tools/parity/diffraction-room-parity (archive: roadmap-registrations-2026-10-15.md "Diffraction room, slice 1a: the core and
-tools/parity/diffraction-room-parity", clauses R1, R2, R4, R8). The numpy side of the harness; no Swift is read or measured.
+"""Planted rings for tools/parity/diffraction-room-parity (the Diffraction room's first slice,
+clauses R1, R2, R4, R8). The numpy side of the harness; no Swift is read or measured.
 
     plants.py <out-dir> [--r8 full|half] [--no-rfp]
 
@@ -41,7 +41,7 @@ click error {0, 2, 5 % of R} x half-width factor f {0.03, 0.06, 0.10, 0.15} x ne
 = 4*3*3*6*3*4*4 = 10368 cells over 144 images. Per cell: the start centre = true centre + error * (cos psi, sin psi) in (row,
 column); the click = the ring point at azimuth phi pushed radially out (or in) from the true centre by click% * R; the click
 radius = |click - start|; half-width = clamp(f * click radius, 10, 40) px; band = [click radius - hw, click radius + hw] about
-the start centre (the design's seed rule, archive: diffraction-room-design-2026-10-15.md section 0; the Swift rule is
+the start centre (the design's seed rule; the Swift rule is
 compared to this, not assumed equal). The band-rule subset (the rule's stated cells): start <= 20 px, click <= 5 %, noise <= 3 %,
 neighbour none / 1.155 / 1.17, R 80-300 = 3*3*2*4*3*4*3 = 2592 cells. `--r8 half` keeps all of them and one in three of the
 others (decided by the cell key's hash, so it is the same cells every run): 2592 + 2592 = about 5184. Controls (two, as

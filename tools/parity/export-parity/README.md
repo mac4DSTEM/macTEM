@@ -1,10 +1,10 @@
 # export-parity
 
-macTEM's export from the Image room (V1-10 slice 1: `ImageExport.render`, `ProfileCSV.text`, `ExportFile`; TEMCore, through
+macTEM's export from the Image room (`ImageExport.render`, `ProfileCSV.text`, `ExportFile`; TEMCore, through
 Package.swift's `ExportParity` target) read back with Pillow 12.3.0, numpy 2.5.4 and Python's own `float`
 (pinned: `tools/lib/references-lock.txt`; `reference.py` refuses any other version, and the sha256 of ncempy's `dm.py`).
-A `scientific` gate (`tools/run-tests.sh scientific`); the pre-registration is archive: roadmap-registrations-2026-10-15.md V1-10, "Completed at pickup — slice 1"
-(P1, P3, P4 and the two added checks P5 and P6; Gate B round 1 added to P3 and P5 and the check P7, below). Run
+A `scientific` gate (`tools/run-tests.sh scientific`) with the checks P1, P3, P4, P5 and P6; a review added to P3 and P5 and
+the check P7, below. Run
 `tools/parity/export-parity/run.sh`, redirect it to a log, and read the exit code on its own line.
 
 Pass lines: one `ok` line per check family, `export-parity: all passed — …`, then `extra controls (not registered): 13 of 13
@@ -73,7 +73,7 @@ rings, lies within 0.15 export px of the line through the points' pixel centres 
 the stroke's weight is 1.5u/cos θ; each ring's centre, on a ring-only plant (a mark whose two points coincide, so no stroke
 biases it), within 0.15 px (measured ≤ 0.017), at sub-pixel positions.
 
-**P5-band, a profile's band and an angle's arms** (Gate B round 1; `p5x-u1`, `p5x-u2`, black, no labels). Three profile marks of
+**P5-band, a profile's band and an angle's arms** (added by a review; `p5x-u1`, `p5x-u2`, black, no labels). Three profile marks of
 width 7, 9 and 11 (× u) at sub-pixel positions (a horizontal, a vertical and a 30° one), and an angle of three non-collinear
 points. Away from the line itself and the end rings, every pixel's red channel equals 45.9 times the share of that pixel the
 width × length rectangle covers (an 8 × 8 supersample worked out in Python), within 12 levels (measured ≤ 3.8): a band twice as
@@ -100,8 +100,7 @@ PNG (see the notes on the controls). A bar that is left out changes nothing. Cas
 are the same; the two plain exports are P4's).
 
 **R-P1, the Results room's CSV** (`R-P1/header`, `/text`, `/values`, `/mark-values`, `/spot-values`, `/closed-form`, `/planted`; and
-R-P2's reference side, `R-P2/sentences`, `/never-validated`; V1-10 slice 3, archive: roadmap-registrations-2026-10-15.md "Slice 3, the Results room and one tidy
-CSV"). One case, `results`, on a 128 × 128 lattice with two non-dyadic frequencies (0.1731 and 0.0627 cycles per pixel) at 0.0731 ×
+R-P2's reference side, `R-P2/sentences`, `/never-validated`). One case, `results`, on a 128 × 128 lattice with two non-dyadic frequencies (0.1731 and 0.0627 cycles per pixel) at 0.0731 ×
 0.0789 nm: three marks of every kind built by `ResultRow`'s builders from non-dyadic points (a second distance and angle with no
 calibration, an angle with an arm of zero length), three spot clicks through ImagoKit's `SpotMeasurement.measure` (the peak, the peak on a 64 × 64
 crop, the DC: refused), and one raw row of planted bit patterns (+0, −0, NaN, ±inf, the smallest and the largest Double, 0.1, 1/3,
@@ -220,7 +219,7 @@ Notes on the readings. **(19)**: a DEVICE RGB context is not a mutation: ImageIO
 2026-10-13 on macOS 27.0.1), so the control puts the bitmap in another colour space. The check accepts only the standard `sRGB`
 chunk or an `iCCP` named `sRGB IEC61966-2.1` (a profile named "Linear sRGB" is not sRGB). **(8)**: with the bar computed from the
 laddered number the planned length is 0.4 px and the plate fit rule drops the bar; the check sees the missing bar (a wrong length
-at 1000 times the true one cannot be drawn on that plant, so #7 is the wrong-length demonstration). **(25)–(31)**: Gate B round 1 (2026-10-13) showed that these seven mutants of registered claims stayed green against the first
+at 1000 times the true one cannot be drawn on that plant, so #7 is the wrong-length demonstration). **(25)–(31)**: a review (2026-10-13) showed that these seven mutants of registered claims stayed green against the first
 twenty-four and all four unit-test classes, and added the plants and checks that catch them (`tie512`, `frac40`, `p5x-*`,
 `p7-*`); they answer registered claims (the length "rounded half up", the marks "where they were measured", the band at the
 width the profile averages over, the label a mark carries), so they are registered. **(21)**: a

@@ -218,7 +218,7 @@ struct ImagePane: View {
             .zoomCommandTarget(zoomModel, isTarget: true)
 
             PaneFooter {
-                // Hidden, never re-measured: the toggle removes the bar only (V1-4; the calibration stays in the
+                // Hidden, never re-measured: the toggle removes the bar only (the calibration stays in the
                 // inspector). Opacity, not `if`, so the footer keeps its identity and its place.
                 ScaleBar(unitsPerPoint: ImageScaleBar.unitsPerPoint(perPixel: sampling.perPixel,
                                                                     imageWidth: canvas.width,

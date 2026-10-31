@@ -68,7 +68,7 @@
 //
 //  THE 4 MiB CAP is on a string's storage, the size its fixed-length type declares: checked before THIS layer allocates its
 //  buffer or calls `H5Aread`, so an oversized string is never copied out, let alone passed on. It does not stop libhdf5,
-//  which has already read the attribute's message when the type is asked (Gate B measured a 256 MiB attribute at about
+//  which has already read the attribute's message when the type is asked (a review measured a 256 MiB attribute at about
 //  twice its size in resident memory): the cap bounds what this layer holds, not what HDF5 reads. The writer stores no
 //  more than the text.
 //
@@ -113,7 +113,7 @@ package nonisolated enum SessionSidecarFile {
     package static func totalTextBytes(sourceBytes: Int, lineageBytes: Int) -> Int {
         2 * String(schema).utf8.count + sourceBytes + lineageBytes
     }
-    /// A file name, in UTF-16 code units, that the file system takes (ADR 020 D1, amended 2026-10-14 from the registered
+    /// A file name, in UTF-16 code units, that the file system takes (amended 2026-10-14 from the earlier
     /// "255 bytes", NAME_MAX): measured on this Mac (APFS, 2026-10-13), 255 × "µ" (510 bytes) and 255 × "日" (765 bytes)
     /// are created, 256 of either, or of an ASCII letter or an emoji, is "File name too long" (the unit test pins both
     /// sides). An emoji is two units, an ASCII letter one.

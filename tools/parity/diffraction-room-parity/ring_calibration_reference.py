@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Truth of the retired ring-calibration harness, kept here because reference.py beside it loads it: the closed forms of archive: roadmap-registrations-2026-10-15.md "Diffraction S3, Camera length from one ring of
-known d" (slice S3-a: no fit), and the registered refusals as plain thresholds, from the definitions.
+"""Truth of the retired ring-calibration harness, kept here because reference.py beside it loads it: the closed forms of camera length from one ring of
+known d (no fit), and the registered refusals as plain thresholds, from the definitions.
 
     reference.py <out-dir>
 
@@ -27,8 +27,8 @@ then rounded once to float64. numpy's own arcsin/tan route is computed beside it
 
 Cases (320): V in {60, 80, 120, 200, 300} kV; the d of Au {111} {200} {220} {311} {422} (a = 4.0782 Å) and Al {111} {200}
 {220} (a = 4.0495 Å), d = a / sqrt(h^2 + k^2 + l^2) for the cubic cell; R in {40, 80, 200, 250} px; p in {0.014, 0.05} mm.
-The lattice constants are the ones Diffraction S1 uses and names as the reference until a CIF is pinned (archive: roadmap-registrations-2026-10-15.md V1-8
-"S1"; mac4DSTEM's presets, Sources/TEMCore/Crystal/Crystal.swift `gold`, `aluminum`).
+The lattice constants are the ones Diffraction S1 uses and names as the reference until a CIF is pinned
+(mac4DSTEM's presets, Sources/TEMCore/Crystal/Crystal.swift `gold`, `aluminum`).
 A reflection must be fcc-allowed (h, k, l all odd or all even).
 
 Refusals (refusal_table): each registered refusal planted alone, on its own boundary, just inside (accepted) and just outside
@@ -81,7 +81,7 @@ PITCHES_MM = [0.014, 0.05]
 MATERIALS = [("Au", 4.0782, [(1, 1, 1), (2, 0, 0), (2, 2, 0), (3, 1, 1), (4, 2, 2)]),
              ("Al", 4.0495, [(1, 1, 1), (2, 0, 0), (2, 2, 0)])]
 
-# The registered refusal thresholds (archive: roadmap-registrations-2026-10-15.md "Refused, each by its own error")
+# The refusal thresholds, each refused by its own error
 ANGULAR_BINS = 36
 MIN_BINS = 30            # fewer than 30 of 36 azimuthal bins
 RESIDUAL_CAP = 0.22      # mac4DSTEM's cap, inherited

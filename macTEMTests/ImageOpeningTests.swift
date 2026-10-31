@@ -1,8 +1,8 @@
 //
 //  ImageOpeningTests.swift
-//  Pins `ImageOpening` and the value it returns: the pre-registered object rule (the first object, in file order,
+//  Pins `ImageOpening` and the value it returns: the object rule (the first object, in file order,
 //  that is not the thumbnail, has exactly two dimensions larger than one and whose axes do not carry two different
-//  units — V1-1 and V1-1a), the two refusals by name (an unknown
+//  units), the two refusals by name (an unknown
 //  extension; a file with no 2D image, whose message lists what the file holds), `calibratedImage(_:fileName:)`
 //  carrying origin, scale and units unchanged with a missing axis staying nil, `CalibratedImage.hasSquarePixels`
 //  (exact, units included), and `AxisCalibration.value(at:)` = (i − origin) · scale.
@@ -72,7 +72,7 @@ nonisolated final class ImageOpeningTests: XCTestCase {
         XCTAssertEqual(image.fileName, "multi.dm4")
     }
 
-    /// V1-1a: a 2D object whose axes are in different units is a spectrum image (here a CL line scan: wavelength in
+    /// A 2D object whose axes are in different units is a spectrum image (here a CL line scan: wavelength in
     /// nm along x, position in µm along y), not a specimen image; the image after it is chosen.
     func testATwoDimensionalObjectWhoseAxesCarryDifferentUnitsIsSkipped() throws {
         let wavelength = Axis(origin: -8680, scale: 0.0934, units: "nm")
@@ -102,7 +102,7 @@ nonisolated final class ImageOpeningTests: XCTestCase {
         })
     }
 
-    /// V1-1b case 1: both axes in nm, so only the Format tag names it a spectrum image: refused, and the message
+    /// Format tag, case 1: both axes in nm, so only the Format tag names it a spectrum image: refused, and the message
     /// says what the object is.
     func testAnObjectTaggedSpectrumImageIsRefusedWhateverItsUnits() throws {
         let si = Self.withFormat("Spectrum image", DM4TestFile.object(name: "SI", dims: [6, 3], axes: [Self.nm, Self.nm]))
@@ -117,7 +117,7 @@ nonisolated final class ImageOpeningTests: XCTestCase {
         }
     }
 
-    /// V1-1b case 2: the tagged spectrum image first, then an image tagged "Image": the second is opened.
+    /// Format tag, case 2: the tagged spectrum image first, then an image tagged "Image": the second is opened.
     func testTheImageAfterATaggedSpectrumImageIsOpened() throws {
         let pixels: [Int16] = [4, -5, 6, 7]
         let path = try DM4TestFile.write(DM4TestFile.file([
@@ -132,7 +132,7 @@ nonisolated final class ImageOpeningTests: XCTestCase {
         XCTAssertEqual(image.x?.unit, "nm")
     }
 
-    /// V1-1b case 3: only the exact Format "Spectrum image" is skipped.
+    /// Format tag, case 3: only the exact Format "Spectrum image" is skipped.
     func testOtherFormatsOpen() throws {
         for format in ["Diffraction image", "Image", "Spectrum image ", "spectrum image"] {
             let path = try DM4TestFile.write(DM4TestFile.file([

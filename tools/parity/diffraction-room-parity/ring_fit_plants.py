@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Planted rings, their truth, and scipy's optimum of the profile model, written for the retired ring-fit harness and kept
-here because plants.py beside it loads it (archive: roadmap-registrations-2026-10-15.md
-"Diffraction S3, Camera length from one ring of known d", slice S3-b: the fit-driven calibration on planted rings).
+here because plants.py beside it loads it (camera length from one ring of known d, the fit-driven calibration on planted
+rings).
 
     plants.py <out-dir>
 
@@ -13,7 +13,7 @@ THE IN-FAMILY RING (the registered plant, the retired ellipse harness's, unchang
 the major axis a along (cos t, sin t) in (row, column), R = (a + b)/2 exactly (a/b = 1 + eps), s = 3 px. It is the
 asymmetric-Gaussian model's own family (sigma_in = sigma_out = s, no central disc, no background).
 
-TIERS (registered: archive: roadmap-registrations-2026-10-15.md's "Datasets", "Measure first" and P1/P2):
+TIERS (P1/P2):
   clean    the retired ellipse harness's 84 noise-free plants, the same sizes, radii (80-200 px), eps 0/1/3 %, theta, 60-degree
            gaps and centres (the same generator): P1 is decided on the ACCEPTED ones.
   noisy    its 144 noisy plants (3 and 10 % of the peak, two seeded realisations): printed, never gated.
@@ -258,7 +258,7 @@ def main(out):
     add("refusal", 512, 512, 120, 0.03, 45.0, 0, kind="throws", error="insufficientSignal", empty=True, label="refuse-empty")
     add("refusal", 512, 512, 120, 0.01, 30.0, 0, kind="refusal", error="modelNotAsymmetricGaussian", neighbour=(1.13, 1.0), label="refuse-conic")
     # DiffractoKit 0.1.0: this plant was registered to be refused for its sigma (sigmaAtAnnulusWidth) and never was; the kit
-    # calibrates it (archive: roadmap-registrations-2026-10-15.md "DiffractoKit 0.1.0: the re-pin"), so it is an accepted plant now, gated like a clean ring.
+    # calibrates it (since DiffractoKit 0.1.0), so it is an accepted plant now, gated like a clean ring.
     add("refusal", 512, 512, 120, 0.01, 20.0, 0, kind="accepts", gated=True, background=("r3", 1.0), label="accept-bound")
     add("refusal", 512, 512, 120, 0.01, 60.0, 0, kind="refusal", error="noHighTension", volts=None, label="refuse-noV")
     add("refusal", 512, 512, 120, 0.12, 60.0, 0, kind="refusal", error="excessiveEllipticity", label="refuse-ellipticity")

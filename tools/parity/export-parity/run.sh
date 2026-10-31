@@ -1,8 +1,8 @@
 #!/bin/zsh
-# tools/parity/export-parity — macTEM's export (V1-10 slice 1: `ImageExport`, `ProfileCSV`, `ExportFile`) read back with Pillow 12.3.0,
+# tools/parity/export-parity — macTEM's Image room export (`ImageExport`, `ProfileCSV`, `ExportFile`) read back with Pillow 12.3.0,
 # numpy 2.5.4 and Python's own `float` (pinned: tools/lib/references-lock.txt, reference.py). Classified `scientific` in
-# tools/run-tests.sh. Pre-registration: archive: roadmap-registrations-2026-10-15.md "V1-10 Export", the block "Completed at pickup — slice 1" (P1, P3, P4, P5,
-# P6; and P5-band, the angle's arms and P7, the label, added by Gate B round 1). README.md says more.
+# tools/run-tests.sh. Checks P1, P3, P4, P5, P6; and P5-band, the angle's arms and P7, the label, added by a review.
+# README.md says more.
 #
 #   run.sh   reference.py plants every input and its truth (pixels, look-up tables, calibrations, windows, marks, profile ends,
 #            and the bar each case must draw, worked by hand); the harness (main.swift) writes the PNGs and CSVs with the
@@ -112,7 +112,7 @@ PC=ProfileCSV.swift
 IE=ImageExport.swift
 IO='ImageExport+Overlays.swift'
 
-# --- The registered twenty-four (archive: roadmap-registrations-2026-10-15.md V1-10, "Mutations"), each red on its own check; seven more join them below (Gate B R1), five more (Results, slice 3).
+# --- The first twenty-four mutations, each red on its own check; seven more join them below (from a review, R1), five more (Results).
 # P1, the CSV. (1) %.15g: a double no longer re-reads bit-equal.
 # (2) positions in pixels although the axes are calibrated (the pixel length scaled back from the position).
 # (3) positions in the unit the app shows (nm), though the file states metres: the Velox case.
@@ -158,7 +158,7 @@ source_mutant registered marks-option-ignored $IE 'P6-footprint/aniso512/bar-onl
   'if options.marks { drawMarks(marks, in: context, width: width, height: height, overlayScale: u) }' \
   'drawMarks(marks, in: context, width: width, height: height, overlayScale: u)'
 
-# Gate B round 1 (R1) found that these seven mutants of registered claims stayed green against the first twenty-four, and added the
+# A review (round 1, R1) found that these seven mutants of registered claims stayed green against the first twenty-four, and added the
 # plants and checks that catch them; they are REGISTERED controls now (thirty-one in all), because each answers a registered claim.
 # (25) the drawn length biased by +0.2 px (P3-drawn is "round half up"; frac40's 74.40 gives 74, and 75 with the bias) and (26) rounded half
 # to even (tie512's 62.5 gives 63, and 62 here).
@@ -179,7 +179,7 @@ source_mutant registered mark-label-not-drawn $IO 'P7-label/p7-u1/mark-0' p7-u1 
 source_mutant registered label-upside-down $IO 'P7-label/p7-u1/mark-0|P7-label/p7-u1/bar' p7-u1 marks,bar \
   'context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)' 'context.textMatrix = CGAffineTransform(scaleX: 1, y: 1)'
 
-# R-P1, the Results room's CSV (V1-10 slice 3, archive: roadmap-registrations-2026-10-15.md "Slice 3, the Results room and one tidy CSV", Mutations): the case `results`,
+# R-P1, the Results room's CSV (its mutations): the case `results`,
 # five more registered controls, each red on the check it targets. (37) %.15g: the planted 0.1, 1/3 and the lattice's spot no longer
 # re-read bit-equal. (38) a dropped quote: the planted label with a comma, a quote and a newline splits its line. (39) the NaN case written
 # as 0. (40) the validation line of one product (the angle's) omitted from the header. (41) a spot's |q| in place of its d.
@@ -198,7 +198,7 @@ source_mutant extra scale-bar-option-ignored $IE 'P6-footprint/aniso512/marks-on
 # (34) the overlay scale from min(W, H) / 256.
 # (35) header values not sanitised (a file name with CR, LF, U+2028 starts a line of its own).
 # (36) the RFC 4180 quoting inverted: the column header's unit with a comma and a quote is written bare.
-# --- Gate B round 1 additions that are not registered: the other mutants that stayed green, each red on a check the first harness
+# --- Review round 1 additions beyond the first set: the other mutants that stayed green, each red on a check the first harness
 # did not have (P5-band, P7-label, P4-format/<case>/meta on unitsmix512 and yonly512).
 source_mutant extra band-along-the-line $IO 'P5-band/p5x-u1' p5x-u1 marks \
   'let nx = -dy / length * half, ny = dx / length * half' 'let nx = dx / length * half, ny = dy / length * half'

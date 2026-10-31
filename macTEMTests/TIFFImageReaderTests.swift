@@ -123,7 +123,7 @@ nonisolated final class TIFFImageReaderTests: XCTestCase {
         XCTAssertEqual(image.notes.last, TIFFImageReader.Note.veloxDisagree)
     }
 
-    // MARK: Found by the Gate B review (2026-10-12)
+    // MARK: Found by a review (2026-10-12)
 
     func testACorruptSizeIsRefusedBeforeAnyAllocationNotATrap() {
         var tiff = TIFFBuilder(width: 2, height: 2, bits: 16, format: 1, samples: 1, bytes: [UInt8](repeating: 1, count: 8))
