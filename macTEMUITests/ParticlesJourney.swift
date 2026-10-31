@@ -23,4 +23,24 @@ nonisolated final class ParticlesJourney: Journey {
             XCTAssertTrue(app.windows.firstMatch.frame.contains(table.frame), "Object Table is below the fold: \(table.frame)")
         }
     }
+
+    /// On a comma-locale Mac the size line reads "median length 0,6… nm", with the decimal mark of the pixel readout beside it.
+    @MainActor func testTheSizeLineFollowsACommaLocale() throws {
+        try step("launch with the demo image in a German locale") {
+            launch(["--demo-fixture", "-AppleLocale", "de_DE"])
+            XCTAssertTrue(app.staticTexts["Demo lattice"].firstMatch.waitForExistence(timeout: 30))
+        }
+        try step("show objects") {
+            showInspector(waitingFor: "particles.show")
+            waitFor("particles.show").click()
+            _ = waitValue("particles.counts", timeout: 60) { !$0.isEmpty }
+        }
+        try step("the size line has a comma") {
+            let line = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@", "median length", "median length")).firstMatch
+            XCTAssertTrue(line.waitForExistence(timeout: 20), "no size line")
+            let text = line.label.isEmpty ? ((line.value as? String) ?? "") : line.label
+            XCTAssertTrue(text.contains(","), text)
+            XCTAssertFalse(text.contains("."), text)
+        }
+    }
 }
