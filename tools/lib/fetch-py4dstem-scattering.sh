@@ -2,9 +2,9 @@
 # Adapted from mac4DSTEM (tools/lib/fetch-py4dstem.sh).
 # The py4DSTEM electron-scattering-factor table lock — fetched, not vendored.
 #
-# tools/parity/crystal-parity builds its reference f_e from THIS table, not from Sources/TEMCore/Crystal/ScatteringFactors.swift
-# (which is a generated copy of the same table): the harness is only independent of the Swift code if the table comes
-# from elsewhere. The file is py4DSTEM/process/utils/scattering_factors.txt at the lock commit (103 rows, row Z-1 =
+# tools/parity/diffraction-room-parity builds its reference f_e from THIS table, not from DiffractoKit's scattering factors
+# (a generated copy of the same table): the harness is only independent of the Swift code if the table comes from
+# elsewhere. The file is py4DSTEM/process/utils/scattering_factors.txt at the lock commit (103 rows, row Z-1 =
 # a0 b0 a1 b1 ... a4 b4); py4DSTEM's single_atom_scatter.py (same commit, sha256 1eca228e...) reads columns 0:10:2 as a and
 # 1:10:2 as b. Fetched into the gitignored References/. A present file is used only when its sha256 is the pin.
 set -euo pipefail

@@ -5,7 +5,7 @@ S-a — and `.read(path:)`, the entry point that describes a FILE — slice S-b;
 RosettaSciIO `049e7d70`, tifffile 2026.9.20 and mrcfile 1.5.4 (pinned: `tools/lib/references-lock.txt`,
 `tools/lib/fetch-rsciio.sh`). A `scientific` gate (`tools/run-tests.sh scientific`); the pre-registration is archive: roadmap-registrations-2026-10-15.md
 V1-4a (P1, P2; "S-b, the DM wiring and tag 65027" for `read(path:)`). `make_fixture.py` writes the S-b DM4 plants with
-`tools/parity/dm4-reader-parity/dm4_writer.py` (mac4DSTEM's writer, imported from there, not copied again). Run
+`dm4_writer.py` beside it (mac4DSTEM's writer, kept as copied). Run
 `tools/parity/metadata-parity/run.sh`, redirect it to a log, and read the exit code on its own line.
 
 Pass lines: `metadata-parity: all passed — …; owner Ceta TIFFs gated: N of 6 (machine-local, gitignored)` and

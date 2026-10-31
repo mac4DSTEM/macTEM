@@ -2,7 +2,7 @@
 //  IntensityHistogramTests.swift
 //  The raw-pixel histogram on small planted arrays whose bins are worked out by hand, a few bins at a time
 //  (`bins:`) and then the 96 of the Display section. The parity against numpy 2.5.4's np.histogram — every float32 edge
-//  and one ulp either side, constants, non-finite pixels, narrow ranges, 2048² images, real files — is tools/parity/histogram-parity.
+//  and one ulp either side, constants, non-finite pixels, narrow ranges, 2048² images, real files — is ImagoKit's.
 //
 
 import XCTest

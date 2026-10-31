@@ -1,7 +1,7 @@
 //
 //  TIFFImageReaderTests.swift
 //  The TIFF reader on TIFFs built in memory with known values: the planted truth is the bytes
-//  written here. The parity against RosettaSciIO and tifffile is tools/parity/tiff-reader-parity; these pin the reader's
+//  written here. The parity against RosettaSciIO and tifffile is FormatoKit's; these pin the reader's
 //  own rules without Python — sample types and byte order, the grey-render rule, the refusals, and the Velox
 //  convention's cross-check.
 //

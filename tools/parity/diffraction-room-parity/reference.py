@@ -8,13 +8,13 @@ closed form is the quantity, numpy where a list is.
 
 Written from the definitions, NOT from any Swift. The one Swift file read is the kit's LengthUnit (ImagoCore/UnitConversion.swift),
 only to list the unit SPELLINGS R5 must cover (the factors below are 1/nm -> 0.1, 1/A -> 1, mrad -> 1/(1000 lambda), stated
-by the registration). Constants are CODATA 2018 exactly as tools/parity/ring-calibration-parity/reference.py states them (checked
+by the registration). Constants are CODATA 2018 exactly as ring_calibration_reference.py beside this file states them (checked
 equal to that file's decimal chain in the self-check). numpy 2.5.4 from tools/lib/references-lock.txt; run it with the
 lock's interpreter and `-I`.
 
 WRITES <out-dir>/reference.json (every float as %.17g, the round-trip-exact decimal; NaN / Infinity as strings), and
 <out-dir>/r9/*.cif (the planted CIF byte files R9 needs). Sections:
-  r3  "320 cases": ring-calibration-parity's cases (V 60-300 kV, Au {111} {200} {220} {311} {422} and Al {111} {200} {220}, R 40-250,
+  r3  "320 cases": the retired ring-calibration harness's cases (V 60-300 kV, Au {111} {200} {220} {311} {422} and Al {111} {200} {220}, R 40-250,
       p 0.014 / 0.05): lambda, L_px (float64 inputs, written), and per case the queries R in {40, 100, 250, 500, 1000, 2000} and R_cal:
         q(R) = 2 sin(1/2 atan(R / L_px)) / lambda       (decimal: sin(1/2 atan x) = sqrt((1 - 1/sqrt(1 + x^2)) / 2), no trig library)
         R(q) = L_px tan(2 asin(lambda q / 2))           (decimal: 2 s sqrt(1 - s^2) / (1 - 2 s^2), s = lambda q / 2), evaluated at the
@@ -28,7 +28,7 @@ WRITES <out-dir>/reference.json (every float as %.17g, the round-trip-exact deci
   r5  "spellings", "rejects", "invalid_values", "fit_vs_file": the file's reciprocal scale in A^-1/px for every spelling
       (each base spelling and its case, space, decomposed-accent and padded variants), mrad with and without lambda, and
       the fit-vs-file difference dq_fit / dq_file - 1 (decimal, from the float64 pair).
-  r6  "t1", "t4": indexing-parity's T1 rule on Au, Al, Si at k_max 1.2 and 2.0 (u 1e-3, 3e-3, 1e-2; s in -2.9..2.9; k = 3): per plant
+  r6  "t1", "t4": the retired indexing harness's T1 rule on Au, Al, Si at k_max 1.2 and 2.0 (u 1e-3, 3e-3, 1e-2; s in -2.9..2.9; k = 3): per plant
       the verdict name, best / next family index, z, delta = g/q - 1 (and %), |dd|/d, margin, odds = exp(margin), sigma_q = q * tol / 100,
       and a T4 set (the refusals and edge lists).
   r7  "standards": Au 4.0782, Al 4.0495, Si 5.4309 (and Mg, Cu3Au-occ as extra controls) families at k_max 1.2 and 2.0: g, d (by
@@ -38,7 +38,7 @@ WRITES <out-dir>/reference.json (every float as %.17g, the round-trip-exact deci
   mutation_moves: for each registered mutation of R3-R7, the largest change it makes to the quantity it targets (> 1e-6 or
       the script exits 1: a mutation that moves nothing proves nothing).
 The self-check (exit 1 when any fails) also holds the hand values: Au {111} d = 4.0782 / sqrt(3) = 2.3545498678091317, lambda at
-200 kV equal to ring-calibration-parity's, and R -> q -> R.
+200 kV equal to ring_calibration_reference.py's, and R -> q -> R.
 """
 import hashlib
 import importlib.util
@@ -59,7 +59,7 @@ NUMPY = "2.5.4"
 TABLE_SHA256 = "be845d1d541cdb75ae16f8928cd9e56a9ea38af8a3cc43da9137e73cc72bb6f4"
 FAILURES = []
 
-# CODATA 2018 (ring-calibration-parity/reference.py states them; compared there and in the self-check)
+# CODATA 2018 (ring_calibration_reference.py states them; compared in the self-check)
 H_S, C_S, E_S, M0_S = "6.62607015E-34", "299792458", "1.602176634E-19", "9.1093837015E-31"
 D_H, D_C, D_E, D_M0 = (Decimal(s) for s in (H_S, C_S, E_S, M0_S))
 M_TO_A = Decimal(10) ** 10
@@ -157,7 +157,7 @@ def dec_arcsin(x):
 
 
 def dec_l_px(volts, d, r):
-    """L_px = R / tan(2 theta), sin theta = lambda / 2d (the registered exact form of ring-calibration-parity)."""
+    """L_px = R / tan(2 theta), sin theta = lambda / 2d (the exact form of ring_calibration_reference.py)."""
     lam = dec_wavelength_a(volts)
     s = lam / (2 * D(d))
     return D(r) * (1 - 2 * s * s) / (2 * s * (1 - s * s).sqrt()), lam, 2 * dec_arcsin(s)
@@ -455,7 +455,7 @@ def make_r7(table):
 
 # ----------------------------------------------------------------------------------------------------------------- R6
 def decide_scalar(g, q, sigma, k, kmax):
-    """The rule of tools/parity/indexing-parity/reference.py, one plant at a time: (name, best, next, payload, z_best, margin, nearest)."""
+    """The rule of the retired indexing harness (DiffractoKit's now), one plant at a time: (name, best, next, payload, z_best, margin, nearest)."""
     def ok(x):
         return math.isfinite(x) and x > 0
     if not (ok(q) and ok(sigma) and ok(k)):
@@ -540,7 +540,7 @@ def make_r6(table):
                         rec = displayed(row, g, q, tol)
                         rec.update(crystal=cname, kmax=kmax, family=j, family_name=fams[j]["name"], u=u, s=s, q=q, tol_pct=tol, k=K_SIGMA)
                         t1.append(rec)
-    # T4: the refusals and the edge lists (indexing-parity's plants that apply to a displayed verdict), on Au / Si
+    # T4: the refusals and the edge lists (the retired indexing harness's plants that apply to a displayed verdict), on Au / Si
     t4 = []
     au12, _ = families(table, STANDARDS["Au"], 1.2)
     g12 = [f["g"] for f in au12]
