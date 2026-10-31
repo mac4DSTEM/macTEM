@@ -19,7 +19,7 @@ struct ContentView: View {
     @State private var showImporter = false
 
     private var imageTypes: [UTType] {
-        ImageOpening.readableExtensions.compactMap { UTType(filenameExtension: $0) }
+        FileRouting.openableExtensions.compactMap { UTType(filenameExtension: $0) }
     }
 
     var body: some View {
@@ -95,7 +95,7 @@ struct ContentView: View {
 
     /// Opens the dropped files macTEM reads; a dropped file it does not read is refused by name through the alert.
     private func openDropped(_ urls: [URL]) -> Bool {
-        let readable = ImageOpening.readableExtensions
+        let readable = FileRouting.openableExtensions
         // A file of a readable format; a dragged web link ending in .tif is not a file.
         let isReadable = { (url: URL) in url.isFileURL && readable.contains(url.pathExtension.lowercased()) }
         let accepted = urls.filter(isReadable)
