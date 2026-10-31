@@ -84,6 +84,8 @@ nonisolated final class ResultsLedgerEELSTests: XCTestCase {
         XCTAssertEqual(listed.map(\.group).filter { $0 != .marks }, [.eelsThickness, .eelsThickness] + Array(repeating: .eelsEdges, count: 2 * 2))
 
         let thickness = listed.filter { $0.group == .eelsThickness }
+        // A failure, not a crash of the test host, when the rows are missing.
+        guard thickness.count == 2 else { return XCTFail("the thickness rows: \(thickness.map(\.label))") }
         let stats = try XCTUnwrap(EELSThicknessStats.of(map, region: nil))
         XCTAssertEqual(thickness[0].label, "t/λ · Whole map")
         XCTAssertEqual(thickness[0].entry("t_over_lambda")?.value, stats.median)
