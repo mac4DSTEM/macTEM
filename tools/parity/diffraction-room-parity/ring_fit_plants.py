@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-"""Planted rings, their truth, and scipy's optimum of the profile model, for tools/parity/ring-fit-parity (archive: roadmap-registrations-2026-10-15.md
-"Diffraction S3, Camera length from one ring of known d", slice S3-b: the fit-driven calibration on planted rings).
+"""Planted rings, their truth, and scipy's optimum of the profile model, written for the retired ring-fit harness and kept
+here because plants.py beside it loads it (camera length from one ring of known d, the fit-driven calibration on planted
+rings).
 
     plants.py <out-dir>
 
 Every case is a float32 image (raw little-endian, row-major, columns fastest: `<case>.in.f32`), rows H x columns W, the
 centre (r0, c0) off the grid with r0 != c0. The fit's "qx" is the ROW and "qy" the COLUMN (py4DSTEM's order).
 
-THE IN-FAMILY RING (the registered plant, tools/parity/ellipse-parity's, unchanged):
+THE IN-FAMILY RING (the registered plant, the retired ellipse harness's, unchanged):
     I = exp(-((rho - 1) R)^2 / (2 s^2)),  rho^2 = u^2/a^2 + v^2/b^2,  u = dr cos t + dc sin t,  v = -dr sin t + dc cos t
 the major axis a along (cos t, sin t) in (row, column), R = (a + b)/2 exactly (a/b = 1 + eps), s = 3 px. It is the
 asymmetric-Gaussian model's own family (sigma_in = sigma_out = s, no central disc, no background).
 
-TIERS (registered: archive: roadmap-registrations-2026-10-15.md's "Datasets", "Measure first" and P1/P2):
-  clean    tools/parity/ellipse-parity's 84 noise-free plants, the same sizes, radii (80-200 px), eps 0/1/3 %, theta, 60-degree
+TIERS (P1/P2):
+  clean    the retired ellipse harness's 84 noise-free plants, the same sizes, radii (80-200 px), eps 0/1/3 %, theta, 60-degree
            gaps and centres (the same generator): P1 is decided on the ACCEPTED ones.
   noisy    its 144 noisy plants (3 and 10 % of the peak, two seeded realisations): printed, never gated.
   printed  each a handful of plants, never gated (the registration bands no tier but clean before its distribution is
@@ -21,14 +22,14 @@ TIERS (registered: archive: roadmap-registrations-2026-10-15.md's "Datasets", "M
            ring of the same FWHM, a skewed ring (gamma, k = 4, mode at R), a neighbour ring at 1.155 R, annulus half-widths
            10-40 px, R 40-250 px, s 1.5-8 px.
   refusal  P2, each registered refusal on the plant the registration names for it: the 120-degree gap (and
-           ellipse-parity's 240/300-degree arcs and 80-degree gap) -> insufficientAngularCoverage; the empty pattern ->
+           the ellipse harness's 240/300-degree arcs and 80-degree gap) -> insufficientAngularCoverage; the empty pattern ->
            the fit's insufficientSignal (no ring at all); a two-ring annulus (the second at 1.13 R) -> the conic refused
            (modelNotAsymmetricGaussian); the 1/r^3 background at 1.0 of the peak -> calibrated (accepts; it was registered as sigmaAtAnnulusWidth); a clean ring
            without V -> noHighTension (Delta q still given); 12 % ellipticity -> excessiveEllipticity.
 
 Every fit case also carries a (material, hkl, d, V) from the S3-a set (Au a = 4.0782 A, Al a = 4.0495 A; 80, 200, 300 kV),
 cycled over the cases, so L is computed and checked as well as Delta q. The truth: Delta q = (1/d)/R, and L_px = R / tan 2theta
-from the same closed forms as tools/parity/ring-calibration-parity's reference (numpy, float64; that harness holds them to 1e-12).
+from the same closed forms as ring_calibration_reference.py beside this file (numpy, float64).
 
 THE REFERENCE beside the plant (printed, not gated): scipy's optimum of the SAME 11-parameter model (py4DSTEM's
 fit_ellipse_amorphous_ring as mac4DSTEM ports it: I0 exp(-r^2/2 s0^2) + I1 exp(-(r - R)^2 / 2 s1,2^2) + c, r the elliptical
@@ -51,7 +52,7 @@ THETAS = [0.0, 20.0, 45.0, 67.5, 90.0, 112.5, 135.0, 160.0, 179.0]
 SIZES = [((512, 512), [80, 140, 200]), ((384, 512), [80, 120, 160])]
 SEED0 = 20261012
 
-# CODATA 2018 (as tools/parity/ring-calibration-parity/reference.py states them).
+# CODATA 2018 (as ring_calibration_reference.py beside this file states them).
 H, C, E, M0 = 6.62607015e-34, 299792458.0, 1.602176634e-19, 9.1093837015e-31
 HC_EV_A = H * C / E * 1e10
 M0C2_EV = M0 * C * C / E
@@ -209,7 +210,7 @@ def main(out):
                           ref=None))
         k += 1
 
-    # clean (P1, gated) and noisy (printed): tools/parity/ellipse-parity's generator, the same loops in the same order.
+    # clean (P1, gated) and noisy (printed): the retired ellipse harness's generator, the same loops in the same order.
     combo = 0
     for (Hh, W), radii in SIZES:
         for R in radii:
@@ -257,7 +258,7 @@ def main(out):
     add("refusal", 512, 512, 120, 0.03, 45.0, 0, kind="throws", error="insufficientSignal", empty=True, label="refuse-empty")
     add("refusal", 512, 512, 120, 0.01, 30.0, 0, kind="refusal", error="modelNotAsymmetricGaussian", neighbour=(1.13, 1.0), label="refuse-conic")
     # DiffractoKit 0.1.0: this plant was registered to be refused for its sigma (sigmaAtAnnulusWidth) and never was; the kit
-    # calibrates it (archive: roadmap-registrations-2026-10-15.md "DiffractoKit 0.1.0: the re-pin"), so it is an accepted plant now, gated like a clean ring.
+    # calibrates it (since DiffractoKit 0.1.0), so it is an accepted plant now, gated like a clean ring.
     add("refusal", 512, 512, 120, 0.01, 20.0, 0, kind="accepts", gated=True, background=("r3", 1.0), label="accept-bound")
     add("refusal", 512, 512, 120, 0.01, 60.0, 0, kind="refusal", error="noHighTension", volts=None, label="refuse-noV")
     add("refusal", 512, 512, 120, 0.12, 60.0, 0, kind="refusal", error="excessiveEllipticity", label="refuse-ellipticity")

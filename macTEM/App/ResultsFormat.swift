@@ -1,6 +1,6 @@
 //
 //  ResultsFormat.swift
-//  Role: every sentence and number the Results room shows (V1-10 slice 3, archive: results-room-design-2026-10-15.md): the
+//  Role: every sentence and number the Results room shows: the
 //        group names, a row's Value, Source, Record and badge, the header count, the Info fields, the spoken row, the
 //        line ⌘C copies, and the export's name and words. Pure, `nonisolated`, so a test pins each as `MarkFormat` does.
 //

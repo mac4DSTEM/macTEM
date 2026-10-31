@@ -1,7 +1,7 @@
 //
 //  MRCImageReaderTests.swift
 //  The MRC reader on MRC2014 files built in memory with known values: the planted truth is the bytes
-//  written here. The parity against mrcfile is tools/parity/mrc-reader-parity; these pin the reader's own rules without
+//  written here. The parity against mrcfile is FormatoKit's; these pin the reader's own rules without
 //  Python — modes and byte order, the extended header, the Å scale, the non-positive cell, the refusals.
 //
 

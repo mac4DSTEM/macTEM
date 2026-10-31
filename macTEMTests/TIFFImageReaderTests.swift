@@ -1,7 +1,7 @@
 //
 //  TIFFImageReaderTests.swift
 //  The TIFF reader on TIFFs built in memory with known values: the planted truth is the bytes
-//  written here. The parity against RosettaSciIO and tifffile is tools/parity/tiff-reader-parity; these pin the reader's
+//  written here. The parity against RosettaSciIO and tifffile is FormatoKit's; these pin the reader's
 //  own rules without Python — sample types and byte order, the grey-render rule, the refusals, and the Velox
 //  convention's cross-check.
 //
@@ -123,7 +123,7 @@ nonisolated final class TIFFImageReaderTests: XCTestCase {
         XCTAssertEqual(image.notes.last, TIFFImageReader.Note.veloxDisagree)
     }
 
-    // MARK: Found by the Gate B review (2026-10-12)
+    // MARK: Found by a review (2026-10-12)
 
     func testACorruptSizeIsRefusedBeforeAnyAllocationNotATrap() {
         var tiff = TIFFBuilder(width: 2, height: 2, bits: 16, format: 1, samples: 1, bytes: [UInt8](repeating: 1, count: 8))

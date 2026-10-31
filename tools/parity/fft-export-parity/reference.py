@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Truth and reader for tools/parity/fft-export-parity: macTEM's FFT-room export (V1-10 slice 2) read back with Pillow, numpy and Python.
+"""Truth and reader for tools/parity/fft-export-parity: macTEM's FFT-room export read back with Pillow, numpy and Python.
 
     reference.py plant <planted-dir>
     reference.py check <planted-dir> <out-dir> [<case,case...|all>]

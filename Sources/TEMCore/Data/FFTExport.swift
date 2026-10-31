@@ -1,6 +1,6 @@
 //
 //  FFTExport.swift
-//  Role: the writers of the FFT room's export (V1-10 slice 2, archive: fft-export-design-2026-10-14.md): the radial profile
+//  Role: the writers of the FFT room's export: the radial profile
 //        as a CSV, the measured spots as a CSV, and what the transform's PNG adds to `ImageExport` (its source with the
 //        frequency steps as "axes", and its Description's "fft" block). Values in, text or bytes out; the app's snapshot
 //        (macTEM/App/ExportSnapshot.swift) gathers the values from the room's owners when the panel opens.

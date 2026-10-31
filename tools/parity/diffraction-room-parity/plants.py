@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Planted rings for tools/parity/diffraction-room-parity (archive: roadmap-registrations-2026-10-15.md "Diffraction room, slice 1a: the core and
-tools/parity/diffraction-room-parity", clauses R1, R2, R4, R8). The numpy side of the harness; no Swift is read or measured.
+"""Planted rings for tools/parity/diffraction-room-parity (the Diffraction room's first slice,
+clauses R1, R2, R4, R8). The numpy side of the harness; no Swift is read or measured.
 
     plants.py <out-dir> [--r8 full|half] [--no-rfp]
 
@@ -10,25 +10,25 @@ SEEDS, FIXED HERE BEFORE ANY RUN (2026-10-15, lane P of session 22da3599). They 
     SEED_R8_NOISE = 2026101582   R8 noise realisation, one per image
 Every random draw is numpy's `default_rng` seeded from SHA-256("<seed>|<key>") (first 8 bytes), the key naming the image
 or the cell by its parameters, so a draw never depends on how many cells exist or on their order: a subsampled grid
-draws the same numbers for the cells it keeps. R1 and R4 have no random element (ring-fit-parity's centre(H, W, k), a
+draws the same numbers for the cells it keeps. R1 and R4 have no random element (ring_fit_plants.py's centre(H, W, k), a
 deterministic function of an index k: R1's new plants use k = 1000 + i, R4's k = 2000 + i). Nothing in this file may change
 after R8's first print; a change is a new registration.
 
 WHAT IT WRITES (all under <out-dir>, never committed; every image is raw little-endian float32, row-major, columns fastest,
 `<name>.f32`; the manifest `manifest.json` carries every number the Swift side needs, floats as `%.17g`)
-    rfp/        ring-fit-parity's own plants.py, called unchanged (its scipy optimum switched off: not used here): the 275
+    rfp/        ring_fit_plants.py (the retired ring-fit harness's plants.py), called unchanged (its scipy optimum switched off: not used here): the 275
                 plants R2 runs on, `rfp/planted.json` as it writes it.
     r1/         R1's new plants: theta {0, 30, 90, 135} deg x ellipticity {1, 3 %} x R 80-200 px x 512x384 and 640x512
-                = 48. R1's clean tier is ring-fit-parity's 84 clean plants: the manifest lists them from rfp/ unchanged.
+                = 48. R1's clean tier is ring_fit_plants.py's 84 clean plants: the manifest lists them from rfp/ unchanged.
     r4/         R4's two-ring plants: ring 1 (Au {111}, {200} or {220} as the calibration ring) and ring 2 (the next
                 family) at its physical radius R2 = L_px tan(2 asin(lambda g2 / 2)), L_px from ring 1: 48 plants.
     r8/         R8's images: 144, one per (R, ellipticity, noise, neighbour ratio); the 10368 cells (the full grid) reference
                 them and add the cell's start centre, click and half-width. Nothing is fitted here.
 Conventions. A case's (r0, c0) is (ROW, COLUMN) of the planted centre; `x_truth` = c0 and `y_truth` = r0 are the same
-point as the app holds it (x = column, y = row). The ellipse is ring-fit-parity's: the major axis a along (cos t, sin t) in
+point as the app holds it (x = column, y = row). The ellipse is ring_fit_plants.py's: the major axis a along (cos t, sin t) in
 (row, column), u = dr cos t + dc sin t, v = -dr sin t + dc cos t, u^2/a^2 + v^2/b^2 = 1, R = (a + b)/2 exactly. Rings are
 exp(-((rho - 1) R)^2 / 2 s^2), s = 3 px, peak 1; a neighbour ring is the same shape scaled by the factor in the elliptical
-radius, amplitude 0.5 (ring-fit-parity's `neighbour`); noise is Gaussian of the stated fraction of the peak (1).
+radius, amplitude 0.5 (ring_fit_plants.py's `neighbour`); noise is Gaussian of the stated fraction of the peak (1).
 
 R4's ratios. The registration names ratios 1.155, 1.41 and 1.17. Au's families are {200}/{111} = 1.1547, {220}/{200} = 1.4142
 and {311}/{220} = 1.1726; the plants are those three physical pairs (the calibration ring and the next family), with ring 2
@@ -41,7 +41,7 @@ click error {0, 2, 5 % of R} x half-width factor f {0.03, 0.06, 0.10, 0.15} x ne
 = 4*3*3*6*3*4*4 = 10368 cells over 144 images. Per cell: the start centre = true centre + error * (cos psi, sin psi) in (row,
 column); the click = the ring point at azimuth phi pushed radially out (or in) from the true centre by click% * R; the click
 radius = |click - start|; half-width = clamp(f * click radius, 10, 40) px; band = [click radius - hw, click radius + hw] about
-the start centre (the design's seed rule, archive: diffraction-room-design-2026-10-15.md section 0; the Swift rule is
+the start centre (the design's seed rule; the Swift rule is
 compared to this, not assumed equal). The band-rule subset (the rule's stated cells): start <= 20 px, click <= 5 %, noise <= 3 %,
 neighbour none / 1.155 / 1.17, R 80-300 = 3*3*2*4*3*4*3 = 2592 cells. `--r8 half` keeps all of them and one in three of the
 others (decided by the cell key's hash, so it is the same cells every run): 2592 + 2592 = about 5184. Controls (two, as
@@ -95,7 +95,7 @@ def load_rfp():
     spec = importlib.util.spec_from_file_location("ring_fit_plants", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    mod.scipy_optimum = lambda img, case: None          # the scipy optimum is printed by ring-fit-parity, unused here
+    mod.scipy_optimum = lambda img, case: None          # the scipy optimum was the retired ring-fit harness's, unused here
     return mod
 
 
@@ -142,7 +142,7 @@ def write_f32(path, img):
 
 
 def case_fields(rfp, name, Hh, W, k, R, eps, theta_deg, extra=None):
-    """The record of one planted ring in ring-fit-parity's conventions (centre by its deterministic centre(H, W, k))."""
+    """The record of one planted ring in ring_fit_plants.py's conventions (centre by its deterministic centre(H, W, k))."""
     a, b = rfp.axes(R, eps)
     theta = None if eps == 0 else math.radians(theta_deg)
     r0, c0 = rfp.centre(Hh, W, k)

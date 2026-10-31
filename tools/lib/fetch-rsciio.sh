@@ -4,8 +4,8 @@
 # (a git checkout, HEAD at the lock, clean) or refused, never repaired in place.
 # The rosettasciio source + test-data lock — fetched, not vendored.
 #
-# macTEM reads RosettaSciIO's GMS-written DigitalMicrograph test files (tools/parity/dm4-reader-parity, case 2) and
-# will read its EMD/TIFF test files when those readers land. Its test data is GPL-3.0-or-later and excluded from
+# macTEM reads RosettaSciIO's GMS-written DigitalMicrograph test files in the export, metadata and profile harnesses
+# (tools/parity/*/run.sh call this script). Its test data is GPL-3.0-or-later and excluded from
 # its wheels, and committing third-party bytes is not needed to test against them, so they are fetched with the
 # pin into the gitignored References/ folder. The commit is mac4DSTEM's lock, so the two apps read the same files.
 #

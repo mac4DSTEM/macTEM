@@ -2,8 +2,7 @@
 # tools/parity/metadata-parity — macTEM's acquisition-metadata readers (AcquisitionMetadata.tiff / .mrc / .dm, and slice S-b's
 # .read(path:)) against ncempy 1.16, RosettaSciIO 049e7d70, tifffile 2026.9.20 and mrcfile 1.5.4 (pinned:
 # tools/lib/references-lock.txt, tools/lib/fetch-rsciio.sh). Classified `scientific` in tools/run-tests.sh.
-# Pre-registration: archive: roadmap-registrations-2026-10-15.md "V1-4a Metadata panel" (the compute core; "S-b, the DM wiring and tag 65027"). README.md
-# says more.
+# README.md says more.
 #
 #   run.sh   make_fixture.py writes the planted files and tag maps with their hand-written truth; reference.py checks the
 #            references against every planted truth and writes the expected readings of every case (manifest.json); the

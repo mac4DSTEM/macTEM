@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Truth and reader for tools/parity/export-parity: macTEM's PNG and CSV export (V1-10 slice 1) read back with Pillow and Python.
+"""Truth and reader for tools/parity/export-parity: macTEM's PNG and CSV export read back with Pillow and Python.
 
     reference.py plant <planted.dm4> <planted.truth.json> <rsciio-root> <planted-dir>
     reference.py check <planted-dir> <out-dir> [<case,case...|all> [<variant,variant...|all>]]
@@ -10,7 +10,7 @@ worked BY HAND below). The Swift harness (main.swift) renders and writes the PNG
 dumps what it held in memory (profile samples and positions, the bar plan it returned, the window fractions, the real
 images it opened); `check` reads all of it back with Pillow 12.3.0, numpy 2.5.4 and Python's own `float` and prints one
 "  FAIL  <check>: <detail>" line per failure, then "export-parity: N FAILURES in M checks" (exit 1) or
-"export-parity: all passed — ..." (exit 0). The checks, named as archive: roadmap-registrations-2026-10-15.md V1-10 registers them:
+"export-parity: all passed — ..." (exit 0). The checks, by name:
 
   P1  CSV: every sample and position cell re-reads bit-equal to the in-memory Double (NaN as "nan"); the rows equal the
       samples in count and order; the header's points, width, sizes, scales and units re-read equal to the planted ones.
@@ -22,11 +22,11 @@ images it opened); `check` reads all of it back with Pillow 12.3.0, numpy 2.5.4 
       within 0.15 export px of the line through the points' pixel centres; each ring's centre likewise.
   P6  the overlays touch only their own footprint: outside the plate's and the marks' grown boxes the export equals the
       overlay-free one bit for bit; with an option off, its footprint is untouched.
-  R-P1 the Results room's CSV (V1-10 slice 3): every value re-reads bit-equal to the Double in memory (nan, +-0, +-inf, the smallest
+  R-P1 the Results room's CSV: every value re-reads bit-equal to the Double in memory (nan, +-0, +-inf, the smallest
       and the largest Double included); every label, text and unit round-trips through Python's csv (a comma, a quote and a newline);
       the numbers equal the owners' own (ImageMeasurement, SpotMeasure) and the closed forms to 1e-12; the header holds one validation
       line per product present, each the producer's constant (R-P2's reference side: no sentence claims "validated").
-  P5-band, P7 (Gate B round 1): a profile's band is its width across, centred on the line (the red channel equals 46 x the
+  P5-band, P7 (added by a review): a profile's band is its width across, centred on the line (the red channel equals 46 x the
       share of each pixel the rectangle covers); an angle's two arms are strokes of their own; the label beside a mark and
       the bar's label equal the same string drawn upright by the harness, at the registered place, within 2 levels.
 
@@ -556,7 +556,7 @@ def plant(dm4, truth_path, rsciio, out):
     csv_case("csv-dm4", "planted2d", (3.3, 2.5), (36.1, 20.4), 3, analytic="dm4")
     csv_case("csv-stem", "stem", (4.0, 60.0), (60.3, 8.2), 3)
 
-    # -- the Results case (V1-10 slice 3, R-P1): a 128 x 128 lattice with two non-dyadic frequencies (0.1731 and 0.0627 cycles per
+    # -- the Results case (R-P1): a 128 x 128 lattice with two non-dyadic frequencies (0.1731 and 0.0627 cycles per
     # pixel: a peak 22.2 bins right and 8.0 bins below the centre of the whole image's spectrum, 11.1 and 4.0 on a 64 x 64 crop), the
     # calibration anisotropic (x 0.0731 nm, y 0.0789 nm). Three marks of every kind with non-dyadic points (an uncalibrated pair
     # for the pixel grid, an angle whose arm has zero length), three spot clicks (the peak, the peak on a crop, a click on the DC:
@@ -702,7 +702,7 @@ class Loader:
 
     def identity(self, image):
         """fileName, object, notes: planted for synthetic images; for the real ones, what Swift opened (the readers' naming
-        of the object and their notes are tools/parity/dm4-reader-parity's to check)."""
+        of the object and their notes are FormatoKit's to check)."""
         img = self.manifest["images"][image]
         if img["open"]:
             path = os.path.join(self.out, "opened", f"{image}.json")

@@ -6,7 +6,7 @@
 //        equal-channel 8-bit RGB read as a grey render; the Velox XML, FEI SEM INI, Digital Micrograph and ImageJ
 //        calibrations in that order; everything else refused by name). This file is the seam: the app's refusal wording
 //        (`Refusal.reason`), the Cocoa error for an unreadable file, and `KitImages` (the one conversion of a kit image to a
-//        `CalibratedImage`). Checked by tools/parity/tiff-reader-parity.
+//        `CalibratedImage`). The parity against RosettaSciIO and tifffile is FormatoKit's.
 //
 //  ONE STRICTER CASE (accepted at the switch, FormatoKit 0.5.0): a tag whose value lies outside the file, or of a type the
 //  reader does not know, was ignored by the app's former reader; `TIFFAppImage` refuses the file as truncated. A valid
@@ -70,12 +70,9 @@ package nonisolated enum TIFFImageReader {
         return try read(data: data, fileName: formatoDisplayFileName(path))
     }
 
-    /// `acceptUnequalChannels` exists for one caller: tools/parity/tiff-reader-parity's negative control, which must
-    /// show the unequal-channel refusal is live. It reads the red channel instead of refusing.
-    package static func read(data: Data, fileName: String, acceptUnequalChannels: Bool = false) throws -> CalibratedImage {
+    package static func read(data: Data, fileName: String) throws -> CalibratedImage {
         do {
-            return CalibratedImage(try TIFFAppImage.read(data: data, fileName: fileName,
-                                                         acceptUnequalChannels: acceptUnequalChannels))
+            return CalibratedImage(try TIFFAppImage.read(data: data, fileName: fileName))
         } catch let refusal as TIFFAppImage.Refusal {
             throw Refusal(refusal)
         }

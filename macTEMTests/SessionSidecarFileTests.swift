@@ -1,23 +1,23 @@
 //
 //  SessionSidecarFileTests.swift
-//  The session sidecar's HDF5 file layer (archive: roadmap-registrations-2026-10-15.md V1-2 slice A, ADR 020): the name rule, the four root attributes written
+//  The session sidecar's HDF5 file layer: the name rule, the four root attributes written
 //  and read back, and every refusal by name — a foreign HDF5 file, a newer minimum reader (P2), a file that cannot be
 //  opened (P3), an attribute of the wrong kind, a string over 4 MiB, invalid UTF-8. The parity against h5py 3.16.0, which
 //  writes and reads the same files independently, is tools/parity/sidecar-parity; these pin the layer's own rules without Python.
 //  Files the layer would never write (a foreign file, a newer minimum reader, a wrong-kind attribute) are planted with the
 //  same HDF5 binding, through `TestHDF5Library.withLibrary` (TestHDF5Binding.swift: the same libhdf5 image and the same `HDF5Serial` lock as FormatoKit's).
 //  Each test names the mutation of SessionSidecarFile.swift it was broken by.
-//  The Gate B tests of 2026-10-13 pin what the first set could not see: a file that appears (or is swapped) between the
+//  The review tests of 2026-10-13 pin what the first set could not see: a file that appears (or is swapped) between the
 //  check and the publish, a failed close, nothing left in the system's replacement directory, the path never missing
 //  during a replace, and the file handles closed (the test of the freed string buffers went with the variable-length read
-//  it measured: ADR 021). Failure injection is the layer's own
+//  it measured). Failure injection is the layer's own
 //  `WriteSeams` (a file appearing at the one moment it can) and, for a disk that cannot take the file, a file size limit
 //  set around one write. The re-verifier's three (2026-10-14) pin a letter both normal forms rewrite, a schema two
 //  newer, and the refusal's wording when a file appears.
-//  ADR 021 (2026-10-14) retires the variable-length string: the four attributes are fixed-length, null-padded UTF-8, and a
+//  Since 2026-10-14 the variable-length string is retired: the four attributes are fixed-length, null-padded UTF-8, and a
 //  variable-length one is refused by name from its type, before any `H5Aread`. The fixtures follow: what `Planted.text`,
 //  `.bytes` and `.asciiText` plant is what the writer writes; `.variableText` is slice A's old form, planted to be refused.
-//  The tests it adds pin one rule of its registration each (archive: roadmap-registrations-2026-10-15.md V1-2, "Slice B, step 1"): the refusal by name for each
+//  The tests it adds pin one rule each: the refusal by name for each
 //  of the four attributes, a variable-length sidecar never overwritten, the cap on the declared size, text then NUL then
 //  text, h5py's padding, the empty text as one NUL, and the layout the writer produces.
 //
@@ -59,7 +59,7 @@ nonisolated final class SessionSidecarFileTests: XCTestCase {
     }
 
     /// An attribute a sidecar never holds, or holds in a form this layer never writes: planted with the binding. `text`,
-    /// `bytes` and `asciiText` are the form the writer writes (ADR 021): a scalar fixed-length string, null-padded, as long
+    /// `bytes` and `asciiText` are the form the writer writes: a scalar fixed-length string, null-padded, as long
     /// as its bytes (one NUL when there are none, HDF5 having no size 0). The others are forms the reader meets from
     /// elsewhere, or must refuse.
     nonisolated enum Planted {
@@ -71,7 +71,7 @@ nonisolated final class SessionSidecarFileTests: XCTestCase {
         case spacePaddedText(String, String, size: Int)  // SPACEPAD: the text, then spaces up to `size` (what a Fortran or fixed-width writer gives)
         case integer(String, Int32)                 // a scalar 32-bit integer
         case textArray(String, [String])            // a rank-1 array of fixed-length strings
-        case variableText(String, String)           // a scalar variable-length UTF-8 string: slice A's form, refused since ADR 021
+        case variableText(String, String)           // a scalar variable-length UTF-8 string: slice A's form, refused since 2026-10-14
         case variableTextArray(String, [String])    // a rank-1 array of variable-length strings
     }
 
@@ -185,7 +185,7 @@ nonisolated final class SessionSidecarFileTests: XCTestCase {
     }
 
     /// How an attribute of the root is stored, as the file says it. The bytes are read only for a fixed-length string,
-    /// never for a variable-length one (that read is the one ADR 021 forbids).
+    /// never for a variable-length one (that read is the one the fixed-length rule forbids).
     nonisolated struct StoredForm: Equatable {
         var isString: Bool
         var isVariableLength: Bool
@@ -233,7 +233,7 @@ nonisolated final class SessionSidecarFileTests: XCTestCase {
 
     /// Breaks the signature of every global heap collection in the file ("GCOL" to "GCOX") and says how many it broke. A
     /// variable-length string's characters live in one, and HDF5 fails at once when it meets the broken signature: the safe
-    /// stand-in, for a test, for the damaged object SIZE in the same heap that makes `H5Aread` spin forever (ADR 021).
+    /// stand-in, for a test, for the damaged object SIZE in the same heap that makes `H5Aread` spin forever.
     func breakGlobalHeaps(in url: URL) throws -> Int {
         var data = try Data(contentsOf: url)
         var broken = 0
@@ -267,7 +267,7 @@ nonisolated final class SessionSidecarFileTests: XCTestCase {
         return text
     }
 
-    // MARK: The name (ADR 020 D1)
+    // MARK: The name
 
     /// The source's name as the URL reports it, plus ".mactem.h5", beside the source — never the lower-cased extension the
     /// open dispatches on. Names are compared as Swift compares strings (canonical equivalence): Foundation hands a file
@@ -327,7 +327,7 @@ nonisolated final class SessionSidecarFileTests: XCTestCase {
     }
 
     /// Over 255 UTF-16 units with the suffix is a named error, counted in the units the file system counts: not bytes, not
-    /// characters (ADR 020 D1, amended 2026-10-14 from the registered "255 bytes": the measurement on this Mac, APFS,
+    /// characters (amended 2026-10-14 from the earlier "255 bytes": the measurement on this Mac, APFS,
     /// 2026-10-13, says UTF-16 units), and this test pins both sides of it for an ASCII, a two-byte ("µ"), a three-byte
     /// ("日") and a two-unit (an emoji) name: the layer takes exactly 255 units, the file system takes that name (the
     /// sidecar is written for real, beside nothing else, and read back), the layer refuses 256, and the file system itself
@@ -404,7 +404,7 @@ nonisolated final class SessionSidecarFileTests: XCTestCase {
         XCTAssertEqual(Sidecar.schema, 1)
     }
 
-    /// The sidecar finds libhdf5 with no override and no `Frameworks` copy (ADR 026): the app embeds none, FormatoKit's
+    /// The sidecar finds libhdf5 with no override and no `Frameworks` copy: the app embeds none, FormatoKit's
     /// FormatoLibHDF5 framework carries the one, and FormatoKit's loader (`SharedHDF5.loadStandard`) names it. The record round-trips, and the one
     /// libhdf5 the process holds is the framework's, the path the Velox reader loads too (one image, one lock). Red under: the
     /// `FormatoHDF5Library.bundledLibraryPath` candidate removed (the write throws `.library`).
@@ -529,7 +529,7 @@ nonisolated final class SessionSidecarFileTests: XCTestCase {
     }
 
     /// The file holds the four attributes on the root, each a scalar fixed-length string in UTF-8, null-padded, exactly as
-    /// long as the text's UTF-8 bytes (ADR 021): the layout h5py and every other reader sees, and the one the reader's
+    /// long as the text's UTF-8 bytes: the layout h5py and every other reader sees, and the one the reader's
     /// "the whole storage is the text and its padding" relies on. Checked in the file: the class, not variable-length, the
     /// size (the multi-byte text is 8 bytes for 4 characters), the character set and the padding read through
     /// `H5Tget_cset` and `H5Tget_strpad`, scalar, and the bytes themselves, with no terminator after them. Red under: the

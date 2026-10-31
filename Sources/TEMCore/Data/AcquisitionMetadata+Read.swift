@@ -3,7 +3,7 @@
 //  Role: the one entry point that describes a FILE: `AcquisitionMetadata.read(path:)` picks the format reader by the
 //        extension, as `ImageOpening.openNow` picks the image reader, and returns what the file records. The three
 //        format readers are FormatoKit's (`tiff(data:)`, `mrc(data:)`, `dm(numbers:strings:)`, `velox(_:)`); this file only
-//        reaches them from a path. V1-4a, slice S-b; checked by tools/parity/metadata-parity (C1–C5) and
+//        reaches them from a path. Checked by tools/parity/metadata-parity (C1–C5) and
 //        AcquisitionMetadataReadTests.
 //
 //  The readers are FormatoKit's (`AcquisitionMetadata` and the DM/MRC/TIFF/Velox extensions of FormatoCore, FormatoDM,

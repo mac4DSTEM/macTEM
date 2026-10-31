@@ -1,7 +1,7 @@
 //
 //  ExportSnapshotTests.swift
-//  Pins what an export takes from the selected file when its panel opens (`ExportSnapshot`, `ExportPanels`, V1-10 slice 1,
-//  ): the default names (the bare stem, never an extension), the message and status
+//  Pins what an export takes from the selected file when its panel opens (`ExportSnapshot`, `ExportPanels`):
+//  the default names (the bare stem, never an extension), the message and status
 //  lines, the options' defaults, when the two commands are enabled, the display settings as the shader gets them, the marks
 //  labelled in en_US_POSIX whatever the reader's locale, a profile after its width changed equal to `LineProfile.sample` on
 //  the current image, the selected item and nothing else, and the save panels' configuration and the accessory's size.
@@ -16,7 +16,7 @@
 //  The lane's logs are in its report, not the repo.
 //
 //  The tests under "What OK writes", "A re-read file", "The shown unit" and the window and announcement tests were added by
-//  Gate B (2026-10-14), each for a change that had passed every gate: the hand-over from a snapshot to its writer (the ends
+//  A review (2026-10-14), each for a change that had passed every gate: the hand-over from a snapshot to its writer (the ends
 //  swapped, the shown unit dropped, the marks or the options not passed), a cold file read again without its profiles
 //  recomputed, the shown factor right only for a metre axis, a profile whose end was moved, a window closed under the
 //  sheet, a spoken line at default priority. Each was broken once on a scratch copy, as above.
