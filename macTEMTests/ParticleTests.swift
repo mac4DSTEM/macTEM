@@ -150,9 +150,43 @@ nonisolated final class ParticleTests: XCTestCase {
         let lines = csv.split(separator: "\n").map(String.init)
         XCTAssertTrue(lines[0].hasSuffix("validation: none"), lines[0])
         XCTAssertTrue(lines[1].contains("fraction 0.5 of the raw range = 55"), lines[1])
-        XCTAssertTrue(lines.contains("label,counted,touches_edge,area_px,centroid_x_px,centroid_y_px,length_px,width_px,angle_deg,length_nm,width_nm,area_nm2"))
+        XCTAssertTrue(lines.contains("label,counted,touches_edge,small,area_px,centroid_x_px,centroid_y_px,length_px,width_px,angle_deg,length_nm,width_nm,area_nm2"))
         XCTAssertEqual(lines.filter { !$0.hasPrefix("#") && !$0.hasPrefix("label,") }.count, 4)
         XCTAssertTrue(lines.contains("# areal density: none (the image is not calibrated)"), "no pixel size was given")
+    }
+
+    /// The CSV keeps its `small` column in fourth place, so a script that reads the columns by position still works: every listed object is 0 there
+    /// (objects below the minimum area are removed before labelling; the summary line counts them). Red under: the column dropped.
+    func testTheCSVKeepsTheSmallColumn() throws {
+        let report = try ParticleCompute.analyse(pixels: Self.planted(), width: Self.width, height: Self.height, settings: ParticleSettings())
+        let lines = ParticleFormat.csv(report, scale: ParticleScale(perPixel: 0.5, unit: "nm"), fileName: "p.dm4").split(separator: "\n").map(String.init)
+        let header = try XCTUnwrap(lines.first { $0.hasPrefix("label,") }).split(separator: ",").map(String.init)
+        XCTAssertEqual(Array(header.prefix(5)), ["label", "counted", "touches_edge", "small", "area_px"])
+        let rows = lines.filter { !$0.hasPrefix("#") && !$0.hasPrefix("label,") }.map { $0.split(separator: ",").map(String.init) }
+        XCTAssertEqual(rows.count, 4)
+        for row in rows {
+            XCTAssertEqual(row.count, header.count, row.joined(separator: ","))
+            XCTAssertEqual(row[3], "0", "a listed object is never small")
+        }
+        XCTAssertTrue(lines.contains { $0.hasPrefix("# ") && $0.contains("1 small") }, "the removed object is counted in the summary line")
+    }
+
+    /// The CSV a script reads writes its numbers with a point whatever the shown numbers do (`ParticleFormat.csvNumber`, printf's `%.3g`): the
+    /// threshold, smoothing and pixel-size lines go through it, never through the shown `number`, which follows the locale once the Particles
+    /// view does. Red under: a CSV line written with `number(`.
+    func testTheCSVNumbersArePointDecimal() throws {
+        XCTAssertEqual(ParticleFormat.csvNumber(0.873), "0.873")
+        XCTAssertEqual(ParticleFormat.csvNumber(10 + 90.0 / 512), "10.2")
+        var s = ParticleSettings(); s.method = .otsu; s.sigma = 1.5
+        let report = try ParticleCompute.analyse(pixels: Self.planted(), width: Self.width, height: Self.height, settings: s)
+        let csv = ParticleFormat.csv(report, scale: ParticleScale(perPixel: 0.25, unit: "nm"), fileName: "p.dm4")
+        XCTAssertTrue(csv.contains("smoothing sigma 1.5 px"), csv)
+        XCTAssertTrue(csv.contains("pixel size 0.25 nm/px"), csv)
+        // The CSV's own functions call no shown-number formatter.
+        let source = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/TEMCore/Particles/ParticleCompute.swift"), encoding: .utf8)
+        let csvPart = try XCTUnwrap(source.range(of: "package static func threshold(_ r: ParticleReport)").map { String(source[$0.lowerBound...]) })
+        XCTAssertNil(csvPart.range(of: #"(?<![A-Za-z])number\("#, options: .regularExpression), "a CSV line uses the shown number formatter")
     }
 
     // MARK: Otsu, minimum area and density (ImagoKit 0.8.0)

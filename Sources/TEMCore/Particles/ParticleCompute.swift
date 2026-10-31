@@ -150,6 +150,9 @@ package nonisolated enum ParticleCompute {
 package nonisolated enum ParticleFormat {
     package static func number(_ v: Double) -> String { String(format: "%.3g", v) }
 
+    /// The same number for the CSV a script reads: printf's `%.3g`, always a point, whatever the shown numbers do.
+    package static func csvNumber(_ v: Double) -> String { String(format: "%.3g", v) }
+
     /// "128 objects · 97 counted · 19 edge · 12 small".
     package static func counts(_ s: ParticleSummary) -> String {
         "\(s.total) object\(s.total == 1 ? "" : "s") · \(s.counted) counted · \(s.edge) edge · \(s.small) small"
@@ -167,11 +170,11 @@ package nonisolated enum ParticleFormat {
         return "areal density \(number(d)) /\(scale.unit)² (edge-corrected)"
     }
 
-    /// How the threshold was chosen, for the CSV's provenance line.
+    /// How the threshold was chosen, for the CSV's provenance line (point decimals: `csvNumber`).
     package static func threshold(_ r: ParticleReport) -> String {
         switch r.settings.method {
-        case .manual: "fraction \(number(r.settings.thresholdFraction)) of the raw range = \(number(Double(r.thresholdValue)))"
-        case .otsu: "Otsu (ImagoKit Thresholding.otsu, 256 bins) = \(number(Double(r.thresholdValue)))"
+        case .manual: "fraction \(csvNumber(r.settings.thresholdFraction)) of the raw range = \(csvNumber(Double(r.thresholdValue)))"
+        case .otsu: "Otsu (ImagoKit Thresholding.otsu, 256 bins) = \(csvNumber(Double(r.thresholdValue)))"
         }
     }
 
@@ -182,14 +185,16 @@ package nonisolated enum ParticleFormat {
             ? "# areal density: \(String(format: "%.6g", r.summary.arealDensity!)) per \(scale.unit)^2, counted objects weighted by Miles-Lantuejoul's edge correction (ImagoKit ObjectStatistics.arealDensity), validation: none"
             : "# areal density: none (the image is not calibrated)"
         var out = ["# macTEM particles, file: \(fileName), validation: none",
-                   "# threshold: \(r.settings.polarity.rawValue) objects, \(threshold(r)), smoothing sigma \(number(r.settings.sigma)) px, connectivity \(r.settings.connectivity.rawValue), minimum area \(r.settings.minimumArea) px (smaller objects removed: ImagoKit BinaryMorphology.removeSmallObjects)",
+                   "# threshold: \(r.settings.polarity.rawValue) objects, \(threshold(r)), smoothing sigma \(csvNumber(r.settings.sigma)) px, connectivity \(r.settings.connectivity.rawValue), minimum area \(r.settings.minimumArea) px (smaller objects removed: ImagoKit BinaryMorphology.removeSmallObjects)",
                    "# \(ParticleFormat.counts(r.summary)); labels, centroids, lengths, widths and angles: ImagoKit Segmentation.objectMoments; counted = not touching the image edge",
                    densityLine,
-                   "# length_ and width_ in \(u) (pixel size \(number(scale.perPixel)) \(scale.unit)/px); angle: long axis from +x toward +y, degrees",
-                   "label,counted,touches_edge,area_px,centroid_x_px,centroid_y_px,length_px,width_px,angle_deg,length_\(u),width_\(u),area_\(u)2"]
+                   "# length_ and width_ in \(u) (pixel size \(csvNumber(scale.perPixel)) \(scale.unit)/px); angle: long axis from +x toward +y, degrees",
+                   // `small` stays so a script reading the columns by position keeps working: objects below the minimum area are now removed before
+                   // labelling, so a listed object is never small (always 0); the count removed is in the summary line above.
+                   "label,counted,touches_edge,small,area_px,centroid_x_px,centroid_y_px,length_px,width_px,angle_deg,length_\(u),width_\(u),area_\(u)2"]
         for o in r.objects {
             let m = o.moments
-            let cells: [String] = ["\(m.label)", o.isCounted ? "1" : "0", m.touchesEdge ? "1" : "0", "\(m.area)",
+            let cells: [String] = ["\(m.label)", o.isCounted ? "1" : "0", m.touchesEdge ? "1" : "0", "0", "\(m.area)",
                                    String(format: "%.4f", m.centroidCol), String(format: "%.4f", m.centroidRow),
                                    String(format: "%.4f", m.lengthPx), String(format: "%.4f", m.widthPx), String(format: "%.3f", m.orientationDegrees),
                                    String(format: "%.5g", m.lengthPx * scale.perPixel), String(format: "%.5g", m.widthPx * scale.perPixel),
