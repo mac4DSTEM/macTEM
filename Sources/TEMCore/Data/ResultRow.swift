@@ -18,16 +18,17 @@ import ImagoCore
 import Foundation
 import DiffractoGeometry
 import ImagoFFT
+import SpectroEDX
 
 package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
-    /// What the room groups by, in the order it lists them. `calibration` and `rings` are the Diffraction room's.
+    /// What the room groups by, in the order it lists them. `calibration` and `rings` are the Diffraction room's, `eds` the EDS room's.
     package enum Group: String, Sendable, Equatable, CaseIterable {
-        case marks, spots, calibration, rings
+        case marks, spots, calibration, rings, eds
     }
 
     /// What kind of measurement a row is; each has one producer and one validation constant.
     package enum Product: String, Sendable, Equatable, CaseIterable {
-        case distance, angle, profile, spot, calibration, ring
+        case distance, angle, profile, spot, calibration, ring, edsComposition
 
         package var group: Group {
             switch self {
@@ -35,6 +36,7 @@ package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
             case .spot: .spots
             case .calibration: .calibration
             case .ring: .rings
+            case .edsComposition: .eds
             }
         }
 
@@ -52,6 +54,8 @@ package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
             // The kit's own self-reported sentence for the indexing; the calibration's numbers are the kit's closed forms (`RingScaleTests`).
             case .ring: RingIndexing.validation
             case .calibration: "Δq, λ and L are DiffractoKit's closed forms from one ring of a standard's stated lattice constant; not compared with a calibrated camera length"
+            // The kit's own constant for an at% or wt% (the cross sections are not checked against a standard of known composition).
+            case .edsComposition: Self.edsCompositionLead + PooledQuantification.abundanceValidation
             }
         }
 
@@ -62,8 +66,13 @@ package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
             case .spot: "Checked · planted spots"
             case .calibration: "Checked · closed form"
             case .ring: "Unvalidated · indexing"
+            case .edsComposition: "Unvalidated · composition"
             }
         }
+
+        /// What an EDS row's numbers are, before SpectroKit's validation constant.
+        package static let edsCompositionLead = "SpectroKit's pooled quantification of the region's summed spectrum (net counts from the fit; at% and wt% by "
+            + "Cliff-Lorimer with the room's k-factors), validation: "
     }
 
     /// One number (or one text) of a row. `value` is nil for a text-only entry.
@@ -209,6 +218,32 @@ package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
         entries.append(Entry("odds", nil, text: odds ?? ""))
         entries.append(Entry("verdict", nil, text: verdict))
         return ResultRow(id: id, product: .ring, label: label, entries: entries, refusal: refusal)
+    }
+
+    // MARK: EDS
+
+    /// SpectroKit's words for a row held at 0 by the fit's bound (`SpectroscopyExport`'s flag, verbatim).
+    package static let edsAtBound = "held at 0 by the non-negativity bound: not detected, sigma is an upper-limit scale"
+
+    /// One element of an EDS room's pooled fit of a region (`PooledQuantification.Row`): the net counts with their sigma, and at% and wt%
+    /// with theirs when the fit produced them. A row the kit refused carries its words and no number (the kit writes 0 there); an at% the
+    /// fit refused carries the fit's reason; a row at the bound carries the kit's flag; the kit's caveat on the at% rows is kept.
+    package static func edsComposition(id: String, row: PooledQuantification.Row, regionName: String, abundanceRefusal: String?,
+                                       abundanceCaveat: String? = nil) -> ResultRow {
+        let line = row.lineNote ?? ""
+        let failed = row.failure != nil
+        func measured(_ value: Double) -> Double? { failed || !value.isFinite ? nil : value }
+        var entries = [Entry("net", measured(row.net), unit: "counts", text: row.atBound && !failed ? edsAtBound : ""),
+                       Entry("net_sigma", measured(row.sigma), unit: "counts"),
+                       Entry("at", row.atomicPercent, unit: "at%", text: row.atomicPercent == nil ? (abundanceRefusal ?? "") : row.atomicTermsText),
+                       Entry("at_sigma", row.atomicSigma, unit: "at%"),
+                       Entry("wt", row.weightPercent, unit: "wt%", text: row.weightPercent == nil ? "" : row.weightTermsText),
+                       Entry("wt_sigma", row.weightSigma, unit: "wt%"),
+                       Entry("line", nil, text: row.groupID)]
+        if !line.isEmpty { entries.append(Entry("line_note", nil, text: line)) }
+        if let abundanceCaveat, row.atomicPercent != nil { entries.append(Entry("caveat", nil, text: abundanceCaveat)) }
+        entries.append(Entry("region", nil, text: regionName))
+        return ResultRow(id: id, product: .edsComposition, label: "\(row.element) · \(regionName)", entries: entries, refusal: row.failure)
     }
 
     private static func clickAndRegion(row: Int, col: Int, region: Region) -> [Entry] {

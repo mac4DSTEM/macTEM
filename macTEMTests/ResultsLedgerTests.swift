@@ -16,6 +16,8 @@ import TEMCore
 import TEMSession
 import ImagoFFT
 import ImagoCore
+import ShellEDXModel
+import SpectroEDX
 @testable import macTEM
 
 nonisolated final class ResultsLedgerTests: XCTestCase {
@@ -218,7 +220,7 @@ nonisolated final class ResultsLedgerTests: XCTestCase {
         owner.add(ImageMark(kind: .distance, points: [ImagePoint(x: 0, y: 0), ImagePoint(x: 3, y: 4)]), on: image)
         let rows = ResultsLedger.rows(image: image, measurements: owner, analysis: rig.owner)
         XCTAssertEqual(rows.map(\.group), [.marks, .spots])
-        XCTAssertEqual(ResultRow.Group.allCases, [.marks, .spots, .calibration, .rings])
+        XCTAssertEqual(ResultRow.Group.allCases, [.marks, .spots, .calibration, .rings, .eds])
     }
 
     // MARK: An open item
@@ -240,5 +242,97 @@ nonisolated final class ResultsLedgerTests: XCTestCase {
         itemA.measurements.add(ImageMark(kind: .distance, points: [ImagePoint(x: 0, y: 0), ImagePoint(x: 3, y: 4)]), on: imageA)
         XCTAssertEqual(ResultsLedger.rows(of: itemA).count, 1)
         XCTAssertTrue(ResultsLedger.rows(of: itemB).isEmpty, "a's marks are not b's")
+    }
+
+    // MARK: EDS
+
+    /// A quantified EDS region is listed, one row per fitted element, after the image's groups, with the fit's own numbers (net, at%, wt%
+    /// and their sigma) and the region it was summed over. Red under: the ledger ignoring the EDS fit; a number taken from another row.
+    @MainActor func testAQuantifiedEDSRegionIsListedOneRowPerElement() async throws {
+        let session = EDXSession(host: .macTEM)
+        await session.bind(DemoDocuments.edx()).value
+        await session.settled()
+        await session.quantify()?.value
+        await session.settled()
+        let fit = try XCTUnwrap(session.fit, session.fitFailure ?? "no fit")
+        let eds = ResultsLedger.EDSResults(regionName: session.regionName, fit: fit)
+        let image = Self.image()
+        let marks = ImageMeasurements()
+        marks.add(ImageMark(kind: .distance, points: [ImagePoint(x: 0, y: 0), ImagePoint(x: 3, y: 4)]), on: image)
+        let rows = ResultsLedger.rows(image: image, measurements: marks, analysis: idle(), eds: eds)
+        let edsRows = rows.filter { $0.group == .eds }
+        XCTAssertEqual(edsRows.map(\.label), fit.rows.map { "\($0.element) · Whole map" })
+        XCTAssertEqual(rows.first?.group, .marks, "the image's groups first")
+        XCTAssertEqual(rows.last?.group, .eds)
+        for row in fit.rows {
+            let listed = try XCTUnwrap(edsRows.first { $0.label.hasPrefix(row.element + " ") })
+            XCTAssertEqual(listed.product, .edsComposition)
+            XCTAssertEqual(listed.entry("net")?.value, row.net, row.element)
+            XCTAssertEqual(listed.entry("net_sigma")?.value, row.sigma, row.element)
+            XCTAssertEqual(listed.entry("at")?.value, row.atomicPercent, row.element)
+            XCTAssertEqual(listed.entry("at_sigma")?.value, row.atomicSigma, row.element)
+            XCTAssertEqual(listed.entry("wt")?.value, row.weightPercent, row.element)
+            XCTAssertEqual(listed.entry("wt_sigma")?.value, row.weightSigma, row.element)
+            XCTAssertEqual(listed.entry("region")?.text, "Whole map")
+        }
+        let mg = try XCTUnwrap(edsRows.first { $0.label.hasPrefix("Mg ") })
+        XCTAssertNotNil(mg.entry("wt")?.value, "the planted Mg has a wt%")
+        let shown = ResultsFormat.value(mg, x: nil, y: nil, locale: Locale(identifier: "en_US"))
+        XCTAssertTrue(shown.contains(" at% · ") && shown.hasSuffix(" wt%") && shown.contains(" ± "), shown)
+        XCTAssertEqual(ResultsFormat.source(mg, imageWidth: 40, imageHeight: 30), "EDS · Whole map")
+        XCTAssertTrue(ResultsLedger.rows(image: image, measurements: marks, analysis: idle()).allSatisfy { $0.group != .eds },
+                      "no fit: no EDS row")
+    }
+
+    /// A row the kit refused has no number (the kit writes 0 there), a row at the fit's bound reads as not detected in the kit's words, an
+    /// at% the fit refused says why in the Value column, and the kit's caveat on an at% is kept. Red under: the refused row's 0 written as a
+    /// net; the bound row shown as "net 0 counts".
+    @MainActor func testTheEDSRowsKeepTheKitsRefusalsAndFlags() async throws {
+        let session = EDXSession(host: .macTEM)
+        await session.bind(DemoDocuments.edx()).value
+        await session.settled()
+        await session.quantify()?.value
+        await session.settled()
+        // The kit's Row has no public initialiser: a real row of the demo fit, edited into each case.
+        let base = try XCTUnwrap(session.fit?.rows.first, session.fitFailure ?? "no fit")
+        func kitRow(_ element: String, net: Double, sigma: Double) -> PooledQuantification.Row {
+            var r = base
+            r.element = element; r.net = net; r.sigma = sigma; r.failure = nil; r.atBound = false
+            r.atomicPercent = nil; r.atomicSigma = nil; r.weightPercent = nil; r.weightSigma = nil
+            return r
+        }
+        var row = kitRow("Cu", net: 0, sigma: 0)
+        row.failure = "no line in the fitted range"
+        let refused = ResultRow.edsComposition(id: "r", row: row, regionName: "Whole map", abundanceRefusal: nil)
+        XCTAssertEqual(refused.refusal, "no line in the fitted range")
+        XCTAssertNil(refused.entry("net")?.value)
+        XCTAssertNil(refused.entry("net_sigma")?.value)
+        var bound = kitRow("Fe", net: 0, sigma: 12)
+        bound.atBound = true
+        let held = ResultRow.edsComposition(id: "b", row: bound, regionName: "Whole map", abundanceRefusal: nil)
+        XCTAssertEqual(held.entry("net")?.value, 0)
+        XCTAssertEqual(ResultsFormat.edsValue(held), "Not detected: " + ResultRow.edsAtBound)
+        let plain = kitRow("Mg", net: 900, sigma: 30)
+        let noAt = ResultRow.edsComposition(id: "n", row: plain, regionName: "Whole map", abundanceRefusal: "at% needs two quantified elements")
+        XCTAssertTrue(ResultsFormat.edsValue(noAt, locale: Locale(identifier: "en_US")).hasSuffix(" · at%: at% needs two quantified elements"))
+        var withAt = plain
+        withAt.atomicPercent = 40
+        let caveated = ResultRow.edsComposition(id: "c", row: withAt, regionName: "Whole map", abundanceRefusal: nil,
+                                                abundanceCaveat: "assumes the listed elements only")
+        XCTAssertEqual(caveated.entry("caveat")?.text, "assumes the listed elements only")
+    }
+
+    /// The EDS room holds one file: its fit belongs to an open item only when that item's file opened into the EDS room and is the one
+    /// the room holds, and not while the room is opening another. Red under: another file's composition listed under this one.
+    func testTheEDSFitIsListedOnlyUnderItsOwnFile() {
+        let a = URL(fileURLWithPath: "/data/one/a.emd"), b = URL(fileURLWithPath: "/data/two/b.emd")
+        XCTAssertTrue(AppState.edsFitBelongs(to: a, edsFiles: [a, b], edsFile: "a.emd", edsOpening: false))
+        XCTAssertFalse(AppState.edsFitBelongs(to: b, edsFiles: [a, b], edsFile: "a.emd", edsOpening: false), "the room holds a")
+        XCTAssertFalse(AppState.edsFitBelongs(to: a, edsFiles: [b], edsFile: "a.emd", edsOpening: false), "a did not open into the EDS room")
+        XCTAssertFalse(AppState.edsFitBelongs(to: a, edsFiles: [a], edsFile: "a.emd", edsOpening: true), "the room is opening")
+        let twin = URL(fileURLWithPath: "/data/two/a.emd")
+        XCTAssertTrue(AppState.edsFitBelongs(to: a, edsFiles: [a, twin], edsFile: "a.emd", edsPath: a.path, edsOpening: false))
+        XCTAssertFalse(AppState.edsFitBelongs(to: twin, edsFiles: [a, twin], edsFile: "a.emd", edsPath: a.path, edsOpening: false),
+                       "a file of the same name in another folder")
     }
 }

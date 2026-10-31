@@ -45,9 +45,10 @@ extension ExportSnapshot {
     }
 
     /// Export Results… for a file's owners; nil when it has no finished measurement or no pixels.
-    static func resultsSnapshot(of item: OpenItem, software: String = softwareName()) -> ExportResultsSnapshot? {
+    static func resultsSnapshot(of item: OpenItem, eds: ResultsLedger.EDSResults? = nil,
+                                software: String = softwareName()) -> ExportResultsSnapshot? {
         guard let image = item.session.image else { return nil }
-        let rows = ResultsLedger.rows(of: item)
+        let rows = ResultsLedger.rows(of: item, eds: eds)
         guard !rows.isEmpty else { return nil }
         let groups = ResultRow.Group.allCases.filter { group in rows.contains { $0.group == group } }
         return ExportResultsSnapshot(
@@ -60,5 +61,10 @@ extension ExportSnapshot {
     /// The window's selected item's: an export is of the file on screen, never of another open one.
     static func resultsSnapshot(in openItems: OpenItems, software: String = softwareName()) -> ExportResultsSnapshot? {
         openItems.selected.flatMap { resultsSnapshot(of: $0, software: software) }
+    }
+
+    /// The window's selected item's, with the EDS room's composition when the room holds that file.
+    static func resultsSnapshot(in appState: AppState, software: String = softwareName()) -> ExportResultsSnapshot? {
+        appState.openItems.selected.flatMap { resultsSnapshot(of: $0, eds: appState.edsResults(for: $0), software: software) }
     }
 }

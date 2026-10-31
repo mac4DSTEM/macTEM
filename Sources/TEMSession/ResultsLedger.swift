@@ -15,19 +15,32 @@
 
 import Foundation
 import ImagoCore
+import SpectroEDX
 import TEMCore
 
 package enum ResultsLedger {
 
+    /// The EDS room's finished fit of one region of this file: the window holds one EDS document, so the app hands it in only when it
+    /// is this file's (`AppState.edsFitBelongs`).
+    package struct EDSResults {
+        package let regionName: String
+        package let fit: PooledQuantification
+
+        package init(regionName: String, fit: PooledQuantification) {
+            self.regionName = regionName
+            self.fit = fit
+        }
+    }
+
     /// The selected file's rows; none while the file holds no pixels (cold, or still being read).
-    package static func rows(of item: OpenItem) -> [ResultRow] {
+    package static func rows(of item: OpenItem, eds: EDSResults? = nil) -> [ResultRow] {
         guard let image = item.session.image else { return [] }
-        return rows(image: image, measurements: item.measurements, analysis: item.fft, diffraction: item.diffraction)
+        return rows(image: image, measurements: item.measurements, analysis: item.fft, diffraction: item.diffraction, eds: eds)
     }
 
     /// All the rows of `image`'s owners, group by group.
     package static func rows(image: CalibratedImage, measurements: ImageMeasurements, analysis: FFTAnalysis,
-                             diffraction: DiffractionAnalysis? = nil) -> [ResultRow] {
+                             diffraction: DiffractionAnalysis? = nil, eds: EDSResults? = nil) -> [ResultRow] {
         let diffractionRows = diffraction?.resultRows(image: image) ?? []
         return ResultRow.Group.allCases.flatMap { group -> [ResultRow] in
             switch group {
@@ -35,6 +48,7 @@ package enum ResultsLedger {
             case .spots: spotRows(image: image, analysis: analysis)
             case .calibration: diffractionRows.filter { $0.group == .calibration }
             case .rings: diffractionRows.filter { $0.group == .rings }
+            case .eds: eds.map(edsRows) ?? []
             }
         }
     }
@@ -67,6 +81,16 @@ package enum ResultsLedger {
         case .distance: "Distance"
         case .angle: "Angle"
         case .profile: "Profile"
+        }
+    }
+
+    // MARK: EDS
+
+    /// One row per element of the fit, in the fit's order.
+    private static func edsRows(_ eds: EDSResults) -> [ResultRow] {
+        eds.fit.rows.map { row in
+            .edsComposition(id: "eds:\(eds.regionName):\(row.element):\(row.groupID)", row: row, regionName: eds.regionName,
+                            abundanceRefusal: eds.fit.abundanceRefusal, abundanceCaveat: eds.fit.abundanceCaveat)
         }
     }
 

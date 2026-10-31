@@ -102,7 +102,7 @@ enum ExportPanels {
     /// File > Export Results… (⇧⌥⌘E) and the Results inspector's Export menu: every finished measurement of the file as one CSV.
     static func exportResults(appState: AppState) {
         guard ExportSnapshot.availability(of: appState).results,
-              let snapshot = ExportSnapshot.resultsSnapshot(in: appState.openItems) else { return }
+              let snapshot = ExportSnapshot.resultsSnapshot(in: appState) else { return }
         // `--export-dir` (a UI journey): written without a panel, so no window is needed.
         if appState.exportDirectory != nil {
             Task.immediate { await presentResultsPanel(snapshot, on: nil, appState: appState) }

@@ -13,6 +13,7 @@ import ImagoCore
 import TEMCore
 import TEMSession
 import ShellEDXModel
+import SpectroCore
 
 extension AppState {
     /// Every open ends here — the panel, a drop, Finder: one item per file not open yet, read one at a time in this
@@ -233,6 +234,29 @@ extension AppState {
         let eds = edsFiles.contains { key($0) == k }, eels = eelsFiles.contains { key($0) == k }
         return (eds && edsFile != name && !edsOpening, eels && eelsFile != name && !eelsOpening)
     }
+
+    /// Whether the EDS room's fit is `url`'s: the file opened into the EDS room, the room holds it (by its path when the reader states one,
+    /// so two files of one name in two folders are told apart; else by name, as `roomsToFollow` compares) and is not opening another.
+    /// Pure, so a test holds it.
+    nonisolated static func edsFitBelongs(to url: URL, edsFiles: Set<URL>, edsFile: String, edsPath: String = "", edsOpening: Bool) -> Bool {
+        func key(_ u: URL) -> String { u.resolvingSymlinksInPath().standardizedFileURL.path }
+        let k = key(url)
+        guard !edsOpening, edsFile == url.lastPathComponent, edsFiles.contains(where: { key($0) == k }) else { return false }
+        return edsPath.isEmpty || key(URL(fileURLWithPath: edsPath)) == k
+    }
+
+    /// The EDS room's finished fit, when it is `item`'s file's (`edsFitBelongs`) and settled: while a region, pick or setting change is
+    /// being fitted again the old fit would be shown under the new region's name, so nothing is listed until it lands.
+    func edsResults(for item: OpenItem) -> ResultsLedger.EDSResults? {
+        guard let fit = edx.fit, !edx.isRefreshing, !edx.isFitting,
+              Self.edsFitBelongs(to: item.url, edsFiles: edsFiles, edsFile: edx.fileName, edsPath: edx.source?.metadata.filePath ?? "",
+                                 edsOpening: edx.isOpening)
+        else { return nil }
+        return ResultsLedger.EDSResults(regionName: edx.regionName, fit: fit)
+    }
+
+    /// Every finished result of `item`: its own owners' and, when the EDS room holds its file, the room's composition.
+    func resultRows(of item: OpenItem) -> [ResultRow] { ResultsLedger.rows(of: item, eds: edsResults(for: item)) }
 
     /// The spectrum rooms follow the selected file (see `roomsToFollow`); called when the Open Files selection changes.
     func spectrumRoomsFollowSelection() {
