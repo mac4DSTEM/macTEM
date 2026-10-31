@@ -113,8 +113,8 @@ quantity, unit, text, validation and lineage cell equal to the row's; the number
 the closed forms to 1e-12 relative (distance, angle, |q| = hypot(qx, qy), d = 1/|q|); the header's software, file, object, size,
 scales, session and notes, and **one `# validation (<product>):` line per product present, each the producer's constant the
 harness dumped** (`ImageMeasurement.validation`, `ProfileCSV.validation`, `FFTExport.spotsValidation`) and none for an absent
-product. R-P2's reference side: every product has a sentence (all six of `ResultRow.Product`, named in reference.py's `RESULTS_PRODUCTS`,
-which a unit test holds equal to the app's list; calibration and ring come from the Diffraction room) and no sentence claims "validated" (only "unvalidated" may contain it).
+product. R-P2's reference side: every product has a sentence (all seven of `ResultRow.Product`, named in reference.py's `RESULTS_PRODUCTS`,
+which a unit test holds equal to the app's list; calibration and ring come from the Diffraction room, edsComposition from the EDS room) and no sentence claims "validated" (only "unvalidated" may contain it).
 A second case, `results-unvalidated`, plants the same pixels in a file whose reader notes say "Unvalidated scale (test)": every
 `# validation (...)` header line and every validation cell must then end with `, unvalidated (reader note)`, as the profile CSV's
 does (unvalidated stays labelled); control (42) drops it. A profile row's sentence is `ImageMeasurement.validation`, then `; samples (the
