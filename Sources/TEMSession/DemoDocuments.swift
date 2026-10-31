@@ -13,9 +13,8 @@ import ImagoCore
 import SpectroCore
 import SpectroEDX
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
-#endif
+import ShellEDXModel
 
 package nonisolated enum DemoDocuments {
 
@@ -231,7 +230,7 @@ package nonisolated enum DemoDocuments {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macTEM-demo-spectrum")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("Demo EDX spectrum.msa")
-        try EDXExports.msa(counts: demo.image.sum(mask: nil), axis: demo.energyAxis, title: "Demo EDX spectrum", beamEnergyKeV: Truth.edxBeamKeV).write(to: url)
+        try EDXExports.msa(counts: demo.image.sum(mask: nil), axis: demo.energyAxis, title: "Demo EDX spectrum", beamEnergyKeV: Truth.edxBeamKeV, host: .macTEM).write(to: url)
         return url
     }
 

@@ -1,9 +1,9 @@
 //
 //  DiffractionRoomCore.swift
-//  Role: the Diffraction room's facts and flow without a view (docs/design/diffraction-room-2026-10-21.md, slice 1): the centre, the
+//  Role: the Diffraction room's facts and flow without a view: the centre, the
 //        calibration it resolves (a ring fit on a standard, else the file's reciprocal axis, else a typed Δq), a measured ring, a
 //        measured spot, the camera pixel pitches, the words of a kit refusal. Every number is DiffractoKit's (`RingFitCalibration`,
-//        `RingScale`, `IndexingDisplay`, `RingOverlay`); the app holds the flow. One interim, marked: the spot centroid.
+//        `RingScale`, `IndexingDisplay`, `RingOverlay`); the app holds the flow.
 //
 
 import Foundation
@@ -59,7 +59,7 @@ package nonisolated struct DiffractionCalibration: Sendable, Equatable {
     package static func fileDeltaQ(_ axis: AxisCalibration?) -> Double? { UnitDisplay.reciprocalAngstromsPerPixel(axis) }
 }
 
-/// The camera pixel pitches the room knows until FormatoKit reads them (kit ask 7): nominal values from the vendors' data sheets, typed
+/// The camera pixel pitches the room knows until FormatoKit reads them (mac4DSTEM/FormatoKit#10): nominal values from the vendors' data sheets, typed
 /// over when a detector differs. Only L in mm uses them; nothing else does.
 package nonisolated enum CameraPitches {
     package struct Camera: Sendable, Equatable { package let name: String; package let pitchMM: Double }
@@ -130,7 +130,7 @@ package nonisolated enum DiffractionCompute {
         try RingCalibration.calibrating(ring, d: d, highTensionVolts: volts, pixelPitchMM: pitchMM)
     }
 
-    /// INTERIM, `delete at DiffractoKit <the version with a pattern extent>` (kit ask 10): a median/MAD estimate in the app. DISPLAY ONLY (no measurement): how far from the centre the pattern has signal, so the view can open on it instead of on a sixth of the
+    /// The room's own display choice (no Python reference computes it, so it stays in the app): a median/MAD estimate. DISPLAY ONLY (no measurement): how far from the centre the pattern has signal, so the view can open on it instead of on a sixth of the
     /// pane. The farthest pixel above the median by eight median absolute deviations (a floor of one grey level), scaled by 1.15, at least
     /// 48 px; nil when nothing rises above that or it reaches the image's own edge (noise or a full-frame pattern: show everything). Subsampled for large images.
     package static func contentRadius(pixels: [Float], width: Int, height: Int, centre: DiffractionCentre) -> Double? {

@@ -1,6 +1,6 @@
 //
 //  OpenItemsList.swift
-//  Role: the sidebar's list of the files open in the window (V1-13, ADR 007; design study §4) — one 40-pt thumbnail row
+//  Role: the sidebar's list of the files open in the window (design study §4) — one 40-pt thumbnail row
 //        per `OpenItem`, in opening order, the selection bound to `OpenItems.selection`. Rows describe UI only: the
 //        text comes from `OpenItemRowFormat` (pure, tested), the picture from `OpenItemThumbnailPixels` (pure, tested),
 //        and every state — the selection, closing, the reads — is `OpenItems`'.
@@ -14,11 +14,9 @@
 import ShellLayout
 import ShellMetal
 import SwiftUI
-#if canImport(TEMCore)
 import ImagoCore
 import TEMCore
 import TEMSession
-#endif
 
 // MARK: - Pure text
 

@@ -1,7 +1,6 @@
 //
 //  ImageRoomDisplay.swift
-//  Role: the Image room's Display section (Settings tab, under Calibration; archive: roadmap-registrations-2026-10-15.md V1-4, the design in
-//        archive: image-room-design-2026-10-13.md): the colormap, the histogram with the contrast window, the gamma,
+//  Role: the Image room's Display section (Settings tab, under Calibration): the colormap, the histogram with the contrast window, the gamma,
 //        Show Scale Bar — each the open file's own (`ImagePresentation`). Display only: nothing here reaches a number.
 //
 
@@ -10,11 +9,9 @@ import ShellInspector
 import ShellLayout
 import ShellMetal
 import SwiftUI
-#if canImport(TEMCore)
 import ImagoCore
 import TEMCore
 import TEMSession
-#endif
 
 /// Colormap, histogram and window, gamma, scale bar — for the selected file. The one Display section of the image rooms (control
 /// placement §5): the Diffraction room draws it for its pattern with the log switch in place of the scale bar (its pane has none).

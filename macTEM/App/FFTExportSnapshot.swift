@@ -1,7 +1,6 @@
 //
 //  FFTExportSnapshot.swift
-//  Role: what the FFT room's three exports take from the selected file when their panel opens (V1-10 slice 2,
-//        archive: fft-export-design-2026-10-14.md): Export Transform… (a PNG), Export Radial Profile… and Export Spots… (CSVs).
+//  Role: what the FFT room's three exports take from the selected file when their panel opens: Export Transform… (a PNG), Export Radial Profile… and Export Spots… (CSVs).
 //        As `ExportSnapshot` does for the Image room: pure functions from the file's own owners (its image and `FFTAnalysis`)
 //        to TEMCore's inputs, the words a panel shows, and when each command is enabled. Sendable values taken once; the
 //        render and the write that follow run off the main actor on them. The one hand-over to the writers is each
@@ -13,13 +12,10 @@
 
 import ShellMetal
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoCore
 import ImagoFFT
-
-#endif
 
 // MARK: - Values
 

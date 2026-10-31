@@ -35,9 +35,8 @@ extension LayoutPolicy {
     static let openItemThumbnailSide: CGFloat = 40
     static let openItemRowSpacing: CGFloat = 8
 
-    /// The Diffraction room's readout table under the pattern, and an EDS tile's colour bar gradient: room content, named once (rule 4).
+    /// The Diffraction room's readout table under the pattern: room content, named once (rule 4).
     static let diffractionReadoutHeight: CGFloat = 170
-    static let colorbarGradientHeight: CGFloat = 6
     /// The colour dot before a region's name in the Table tab.
     static let regionSwatchSize: CGFloat = 9
 }

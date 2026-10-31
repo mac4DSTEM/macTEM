@@ -1,7 +1,6 @@
 //
 //  ResultsLedger.swift
-//  Role: every finished measurement of one open file, as `ResultRow`s (V1-10 slice 3; the Results room,
-//        archive: results-room-design-2026-10-15.md, section 4). DERIVED, NEVER STORED: each call reads the owners — the
+//  Role: every finished measurement of one open file, as `ResultRow`s for the Results room. DERIVED, NEVER STORED: each call reads the owners — the
 //        marks (`ImageMeasurements`) and the FFT spots (`FFTAnalysis`) — and builds the rows again, so a mark moved, a spot
 //        re-measured or a file closed is the next call's answer and no copy can go stale. It makes no number: TEMCore's
 //        builders (`ResultRow`) take the owners' values and the file's axes.
@@ -16,21 +15,32 @@
 
 import Foundation
 import ImagoCore
-#if canImport(TEMCore)
+import SpectroEDX
 import TEMCore
-#endif
 
 package enum ResultsLedger {
 
+    /// The EDS room's finished fit of one region of this file: the window holds one EDS document, so the app hands it in only when it
+    /// is this file's (`AppState.edsFitBelongs`).
+    package struct EDSResults {
+        package let regionName: String
+        package let fit: PooledQuantification
+
+        package init(regionName: String, fit: PooledQuantification) {
+            self.regionName = regionName
+            self.fit = fit
+        }
+    }
+
     /// The selected file's rows; none while the file holds no pixels (cold, or still being read).
-    package static func rows(of item: OpenItem) -> [ResultRow] {
+    package static func rows(of item: OpenItem, eds: EDSResults? = nil) -> [ResultRow] {
         guard let image = item.session.image else { return [] }
-        return rows(image: image, measurements: item.measurements, analysis: item.fft, diffraction: item.diffraction)
+        return rows(image: image, measurements: item.measurements, analysis: item.fft, diffraction: item.diffraction, eds: eds)
     }
 
     /// All the rows of `image`'s owners, group by group.
     package static func rows(image: CalibratedImage, measurements: ImageMeasurements, analysis: FFTAnalysis,
-                             diffraction: DiffractionAnalysis? = nil) -> [ResultRow] {
+                             diffraction: DiffractionAnalysis? = nil, eds: EDSResults? = nil) -> [ResultRow] {
         let diffractionRows = diffraction?.resultRows(image: image) ?? []
         return ResultRow.Group.allCases.flatMap { group -> [ResultRow] in
             switch group {
@@ -38,6 +48,7 @@ package enum ResultsLedger {
             case .spots: spotRows(image: image, analysis: analysis)
             case .calibration: diffractionRows.filter { $0.group == .calibration }
             case .rings: diffractionRows.filter { $0.group == .rings }
+            case .eds: eds.map(edsRows) ?? []
             }
         }
     }
@@ -70,6 +81,16 @@ package enum ResultsLedger {
         case .distance: "Distance"
         case .angle: "Angle"
         case .profile: "Profile"
+        }
+    }
+
+    // MARK: EDS
+
+    /// One row per element of the fit, in the fit's order.
+    private static func edsRows(_ eds: EDSResults) -> [ResultRow] {
+        eds.fit.rows.map { row in
+            .edsComposition(id: "eds:\(eds.regionName):\(row.element):\(row.groupID)", row: row, regionName: eds.regionName,
+                            abundanceRefusal: eds.fit.abundanceRefusal, abundanceCaveat: eds.fit.abundanceCaveat)
         }
     }
 

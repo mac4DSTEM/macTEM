@@ -3,10 +3,8 @@
 //  What stays here: the open files below the rooms (two Lists, each with its own selection) and the rooms list's height.
 import ShellLayout
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// Navigation and nothing else: the five rooms, then the open files. A room that is not built is listed, dimmed — the
 /// window shows where the app is going — and cannot be selected.
@@ -20,7 +18,7 @@ struct WorkspaceSidebar: View {
         // Two Lists, not one: a shared selection would drop the active room's highlight when a file is chosen. With
         // files open the rooms list is as tall as its rows and the files take the rest; with none it fills the column.
         // The height is a constant per system sidebar size: measuring it from the rows' positions either left a gap on
-        // a first layout or, written to state during layout, crashed AppKit's layout loop guard (Gate D, 2026-10-13).
+        // a first layout or, written to state during layout, crashed AppKit's layout loop guard (2026-10-13).
         let hasItems = !appState.openItems.items.isEmpty
         VStack(spacing: 0) {
             roomsList
@@ -42,6 +40,10 @@ struct WorkspaceSidebar: View {
                 isAvailable: { appState.roomUnavailableReason($0) == nil },
                 unavailableHelp: { appState.roomUnavailableReason($0) ?? "" })
         }
+        // Rebuilt when a room becomes available or unavailable: a row whose selection is disabled kept its highlight when the selection
+        // moved off it (the Image row stayed lit beside EDS after a lone .msa opened, which leaves Image unavailable). Interim: delete at
+        // the MacEMUI release that deselects such a row itself.
+        .id(WorkspaceArea.allCases.map { appState.roomUnavailableReason($0) == nil })
     }
 }
 

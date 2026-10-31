@@ -1,6 +1,6 @@
 //
 //  SessionUITests.swift
-//  The app's side of the session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, the UI slice; archive: v12-session-ui-design-2026-10-14.md):
+//  The app's side of the session sidecar (the UI slice):
 //  what the sidecar beside a file made of its first read (`SessionOpening.outcome`: none, restored, refused, needs access),
 //  how `OpenItems` acts on it — the first read restores, a re-read never does, a read that was closed under it adopts
 //  nothing, a re-read of other pixels notes the difference —, `SessionSaving` (the first save to a chosen URL, a later one,
@@ -66,7 +66,9 @@ nonisolated final class SessionUITests: XCTestCase {
         private var holdFirst = false
         private var gate: CheckedContinuation<Void, Never>?
         private(set) var reads = 0
+        private var granted: Bool?
 
+        func grant(_ stored: Bool?) { granted = stored }
         func script(outcomes: [SidecarOutcome], shifts: [Int] = []) { self.outcomes = outcomes; self.shifts = shifts }
         func hold() { holdFirst = true }
         func release() { gate?.resume(); gate = nil }
@@ -86,7 +88,7 @@ nonisolated final class SessionUITests: XCTestCase {
             return OpenedImage(image: image, canvas: canvas, metadata: AcquisitionMetadata(), url: request.url,
                                thumbnail: nil, bookmark: Data("b\(reads)".utf8),
                                identity: SessionUITests.identity(image),
-                               sidecar: n < outcomes.count ? outcomes[n] : .none)
+                               sidecar: n < outcomes.count ? outcomes[n] : .none, hasGrant: granted)
         }
     }
 
@@ -245,6 +247,30 @@ nonisolated final class SessionUITests: XCTestCase {
         items.restoreSelected()
         await items.settled()
         XCTAssertEqual(item.measurements.notes, [.pixelsDiffer])
+    }
+
+    /// The particle report is measured on the pixels of the read that made it: a re-read with other pixels drops it, a re-read
+    /// with the same pixels keeps it. Red under: `particles.reset()` not called in `OpenItem.publish` (the report of the old
+    /// pixels stays on the new image).
+    @MainActor func testAReReadOfOtherPixelsDropsTheParticleReport() async throws {
+        for (shift, kept) in [(5, false), (0, true)] {
+            let source = URL(fileURLWithPath: "/data/scan.dm4"), other = URL(fileURLWithPath: "/data/other.dm4")
+            let reader = Reader()
+            await reader.script(outcomes: [], shifts: [0, 0, shift])
+            let items = makeItems(reader)
+            items.open(urls: [source, other])
+            await items.settled()
+            let item = try XCTUnwrap(items.items.first { $0.url == source })
+            await item.particles.analyse(image: try XCTUnwrap(item.session.image)).value
+            XCTAssertNotNil(item.particles.report, "set-up: a report on the first read")
+            items.select(try XCTUnwrap(items.items.first { $0.url == other }).id)
+            items.budgetBytes = 100
+            XCTAssertEqual(item.residency, .cold, "set-up")
+            items.select(item.id)
+            items.restoreSelected()
+            await items.settled()
+            XCTAssertEqual(item.particles.report != nil, kept, "shift \(shift)")
+        }
     }
 
     /// Red under: `.needsAccess` not setting the item's flag.
@@ -586,6 +612,39 @@ nonisolated final class SessionUITests: XCTestCase {
         } catch SessionSaving.Failure.grantLost {}
         XCTAssertEqual(try Data(contentsOf: aside), asideBytes, "the moved file is not written")
         XCTAssertFalse(FileManager.default.fileExists(atPath: sidecar.path))
+    }
+
+    /// The Save title's ellipsis follows the stored grant through the item's observed `hasGrant`: a read sets it, storing a
+    /// grant clears the ellipsis and tells an observer, dropping it brings the ellipsis back.
+    /// Red under: `store(_:for:)` not setting `hasGrant` (no change observed, the ellipsis stays); `publish` ignoring the
+    /// read's `hasGrant`; `saveTitle` reading anything but the item.
+    @MainActor func testStoringAGrantFlipsTheObservedFlagAndTheSaveTitle() async throws {
+        let directory = try scratch()
+        let source = directory.appendingPathComponent("scan.dm4")
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "SessionUITests-\(UUID().uuidString)"))
+        let (_, item) = try await openedItem(Reader(), source)
+        XCTAssertFalse(item.hasGrant)
+        XCTAssertEqual(SessionGrants.saveTitle(for: item), "Save to Session…")
+        XCTAssertEqual(SessionGrants.saveTitle(for: nil), "Save to Session…")
+
+        let changed = OpenItemsTests.Flag()
+        withObservationTracking({ _ = item.hasGrant }, onChange: { changed.raise() })
+        SessionGrants.store(Data("grant".utf8), for: item, defaults: defaults)
+        XCTAssertTrue(changed.isRaised, "an observer of the item hears the grant")
+        XCTAssertTrue(item.hasGrant)
+        XCTAssertNotNil(SessionGrants.bookmark(forSource: source, defaults: defaults))
+        XCTAssertEqual(SessionGrants.saveTitle(for: item), "Save to Session")
+
+        SessionGrants.drop(for: item, defaults: defaults)
+        XCTAssertFalse(item.hasGrant)
+        XCTAssertNil(SessionGrants.bookmark(forSource: source, defaults: defaults))
+        XCTAssertEqual(SessionGrants.saveTitle(for: item), "Save to Session…")
+
+        // A read that found a stored grant sets it; a read that says nothing about one leaves it.
+        let reader = Reader()
+        await reader.grant(true)
+        let (_, granted) = try await openedItem(reader, directory.appendingPathComponent("other.dm4"))
+        XCTAssertTrue(granted.hasGrant)
     }
 
     /// Finding 2: a file another app changed is answered with Replace, once, and only through `replaceAndSave`; a plain save

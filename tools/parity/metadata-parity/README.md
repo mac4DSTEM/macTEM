@@ -1,8 +1,7 @@
 # metadata-parity
 
 macTEM's acquisition-metadata readers (`AcquisitionMetadata.tiff(data:)`, `.mrc(data:)`, `.dm(numbers:strings:)` — slice
-S-a — and `.read(path:)`, the entry point that describes a FILE — slice S-b; TEMCore, compiled from
-`tools/lib/sources.manifest` group `metadata`, which names `AcquisitionMetadata+Read.swift`) against ncempy 1.16,
+S-a — and `.read(path:)`, the entry point that describes a FILE — slice S-b; TEMCore, through Package.swift's `MetadataParity` target, built by `tools/lib/harness.sh`) against ncempy 1.16,
 RosettaSciIO `049e7d70`, tifffile 2026.9.20 and mrcfile 1.5.4 (pinned: `tools/lib/references-lock.txt`,
 `tools/lib/fetch-rsciio.sh`). A `scientific` gate (`tools/run-tests.sh scientific`); the pre-registration is archive: roadmap-registrations-2026-10-15.md
 V1-4a (P1, P2; "S-b, the DM wiring and tag 65027" for `read(path:)`). `make_fixture.py` writes the S-b DM4 plants with
@@ -271,8 +270,9 @@ tripwire while 65027 was unread, is gone; its two files are the `reads` cases `r
 
 ## Negative controls
 
-Thirty-three. Fifteen are `MACTEM_PARITY_MUTATE` names in `main.swift`; eighteen edit a COPY of one source file (the app's `AcquisitionMetadata+Read.swift` and `ImageOpening.swift`, or a FormatoKit file through `MACTEM_KIT_OVERRIDE`) and compile the
-harness again (below). Each counts as caught only when the harness exits 1 and EVERY check it targets (`run.sh` lists
+Twenty-one. Fifteen are `MACTEM_PARITY_MUTATE` names in `main.swift`; six edit a COPY of one of the app's source files
+(`AcquisitionMetadata+Read.swift`, `ImageOpening.swift`) and build the harness again (below). FormatoKit's files (the tag walker,
+the TIFF reader) are not mutated here: FormatoKit's own tests hold them. Each counts as caught only when the harness exits 1 and EVERY check it targets (`run.sh` lists
 them, `|`-separated) is among the failures. A crash of the harness is never a catch (a signal is not an exit 1, and its log has no
 tally); a mutant that makes the reader TRAP is caught only through an isolated case (above), where the trap is the harness's own
 failed check. An input rewrite reproduces the bug through the real code (a twin file written by
@@ -298,31 +298,19 @@ the defect), so it shows the checks are sensitive to it, and the source mutation
 | `tiff-65027-skipped` | input: `rsciio-dm-tiff-65027` with the tag renamed 65028 (M5) | `read:rsciio-dm-tiff-65027 highTensionKV` |
 | `tiff-dm-before-velox` | input: `planted-tiff-velox-and-dm` with its Velox tag removed, so the real reader meets only the 120 kV block (M6) | `read:planted-tiff-velox-and-dm highTensionKV` |
 
-**Source mutations of slice S-b** — compiled and run by `run.sh` itself, each against an edited COPY (the edit must apply exactly
-once, or the gate fails loudly and the mutation is re-aimed; the walker is mac4DSTEM's file and is never edited here). They
-reproduce the registered M2, M4, M7 and M8 (M1 and M3 are in `AcquisitionMetadata+Read.swift`, M5 and M6 in FormatoKit's `FormatoTIFF/AcquisitionMetadataTIFF.swift`) and add what the registration called not catchable here (`.1.` against `.10.`) and the
-mutations of the wiring itself:
+**Source mutations of slice S-b** — built and run by `run.sh` itself, each against an edited COPY (the edit must apply exactly
+once, or the gate fails loudly and the mutation is re-aimed). They reproduce the registered M1 and M3 (in
+`AcquisitionMetadata+Read.swift`) and the mutations of the wiring itself. The walker's (M2, M4, M7, M8) and the TIFF reader's
+(M5, M6) source mutations were dropped here with the switch to SwiftPM: that code is FormatoKit's.
 
 | Edit | Check that must fail |
 |---|---|
-| `DM4Experiment.swift`: the object's maps cut at `ImageList.N.` (registered M7) | `read:dm-test_STEM_image-dm3-IL2 highTensionKV` and `… C2 numbers` (and every real object) |
-| `DM4Experiment.swift`: the object's maps keep `ImageList.N.ImageTags.` on every key (registered M2) | `read:dm-test_STEM_image-dm3-IL2 highTensionKV` and `… C2 numbers` |
-| `DM4Experiment.swift`: no key under `source.Tags at creation.` (registered M4) | `read:dm-test_stackbuilder_imagestack-dm3-IL2 highTensionKV` and `… C2 numbers` |
-| `DM4Experiment.swift`: every zero unit of a uint16 string kept (registered M8) | `read:planted-dm4-date-nul acquired` and `… C2 strings` (no real string holds a NUL) |
-| `DM4Experiment.swift`: the prefix `ImageList.\(n)` without its dot | `read:planted-dm4-eleven-objects C2 numbers` and `… C2 strings` |
-| `DM4Experiment.swift`: `tagTree` returns no strings | `read:rsciio-dm-tiff-65027 C2 tag stream strings` and `… mode` |
-| `DM4Experiment.swift`: a label decoded as lossy UTF-8 (the walker of `be10cce0`) | `read:dm-test_STEM_image-dm3-IL2 C2 numbers` and `read:rsciio-dm-tiff-65027 C2 tag stream numbers` |
-| `DM4Experiment.swift`: a label always decoded as Latin-1 | `read:planted-dm4-utf8-label C2 numbers` |
 | `ImageOpening.swift`: `openNow` shows the first object that is not the thumbnail | `read:planted-dm4-two-objects C1 openNow` |
 | `AcquisitionMetadata+Read.swift`: the first object that is not the thumbnail (registered M1, in the code) | `read:planted-dm4-two-objects highTensionKV` and `read:planted-dm4-no-primary-object highTensionKV` |
 | `AcquisitionMetadata+Read.swift`: `strings: [:]` handed to the DM rules | `read:dm-test_STEM_image-dm3-IL2 mode` and `… acquired` |
 | `AcquisitionMetadata+Read.swift`: `.mrc` not dispatched | `read:rsciio-4dstemscan highTensionKV` and `read:planted-fei2-stem highTensionKV` (C6) |
 | `AcquisitionMetadata+Read.swift`: the extension not lower-cased | `read:planted-ext-upper-TIF`, `-upper-MRC`, `-upper-DM4` `highTensionKV` (C6) |
 | `AcquisitionMetadata+Read.swift`: `.tiff` not dispatched | `read:planted-ext-tiff highTensionKV` (C6) |
-| `FormatoTIFF/AcquisitionMetadataTIFF.swift`: tag 65028 looked at for 65027 | `read:rsciio-dm-tiff-65027 highTensionKV` and `read:planted-tiff-65027-dm highTensionKV` |
-| `FormatoTIFF/AcquisitionMetadataTIFF.swift`: the DM tree tried before the Velox document, without the guard | `read:planted-tiff-velox-and-dm highTensionKV` |
-| `FormatoTIFF/AcquisitionMetadataTIFF.swift`: the DM tree read behind a tag 34683 that exists but is not text | `read:planted-tiff-velox-tag-not-text-and-dm highTensionKV` |
-| `FormatoTIFF/TIFFFile.swift`: the bounds test of `ByteReader.check` (the guard of every slice, tag-65027 blocks included) removed (the slice is out of range: the reader traps, exit 133 by signal; caught through the isolated plants) | `read:planted-tiff-65027-overruns-by-one survives` and `read:planted-tiff-65027-overruns-far survives` |
 
 **Source mutations of slice S-a** — the controls above rewrite inputs and outputs; these edit the reader. Each was measured by hand on
 2026-10-12 against copies of the `metadata` sources (copy `Sources/TEMCore/Data`, make the edit, compile with `main.swift`, run

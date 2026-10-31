@@ -1,7 +1,6 @@
 //
 //  FFTRoomInspector.swift
-//  Role: the FFT room's inspector content (archive: roadmap-registrations-2026-10-15.md V1-6 + 6a + 6b; the design and its cost in
-//        archive: fft-room-design-2026-10-13.md, "The inspector, and its cost"). Settings, in the order of
+//  Role: the FFT room's inspector content: Settings, in the order of
 //        `FFTRoomSections.order`: Calibration (the Image room's section, reused), Display,
 //        Region, Spots, Radial Profile, Masked Inverse (once a spot is measured), HRTEM Filters (collapsed until opened),
 //        then Export (plain buttons, last). Info: the Fourier Transform section. Presentation only: the
@@ -34,13 +33,11 @@ import ShellInspector
 import ShellLayout
 import SwiftUI
 import Charts
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoCore
 import ImagoFFT
 import ImagoFilters
-#endif
 
 // MARK: - Settings
 
@@ -415,6 +412,14 @@ private struct FFTSpotRow: View {
                 .frame(width: Self.numberWidth, alignment: .trailing)
             outcome
             Spacer(minLength: 0)
+            if let contrast = FFTRoomFormat.contrastText(spot) {
+                Text(contrast)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .help(FFTRoomFormat.contrastHelp)
+                    .accessibilityLabel("contrast \(contrast)")
+            }
         }
         .contentShape(Rectangle())
     }
@@ -545,8 +550,8 @@ struct FFTRadialChart: View {
     @State private var pointerX: Double?
     /// The x title as a String, so `.value` takes its StringProtocol overload. The interpolated LocalizedStringKey form,
     /// `.value("|q| (\(label))", …)`, trapped Charts' layout now and then ("Duplicate keys of type 'HashableText'"):
-    /// 18 of 2400 fresh renders, 0 of 2400 with this, 8 of 900 hosted in an NSHostingView (Gate D, 2026-10-14,
-    /// archive: fft-chart-trap-gate-d-2026-10-14.md). Why Charts' dictionary breaks is not known.
+    /// 18 of 2400 fresh renders, 0 of 2400 with this, 8 of 900 hosted in an NSHostingView (2026-10-14).
+    /// Why Charts' dictionary breaks is not known.
     private var xTitle: String { "|q| (\(label))" }
 
     var body: some View {
@@ -836,7 +841,6 @@ struct FFTRoomInspectorInfo: View {
         }
     }
 }
-
 
 /// The finder's three settings: how far above the display's minimum a peak must rise (a fraction of the range), the least distance
 /// between two peaks, and how many spots to put on the spectrum. They apply at the next Find Spots.

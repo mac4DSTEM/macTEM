@@ -2,10 +2,10 @@ import ShellLayout
 import SwiftUI
 import UniformTypeIdentifiers
 import SpectroCore
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
+import ShellEDXModel
+import ShellSpectroscopy
 
 /// The app's window: a SwiftUI-only shell. The skeleton (the split view, the inspector, where the toolbar is declared, the
 /// width at which the sidebar steps aside, the scene-stored panel intent, the launch flags and the drop outline) is ShellLayout's
@@ -19,7 +19,7 @@ struct ContentView: View {
     @State private var showImporter = false
 
     private var imageTypes: [UTType] {
-        ImageOpening.readableExtensions.compactMap { UTType(filenameExtension: $0) }
+        FileRouting.openableExtensions.compactMap { UTType(filenameExtension: $0) }
     }
 
     var body: some View {
@@ -34,6 +34,9 @@ struct ContentView: View {
         .background { SelectionRestorer() }
         .onChange(of: appState.roomHoldings) { appState.reconcileRoom() }
         .onChange(of: appState.openImageRequest) { showImporter = true }
+        // The busy clock's start: each spectrum room's busy edge, whichever room is shown.
+        .onChange(of: appState.edx.isBusy, initial: true) { appState.markBusy(.edx, appState.edx.isBusy) }
+        .onChange(of: appState.eels.isBusy, initial: true) { appState.markBusy(.eels, appState.eels.isBusy) }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: imageTypes,
@@ -79,7 +82,8 @@ struct ContentView: View {
             guard !appState.windowTitle.isEmpty, appState.windowTitle != "macTEM" else { return nil }
             let busy = room == .edx ? appState.edx.isBusy : appState.eels.isBusy
             if busy {
-                return .busy(operation: appState.statusText.isEmpty ? room.title : appState.statusText, progress: RoomProgress.fraction(room: room, appState: appState), metrics: { _ in nil })
+                return .busy(operation: appState.statusText.isEmpty ? room.title : appState.statusText, progress: RoomProgress.fraction(room: room, appState: appState),
+                             metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
             let detail = room == .edx ? EDXRoomFormat.capsuleDetail(appState.edx) : "spectrum image"
             return .idle(file: appState.windowTitle, room: room.title, detail: detail, help: nil)
@@ -91,7 +95,7 @@ struct ContentView: View {
 
     /// Opens the dropped files macTEM reads; a dropped file it does not read is refused by name through the alert.
     private func openDropped(_ urls: [URL]) -> Bool {
-        let readable = ImageOpening.readableExtensions
+        let readable = FileRouting.openableExtensions
         // A file of a readable format; a dragged web link ending in .tif is not a file.
         let isReadable = { (url: URL) in url.isFileURL && readable.contains(url.pathExtension.lowercased()) }
         let accepted = urls.filter(isReadable)

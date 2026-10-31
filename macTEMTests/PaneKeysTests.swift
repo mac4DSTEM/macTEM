@@ -3,18 +3,16 @@
 //  The panes' keys (open-items "Arrows, ⌫ and ⌘C on a pane do nothing"; App/PaneKeys.swift): the router's table, the two
 //  rooms' keys on real owners, Edit > Copy / Delete through the SAME path as the key (enabled exactly when the keys act, the
 //  same text copied), and the source pins that keep the dead arrangement from coming back (focusable leaves with
-//  `on…Command`, which never held focus: archive: pane-keys-gate-d-2026-10-14/). Tier 2: each test names the mutation
+//  `on…Command`, which never held focus:). Tier 2: each test names the mutation
 //  that turns it red. What no test reaches — that the container receives the keys and that the system's Edit items are
 //  validated by its commands in the live window — is open on the drive ("Unverified on screen").
 //
 
 import XCTest
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoCore
-#endif
 @testable import macTEM
 
 nonisolated final class PaneKeysTests: XCTestCase {

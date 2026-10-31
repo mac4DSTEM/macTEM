@@ -3,7 +3,7 @@
 //  The EELS room's stages driven through `EELSSession` on the owner's three GMS STEM spectrum images (data/eels: 142, 143, 145; low loss and core loss):
 //  open and settle, the t/λ map, the core-loss axis and the summed core-loss tail (the "collapse above 1 keV" diagnosis: printed, not asserted), Align, the
 //  C, N and O K edges picked and fitted, and the ZLP shift tile. Opt-in like `EDXRealDataTests` (`TEST_RUNNER_MACTEM_REAL_DATA=1` or the flag file), under
-//  `tools/memcap.sh`; one file open at a time. Every number is printed as an `EELSROOM …` line (stdout and $TMPDIR/realdata-timings.txt).
+//  a memory cap; one file open at a time. Every number is printed as an `EELSROOM …` line (stdout and $TMPDIR/realdata-timings.txt).
 //  The three edge rows must each have I > 0 and an at% strictly between 0 and 100. The windows handed to the kit, the exponent r of each edge and the same rows with
 //  Convolve off are printed (not asserted) for the diagnosis.
 //
@@ -11,11 +11,10 @@
 import XCTest
 import SpectroCore
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
+import ShellEDXModel
 
 nonisolated final class EELSRoomRealDataTests: XCTestCase {
 
@@ -27,12 +26,12 @@ nonisolated final class EELSRoomRealDataTests: XCTestCase {
     }
 
     private func optIn() throws {
-        let flag = FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag") || FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag")
+        let flag = FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag")
         guard ProcessInfo.processInfo.environment["MACTEM_REAL_DATA"] == "1" || flag else { throw XCTSkip("opt-in: TEST_RUNNER_MACTEM_REAL_DATA=1, or create $TMPDIR/macTEM-real-data.flag") }
     }
 
     private func url(_ relative: String) throws -> URL {
-        let data = ProcessInfo.processInfo.environment["MACEM_DATA"] ?? NSHomeDirectory() + "/GitHub/mac4DSTEM_Organization/data"
+        let data = RealDataFolder.path
         let url = URL(fileURLWithPath: data + "/eels/" + relative)
         try XCTSkipUnless(FileManager.default.fileExists(atPath: url.path), "no real file at \(url.path)")
         return url

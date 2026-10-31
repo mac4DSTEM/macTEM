@@ -91,7 +91,7 @@ HW_MIN, HW_MAX = 10.0, 40.0
 
 # ---------------------------------------------------------------------------------------------------------- helpers
 def load_rfp():
-    path = os.path.join(HERE, "..", "ring-fit-parity", "plants.py")
+    path = os.path.join(HERE, "ring_fit_plants.py")
     spec = importlib.util.spec_from_file_location("ring_fit_plants", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

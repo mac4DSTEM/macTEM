@@ -9,11 +9,10 @@ import ImagoCore
 import SpectroCore
 import SpectroEELS
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
+import ShellEDXModel
 
 nonisolated final class DemoDocumentsTests: XCTestCase {
 
@@ -44,7 +43,7 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
         XCTAssertEqual(demo.metadata.beamEnergyKeV, 200)
         XCTAssertEqual(demo.energyAxis.scale, 0.01, accuracy: 1e-12)
         XCTAssertEqual(DemoDocuments.edx().image.sum(mask: nil), demo.image.sum(mask: nil), "deterministic")
-        let session = EDXSession()
+        let session = EDXSession(host: .macTEM)
         await session.bind(demo).value
         await session.settled()
         let picked = Set(session.picks.map(\.symbol))

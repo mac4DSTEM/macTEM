@@ -2,8 +2,7 @@
 //  ExportFile.swift
 //  Role: what every export names about its source (`ExportSource`), the failures an export can end in
 //        (`ExportFile.Failure`, each with the sentence the alert shows) and the one way an export's bytes reach the file
-//        the save panel chose (`ExportFile.write`). V1-10 slice 1 (archive: roadmap-registrations-2026-10-15.md "Completed at pickup — slice 1";
-//        archive: export-design-2026-10-13.md). The PNG is `ImageExport`, the CSV is `ProfileCSV`; neither touches
+//        the save panel chose (`ExportFile.write`). The PNG is `ImageExport`, the CSV is `ProfileCSV`; neither touches
 //        the disk itself.
 //
 //  THE WRITE is sandbox-safe on purpose: a save panel in a sandboxed app grants the CHOSEN FILE, not its folder, so an
@@ -13,7 +12,7 @@
 //  the chosen URL: `replaceItemAt` when a file is there, `moveItem` when not. The scratch directory is removed on every
 //  path. Where the scratch is: on the boot volume the user's TemporaryItems, so nothing is left beside the destination; on
 //  another volume the system's `.TemporaryItems` at that volume's root, which stays there (FAT also gets `._name` sidecars
-//  for the extended attributes). What an overwrite does (measured by Gate B round 2, 2026-10-13): the file is swapped, so
+//  for the extended attributes). What an overwrite does (2026-10-13): the file is swapped, so
 //  it is a new inode (a hard link to the old file is broken) and its mode may change (640 became 600); it keeps its birth
 //  date and its extended attributes. A destination that is a folder is refused (`replaceItemAt` would swap the folder
 //  for the file and delete everything in it).

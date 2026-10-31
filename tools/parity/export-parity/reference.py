@@ -63,11 +63,11 @@ UM = "µm"                 # the DM files' micro sign, U+00B5
 ANGSTROM = "Å"            # U+00C5
 SOFTWARE = "macTEM 0.1.0 (1)"
 VALIDATION_PNG = ("display rendering: window, gamma, 8-bit colour, not intensities; "
-                  "the scale bar's length checked against its label (export-parity P3)")
-LINEAGE_PNG = "none — marks carry no lineage id until V1-2; the marks' parameters stand in"
+                  "the scale bar's length checked against its label (export-parity)")
+LINEAGE_PNG = "none — marks carry no lineage id; the marks' parameters stand in"
 LINEAGE_CSV = "none — marks carry no lineage id until V1-2; the mark's parameters above stand in"
-VALIDATION_CSV = ("samples compared with scikit-image 0.26.0 profile_line(order=1, mode=\"reflect\", reduce_func=mean), "
-                  "V1-5 P2 (1e-5 relative; 1e-5 of the image's largest magnitude near zero); calibration: as the file states it")
+VALIDATION_CSV = ("samples compared with scikit-image 0.26.0 profile_line(order=1, mode=\"reflect\", reduce_func=mean) "
+                  "(1e-5 relative; 1e-5 of the image's largest magnitude near zero); calibration: as the file states it")
 NUMBERS_CSV = "%.17g (exact round trip); nan where a NaN pixel enters a sample"
 MASKED_GREY = (82, 82, 87)     # (0.32, 0.32, 0.34) x 255 rounded
 
@@ -565,7 +565,7 @@ def plant(dm4, truth_path, rsciio, out):
     gy, gx = np.mgrid[0:128, 0:128].astype(np.float64)
     lattice = (1000 + 120 * np.cos(2 * np.pi * (0.1731 * gx + 0.0627 * gy)) + 0.01 * gx).astype(np.float32)
     add("results-lattice", lattice, axis(0.0731, "nm"), axis(0.0789, "nm"), "results.dm4", "ImageList.1 · lattice")
-    # the same pixels in a file whose reader says it is unvalidated: every claim the CSV makes carries that qualifier (CLAUDE.md)
+    # the same pixels in a file whose reader says it is unvalidated: every claim the CSV makes carries that qualifier
     add("results-lattice-unvalidated", lattice, axis(0.0731, "nm"), axis(0.0789, "nm"), "results-unvalidated.dm4",
         "ImageList.1 · lattice", notes=["Unvalidated scale (test)"])
 
@@ -1261,6 +1261,10 @@ def check_open(rep, ld, image):
 
 
 RESULTS_COLUMNS = ["group", "id", "label", "quantity", "value", "unit", "text", "validation", "lineage"]
+# Every product of the Results room (ResultRow.Product, in its order); the harness dumps one sentence per product. The planted cases
+# use the first four; calibration and ring come from the Diffraction room, edsComposition from the EDS room. macTEMTests/ExportParityReferenceTests holds this line
+# equal to the app's list on every unit run.
+RESULTS_PRODUCTS = ("distance", "angle", "profile", "spot", "calibration", "ring", "edsComposition")
 
 
 def check_results(rep, stats, ld, c):
@@ -1277,7 +1281,7 @@ def check_results(rep, stats, ld, c):
     raw = open(os.path.join(out, f"{name}.csv"), encoding="utf-8", newline="").read()
 
     # R-P2's reference side: every product has its sentence, and "validated" is never claimed (only "unvalidated" may contain it).
-    rep.check(set(sentences) == {"distance", "angle", "profile", "spot"} and all(sentences.values()), f"R-P2/sentences/{name}",
+    rep.check(set(sentences) == set(RESULTS_PRODUCTS) and all(sentences.values()), f"R-P2/sentences/{name}",
               f"the producers' constants: {sorted(sentences)}")
     rep.check(not any("validated" in v.lower().replace("unvalidated", "") for v in sentences.values()), f"R-P2/never-validated/{name}",
               "a validation sentence claims 'validated'")
@@ -1292,7 +1296,7 @@ def check_results(rep, stats, ld, c):
     for h in header[1:]:
         key, _, value = h[2:].partition(": ")
         parsed[key] = value
-    present = [p for p in ("distance", "angle", "profile", "spot") if any(r["product"] == p for r in rows)]
+    present = [p for p in RESULTS_PRODUCTS if any(r["product"] == p for r in rows)]
     got_validation = {key[len("validation ("):-1]: v for key, v in parsed.items() if key.startswith("validation (")}
     problems = []
     # a file whose reader notes say "unvalidated" keeps the qualifier on every claim (header lines and the validation column)

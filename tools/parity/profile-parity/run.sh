@@ -7,11 +7,11 @@
 #   run.sh   reference.py checks scikit-image against an independent interpolation and the analytic ramps, then writes its
 #            profiles and the closed forms (manifest.json); the Swift code must match them (main.swift); then every source
 #            mutation must fail the check it targets, or the gate fails for being blind. Each mutation edits a COPY of the seam file
-#            (never the file in Sources/) and compiles the harness against it.
+#            (never the file in Sources/) and builds the harness against it.
 #
 # Pass: "profile-parity: all passed", the extra controls line, then "negative controls: 5 of 5 caught by their checks", exit 0.
-# TEMCore sources come from tools/lib/sources.manifest, group `profile` (the planted DM fixture and the real RosettaSciIO
-# images enter as the pixels and calibration ncempy reads from them; the readers themselves are tools/parity/dm4-reader-parity's).
+# The harness is Package.swift's ProfileParity target over TEMCore (tools/lib/harness.sh builds it); the planted DM fixture and the
+# real RosettaSciIO images enter as the pixels and calibration ncempy reads from them.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
@@ -28,9 +28,8 @@ resolve_mactem_developer_dir
 
 "$PYTHON_BIN" -I -B "$HERE/reference.py" "$FIXTURE" "$PLANTED" "$ROOT/References/rosettasciio" "$WORK/ref"
 
-. "$ROOT/tools/lib/sources.manifest"
-mactem_sources "$ROOT" profile
-mactem_swiftc "$WORK/harness" "$HERE/main.swift"
+. "$ROOT/tools/lib/harness.sh"
+mactem_harness_build ProfileParity "$WORK/harness"
 
 "$WORK/harness" "$WORK/ref"
 
@@ -60,23 +59,11 @@ open(path, "w", encoding="utf-8").write(text.replace(old, new))
 ' "$copy" "$1" "$2" || { echo "  FAIL  mutation '$name' does not apply to $file"; return; }
     shift 2
   done
-  local -a saved=("${MACTEM_SOURCES[@]}") edited=()
-  local src
-  for src in "${saved[@]}"; do
-    if [[ "${src:t}" == "${file:t}" ]]; then edited+=("$copy"); else edited+=("$src"); fi
-  done
-  if [[ "${edited[(r)$copy]}" != "$copy" ]]; then
-    echo "  FAIL  mutation '$name': ${file:t} is not among the harness's sources (tools/lib/sources.manifest, group profile)"
-    return
-  fi
-  MACTEM_SOURCES=("${edited[@]}")
-  if ! mactem_swiftc "$dir/harness" "$HERE/main.swift" > "$dir/build.log" 2>&1; then
-    MACTEM_SOURCES=("${saved[@]}")
+  if ! mactem_harness_mutant ProfileParity "$dir/harness" "Sources/TEMCore/$file" "$copy" > "$dir/build.log" 2>&1; then
     echo "  FAIL  mutation '$name' does not compile:"
     sed 's/^/        /' "$dir/build.log"
     return
   fi
-  MACTEM_SOURCES=("${saved[@]}")
   local log="$dir/mutant.log" rc
   set +e
   "$dir/harness" "$WORK/ref" > "$log" 2>&1

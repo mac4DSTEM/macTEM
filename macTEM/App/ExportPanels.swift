@@ -5,7 +5,7 @@
 //        a sheet on the window, ask `ExportSnapshot` for what the selected file gives, and hand TEMCore's `@concurrent`
 //        writers the values; the infobar and the alert report. Nothing is rendered or written here.
 //
-//  WHY APPKIT (CLAUDE.md: AppKit only where SwiftUI cannot do the job, named where used): the macOS 27 SDK's
+//  WHY APPKIT (the suite's rule: AppKit only where SwiftUI cannot do the job, named where used): the macOS 27 SDK's
 //  `fileExporter` overloads and `fileDialog*` modifiers offer no accessory, and the options belong in the save panel
 //  (Preview's export is the model). A SwiftUI options sheet followed by `fileExporter` would be two dialogs for one act and
 //  would have to render the PNG before the place is chosen. `NSSavePanel` and the `NSHostingView` accessory live here
@@ -37,10 +37,8 @@ import ImagoCore
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 @MainActor
 enum ExportPanels {
@@ -104,7 +102,7 @@ enum ExportPanels {
     /// File > Export Results… (⇧⌥⌘E) and the Results inspector's Export menu: every finished measurement of the file as one CSV.
     static func exportResults(appState: AppState) {
         guard ExportSnapshot.availability(of: appState).results,
-              let snapshot = ExportSnapshot.resultsSnapshot(in: appState.openItems) else { return }
+              let snapshot = ExportSnapshot.resultsSnapshot(in: appState) else { return }
         // `--export-dir` (a UI journey): written without a panel, so no window is needed.
         if appState.exportDirectory != nil {
             Task.immediate { await presentResultsPanel(snapshot, on: nil, appState: appState) }

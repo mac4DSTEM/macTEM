@@ -3,7 +3,7 @@
 //  Role: open a file as macTEM's `CalibratedImage`. The one entry point the app calls; it picks the reader by
 //        extension and, in a file that holds several objects, the object to show by the rule below.
 //
-//  OBJECT RULE (pre-registered, archive: roadmap-registrations-2026-10-15.md V1-1, V1-1a and V1-1b): the first object in the file's own order that
+//  OBJECT RULE (pre-registered): the first object in the file's own order that
 //  is not the thumbnail, has exactly two dimensions larger than one, whose two axes do not carry two different
 //  units, and whose `Meta Data.Format` is not "Spectrum image". A GMS file stores its RGBA thumbnail first; a
 //  [170, 1] line scan or a [w, h, n] stack is not an image; a 2D object whose axes are in different units

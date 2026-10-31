@@ -1,7 +1,6 @@
 //
 //  SessionGrants.swift
-//  Role: the sandbox grant for a session file (V1-2 slice B's UI, archive: v12-session-ui-design-2026-10-14.md,
-//        "The sandbox grant for a sidecar"). Opening an image grants that file only, so the sidecar beside it is
+//  Role: the sandbox grant for a session file. Opening an image grants that file only, so the sidecar beside it is
 //        reachable through a security-scoped bookmark made when the user chose it in the save panel (or Choose Session
 //        File…), kept in UserDefaults by the image's path — mac4DSTEM's way. `@AppStorage` does nothing in an
 //        `@Observable`, so the defaults are read directly. A grant is a fact about the process and the file system, not
@@ -11,10 +10,8 @@
 //
 
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 nonisolated enum SessionGrants {
     private static let keyPrefix = "session.grant."
@@ -36,6 +33,23 @@ nonisolated enum SessionGrants {
 
     static func drop(forSource source: URL, defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: key(forSource: source))
+    }
+
+    /// Stores `bookmark` for `item`'s file (or drops the grant when nil) and says so on the item, whose `hasGrant` the
+    /// Save titles observe (the defaults are not observed).
+    @MainActor static func store(_ bookmark: Data?, for item: OpenItem, defaults: UserDefaults = .standard) {
+        store(bookmark, forSource: item.url, defaults: defaults)
+        item.hasGrant = bookmark != nil
+    }
+
+    @MainActor static func drop(for item: OpenItem, defaults: UserDefaults = .standard) {
+        drop(forSource: item.url, defaults: defaults)
+        item.hasGrant = false
+    }
+
+    /// The Save command's title: with an ellipsis while a save will ask where (no grant stored, or no file selected).
+    @MainActor static func saveTitle(for item: OpenItem?) -> String {
+        item?.hasGrant == true ? "Save to Session" : "Save to Session…"
     }
 
     /// What the sidecar beside `source` made of its first read, off the main actor: through the stored grant when there is

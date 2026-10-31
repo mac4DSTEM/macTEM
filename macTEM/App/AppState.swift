@@ -2,7 +2,7 @@
 //  AppState.swift
 //  Role: the window's composition root — the app's one window (ADR 007). It composes the owners and holds only
 //        the shell's own feedback channels. A feature's state lives in its owner, never here: a new stored
-//        property names its owner first (CLAUDE.md).
+//        property names its owner first.
 //
 //  Owners: `navigation` (rooms and panes, App/), `openItems` (the files open in the window, each with its own
 //  session, presentation, marks and viewport, TEMSession), `activityLog` (the Output pane, App/), `imageRoomTools`
@@ -12,10 +12,10 @@
 
 import ShellLayout
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
+import ShellEDXModel
+import ShellSpectroscopy
 
 @Observable
 final class AppState {
@@ -24,7 +24,7 @@ final class AppState {
     let activityLog = ActivityLog()
     let imageRoomTools = ImageRoomTools()
     let resultsRoom = ResultsRoomState()
-    let edx = EDXSession()
+    let edx = EDXSession(host: .macTEM)
     let edxRoom = EDXRoomState()
     let eels = EELSSession()
 
@@ -75,6 +75,9 @@ final class AppState {
     /// The files that opened into the EDS room and into the EELS room: a room follows the selected file (`spectrumRoomsFollowSelection`).
     var edsFiles: Set<URL> = []
     var eelsFiles: Set<URL> = []
+    /// When each spectrum room last became busy (`markBusy`): the start of the toolbar's busy clock (`RunClock`). Not observed: the
+    /// clock ticks on its own.
+    @ObservationIgnored var busySince: [WorkspaceArea: Date] = [:]
 
     /// The launch arguments this window started with (`--export-dir` is read where an export chooses its URL).
     let launch: LaunchOptions
@@ -125,6 +128,12 @@ final class AppState {
     func selectWorkspace(_ area: WorkspaceArea) {
         guard roomUnavailableReason(area) == nil else { return }
         navigation.workspaceArea = area
+    }
+
+    /// What the shared EDS room's views ask of this window: the status line, the error sheet, a UI journey's export folder.
+    var edxActions: EDXRoomActions {
+        EDXRoomActions(report: { [weak self] in self?.statusText = $0 }, present: { [weak self] in self?.present($0) },
+                       exportDirectory: { [weak self] in self?.exportDirectory })
     }
 
     func present(_ error: any Error) {

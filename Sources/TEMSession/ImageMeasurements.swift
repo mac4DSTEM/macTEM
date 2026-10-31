@@ -1,6 +1,6 @@
 //
 //  ImageMeasurements.swift
-//  Role: the one owner of the marks on one open file (archive: roadmap-registrations-2026-10-15.md V1-5): distances, angles and line profiles, each its
+//  Role: the one owner of the marks on one open file: distances, angles and line profiles, each its
 //        points in the image's pixel coordinates (`ImagePoint`: column x, row y, a pixel's centre at integers), a
 //        profile's width, and which mark is selected. The numbers are TEMCore's (`ImageMeasurement`, `LineProfile`,
 //        gated against the closed form and scikit-image); this owner holds the marks and the profiles computed from
@@ -11,7 +11,7 @@
 //        passes (the file's own `CalibratedImage`, never the display canvas: no contrast setting reaches a number), and
 //        again for every profile when the file is read again (`refresh`), in case the file changed on disk.
 //
-//        THE SESSION RECORD (archive: roadmap-registrations-2026-10-15.md V1-2, "Slice B, the core"). Every mutator records: a new mark adds its node, a move
+//        THE SESSION RECORD ("Slice B; the core"). Every mutator records: a new mark adds its node, a move
 //        or a width change replaces it in place (R3), a removal removes it. Points and widths are clamped here as the
 //        room clamps them (the image from −0.5 to W − 0.5; widths 1…25), so the owner never holds a mark the reader would
 //        refuse. Nodes are a verbatim record: `refresh` and `restore` never rewrite one. A save is taken here as one
@@ -24,9 +24,7 @@
 import ImagoCore
 import Foundation
 import Observation
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 /// One mark on an image.
 package nonisolated struct ImageMark: Sendable, Equatable, Identifiable {
@@ -121,7 +119,7 @@ package final class ImageMeasurements {
         case notEmpty
     }
 
-    /// One node per mark, from the first mark (ADR 020); other kinds and removed nodes a restore kept.
+    /// One node per mark, from the first mark; other kinds and removed nodes a restore kept.
     package private(set) var lineage = SessionLineage()
     package private(set) var sidecar = Sidecar.none
     package private(set) var notes: [Note] = []
@@ -170,11 +168,15 @@ package final class ImageMeasurements {
     }
 
     @ObservationIgnored private var nodeIDs: [ImageMark.ID: String] = [:]
-    /// The identity of the image the marks were drawn on: set by the first `noteOpened`, a restore or a save.
+    /// The identity of the image the marks were drawn on: set by `noteOpened` while nothing is drawn, a restore or a save.
     @ObservationIgnored private var drawnOn: SessionSourceIdentity?
     /// The lineage the sidecar on disk held when it was restored or last saved; a save checks it is still there.
     @ObservationIgnored private var onDisk: String?
+    /// The source attribute the sidecar on disk held then; a save checks it too.
+    @ObservationIgnored private var sourceOnDisk: String?
     @ObservationIgnored private var replacing = false
+    /// The pixels the user chose Save Anyway for after a re-read: a save of exactly those takes the new image.
+    @ObservationIgnored private var acceptedPixels: String?
     @ObservationIgnored private let now: @Sendable () -> Date
 
     /// `now` stamps every node's `recorded` (a test passes its own clock).
@@ -275,10 +277,11 @@ package final class ImageMeasurements {
         for mark in marks where mark.kind == .profile { profiles[mark.id] = Self.profile(of: mark, on: image) }
     }
 
-    /// The identity of the image a read has just opened (computed off the main actor by the caller). The first one is
-    /// the image the marks are drawn on; a later one with other pixels, while there are marks, notes that they differ.
+    /// The identity of the image a read has just opened (computed off the main actor by the caller). While nothing is
+    /// drawn it is the image the marks will be drawn on; a later one with other pixels, while there are marks, notes that
+    /// they differ.
     package func noteOpened(_ identity: SessionSourceIdentity) {
-        guard let drawnOn else { self.drawnOn = identity; return }
+        guard let drawnOn, !marks.isEmpty || !lineage.nodes.isEmpty else { self.drawnOn = identity; return }
         if drawnOn.pixelSHA256 != identity.pixelSHA256, !lineage.nodes.isEmpty || !marks.isEmpty,
            !notes.contains(.pixelsDiffer) {
             notes.append(.pixelsDiffer)
@@ -291,8 +294,12 @@ package final class ImageMeasurements {
     /// the restore's own checks. Take it on the main actor; write it with `SessionSave.write` off it; then `didSave`.
     package func saveRequest(opened identity: SessionSourceIdentity) throws(SessionSave.Refusal) -> SessionSave.Request {
         if let refusal = savingRefusal { throw refusal }
+        if acceptedPixels != identity.pixelSHA256, let drawnOn, drawnOn.pixelSHA256 != identity.pixelSHA256,
+           !marks.isEmpty || !lineage.nodes.isEmpty {
+            throw .pixelsChanged
+        }
         return try SessionSave.request(identity: identity, lineage: lineage, revision: revision,
-                                       expectedOnDisk: onDisk, replacing: replacing)
+                                       expectedOnDisk: onDisk, expectedSource: sourceOnDisk, replacing: replacing)
     }
 
     /// `request` was written: its revision is saved (a mark changed during the write leaves the file unsaved), the image
@@ -300,7 +307,9 @@ package final class ImageMeasurements {
     package func didSave(_ request: SessionSave.Request, opened identity: SessionSourceIdentity) {
         savedRevision = request.revision
         onDisk = request.lineage
+        sourceOnDisk = request.source
         replacing = false
+        acceptedPixels = nil
         sidecar = .saved
         drawnOn = identity
         notes = []
@@ -310,6 +319,12 @@ package final class ImageMeasurements {
     /// read): the next save writes over it.
     package func replaceRefusedSidecar() {
         replacing = true
+    }
+
+    /// The user chose Save Anyway after a re-read with other pixels: a save of `identity`'s pixels writes the marks
+    /// against them; a read of yet other pixels is refused again.
+    package func acceptNewPixels(_ identity: SessionSourceIdentity) {
+        acceptedPixels = identity.pixelSHA256
     }
 
     // MARK: Restore
@@ -345,6 +360,7 @@ package final class ImageMeasurements {
         notes = newNotes
         sidecar = .restored
         onDisk = restored.lineageText
+        sourceOnDisk = restored.sourceText
         drawnOn = identity
         replacing = false
         savedRevision = revision
@@ -359,7 +375,7 @@ package final class ImageMeasurements {
     // MARK: Helpers
 
     /// Records the change of `mark` in its node (R3). False, changing nothing, when the replaced node would take the saved
-    /// text past the budget (a longer number costs bytes: ADR 023 a): the caller puts the mark back.
+    /// text past the budget: the caller puts the mark back.
     private func changed(_ mark: ImageMark, on image: CalibratedImage) -> Bool {
         let profile = Self.profile(of: mark, on: image)
         guard let node = nodeIDs[mark.id] else { profiles[mark.id] = profile; return true }

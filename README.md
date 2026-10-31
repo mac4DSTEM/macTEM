@@ -38,14 +38,15 @@ dataset of known truth says `validation: none` next to it.
 
 ## Building it yourself
 
-You need Xcode 27. Open `macTEM.xcodeproj`, pick the `macTEM` scheme and press ⌘R. The first build fetches the kits at
+You need Xcode 27 or Xcode 26.6 on an Apple silicon Mac with macOS 26 or later. Open `macTEM.xcodeproj`, pick the `macTEM` scheme and press ⌘R. The first build fetches the kits at
 the exact tags in `Package.swift`. The tests run with `tools/run-tests.sh unit`. How the code is organised is in
 [`docs/architecture.md`](docs/architecture.md).
 
 ## Problems and ideas
 
-Please open an issue. Bug reports with the file type and what you expected help most.
+Please open an issue. Bug reports with the file type and what you expected help most. How to contribute is in
+[`CONTRIBUTING.md`](CONTRIBUTING.md); security reports go through [`SECURITY.md`](SECURITY.md).
 
 ## Licence
 
-GPL-3.0-or-later ([`LICENSE`](LICENSE)). Third-party notices are in [`NOTICE`](NOTICE).
+GPL-3.0-only ([`LICENSE`](LICENSE)). Third-party notices are in [`NOTICE`](NOTICE).

@@ -2,8 +2,8 @@
 
 macTEM's session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice A, ADR 020): `SessionSidecarFile` (create,
 replace and read the four root attributes through FormatoHDF5's `HDF5RootAttributes`; the refusals; the name rule) and `SessionLineage` (the lineage, the source identity
-and the restore verdict), TEMCore, compiled into one module from `tools/lib/sources.manifest` group `sidecar` (which names
-FormatoKit's FormatoHDF5 module from the checkout `tools/lib/fetch-formatokit.sh` pins) against **h5py 3.16.0**
+and the restore verdict), TEMCore, through Package.swift's `SidecarParity` target (FormatoKit's FormatoHDF5 as Package.resolved pins it; built by
+`tools/lib/harness.sh`) against **h5py 3.16.0**
 (pinned: `tools/lib/references-lock.txt`, `tools/lib/python.sh`). A `scientific` gate (`tools/run-tests.sh scientific`); the
 pre-registration is archive: roadmap-registrations-2026-10-15.md V1-2, the block "Completed at pickup (2026-10-13 night)": P1 a written record re-reads equal,
 P2 a newer minimum reader is refused by name before anything is read further, P3 a file that cannot be opened is an error and
@@ -18,7 +18,7 @@ Updated 2026-10-14 for the Gate B review of slice A (the refuter's plants and th
 and the refused add, a newer schema, the minimum reader judged first, the name limit in UTF-16 units, a link to nothing, dates
 to the nearest millisecond, the writer's own limits, and the library check, each with a control that breaks it.
 
-**Memory cap** (suite rule, 2026-10-15): run under `tools/memcap.sh --gb 24` of the suite folder, one at a time, nothing else heavy running. Measured peak 18.3 GB resident over 8 processes (the negative controls' parallel mutant builds and the h5py read-backs; 2026-10-15, killed at 16 GB); the main run fits 8 GB. The negative controls move to the nightly set.
+**Memory cap** (suite rule, 2026-10-15): run under a 24 GB memory cap, one at a time, nothing else heavy running. Measured peak 18.3 GB resident over 8 processes (the negative controls' parallel mutant builds and the h5py read-backs; 2026-10-15, killed at 16 GB); the main run fits 8 GB. The negative controls move to the nightly set.
 
 ## Two directions, two independent libraries
 
@@ -140,8 +140,7 @@ from zero, gives for the date it plants.
 
 ## Slice B, the core: the marks (`marks.swift`, `marks_reference.py`)
 
-`SessionMarks`, `SessionRestore` and `SessionSave` (TEMCore; `ImageMeasurement.swift` and `SessionMarks.swift` joined the `sidecar`
-group of `tools/lib/sources.manifest`) against h5py and closed forms. The owner (`ImageMeasurements`, TEMSession) is gated by the
+`SessionMarks`, `SessionRestore` and `SessionSave` (TEMCore) against h5py and closed forms. The owner (`ImageMeasurements`, TEMSession) is gated by the
 app-hosted unit run, not here. The truth is `marks_reference.py`, independent of the Swift code:
 
 - **Swift writes, h5py reads** (5 sessions: anisotropic nm axes, mixed nm and µm, uncalibrated, x only, and a 33 554 432-pixel image
@@ -188,20 +187,19 @@ refuses to overwrite <case>`, `swift writes <session>`, `swift rules <session>`,
 
 ## Negative controls
 
-Ninety-nine source mutants, the library check, and five controls of the fuzz driver (four misbehaving stubs it must fail on and one it must pass). Each mutant compiles the harness against an edited COPY of one
+The source mutants, the library check, and five controls of the fuzz driver (four misbehaving stubs it must fail on and one it must pass). Each mutant builds the harness (tools/lib/harness.sh) against an edited COPY of one
 source file (`SessionSidecarFile.swift` or `SessionLineage.swift`) in the scratch directory, never the file in `Sources/`, and
 runs the whole gate (Swift writes, h5py reads, the harness checks). An edit must apply exactly once (a changed line fails the
 mutation loudly, to be re-aimed, never dropped) and the build must succeed. A mutant is caught only when the harness exits
 exactly 1 and its log holds a failure of every check named for it, the name being the text at the START of a `  FAIL  ` line
 (a name found anywhere else in a line is not a catch); a crash by signal is never a catch.
 
-Since the FormatoKit 0.5.0 switch (2026-10-20) the file layer is FormatoKit's `HDF5RootAttributes`, not a macTEM file, so a mutant can
-also edit it. An edit whose `<old>` text starts with `KIT:` applies to `Sources/FormatoHDF5/HDF5RootAttributes.swift` of the pinned
-FormatoKit checkout (`$FORMATO_KIT`), copied to the mutant's directory and handed to the build as
-`MACTEM_KIT_OVERRIDE[Sources/FormatoHDF5/HDF5RootAttributes.swift]` (tools/lib/sources.manifest); the other edits of the same mutant
-apply to the macTEM file as before. 24 controls were re-aimed this way (the variable-length, padding, string-class, writer-form,
-library-bounds, not-permitted, dense-storage and NUL ones); two others were adapted to the app's three kit reads
-(`dense-check-in-the-read-only`, `dense-check-after-the-first-attribute`). Count of 2026-10-21, one full run under `memcap.sh --gb 40` alone on the machine (peak 37.7 GB) plus a rerun of the two controls re-aimed after the read moved under the HDF5 lock: 105 of 105 caught. `dense-header-read-with-meta-size` (the header read also walks the dense-storage heap; its fuzz child grows to about 30 GB resident) is killed under the 24 GB cap, so run the controls under `--gb 40` with nothing else heavy running.
+Since the FormatoKit 0.5.0 switch (2026-10-20) the file layer is FormatoKit's `HDF5RootAttributes`, not a macTEM file. The 22
+controls that edited it (the null dataspace, the NUL on write, the variable-length, padding, string-class, writer-form,
+library-bounds, not-permitted and dense-storage ones: rows 31, 32, 42-44 and 46-53 below, and the dense and not-permitted controls
+further down) were dropped when the harness moved to SwiftPM: that code is FormatoKit's and its tests hold it. The plants and checks
+they aimed at stay, and still run on the unmutated build. The count before: 105 of 105 caught (2026-10-21, one full run under a
+40 GB memory cap; `dense-header-read-with-meta-size`, now dropped, was the one that needed it).
 
 Controls 1-14: the nine registered mutations (1-9) and five of the same kind (10-14). Re-aimed 2026-10-14: control 5 (the
 cascade after a delete is now `sweepOrphans()`) and control 13 (the writer's check is now `requireReplaceable`).
@@ -312,9 +310,10 @@ library (it is the same one); only the check that the loaded copy is the named o
 - **The scratch directory**: everything is written under `mktemp -d` and removed on exit; no tracked file is written. About
   25 MB: the 5 MiB lineage and source plants and the 4 MiB pair are the bulk. `reference.py plant` also makes and removes a
   few empty files there to measure the file system's name limit.
-- **libhdf5** is the committed one, copied with `libaec.0.dylib` and `libsz.2.dylib`, re-signed ad hoc and named by
-  `FORMATO_HDF5_PATH`, which FormatoKit's loader reads first, as `tools/parity/velox-image-parity` does. The loader falls back to
-  other paths when that copy does not load, so the harness checks which library it got (`libhdf5 is the named copy`).
+- **libhdf5** is FormatoKit's `FormatoLibHDF5` framework, which the harness links (tools/lib/harness.sh puts it beside the
+  executable), named by `FORMATO_HDF5_PATH`, which FormatoKit's loader reads first, so the process holds one HDF5 image. The
+  loader falls back to other paths when that one does not load, so the harness checks which library it got (`libhdf5 is the
+  named copy`); control 41 offers FormatoKit's plain vendored dylibs, copied and re-signed ad hoc, as that fallback.
 - **A mode-000 file** needs a user that cannot read it; where `reference.py` can read it anyway (a privileged user) it says so
   and drops that case.
 - **The date plants** (`dates`): a tie can be planted only where the millisecond count is exact in binary, which a date near

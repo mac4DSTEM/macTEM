@@ -1,7 +1,7 @@
 //
 //  LaunchOptions.swift
 //  Role: the launch arguments the UI tests (and a person) start the app with, read in the App target only, never in a kit
-//        (docs: macEM-suite process/ui-testing-2026-10-21.md section 2).
+//        (docs: the suite's UI-testing design, 2026-10-21 section 2).
 //
 //          --ui-testing            ignore the saved window and split geometry and the saved application state, so every launch is the same window
 //          --demo-fixture          open the generated "Demo lattice" image (DemoDocuments, in memory)

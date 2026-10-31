@@ -1,6 +1,6 @@
 //
 //  ExportFileTests.swift
-//  What `ExportFile.write` must never do (archive: roadmap-registrations-2026-10-15.md V1-10 slice 1; Gate B round 2, finding F6): replace a FOLDER at the
+//  What `ExportFile.write` must never do (finding F6): replace a FOLDER at the
 //  destination. `replaceItemAt` swaps a folder for the file and deletes everything in it, so the writer refuses a folder
 //  by name and leaves it as it was. (Writing over an existing file, to a new one, and leaving nothing beside the
 //  destination are ImageExportRenderTests'.)

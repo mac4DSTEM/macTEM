@@ -1,7 +1,7 @@
 # profile-parity
 
-macTEM's distance, angle and line profile (`ImageMeasurement.distance` / `.angle`, `LineProfile.sample`; TEMCore, compiled from
-`tools/lib/sources.manifest` group `profile`) against the closed forms and scikit-image 0.26.0's `measure.profile_line`
+macTEM's distance, angle and line profile (`ImageMeasurement.distance` / `.angle`, `LineProfile.sample`; TEMCore, through
+Package.swift's `ProfileParity` target) against the closed forms and scikit-image 0.26.0's `measure.profile_line`
 with scipy 1.18.1 and numpy 2.5.4 (pinned: `tools/lib/references-lock.txt`; `reference.py` also pins the sha256 of
 `skimage/measure/profile.py`). A `scientific` gate (`tools/run-tests.sh scientific`); the pre-registration is archive: roadmap-registrations-2026-10-15.md V1-5
 ("Completed at pickup"). Run `tools/parity/profile-parity/run.sh`, redirect it to a log, and read the exit code on its own line.

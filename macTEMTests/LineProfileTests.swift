@@ -1,6 +1,6 @@
 //
 //  LineProfileTests.swift
-//  The line profile (archive: roadmap-registrations-2026-10-15.md V1-5): a ramp's samples are exact under bilinear interpolation, the sample count is
+//  The line profile: a ramp's samples are exact under bilinear interpolation, the sample count is
 //  skimage's ⌈hypot + 1⌉, a width averages perpendicular samples one pixel apart, the border reflects (half-sample
 //  symmetric: d c b a | a b c d | d c b a), and a zero-length line is one sample. The parity against scikit-image 0.26.0
 //  at every sample is tools/parity/profile-parity; the constants below were produced by that reference (script in the test).

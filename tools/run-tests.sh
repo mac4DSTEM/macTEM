@@ -1,12 +1,5 @@
 #!/bin/zsh
-# PROVENANCE: mac4DSTEM df1e6c994ea5b49c7ec08737628631b204736974 tools/run-tests.sh adapted
-# mac4DSTEM's entry point, free-space floor, test-host geometry reset, harness arrays and lane structure, cut to four
-# lanes; the unit reconciliation, the core lane and the inventory checks are macTEM's, but for its two checks of what
-# the bundle redistributes (NOTICE's dylib hashes and load paths, the bundled folders tracked), ported with the dylibs.
-# Changed (EDX room, 2026-10-21): the unit run passes SWIFT_OPTIMIZATION_LEVEL=-O so SpectroKit is optimised (mac4DSTEM ADR 067).
-# Re-sync to 5b696589: upstream's only change to this file since 7c180bce (7b349a7b, `core` takes swift build's exit
-# from swift build, not from a pipe) is already macTEM's core_build, which reads it from a log; nothing else applies.
-# END PROVENANCE
+# Adapted from mac4DSTEM (tools/run-tests.sh).
 # tools/run-tests.sh — the one entry point to macTEM's gates.
 #
 #   unit        the XCTest suite (macTEMTests), unsigned, in a scratch DerivedData; then the executed tests are
@@ -25,11 +18,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 resolve_mactem_developer_dir
 
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
-scientific=(dm4-reader-parity tiff-reader-parity mrc-reader-parity fft-parity spot-parity crystal-parity metadata-parity ring-calibration-parity hrtem-filter-parity histogram-parity profile-parity velox-image-parity export-parity fft-export-parity sidecar-parity indexing-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
-diagnostic=(ellipse-parity ring-fit-parity)   # never gated: machine-local data, or the evidence of a registered item that failed (S2, S3-b)
+scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
+diagnostic=()                    # never gated
 owner_only=()                    # the owner's own runs
 retired=()                       # kept for history, not run
-support=(au-ring-pattern crystal-structures)   # not harnesses
+support=(crystal-structures)     # not harnesses
 
 # A near-full disk fakes code regressions (mac4DSTEM, 2026-08-06: three runs, three different spurious failure
 # sets). 4 GB is mac4DSTEM's floor for the same lanes: 3.2x its measured unit-suite peak (1245 MB).
@@ -241,7 +234,7 @@ core_build() (
   if (( rc != 0 )); then echo "core: swift build exit $rc" >&2; return $rc; fi
   warnings="$(grep -E 'warning:' "$work/core.log" || true)"
   if [[ -n "$warnings" ]]; then
-    echo "core: swift build exit 0 but with warnings; TEMCore and TEMSession build with zero (CLAUDE.md):" >&2
+    echo "core: swift build exit 0 but with warnings; TEMCore and TEMSession build with zero:" >&2
     print -r -- "$warnings" >&2
     return 1
   fi
@@ -265,29 +258,28 @@ inventory() {
     (( ${all[(Ie)$name]} )) || { echo "  UNCLASSIFIED tools/parity/$name — add it to one array in tools/run-tests.sh"; rc=1; }
   done
 
-  echo "== harnesses compile Core through tools/lib/sources.manifest"
-  # On code lines only — a comment naming the manifest satisfied the old `grep -L sources.manifest` (review,
-  # 2026-10-12): every tools/parity/*/run.sh sources the manifest, calls mactem_sources and compiles with mactem_swiftc
-  # (which fixes -O, -warnings-as-errors and MACTEM_CORE_FLAGS), and no shell script below tools/*/ runs swiftc any
-  # other way. `code` drops comment lines and trailing ` # …` comments; the swiftc scan drops comment lines only.
+  echo "== harnesses build through SwiftPM (tools/lib/harness.sh)"
+  # Every scientific harness is an executable target in Package.swift (`parityHarness`, over TEMCore, so the kits are Package.resolved's)
+  # and its run.sh builds it with mactem_harness_build; no shell script below tools/ runs swiftc itself. Code lines only: a comment
+  # naming the call does not count.
   local h code
   for name in "${scientific[@]}"; do
     [[ -f "$ROOT/tools/parity/$name/run.sh" ]] || { echo "  MISSING tools/parity/$name/run.sh (the scientific lane runs it)"; rc=1; }
+    grep -qE "parityHarness\\(\"[A-Za-z]+\", \"$name\"" "$ROOT/Package.swift" \
+      || { echo "  tools/parity/$name has no parityHarness target in Package.swift"; rc=1; }
   done
   for h in "$ROOT"/tools/parity/*/run.sh(N); do
     code="$(sed -E '/^[[:space:]]*#/d; s/[[:space:]]+#.*$//' "$h")"
-    grep -qE '^[[:space:]]*\. "\$ROOT/tools/lib/sources\.manifest"([[:space:];]|$)' <<< "$code" \
-      || { echo "  ${h#$ROOT/}: no code line \`. \"\$ROOT/tools/lib/sources.manifest\"\`"; rc=1; }
-    grep -qE '(^|[;&|({[:space:]])mactem_sources[[:space:]]' <<< "$code" \
-      || { echo "  ${h#$ROOT/}: no mactem_sources call"; rc=1; }
-    grep -qE '(^|[;&|({[:space:]])mactem_swiftc[[:space:]]' <<< "$code" \
-      || { echo "  ${h#$ROOT/}: no mactem_swiftc call"; rc=1; }
+    grep -qE '^[[:space:]]*\. "\$ROOT/tools/lib/harness\.sh"([[:space:];]|$)' <<< "$code" \
+      || { echo "  ${h#$ROOT/}: no code line \`. \"\$ROOT/tools/lib/harness.sh\"\`"; rc=1; }
+    grep -qE '(^|[;&|({[:space:]])mactem_harness_build[[:space:]]' <<< "$code" \
+      || { echo "  ${h#$ROOT/}: no mactem_harness_build call"; rc=1; }
   done
   local other
   for h in "$ROOT"/tools/*/**/*.sh(N.); do
     other="$(awk '!/^[[:space:]]*#/ && /(^|[^[:alnum:]_])(swiftc|swift-frontend)([^[:alnum:]_]|$)/ { print "  " FNR ": " $0 }' "$h")"
     if [[ -n "$other" ]]; then
-      print -r -- "$other"; echo "  ^ ${h#$ROOT/}: compiles Swift outside mactem_swiftc (tools/lib/sources.manifest)"; rc=1
+      print -r -- "$other"; echo "  ^ ${h#$ROOT/}: compiles Swift outside SwiftPM (a harness is a Package.swift target)"; rc=1
     fi
   done
 
@@ -296,65 +288,24 @@ inventory() {
 
   echo "== harness flags = TEMCore's settings"
   # A harness must check Core under the settings the app builds it with (mac4DSTEM, 2026-08-19: three of five
-  # upcoming features missing from the harness flags).
-  local feat
-  for feat in $(sed -n '/name: "TEMCore"/,/^        ),/p' "$ROOT/Package.swift" | sed -nE 's/.*enableUpcomingFeature\("([A-Za-z]+)"\).*/\1/p' | sort -u); do
-    grep -q -- "-enable-upcoming-feature $feat" "$ROOT/tools/lib/sources.manifest" \
-      || { echo "  TEMCore enables $feat; MACTEM_CORE_FLAGS does not"; rc=1; }
-  done
-  for feat in $(sed -nE 's/.*-enable-upcoming-feature ([A-Za-z]+).*/\1/p' "$ROOT/tools/lib/sources.manifest" | sort -u); do
-    sed -n '/name: "TEMCore"/,/^        ),/p' "$ROOT/Package.swift" | grep -q "enableUpcomingFeature(\"$feat\")" \
-      || { echo "  MACTEM_CORE_FLAGS enables $feat; TEMCore does not"; rc=1; }
-  done
-  grep -q -- '-swift-version 6' "$ROOT/tools/lib/sources.manifest" || { echo "  MACTEM_CORE_FLAGS is not Swift 6"; rc=1; }
+  # upcoming features missing from the harness flags): Package.swift's parityHarness enables exactly TEMCore's.
+  local feat core_feats harness_feats
+  core_feats="$(sed -n '/name: "TEMCore"/,/^        ),/p' "$ROOT/Package.swift" | sed -nE 's/.*enableUpcomingFeature\("([A-Za-z]+)"\).*/\1/p' | sort -u)"
+  harness_feats="$(sed -n '/^func parityHarness/,/^}/p' "$ROOT/Package.swift" | sed -nE 's/.*enableUpcomingFeature\("([A-Za-z]+)"\).*/\1/p' | sort -u)"
+  [[ -n "$core_feats" && "$core_feats" == "$harness_feats" ]] \
+    || { echo "  TEMCore enables [${core_feats//$'\n'/ }], parityHarness [${harness_feats//$'\n'/ }]"; rc=1; }
   grep -q '\.defaultIsolation(' <(sed -n '/name: "TEMCore"/,/^        ),/p' "$ROOT/Package.swift") \
     && { echo "  TEMCore sets a default isolation; it is nonisolated by decision"; rc=1; }
 
-  echo "== DiffractoKit (ADR 025): exact pin, resolved, and the harnesses build it under the kit's own settings"
-  # The kit is imported at an exact tag, never a local path; Package.resolved names the revision the harnesses fetch
-  # (tools/lib/fetch-diffractokit.sh). The kit's upcoming features must equal MACTEM_CORE_FLAGS: the fetch script refuses a
-  # checkout where they differ, and runs here whenever the checkout is on this Mac (CI has none: it only checks the pin).
-  local kit_version resolved_version
-  kit_version="$(sed -nE 's#.*github\.com/mac4DSTEM/DiffractoKit", exact: "([0-9.]+)".*#\1#p' "$ROOT/Package.swift")"
-  resolved_version="$(awk '/"identity" *: *"diffractokit"/ { f = 1 } f && /"version"/ { gsub(/[",]/, "", $3); print $3; exit }' "$ROOT/Package.resolved")"
-  [[ -n "$kit_version" && "$kit_version" == "$resolved_version" ]] \
-    || { echo "  Package.swift pins DiffractoKit '$kit_version' exact, Package.resolved '$resolved_version'"; rc=1; }
-  if [[ -e "$ROOT/References/DiffractoKit/.git" ]]; then
-    "$ROOT/tools/lib/fetch-diffractokit.sh" > /dev/null 2> "${TMPDIR:-/tmp}/mactem-fetch-kit.err" \
-      || { cat "${TMPDIR:-/tmp}/mactem-fetch-kit.err"; rc=1; }
-  else
-    echo "  no References/DiffractoKit here: its settings are compared when a harness fetches it"
-  fi
-
-  echo "== FormatoKit (ADR 026): exact pin, resolved; FormatoKit built by the harnesses under its own settings"
-  # SpectroKit 0.4.0 depends on FormatoKit by tag and both define the process's HDF5 lock through FormatoKit: the two pins are
-  # exact in Package.swift and in Package.resolved, and a package missing from either is a failure.
+  echo "== kits: exact pins, the same in Package.swift and Package.resolved"
+  # The kits are imported at exact tags, never a local path; the harnesses build them through SwiftPM from Package.resolved.
   local kit pkg_version res_version
-  for kit in FormatoKit; do   # SpectroKit left the graph 2026-10-16 (no tag pins FormatoKit 0.3.0); re-add with the EDX room
-    pkg_version="$(sed -nE "s#.*github\.com/mac4DSTEM/$kit\", exact: \"([0-9.]+)\".*#\1#p" "$ROOT/Package.swift")"
+  for kit in DiffractoKit FormatoKit ImagoKit; do
+    pkg_version="$(sed -nE "s#.*github\.com/mac4DSTEM/$kit(\.git)?\", exact: \"([0-9.]+)\".*#\2#p" "$ROOT/Package.swift")"
     res_version="$(awk -v id="${kit:l}" '$0 ~ "\"identity\" *: *\"" id "\"" { f = 1 } f && /"version"/ { gsub(/[",]/, "", $3); print $3; exit }' "$ROOT/Package.resolved")"
     [[ -n "$pkg_version" && "$pkg_version" == "$res_version" ]] \
       || { echo "  Package.swift pins $kit '$pkg_version' exact, Package.resolved '$res_version'"; rc=1; }
   done
-  if [[ -e "$ROOT/References/FormatoKit/.git" ]]; then
-    "$ROOT/tools/lib/fetch-formatokit.sh" > /dev/null 2> "${TMPDIR:-/tmp}/mactem-fetch-formatokit.err" \
-      || { cat "${TMPDIR:-/tmp}/mactem-fetch-formatokit.err"; rc=1; }
-  else
-    echo "  no References/FormatoKit here: its settings are compared when a harness fetches it"
-  fi
-
-  echo "== ImagoKit (ADR 027): exact pin, resolved, and the harnesses build it under the kit's own settings"
-  local imago_version imago_resolved
-  imago_version="$(sed -nE 's#.*github\.com/mac4DSTEM/ImagoKit(\.git)?", exact: "([0-9.]+)".*#\2#p' "$ROOT/Package.swift")"
-  imago_resolved="$(awk '/"identity" *: *"imagokit"/ { f = 1 } f && /"version"/ { gsub(/[",]/, "", $3); print $3; exit }' "$ROOT/Package.resolved")"
-  [[ -n "$imago_version" && "$imago_version" == "$imago_resolved" ]] \
-    || { echo "  Package.swift pins ImagoKit '$imago_version' exact, Package.resolved '$imago_resolved'"; rc=1; }
-  if [[ -e "$ROOT/References/ImagoKit/.git" ]]; then
-    "$ROOT/tools/lib/fetch-imagokit.sh" > /dev/null 2> "${TMPDIR:-/tmp}/mactem-fetch-imagokit.err" \
-      || { cat "${TMPDIR:-/tmp}/mactem-fetch-imagokit.err"; rc=1; }
-  else
-    echo "  no References/ImagoKit here: its settings are compared when a harness fetches it"
-  fi
 
   # Any import form: an attribute (@preconcurrency, @_exported), an access level, an import kind (`import class`).
   local imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+([[:alnum:]_]+[[:space:]]+)?'

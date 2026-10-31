@@ -6,7 +6,7 @@
 //        file the user chose. What is saved and restored is TEMSession's (`SessionSaving`, `SessionOpening`,
 //        `OpenItem.adopt`); the bookmarks are `SessionGrants`'; nothing is written here.
 //
-//  WHY APPKIT (CLAUDE.md: only where SwiftUI cannot do the job, named where used): `NSSavePanel` and its delegate's
+//  WHY APPKIT (the suite's rule: only where SwiftUI cannot do the job, named where used): `NSSavePanel` and its delegate's
 //  `panel(_:validate:)`. SwiftUI's `fileExporter` writes the bytes itself, which would leave an empty file where
 //  `SessionSidecarFile.write` refuses to replace a non-sidecar, and has no hook to hold the name and the folder to the
 //  derived ones (restore finds the file by them). The fourth named AppKit use, after the Metal view, Show in Finder and
@@ -19,10 +19,8 @@
 
 import SwiftUI
 import AppKit
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 @MainActor
 enum SessionPanels {
@@ -49,7 +47,7 @@ enum SessionPanels {
                 finish(saved, item: item, appState: appState)
                 return
             } catch SessionSaving.Failure.grantLost {
-                SessionGrants.drop(forSource: item.url)   // no grant: the next step is a first save
+                SessionGrants.drop(for: item)   // no grant: the next step is a first save
             } catch {
                 await failed(error, item: item, target: { .bookmark(grant) }, appState: appState)
                 return
@@ -90,7 +88,11 @@ enum SessionPanels {
     private static func failed(_ error: any Error, item: OpenItem, target: () -> SessionSaving.Target,
                                appState: AppState) async {
         let failure = error as? SessionSaving.Failure
-        if failure?.dropsGrant == true { SessionGrants.drop(forSource: item.url) }
+        if failure?.dropsGrant == true { SessionGrants.drop(for: item) }
+        if failure?.offersSaveAnyway == true, let window = ExportPanels.hostWindow() {
+            await saveAnyway(item: item, target: target, on: window, appState: appState)
+            return
+        }
         guard failure?.offersReplace == true, let window = ExportPanels.hostWindow() else {
             appState.present(error)
             return
@@ -103,19 +105,42 @@ enum SessionPanels {
         do {
             finish(try await SessionSaving.replaceAndSave(item, to: target()), item: item, appState: appState)
         } catch {
-            if (error as? SessionSaving.Failure)?.dropsGrant == true { SessionGrants.drop(forSource: item.url) }
+            if (error as? SessionSaving.Failure)?.dropsGrant == true { SessionGrants.drop(for: item) }
             appState.present(error)
+        }
+    }
+
+    /// The image was read again with other pixels: the alert says so and offers Save Anyway (the marks are then written
+    /// against the image as it is now) and Cancel.
+    private static func saveAnyway(item: OpenItem, target: () -> SessionSaving.Target, on window: NSWindow,
+                                   appState: AppState) async {
+        let name = item.sessionFileName ?? "the session file"
+        guard await confirm(title: SessionFormat.pixelsChangedTitle(image: item.url.lastPathComponent),
+                            detail: SessionFormat.pixelsChangedDetail(name: name), action: "Save Anyway", on: window) else {
+            appState.statusText = "Not saved: \(name) was left as it is"
+            return
+        }
+        do {
+            finish(try await SessionSaving.saveAnyway(item, to: target()), item: item, appState: appState)
+        } catch {
+            await failed(error, item: item, target: target, appState: appState)   // a file changed on disk still offers Replace
         }
     }
 
     /// WHY APPKIT: SwiftUI's alert cannot be raised from here, `ContentView`'s alert (the shell, frozen) has no second
     /// choice, and `NSAlert` gives the destructive role and the sheet. True when the user chose Replace.
     private static func confirmReplace(name: String, on window: NSWindow) async -> Bool {
+        await confirm(title: SessionFormat.replaceTitle(name: name), detail: SessionFormat.replaceDetail(name: name),
+                      action: "Replace", on: window)
+    }
+
+    /// A warning sheet with a destructive `action` and Cancel (Esc); true when the user chose `action`.
+    private static func confirm(title: String, detail: String, action: String, on window: NSWindow) async -> Bool {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = SessionFormat.replaceTitle(name: name)
-        alert.informativeText = SessionFormat.replaceDetail(name: name)
-        let replace = alert.addButton(withTitle: "Replace")
+        alert.messageText = title
+        alert.informativeText = detail
+        let replace = alert.addButton(withTitle: action)
         replace.hasDestructiveAction = true
         let cancel = alert.addButton(withTitle: "Cancel")
         cancel.keyEquivalent = "\u{1b}"
@@ -125,7 +150,7 @@ enum SessionPanels {
     }
 
     private static func finish(_ saved: SessionSaving.Saved, item: OpenItem, appState: AppState) {
-        SessionGrants.store(saved.bookmark, forSource: item.url)
+        SessionGrants.store(saved.bookmark, for: item)
         let line = SessionSaving.savedLine(name: saved.url.lastPathComponent, marks: saved.marks)
         appState.statusText = line
         AccessibilityNotification.Announcement(ExportPanels.announcement(line)).post()
@@ -182,7 +207,7 @@ enum SessionPanels {
         let bookmark = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
         let outcome = await read(url, source: item.url, identity: identity, image: image)
         if case .needsAccess = outcome { return }
-        if case .none = outcome {} else { SessionGrants.store(bookmark, forSource: item.url) }
+        if case .none = outcome {} else { SessionGrants.store(bookmark, for: item) }
         let adopted = item.adopt(outcome, identity: identity, on: image)
         appState.statusText = SessionFormat.chosenLine(outcome, adopted: adopted, name: expected.lastPathComponent)
             + (adopted ? AppState.sessionSuffix(of: item) : "")
