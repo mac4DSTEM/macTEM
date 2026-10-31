@@ -45,10 +45,10 @@ extension ExportSnapshot {
     }
 
     /// Export Results… for a file's owners; nil when it has no finished measurement or no pixels.
-    static func resultsSnapshot(of item: OpenItem, eds: ResultsLedger.EDSResults? = nil,
+    static func resultsSnapshot(of item: OpenItem, eds: ResultsLedger.EDSResults? = nil, eels: ResultsLedger.EELSResults? = nil,
                                 software: String = softwareName()) -> ExportResultsSnapshot? {
         guard let image = item.session.image else { return nil }
-        let rows = ResultsLedger.rows(of: item, eds: eds)
+        let rows = ResultsLedger.rows(of: item, eds: eds, eels: eels)
         guard !rows.isEmpty else { return nil }
         let groups = ResultRow.Group.allCases.filter { group in rows.contains { $0.group == group } }
         return ExportResultsSnapshot(
@@ -63,8 +63,10 @@ extension ExportSnapshot {
         openItems.selected.flatMap { resultsSnapshot(of: $0, software: software) }
     }
 
-    /// The window's selected item's, with the EDS room's composition when the room holds that file.
+    /// The window's selected item's, with the EDS room's composition and the EELS room's results when the rooms hold that file.
     static func resultsSnapshot(in appState: AppState, software: String = softwareName()) -> ExportResultsSnapshot? {
-        appState.openItems.selected.flatMap { resultsSnapshot(of: $0, eds: appState.edsResults(for: $0), software: software) }
+        appState.openItems.selected.flatMap {
+            resultsSnapshot(of: $0, eds: appState.edsResults(for: $0), eels: appState.eelsResults(for: $0), software: software)
+        }
     }
 }

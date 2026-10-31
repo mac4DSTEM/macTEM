@@ -220,7 +220,7 @@ nonisolated final class ResultsLedgerTests: XCTestCase {
         owner.add(ImageMark(kind: .distance, points: [ImagePoint(x: 0, y: 0), ImagePoint(x: 3, y: 4)]), on: image)
         let rows = ResultsLedger.rows(image: image, measurements: owner, analysis: rig.owner)
         XCTAssertEqual(rows.map(\.group), [.marks, .spots])
-        XCTAssertEqual(ResultRow.Group.allCases, [.marks, .spots, .calibration, .rings, .eds])
+        XCTAssertEqual(ResultRow.Group.allCases, [.marks, .spots, .calibration, .rings, .eds, .eelsThickness, .eelsEdges])
     }
 
     // MARK: An open item

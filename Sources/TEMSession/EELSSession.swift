@@ -40,6 +40,8 @@ package final class EELSSession {
     /// Bumped whenever the cube the stages work on changes (a new file, an alignment): a map made from an older one is stale.
     @ObservationIgnored private var inputVersion = 0
     package private(set) var mapInputVersion = 0
+    /// What the map on screen was made from (the cube, the threshold, the λ choice and the beam energy it used); a different one is stale.
+    package private(set) var mapSignature = ""
     // The edge model (Edges and Fit stages)
     package private(set) var pickedEdges: [CoreLossEdge] = []
     package private(set) var convolveLowLoss = true
@@ -96,6 +98,11 @@ package final class EELSSession {
     /// The summed core loss of each visible region, on the working core loss's axis (the plot's `core`), drawn over the selected region's spectrum.
     package private(set) var pinCoreSpectra: [EDXPin.ID: [Double]] = [:]
     package private(set) var pinRows: [EELSRegionRow] = []
+    /// True while the regions' rows are being summed and fitted again: `pinRows` still holds the previous ones (the Results room lists none meanwhile).
+    package private(set) var isRefreshingRegions = false
+    /// What the regions' rows were made from: the thickness inputs and the fit inputs at the time (`thicknessSignature`, `fitSignature`).
+    package private(set) var pinRowsThicknessSignature = ""
+    package private(set) var pinRowsFitSignature = ""
     @ObservationIgnored private var colorsIssued = 0
     @ObservationIgnored private var regionsIssued = 0
     @ObservationIgnored private var linesIssued = 0
@@ -136,6 +143,8 @@ package final class EELSSession {
     package var selectedPin: EDXPin? { selectedPinID.flatMap { id in pins.first { $0.id == id } } }
 
     package var fileName: String { source?.fileName ?? "" }
+    /// The open file's path as it was read ("" for a document made in memory).
+    package var filePath: String { source?.filePath ?? "" }
     /// The file's scan pixel size and its unit, when it states one (the EDS room's `scanPixel`): the maps' scale bars and the maps export draw from it.
     package var scanPixel: (size: Double, unit: String)? {
         guard let size = source?.scanPixelSize, size > 0, let unit = source?.scanPixelUnit, !unit.isEmpty else { return nil }
@@ -148,7 +157,20 @@ package final class EELSSession {
     // MARK: Stages (design 2026-10-22: state on sections and the header readout, never blanking a result)
 
     package var alignState: EELSStageState { alignment == nil ? .notRun : .current }
-    package var thicknessState: EELSStageState { map == nil ? .notRun : (mapInputVersion == inputVersion ? .current : .stale) }
+    package var thicknessState: EELSStageState {
+        map == nil ? .notRun : (mapInputVersion == inputVersion && mapSignature == thicknessSignature ? .current : .stale)
+    }
+    /// The thickness inputs now: the cube, the threshold, the λ choice and, for Iakoubovskii's λ, the beam energy. A map made from other ones is
+    /// stale (a pass that was stopped, or refused, leaves the previous map on screen).
+    package var thicknessSignature: String {
+        let beam: String = if case .iakoubovskii = meanFreePath { "\(beamEnergyKeV.map { "\($0)" } ?? "-")" } else { "-" }
+        return "\(inputVersion)|\(threshold)|\(meanFreePath)|\(beam)"
+    }
+    /// The fit inputs now (`currentSignature`): a fit or a region row made from other ones is stale.
+    package var fitSignature: String { currentSignature }
+    /// Whether the regions' rows were made from the inputs now: their t/λ from the thickness inputs, their edges from the fit on screen.
+    package var pinRowsThicknessCurrent: Bool { !isRefreshingRegions && pinRowsThicknessSignature == thicknessSignature }
+    package var pinRowsFitCurrent: Bool { !isRefreshingRegions && fitState == .current && pinRowsFitSignature == modelSignature }
     package var edgesState: EELSStageState { pickedEdges.isEmpty ? .notRun : .current }
     package var fitState: EELSStageState { model == nil ? .notRun : (modelSignature == currentSignature ? .current : .stale) }
     package var stages: [(stage: EELSStage, state: EELSStageState)] {
@@ -356,7 +378,7 @@ package final class EELSSession {
         passTask?.cancel()
         generation += 1
         let gen = generation
-        let threshold = threshold, inputAtStart = inputVersion
+        let threshold = threshold, inputAtStart = inputVersion, signature = thicknessSignature
         let lambda: MeanFreePathSource?
         do { lambda = try EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV) } catch {
             failure = (error as? LocalizedError)?.errorDescription ?? "\(error)"
@@ -377,12 +399,13 @@ package final class EELSSession {
                     Task { @MainActor in self?.landProgress(f, generation: gen) }
                 })
                 if Task.isCancelled { return }
-                await self?.land(map, failure: nil, generation: gen, input: inputAtStart)
+                await self?.land(map, failure: nil, generation: gen, input: inputAtStart, signature: signature)
             } catch is SpectroCancelled {
                 return
             } catch {
                 if Task.isCancelled { return }
-                await self?.land(nil, failure: (error as? LocalizedError)?.errorDescription ?? "\(error)", generation: gen, input: inputAtStart)
+                await self?.land(nil, failure: (error as? LocalizedError)?.errorDescription ?? "\(error)", generation: gen, input: inputAtStart,
+                                 signature: signature)
             }
         }
         passTask = task
@@ -394,13 +417,14 @@ package final class EELSSession {
         progress = f
     }
 
-    private func land(_ new: ThicknessMap?, failure why: String?, generation gen: Int, input: Int) {
+    private func land(_ new: ThicknessMap?, failure why: String?, generation gen: Int, input: Int, signature: String) {
         guard gen == generation else { return }
         isComputing = false
         progress = 1
         if let new {
             version += 1
             mapInputVersion = input
+            mapSignature = signature
             map = new
             tiles = EELSCompute.tiles(new, version: version)
             unavailableReasons = EELSCompute.unavailableReasons(new)
@@ -593,7 +617,7 @@ package final class EELSSession {
 
     private func resetRegions() {
         pinDataTask?.cancel()
-        pins = []; selectedPinID = nil; lines = []; selectedLineID = nil; pinSpectra = [:]; pinCoreSpectra = [:]; pinRows = []
+        pins = []; selectedPinID = nil; lines = []; selectedLineID = nil; pinSpectra = [:]; pinCoreSpectra = [:]; pinRows = []; isRefreshingRegions = false
         colorsIssued = 0; regionsIssued = 0; linesIssued = 0
     }
 
@@ -641,7 +665,7 @@ package final class EELSSession {
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty, let i = pins.firstIndex(where: { $0.id == id }) else { return }
         pins[i].name = clean
-        if let j = pinRows.firstIndex(where: { $0.pin.id == id }) { pinRows[j] = EELSRegionRow(pin: pins[i], pixels: pinRows[j].pixels, totalCounts: pinRows[j].totalCounts, tOverLambda: pinRows[j].tOverLambda, edges: pinRows[j].edges) }
+        if let j = pinRows.firstIndex(where: { $0.pin.id == id }) { pinRows[j] = pinRows[j].renamed(pins[i]) }
     }
 
     package func removePin(_ id: EDXPin.ID) {
@@ -723,7 +747,9 @@ package final class EELSSession {
         refreshPlot()
         pinDataTask?.cancel()
         pinDataRun += 1
-        guard let low = workingLowLoss, !pins.isEmpty else { pinSpectra = [:]; pinCoreSpectra = [:]; pinRows = []; return }
+        guard let low = workingLowLoss, !pins.isEmpty else { pinSpectra = [:]; pinCoreSpectra = [:]; pinRows = []; isRefreshingRegions = false; return }
+        isRefreshingRegions = true
+        let thicknessMade = thicknessSignature, fitMade = fitSignature
         let run = pinDataRun, pins = pins, core = workingCoreLoss
         let edges = fittableEdges, microscope = microscope, convolve = convolveLowLoss && workingLowLoss != nil, edgeWindows = fitWindows
         let threshold = threshold, lambda = try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)
@@ -738,7 +764,7 @@ package final class EELSSession {
                                                    threshold: threshold, meanFreePath: lambda ?? nil, edgeWindows: edgeWindows) { rows.append(row) }
             }
             if Task.isCancelled { return }
-            await self?.landPinData(spectra: spectra, coreSpectra: coreSpectra, rows: rows, run: run)
+            await self?.landPinData(spectra: spectra, coreSpectra: coreSpectra, rows: rows, run: run, thickness: thicknessMade, fit: fitMade)
         }
     }
 
@@ -818,11 +844,16 @@ package final class EELSSession {
         return next
     }
 
-    private func landPinData(spectra: [EDXPin.ID: [Double]], coreSpectra: [EDXPin.ID: [Double]], rows: [EELSRegionRow], run: Int) {
+    private func landPinData(spectra: [EDXPin.ID: [Double]], coreSpectra: [EDXPin.ID: [Double]], rows: [EELSRegionRow], run: Int,
+                             thickness: String, fit: String) {
         guard run == pinDataRun else { return }
         pinSpectra = spectra
         pinCoreSpectra = coreSpectra
-        pinRows = rows
+        // Each row under its pin as it is now: a rename or a colour made while the rows were computed is kept.
+        pinRows = rows.compactMap { row in pins.first { $0.id == row.pin.id }.map(row.renamed) }
+        pinRowsThicknessSignature = thickness
+        pinRowsFitSignature = fit
+        isRefreshingRegions = false
     }
 
     // MARK: Align and Run
