@@ -66,7 +66,7 @@ struct LaunchOptions: Equatable {
 
     /// A UI-testing launch starts from no saved window geometry and no saved application state, before any window is made (mac4DSTEM's
     /// `UITestingLaunch.resetSavedState`, the same reset). A launch that quit with the window closed (or was killed by the test) leaves a saved state
-    /// that the next launch restores into no window at all, `-ApplePersistenceIgnoreState` notwithstanding (open-items 2026-10-23: only `open -F`
+    /// that the next launch restores into no window at all, `-ApplePersistenceIgnoreState` notwithstanding (measured 2026-10-23: only `open -F`
     /// and a clean quit cleared it); removing the saved state is what `open -F` does. Never for a person's launch.
     static func resetSavedState(defaults: UserDefaults = .standard, home: String = NSHomeDirectory(),
                                 bundleIdentifier: String? = Bundle.main.bundleIdentifier) {
