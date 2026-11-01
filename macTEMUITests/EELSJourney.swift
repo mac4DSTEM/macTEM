@@ -1,7 +1,7 @@
 //
 //  EELSJourney.swift
 //  The EELS room on the demo spectrum image (t/λ planted at 0.5 at every pixel): enter the room, let the map compute, point at a tile and
-//  read the pixel's t/λ, which is the planted 0.50 within the kit's stated bias of the estimated threshold, with the unvalidated badge shown.
+//  read the pixel's t/λ, which is the planted 0.50 within the kit's stated bias of the estimated threshold, with the Methods tag (each method and its reference) shown.
 //  Since 1.0 the maps block is the colour mix (the anchor, where regions are drawn) and the maps the Maps control picks (t/λ by default, the ZLP shift
 //  after Align unless it is flat, the fitted edges); I₀, I total and the ZLP centres are not drawn (`EELSMapsComposition.compose`), and the regions are rows
 //  of the Results area's Regions table, not a list in the inspector.
@@ -53,9 +53,12 @@ nonisolated final class EELSJourney: Journey {
                 XCTAssertFalse(app.groups.matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch.exists, "\(name) is drawn")
             }
         }
-        try step("the badge is shown") {
-            let badge = waitFor("eels.validationBadge")
-            XCTAssertTrue(badge.label.contains("validation: none") || ((badge.value as? String) ?? "").contains("validation: none"), "badge: \(badge.label)")
+        try step("the Methods tag is shown and no trust word") {
+            let tag = waitFor("eels.methodsTag")
+            // The tag reads "Methods"; its tooltip (EELSLiterature.tooltip, checked by the unit tests) names each method with its reference.
+            XCTAssertTrue(tag.label == "Methods" || (tag.value as? String) == "Methods", "tag: \"\(tag.label)\"")
+            let words = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] 'validation' OR value CONTAINS[c] 'validation'")).count
+            XCTAssertEqual(words, 0, "a validation word is shown \(words) times")
         }
     }
 

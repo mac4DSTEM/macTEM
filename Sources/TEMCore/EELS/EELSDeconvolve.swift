@@ -1,7 +1,7 @@
 // The EELS room's Deconvolve stage, on SpectroKit's `EELSDeconvolution`: Fourier-ratio (the core loss by the low loss: the single-scattering core loss
 // the edge model then fits, unconvolved), Fourier-log (the low loss by its zero-loss peak: the single-scattering distribution) and Richardson-Lucy (the low
 // loss by its zero-loss peak as the point-spread function). The zero-loss peak of a pixel is its own low loss below the threshold the thickness map cut it
-// at (`ThicknessPixel.thresholdChannel`, exSpy's `s.isig[:threshold]`), zero above; nothing here is a number of macTEM's own. Validation: none.
+// at (`ThicknessPixel.thresholdChannel`, exSpy's `s.isig[:threshold]`), zero above; nothing here is a number of macTEM's own. Reference: `EELSLiterature.deconvolution` (Egerton, ch. 4).
 import Foundation
 import SpectroCore
 import SpectroEELS
@@ -152,7 +152,7 @@ package nonisolated enum EELSDeconvolveCompute {
 
     /// The method and its parameters, for the method JSON (`deconvolution`) and the results CSV.
     package static func parameters(_ r: EELSDeconvolutionResult) -> [String: Any] {
-        var d: [String: Any] = ["method": r.choice.title, "kit_method": r.methodName, "validation": "none",
+        var d: [String: Any] = ["method": r.choice.title, "kit_method": r.methodName, "reference": EELSLiterature.deconvolution,
                                 "pixels_unavailable": r.unavailableCount]
         switch r.choice {
         case .off: break

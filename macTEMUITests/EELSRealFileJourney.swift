@@ -324,9 +324,10 @@ nonisolated final class EELSRealFileJourney: Journey {
             }
         }
 
-        line(13, "validation: none, once") {
-            let badges = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'validation: none' OR value == 'validation: none'")).count
-            XCTAssertEqual(badges, 1, "validation: none shown \(badges) times")
+        line(13, "methods named, no trust word") {
+            let words = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] 'validation: none' OR value CONTAINS[c] 'validation: none'")).count
+            XCTAssertEqual(words, 0, "validation: none shown \(words) times")
+            XCTAssertTrue(element("eels.methodsTag").exists, "no Methods tag")
         }
 
         line(12, "a stale stage is marked, Run then Stop, no NaN") {
@@ -349,7 +350,7 @@ nonisolated final class EELSRealFileJourney: Journey {
         }
 
         let titles = [1: "opens", 2: "spectrum", 3: "align", 4: "thickness", 5: "edges", 6: "windows", 7: "fit", 8: "tiles", 9: "regions", 10: "zoom and readout",
-                      11: "exports", 12: "run, stop, stale", 13: "validation"]
+                      11: "exports", 12: "run, stop, stale", 13: "methods"]
         let summary = (1...13).map { n -> String in
             let verdict = failedLines.contains(n) ? "FAIL" : (unverified[n].map { "UNVERIFIED (\($0))" } ?? "PASS")
             return "EELSLINE \(n) \(titles[n] ?? "") \(verdict)"
