@@ -1,7 +1,7 @@
 // The EELS room's edge model, on SpectroKit: the bundled edges that fit a core-loss window, the model fit (`EELSModelFit.fit`, exSpy's smart fit:
 // a power-law background and the GOS edges by non-negative least squares with the exponent by Brent's method), the composition
 // (`EELSQuantification.composition`) and the tiles and the region table made from them. Nothing here is a number of macTEM's own: every value is a
-// field of `EdgeIntensityPixel` or `EELSCompositionPixel`. Validation: none.
+// field of `EdgeIntensityPixel` or `EELSCompositionPixel`.
 import Foundation
 import SpectroCore
 import SpectroEELS

@@ -322,23 +322,29 @@ nonisolated final class ResultsCSVTests: XCTestCase {
             // A profile row's numbers are closed forms; the Image room's CSV samples are scikit-image's: both constants, in that order.
             case .profile: producers = ImageMeasurement.validation + ResultRow.Product.profileSamplesClause + ProfileCSV.validation
             case .spot: producers = FFTExport.spotsValidation
-            // The kit's own self-reported sentence (validation: none) for the indexing; the calibration's is the room's statement of what its numbers are.
-            case .ring: producers = RingIndexing.validation
+            // The ring, EDS and EELS rows name their method, what it was compared with or its reference; the calibration's is the room's
+            // statement of what its numbers are.
+            case .ring: producers = ResultRow.Product.ringMethod
             case .calibration: producers = product.validation
-            // SpectroKit's own constant for a composition, after the words that say what the numbers are.
-            case .edsComposition: producers = ResultRow.Product.edsCompositionLead + PooledQuantification.abundanceValidation
-            // SpectroKit's EELS results carry their validation word on each result ("none"); ResultsLedgerTests holds a real map's and fit's equal to it.
-            case .eelsThickness: producers = ResultRow.Product.eelsThicknessLead + ResultRow.Product.eelsKitValidation
-            case .eelsEdge: producers = ResultRow.Product.eelsEdgeLead + ResultRow.Product.eelsKitValidation
+            case .edsComposition: producers = ResultRow.Product.edsCompositionMethod
+            case .eelsThickness: producers = ResultRow.Product.eelsThicknessMethod
+            case .eelsEdge: producers = ResultRow.Product.eelsEdgeMethod
             }
             XCTAssertEqual(product.validation, producers, "\(product): not the producer's constant")
             XCTAssertFalse(product.validation.isEmpty)
+            // No trust state is shown or written: the sentence is the Method tooltip and the CSV's validation column.
+            XCTAssertFalse(product.validation.contains("validation: none"), "\(product): \(product.validation)")
+            XCTAssertFalse(product.validation.lowercased().hasPrefix("none"), "\(product): \(product.validation)")
+            XCTAssertFalse(product.validation.lowercased().contains("unvalidated"), "\(product): \(product.validation)")
             XCTAssertFalse(product.badge.isEmpty)
             XCTAssertFalse(product.badge.lowercased().contains("validated"), "\(product): \(product.badge)")
             XCTAssertFalse(product.badge.contains("Checked"), "\(product): \(product.badge)")
         }
         XCTAssertTrue(ResultRow.Product.profile.validation.hasPrefix(ImageMeasurement.validation), "the row's numbers are closed forms")
         XCTAssertTrue(ResultRow.Product.profile.validation.hasSuffix(ProfileCSV.validation), "the samples are scikit-image's")
+        XCTAssertTrue(ResultRow.Product.edsComposition.validation.contains("reference: "), "EDS names its reference")
+        XCTAssertTrue(ResultRow.Product.eelsThickness.validation.hasSuffix(ResultRow.Product.eelsThicknessReference), "log-ratio names its reference")
+        XCTAssertTrue(ResultRow.Product.eelsEdge.validation.contains("reference: "), "the edge model names its reference")
         XCTAssertEqual(Set(ResultRow.Product.allCases.map(\.group)), Set(ResultRow.Group.allCases),
                        "every group has a product, so a group has a sentence")
         for group in ResultRow.Group.allCases {
