@@ -10,7 +10,7 @@ import ImagoCore
 
 extension ProfileCSV {
     /// What a line profile is checked against (the Results room and its CSV show it verbatim); the `# validation:` line adds
-    /// ", unvalidated (reader note)" when the file's notes say so.
+    /// ImagoKit's reader-note clause when the file's reader notes call for it (the kit's words, not authored here).
     package nonisolated static let validation = "samples compared with scikit-image 0.26.0 profile_line(order=1, mode=\"reflect\", "
         + "reduce_func=mean) (1e-5 relative; 1e-5 of the image's largest magnitude near zero); "
         + "calibration: as the file states it"
