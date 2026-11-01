@@ -28,6 +28,10 @@ package nonisolated struct EELSEdgeRow: Equatable, Sendable, Identifiable {
     package let exponentAtBound: Bool
     /// The edge's element is fit only: in the model, left out of the composition.
     package let fitOnly: Bool
+    /// The 1 sigma on `atomicPercent` and `weightPercent` (`EELSCompositionSigma`: first order from the kit's sigma on each amount); nil where the kit gives
+    /// no sigma for an amount, or there is no composition.
+    package let atomicSigma: Double?
+    package let weightSigma: Double?
     /// I at or under 3 sigma: the edge is not detected in this region, so its at% is not a number to read (Egerton's 3-sigma detection criterion).
     package var belowDetection: Bool {
         guard let i = intensity, let s = intensityStd, s > 0 else { return false }
@@ -36,10 +40,11 @@ package nonisolated struct EELSEdgeRow: Equatable, Sendable, Identifiable {
 
     package init(id: String, title: String, onsetEV: Double, intensity: Double?, arealDensityPerNM2: Double?, atomicPercent: Double?, weightPercent: Double?,
                  exponent: Double? = nil, unavailable: String?, intensityStd: Double? = nil, atomicUnavailable: String? = nil, exponentAtBound: Bool = false,
-                 fitOnly: Bool = false) {
+                 fitOnly: Bool = false, atomicSigma: Double? = nil, weightSigma: Double? = nil) {
         self.id = id; self.title = title; self.onsetEV = onsetEV; self.intensity = intensity; self.arealDensityPerNM2 = arealDensityPerNM2
         self.atomicPercent = atomicPercent; self.weightPercent = weightPercent; self.exponent = exponent; self.unavailable = unavailable
         self.intensityStd = intensityStd; self.atomicUnavailable = atomicUnavailable; self.exponentAtBound = exponentAtBound; self.fitOnly = fitOnly
+        self.atomicSigma = atomicSigma; self.weightSigma = weightSigma
     }
 
     /// The room's words for an at% that needs a second element.
@@ -89,14 +94,15 @@ package nonisolated enum EELSFitCompute {
 
     /// The MLLS options the room hands the kit: the kit's two-area exponent, and the fit window from the start of the first edge's background window (the
     /// window the person sees and drags) to the end of the axis. Without windows, the kit's defaults (the axis start).
-    package static func mllsOptions(edgeWindows: [EdgeWindows]?) -> EELSMLLSOptions {
-        EELSMLLSOptions(exponent: .twoArea, startEnergyEV: edgeWindows?.map(\.backgroundEV.lowerBound).min())
+    /// `fitToEV` is the Fitting section's Fit to: the last energy of the window, included (nil: the axis end).
+    package static func mllsOptions(edgeWindows: [EdgeWindows]?, fitToEV: Double? = nil) -> EELSMLLSOptions {
+        EELSMLLSOptions(exponent: .twoArea, startEnergyEV: edgeWindows?.map(\.backgroundEV.lowerBound).min(), endEnergyEV: fitToEV)
     }
 
-    /// The fit by `model`: the exact fit on the per-edge windows, or MLLS over one window from the first background window (`mllsOptions`).
+    /// The fit by `model`: the exact fit on the per-edge windows, or MLLS over one window from the first background window to `fitToEV` (`mllsOptions`).
     package static func fit(coreLoss: CoreLossSpectrumImage, edges: [CoreLossEdge], microscope: EELSMicroscope, lowLoss: LowLossSpectrumImage?,
                             model: EELSFitModel = .exactNNLS, options: EELSModelOptions = EELSModelOptions(), edgeWindows: [EdgeWindows]? = nil,
-                            mask: PixelMask? = nil,
+                            fitToEV: Double? = nil, mask: PixelMask? = nil,
                             cancelled: @Sendable () -> Bool = SpectroCancellation.task, progress: (@Sendable (Double) -> Void)? = nil) throws -> EELSFitResult {
         switch model {
         case .exactNNLS:
@@ -104,7 +110,7 @@ package nonisolated enum EELSFitCompute {
                                                    edgeWindows: edgeWindows, cancelled: cancelled, progress: progress))
         case .mlls:
             return .mlls(try EELSMLLS.fit(coreLoss: coreLoss, edges: edges, microscope: microscope, lowLoss: lowLoss, mask: mask,
-                                          options: mllsOptions(edgeWindows: edgeWindows), cancelled: cancelled, progress: progress))
+                                          options: mllsOptions(edgeWindows: edgeWindows, fitToEV: fitToEV), cancelled: cancelled, progress: progress))
         }
     }
 
@@ -166,7 +172,9 @@ package nonisolated enum EELSFitCompute {
 
     /// The region table: one row per fitted edge for the one pixel of `result` (a summed region fitted as a 1 x 1 image). A fit-only edge keeps its I and
     /// has no at%.
-    package static func rows(_ result: EELSFitResult, composition: [EELSCompositionPixel]?, fitOnly: Set<String> = []) -> [EELSEdgeRow] {
+    /// `rawCounts` false (a deconvolved core loss): the exact fit's Poisson σ does not hold, so the composition carries no σ (MLLS's σ is scaled by its own
+    /// residual and stays).
+    package static func rows(_ result: EELSFitResult, composition: [EELSCompositionPixel]?, fitOnly: Set<String> = [], rawCounts: Bool = true) -> [EELSEdgeRow] {
         guard result.pixelCount > 0 else { return [] }
         let symbols = quantifiedSymbols(result, fitOnly: fitOnly)
         let comp = composition?.first
@@ -175,6 +183,9 @@ package nonisolated enum EELSFitCompute {
         let atomicWhy: String? = symbols.count < 2 ? refusal
             : comp.map { $0.unavailable.map(words) } ?? refusal ?? "the kit gave no composition for these elements"
         let atBound = result.exponentAtBound(pixel: 0)
+        let sigmaHolds = rawCounts || result.model == .mlls
+        let sigma = sigmaHolds && comp?.unavailable == nil && comp?.atomicPercent.count == symbols.count
+            ? EELSCompositionSigma.sigmas(result, pixel: 0, symbols: symbols) : nil
         return result.edges.enumerated().map { g, edge in
             let isFitOnly = fitOnly.contains(edge.element)
             let col = isFitOnly ? nil : symbols.firstIndex(of: edge.element)
@@ -185,7 +196,8 @@ package nonisolated enum EELSFitCompute {
                                weightPercent: col.flatMap { c in comp.flatMap { $0.weightPercent.indices.contains(c) ? $0.weightPercent[c] : nil } },
                                exponent: result.exponent(pixel: 0, edge: g),
                                unavailable: result.unavailable(pixel: 0, edge: g).map(words), intensityStd: result.intensityStd(pixel: 0, edge: g),
-                               atomicUnavailable: atomic == nil ? why : nil, exponentAtBound: atBound, fitOnly: isFitOnly)
+                               atomicUnavailable: atomic == nil ? why : nil, exponentAtBound: atBound, fitOnly: isFitOnly,
+                               atomicSigma: atomic == nil ? nil : col.flatMap { sigma?.atomic[$0] }, weightSigma: atomic == nil ? nil : col.flatMap { sigma?.weight[$0] })
         }
     }
 }

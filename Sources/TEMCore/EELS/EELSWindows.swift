@@ -227,9 +227,17 @@ package nonisolated enum EELSWindowPlan {
     /// The sentence for a fit the kit refused because of a window; nil for any other kit error. The kit's errors carry the fields (the edges, the numbers and, for an
     /// invalid window, its own reason); the kit has no localized text, so the room puts them in a sentence.
     package static func sentence(for error: Error) -> String? {
-        guard let e = error as? EELSModelError else { return nil }
         func eV(_ v: Double) -> String { EELSRoomFormat.sig(v, 4) }
+        if let m = error as? EELSMLLSError {
+            switch m {
+            case .invalidWindow(let a, let b): return "The MLLS window \(eV(a))–\(eV(b)) eV is not on the core-loss axis: set Fit to inside it."
+            case .windowTooNarrow(let channels, let amplitudes): return "The MLLS window holds \(channels) channels for \(amplitudes) amplitudes: set Fit to higher."
+            default: return nil
+            }
+        }
+        guard let e = error as? EELSModelError else { return nil }
         switch e {
+        case .noEdgeInRange(let a, let b): return "An edge starts above the fit range \(eV(a))–\(eV(b)) eV: set Fit to above the last edge."
         case .overlappingSignalWindows(let a, let b): return "The signal windows of \(a) and \(b) share energies; each channel of the signal belongs to one edge. Move or narrow one of them."
         case .edgeWindowInvalid(let edge, let why): return "\(edge): \(why)."
         case .edgeWindowCountMismatch(let expected, let got): return "The fit takes one window pair per edge: \(expected) edges, \(got) windows."

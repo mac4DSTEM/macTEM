@@ -158,14 +158,15 @@ nonisolated final class EELSAlignmentInRoomTests: XCTestCase {
 nonisolated final class EELSExportsTests: XCTestCase {
     func testResultsSpectrumAndRegionsAreCSVWithTheirProvenance() throws {
         let c = EELSEdgeRow(id: "C-K", title: "C K", onsetEV: 284, intensity: 1.925e-4, arealDensityPerNM2: 1.925e6, atomicPercent: 95.8, weightPercent: 94.5,
-                            exponent: 3.95, unavailable: nil, intensityStd: 8.1e-10)
+                            exponent: 3.95, unavailable: nil, intensityStd: 8.1e-10, atomicSigma: 0.4, weightSigma: 0.5)
         let n = EELSEdgeRow(id: "N-K", title: "N K", onsetEV: 401, intensity: 0, arealDensityPerNM2: 0, atomicPercent: 0, weightPercent: 0,
                             unavailable: nil, intensityStd: 1.4e-9)
         let results = EELSExports.resultsCSV([c, n], fileName: "143.dm4", regionName: "Whole map", thickness: "t/λ 0.52", method: "Exact NNLS")
         let lines = results.split(separator: "\n")
         XCTAssertTrue(lines[0].contains("validation: none") && lines[0].contains("143.dm4"))
-        XCTAssertEqual(lines[3], "edge,onset_eV,intensity,intensity_sigma,areal_density_per_nm2,atomic_percent,weight_percent,exponent_r,below_detection,unavailable")
-        XCTAssertEqual(lines[4], "\"C K\",284,0.0001925,8.1e-10,1925000,95.8,94.5,3.95,false,")
+        XCTAssertEqual(lines[3], "edge,onset_eV,intensity,intensity_sigma,areal_density_per_nm2,atomic_percent,atomic_percent_sigma,weight_percent,"
+                       + "weight_percent_sigma,exponent_r,below_detection,unavailable")
+        XCTAssertEqual(lines[4], "\"C K\",284,0.0001925,8.1e-10,1925000,95.8,0.4,94.5,0.5,3.95,false,")
         XCTAssertTrue(lines[5].hasSuffix(",true,"), "N K is below detection: \(lines[5])")
 
         let plot = EELSPlotData(regionName: "Region 1", pixels: 4, low: EELSPlotCurve(origin: -1, step: 0.5, counts: [1, 2]),
@@ -175,7 +176,7 @@ nonisolated final class EELSExportsTests: XCTestCase {
 
         let pin = EDXPin(name: "Region 1", region: .rectangle(PixelRect(x0: 0, y0: 0, x1: 2, y1: 2)), number: 1)
         let regions = EELSExports.regionsCSV([EELSRegionRow(pin: pin, pixels: 4, totalCounts: 1e6, tOverLambda: 0.5, edges: [c])], fileName: "143.dm4").split(separator: "\n")
-        XCTAssertEqual(regions[1], "region,pixels,i_total,t_over_lambda,\"C K intensity\",\"C K intensity_sigma\",\"C K atomic_percent\"")
-        XCTAssertEqual(regions[2], "\"Region 1\",4,1000000,0.5,0.0001925,8.1e-10,95.8")
+        XCTAssertEqual(regions[1], "region,pixels,i_total,t_over_lambda,\"C K intensity\",\"C K intensity_sigma\",\"C K atomic_percent\",\"C K atomic_percent_sigma\"")
+        XCTAssertEqual(regions[2], "\"Region 1\",4,1000000,0.5,0.0001925,8.1e-10,95.8,0.4")
     }
 }
