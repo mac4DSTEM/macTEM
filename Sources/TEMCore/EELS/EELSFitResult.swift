@@ -43,8 +43,6 @@ package nonisolated enum EELSFitResult: Sendable {
     package var edges: [CoreLossEdge] { switch self { case .exactNNLS(let r): r.edges; case .mlls(let r): r.edges } }
     package var convolved: Bool { switch self { case .exactNNLS(let r): r.convolved; case .mlls(let r): r.convolved } }
     package var methodName: String { switch self { case .exactNNLS(let r): r.methodName; case .mlls(let r): r.methodName } }
-    /// The kit's own trust word. Not shown in the room or its exports; the Results ledger reads it until its rows name the method instead.
-    package var validation: String { switch self { case .exactNNLS(let r): r.validation; case .mlls(let r): r.validation } }
     /// The windows the exact fit was handed (nil for MLLS, which fits one window).
     package var edgeWindows: [EdgeWindows]? { if case .exactNNLS(let r) = self { r.edgeWindows } else { nil } }
     /// Where the model holds values: the exact fit's signal windows (none without per-edge windows), or the MLLS window.

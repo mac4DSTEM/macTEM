@@ -127,7 +127,7 @@ nonisolated final class EELSOpeningTests: XCTestCase {
         await session.settled()
         XCTAssertEqual(session.stages.map(\.state), [.current, .current, .current, .current], session.failure ?? "")
         let model = try XCTUnwrap(session.model, session.failure ?? "no model")
-        XCTAssertEqual(model.validation, "none")
+        XCTAssertFalse(model.methodName.isEmpty, "the fit names its method")
         XCTAssertEqual(model.nx * model.ny, 20 * 16)
         XCTAssertEqual(session.modelTiles.filter { $0.id.hasPrefix("edge-") }.count, model.edges.count)
         let rows = session.regionRows
