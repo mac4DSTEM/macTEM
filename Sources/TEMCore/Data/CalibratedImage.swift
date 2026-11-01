@@ -25,7 +25,7 @@ package nonisolated struct CalibratedImage: Sendable, Equatable {
     /// Accelerating voltage in volts as the file stores it; nil when absent.
     package let voltage: Double?
     /// What a reader must say about this image beyond its numbers, in its own words ("8-bit render, not
-    /// counts", "scale unvalidated (one acquisition)"). Empty for a file read by a validated convention.
+    /// counts", or the Velox TIFF scale note, both FormatoKit's words). Empty for a file read by a published convention.
     package let notes: [String]
 
     package init(width: Int, height: Int, pixels: [Float], x: AxisCalibration?, y: AxisCalibration?,

@@ -5,19 +5,19 @@
 //        Pure text; `export` writes it through `ExportFile.write` off the main actor. One long format because rows differ in
 //        columns and a script wants one shape.
 //
-//  The file is ImagoKit's `TidyResultsCSV` (ImagoCore 0.5.0: header, `%.17g` numbers, RFC 4180 cells, the unvalidated clause);
+//  The file is ImagoKit's `TidyResultsCSV` (ImagoCore 0.5.0: header, `%.17g` numbers, RFC 4180 cells, the reader-note clause);
 //  what stays here is the rows' conversion, the title and the sentences only the app can claim.
 //
 //  THE VALIDATION: the `validation` column holds the product's own constant (`ResultRow.Product.validation`), and the header
-//  holds one `# validation (<product>): ...` line for each product present, the same constant; when the file's reader notes say
-//  "unvalidated", both carry `unvalidatedClause` after it. No sentence is authored here.
+//  holds one `# validation (<product>): ...` line for each product present, the same constant; when the file's reader notes call
+//  for it, both carry the kit's reader-note clause (`TidyResultsCSV.unvalidatedClause`) after it. No sentence is authored here.
 //
 
 import Foundation
 import ImagoCore
 
 package nonisolated enum ResultsCSV {
-    /// Added to every validation sentence when the file's reader notes say it is unvalidated.
+    /// The kit's clause added to every validation sentence when the file's reader notes call for it (ImagoKit owns the rule and the wording).
     package static let unvalidatedClause = TidyResultsCSV.unvalidatedClause
 
     package static let columns = TidyResultsCSV.columns
