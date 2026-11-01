@@ -63,7 +63,7 @@ package nonisolated enum EELSRegionCompute {
             tWhy = t != nil ? nil : (pixel?.unavailable?.description ?? "the kit gave no t/λ for the summed spectrum")
         } catch {
             t = nil
-            tWhy = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+            tWhy = EELSErrorWords.sentence(for: error)
         }
         var edgeRows: [EELSEdgeRow] = []
         var edgesWhy: String?
@@ -77,7 +77,7 @@ package nonisolated enum EELSRegionCompute {
                 edgeRows = EELSFitCompute.rows(fit, composition: EELSFitCompute.composition(fit, fitOnly: fitOnly), fitOnly: fitOnly, rawCounts: rawCounts)
                 quality = EELSFitQuality.of(fit, core: coreSum, rawCounts: rawCounts)
             } catch {
-                edgesWhy = EELSWindowPlan.sentence(for: error) ?? (error as? LocalizedError)?.errorDescription ?? "\(error)"
+                edgesWhy = EELSErrorWords.sentence(for: error)
             }
         }
         return EELSRegionRow(pin: pin, pixels: pixels, totalCounts: lowSum.counts.reduce(0, +), tOverLambda: t, edges: edgeRows, tUnavailable: tWhy,

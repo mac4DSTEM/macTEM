@@ -294,7 +294,7 @@ nonisolated final class EELSRealFileJourney: Journey {
         line(9, "regions: draw, move, resize, delete") {
             try step("the region tool; no Regions list in the inspector") {
                 showSettings(waitingFor: "eels.tool")
-                XCTAssertFalse(element("regions.list").exists, "the inspector still lists the regions")
+                XCTAssertTrue(isAbsent("regions.list"), "the inspector still lists the regions")
                 XCTAssertGreaterThan(element("eels.tool").radioButtons.count + element("eels.tool").buttons.count, 1, "the region tool offers no shapes")
             }
             unverifiedDrag("drawing, moving and resizing a region on the colour mix, and the spectrum following")

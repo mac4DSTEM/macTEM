@@ -218,6 +218,11 @@ package final class EELSSession {
         guard deconvolutionChoice.feedsTheFit, let d = deconvolution, d.coreLoss != nil else { return nil }
         return d.answered
     }
+    /// The deconvolution whose unanswered pixels the map readout names: the chosen method's result, while one is chosen.
+    package var readoutDeconvolution: EELSDeconvolutionResult? {
+        guard deconvolutionChoice != .off, let d = deconvolution, d.choice.kind == deconvolutionChoice.kind else { return nil }
+        return d
+    }
     /// The core loss the fit takes: the current Fourier-ratio result when that is the method (nil until it is current), else the working core loss.
     package var fitCoreLoss: CoreLossSpectrumImage? {
         guard deconvolutionChoice.feedsTheFit else { return workingCoreLoss }
@@ -455,7 +460,7 @@ package final class EELSSession {
         let threshold = threshold, inputAtStart = inputVersion, signature = thicknessSignature
         let lambda: MeanFreePathSource?
         do { lambda = try EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV) } catch {
-            failure = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+            failure = EELSErrorWords.sentence(for: error)
             isComputing = false
             if let failure { onEvent?("Refused: \(failure)") }
             return nil
@@ -478,7 +483,7 @@ package final class EELSSession {
                 return
             } catch {
                 if Task.isCancelled { return }
-                await self?.land(nil, failure: (error as? LocalizedError)?.errorDescription ?? "\(error)", generation: gen, input: inputAtStart,
+                await self?.land(nil, failure: EELSErrorWords.sentence(for: error), generation: gen, input: inputAtStart,
                                  signature: signature)
             }
         }
@@ -642,7 +647,7 @@ package final class EELSSession {
             references.append(reference)
             return reference
         } catch {
-            referenceNotice = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+            referenceNotice = EELSErrorWords.sentence(for: error)
             return nil
         }
     }
@@ -709,7 +714,7 @@ package final class EELSSession {
             } catch {
                 if Task.isCancelled { return }
                 if let sentence = EELSWindowPlan.sentence(for: error) { await self?.landFitRefusal(sentence, generation: gen); return }
-                await self?.landAlignmentFailure((error as? LocalizedError)?.errorDescription ?? "\(error)", generation: gen)
+                await self?.landAlignmentFailure(EELSErrorWords.sentence(for: error), generation: gen)
             }
         }
         passTask = task
@@ -777,7 +782,7 @@ package final class EELSSession {
                 return
             } catch {
                 if Task.isCancelled { return }
-                await self?.landAlignmentFailure((error as? LocalizedError)?.errorDescription ?? "\(error)", generation: gen)
+                await self?.landAlignmentFailure(EELSErrorWords.sentence(for: error), generation: gen)
             }
         }
         passTask = task
@@ -1115,7 +1120,7 @@ package final class EELSSession {
                 return
             } catch {
                 if Task.isCancelled { return }
-                await self?.landAlignmentFailure((error as? LocalizedError)?.errorDescription ?? "\(error)", generation: gen)
+                await self?.landAlignmentFailure(EELSErrorWords.sentence(for: error), generation: gen)
             }
         }
         passTask = task

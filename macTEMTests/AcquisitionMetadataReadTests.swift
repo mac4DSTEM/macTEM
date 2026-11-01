@@ -32,7 +32,7 @@ import FormatoDM
 
 nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
     private static let local = "local time, zone not stored"
-    private static let unvalidated = "unvalidated: no published reader reads it"
+    private static let unvalidated = "no published reader reads this field; read as stored in the DM image tags"
     private typealias Node = DM4TestFile.Node
 
     // MARK: DM: the object described is the object shown

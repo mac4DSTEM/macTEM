@@ -19,7 +19,8 @@ import TEMCore
 
 nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
     private static let local = "local time, zone not stored"
-    private static let unvalidated = "unvalidated: no published reader reads it"
+    private static let unvalidated = "no published reader reads this field; read as stored in the Velox XML of the TIFF"
+    private static let feiUnvalidated = "no published reader reads this field; read as stored in the FEI header of the TIFF"
     /// A Velox date: no published reader reads the XML's text, so the note joins the two.
     private static let veloxLocal = local + "; " + unvalidated
 
@@ -399,7 +400,7 @@ nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
 
     func testFEIDetectorAndInstrumentAreAsStoredAndNothingIsMadeUpForTheRest() throws {
         let got = try fei(helios())
-        XCTAssertEqual(got.detector, MetadataReading("ETD", note: Self.unvalidated), "mapping_fei does not map [Detectors] Name")
+        XCTAssertEqual(got.detector, MetadataReading("ETD", note: Self.feiUnvalidated), "mapping_fei does not map [Detectors] Name")
         XCTAssertEqual(got.instrument, MetadataReading("Helios NanoLab\" 660"), "kept as stored, quote and all; mapped")
         // The INI stores no magnification: [Image] MagCanvasRealWidth and [EBeam] HFW are widths in metres, and
         // [Scan] FrameTime a frame time. None of them becomes a magnification, camera length, exposure or mode.

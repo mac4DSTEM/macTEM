@@ -61,6 +61,13 @@ nonisolated class Journey: XCTestCase {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
 
+    /// True when no element carries this identifier: the check that a control the app or MacEMUI removed stays gone. The inventory's
+    /// identifier check reads `element(`/`waitFor(` only, so an id that no source declares any more is checked here without being flagged.
+    @MainActor
+    func isAbsent(_ id: String) -> Bool {
+        !element(id).exists
+    }
+
     /// Waits for the element and fails with its name when it does not appear.
     @discardableResult
     @MainActor

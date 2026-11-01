@@ -121,17 +121,17 @@ package nonisolated enum EELSMapsComposition {
 }
 
 /// The Maps section's display filter (control placement §11, DNA 5): the quantified maps (t/λ, t, at%, wt%), computed per pixel on few counts, are DRAWN
-/// through MacEMUI's `EDXMapFilter` kernel (ImagoKit's separable filters, the EDS room's own); the edge intensities, the ZLP shift and the I tiles never are.
+/// through `EELSMapFilter` (ImagoKit's separable filters, the EDS room's kernel); the edge intensities, the ZLP shift and the I tiles never are.
 /// Only the picture changes: a tile's `values`, the status-line readout, the popover's histogram, the results and every export (the maps figure too) stay raw.
 package nonisolated enum EELSMapDisplay {
     /// Whether `filter` applies to the tile `id`: the tile then carries the `filtered` tag.
-    package static func isFiltered(tileID id: String, filter: EDXMapFilter) -> Bool {
+    package static func isFiltered(tileID id: String, filter: EELSMapFilter) -> Bool {
         guard filter.isOn else { return false }
         return id == "tOverLambda" || id == "thickness" || id.hasPrefix("at-") || id.hasPrefix("wt-")
     }
 
     /// The values the tile draws: the kernel's output where it applies, the raw values otherwise. A new array; the tile is not changed.
-    package static func shownValues(_ tile: EELSMapTile, filter: EDXMapFilter) -> [Double] {
+    package static func shownValues(_ tile: EELSMapTile, filter: EELSMapFilter) -> [Double] {
         isFiltered(tileID: tile.id, filter: filter) ? filter.apply(tile.values, width: tile.width, height: tile.height) : tile.values
     }
 }
@@ -439,13 +439,25 @@ extension EELSRoomFormat {
     /// The at% cell: "44.4 ± 0.3" with its 1σ (`percent`), "below detection" for an edge at or under 3 sigma, never a bare 0.
     package static func atomicText(_ row: EELSEdgeRow, locale: Locale = .autoupdatingCurrent) -> String {
         if row.fitOnly { return "fit only" }
+        if row.notDetected { return "not detected" }
         if row.belowDetection { return "below detection" }
         return row.atomicPercent.map { percent($0, row.atomicSigma, locale: locale) } ?? "–"
+    }
+
+    /// The results footer's part for the elements the kit counts as not detected: "N, O not detected (MLLS amount ≤ 0)"; nil when there is none.
+    package static func notDetectedLine(_ rows: [EELSEdgeRow]) -> String? {
+        var symbols: [String] = []
+        for r in rows where r.notDetected {
+            let symbol = String(r.title.split(separator: " ").first ?? Substring(r.title))
+            if !symbols.contains(symbol) { symbols.append(symbol) }
+        }
+        return symbols.isEmpty ? nil : symbols.joined(separator: ", ") + " " + EELSEdgeRow.notDetectedWords
     }
 
     /// The wt% cell, as the at% cell.
     package static func weightText(_ row: EELSEdgeRow, locale: Locale = .autoupdatingCurrent) -> String {
         if row.fitOnly { return "fit only" }
+        if row.notDetected { return "not detected" }
         if row.belowDetection { return "below detection" }
         return row.weightPercent.map { percent($0, row.weightSigma, locale: locale) } ?? "–"
     }
@@ -474,9 +486,12 @@ extension EELSRoomFormat {
     }
 
     /// The status line over a map: "row 4 · col 3 · t/λ 0.52 · ZLP shift 0.01 eV · Mg 12.3 at%". `refusal` names why the pixel has no t/λ.
-    package static func readout(x: Int, y: Int, tiles: [EELSMapTile], refusal: String?, locale: Locale = .autoupdatingCurrent) -> String {
+    /// `unanswered` names why the deconvolution left the pixel unanswered (it is then out of the fit and its edge tiles).
+    package static func readout(x: Int, y: Int, tiles: [EELSMapTile], refusal: String?, unanswered: String? = nil,
+                                locale: Locale = .autoupdatingCurrent) -> String {
         var parts = ["row \(y)", "col \(x)"]
         if let refusal { parts.append("t/λ: \(refusal)") }
+        if let unanswered { parts.append("deconvolution: no answer, \(unanswered)") }
         for tile in tiles where tile.id == "tOverLambda" || tile.id == "iTotal" || tile.id == "zlpShift" || tile.id.hasPrefix("at-") || tile.id.hasPrefix("wt-") {
             guard x >= 0, y >= 0, x < tile.width, y < tile.height else { continue }
             let v = tile.values[y * tile.width + x]

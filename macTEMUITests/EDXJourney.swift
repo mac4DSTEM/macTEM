@@ -49,7 +49,7 @@ nonisolated final class EDXJourney: Journey {
         try step("there is no tile size control") {
             XCTAssertTrue(haadf.waitForExistence(timeout: 30))
             XCTAssertTrue(mg.waitForExistence(timeout: 60))
-            XCTAssertFalse(element("maps.tileSize").exists, "the maps scale with the panes")
+            XCTAssertTrue(isAbsent("maps.tileSize"), "the maps scale with the panes")
         }
         // The scale bar's spoken length ("Scale bar, 5 pixels"): the one thing on a tile that says its zoom. Since MacEMUI 0.4.0 the bar is one
         // Button whose label is that length, with no StaticText inside, so the journey reads the button label.

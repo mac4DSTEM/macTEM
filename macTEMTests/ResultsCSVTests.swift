@@ -116,9 +116,9 @@ nonisolated final class ResultsCSVTests: XCTestCase {
         XCTAssertEqual(header(text, "y scale"), "0.0789 nm per px, origin 0.0 px")
         XCTAssertEqual(header(text, "session"), "Saved at 14:03.")
         XCTAssertEqual(header(text, "notes"), "The scale is the file's")
-        XCTAssertEqual(header(text, "validation (distance)"), ImageMeasurement.validation)
-        XCTAssertEqual(header(text, "validation (angle)"), ImageMeasurement.validation)
-        XCTAssertEqual(header(text, "validation (spot)"), FFTExport.spotsValidation)
+        XCTAssertEqual(header(text, "validation (distance)"), ImageMeasurement.validation + "; reader note: The scale is the file's")
+        XCTAssertEqual(header(text, "validation (angle)"), ImageMeasurement.validation + "; reader note: The scale is the file's")
+        XCTAssertEqual(header(text, "validation (spot)"), FFTExport.spotsValidation + "; reader note: The scale is the file's")
         XCTAssertNil(header(text, "validation (profile)"), "no profile in the ledger, no profile line")
         XCTAssertTrue(try XCTUnwrap(header(text, "numbers")).hasPrefix("%.17g"))
         XCTAssertEqual(parts.rows.first, ["group", "id", "label", "quantity", "value", "unit", "text", "validation", "lineage"])
@@ -370,23 +370,24 @@ nonisolated final class ResultsCSVTests: XCTestCase {
                                                                    "eelsThickness", "eelsEdge"])
     }
 
-    /// A file whose reader notes say it is unvalidated keeps the qualifier on every claim the CSV makes: the header's validation
-    /// lines and the validation column end with ", unvalidated (reader note)", as `ProfileCSV`'s line does; a file without such a note
-    /// has none. Red under: the clause dropped from the header or from the column; added for a validated file; a case-sensitive match.
-    func testAnUnvalidatedFileKeepsItsQualifier() throws {
+    /// A file with reader notes quotes them after every claim the CSV makes: the header's validation
+    /// lines and the validation column end with "; reader note: <notes joined by "; ">" (ImagoKit 0.9.1), as `ProfileCSV`'s line does;
+    /// a file without a note has none, and the retired ", unvalidated (reader note)" clause is never written.
+    /// Red under: the notes dropped from the header or from the column; a clause for a file without notes; the old clause back.
+    func testAFileWithReaderNotesQuotesThem() throws {
         let rows = [distance(), profile(), try spot()]
-        let clause = ", unvalidated (reader note)"
-        XCTAssertEqual(ResultsCSV.unvalidatedClause, clause)
-        let flagged = try XCTUnwrap(ResultsCSV.text(rows, source: source(notes: ["Scale is UNVALIDATED"]), session: "s"))
+        let flagged = try XCTUnwrap(ResultsCSV.text(rows, source: source(notes: ["Scale is UNVALIDATED", "second note"]), session: "s"))
+        let clause = "; reader note: Scale is UNVALIDATED; second note"
         for product in [ResultRow.Product.distance, .profile, .spot] {
             XCTAssertEqual(header(flagged, "validation (\(product.rawValue))"), product.validation + clause)
         }
         let body = Array(split(flagged).rows.dropFirst())
         let byID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.product) })
         for line in body { XCTAssertEqual(line[7], (byID[line[1]]?.validation ?? "") + clause, "\(line[1]) \(line[3])") }
-        let plain = try XCTUnwrap(ResultsCSV.text(rows, source: source(notes: ["a plain note"]), session: "s"))
+        XCTAssertFalse(flagged.contains("unvalidated (reader note)"))
+        let plain = try XCTUnwrap(ResultsCSV.text(rows, source: source(notes: []), session: "s"))
         XCTAssertEqual(header(plain, "validation (distance)"), ImageMeasurement.validation)
-        XCTAssertFalse(plain.contains("unvalidated (reader note)"))
+        XCTAssertFalse(plain.contains("reader note"))
     }
 
     /// "Validated" is never claimed: no sentence the room or the CSV shows contains it (only "unvalidated" may), and the distance
@@ -420,7 +421,7 @@ nonisolated final class ResultsCSVTests: XCTestCase {
                                       source: "o", voltage: nil, notes: ["Unvalidated scale"])
         let text = try XCTUnwrap(ProfileCSV.text(profile, start: ImagePoint(x: 1, y: 2), end: ImagePoint(x: 5, y: 2),
                                                  source: ExportSource(image: flagged, software: Self.software)))
-        XCTAssertTrue(text.contains("\n# validation: \(ProfileCSV.validation), unvalidated (reader note)\n"))
+        XCTAssertTrue(text.contains("\n# validation: \(ProfileCSV.validation); reader note: Unvalidated scale\n"))
     }
 
     /// The `validation` column of every line is its product's constant, and the header carries one line per product present with the

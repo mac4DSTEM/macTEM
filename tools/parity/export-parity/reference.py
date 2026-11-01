@@ -65,7 +65,7 @@ SOFTWARE = "macTEM 0.1.0 (1)"
 VALIDATION_PNG = ("display rendering: window, gamma, 8-bit colour, not intensities; "
                   "the scale bar's length checked against its label (export-parity)")
 LINEAGE_PNG = "none — marks carry no lineage id; the marks' parameters stand in"
-LINEAGE_CSV = "none — marks carry no lineage id until V1-2; the mark's parameters above stand in"
+LINEAGE_CSV = "none — marks carry no lineage id; the mark's parameters above stand in"
 VALIDATION_CSV = ("samples compared with scikit-image 0.26.0 profile_line(order=1, mode=\"reflect\", reduce_func=mean) "
                   "(1e-5 relative; 1e-5 of the image's largest magnitude near zero); calibration: as the file states it")
 NUMBERS_CSV = "%.17g (exact round trip); nan where a NaN pixel enters a sample"
@@ -198,6 +198,13 @@ def axis_calibrated(a):
 def sanitize(s):
     """One header value: C0 controls, DEL, C1 controls (U+0085 included), U+2028, U+2029 -> a space (the registration)."""
     return "".join(" " if (ord(c) < 0x20 or 0x7F <= ord(c) <= 0x9F or ord(c) in (0x2028, 0x2029)) else c for c in s)
+
+
+def reader_note(notes):
+    """What follows every validation sentence (ImagoKit 0.9.1): "; reader note: " and the notes, each sanitized, blank ones left
+    out, joined by "; "; nothing without a note."""
+    said = [sanitize(n) for n in notes if sanitize(n).strip()]
+    return "; reader note: " + "; ".join(said) if said else ""
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -565,7 +572,7 @@ def plant(dm4, truth_path, rsciio, out):
     gy, gx = np.mgrid[0:128, 0:128].astype(np.float64)
     lattice = (1000 + 120 * np.cos(2 * np.pi * (0.1731 * gx + 0.0627 * gy)) + 0.01 * gx).astype(np.float32)
     add("results-lattice", lattice, axis(0.0731, "nm"), axis(0.0789, "nm"), "results.dm4", "ImageList.1 · lattice")
-    # the same pixels in a file whose reader says it is unvalidated: every claim the CSV makes carries that qualifier
+    # the same pixels in a file whose reader notes say the scale is unvalidated: every claim the CSV makes quotes that note
     add("results-lattice-unvalidated", lattice, axis(0.0731, "nm"), axis(0.0789, "nm"), "results-unvalidated.dm4",
         "ImageList.1 · lattice", notes=["Unvalidated scale (test)"])
 
@@ -1166,7 +1173,7 @@ def check_csv(rep, stats, ld, c):
               "method": "bilinear interpolation (order 1), scipy's \"reflect\" boundary (half-sample symmetric), "
                         f"mean of {c['width']} samples 1 px apart along the perpendicular on the pixel grid",
               "notes": "; ".join(sanitize(n) for n in ident["notes"]) if ident["notes"] else "none",
-              "validation": VALIDATION_CSV + (", unvalidated (reader note)" if any("unvalidated" in n.lower() for n in ident["notes"]) else ""),
+              "validation": VALIDATION_CSV + reader_note(ident["notes"]),
               "lineage": LINEAGE_CSV, "numbers": NUMBERS_CSV}
     for key, want in expect.items():
         if d.get(key) != want:
@@ -1299,8 +1306,8 @@ def check_results(rep, stats, ld, c):
     present = [p for p in RESULTS_PRODUCTS if any(r["product"] == p for r in rows)]
     got_validation = {key[len("validation ("):-1]: v for key, v in parsed.items() if key.startswith("validation (")}
     problems = []
-    # a file whose reader notes say "unvalidated" keeps the qualifier on every claim (header lines and the validation column)
-    suffix = ", unvalidated (reader note)" if any("unvalidated" in n.lower() for n in ld.identity(c["image"])["notes"]) else ""
+    # a file with reader notes quotes them after every claim (header lines and the validation column)
+    suffix = reader_note(ld.identity(c["image"])["notes"])
     if header[0] != "# macTEM results":
         problems.append(f"first line {header[0]!r}")
     if got_validation != {p: sentences[p] + suffix for p in present}:

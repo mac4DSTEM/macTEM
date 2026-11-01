@@ -32,6 +32,8 @@ package nonisolated struct EELSEdgeRow: Equatable, Sendable, Identifiable {
     /// no sigma for an amount, or there is no composition.
     package let atomicSigma: Double?
     package let weightSigma: Double?
+    /// The kit's flag (`EELSCompositionPixel.notDetected`, MLLS): the element's fitted amount is at or below zero, so it counts as 0 at% and is not detected.
+    package let notDetected: Bool
     /// I at or under 3 sigma: the edge is not detected in this region, so its at% is not a number to read (Egerton's 3-sigma detection criterion).
     package var belowDetection: Bool {
         guard let i = intensity, let s = intensityStd, s > 0 else { return false }
@@ -40,12 +42,15 @@ package nonisolated struct EELSEdgeRow: Equatable, Sendable, Identifiable {
 
     package init(id: String, title: String, onsetEV: Double, intensity: Double?, arealDensityPerNM2: Double?, atomicPercent: Double?, weightPercent: Double?,
                  exponent: Double? = nil, unavailable: String?, intensityStd: Double? = nil, atomicUnavailable: String? = nil, exponentAtBound: Bool = false,
-                 fitOnly: Bool = false, atomicSigma: Double? = nil, weightSigma: Double? = nil) {
+                 fitOnly: Bool = false, atomicSigma: Double? = nil, weightSigma: Double? = nil, notDetected: Bool = false) {
         self.id = id; self.title = title; self.onsetEV = onsetEV; self.intensity = intensity; self.arealDensityPerNM2 = arealDensityPerNM2
         self.atomicPercent = atomicPercent; self.weightPercent = weightPercent; self.exponent = exponent; self.unavailable = unavailable
         self.intensityStd = intensityStd; self.atomicUnavailable = atomicUnavailable; self.exponentAtBound = exponentAtBound; self.fitOnly = fitOnly
-        self.atomicSigma = atomicSigma; self.weightSigma = weightSigma
+        self.atomicSigma = atomicSigma; self.weightSigma = weightSigma; self.notDetected = notDetected
     }
+
+    /// The words for a not-detected element (the kit's MLLS rule).
+    package static let notDetectedWords = "not detected (MLLS amount ≤ 0)"
 
     /// The room's words for an at% that needs a second element.
     package static let atomicNeedsTwo = "at% needs two or more fitted elements"
@@ -139,7 +144,7 @@ package nonisolated enum EELSFitCompute {
             return .failure(CompositionRefusal(text: leftOut ? EELSEdgeRow.atomicNeedsTwoQuantified : EELSEdgeRow.atomicNeedsTwo))
         }
         do { return .success(try result.composition(symbols: symbols)) } catch {
-            return .failure(CompositionRefusal(text: "the kit refused the composition: \((error as? LocalizedError)?.errorDescription ?? "\(error)")"))
+            return .failure(CompositionRefusal(text: "the kit refused the composition: \(EELSErrorWords.sentence(for: error))"))
         }
     }
 
@@ -160,21 +165,29 @@ package nonisolated enum EELSFitCompute {
                                    unit: areal ? "nm⁻²" : "intensity", width: result.nx, height: result.ny, values: values, version: version, footer: why))
         }
         if let composition {
+            let missing = composition.filter { $0.unavailable != nil }.count
             for (i, symbol) in quantifiedSymbols(result, fitOnly: fitOnly).enumerated() {
                 let values = composition.map { $0.atomicPercent.indices.contains(i) ? $0.atomicPercent[i] : Double.nan }
-                let missing = composition.filter { $0.unavailable != nil }.count
                 out.append(EELSMapTile(id: "at-" + symbol, title: symbol, unit: "at%", width: result.nx, height: result.ny, values: values, version: version,
-                                       footer: missing == 0 ? nil : "\(missing) px: no composition"))
+                                       footer: compositionFooter(composition, element: i, missing: missing)))
             }
             // The kit's wt% of the same composition (its amounts times its atomic masses), one tile per quantified element; no arithmetic here.
             for (i, symbol) in quantifiedSymbols(result, fitOnly: fitOnly).enumerated() {
                 let values = composition.map { $0.weightPercent.indices.contains(i) ? $0.weightPercent[i] : Double.nan }
-                let missing = composition.filter { $0.unavailable != nil }.count
                 out.append(EELSMapTile(id: "wt-" + symbol, title: symbol, unit: "wt%", width: result.nx, height: result.ny, values: values, version: version,
-                                       footer: missing == 0 ? nil : "\(missing) px: no composition"))
+                                       footer: compositionFooter(composition, element: i, missing: missing)))
             }
         }
         return out
+    }
+
+    /// A composition tile's footer: the pixels with no composition, and the pixels where the kit counts element `i` as not detected (MLLS amount ≤ 0,
+    /// drawn as its 0 at%); nil when there is neither.
+    package static func compositionFooter(_ composition: [EELSCompositionPixel], element i: Int, missing: Int) -> String? {
+        let absent = composition.filter { $0.unavailable == nil && $0.notDetected.indices.contains(i) && $0.notDetected[i] }.count
+        let parts = [missing == 0 ? nil : "\(missing) px: no composition", absent == 0 ? nil : "\(absent) px: " + EELSEdgeRow.notDetectedWords]
+        let said = parts.compactMap { $0 }
+        return said.isEmpty ? nil : said.joined(separator: " · ")
     }
 
     /// The region table: one row per fitted edge for the one pixel of `result` (a summed region fitted as a 1 x 1 image). A fit-only edge keeps its I and
@@ -197,6 +210,7 @@ package nonisolated enum EELSFitCompute {
             let isFitOnly = fitOnly.contains(edge.element)
             let col = isFitOnly ? nil : symbols.firstIndex(of: edge.element)
             let atomic = col.flatMap { c in comp.flatMap { $0.atomicPercent.indices.contains(c) ? $0.atomicPercent[c] : nil } }
+            let absent = atomic != nil && (col.flatMap { c in comp.flatMap { $0.notDetected.indices.contains(c) ? $0.notDetected[c] : nil } } ?? false)
             let why = isFitOnly ? EELSEdgeRow.fitOnlyWords : (atomicWhy ?? "the kit gave no at% for this edge")
             return EELSEdgeRow(id: id(edge), title: title(edge), onsetEV: edge.onsetEV, intensity: result.intensity(pixel: 0, edge: g),
                                arealDensityPerNM2: result.arealDensity(pixel: 0, edge: g), atomicPercent: atomic,
@@ -204,7 +218,8 @@ package nonisolated enum EELSFitCompute {
                                exponent: result.exponent(pixel: 0, edge: g),
                                unavailable: result.unavailable(pixel: 0, edge: g).map(words), intensityStd: result.intensityStd(pixel: 0, edge: g),
                                atomicUnavailable: atomic == nil ? why : nil, exponentAtBound: atBound, fitOnly: isFitOnly,
-                               atomicSigma: atomic == nil ? nil : col.flatMap { sigma?.atomic[$0] }, weightSigma: atomic == nil ? nil : col.flatMap { sigma?.weight[$0] })
+                               atomicSigma: atomic == nil ? nil : col.flatMap { sigma?.atomic[$0] }, weightSigma: atomic == nil ? nil : col.flatMap { sigma?.weight[$0] },
+                               notDetected: absent)
         }
     }
 }

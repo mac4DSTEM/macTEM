@@ -38,7 +38,7 @@ file's unit when both axes are calibrated in one unit, pixels otherwise, 1e-12 r
 the samples equal the analytic profile (1e-5 relative, measured 3e-8). The header: the fixed keys in the registered order, start
 and end re-read bit-equal to the planted points, width, samples, image size, each axis's scale, unit and origin (`none` when not
 calibrated), the length, the position sentence, the `shown` line only when planted, notes joined by `; ` or `none`, the
-`unvalidated (reader note)` clause only when a note says so, the control characters, U+0085, U+2028 and U+2029 turned into
+`; reader note: <notes>` after the validation when the file has notes, the control characters, U+0085, U+2028 and U+2029 turned into
 spaces, and the RFC 4180 column header (parsed with `csv`, so a unit with a comma and a quote is read back whole). No BOM, no CR,
 one final LF. A profile of no samples writes no file.
 
@@ -115,8 +115,8 @@ harness dumped** (`ImageMeasurement.validation`, `ProfileCSV.validation`, `FFTEx
 product. R-P2's reference side: every product has a sentence (all nine of `ResultRow.Product`, named in reference.py's `RESULTS_PRODUCTS`,
 which a unit test holds equal to the app's list; calibration and ring come from the Diffraction room, edsComposition from the EDS room, eelsThickness and eelsEdge from the EELS room) and no sentence claims "validated" (only "unvalidated" may contain it).
 A second case, `results-unvalidated`, plants the same pixels in a file whose reader notes say "Unvalidated scale (test)": every
-`# validation (...)` header line and every validation cell must then end with `, unvalidated (reader note)`, as the profile CSV's
-does (unvalidated stays labelled); control (42) drops it. A profile row's sentence is `ImageMeasurement.validation`, then `; samples (the
+`# validation (...)` header line and every validation cell must then end with `; reader note: Unvalidated scale (test)`, as the profile CSV's
+does (ImagoKit 0.9.1); control (42) drops it. A profile row's sentence is `ImageMeasurement.validation`, then `; samples (the
 Image room's profile CSV): `, then `ProfileCSV.validation` (its numbers are closed forms, its samples scikit-image's).
 Controls (37)-(41) are registered with it; (42) is an extra.
 

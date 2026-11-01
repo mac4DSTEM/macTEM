@@ -31,7 +31,7 @@ final class EELSRoomState {
     var mapsNotice: String?
     /// The Maps section's display filter (control placement §11): the kernel the quantified tiles are DRAWN through, never their numbers
     /// (`EELSMapDisplay`). Window-wide; the 3 × 3 average by default, as the EDS room's.
-    var mapFilter: EDXMapFilter = .mean3x3
+    var mapFilter: EELSMapFilter = .mean3x3
     /// The status line's cursor readout: the pixel and its values over a map, the energy and counts over the spectrum; nil when the pointer is elsewhere.
     var readout: String?
     /// The spectrum's counts axis: log (the room's default) or linear.
