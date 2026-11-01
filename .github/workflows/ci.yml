@@ -115,7 +115,7 @@ jobs:
     name: Lint (shared SwiftLint and SwiftFormat config)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: SwiftLint
         run: docker run --rm -v "$PWD:/work" -w /work --entrypoint swiftlint ghcr.io/realm/swiftlint:0.65.1 lint --strict --quiet
       - name: SwiftFormat
