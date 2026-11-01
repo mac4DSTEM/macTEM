@@ -427,7 +427,7 @@ nonisolated final class FFTRoomPaneTests: XCTestCase {
     }
 
     /// Each product's plate names the product and what it was computed from, in the design note's words. The filters'
-    /// begin with the warning, every time. Red under: "Unvalidated" dropped from either filter's plate; a spot count not
+    /// name the method and carry no unvalidated label. Red under: the method dropped from either filter's plate; a spot count not
     /// matching the product's key; the singular not used for one spot; the size of the filter taken from the region.
     @MainActor func testEachProductsPlateNamesItAndItsInputs() {
         let key = FFTSpectrumKey(contentVersion: 1, crop: crop)
@@ -437,9 +437,9 @@ nonisolated final class FFTRoomPaneTests: XCTestCase {
         XCTAssertEqual(FFTPaneFormat.maskedInversePlate(spots: 1, radius: 3.5, edge: 0, width: 64, height: 64, locale: en),
                        "Masked inverse · 1 spot and its Friedel partner · radius 3.5, edge 0 bins · 64 × 64 px")
         XCTAssertEqual(FFTPaneFormat.filterPlate("ABSF", size: 512),
-                       "Unvalidated · not compared with Digital Micrograph · ABSF · 512 × 512 px")
+                       "HRTEM filter · ABSF · 512 × 512 px")
         XCTAssertEqual(FFTPaneFormat.filterPlate("Wiener", size: 512),
-                       "Unvalidated · not compared with Digital Micrograph · Wiener · 512 × 512 px")
+                       "HRTEM filter · Wiener · 512 × 512 px")
         XCTAssertEqual(FFTPaneFormat.regionPlate(crop: PixelCrop(row: 404, col: 812, height: 256, width: 256), width: 256, height: 256),
                        "Region · transformed pixels · 256 × 256 px at (812, 404)")
         XCTAssertEqual(FFTPaneFormat.regionPlate(crop: nil, width: 2048, height: 1024),
@@ -454,10 +454,10 @@ nonisolated final class FFTRoomPaneTests: XCTestCase {
         XCTAssertEqual(layerInverse?.plate?.hasPrefix("Masked inverse · 3 spots and their Friedel partners · radius 2, edge 1 bins"), true)
         let layerFilter = FFTSourceLayer.make(.wiener, original: canvas(0), colormap: .gray, window: (0, 1), gamma: 1,
                                               spectrum: nil, inverse: nil, filtered: filtered)
-        XCTAssertEqual(layerFilter?.plate, "Unvalidated · not compared with Digital Micrograph · Wiener · 48 × 48 px")
+        XCTAssertEqual(layerFilter?.plate, "HRTEM filter · Wiener · 48 × 48 px")
         let layerAbsf = FFTSourceLayer.make(.absf, original: canvas(0), colormap: .gray, window: (0, 1), gamma: 1,
                                             spectrum: nil, inverse: nil, filtered: filtered)
-        XCTAssertEqual(layerAbsf?.plate, "Unvalidated · not compared with Digital Micrograph · ABSF · 48 × 48 px")
+        XCTAssertEqual(layerAbsf?.plate, "HRTEM filter · ABSF · 48 × 48 px")
     }
 
     /// The View menu names every view; one that cannot be chosen yet says why, BY CAUSE, in its own item: the Masked Inverse

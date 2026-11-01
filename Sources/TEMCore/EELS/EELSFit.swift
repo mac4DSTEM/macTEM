@@ -2,7 +2,7 @@
 // per-edge fit: a power-law background and the GOS edge by non-negative least squares with the exponent by Brent's method; or `EELSMLLS.fit`, multiple
 // linear least squares with the exponent fixed), the composition (`EELSQuantification.composition`, over the quantified elements only: a fit-only element
 // stays in the model and out of the at%) and the tiles and the region table made from them. Nothing here is a number of macTEM's own: every value is a
-// field of the kit's fit result (`EELSFitResult`) or of `EELSCompositionPixel`. Validation: none.
+// field of the kit's fit result (`EELSFitResult`) or of `EELSCompositionPixel`.
 import Foundation
 import SpectroCore
 import SpectroEELS

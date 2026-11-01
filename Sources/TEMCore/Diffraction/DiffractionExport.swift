@@ -1,7 +1,7 @@
 //
 //  DiffractionExport.swift
 //  Role: the Diffraction room's readout as one CSV (design section 6): comment lines (file, centre and where it came from, the
-//        calibration and its source, the crystal and its sha256, k_max, the tolerance, the validation) then one row per ring or spot.
+//        calibration and its source, the crystal and its sha256, k_max, the tolerance) then one row per ring or spot.
 //        Pure text; the numbers are what `DiffractionReadout` rows hold, which are the kit's.
 //
 
@@ -59,7 +59,7 @@ package nonisolated struct DiffractionExportHeader: Sendable, Equatable {
 }
 
 package nonisolated enum DiffractionExport {
-    package static let columns = "kind,number,R_px,q_per_A,d_A,family,d_listed_A,delta_percent,odds,verdict,calibrating,validation"
+    package static let columns = "kind,number,R_px,q_per_A,d_A,family,d_listed_A,delta_percent,odds,verdict,calibrating"
 
     package static func text(rows: [DiffractionReadoutRow], header h: DiffractionExportHeader) -> String {
         func g(_ v: Double?) -> String { v.map { String(format: "%.9g", $0) } ?? "" }
@@ -71,11 +71,10 @@ package nonisolated enum DiffractionExport {
             "# calibration: \(h.calibration); delta_q \(g(h.deltaQ)) per A per px; wavelength \(g(h.wavelengthAngstroms)) A; L \(g(h.lengthPixels)) px; L \(g(h.lengthMM)) mm; fit versus file \(g(h.fitVersusFilePercent)) %",
             "# crystal: \(h.crystal)\(h.crystalSHA256.map { " sha256 \($0)" } ?? ""); k_max \(g(h.kMax)) per A; tolerance \(g(h.tolerancePercent)) % of q",
         ]
-        lines.append("# validation: " + (rows.first?.validation ?? "none"))
         lines.append(columns)
         for r in rows {
             lines.append([r.kind.rawValue, "\(r.number)", g(r.radiusPx), g(r.q), g(r.d), cell(r.family ?? ""), g(r.dListed), g(r.deltaPercent),
-                          cell(r.oddsText ?? ""), cell(r.verdict), r.isCalibrating ? "yes" : "", cell(r.validation)].joined(separator: ","))
+                          cell(r.oddsText ?? ""), cell(r.verdict), r.isCalibrating ? "yes" : ""].joined(separator: ","))
         }
         return lines.joined(separator: "\n") + "\n"
     }

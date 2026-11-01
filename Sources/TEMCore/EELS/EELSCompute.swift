@@ -145,7 +145,7 @@ extension EELSCompute {
     /// Per-pixel diagnostics, the kit's fields: x, y, t/λ, σ, I_0, I_total, ZLP centre, threshold, t (nm), and the reason where there is none.
     package static func diagnosticsCSV(_ map: ThicknessMap, fileName: String) -> String {
         func g(_ v: Double?) -> String { v.map { String(format: "%.9g", $0) } ?? "" }
-        var out = ["# macTEM EELS thickness, file: \(fileName), method: \(map.method), validation: \(map.validation)",
+        var out = ["# macTEM EELS thickness, file: \(fileName), method: \(map.method), reference: \(ResultRow.Product.eelsThicknessReference)",
                    "x,y,t_over_lambda,sigma_counting,i0,i_total,zlp_centre_eV,threshold_eV,thickness_nm,unavailable"]
         for y in 0..<map.ny {
             for x in 0..<map.nx {
@@ -157,11 +157,11 @@ extension EELSCompute {
         return out.joined(separator: "\n") + "\n"
     }
 
-    /// The method as JSON: what made the map, with the badge, so another reader (mac4DSTEM's thickness row) can name its source.
+    /// The method as JSON: what made the map and the method's reference, so another reader (mac4DSTEM's thickness row) can name its source.
     /// `deconvolution` is the Deconvolve stage's method and parameters (`EELSDeconvolveCompute.parameters`), `fit` the edge model's, when they ran.
     package static func methodJSON(_ map: ThicknessMap, fileName: String, origin: String, deconvolution: [String: Any]? = nil,
                                    fit: [String: Any]? = nil) -> String {
-        var d: [String: Any] = ["file": fileName, "origin": origin, "method": map.method, "validation": map.validation,
+        var d: [String: Any] = ["file": fileName, "origin": origin, "method": map.method, "reference": ResultRow.Product.eelsThicknessReference,
                                 "width": map.nx, "height": map.ny]
         if let deconvolution { d["deconvolution"] = deconvolution }
         if let fit { d["edge_fit"] = fit }

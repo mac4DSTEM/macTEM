@@ -108,14 +108,15 @@ nonisolated final class DiffractionAnalysisTests: XCTestCase {
         XCTAssertEqual(analysis.calibration(for: flat)?.source, .typed)
     }
 
-    @MainActor func testTheCSVStatesTheScaleTheCrystalAndTheValidation() async throws {
+    /// The CSV states the scale and the crystal, and carries no unvalidated caption (no `# validation:` line, no validation column).
+    @MainActor func testTheCSVStatesTheScaleAndTheCrystalWithoutABadge() async throws {
         let (analysis, image) = try await calibrated()
         let text = analysis.exportText(image: image)
         XCTAssertTrue(text.contains("# file: Demo Au pattern"))
         XCTAssertTrue(text.contains("# centre: row 256, column 256 (the image centre)"))
         XCTAssertTrue(text.contains("# calibration: fit Au {111}"))
         XCTAssertTrue(text.contains("# crystal: Au; k_max"))
-        XCTAssertTrue(text.contains("# validation: none"))
+        XCTAssertFalse(text.contains("validation"))
         XCTAssertTrue(text.contains(DiffractionExport.columns))
         let line = try XCTUnwrap(text.split(separator: "\n").first { $0.hasPrefix("ring,1,") })
         XCTAssertTrue(line.contains("{111}"))

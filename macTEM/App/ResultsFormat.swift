@@ -4,9 +4,8 @@
 //        group names, a row's Value, Source, Record and badge, the header count, the Info fields, the spoken row, the
 //        line ⌘C copies, and the export's name and words. Pure, `nonisolated`, so a test pins each as `MarkFormat` does.
 //
-//        THE ROOM AUTHORS NO CLAIM OF TRUST: a badge is `ResultRow.Product.badge` (the producer's own label) and its tooltip is
-//        `ResultRow.Product.validation` (the producer's constant); the only words added here are "Unvalidated · <the file's own
-//        note>" when the reader's notes say the file is unvalidated, as `ProfileCSV` does. Values are the owners' Doubles brought
+//        THE ROOM AUTHORS NO CLAIM OF TRUST: the Method column is `ResultRow.Product.badge` (the method's name) and its tooltip is
+//        `ResultRow.Product.validation` (the producer's constant); no trust label is added. Values are the owners' Doubles brought
 //        to the same text the owner's room shows (a mark as `MarkFormat`, a spot as `FFTRoomFormat`); the file's Doubles are in
 //        the CSV.
 //
@@ -168,15 +167,10 @@ nonisolated enum ResultsFormat {
     /// Diffraction design's nodes exist; the room never implies they were saved).
     static func record(_ row: ResultRow) -> String { row.lineage ?? "not recorded" }
 
-    /// The badge: the producer's label; a file whose reader notes say "unvalidated" turns it to "Unvalidated · <that note>".
-    static func badge(_ row: ResultRow, notes: [String]) -> String {
-        if let note = notes.first(where: { $0.lowercased().contains("unvalidated") }) {
-            return "Unvalidated · \(CSVText.headerValue(note))"
-        }
-        return row.product.badge
-    }
+    /// The Method column: the method's name, the same for every file.
+    static func badge(_ row: ResultRow) -> String { row.product.badge }
 
-    /// The badge's tooltip and the Info field: the producer's own sentence.
+    /// The Method column's tooltip and the Info field: the producer's own sentence.
     static func validation(_ row: ResultRow) -> String { row.product.validation }
 
     /// One sentence for VoiceOver: "Distance 1, 12.43 nm, 50.02 pixels, <badge>, recorded as s7".
@@ -195,7 +189,7 @@ nonisolated enum ResultsFormat {
         rows.map { row in
             copyLine(label: row.label, value: value(row, x: image.x, y: image.y, locale: locale),
                      source: source(row, imageWidth: image.width, imageHeight: image.height), record: record(row),
-                     badge: badge(row, notes: image.notes))
+                     badge: badge(row))
         }.joined(separator: "\n")
     }
 

@@ -322,23 +322,29 @@ nonisolated final class ResultsCSVTests: XCTestCase {
             // A profile row's numbers are closed forms; the Image room's CSV samples are scikit-image's: both constants, in that order.
             case .profile: producers = ImageMeasurement.validation + ResultRow.Product.profileSamplesClause + ProfileCSV.validation
             case .spot: producers = FFTExport.spotsValidation
-            // The kit's own self-reported sentence (validation: none) for the indexing; the calibration's is the room's statement of what its numbers are.
-            case .ring: producers = RingIndexing.validation
+            // The ring, EDS and EELS rows name their method, what it was compared with or its reference; the calibration's is the room's
+            // statement of what its numbers are.
+            case .ring: producers = ResultRow.Product.ringMethod
             case .calibration: producers = product.validation
-            // SpectroKit's own constant for a composition, after the words that say what the numbers are.
-            case .edsComposition: producers = ResultRow.Product.edsCompositionLead + PooledQuantification.abundanceValidation
-            // SpectroKit's EELS results carry their validation word on each result ("none"); ResultsLedgerTests holds a real map's and fit's equal to it.
-            case .eelsThickness: producers = ResultRow.Product.eelsThicknessLead + ResultRow.Product.eelsKitValidation
-            case .eelsEdge: producers = ResultRow.Product.eelsEdgeLead + ResultRow.Product.eelsKitValidation
+            case .edsComposition: producers = ResultRow.Product.edsCompositionMethod
+            case .eelsThickness: producers = ResultRow.Product.eelsThicknessMethod
+            case .eelsEdge: producers = ResultRow.Product.eelsEdgeMethod
             }
             XCTAssertEqual(product.validation, producers, "\(product): not the producer's constant")
             XCTAssertFalse(product.validation.isEmpty)
+            // No trust state is shown or written: the sentence is the Method tooltip and the CSV's validation column.
+            XCTAssertFalse(product.validation.contains("validation: none"), "\(product): \(product.validation)")
+            XCTAssertFalse(product.validation.lowercased().hasPrefix("none"), "\(product): \(product.validation)")
+            XCTAssertFalse(product.validation.lowercased().contains("unvalidated"), "\(product): \(product.validation)")
             XCTAssertFalse(product.badge.isEmpty)
-            let unvalidated: [ResultRow.Product] = [.ring, .edsComposition, .eelsThickness, .eelsEdge]
-            XCTAssertTrue(product.badge.hasPrefix(unvalidated.contains(product) ? "Unvalidated · " : "Checked · "), "\(product): \(product.badge)")
+            XCTAssertFalse(product.badge.lowercased().contains("validated"), "\(product): \(product.badge)")
+            XCTAssertFalse(product.badge.contains("Checked"), "\(product): \(product.badge)")
         }
         XCTAssertTrue(ResultRow.Product.profile.validation.hasPrefix(ImageMeasurement.validation), "the row's numbers are closed forms")
         XCTAssertTrue(ResultRow.Product.profile.validation.hasSuffix(ProfileCSV.validation), "the samples are scikit-image's")
+        XCTAssertTrue(ResultRow.Product.edsComposition.validation.contains("reference: "), "EDS names its reference")
+        XCTAssertTrue(ResultRow.Product.eelsThickness.validation.hasSuffix(ResultRow.Product.eelsThicknessReference), "log-ratio names its reference")
+        XCTAssertTrue(ResultRow.Product.eelsEdge.validation.contains("reference: "), "the edge model names its reference")
         XCTAssertEqual(Set(ResultRow.Product.allCases.map(\.group)), Set(ResultRow.Group.allCases),
                        "every group has a product, so a group has a sentence")
         for group in ResultRow.Group.allCases {
@@ -354,15 +360,12 @@ nonisolated final class ResultsCSVTests: XCTestCase {
         }
     }
 
-    /// All nine badges, as worded: three claims of a closed form (a profile row's numbers are the line's length and width, not the
-    /// samples), one of planted spots, the calibration's closed forms, the ring's, the EDS composition's and the two EELS products' honest
-    /// "unvalidated"; no version is written in a badge. Red under: the profile badge naming scikit-image again; a badge reworded.
+    /// All nine Method labels, as worded: each names the method that made the numbers, with no trust label ("Checked",
+    /// "Unvalidated"); no version is written. Red under: an "Unvalidated" label back; a label reworded.
     func testTheNineBadges() {
-        XCTAssertEqual(ResultRow.Product.allCases.map(\.badge), ["Checked · closed form", "Checked · closed form",
-                                                                "Checked · closed form", "Checked · planted spots",
-                                                                "Checked · closed form", "Unvalidated · indexing",
-                                                                "Unvalidated · composition", "Unvalidated · thickness",
-                                                                "Unvalidated · edge model"])
+        XCTAssertEqual(ResultRow.Product.allCases.map(\.badge), ["Closed form", "Closed form", "Closed form", "Spot centroid",
+                                                                "Ring calibration", "Ring indexing", "Cliff-Lorimer",
+                                                                "Log-ratio t/λ", "EELS edge model"])
         XCTAssertEqual(ResultRow.Product.allCases.map(\.rawValue), ["distance", "angle", "profile", "spot", "calibration", "ring", "edsComposition",
                                                                    "eelsThickness", "eelsEdge"])
     }

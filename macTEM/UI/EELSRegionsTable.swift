@@ -2,7 +2,7 @@
 //  EELSRegionsTable.swift
 //  Role: the Table tab of the EELS room: one row per region with its pixels, its summed low loss (total counts, t/λ) and, once the edge model has run, the
 //        intensity and the composition of each fitted edge in that region's summed core loss. The rows are the session's (`EELSRegionRow`, SpectroKit's
-//        thickness and edge model on the region's sum); this file lays them out. Unvalidated numbers stay badged.
+//        thickness and edge model on the region's sum); this file lays them out.
 //
 
 import ShellLayout
@@ -73,10 +73,6 @@ struct EELSRegionsTable: View {
                     }
                     .padding(10)
                 }
-                Label("validation: none · not compared with a standard", systemImage: "questionmark.circle.fill")
-                    .font(.caption).foregroundStyle(.orange)
-                    .padding(.horizontal, 10).padding(.bottom, 6)
-                    .accessibilityIdentifier("eels.regionTable.badge")
             }
             .accessibilityIdentifier("eels.regionTable")
         }

@@ -4,7 +4,7 @@
 //        mounted by `WorkspaceInspector`'s Settings and Info switches.
 //        Settings: Show (one switch per group), Session (the Image room's tail: where the marks are kept, Save to Session) and
 //        Export (one full-width button: All results as CSV…, the twin of File > Export Results…, ⇧⌥⌘E).
-//        Info: Result (the selected row: its name, value, source, record, how far it is trusted — the producer's sentence —
+//        Info: Result (the selected row: its name, value, source, record, its method — the producer's sentence —
 //        and every number with its unit as the CSV names it) and Source Image (the file, its size and calibration).
 //
 //  COST (design estimates, unverified on screen): Show 44 + 2 × 34 = 112 + 12; Session ~90 + 12; Export 44 + 12 — about 280 pt,
@@ -84,7 +84,7 @@ struct ResultsRoomInfo: View {
                 InspectorValueRow("Value", value)
                 InspectorValueRow("Source", ResultsFormat.source(row, imageWidth: image.width, imageHeight: image.height))
                 InspectorValueRow("Record", ResultsFormat.record(row))
-                InspectorValueRow("Trust", ResultsFormat.badge(row, notes: image.notes))
+                InspectorValueRow("Method", ResultsFormat.badge(row))
                 InspectorNote(ResultsFormat.validation(row))
                 ForEach(Array(row.entries.enumerated()), id: \.offset) { _, entry in
                     let field = ResultsFormat.field(entry)

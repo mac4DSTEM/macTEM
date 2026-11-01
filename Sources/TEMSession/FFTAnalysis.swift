@@ -421,7 +421,7 @@ package final class FFTAnalysis {
     package private(set) var maskEdge: Double = FFTMask.defaultEdge
     /// Mitchell's defaults until changed; out of range is refused by the filter, never clamped.
     package private(set) var filterParameters = HRTEMFilter.Parameters.defaults
-    /// Smoothing, band-pass and window applied to the transformed pixels before the transform (badged unvalidated).
+    /// Smoothing, band-pass and window applied to the transformed pixels before the transform.
     package private(set) var preprocess = FFTPreprocess()
     /// "Find spots": the settings of the finder and the number of spots it put on the spectrum last time.
     package private(set) var spotFinder = FFTSpotFinder.Settings()
