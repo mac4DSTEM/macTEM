@@ -1,7 +1,7 @@
 // swift-tools-version: 6.2
 // SPDX-License-Identifier: GPL-3.0-only
 // TEMCore and TEMSession, the app's two library targets (`tools/run-tests.sh core` builds them standalone: the layering
-// gate). Kits at exact tags. No UI below the app: TEMCore takes only ShellEDXModel from MacEMUI (the shared EDS room's model, no SwiftUI).
+// gate). Kits and MacEMUI by version range (Package.resolved holds the versions built). No UI below the app: TEMCore takes only ShellEDXModel from MacEMUI (the shared EDS room's model, no SwiftUI).
 import PackageDescription
 
 let package = Package(
@@ -12,13 +12,13 @@ let package = Package(
         .library(name: "TEMSession", targets: ["TEMSession"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/mac4DSTEM/FormatoKit", exact: "0.11.0"),
-        .package(url: "https://github.com/mac4DSTEM/DiffractoKit", exact: "0.10.0"),
-        .package(url: "https://github.com/mac4DSTEM/ImagoKit", exact: "0.8.0"),
-        .package(url: "https://github.com/mac4DSTEM/SpectroKit", exact: "0.12.0"),
+        .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.11.0"),
+        .package(url: "https://github.com/mac4DSTEM/DiffractoKit", from: "0.10.0"),
+        .package(url: "https://github.com/mac4DSTEM/ImagoKit", from: "0.8.0"),
+        .package(url: "https://github.com/mac4DSTEM/SpectroKit", from: "0.12.0"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
-        .package(url: "https://github.com/mac4DSTEM/MacEMUI", exact: "0.4.0"),
+        .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.4.0"),
     ],
     targets: [
         .target(

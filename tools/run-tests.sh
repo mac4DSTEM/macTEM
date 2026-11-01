@@ -297,14 +297,16 @@ inventory() {
   grep -q '\.defaultIsolation(' <(sed -n '/name: "TEMCore"/,/^        ),/p' "$ROOT/Package.swift") \
     && { echo "  TEMCore sets a default isolation; it is nonisolated by decision"; rc=1; }
 
-  echo "== kits: exact pins, the same in Package.swift and Package.resolved"
-  # The kits are imported at exact tags, never a local path; the harnesses build them through SwiftPM from Package.resolved.
+  echo "== kits: version ranges in Package.swift, Package.resolved inside them"
+  # The kits are imported by version range (`from:`), never a local path; Package.resolved holds the versions built, and the
+  # harnesses build them through SwiftPM from it. A resolved version must lie in the range: at least the lower bound, same major.
   local kit pkg_version res_version
-  for kit in DiffractoKit FormatoKit ImagoKit; do
-    pkg_version="$(sed -nE "s#.*github\.com/mac4DSTEM/$kit(\.git)?\", exact: \"([0-9.]+)\".*#\2#p" "$ROOT/Package.swift")"
+  for kit in DiffractoKit FormatoKit ImagoKit SpectroKit MacEMUI; do
+    pkg_version="$(sed -nE "s#.*github\.com/mac4DSTEM/$kit(\.git)?\", from: \"([0-9.]+)\".*#\2#p" "$ROOT/Package.swift")"
     res_version="$(awk -v id="${kit:l}" '$0 ~ "\"identity\" *: *\"" id "\"" { f = 1 } f && /"version"/ { gsub(/[",]/, "", $3); print $3; exit }' "$ROOT/Package.resolved")"
-    [[ -n "$pkg_version" && "$pkg_version" == "$res_version" ]] \
-      || { echo "  Package.swift pins $kit '$pkg_version' exact, Package.resolved '$res_version'"; rc=1; }
+    [[ -n "$pkg_version" && -n "$res_version" && "${pkg_version%%.*}" == "${res_version%%.*}" \
+       && "$(printf '%s\n' "$pkg_version" "$res_version" | sort -V | head -1)" == "$pkg_version" ]] \
+      || { echo "  Package.swift takes $kit from '$pkg_version', Package.resolved has '$res_version'"; rc=1; }
   done
 
   # Any import form: an attribute (@preconcurrency, @_exported), an access level, an import kind (`import class`).
