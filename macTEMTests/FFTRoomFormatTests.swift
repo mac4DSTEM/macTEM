@@ -651,8 +651,8 @@ nonisolated final class FFTRoomFormatTests: XCTestCase {
     /// notes, in these words", and the inspector and Info tables), and the few the inspector adds. Red under: any word
     /// changed.
     func testTheDesignsWordsAreExact() {
-        XCTAssertEqual(FFTRoomFormat.unvalidatedWarning,
-                       "Unvalidated: not compared with Digital Micrograph. A re-implementation of D. R. G. Mitchell's HRTEM filter script, never checked against its output.")
+        XCTAssertEqual(FFTRoomFormat.filterMethodNote,
+                       "A re-implementation of D. R. G. Mitchell's HRTEM filter script for Digital Micrograph (ABSF and Wiener).")
         XCTAssertEqual(FFTRoomFormat.offBinNote,
                        "On synthetic lattices, a lattice half a bin off a Fourier bin keeps 5–57 % of its amplitude in a 128 px region and 77–97 % at 256 px; other sizes are not measured. The Nyquist wave is cut to 1.6 × 10⁻⁴. Intensities are not preserved: the output's mean is below the input's.")
         XCTAssertEqual(FFTRoomFormat.neighbourNote, "Another peak within 3 bins: d may be off by up to 0.3 %.")

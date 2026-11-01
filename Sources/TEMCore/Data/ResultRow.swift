@@ -7,8 +7,8 @@
 //  THE ROOM AUTHORS NO CLAIM OF TRUST (R-P2). What a measurement is checked against is `Product.validation`, and each case
 //  returns its PRODUCER's own constant (`ImageMeasurement.validation`, `FFTExport.spotsValidation`; a profile row's numbers are closed
 //  forms, so it carries `ImageMeasurement.validation`, then `ProfileCSV.validation` for the samples the Image room's CSV writes);
-//  the switch is exhaustive, so a new product without a constant does not compile. `Product.badge` is the short label of the
-//  same claim. "Validated" is never written: a product that is not checked says so in its own constant.
+//  the switch is exhaustive, so a new product without a constant does not compile. `Product.badge` names the method in a few
+//  words. "Validated" is never written, and no trust label is shown.
 //
 //  THE NUMBERS are the owner's Doubles in the file's own unit (a Velox metre axis stays in metres; the room brings a length
 //  to nm for the eye, the file does not). A quantity without a number (a refusal) has a nil value and its words in `refusal`.
@@ -68,16 +68,17 @@ package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
             }
         }
 
-        /// The short label of `validation`: what it was checked against, in a few words.
+        /// The method that made the numbers, in a few words (the Results room's Method column); `validation` is its full sentence.
+        /// No trust label is written: a method is named, as scientific software names it.
         package var badge: String {
             switch self {
-            case .distance, .angle, .profile: "Checked · closed form"
-            case .spot: "Checked · planted spots"
-            case .calibration: "Checked · closed form"
-            case .ring: "Unvalidated · indexing"
-            case .edsComposition: "Unvalidated · composition"
-            case .eelsThickness: "Unvalidated · thickness"
-            case .eelsEdge: "Unvalidated · edge model"
+            case .distance, .angle, .profile: "Closed form"
+            case .spot: "Spot centroid"
+            case .calibration: "Ring calibration"
+            case .ring: "Ring indexing"
+            case .edsComposition: "Cliff-Lorimer"
+            case .eelsThickness: "Log-ratio t/λ"
+            case .eelsEdge: "EELS edge model"
             }
         }
 

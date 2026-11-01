@@ -1,12 +1,11 @@
 //
 //  ResultsFormatTests.swift
 //  Every sentence and number the Results room shows (`ResultsFormat`): the groups' names, a row's Value as the
-//  owner's room reads it (a mark as `MarkFormat`, a spot as `FFTRoomFormat`), its Source, Record and badge, the badge that turns to
-//  "Unvalidated · <note>", the spoken row, the line ⌘C copies, the Info fields, the header's count, the states' words and the export's
+//  owner's room reads it (a mark as `MarkFormat`, a spot as `FFTRoomFormat`), its Source, Record and Method, the spoken row, the line ⌘C copies, the Info fields, the header's count, the states' words and the export's
 //  name, message and menu title. Expected strings are literals worked out by hand. Tier 2.
 //
 //  Mutations sampled (each alone, the named test went red): a metre length shown in metres (the Velox row); the pixel-grid angle
-//  shown as physical; the badge ignoring the reader's note; "1 results"; the export name keeping the file's extension.
+//  shown as physical; "1 results"; the export name keeping the file's extension.
 //
 
 import ImagoCore
@@ -121,14 +120,12 @@ nonisolated final class ResultsFormatTests: XCTestCase {
         XCTAssertEqual(ResultsFormat.record(spotRow()), "not recorded")
     }
 
-    /// The badge is the producer's label; a reader's note saying "unvalidated" turns it to "Unvalidated · <that note>" and the
-    /// tooltip stays the producer's sentence. Red under: the note ignored; the match made case-sensitive.
+    /// The Method column names the method; the tooltip stays the producer's sentence. No row is labelled "Unvalidated", whatever
+    /// the file's reader notes say. Red under: an "Unvalidated · <note>" label back.
     func testTheBadge() {
         let d = distance(ImagePoint(x: 0, y: 0), ImagePoint(x: 3, y: 4), x: nil, y: nil)
-        XCTAssertEqual(ResultsFormat.badge(d, notes: []), "Checked · closed form")
-        XCTAssertEqual(ResultsFormat.badge(spotRow(), notes: ["a note"]), "Checked · planted spots")
-        XCTAssertEqual(ResultsFormat.badge(d, notes: ["Scale read from the header, UNVALIDATED"]),
-                       "Unvalidated · Scale read from the header, UNVALIDATED")
+        XCTAssertEqual(ResultsFormat.badge(d), "Closed form")
+        XCTAssertEqual(ResultsFormat.badge(spotRow()), "Spot centroid")
         XCTAssertEqual(ResultsFormat.validation(d), ImageMeasurement.validation)
         XCTAssertEqual(ResultsFormat.validation(spotRow()), FFTExport.spotsValidation)
     }
@@ -139,10 +136,10 @@ nonisolated final class ResultsFormatTests: XCTestCase {
     func testTheSpokenRow() {
         let d = distance(ImagePoint(x: 0, y: 0), ImagePoint(x: 60, y: 80), x: Self.nm, y: Self.tall)
         let v = value(d, x: Self.nm, y: Self.tall)
-        XCTAssertEqual(ResultsFormat.spoken(d, value: v, badge: ResultsFormat.badge(d, notes: [])),
-                       "Distance 1, 70.68 nm, 100 pixels, Checked closed form, recorded as s1")
-        XCTAssertEqual(ResultsFormat.spoken(spotRow(), value: "d 0.4 nm · |q| 2.5 nm⁻¹", badge: "Checked · planted spots"),
-                       "Spot 1, d 0.4 nm, |q| 2.5 nm⁻¹, Checked planted spots, not recorded")
+        XCTAssertEqual(ResultsFormat.spoken(d, value: v, badge: ResultsFormat.badge(d)),
+                       "Distance 1, 70.68 nm, 100 pixels, Closed form, recorded as s1")
+        XCTAssertEqual(ResultsFormat.spoken(spotRow(), value: "d 0.4 nm · |q| 2.5 nm⁻¹", badge: "Spot centroid"),
+                       "Spot 1, d 0.4 nm, |q| 2.5 nm⁻¹, Spot centroid, not recorded")
     }
 
     /// ⌘C: five columns, tab-separated, one line per row, in the order given. Red under: the columns reordered; a separator other
@@ -154,8 +151,8 @@ nonisolated final class ResultsFormatTests: XCTestCase {
         XCTAssertEqual(ResultsFormat.copyLine(label: "A", value: "B", source: "C", record: "D", badge: "E"), "A\tB\tC\tD\tE")
         let text = ResultsFormat.copyText(rows, image: image, locale: Self.en)
         XCTAssertEqual(text.components(separatedBy: "\n"), [
-            "Distance 1\t70.68 nm · 100 px\tImage · mark\ts1\tChecked · closed form",
-            "Spot 1\td 0.4 nm · |q| 2.5 nm⁻¹\tFFT · the whole image\tnot recorded\tChecked · planted spots",
+            "Distance 1\t70.68 nm · 100 px\tImage · mark\ts1\tClosed form",
+            "Spot 1\td 0.4 nm · |q| 2.5 nm⁻¹\tFFT · the whole image\tnot recorded\tSpot centroid",
         ])
         XCTAssertEqual(ResultsFormat.copyText([], image: image), "")
     }

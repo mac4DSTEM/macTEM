@@ -160,7 +160,6 @@ private struct DiffractionCrystalSection: View {
             InspectorRow("Tolerance") {
                 OptionalNumericField(title: "Indexing tolerance", value: analysis.tolerancePercent, format: pixelFormat, unit: "% of q") { analysis.setTolerance(percent: $0) }
             }
-            InspectorNote("validation: none · the indexing rule is the kit's own; chance acceptance is unmeasured.")
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [UTType(filenameExtension: "cif") ?? .plainText, .plainText]) { result in
             switch result {

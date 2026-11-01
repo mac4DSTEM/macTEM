@@ -6,7 +6,7 @@
 //        the objects are outlined over it (`ParticleOverlay`), the mask can be tinted while the settings are edited, and an object
 //        table (its own window, `ParticleTableWindow`, so it stays beside the image) selects a row to outline it heavier; the pointer
 //        readout names the object under the pointer (`ImageReadout`). Presentation only: the numbers are ImagoKit's through
-//        `ParticleCompute`, held per file by `ParticleAnalysis` (TEMSession). Badge: validation none.
+//        `ParticleCompute`, held per file by `ParticleAnalysis` (TEMSession).
 //
 
 import ShellControls
@@ -99,7 +99,6 @@ struct ImageRoomParticlesSection: View {
             } else if !analysis.isComputing {
                 InspectorNote("Choose bright or dark objects and a threshold, then Show Objects.")
             }
-            InspectorNote("validation: none · no sample of known particle sizes yet; the moments are ImagoKit's.")
         }
         .task(id: PreviewKey(settings: settings, on: analysis.previewsMask)) {
             guard analysis.previewsMask else { return }

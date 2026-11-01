@@ -1,7 +1,7 @@
 // What the FFT room does to the transformed pixels before the transform, on ImagoKit: Gaussian smoothing (`SeparableFilters.gaussianFilter`),
 // a band-pass (`BandpassFilters.differenceOfGaussians` or `.butterworth`) and a window (`WindowFunction.window2D`, scikit-image's
 // `filters.window`) that tapers the region's edges so they stop streaking the spectrum. The filters and the window values are the kit's;
-// the product with the pixels is `WindowFunction.apply`. Smoothing and band-pass are badged unvalidated until compared with Digital Micrograph.
+// the product with the pixels is `WindowFunction.apply`.
 import Foundation
 import ImagoCore
 import ImagoFilters

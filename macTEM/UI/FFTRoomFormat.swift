@@ -458,7 +458,8 @@ nonisolated enum FFTRoomFormat {
         return "\(n) × \(n) px · \(passes) \(passes == 1 ? "pass" : "passes") · \(share) % flagged"
     }
 
-    static let unvalidatedWarning = "Unvalidated: not compared with Digital Micrograph. A re-implementation of D. R. G. Mitchell's HRTEM filter script, never checked against its output."
+    /// The method and its reference, shown once at the top of the HRTEM Filters section.
+    static let filterMethodNote = "A re-implementation of D. R. G. Mitchell's HRTEM filter script for Digital Micrograph (ABSF and Wiener)."
     static let offBinNote = "On synthetic lattices, a lattice half a bin off a Fourier bin keeps 5–57 % of its amplitude in a 128 px region and 77–97 % at 256 px; other sizes are not measured. The Nyquist wave is cut to 1.6 × 10⁻⁴. Intensities are not preserved: the output's mean is below the input's."
 
     // MARK: The spectrum's display

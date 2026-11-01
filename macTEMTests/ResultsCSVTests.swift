@@ -334,8 +334,8 @@ nonisolated final class ResultsCSVTests: XCTestCase {
             XCTAssertEqual(product.validation, producers, "\(product): not the producer's constant")
             XCTAssertFalse(product.validation.isEmpty)
             XCTAssertFalse(product.badge.isEmpty)
-            let unvalidated: [ResultRow.Product] = [.ring, .edsComposition, .eelsThickness, .eelsEdge]
-            XCTAssertTrue(product.badge.hasPrefix(unvalidated.contains(product) ? "Unvalidated · " : "Checked · "), "\(product): \(product.badge)")
+            XCTAssertFalse(product.badge.lowercased().contains("validated"), "\(product): \(product.badge)")
+            XCTAssertFalse(product.badge.contains("Checked"), "\(product): \(product.badge)")
         }
         XCTAssertTrue(ResultRow.Product.profile.validation.hasPrefix(ImageMeasurement.validation), "the row's numbers are closed forms")
         XCTAssertTrue(ResultRow.Product.profile.validation.hasSuffix(ProfileCSV.validation), "the samples are scikit-image's")
@@ -354,15 +354,12 @@ nonisolated final class ResultsCSVTests: XCTestCase {
         }
     }
 
-    /// All nine badges, as worded: three claims of a closed form (a profile row's numbers are the line's length and width, not the
-    /// samples), one of planted spots, the calibration's closed forms, the ring's, the EDS composition's and the two EELS products' honest
-    /// "unvalidated"; no version is written in a badge. Red under: the profile badge naming scikit-image again; a badge reworded.
+    /// All nine Method labels, as worded: each names the method that made the numbers, with no trust label ("Checked",
+    /// "Unvalidated"); no version is written. Red under: an "Unvalidated" label back; a label reworded.
     func testTheNineBadges() {
-        XCTAssertEqual(ResultRow.Product.allCases.map(\.badge), ["Checked · closed form", "Checked · closed form",
-                                                                "Checked · closed form", "Checked · planted spots",
-                                                                "Checked · closed form", "Unvalidated · indexing",
-                                                                "Unvalidated · composition", "Unvalidated · thickness",
-                                                                "Unvalidated · edge model"])
+        XCTAssertEqual(ResultRow.Product.allCases.map(\.badge), ["Closed form", "Closed form", "Closed form", "Spot centroid",
+                                                                "Ring calibration", "Ring indexing", "Cliff-Lorimer",
+                                                                "Log-ratio t/λ", "EELS edge model"])
         XCTAssertEqual(ResultRow.Product.allCases.map(\.rawValue), ["distance", "angle", "profile", "spot", "calibration", "ring", "edsComposition",
                                                                    "eelsThickness", "eelsEdge"])
     }

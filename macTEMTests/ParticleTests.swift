@@ -143,12 +143,13 @@ nonisolated final class ParticleTests: XCTestCase {
 
     // MARK: CSV
 
-    /// The CSV has the provenance lines, the badge and a row per object with the kit's numbers.
+    /// The CSV has the provenance lines and a row per object with the kit's numbers, and no unvalidated caption.
     func testTheCSVCarriesProvenanceAndEveryObject() throws {
         let report = try ParticleCompute.analyse(pixels: Self.planted(), width: Self.width, height: Self.height, settings: ParticleSettings())
         let csv = ParticleFormat.csv(report, scale: ParticleScale(perPixel: 0.5, unit: "nm"), fileName: "p.dm4")
         let lines = csv.split(separator: "\n").map(String.init)
-        XCTAssertTrue(lines[0].hasSuffix("validation: none"), lines[0])
+        XCTAssertEqual(lines[0], "# macTEM particles, file: p.dm4")
+        XCTAssertFalse(csv.contains("validation"))
         XCTAssertTrue(lines[1].contains("fraction 0.5 of the raw range = 55"), lines[1])
         XCTAssertTrue(lines.contains("label,counted,touches_edge,small,area_px,centroid_x_px,centroid_y_px,length_px,width_px,angle_deg,length_nm,width_nm,area_nm2"))
         XCTAssertEqual(lines.filter { !$0.hasPrefix("#") && !$0.hasPrefix("label,") }.count, 4)

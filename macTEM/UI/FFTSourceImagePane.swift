@@ -12,7 +12,7 @@
 //  colormap — the one mapping all four share, so flipping between the region and a product is a blink comparison of like
 //  with like. A product carries a plate over its top (`.thinMaterial`, never a colour wash) naming it and its inputs and a
 //  2-pt border (accent for the inverse, orange for the filters; the plate's words carry the difference, never the colour
-//  alone); the filters' plate begins "Unvalidated · not compared with Digital Micrograph", every time.
+//  alone); the filters' plate begins "HRTEM filter".
 //
 //  THE REGION'S GESTURES (Original only; `FFTRegionGeometry` is the pure part): with no region the overlay takes every
 //  press and a drag draws a square from the press (a drag that has not yet left 2 pt of the press makes nothing; once it
@@ -202,7 +202,7 @@ nonisolated struct FFTSourceLayer {
         case plain
         /// The masked inverse's.
         case accent
-        /// The unvalidated filters'.
+        /// The HRTEM filters'.
         case orange
     }
 
