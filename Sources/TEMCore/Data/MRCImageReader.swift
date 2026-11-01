@@ -52,16 +52,14 @@ package nonisolated enum MRCImageReader {
         package static let feiHeader = MRCAppImage.Note.feiHeader
     }
 
-    /// `acceptStacks` reads the first image of a stack instead of refusing it. It was kept for the negative control of a
-    /// retired reader harness; nothing in the app passes it.
-    package static func read(path: String, acceptStacks: Bool = false) throws -> CalibratedImage {
+    package static func read(path: String) throws -> CalibratedImage {
         let data = try Data(contentsOf: URL(fileURLWithPath: path), options: .alwaysMapped)
-        return try read(data: data, fileName: formatoDisplayFileName(path), acceptStacks: acceptStacks)
+        return try read(data: data, fileName: formatoDisplayFileName(path))
     }
 
-    package static func read(data: Data, fileName: String, acceptStacks: Bool = false) throws -> CalibratedImage {
+    package static func read(data: Data, fileName: String) throws -> CalibratedImage {
         do {
-            return CalibratedImage(try MRCAppImage.read(data: data, fileName: fileName, acceptStacks: acceptStacks))
+            return CalibratedImage(try MRCAppImage.read(data: data, fileName: fileName))
         } catch let error as MRCError {
             throw Refusal(error)
         }

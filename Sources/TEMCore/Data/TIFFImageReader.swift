@@ -70,12 +70,9 @@ package nonisolated enum TIFFImageReader {
         return try read(data: data, fileName: formatoDisplayFileName(path))
     }
 
-    /// `acceptUnequalChannels` reads the red channel instead of refusing an unequal-channel RGB. It was kept for the
-    /// negative control of a retired reader harness; nothing in the app passes it.
-    package static func read(data: Data, fileName: String, acceptUnequalChannels: Bool = false) throws -> CalibratedImage {
+    package static func read(data: Data, fileName: String) throws -> CalibratedImage {
         do {
-            return CalibratedImage(try TIFFAppImage.read(data: data, fileName: fileName,
-                                                         acceptUnequalChannels: acceptUnequalChannels))
+            return CalibratedImage(try TIFFAppImage.read(data: data, fileName: fileName))
         } catch let refusal as TIFFAppImage.Refusal {
             throw Refusal(refusal)
         }
