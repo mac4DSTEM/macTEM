@@ -51,8 +51,9 @@ nonisolated final class EDXJourney: Journey {
             XCTAssertTrue(mg.waitForExistence(timeout: 60))
             XCTAssertFalse(element("maps.tileSize").exists, "the maps scale with the panes")
         }
-        // The scale bar's length text ("5 px"): the one thing on a tile that says its zoom.
-        let bar = { self.waitFor("maps.scaleBar.HAADF", timeout: 30).staticTexts.firstMatch.label }
+        // The scale bar's spoken length ("Scale bar, 5 pixels"): the one thing on a tile that says its zoom. Since MacEMUI 0.4.0 the bar is one
+        // Button whose label is that length, with no StaticText inside, so the journey reads the button label.
+        let bar = { self.waitFor("maps.scaleBar.HAADF", timeout: 30).label }
         let whole = bar()
         try step("the wheel zooms the maps") {
             for dy in [8.0, -8.0, 16.0, -16.0] where bar() == whole { haadf.scroll(byDeltaX: 0, deltaY: dy) }
