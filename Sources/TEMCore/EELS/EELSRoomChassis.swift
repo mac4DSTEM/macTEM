@@ -385,10 +385,18 @@ extension EELSRoomFormat {
         return file != nil ? "from the file" : "not set"
     }
 
-    /// The results footer: model · background · convolution · deconvolution (the room fits by exact NNLS on a power law and does not deconvolve yet).
-    package static func fitFooter(hasFit: Bool, convolved: Bool) -> String {
+    /// The Edges section's line: "Quantify: C K 284 eV, O K 532 eV · Fit only: Cu L3 931 eV" (a part with no edge is left out).
+    package static func pickedLine(_ picked: [CoreLossEdge], fitOnly: Set<String>) -> String {
+        func list(_ edges: [CoreLossEdge]) -> String { edges.map { "\(EELSFitCompute.title($0)) \(sig($0.onsetEV, 5)) eV" }.joined(separator: ", ") }
+        let quantify = picked.filter { !fitOnly.contains($0.element) }, only = picked.filter { fitOnly.contains($0.element) }
+        return [quantify.isEmpty ? nil : "Quantify: " + list(quantify), only.isEmpty ? nil : "Fit only: " + list(only)].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    /// The results footer: model · background · convolution · deconvolution (what the fit on screen was made with).
+    package static func fitFooter(hasFit: Bool, convolved: Bool, model: EELSFitModel = .exactNNLS, deconvolution: String = "no deconvolution") -> String {
         guard hasFit else { return "No fit yet" }
-        return "Exact NNLS · power-law background · " + (convolved ? "convolved with the low loss" : "not convolved") + " · no deconvolution"
+        let background = model == .mlls ? "power-law background, exponent by two areas" : "power-law background"
+        return "\(model.title) · \(background) · " + (convolved ? "convolved with the low loss" : "not convolved") + " · \(deconvolution)"
     }
 
     /// The I cell: "43180000 ± 210000", sigma to two significant digits; I alone where the kit gives no sigma.
@@ -411,6 +419,7 @@ extension EELSRoomFormat {
 
     /// The at% cell: "below detection" for an edge at or under 3 sigma, never a bare 0.
     package static func atomicText(_ row: EELSEdgeRow, locale: Locale = .autoupdatingCurrent) -> String {
+        if row.fitOnly { return "fit only" }
         if row.belowDetection { return "below detection" }
         return row.atomicPercent.map { fixed($0, 1, locale: locale) } ?? "–"
     }

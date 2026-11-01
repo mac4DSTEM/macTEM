@@ -40,9 +40,17 @@ package nonisolated enum EELSRegionCompute {
         return try? low.sum(mask: mask)
     }
 
+    /// The pixels of `region` (every pixel for the whole map), less those not in `answered` when given (a deconvolution's pixels with no answer).
+    package static func mask(_ region: EDXRegion, nx: Int, ny: Int, answered: PixelMask?) -> PixelMask {
+        let shape = region.mask(nx: nx, ny: ny) ?? [Bool](repeating: true, count: nx * ny)
+        guard let answered, answered.count == shape.count else { return shape }
+        return zip(shape, answered).map { $0 && $1 }
+    }
+
     /// The row of one pin. `core`, `edges` and `microscope` (all three) switch the edge fit on; `convolve` hands the summed low loss to it.
     package static func row(pin: EDXPin, low: LowLossSpectrumImage, core: CoreLossSpectrumImage?, edges: [CoreLossEdge], microscope: EELSMicroscope?,
-                            convolve: Bool, threshold: EELSThresholdChoice, meanFreePath: MeanFreePathSource?, edgeWindows: [EdgeWindows]? = nil) -> EELSRegionRow? {
+                            convolve: Bool, threshold: EELSThresholdChoice, meanFreePath: MeanFreePathSource?, edgeWindows: [EdgeWindows]? = nil,
+                            model: EELSFitModel = .exactNNLS, fitOnly: Set<String> = [], answered: PixelMask? = nil) -> EELSRegionRow? {
         guard let lowSum = summedLowLoss(low, region: pin.region) else { return nil }
         let pixels = pin.region.pixelCount(nx: low.nx, ny: low.ny)
         let t: Double?, tWhy: String?
@@ -58,10 +66,11 @@ package nonisolated enum EELSRegionCompute {
         var edgesWhy: String?
         if let core, !edges.isEmpty, let microscope, core.nx == low.nx, core.ny == low.ny {
             do {
-                let mask = pin.region.mask(nx: core.nx, ny: core.ny) ?? [Bool](repeating: true, count: core.nx * core.ny)
+                let mask = Self.mask(pin.region, nx: core.nx, ny: core.ny, answered: answered)
                 let coreSum = try core.sum(mask: mask)
-                let fit = try EELSFitCompute.fit(coreLoss: coreSum, edges: edges, microscope: microscope, lowLoss: convolve ? lowSum : nil, edgeWindows: edgeWindows)
-                edgeRows = EELSFitCompute.rows(fit, composition: EELSFitCompute.composition(fit))
+                let fit = try EELSFitCompute.fit(coreLoss: coreSum, edges: edges, microscope: microscope, lowLoss: convolve ? lowSum : nil,
+                                                 model: model, edgeWindows: edgeWindows)
+                edgeRows = EELSFitCompute.rows(fit, composition: EELSFitCompute.composition(fit, fitOnly: fitOnly), fitOnly: fitOnly)
             } catch {
                 edgesWhy = EELSWindowPlan.sentence(for: error) ?? (error as? LocalizedError)?.errorDescription ?? "\(error)"
             }

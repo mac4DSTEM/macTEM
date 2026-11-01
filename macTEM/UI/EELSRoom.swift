@@ -785,6 +785,10 @@ private struct EELSSpectrumView: View {
             context.draw(Text("core loss").font(.caption2).foregroundStyle(.secondary), at: CGPoint(x: jx + 4, y: area.maxY - 8), anchor: .leading)
         }
         context.stroke(path(plot.low, values: plot.low.counts, within: axis.lowShown), with: .color(.primary), lineWidth: 1)
+        // The Deconvolve stage's low loss (Fourier-log, Richardson-Lucy), dashed over the stored one.
+        if let d = plot.lowDeconvolved {
+            context.stroke(path(d, values: d.counts, within: axis.lowShown), with: .color(.accentColor), style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+        }
         if let core = plot.core { context.stroke(path(core, values: core.counts, within: axis.coreShown), with: .color(.primary), lineWidth: 1) }
         // The background under each edge's signal window from its background window: the kit's per-edge power law (fitted, or previewed while a window is dragged).
         if let core = plot.core {
@@ -825,7 +829,6 @@ private struct EELSResultsPanel: View {
     var body: some View {
         let plot = session.plot
         let rows = session.resultRows
-        let hasFit = session.model != nil
         let failure = session.failure
         VStack(spacing: 0) {
             HStack(spacing: LayoutPolicy.inspectorRowSpacing) {
@@ -872,9 +875,10 @@ private struct EELSResultsPanel: View {
                         }.width(min: 110, ideal: 150)
                         TableColumn("at%") { r in
                             Text(EELSRoomFormat.atomicText(r)).monospacedDigit().lineLimit(1)
-                                .foregroundStyle(r.belowDetection ? .secondary : .primary)
-                                .help(r.belowDetection ? "I is at or under 3σ: this edge is not detected in the region"
-                                      : r.atomicPercent == nil ? "at% needs two or more fitted elements" : "")
+                                .foregroundStyle(r.belowDetection || r.fitOnly ? .secondary : .primary)
+                                .help(r.fitOnly ? EELSEdgeRow.fitOnlyWords
+                                      : r.belowDetection ? "I is at or under 3σ: this edge is not detected in the region"
+                                      : r.atomicPercent == nil ? (r.atomicUnavailable ?? EELSEdgeRow.atomicNeedsTwo) : "")
                         }.width(min: 50, ideal: 100)
                         TableColumn("wt%") { r in Text(r.weightPercent.map { EELSRoomFormat.fixed($0, 1) } ?? "–").monospacedDigit().lineLimit(1) }
                             .width(min: 50, ideal: 64)
@@ -904,13 +908,14 @@ private struct EELSResultsPanel: View {
                     .help("The exponent of the power law the kit fitted on each edge's background window")
                     .accessibilityIdentifier("eels.results.exponents")
             }
-            Text(EELSRoomFormat.fitFooter(hasFit: hasFit, convolved: session.model?.convolved ?? false))
+            Text(EELSRoomFormat.fitFooter(hasFit: session.model != nil, convolved: session.model?.convolved ?? false, model: session.model?.model ?? .exactNNLS,
+                                          deconvolution: session.modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution"))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
                 .frame(height: LayoutPolicy.paneHeaderHeight)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .overlay(alignment: .top) { Divider() }
-                .help(session.model?.methodName ?? "No fit has run")
+                .help(session.model.map { $0.methodName + (session.modelDeconvolution.map { "\n" + $0.methodName } ?? "") } ?? "No fit has run")
                 .accessibilityIdentifier("eels.results.footer")
         }
         .accessibilityElement(children: .contain)
