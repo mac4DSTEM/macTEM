@@ -158,9 +158,13 @@ extension EELSCompute {
     }
 
     /// The method as JSON: what made the map and the method's reference, so another reader (mac4DSTEM's thickness row) can name its source.
-    package static func methodJSON(_ map: ThicknessMap, fileName: String, origin: String) -> String {
+    /// `deconvolution` is the Deconvolve stage's method and parameters (`EELSDeconvolveCompute.parameters`), `fit` the edge model's, when they ran.
+    package static func methodJSON(_ map: ThicknessMap, fileName: String, origin: String, deconvolution: [String: Any]? = nil,
+                                   fit: [String: Any]? = nil) -> String {
         var d: [String: Any] = ["file": fileName, "origin": origin, "method": map.method, "reference": ResultRow.Product.eelsThicknessReference,
                                 "width": map.nx, "height": map.ny]
+        if let deconvolution { d["deconvolution"] = deconvolution }
+        if let fit { d["edge_fit"] = fit }
         switch map.zeroLoss {
         case .zeroLossSpectrum: d["zero_loss"] = "separate zero-loss spectrum"
         case .threshold(let rule):
