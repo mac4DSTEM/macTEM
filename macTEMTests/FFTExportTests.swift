@@ -1,7 +1,7 @@
 //
 //  FFTExportTests.swift
-//  The FFT room's export writers and the additions they made to the PNG writer (archive: roadmap-registrations-2026-10-15.md V1-10 slice 2, `FFTExport`,
-//  `RadialProfileCSV`, `SpotsCSV`, `ImageExport.Provenance`, `Mark.Kind.spot`; archive: fft-export-design-2026-10-14.md),
+//  The FFT room's export writers and the additions they made to the PNG writer (`FFTExport`,
+//  `RadialProfileCSV`, `SpotsCSV`, `ImageExport.Provenance`, `Mark.Kind.spot`),
 //  read back from the text and the bytes they write. Tier 2: tests that fail when the code is broken. The parity against
 //  Python's own float, Pillow and numpy over a planted image is tools/parity/export-parity (F-1 to F-5).
 //

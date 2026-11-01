@@ -3,7 +3,7 @@
 
     reference.py <planted-dir> <rsciio-root> <owner-dir-or-"-"> <out-dir>
 
-Registration: archive: roadmap-registrations-2026-10-15.md "V1-4a Metadata panel" (the compute core). The Swift code under test is
+The Metadata panel's compute core. The Swift code under test is
 AcquisitionMetadata.tiff(data:), .mrc(data:), .dm(numbers:strings:); this script never re-implements it. It builds, per
 case, the nine fields' expected readings from the PINNED REFERENCES, then states each place where the registered rules
 deliberately differ as a named, commented OVERRIDE step. Where no pinned reference reads a path at all (policies (i), (j),
@@ -38,7 +38,7 @@ tag names, so "exposure (s)" meets the mapping's "exposure_s"), call the mapping
 an exception inside a function is "no value" (HyperSpy would stop; either way nothing is invented). Only the join is
 this script's; every function applied is RosettaSciIO's.
 
-Overrides, each named where it is applied (the registered rules, archive: roadmap-registrations-2026-10-15.md V1-4a, AcquisitionMetadata.swift a-g):
+Overrides, each named where it is applied (the rules, AcquisitionMetadata.swift a-g):
   (b) a strictly positive quantity stored as 0, negative or non-finite is not recorded (RosettaSciIO would map the 0);
       in every format after the unit conversion (a stored 5e-324 V is 0.0 kV, a 1.7e308 m is inf mm) — one named
       exception, the DM dwell (see its branch);
@@ -88,7 +88,7 @@ stored" (an MRC date), "mm (assumed)" (DM camera length), "month-first order ass
 mode is not checked" (MRC camera length), "unvalidated: no published reader reads it" (a value whose path no pinned
 reference maps), joined with "; " in that order.
 
-Slice S-b (archive: roadmap-registrations-2026-10-15.md V1-4a, "S-b, the DM wiring and tag 65027"): the manifest gains `reads`, the cases of
+Slice S-b (the DM wiring and tag 65027): the manifest gains `reads`, the cases of
 AcquisitionMetadata.read(path:) end to end. For a real DM object: its ImageList number `n` (C1: the object the open shows),
 ncempy's tag maps of that object after two NAMED normalisations (C2: `c2_maps`), and the expectation the S-a case already
 holds (C3). For a DM4 file the plants wrote (C4): the maps and truth they declare, which ncempy's parse of the same file has
@@ -537,7 +537,7 @@ ARRAY_ARTIFACT = re.compile(r"\.(arraySize|arrayOffset|arrayType)$")
 
 
 def c2_maps(numbers, strings):
-    """C2 (archive: roadmap-registrations-2026-10-15.md V1-4a, S-b): ncempy's maps of one object (or of a bare tag stream), put through exactly two NAMED
+    """C2 (slice S-b): ncempy's maps of one object (or of a bare tag stream), put through exactly two NAMED
     normalisations into what mac4DSTEM's tag walker (`imageTagNumbers` / `imageTagStrings`, `tagTree`) has to return,
     key for key and value for value:
       (i)  RE-DECODING OF LABELS. ncempy decodes a label byte by byte as ISO Latin-1 (`chr(byte)`, dm.py `_bin2str`).
@@ -585,7 +585,7 @@ def c2_maps(numbers, strings):
 
 
 def primary_object(tags):
-    """The registered object rule (ImageOpening.swift OBJECT RULE: V1-1, V1-1a, V1-1b), restated on ncempy's tags: the first
+    """The registered object rule (ImageOpening.swift OBJECT RULE: the first image, the mixed-unit spectrum image, the Format tag), restated on ncempy's tags: the first
     object in file order that is not the thumbnail, has exactly two dimensions larger than one, whose two axes do not
     carry two different units, and whose `Meta Data.Format` is not "Spectrum image". -> its ImageList number, or None.
     macTEM's own rule (no pinned reference has it): held to the planted files' hand-written truth, and to the 11 real
@@ -1164,7 +1164,7 @@ def describe(fields):
     return "\n".join(lines)
 
 
-PREDICTED_65027 = {   # REGISTERED before the code (archive: roadmap-registrations-2026-10-15.md V1-4a S-b, "Predicted"), by hand from the port, never from a run
+PREDICTED_65027 = {   # WRITTEN before the code (slice S-b, "Predicted"), by hand from the port, never from a run
     "highTensionKV": reading(200.0),                                  # Microscope Info.Voltage 200000 V
     "magnification": reading(51.0),                                   # Indicated 51; the Actual 83 is ignored
     "cameraLengthMM": None,                                           # TEM + IMAGING; the STEM Camera Length 255 is stale

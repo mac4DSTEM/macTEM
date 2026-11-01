@@ -1,8 +1,8 @@
 #!/bin/zsh
-# tools/parity/fft-export-parity — macTEM's FFT-room export (V1-10 slice 2: `FFTExport`, ImagoKit's `RadialProfileCSV` and `SpotsCSV`, `ImageExport`'s
+# tools/parity/fft-export-parity — macTEM's FFT-room export (`FFTExport`, ImagoKit's `RadialProfileCSV` and `SpotsCSV`, `ImageExport`'s
 # provenance and spot marks) read back with Pillow 12.3.0, numpy 2.5.4 and Python's own `float` (pinned: tools/lib/references-lock.txt,
-# reference.py). Classified `scientific` in tools/run-tests.sh. Tier 2 (no pre-registration); the design is
-# archive: fft-export-design-2026-10-14.md. README.md says more.
+# reference.py). Classified `scientific` in tools/run-tests.sh.
+# README.md says more.
 #
 #   run.sh   reference.py plants two images with lattices on whole bins, their calibrations, regions, windows and clicks; the harness
 #            (main.swift) transforms, measures and writes with the production code and dumps what it held in memory; reference.py

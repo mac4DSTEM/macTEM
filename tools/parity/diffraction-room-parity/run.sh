@@ -1,7 +1,7 @@
 #!/bin/zsh
 # tools/parity/diffraction-room-parity — the Diffraction room's core, slice 1a (TEMCore/Diffraction: StandardCrystals; RingOverlay, IndexingDisplay and CrystalLoading are DiffractoKit's since the 2026-10-20 switch,
-# calling DiffractoKit directly; archive: roadmap-registrations-2026-10-15.md "Diffraction room, slice 1a"
-# and its addendum) against reference.py's numpy and 60-digit decimal tables and plants.py's planted rings. R8 (the seed-rule grid) is not
+# calling DiffractoKit directly)
+# against reference.py's numpy and 60-digit decimal tables and plants.py's planted rings. R8 (the seed-rule grid) is not
 # part of this run. Classified `scientific` in tools/run-tests.sh. README.md says more.
 #
 #   run.sh   plants.py writes the planted rings (R8's grid in its half form, unused here); reference.py writes the tables and checks them

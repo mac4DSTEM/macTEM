@@ -92,7 +92,7 @@ nonisolated final class VeloxImageReaderTests: XCTestCase {
     // MARK: The frame
 
     /// velox-frames: 3 frames, every pixel different in each. A stack opens its first frame labelled "frame 1 of 3" (never
-    /// a sum); `read(path:frame:)`, the seam V1-3c-ii uses, reads the others, each labelled; a frame beyond the stack is
+    /// a sum); `read(path:frame:)`, the seam for the other frames, reads the others, each labelled; a frame beyond the stack is
     /// refused by name; a single-frame file carries no label.
     func testAStackOpensFrameOneOfNAndASingleFrameCarriesNoLabel() throws {
         func frame(_ f: Int) -> [Float] { grid(3, 4) { r, c in 1000 * f + 10 * r + c + 1 } }

@@ -3,8 +3,8 @@
 macTEM's acquisition-metadata readers (`AcquisitionMetadata.tiff(data:)`, `.mrc(data:)`, `.dm(numbers:strings:)` — slice
 S-a — and `.read(path:)`, the entry point that describes a FILE — slice S-b; TEMCore, through Package.swift's `MetadataParity` target, built by `tools/lib/harness.sh`) against ncempy 1.16,
 RosettaSciIO `049e7d70`, tifffile 2026.9.20 and mrcfile 1.5.4 (pinned: `tools/lib/references-lock.txt`,
-`tools/lib/fetch-rsciio.sh`). A `scientific` gate (`tools/run-tests.sh scientific`); the pre-registration is archive: roadmap-registrations-2026-10-15.md
-V1-4a (P1, P2; "S-b, the DM wiring and tag 65027" for `read(path:)`). `make_fixture.py` writes the S-b DM4 plants with
+`tools/lib/fetch-rsciio.sh`). A `scientific` gate (`tools/run-tests.sh scientific`): P1, P2, and
+slice S-b (the DM wiring and tag 65027) for `read(path:)`. `make_fixture.py` writes the S-b DM4 plants with
 `dm4_writer.py` beside it (mac4DSTEM's writer, kept as copied). Run
 `tools/parity/metadata-parity/run.sh`, redirect it to a log, and read the exit code on its own line.
 
@@ -85,7 +85,7 @@ it cannot read for its metadata reads empty.
   only a BYTE block is read), `-garbage` and `-truncated` (the walker refuses: empty, no throw), and two TIFFs written byte by
   byte (tifffile writes only consistent files) whose 65027 entry counts more bytes than the file holds: `-overruns-by-one` (a
   complete 120 kV stream, count one byte too large: a reader that clamped the count would show 120 kV) and `-overruns-far` (the
-  Gate B review's reproducer: 100 bytes, count 5000 at offset 26). Both read empty, and both are **isolated**: the harness runs
+  review's reproducer: 100 bytes, count 5000 at offset 26). Both read empty, and both are **isolated**: the harness runs
   each in a child process of itself (`harness --child <out-dir> <case>`), so a reader that TRAPS on one (a slice of the file out
   of range exits by signal) fails the check `read:<case> survives` and the run exits 1, instead of dying without a verdict.
   `reference.py` reads the entry back from the bytes (`entry_extent`; tifffile drops such an entry with a warning, so it cannot

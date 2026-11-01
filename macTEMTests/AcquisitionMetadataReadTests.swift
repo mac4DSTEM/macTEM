@@ -271,7 +271,7 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
     /// swallows the throw, so the user sees "not recorded" as before; the one change is that the other tags of such a file
     /// are no longer read either (the same files now fail to open as an image: `TIFFAppImage` throws `truncated`). Never a trap
     /// (the process survives every overrun below); a block that fits exactly still reads. Three overruns of one stream: one
-    /// byte, two, 4096; the geometry the Gate B review made the unguarded reader trap on (a 100-byte file, count 5000 at
+    /// byte, two, 4096; the geometry a review made the unguarded reader trap on (a 100-byte file, count 5000 at
     /// offset 26); and an offset past the end of the file.
     func testATag65027WhoseCountRunsPastTheEndOfTheFileThrowsTruncatedAndReadsEmptyThroughAPath() throws {
         var stream = BareDM4.stream(Plant.voltageOnly(120_000))

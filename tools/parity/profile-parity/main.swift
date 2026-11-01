@@ -4,7 +4,7 @@
 //
 //     harness <out-dir of reference.py>
 //
-// Pass bands (archive: roadmap-registrations-2026-10-15.md V1-5):
+// Pass bands:
 //   P1  distance (px and physical) and angle equal their closed forms to 1e-12 relative; the unit is the file's own string
 //       and the plane (physical or pixel) is the one the rule gives; a zero arm gives no angle.
 //   P2  every profile sample equals scikit-image's (the float32 image, float32 output) to 1e-5 relative, with the floor

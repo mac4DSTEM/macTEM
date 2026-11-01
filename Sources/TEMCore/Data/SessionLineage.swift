@@ -8,7 +8,7 @@
 //        parses.
 //
 //  WRITTEN FRESH from the ADRs, not copied from mac4DSTEM's `SessionLineage` (that one's nodes are 4D runs with
-//  replay, rewind, frames and products; macTEM's are marks). DEVIATIONS from ADR 047, each ADR 020's:
+//  replay, rewind, frames and products; macTEM's are marks). DEVIATIONS from mac4DSTEM's lineage record, each this app's:
 //    - `recorded` is integer milliseconds since 1970 (047: Double seconds), quantised when recorded, so a re-read is
 //      EQUAL, not "within a millisecond".
 //    - Removing a node DELETES it (047 R4: nothing deleted, for hour-long runs behind a rewind). A node another node
@@ -59,7 +59,7 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
 
     // MARK: - Vocabulary
 
-    /// The kinds this build records (`ImageMark.Kind.rawValue`s), and the kinds ADR 020 reserves. A kind outside
+    /// The kinds this build records (`ImageMark.Kind.rawValue`s), and the kinds reserved for later. A kind outside
     /// both is kept as an opaque node.
     package nonisolated enum Kind {
         package static let distance = "distance"
@@ -316,7 +316,7 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
         case absent
     }
 
-    /// ADR 020: removing a mark DELETES its node, unless another node's inputs cite it (a future `export`) — then it
+    /// Removing a mark DELETES its node, unless another node's inputs cite it (a future `export`) — then it
     /// gets `removed` and stays, for the citer's sake. A kept node whose last citer is deleted goes with it, and so
     /// does every removed node only it cited, so an exploratory mark is never carried with the data for good. A
     /// read-only lineage (no nodes) answers `.absent` and changes nothing.

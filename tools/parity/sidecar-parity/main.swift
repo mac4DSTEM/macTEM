@@ -1,11 +1,11 @@
-// tools/parity/sidecar-parity/main.swift — macTEM's session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice A, ADR 020; slice B step 1, ADR 021:
+// tools/parity/sidecar-parity/main.swift — macTEM's session sidecar (the file layer; the fixed-length strings:
 // SessionSidecarFile (over FormatoHDF5's HDF5RootAttributes) and SessionLineage, through Package.swift's
 // SidecarParity target, with fuzz.swift) against h5py 3.16.0, through reference.py's plan and truth (manifest.json) and its reading of what
 // Swift wrote (readback.json).
 //
 //     harness --write <ref-dir> <out-dir>      Swift writes the planted sessions to <out-dir>/swift/ and records what it passed
 //                                              to the writer (<out-dir>/swift-written.json); reference.py then reads them
-//     harness <ref-dir> <out-dir> [--fuzz]     the gate: every check below, then the summary; --fuzz adds clause (e) and the dense-storage fuzz (ADR 023 d')
+//     harness <ref-dir> <out-dir> [--fuzz]     the gate: every check below, then the summary; --fuzz adds clause (e) and the dense-storage fuzz
 //     harness <ref-dir> <out-dir> --fuzz-dense   the gate and only the second opinion's 648 windows of the first dense base (a control's run)
 //     harness --read <file> | --write-over <file> | --fuzz-selftest <mode> <dir>     the child processes (fuzz.swift)
 //
@@ -31,7 +31,7 @@
 //     UTF-16 code units refused (255 units of any letter accepted).
 // (d) the restore verdict (P4) on planted identities, and the fingerprint of the pixels against hashlib.sha256 over numpy's
 //     float32 little-endian bytes of the same pixels.
-// (e) ADR 021, P2 and P3. Each of the four attributes variable-length in an otherwise valid sidecar (planted by h5py), and the
+// (e) The fixed-length-string rule, P2 and P3. Each of the four attributes variable-length in an otherwise valid sidecar (planted by h5py), and the
 //     archived hang file, are refused by name (`variableLengthString`) by the reader, and the replace check refuses the
 //     identity's and the minimum reader's; every one of those reads runs in its own process with a deadline, so that a
 //     reader that parsed the damaged heap would fail "swift reads hangcase-flip" and not stall the gate. With --fuzz (the one
@@ -128,7 +128,7 @@ struct RefusalSpec: Decodable {
     let count: Int?
     let field: String?
     let source: String?
-    /// `nameTooLong`: the sidecar's name in UTF-16 code units (the file system's measure, ADR 020 D1 as amended).
+    /// `nameTooLong`: the sidecar's name in UTF-16 code units (the file system's measure).
     let units: Int?
 }
 
@@ -187,7 +187,7 @@ struct PlantedSpec: Decodable {
     let child: Bool
     /// A write over it succeeds (its header is readable and the write never reads the rest), and reads back as `{}` and `{}`.
     let replaces: Bool
-    /// h5py says the root's attributes are in dense storage (ADR 023 d'): the read is refused by name, and the lineage or the
+    /// h5py says the root's attributes are in dense storage: the read is refused by name, and the lineage or the
     /// identity text the decode is checked on is kept beside the sidecar.
     let dense: Bool
     let lineage_text_file: String?

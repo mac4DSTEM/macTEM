@@ -5,7 +5,7 @@
 //  every R8 refusal by name, the read-only unknown version and the opaque unknown kind; the source identity's
 //  fingerprint (pinned against Python's hashlib over the same bytes) and the restore verdict's outcomes. No file is
 //  touched: the HDF5 layer stores the strings these types produce. Each test was broken first against its mutation
-//  ; the Gate B refuter's additions (2026-10-13) were broken against the refuter's
+//  ; a review's additions (2026-10-13) were broken against the reviewer's
 //  surviving mutants, and the re-verifier's six (2026-10-14: the sweep's edges, every input on add) against its own.
 //
 

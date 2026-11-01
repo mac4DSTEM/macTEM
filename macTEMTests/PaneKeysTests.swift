@@ -386,7 +386,7 @@ nonisolated final class PaneKeysTests: XCTestCase {
         XCTAssertGreaterThan(code.count, 5000, "the pin reads a real file")
     }
 
-    /// The panes hold no focus of their own: Gate D showed focusable leaves never receive it, so a leaf with `on…Command` is a key
+    /// The panes hold no focus of their own: a drive showed focusable leaves never receive it, so a leaf with `on…Command` is a key
     /// that does nothing. Red under: any of these back in a pane's file.
     func testThePanesHoldNoFocusAndNoKeyCommands() throws {
         for path in ["macTEM/UI/FFTRoom.swift", "macTEM/UI/FFTSourceImagePane.swift", "macTEM/UI/FFTSpectrumImagePane.swift",

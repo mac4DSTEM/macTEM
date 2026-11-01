@@ -419,7 +419,7 @@ nonisolated final class SessionUITests: XCTestCase {
 
     // MARK: - Overlapping saves, the byte budget's words
 
-    /// Slice B core's Gate B finding 5: a second Save while one writes waits its turn and then takes its request afresh. A
+    /// A review finding: a second Save while one writes waits its turn and then takes its request afresh. A
     /// mark moved while the first writes is in the file after the second, nothing is refused, and the file ends saved.
     /// Red under: `beginSaving` not waiting (the second takes its request against what the first has not yet recorded:
     /// refused as changed on disk, or written over); the entry guard refusing a save that asks while one writes (the second

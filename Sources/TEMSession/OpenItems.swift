@@ -36,7 +36,7 @@ import TEMCore
 // MARK: - Values
 
 /// What an open item is. The rooms offered follow the selected item's kind; only images exist so far (spectrum images
-/// and EDX files join as kinds, ADR 007).
+/// and EDX files join as kinds).
 package nonisolated enum OpenItemKind: Sendable, Equatable {
     case image
 }
@@ -527,7 +527,7 @@ package final class OpenItems {
     /// while one runs, the items held (up to the budget) and the image being read (its raw, Float32 and display copies
     /// counted nowhere) together exceed it by about one image; once the read publishes, the least recently selected
     /// go cold at once. It stays exceeded while the items that may not go cold — the selected one, those without a
-    /// bookmark — alone exceed it. Provisional until the measurement of V1-13's slice (c) replaces it.
+    /// bookmark — alone exceed it. Provisional until a measurement replaces it.
     package var budgetBytes: Int {
         didSet { if budgetBytes != oldValue { evictToBudget() } }
     }

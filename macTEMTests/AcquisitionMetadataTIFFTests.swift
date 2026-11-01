@@ -346,7 +346,7 @@ nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
     }
 
     func testFEITextIsUTF8ElseCp1252AndEndsAtTheFirstNUL() throws {
-        // tifffile's bytes2str: the bytes up to the first NUL, decoded as UTF-8 and, failing that, as cp1252. New (Gate B
+        // tifffile's bytes2str: the bytes up to the first NUL, decoded as UTF-8 and, failing that, as cp1252. New (a review,
         // 2026-10-12). Mutations that turn this red: decoding with String(decoding:as: UTF8.self) (cp1252 bytes become
         // U+FFFD in the first assertions); dropping only TRAILING NULs, as TIFFFile.string does (the text after an
         // interior NUL is parsed: HV becomes the unparseable "5000\0junk" and the [Scan] after it is read); accepting a
@@ -431,7 +431,7 @@ nonisolated final class AcquisitionMetadataTIFFTests: XCTestCase {
         // (65003..65010) and ImageJ's description hold calibration only, and the standard DateTime / Model / Software tags
         // describe the file's writer. What a DM-saved TIFF may also carry is its whole DM tag tree in tag 65027 (a DM4
         // serialisation; RosettaSciIO's test_loading_image_saved_with_DM.tif holds 10,585 bytes of it, stating 200 kV, 51x
-        // and a 0.5 s exposure): slice S-a does NOT read it, that is V1-4a slice S-b's, so such a file reads empty
+        // and a 0.5 s exposure): slice S-a does NOT read it, that is slice S-b's, so such a file reads empty
         // here although it states values. It is not planted below: a block that is not a real tree catches no mutation
         // in S-a, and S-b is where a real one is built. Mutation that turns this red: a reader that returns a value from
         // 272, 305, 306 or 65003..65010.

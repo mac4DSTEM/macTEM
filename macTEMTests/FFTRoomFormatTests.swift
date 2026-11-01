@@ -1,7 +1,7 @@
 //
 //  FFTRoomFormatTests.swift
-//  Pins what the FFT room's inspector READS as (`FFTRoomFormat`, macTEM/UI/FFTRoomFormat.swift V1-6 "The room" and
-//  ): what is transformed, the typed Left/Top/Size, Δq and the Nyquist frequency,
+//  Pins what the FFT room's inspector READS as (`FFTRoomFormat`, macTEM/UI/FFTRoomFormat.swift):
+//  what is transformed, the typed Left/Top/Size, Δq and the Nyquist frequency,
 //  a spot's d and |q| in the shown units with the design's refusals, notes and accuracy rule, the radial chart's bins and
 //  its readout (an interval of |q|, never a d), the mask count, the filters' seven parameters against the core's own ranges,
 //  the status line and the words of the badge. The numbers are TEMCore's (gated); this is only their spelling and the few

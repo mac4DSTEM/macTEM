@@ -901,7 +901,7 @@ nonisolated final class SessionMarksTests: XCTestCase {
         // Red under: the identity's or the lineage's refusal swallowed or reported as another.
     }
 
-    /// ADR 023 a at the request: the text of a save — the identity marker and the minimum reader (one byte each), the source
+    /// The byte budget at the request: the text of a save — the identity marker and the minimum reader (one byte each), the source
     /// and the lineage — is at most 60,000 bytes, else the request is refused by name as the file layer's `.sidecarTooLarge`
     /// carrying the total, so a save never reaches the writer to be refused there. Padded by an extra key (tolerated, kept)
     /// to exactly 60,000 bytes it is made; one byte more is refused; the other kinds' and removed nodes' bytes count. Red under:

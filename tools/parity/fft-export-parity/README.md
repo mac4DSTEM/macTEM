@@ -1,10 +1,10 @@
 # fft-export-parity
 
-macTEM's export from the FFT room (V1-10 slice 2: `FFTExport`, `RadialProfileCSV`, `SpotsCSV`, and `ImageExport`'s provenance and
+macTEM's export from the FFT room (`FFTExport`, `RadialProfileCSV`, `SpotsCSV`, and `ImageExport`'s provenance and
 spot marks; TEMCore, through Package.swift's `FFTExportParity` target) read back with Pillow
 12.3.0, numpy 2.5.4 and Python's own `float` (pinned: `tools/lib/references-lock.txt`; `reference.py` refuses any other version).
-A `scientific` gate (`tools/run-tests.sh scientific`). Tier 2 ("Rigour follows risk"): no pre-registration; the design is
-archive: fft-export-design-2026-10-14.md. Run `tools/parity/fft-export-parity/run.sh`, redirect it to a log, read the exit code on
+A `scientific` gate (`tools/run-tests.sh scientific`).
+Run `tools/parity/fft-export-parity/run.sh`, redirect it to a log, read the exit code on
 its own line.
 
 Pass lines: five `ok` lines (F-1 to F-5, with the measured numbers), `fft-export-parity: all passed — N checks`, then

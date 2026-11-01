@@ -60,7 +60,7 @@ nonisolated extension SessionSidecarFileTests {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), [url.lastPathComponent])
     }
 
-    // MARK: Publishing only over the file that was checked (Gate B, 2026-10-13)
+    // MARK: Publishing only over the file that was checked (review, 2026-10-13)
 
     /// A file that appears at the path between the existence check and the publish (here: after the sidecar is built, which
     /// takes as long as the sidecar is big) is not replaced: the write is refused as `.cannotWrite` and the file is byte for
@@ -147,7 +147,7 @@ nonisolated extension SessionSidecarFileTests {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), [url.lastPathComponent])
     }
 
-    // MARK: A write that ends badly, and the things it must not leave (Gate B, 2026-10-13)
+    // MARK: A write that ends badly, and the things it must not leave (review, 2026-10-13)
 
     /// The close of the file is where a full disk shows (the data is flushed there): a write whose file cannot be completed
     /// throws, and the old sidecar is as it was, readable, with nothing else in the folder and nothing in the system's
@@ -238,7 +238,7 @@ nonisolated extension SessionSidecarFileTests {
         return body()
     }
 
-    // MARK: The path, the memory and the handles (Gate B, 2026-10-13)
+    // MARK: The path, the memory and the handles (review, 2026-10-13)
 
     /// A replace never takes the path away: the sidecar is renamed over, not removed and then put back, so a reader
     /// polling the path (a second window, Spotlight, a backup) never finds it missing. A thread stats the path as fast as
@@ -262,7 +262,7 @@ nonisolated extension SessionSidecarFileTests {
     /// again, beside 80 foreign HDF5 files and 80 files that are not HDF5, each read and offered a write. Descriptors
     /// grow by no more than a handful (a leak is one a file or more, 80 and up). An attribute handle left open keeps its
     /// file open too (HDF5 closes a file only when nothing in it is open), so this is also what pins the read's handles
-    /// since the test of freed string buffers went (ADR 021): 160 descriptors over the 80 files when the attribute is never
+    /// since the test of freed string buffers went : 160 descriptors over the 80 files when the attribute is never
     /// closed. The read's type and space handles are copies, tied to no file; leaking them costs a few hundred bytes a
     /// read, which nothing here sees. Red under: the read's close removed; the close of the existing file in `write` removed;
     /// the read's attribute handle never closed.

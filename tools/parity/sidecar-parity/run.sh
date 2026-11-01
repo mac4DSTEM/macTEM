@@ -1,9 +1,9 @@
 #!/bin/zsh
-# tools/parity/sidecar-parity — macTEM's session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice A, ADR 020; slice B step 1, ADR 021: `SidecarHDF5`,
+# tools/parity/sidecar-parity — macTEM's session sidecar (the file layer; the fixed-length strings: `SidecarHDF5`,
 # `SessionSidecarFile` and `SessionLineage`, TEMCore, through Package.swift's SidecarParity target)
 # against h5py 3.16.0 (pinned: tools/lib/references-lock.txt, tools/lib/python.sh). Classified `scientific` in tools/run-tests.sh.
-# Pre-registration: archive: roadmap-registrations-2026-10-15.md "V1-2 Session sidecar", the block "Completed at pickup (2026-10-13 night)" (slice A: P1–P4) and
-# "Slice B, step 1 — ADR 021, registered 2026-10-14, before code" (the fixed-length strings: P1–P3, the fuzz). README.md says more.
+# Checks: slice A P1–P4, and the fixed-length strings (written down 2026-10-14, before code): P1–P3, the fuzz.
+# README.md says more.
 #
 #   run.sh                      the whole gate: the clauses, the fuzz (once, on the unmutated sources), every negative control
 #   run.sh --only <regex>       the gate without the fuzz, then only the controls whose name matches (a partial run, for
@@ -21,7 +21,7 @@
 #            that could be damaged runs in its own process with a deadline (fuzz.swift), the fuzz included.
 #
 # Pass: "sidecar-parity: all passed", then "sidecar-parity: negative controls: N of N caught by their checks", exit 0.
-# The controls are the nine registered mutations and then every guard and rule the plan reaches (the Gate B refuter's plants and
+# The controls are the nine registered mutations and then every guard and rule the plan reaches (a review's plants and
 # the fixes that review led to: the removal cascade, the refused add, the newer schema, the minimum reader first, the name in
 # UTF-16 units, the link to nothing, dates to the nearest millisecond, a slash written as it is), the writer's text cap, and the controls of
 # the harness itself (the HDF5 library it loads is the named copy; the fuzz driver reports a hang, a crash, a silent change and
@@ -164,7 +164,7 @@ source_mutant SessionSidecarFile.swift foreign-read-as-sidecar \
   'swift reads foreign-lookalike|swift reads foreign-bare' \
   $'guard let identity = try HDF5RootAttributes.read([identityAttribute], from: url)[identityAttribute] else {\n            throw Refusal.foreign\n        }' \
   'let identity = try HDF5RootAttributes.read([identityAttribute], from: url)[identityAttribute] ?? "1"'
-# 3. (retired 2026-10-14, ADR 023 d') the 4 MiB cap removed from the read. A text over the object header's 64 KiB is in dense storage, which
+# 3. (retired 2026-10-14, by the dense-storage refusal) the 4 MiB cap removed from the read. A text over the object header's 64 KiB is in dense storage, which
 #    the reader now refuses before it looks at any attribute, so no file reaches the cap check and the mutant is equivalent.
 # 4. a cycle accepted.
 source_mutant SessionLineage.swift cycle-accepted \
@@ -220,7 +220,7 @@ source_mutant SessionLineage.swift name-not-nfc \
   'h5py unicode source json|swift identity valid-nfd-name' \
   'self.fileName = fileName.precomposedStringWithCanonicalMapping' 'self.fileName = fileName'
 
-# Beyond those, one control for every guard or rule the plan reaches that the fourteen leave open: the Gate B refuter's plants
+# Beyond those, one control for every guard or rule the plan reaches that the fourteen leave open: a review's plants
 # (2026-10-13/14) and the fixes of that review. (Each edit must apply exactly once to the current source.)
 # 15. P2's ORDER: the source and the lineage are read before the minimum reader is judged, so a newer file whose rest is not
 #     valid UTF-8 is refused for that instead of for the minimum reader.
@@ -318,13 +318,13 @@ source_mutant SessionLineage.swift identity-cap-removed \
   $'guard byteCount <= maximumJSONBytes else { throw .tooLarge(bytes: byteCount) }\n        // try? OK: any decoding failure is the one named refusal, `.malformed`.\n        guard let identity' \
   $'_ = byteCount\n        // try? OK: any decoding failure is the one named refusal, `.malformed`.\n        guard let identity'
 
-# ADR 021 (slice B, step 1): the reader of the fixed-length form, the writer's form, and the variable-length refusal. The reads
+# The fixed-length strings (slice B, step 1): the reader of the fixed-length form, the writer's form, and the variable-length refusal. The reads
 # of the variable-length plants and of the archived hang file run in a child process with a 10 s deadline, so a reader that
 # parses the damaged heap fails "swift reads hangcase-flip" by timing out (the 10 s are in the mutant's run) instead of
 # stalling the gate.
 VL_READS='swift reads vl-identity|swift reads vl-min-reader|swift reads vl-source|swift reads vl-lineage|swift reads hangcase-flip'
 
-# Slice B, the core (archive: roadmap-registrations-2026-10-15.md V1-2, "Slice B, the core"): SessionMarks, SessionRestore and SessionSave through marks.swift and
+# Slice B, the core: SessionMarks, SessionRestore and SessionSave through marks.swift and
 # marks_reference.py (P1 the restore equals the save; P2 every refusal by name, naming the node; P3 the verdict and the calibration
 # note through the restore; the save's checks and its changed-on-disk rule), and the file layer's not-permitted refusal. Each
 # mutant is a source mutant of SessionMarks.swift (or SessionSidecarFile.swift) and must fail the check named for it.
@@ -443,7 +443,7 @@ source_mutant SessionMarks.swift marks-kept-count-not-counted \
   'swift marks kept restore-three-kinds-and-kept' \
   'guard let mark else { kept += 1; continue }' 'guard let mark else { kept += 0; continue }'
 
-# ADR 023 d' (slice B step 2): the reader's header-only refusal of dense attribute storage. Each dense plant is one h5py wrote and h5py
+# The dense-storage refusal (slice B step 2): the reader's header-only refusal of dense attribute storage. Each dense plant is one h5py wrote and h5py
 # proves is in dense storage (the plant's `dense` flag); the compact ones that must not be refused are the valid and foreign plants.
 DENSE_READS='swift reads dense-attributes-tracked-order|swift reads dense-attributes-many|swift reads lineage-100kb|swift reads lineage-4mib-exact'
 # The replace check (the header reads) without the dense refusal, the read's first act keeping it: only the overwrite is held to it.
@@ -454,7 +454,7 @@ source_mutant SessionSidecarFile.swift dense-check-in-the-read-only \
   $'                let before = HDF5FileIdentity(ofItemAt: url.path)\n                let header = try readHeader(of: url)' \
   $'                let before = HDF5FileIdentity(ofItemAt: url.path)\n                _ = try HDF5RootAttributes.read([], from: url)\n                let header = try readHeader(of: url)'
 
-# ADR 023 a (slice B step 2): the writer's 60,000-byte cap on the four attributes' text, the save request's check of the same.
+# The text cap (slice B step 2): the writer's 60,000-byte cap on the four attributes' text, the save request's check of the same.
 # The cap is held by the raw writes (exactly at it written, one byte over refused by name, and a split between the source and the
 # lineage), and every file from empty to within 100 bytes of it by h5py as compact storage (`h5py raw size-N compact`).
 source_mutant SessionSidecarFile.swift writer-total-cap-removed \

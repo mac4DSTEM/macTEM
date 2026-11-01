@@ -134,7 +134,7 @@ nonisolated final class LineProfileTests: XCTestCase {
         XCTAssertEqual(line(img, 1, 1, 1, 4, width: 3).width, 3)
     }
 
-    // MARK: Gate B (2026-10-13), adopted from the refuter
+    // MARK: Review (2026-10-13), adopted from the reviewer
 
     private func nanImage() -> CalibratedImage {
         var px = (0..<60).map { Float($0) }

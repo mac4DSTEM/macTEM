@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Truth for tools/parity/sidecar-parity: h5py 3.16.0 against macTEM's session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice A, ADR 020; slice B step 1, ADR 021).
+"""Truth for tools/parity/sidecar-parity: h5py 3.16.0 against macTEM's session sidecar (the file layer, then the fixed-length strings).
 
     reference.py plant <ref-dir>               plant every input and write its truth: <ref-dir>/manifest.json, the pixel
                                                sets (pixels/*.f32) and the sidecars h5py writes (planted/*.mactem.h5)
@@ -8,7 +8,7 @@
                                                {name, ok, detail} per check, which the harness prints and counts
 
 What is independent here. The sidecar's four root attributes are read and written by h5py, never by the library Swift calls
-(h5py ships its own HDF5). ADR 021: each attribute Swift writes must be a SCALAR FIXED-LENGTH string, null-padded
+(h5py ships its own HDF5). The fixed-length-string rule: each attribute Swift writes must be a SCALAR FIXED-LENGTH string, null-padded
 (H5T_STR_NULLPAD), UTF-8, as many bytes as the text (1 for an empty text: HDF5 has no size 0), and the storage byte-equal to
 the text; h5py reads the type with its own low-level calls (class, variable-or-not, size, pad, character set) and the
 storage with a numpy `S` buffer of the stored size (which keeps every byte). h5py writes every sidecar it plants the same
@@ -28,7 +28,7 @@ goes with its last citer, and every removed node only it cited goes too). The ca
 live nodes; `simulate_checked` holds it to the slow formulation of the rule on every plan short enough for it. The dates
 the plan plants are checked on exact fractions (the nearest millisecond, a tie away from zero). The pixels' fingerprint is
 hashlib.sha256 over the float32 little-endian bytes (numpy), cross-checked here over the uint32 words packed by struct. The
-name limit (255 UTF-16 code units) is checked against the scratch volume itself. The fuzz (ADR 021, P3) is planned here:
+name limit (255 UTF-16 code units) is checked against the scratch volume itself. The fuzz (P3) is planned here:
 the three sessions whose files are mutated (a marks session, a lineage of about 60 KB, one of 2 000 nodes) are ordinary
 sessions of the plan, checked by h5py like the rest; the mutation schedule is the manifest's `fuzz` block.
 
@@ -71,11 +71,11 @@ ATTRIBUTES = [IDENTITY, MIN_READER, SOURCE, LINEAGE]
 SUFFIX = ".mactem.h5"
 CAP = 4 << 20                 # the registered 4 MiB cap on a stored string
 MAX_NODES = 2000
-TOTAL_CAP = 60_000            # ADR 023 a: the most text the writer puts in the four attributes together
+TOTAL_CAP = 60_000            # the text cap: the most text the writer puts in the four attributes together
 MAX_NEXT_ID = 1_000_000
 MS0 = 1_791_900_000_123       # a planted date, milliseconds since 1970
 
-# ADR 021's evidence: a sidecar (all four attributes variable-length) with one byte of a global-heap object size flipped, on
+# The evidence for the fixed-length strings: a sidecar (all four attributes variable-length) with one byte of a global-heap object size flipped, on
 # which a variable-length H5Aread spins forever. Pinned by content, so a changed fixture file is a reference failure.
 HANG_FILE = os.path.join(HERE, "fixtures", "hangcase-flip.mactem.h5")
 HANG_SHA256 = "2a3824563398c2e8213f8282809d908383314c72aced3deb06300c81be6d543e"
@@ -399,7 +399,7 @@ def chain_ops(length=CHAIN_LENGTH):
 LONG_MICRO = "µ" * 245
 
 
-MANY_NODES = 200               # the writer's 60,000-byte cap (ADR 023 a) leaves room for about 250 such nodes, not the 2 000 of the node cap
+MANY_NODES = 200               # the writer's 60,000-byte cap leaves room for about 250 such nodes, not the 2 000 of the node cap
 
 
 def many_ops():
@@ -419,11 +419,11 @@ def fuzz_ops(n):
     return [add("distance", [("x0", D(10.5)), ("y0", D(20.25))], [("length", S("3.2 nm"))], 1_760_000_000_000) for _ in range(n)]
 
 
-# ADR 021, P3: three sidecars Swift writes (sessions of this plan), mutated and read, each read in its own process with a
+# P3: three sidecars Swift writes (sessions of this plan), mutated and read, each read in its own process with a
 # deadline. Every byte of the small file x {xor 0xFF, bit 0, set to 0}; every 61st byte of the 60 KB file and every 997th of
 # the 315 KB file x {xor 0xFF, bit 0}; 16 truncations of each (to N * k / 16 bytes, k = 0..15). Pass: no hang, no crash
 # (a signal), every read the written contents or a named refusal, and no silent change (a read that succeeds with other
-# contents) on the files `gated`: those whose text is within about 65,499 bytes, which the checksummed object header holds (ADR 021's
+# contents) on the files `gated`: those whose text is within about 65,499 bytes, which the checksummed object header holds (the fixed-length rule's
 # second opinion measured none); the 315 KB file's text is in dense storage, not checksummed: its silent changes are
 # counted, not gated.
 FUZZ = {
@@ -431,10 +431,10 @@ FUZZ = {
     "files": [
         {"session": "marks", "modes": ["xor", "bit0", "zero"], "stride": 1, "gated": True},
         {"session": "fuzz-60k", "modes": ["xor", "bit0"], "stride": 61, "gated": True},
-        # ADR 023 d': a dense-storage file (h5py plants it; the writer refuses to) is refused by name, so it is read as that refusal
+        # The dense-storage refusal: a dense-storage file (h5py plants it; the writer refuses to) is refused by name, so it is read as that refusal
         {"session": "fuzz-315k", "modes": ["xor", "bit0"], "stride": 997, "gated": True, "planted": True, "dense": True},
     ],
-    # ADR 023 d' P3: the structure-aware fuzz of h5py's dense sidecars (dense_fuzz.py): filled in by `plant` (files, mutation lists)
+    # P3: the structure-aware fuzz of h5py's dense sidecars (dense_fuzz.py): filled in by `plant` (files, mutation lists)
     "structure": [], "forged": [],
 }
 DENSE_BASES = (("dense-70k", 70_000), ("dense-65600", 65_600), ("dense-100k", 100_000))
@@ -462,7 +462,7 @@ def check_fuzz_plan(session_list):
 
 def dense_fuzz_session():
     """The fuzz's third file (about 315 KB of lineage text, dense storage): a plan session like the others, but Swift's writer
-    refuses it since ADR 023 a, so h5py writes it (plant) and the fuzz reads and mutates that file."""
+    refuses it since the text cap, so h5py writes it (plant) and the fuzz reads and mutates that file."""
     w, h, arr = pixel_sets()["ramp-a"]
     obj = identity_obj("fuzz-315k.tif", 100, "o", w, h, fingerprint(arr))
     nodes, next_id = simulate_checked(fuzz_ops(2000))
@@ -537,7 +537,7 @@ def sessions(pixels):
 
 # ---------------------------------------------------------------- the sidecars h5py writes
 
-# Attribute kinds a plant can ask for (a fixed-length string is the sidecar's own form, ADR 021):
+# Attribute kinds a plant can ask for (a fixed-length string is the sidecar's own form):
 #   str       a fixed-length string, NULLPAD, UTF-8, as long as the text (1 byte for an empty text)      value: text
 #   invalid   the same with bytes that are not UTF-8                                                       value: bytes
 #   bytes     the same with any bytes (a NUL inside, then more text)                                       value: bytes
@@ -757,14 +757,14 @@ def planted_cases(pixels, out_dir):
     def case(name, attrs, read, lineage=None, source=None, write_over=None, datasets=(), raw=None, options=None, replaces=False,
              dense=False):
         # A sidecar with a variable-length attribute, or the hang file, is read by the harness in a child process with a
-        # deadline (ADR 021: the library may spin on a damaged one), never in the gate's own process.
+        # deadline (the library may spin on a damaged one), never in the gate's own process.
         child = isinstance(raw, tuple) or any(kind in VARIABLE_KINDS for _, kind, _ in attrs)
         cases.append({"name": name, "attrs": attrs, "datasets": datasets, "raw": raw, "options": options,
                       "read": read, "lineage": lineage, "source": source, "write_over": write_over,
                       "child": child, "replaces": replaces, "dense": dense})
 
     ok = lambda lin, src=valid_source, schema=1, minr=1: contents(schema, minr, src, lin)
-    # ADR 023 d': a root whose attributes are in dense storage (h5py proves each plant is, DENSE below) is refused by name, on a read and
+    # The dense-storage refusal: a root whose attributes are in dense storage (h5py proves each plant is, DENSE below) is refused by name, on a read and
     # on the replace check of a write, before any attribute is opened
     dense_refusal = lambda: refused(name="denseAttributeStorage")
     # valid: read equal (byte for byte), decoded equal, re-encoded byte-equal to Python's canonical text
@@ -835,7 +835,7 @@ def planted_cases(pixels, out_dir):
     case("garbled-identity", [(IDENTITY, "str", "01"), (MIN_READER, "str", "1")], refused(name="malformedAttribute", attribute=IDENTITY))
     case("garbled-min-reader", [(IDENTITY, "str", "1"), (MIN_READER, "str", "0")], refused(name="malformedAttribute", attribute=MIN_READER))
     # texts over the object header's 64 KiB are in dense storage, which the reader refuses by name before any attribute is looked at
-    # (ADR 023 d'): the writer's un-capped sizes of the registration, 65,600 B and 100 KB, and the 4 MiB texts of ADR 021, which
+    # (the dense-storage refusal): the writer's un-capped sizes of the plan, 65,600 B and 100 KB, and the 4 MiB texts, which
     # the reader's own 4 MiB cap (now unreachable) used to refuse as `stringTooLong`
     for label, size in (("65600", 65_600), ("100kb", 100_000)):
         case(f"lineage-{label}", plain + [(LINEAGE, "str", "y" * size)], dense_refusal(), write_over=refusal("denseAttributeStorage"), dense=True)
@@ -844,7 +844,7 @@ def planted_cases(pixels, out_dir):
     case("lineage-4mib-plus-1", plain + [(LINEAGE, "str", big + "y")], dense_refusal(), write_over=refusal("denseAttributeStorage"), dense=True)
     case("source-5mib", [(IDENTITY, "str", "1"), (MIN_READER, "str", "1"), (SOURCE, "str", five), (LINEAGE, "str", "{}")],
          dense_refusal(), write_over=refusal("denseAttributeStorage"), dense=True)
-    # the stored text must be UTF-8 (the type is fixed-length now: ADR 021)
+    # the stored text must be UTF-8 (the type is fixed-length now)
     case("invalid-utf8-lineage", plain + [(LINEAGE, "invalid", b"{\"a\":\"\xff\xfe\"}")], refused(name="invalidUTF8", attribute=LINEAGE))
     case("invalid-utf8-source", [(IDENTITY, "str", "1"), (MIN_READER, "str", "1"), (SOURCE, "invalid", b"\xc3\x28"), (LINEAGE, "str", "{}")],
          refused(name="invalidUTF8", attribute=SOURCE))
@@ -874,7 +874,7 @@ def planted_cases(pixels, out_dir):
          refused(name="malformedAttribute", attribute=SOURCE))
     case("integer-source", [(IDENTITY, "str", "1"), (MIN_READER, "str", "1"), (SOURCE, "int", 3), (LINEAGE, "str", "{}")],
          refused(name="malformedAttribute", attribute=SOURCE))
-    # ADR 021, P2: a variable-length string is refused by name from its type, before any H5Aread (its heap is never parsed).
+    # P2: a variable-length string is refused by name from its type, before any H5Aread (its heap is never parsed).
     # Each of the four attributes, variable-length in an otherwise valid sidecar. The identity's and the minimum reader's are
     # read by the write's replace check too, so a write over those is refused; the source and the lineage the replace never
     # reads, so a write over those replaces the file (and never touches the heap).
@@ -910,7 +910,7 @@ def planted_cases(pixels, out_dir):
     case("dangling-link", [], refused(name="cannotOpen"), raw="dangling", write_over=refusal("cannotOpen"))
     # the lineage's own guards, each a named refusal of SessionLineage.decode (the file layer reads them fine)
     def lin(name, text, outcome):
-        # A text over about 65,499 bytes is in dense storage and the file is refused (ADR 023 d'): the decode is then checked on the
+        # A text over about 65,499 bytes is in dense storage and the file is refused: the decode is then checked on the
         # text itself, which the plant keeps beside the sidecar (`lineage_text`), as h5py would have read it
         if len(text.encode("utf-8")) > DENSE_ABOVE:
             case(name, plain + [(LINEAGE, "str", text)], dense_refusal(), outcome, write_over=refusal("denseAttributeStorage"), dense=True)
@@ -1093,7 +1093,7 @@ def utf16_units(text):
 
 def fs_units(name):
     """The units the file system gets to count: Foundation hands a file name over decomposed ("Å" is two units, A and a
-    combining ring), so the name is measured as NFD (ADR 020 D1 as amended: 255 UTF-16 units, not 255 bytes)."""
+    combining ring), so the name is measured as NFD (255 UTF-16 units, not 255 bytes)."""
     return utf16_units(nfd(name))
 
 
@@ -1191,7 +1191,7 @@ def raw_writes():
          "refusal": refusal("stringTooLong", attribute=LINEAGE, bytes=CAP + 1)},
         {"id": "cap-plus-one-source", "lineage": "{}", "fill_attribute": "source", "fill_bytes": CAP + 1, "outcome": "refusal",
          "refusal": refusal("stringTooLong", attribute=SOURCE, bytes=CAP + 1)},
-        # ADR 023 a: the four attributes' text together is at most 60,000 bytes (the two markers one byte each, the source "{}")
+        # The text cap: the four attributes' text together is at most 60,000 bytes (the two markers one byte each, the source "{}")
         {"id": "total-cap-exact-lineage", "source": "{}", "fill_attribute": "lineage", "fill_bytes": TOTAL_CAP - 4, "outcome": "written"},
         {"id": "total-cap-plus-one-lineage", "source": "{}", "fill_attribute": "lineage", "fill_bytes": TOTAL_CAP - 3, "outcome": "refusal",
          "refusal": refusal("sidecarTooLarge", bytes=TOTAL_CAP + 1)},
@@ -1275,7 +1275,7 @@ class Checks:
 
 
 def attribute_problems(facts, text):
-    """ADR 021, P1, for an attribute Swift wrote with the text `text`: each of five properties is None when it holds, else the
+    """The fixed-length-string rule, P1, for an attribute Swift wrote with the text `text`: each of five properties is None when it holds, else the
     reason. type: a scalar fixed-length string (not variable-length, not an array, not another class). strpad: NULLPAD.
     charset: UTF-8. size: as many bytes of storage as the text's UTF-8 bytes (1 for an empty text). bytes: the storage
     byte-equal to the text (an empty text is one NUL), padding and all."""
@@ -1409,7 +1409,7 @@ def readback(ref, out):
         if not match:
             continue
         path = os.path.join(directory, match[0])
-        # Gate B 2026-10-14, finding 2: the writer sets the library-version bounds itself, so the file is in the latest format
+        # A review (2026-10-14, finding 2): the writer sets the library-version bounds itself, so the file is in the latest format
         # whatever the library's default is: a superblock of version 2 or later (version 0 is the 'earliest' format, which cannot
         # hold a text over about 65,499 bytes) and version-2 object headers ("OHDR"; "OHDR" is absent from a version-1 header).
         raw = open(path, "rb").read()
@@ -1495,7 +1495,7 @@ def readback(ref, out):
             check(sorted(f.attrs.keys()) == sorted(ATTRIBUTES) and len(f.keys()) == 0, f"h5py raw {rid} attributes",
                   f"root attributes {sorted(f.attrs.keys())}, objects {sorted(f.keys())}")
             if raw.get("compact"):
-                # ADR 023 P1: the attributes are in the object header, as messages (the header holds at least a message each of
+                # P1: the attributes are in the object header, as messages (the header holds at least a message each of
                 # the four attributes: h5py's object info counts them), and not in dense storage (no fractal heap and no B-tree
                 # index for the root's attributes)
                 info = h5py.h5o.get_info(f.id)

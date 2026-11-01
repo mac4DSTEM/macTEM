@@ -2,7 +2,7 @@
 //  ImagePresentation.swift
 //  Role: the one owner of how one open file is drawn — the display-normalised pixels the canvas uploads, the
 //        colormap, the contrast window, the gamma and whether the scale bar shows. Never a scientific number:
-//        nothing here is measured, exported or saved, and no measurement reads the canvas (V1-5 reads the image's own
+//        nothing here is measured, exported or saved, and no measurement reads the canvas (the measuring tools read the image's own
 //        pixels). The intensity histogram the Display section draws is computed once with the canvas, off the main
 //        actor, from the RAW pixels (`IntensityHistogram`; ImagoKit ImagoCore with an app default-bins extension; gated against numpy).
 //

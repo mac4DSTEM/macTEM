@@ -4,7 +4,7 @@
 //     harness <out-dir-of-reference.py>
 //
 // Slice S-a: the three format readers `AcquisitionMetadata.tiff(data:)`, `.mrc(data:)` and `.dm(numbers:strings:)`.
-// Slice S-b (archive: roadmap-registrations-2026-10-15.md V1-4a, "S-b, the DM wiring and tag 65027"): `AcquisitionMetadata.read(path:)`, the entry point that
+// Slice S-b (the DM wiring and tag 65027): `AcquisitionMetadata.read(path:)`, the entry point that
 // describes a FILE, end to end (`reads` in manifest.json; every check name starts `read:`):
 //   C1  the object the open shows. `ImageOpening.primaryImageObject(in: DM4Experiment.list(path:))` is the ImageList number
 //       the reference expects, and so is the one in `ImageOpening.openNow(path:).source`; where the open shows none (a 3-D

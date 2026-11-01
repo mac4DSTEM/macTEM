@@ -1,4 +1,4 @@
-// tools/parity/sidecar-parity/marks.swift — the marks of the session sidecar (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, the core): `SessionMarks`,
+// tools/parity/sidecar-parity/marks.swift — the marks of the session sidecar (the core): `SessionMarks`,
 // `SessionRestore` and `SessionSave`, against h5py 3.16.0 and numpy-free closed forms (marks_reference.py is the truth).
 //
 //   write step (`harness --write`): Swift writes the planted mark sessions through the whole save path — marks to nodes
@@ -316,7 +316,7 @@ func writeSaveScenarios(_ plan: MarksPlan, ref: URL, out: URL) throws {
     try bad.add(kind: "distance", parameters: ["x1": "0", "y1": "0", "x2": "99999", "y2": "0", "object": base.object, "frame": "0"], recorded: 1)
     outcome("bad-mark", expect: "mark.outsideImage s1 2") { _ = try request(bad, expected: nil) }
     outcome("empty-lineage", expect: nil) { _ = try request(SessionLineage(), expected: nil) }
-    // ADR 023 a: the text of a save is at most 60,000 bytes; a record of exactly that is made, one byte more is refused by name
+    // The text cap: the text of a save is at most 60,000 bytes; a record of exactly that is made, one byte more is refused by name
     func padded(_ pad: Int) throws -> SessionLineage {
         var lineage = first
         try lineage.add(kind: "export", parameters: ["pad": String(repeating: "p", count: pad)], recorded: 1_791_999_000_001)

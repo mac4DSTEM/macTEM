@@ -1,6 +1,6 @@
-// tools/parity/export-parity/main.swift — macTEM's export (V1-10 slice 1: `ImageExport`, `ProfileCSV`, `ExportFile`; TEMCore, through
+// tools/parity/export-parity/main.swift — macTEM's Image room export (`ImageExport`, `ProfileCSV`, `ExportFile`; TEMCore, through
 // Package.swift's ExportParity target) WRITES what reference.py planted; reference.py `check` reads
-// it back with Pillow, numpy and Python's own `float` and holds it to the registration (P1, P3, P4, P5, P6, and P7, the label; and R-P1, the Results room's CSV, V1-10 slice 3).
+// it back with Pillow, numpy and Python's own `float` and holds it to its checks (P1, P3, P4, P5, P6, and P7, the label; and R-P1, the Results room's CSV).
 //
 //     harness <planted dir of reference.py> <out dir> [<case,case...|all> [<variant,variant...|all>]]
 //
@@ -75,7 +75,7 @@ struct Manifest: Decodable {
         let shown: Shown?
         let software: String
     }
-    /// The Results room's CSV (V1-10 slice 3, R-P1): marks and spots built by TEMCore's `ResultRow` builders from planted
+    /// The Results room's CSV (R-P1): marks and spots built by TEMCore's `ResultRow` builders from planted
     /// points and clicks, and raw rows with planted bit patterns, written through `ResultsCSV`.
     struct ResultsCase: Decodable {
         struct MarkSpec: Decodable {

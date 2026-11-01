@@ -16,7 +16,7 @@ to make a specific reader error visible. The committed fixture:
 - Every Dimension group carries Origin, Scale and Units, the layout GMS writes (ncempy gives a dimension without
   an Origin the last Origin it read).
 
-The Format fixtures (--types, with the per-type ones; archive: roadmap-registrations-2026-10-15.md V1-1b): GMS tags a spectrum image `ImageTags.Meta Data.Format`
+The Format fixtures (--types, with the per-type ones): GMS tags a spectrum image `ImageTags.Meta Data.Format`
 = "Spectrum image". planted-si.dm4 holds a thumbnail and one 6 x 3 object with BOTH axes in nm and that Format (no
 mixed-units clause can catch it); planted-si-then-image.dm4 the same object, then a 3 x 2 image tagged "Image";
 planted-diffraction.dm4 a thumbnail and a 3 x 2 image tagged "Diffraction image". Each truth file names the tag.
@@ -153,7 +153,7 @@ def per_type(out):
     print(f"make_fixture: {len(PER_TYPE)} per-type fixtures ({', '.join(PER_TYPE)}) in {out}")
 
 
-# V1-1b: (file stem, [(object name, dims, Format)]) after the thumbnail. A 3 x 2 object reads as the type fixtures do.
+# The Format fixtures: (file stem, [(object name, dims, Format)]) after the thumbnail. A 3 x 2 object reads as the type fixtures do.
 SI_DIMS = [6, 3]
 FORMAT_CASES = {
     "planted-si": [("SI", SI_DIMS, "Spectrum image")],

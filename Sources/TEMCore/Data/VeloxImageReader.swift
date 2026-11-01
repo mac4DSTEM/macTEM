@@ -16,7 +16,7 @@
 //  code: this separates all 27 public image stacks and the owner's three Ceta files (a name test would open the
 //  `UltraX` and `Zebra` EDX maps of `example_velox_EELS_EDS`, which carry no DetectorIndex).
 //
-//  THE FRAME: frame 0 of the stack (`read(path:frame:)` is V1-3c-ii's seam), never a sum: an unaligned sum smears (the
+//  THE FRAME: frame 0 of the stack (`read(path:frame:)` is the seam for the other frames), never a sum: an unaligned sum smears (the
 //  measured residual shift reaches (2, −5) px over 212 frames). A stack says "frame 1 of N" in `notes`.
 //
 //  CALIBRATION, as stored: x from `PixelSize.width` in `PixelUnitX`, y from `PixelSize.height` in `PixelUnitY`, the

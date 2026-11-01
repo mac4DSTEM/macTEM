@@ -14,7 +14,7 @@ Writes <out-dir>/planted.json and the planted files beside it:
     inputs of AcquisitionMetadata.read(path:) end to end, each with the hand-written truth of what it must show.
 
 Each case carries its TRUTH: for each of the nine fields, null ("not recorded") or {"value", "note", "otherCopy"}. The
-truth is written by hand from the registered rules (archive: roadmap-registrations-2026-10-15.md V1-4a; AcquisitionMetadata.swift rules a-g), never by
+truth is written by hand from the rules (AcquisitionMetadata.swift rules a-g), never by
 running any reader. reference.py then has to reproduce it from the pinned references; a reference that disagrees with
 the plant exits 1, loudly.
 
@@ -564,7 +564,7 @@ def main(out):
         comment="[User] Time without a Date: the acquisition date is not recorded")
 
     # ---------------------------------------------------------------- MRC, FEI extended header ------------------
-    # The rules as amended after Gate B: the date carries WRITER (of the two pinned files one is on local time, the
+    # The rules as amended after a review: the date carries WRITER (of the two pinned files one is on local time, the
     # other on UTC); the camera length is shown as stored and says the mode is not checked (NOMODE); the mode is the
     # stored int32 as text (UNVAL, no published reader reads it); the exposure is the camera's Integration time (UNVAL).
     t_img = datetime(2023, 3, 4, 9, 8, 7, 350000)

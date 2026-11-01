@@ -6,7 +6,7 @@
 //  exact LUT interpolation and `.rounded()`. They cannot agree on every code value, so the difference is MEASURED and
 //  asserted at a bound: the largest per-channel difference in 8-bit levels (a hard bound, the measured 1) and
 //  the share of channels that differ at all, over the grid below (a fraction with a margin, not an exact count: another GPU's
-//  fixed-point filter weights move the count a little, and Gate B R1 measured no second GPU). A bound on the share catches
+//  fixed-point filter weights move the count a little, and a review measured no second GPU). A bound on the share catches
 //  what a bound on the maximum cannot: a rounding that truncates instead of rounding stays within one level and differs on
 //  an eighth of the channels.
 //  The draw is the one `MetalEngineDisplayTests` makes (`displayPSO`, the identity transform, one texel per pixel, a

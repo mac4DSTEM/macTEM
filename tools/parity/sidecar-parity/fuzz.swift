@@ -1,7 +1,7 @@
-// tools/parity/sidecar-parity/fuzz.swift — the harness's child processes and ADR 021's fuzz (archive: roadmap-registrations-2026-10-15.md V1-2 slice B, step 1).
+// tools/parity/sidecar-parity/fuzz.swift — the harness's child processes and the fuzz of the fixed-length strings.
 //
 // WHY A CHILD PROCESS. One damaged byte in a variable-length string's global heap makes `H5Aread` spin forever while
-// SpectroKit's process-wide `HDF5Serial` lock is held (archive: sidecar-hdf5-hang-2026-10-14/). The reader now refuses a
+// SpectroKit's process-wide `HDF5Serial` lock is held. The reader now refuses a
 // variable-length string by name before any read, so it cannot happen; but this harness exists to PROVE that, so every Swift
 // read of a file that could be damaged (the variable-length plants, the archived hang file, every mutation of the fuzz) runs
 // in its own process with a deadline. A hang is then a failure that names the file, never a stuck gate; a crash by signal is a
@@ -14,7 +14,7 @@
 //                                    the fuzz driver against a stub reader that misbehaves as asked (hang, crash, silent,
 //                                    unnamed) or not (ok): run.sh requires each misbehaviour to fail the driver's named check
 //
-// THE FUZZ (P3, registered in archive: roadmap-registrations-2026-10-15.md "Slice B, step 1"). The files and the schedule are the plan's (reference.py `FUZZ`):
+// THE FUZZ (P3). The files and the schedule are the plan's (reference.py `FUZZ`):
 // three sidecars Swift wrote, mutated at the bytes the plan names (xor 0xFF, bit 0, set to 0; a stride; 16 truncations), each
 // mutated file read by `harness --read` with a 10 s deadline, at most 6 processes at once. Every read is classified:
 //   unchanged   the written contents (a mutation in padding, free space, or a field nothing reads)
@@ -251,9 +251,9 @@ struct FuzzFilePlan: Decodable {
     let modes: [String]
     let stride: Int
     let gated: Bool
-    /// A file h5py wrote (dense storage, which the writer refuses since ADR 023 a), with the strings it holds.
+    /// A file h5py wrote (dense storage, which the writer refuses since the text cap), with the strings it holds.
     let planted: Bool?
-    /// The file is in dense attribute storage: the reader refuses it by name (ADR 023 d'), so the unmutated read is that refusal
+    /// The file is in dense attribute storage: the reader refuses it by name, so the unmutated read is that refusal
     /// and a mutated read that succeeds is a silent change.
     let dense: Bool?
     let file: String?
@@ -290,7 +290,7 @@ struct PatchedMutation: Decodable {
 }
 
 /// A dense-storage sidecar h5py wrote and the structure-aware mutations of its FRHP, BTHD and BTLF blocks, checksums recomputed
-/// (dense_fuzz.py; ADR 023 d' P3).
+/// (dense_fuzz.py; P3).
 struct StructureBase: Decodable {
     let label: String
     let file: String
@@ -521,7 +521,7 @@ func checkFuzz(_ manifest: Manifest, written: Written?, ref: URL, out: URL, _ re
             reader: reader, scratch: scratch, &report)
 }
 
-// MARK: - The structure-aware fuzz of dense-storage sidecars (ADR 023 d', P3)
+// MARK: - The structure-aware fuzz of dense-storage sidecars (P3)
 
 /// The mutated bytes of `base` with `patches` applied, or nil when a patch would fall outside the file.
 func applying(_ patches: [Patch], to base: [UInt8]) -> [UInt8]? {

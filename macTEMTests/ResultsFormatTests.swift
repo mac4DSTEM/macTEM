@@ -1,6 +1,6 @@
 //
 //  ResultsFormatTests.swift
-//  Every sentence and number the Results room shows (V1-10 slice 3, `ResultsFormat`): the groups' names, a row's Value as the
+//  Every sentence and number the Results room shows (`ResultsFormat`): the groups' names, a row's Value as the
 //  owner's room reads it (a mark as `MarkFormat`, a spot as `FFTRoomFormat`), its Source, Record and badge, the badge that turns to
 //  "Unvalidated · <note>", the spoken row, the line ⌘C copies, the Info fields, the header's count, the states' words and the export's
 //  name, message and menu title. Expected strings are literals worked out by hand. Tier 2.

@@ -1,6 +1,6 @@
 //
 //  AcquisitionMetadataDMTests.swift
-//   V1-4a, slice S-a: the DM rules of `AcquisitionMetadata.dm(numbers:strings:)` on ImageTags maps written
+//   Slice S-a: the DM rules of `AcquisitionMetadata.dm(numbers:strings:)` on ImageTags maps written
 //  here (keys relative to `ImageList.N.ImageTags.`), most of them the values ncempy 1.16 reads from the real
 //  RosettaSciIO files. Each test names the production mutation it
 //  must turn red. The parity of the same rules over ncempy's maps of every real file is tools/parity/metadata-parity.

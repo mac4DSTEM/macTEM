@@ -5,7 +5,7 @@
 //        window — small values, kept while the file is cold, as the marks are (`OpenItem.fft`, beside `measurements`) —
 //        and, while the room shows the file, the products: the spectrum ready to draw with its radial profile, the
 //        masked inverse, ABSF and Wiener. The numbers are ImagoKit's (`PowerSpectrum`, `RadialProfile`, `SpotMeasurement`,
-//        `MaskedInverseFFT`, `HRTEMFilter`, ADR 027; the room's region, bin and unit rules are ImagoFFT's `FFTRegion`, `SpectrumBin`, `FFTUnits`; `FFTMask` is ImagoFFT's); this owner asks for them and
+//        `MaskedInverseFFT`, `HRTEMFilter`; the room's region, bin and unit rules are ImagoFFT's `FFTRegion`, `SpectrumBin`, `FFTUnits`; `FFTMask` is ImagoFFT's); this owner asks for them and
 //        publishes what it is answered, by the live-update rule R2.
 //
 //        NOT SAVED: the session sidecar is not built, so the room's state lives with its open file and goes when
