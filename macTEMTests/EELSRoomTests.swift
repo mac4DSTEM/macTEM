@@ -74,7 +74,9 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(t.values, map.pixels.map { $0.tOverLambda ?? .nan })
         XCTAssertNil(t.footer, "every pixel has a value")
         XCTAssertEqual(session.tiles.first { $0.id == "iTotal" }?.values, map.pixels.map(\.iTotal))
-        XCTAssertTrue(try XCTUnwrap(session.methodJSON).contains("\"validation\" : \"none\""))
+        let method = try XCTUnwrap(session.methodJSON)
+        XCTAssertFalse(method.contains("\"validation\""), "no trust word in the method JSON")
+        XCTAssertTrue(method.contains("\"reference\" : \"" + ResultRow.Product.eelsThicknessReference + "\""), method)
     }
 
     /// The default (estimated) rule runs on the planted image and lands near the planted values; the exact claim is the fixed one above.
@@ -149,13 +151,15 @@ nonisolated final class EELSRoomTests: XCTestCase {
 
     // MARK: Exports
 
-    /// The diagnostics CSV has the badge in its first line, a row per pixel and the kit's reason where there is none; the method JSON names the rule.
-    @MainActor func testTheExportsCarryTheBadgeAndEveryPixel() async throws {
+    /// The diagnostics CSV has the method and its reference in its first line and no trust word, a row per pixel and the kit's reason where
+    /// there is none; the method JSON names the rule.
+    @MainActor func testTheExportsCarryTheMethodAndEveryPixel() async throws {
         let session = try await openRoom(unavailablePixel: 5)
         let csv = try XCTUnwrap(session.diagnosticsCSV)
         let lines = csv.split(separator: "\n").map(String.init)
         XCTAssertEqual(lines.count, 2 + Self.nx * Self.ny)
-        XCTAssertTrue(lines[0].hasSuffix("validation: none"), lines[0])
+        XCTAssertTrue(lines[0].hasSuffix("reference: " + ResultRow.Product.eelsThicknessReference), lines[0])
+        XCTAssertFalse(lines[0].contains("validation"), lines[0])
         XCTAssertEqual(lines[1], "x,y,t_over_lambda,sigma_counting,i0,i_total,zlp_centre_eV,threshold_eV,thickness_nm,unavailable")
         XCTAssertTrue(lines[2 + 5].hasPrefix("1,1,,"), lines[7])
         XCTAssertTrue(lines[2 + 5].contains("I_0 <= 0"), lines[7])

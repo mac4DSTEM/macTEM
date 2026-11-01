@@ -5,7 +5,7 @@
 //
 //  Nothing here makes a number. `TEMCore/EELS/EELSCompute` is SpectroKit's `EELSThickness.logRatio` called with the room's
 //  choices; this owner decides WHEN to ask: every pass runs in a detached task and lands only if no newer request was made
-//  meanwhile (`generation`), as `EDXSession` does. The map is badged `validation: none`.
+//  meanwhile (`generation`), as `EDXSession` does.
 //
 
 import Foundation

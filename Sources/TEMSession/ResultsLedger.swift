@@ -41,15 +41,15 @@ package enum ResultsLedger {
         package let map: ThicknessMap?
         package let lambdaSource: String?
         package let edges: [EELSEdgeRow]
-        /// The fit's own validation word (`EELSModelResult.validation`).
-        package let fitValidation: String
+        /// The fit's own method name (`EELSModelResult.methodName`).
+        package let fitMethod: String
         package let regions: [EELSRegionRow]
         package let regionThickness: Bool
         package let regionEdges: Bool
 
-        package init(map: ThicknessMap?, lambdaSource: String?, edges: [EELSEdgeRow], fitValidation: String, regions: [EELSRegionRow],
+        package init(map: ThicknessMap?, lambdaSource: String?, edges: [EELSEdgeRow], fitMethod: String, regions: [EELSRegionRow],
                      regionThickness: Bool, regionEdges: Bool) {
-            self.map = map; self.lambdaSource = lambdaSource; self.edges = edges; self.fitValidation = fitValidation
+            self.map = map; self.lambdaSource = lambdaSource; self.edges = edges; self.fitMethod = fitMethod
             self.regions = regions; self.regionThickness = regionThickness; self.regionEdges = regionEdges
         }
 
@@ -63,7 +63,7 @@ package enum ResultsLedger {
             let fit = room.fitState == .current && room.fitRefusal == nil && room.regionModel != nil
             guard thickness || fit else { return nil }
             return EELSResults(map: thickness ? room.map : nil, lambdaSource: EELSRoomFormat.lambdaSource(room.meanFreePath),
-                               edges: fit ? room.regionRows : [], fitValidation: room.regionModel?.validation ?? "",
+                               edges: fit ? room.regionRows : [], fitMethod: room.regionModel?.methodName ?? EELSModelFit.methodName,
                                regions: room.pinRows, regionThickness: thickness && room.pinRowsThicknessCurrent,
                                regionEdges: fit && room.pinRowsFitCurrent)
         }
@@ -140,21 +140,21 @@ package enum ResultsLedger {
         var out: [ResultRow] = []
         if let map = eels.map { out.append(.eelsWholeMapThickness(id: "eels:thickness:whole", map: map, lambdaSource: eels.lambdaSource)) }
         if eels.regionThickness {
-            out += eels.regions.map { .eelsRegionThickness(id: "eels:thickness:\($0.pin.id)", row: $0, validation: eels.map?.validation ?? ResultRow.Product.eelsKitValidation) }
+            out += eels.regions.map { .eelsRegionThickness(id: "eels:thickness:\($0.pin.id)", row: $0, method: eels.map?.method ?? EELSThickness.methodName) }
         }
         return out
     }
 
     /// The whole map's fitted edges in onset order, then each region's.
     private static func eelsEdgeRows(_ eels: EELSResults) -> [ResultRow] {
-        var out = eels.edges.map { ResultRow.eelsEdge(id: "eels:edge:whole:\($0.id)", row: $0, regionName: "Whole map", validation: eels.fitValidation) }
+        var out = eels.edges.map { ResultRow.eelsEdge(id: "eels:edge:whole:\($0.id)", row: $0, regionName: "Whole map", method: eels.fitMethod) }
         if eels.regionEdges {
             for region in eels.regions {
                 if let why = region.edgesUnavailable {
                     out.append(.eelsRegionEdgesRefused(id: "eels:edge:\(region.pin.id):refused", regionName: region.pin.name, reason: why,
-                                                      validation: eels.fitValidation))
+                                                      method: eels.fitMethod))
                 }
-                out += region.edges.map { .eelsEdge(id: "eels:edge:\(region.pin.id):\($0.id)", row: $0, regionName: region.pin.name, validation: eels.fitValidation) }
+                out += region.edges.map { .eelsEdge(id: "eels:edge:\(region.pin.id):\($0.id)", row: $0, regionName: region.pin.name, method: eels.fitMethod) }
             }
         }
         return out
