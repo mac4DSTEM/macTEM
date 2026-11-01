@@ -9,11 +9,10 @@ import ImagoCore
 import SpectroCore
 import SpectroEELS
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
+import ShellEDXModel
 
 nonisolated final class DemoDocumentsTests: XCTestCase {
 
@@ -44,7 +43,7 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
         XCTAssertEqual(demo.metadata.beamEnergyKeV, 200)
         XCTAssertEqual(demo.energyAxis.scale, 0.01, accuracy: 1e-12)
         XCTAssertEqual(DemoDocuments.edx().image.sum(mask: nil), demo.image.sum(mask: nil), "deterministic")
-        let session = EDXSession()
+        let session = EDXSession(host: .macTEM)
         await session.bind(demo).value
         await session.settled()
         let picked = Set(session.picks.map(\.symbol))
@@ -104,6 +103,30 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
         XCTAssertEqual(absolute.exportDirectory, URL(fileURLWithPath: "/tmp/out", isDirectory: true))
         XCTAssertNil(AppState(launch: LaunchOptions(arguments: [])).exportDirectory, "a person gets the panel")
         XCTAssertFalse(LaunchOptions(arguments: ["--demo-fixture"]).isUITesting)
+    }
+
+    /// A UI-testing launch removes the saved application state (a saved "window closed" hid the window at launch), the saved window frames, and keeps no
+    /// windows on quit; other defaults and other apps' saved states stay.
+    @MainActor func testTheUITestingResetRemovesTheSavedState() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("reset-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let states = home.appendingPathComponent("Library/Saved Application State")
+        let mine = states.appendingPathComponent("org.example.macTEM.savedState"), other = states.appendingPathComponent("org.example.other.savedState")
+        for folder in [mine, other] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        let suite = "macTEM-reset-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set("0 0 800 600", forKey: "NSWindow Frame image")
+        defaults.set(true, forKey: "NSQuitAlwaysKeepsWindows")
+        defaults.set("kept", forKey: "edx.resultsSplit")
+
+        LaunchOptions.resetSavedState(defaults: defaults, home: home.path, bundleIdentifier: "org.example.macTEM")
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: mine.path), "the app's saved state is gone")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: other.path), "another app's stays")
+        XCTAssertNil(defaults.object(forKey: "NSWindow Frame image"))
+        XCTAssertEqual(defaults.object(forKey: "NSQuitAlwaysKeepsWindows") as? Bool, false)
+        XCTAssertEqual(defaults.string(forKey: "edx.resultsSplit"), "kept")
     }
 
     @MainActor func testOpenArgumentsParseInOrderAndRefuseARelativePath() {

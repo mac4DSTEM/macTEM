@@ -1,6 +1,6 @@
 //
 //  FFTRoomMathTests.swift
-//  The FFT room's own rules (archive: roadmap-registrations-2026-10-15.md V1-6, "The room": R1 the region, R3 a click, R4 a spot in the mask, R6 the chart's
+//  The FFT room's own rules (R1 the region, R3 a click, R4 a spot in the mask, R6 the chart's
 //  bins, R7 the spectrum's aspect, R8 the units shown; `FFTRoomMath.swift` held the mask's defaults until ImagoFFT 0.3.0 took them), each pinned to exact values — a crop, a
 //  bin, a centre — and to the mutation that breaks it, plus the dataset of the registration's P2 (a lattice of d₀ = 0.4
 //  nm at an oblique angle on a 300 × 200 image) carried from a click on the spectrum to d without the pane. A

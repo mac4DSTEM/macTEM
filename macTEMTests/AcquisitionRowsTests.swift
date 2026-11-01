@@ -1,6 +1,6 @@
 //
 //  AcquisitionRowsTests.swift
-//  Pins the Info tab's Acquisition rows (`AcquisitionRows`, archive: roadmap-registrations-2026-10-15.md V1-4a, the panel): the nine labels in order,
+//  Pins the Info tab's Acquisition rows (`AcquisitionRows`; the panel): the nine labels in order,
 //  the planted values with their units, **P1** every printed number reads back, in the reader's own locale, within
 //  5e-7 relative of the core's value in the core's unit (awkward values, a sweep over thirteen decades, en/de/fr),
 //  **P2** a nil reads "Not recorded" and never a number, a field of `unread` names its format, a note shows with its

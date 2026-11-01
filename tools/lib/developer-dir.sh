@@ -1,8 +1,5 @@
 #!/bin/sh
-# PROVENANCE: mac4DSTEM df1e6c994ea5b49c7ec08737628631b204736974 tools/lib/developer-dir.sh adapted
-# The function is renamed (resolve_mactem_developer_dir); the resolution order and the refusal are unchanged; the
-# history below is mac4DSTEM's and says so.
-# END PROVENANCE
+# Adapted from mac4DSTEM (tools/lib/developer-dir.sh).
 
 # Resolve a full Xcode toolchain without baking one developer's Xcode choice
 # into every harness or gate.

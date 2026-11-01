@@ -16,9 +16,7 @@ import ImagoCore
 import DiffractoCore
 import DiffractoScattering
 import DiffractoGeometry
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 /// The crystal indexing is done against: a standard of the room, or one opened from a CIF.
 package enum DiffractionCrystal: Sendable, Equatable {
@@ -124,10 +122,6 @@ package final class DiffractionAnalysis {
     package func setCentre(row: Double, column: Double) {
         guard row.isFinite, column.isFinite else { return }
         centre = DiffractionCentre(row: row, column: column, source: .typed)
-    }
-
-    package func resetCentre(for image: CalibratedImage) {
-        centre = .imageCentre(width: image.width, height: image.height)
     }
 
     /// Takes the fitted ring's centre as the pattern's (offered, never applied by itself).

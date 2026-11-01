@@ -1,11 +1,11 @@
 //
 //  ImageExport+Overlays.swift
-//  Role: what `ImageExport.render` draws over the pixels (V1-10 slice 1): the scale bar and the marks, through CoreGraphics
+//  Role: what `ImageExport.render` draws over the pixels: the scale bar and the marks, through CoreGraphics
 //        and CoreText, in export pixels. The numbers of the bar (its length, its label) are `ImageExport.scaleBarPlan`'s;
 //        this file owns the GEOMETRY (the plate, where the label and the bar sit, whether it fits) and the drawing, so the
 //        plan, the picture and the metadata all read one layout.
 //
-//  THE LOOK is the screen's, re-stated in export pixels (archive: export-design-2026-10-13.md, "What the PNG draws"):
+//  THE LOOK is the screen's, re-stated in export pixels ("What the PNG draws"):
 //  `ScaleBar` (macTEM/UI/PaneOverlays.swift) — a label over a 2-pt bar, white on a black 45 % plate with 8-pt side and
 //  5-pt vertical padding and 3 pt between, 4-pt corners, an 8-pt margin bottom-left — and `ImageMarksOverlay.draw`
 //  (macTEM/UI/ImageRoomMarks.swift) in the UNSELECTED style: black 60 % under-stroke 2 pt wider than the yellow line,
@@ -14,7 +14,7 @@
 //  the screen, where the footer sits above the marks' overlay.
 //
 //  EXACTNESS: the bar's fill has antialiasing OFF and an integer rectangle, so its white run is exactly `drawnPixels`
-//  long (P3 reads it back); everything else is antialiased. Text is drawn without font smoothing and with unquantized
+//  long; everything else is antialiased. Text is drawn without font smoothing and with unquantized
 //  subpixel positions, so the same string at the same offset gives the same pixels whatever the user's "font smoothing"
 //  preference is (`scaleBarLabelBitmap` is the unit test's handle on that).
 //

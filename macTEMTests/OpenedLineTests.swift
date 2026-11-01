@@ -61,7 +61,7 @@ nonisolated final class OpenedLineTests: XCTestCase {
         XCTAssertEqual(mixed.normalized[0], 0)
         XCTAssertEqual(mixed.normalized[2], 1)
         XCTAssertEqual(mixed.normalized[1], FloatImage.invalidDisplayValue, "a non-finite pixel is drawn masked")
-        // The histogram is of the RAW pixels (V1-4, Gate B 2026-10-13 F1): histogramming the canvas would give −1…1,
+        // The histogram is of the RAW pixels: histogramming the canvas would give −1…1,
         // four values (the masked sentinel counted) and a mean of −0.25.
         let histogram = try? XCTUnwrap(mixed.histogram)
         XCTAssertEqual(histogram?.minimum, -2)
@@ -74,7 +74,7 @@ nonisolated final class OpenedLineTests: XCTestCase {
         XCTAssertEqual(none.normalized, Array(repeating: FloatImage.invalidDisplayValue, count: 3))
     }
 
-    /// The infobar's glance is the memory figure alone (ADR 011: the chip's name never changes and tells nothing), in
+    /// The infobar's glance is the memory figure alone, in
     /// Finder's decimal style. Mutations (each red): the engine's name put back in front; GB read in MB; `>=` made `>` at
     /// the 1 GB boundary.
     @MainActor

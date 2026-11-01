@@ -1,6 +1,6 @@
 //
 //  ImageRoomAcquisition.swift
-//  Role: the Image room's Info tab, "Acquisition" section (archive: roadmap-registrations-2026-10-15.md V1-4a, the panel): how the open image was
+//  Role: the Image room's Info tab, "Acquisition" section (the panel): how the open image was
 //        acquired — high tension, magnification, camera length, detector, dwell, exposure, date, instrument, mode —
 //        each as the core's `AcquisitionMetadata` holds it. `AcquisitionRows` is the wording, pure, so a test pins
 //        it (`AcquisitionRowsTests`); `AcquisitionSection` draws it with the inspector's row kit and nothing else.
@@ -23,10 +23,8 @@
 
 import ShellInspector
 import SwiftUI
-#if canImport(TEMCore)
 import FormatoCore
 import TEMCore
-#endif
 
 // MARK: The formatter
 

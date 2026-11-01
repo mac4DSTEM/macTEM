@@ -3,7 +3,7 @@
 //  The EDS room's acceptance lines (docs/design/eds-room-behaviour.md) driven through `EDXSession` on the owner's real Velox spectrum images
 //  (data/stem-edx): Auto ID with nothing selected, with a region, after a deselect-all; regions drawn, moved, deleted, overlaid; Quantify with a sigma per
 //  element; the wt% maps over the whole scan; the six exports; and the Open Files selection following a document switch. Opt-in like `EDXRealDataTests`
-//  (`TEST_RUNNER_MACTEM_REAL_DATA=1` or the flag file), under `tools/memcap.sh`. Each test opens the one file it needs and lets the session go before it
+//  (`TEST_RUNNER_MACTEM_REAL_DATA=1` or the flag file), under a memory cap. Each test opens the one file it needs and lets the session go before it
 //  returns (1456 is 1.7 GB and is opened by one test only). Every number is printed as a `ROOM …` line to stdout and to $TMPDIR/realdata-timings.txt.
 //  Two Auto ID tests are RED today by design (Mg is missed on 1339 and 1840); they stay red until the proposer finds Mg.
 //
@@ -12,11 +12,11 @@ import XCTest
 import Darwin
 import SpectroCore
 import SpectroEDX
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
+import ShellEDXModel
+import ShellSpectroscopy
 
 nonisolated final class EDXRoomRealDataTests: XCTestCase {
 
@@ -33,12 +33,12 @@ nonisolated final class EDXRoomRealDataTests: XCTestCase {
     private static let wrong = ["Ba", "Eu", "Dy", "Hf", "Os"]
 
     private func optIn() throws {
-        let flag = FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag") || FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag")
+        let flag = FileManager.default.fileExists(atPath: NSTemporaryDirectory() + "macTEM-real-data.flag")
         guard ProcessInfo.processInfo.environment["MACTEM_REAL_DATA"] == "1" || flag else { throw XCTSkip("opt-in: TEST_RUNNER_MACTEM_REAL_DATA=1, or create $TMPDIR/macTEM-real-data.flag") }
     }
 
     private func url(_ name: String) throws -> URL {
-        let data = ProcessInfo.processInfo.environment["MACEM_DATA"] ?? NSHomeDirectory() + "/GitHub/mac4DSTEM_Organization/data"
+        let data = RealDataFolder.path
         let url = URL(fileURLWithPath: data + "/stem-edx/" + name)
         try XCTSkipUnless(FileManager.default.fileExists(atPath: url.path), "no real file at \(url.path)")
         return url
@@ -49,7 +49,7 @@ nonisolated final class EDXRoomRealDataTests: XCTestCase {
         try optIn()
         let file = try url(name)
         let loaded = try await Task.detached { try EDXOpening.open(url: file) }.value
-        let session = EDXSession()
+        let session = EDXSession(host: .macTEM)
         await session.bind(loaded).value
         await session.settled()
         say("ROOM open \(name): \(loaded.metadata.scanWidth) x \(loaded.metadata.scanHeight) px, \(loaded.metadata.channelCount) channels; picks at open: \(picksText(session))")

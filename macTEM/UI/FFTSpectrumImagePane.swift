@@ -1,7 +1,6 @@
 //
 //  FFTSpectrumImagePane.swift
-//  Role: the FFT room's right pane (archive: roadmap-registrations-2026-10-15.md V1-6 + 6a + 6b, "The room"; the design in
-//        archive: fft-room-design-2026-10-13.md): the centred power spectrum of the region (or the whole image) drawn
+//  Role: the FFT room's right pane: the centred power spectrum of the region (or the whole image) drawn
 //        at its PHYSICAL aspect, the measured spots numbered on it and, while the masked inverse is shown, the mask's
 //        circles. Built as `ImagePane` is (single-line header, `GeometryReader` + `LayoutPolicy.fitted`, the shader's
 //        `MetalDisplayTransform` with a pane-sized drawable, a `Canvas` over it mapped through `MarkGeometry`, `ZoomPan`,
@@ -19,7 +18,7 @@
 //  (`SpectrumBin.at`), and `FFTAnalysis.measureSpot` does the rest. A `SpatialTapGesture` is attached SIMULTANEOUSLY to the
 //  `ZoomPan` container: ZoomPan's drag still pans (it starts at 10 pt; a click never pans, a pan never measures). A click
 //  within 6 pt of a marker selects that spot instead. ZoomPan's own double-click reset is verbatim and reaches this pane
-//  too (design note, "Gestures", amended after Gate B): its first click selects or measures, its second selects the spot
+//  too (design note; "Gestures"): its first click selects or measures, its second selects the spot
 //  just made — the marker is under the pointer, or the click names the same bin, which `FFTAnalysis.measureSpot` selects
 //  instead of measuring again — so a double-click never makes two spots (FFTRoomPaneTests pins it).
 //
@@ -41,12 +40,10 @@ import ShellControls
 import ShellLayout
 import ShellMetal
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoCore
 import ImagoFFT
-#endif
 
 // MARK: - What the panes say (pure)
 

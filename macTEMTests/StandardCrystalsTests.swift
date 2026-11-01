@@ -3,7 +3,7 @@ import DiffractoCore
 import DiffractoScattering
 import TEMCore
 
-/// The standards a ring pattern is calibrated against (slice 1a, R7): named, at the lattice constants the room states, with the
+/// The standards a ring pattern is calibrated against (R7): named, at the lattice constants the room states, with the
 /// kinematic ring lists the numpy reference gives (tools/parity/diffraction-room-parity R7: Au 8 families at k_max 1.2 and 22 at 2.0,
 /// Al the same, Si 10 and 28; Au {111} d = a / sqrt 3). Red under: Au at 4.0872, the diamond basis dropped (Si becomes 14 families at 1.2).
 nonisolated final class StandardCrystalsTests: XCTestCase {

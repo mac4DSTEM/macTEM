@@ -1,6 +1,6 @@
 //
 //  ExportCommands.swift
-//  Role: (V1-10 slice 3 adds Export Results…, ⇧⌥⌘E, below the FFT room's three.) The File menu's two export items (V1-10 slice 1, archive: export-design-2026-10-13.md): Export Image… (⇧⌘E)
+//  Role: (⇧⌥⌘E; below the FFT room's three.) The File menu's two export items: Export Image… (⇧⌘E)
 //        and Export Profile… (no key). Their own `Commands`, so `ImageCommands` and `AppState` stay as they are; the scene
 //        adds `ExportCommands()` to its `.commands`. They act on the focused window's `AppState`, and are enabled by
 //        `ExportSnapshot.availability`: an image with its pixels in the Image room, no read running, and for the second a
@@ -35,7 +35,7 @@ struct ExportCommands: Commands {
                 if let appState { ExportPanels.exportProfile(appState: appState) }
             }
             .disabled(availability?.profile != true)
-            // The FFT room's three (V1-10 slice 2): enabled only there, with the spectrum on screen current.
+            // The FFT room's three: enabled only there, with the spectrum on screen current.
             Divider()
             Button("Export Transform…") {
                 if let appState { ExportPanels.exportTransform(appState: appState) }
@@ -50,7 +50,7 @@ struct ExportCommands: Commands {
                 if let appState { ExportPanels.exportSpots(appState: appState) }
             }
             .disabled(fft?.spots != true)
-            // The Results room's one (V1-10 slice 3): every finished measurement of the file as one CSV. ⇧⌥⌘E is free (⌘E is the
+            // The Results room's one: every finished measurement of the file as one CSV. ⇧⌥⌘E is free (⌘E is the
             // system's Use Selection for Find; ⇧⌘E and ⌥⌘E are the Image and FFT rooms').
             Divider()
             Button("Export Results…") {

@@ -35,8 +35,10 @@ nonisolated final class EDXJourney: Journey {
         }
     }
 
-    /// The maps block: a double click shows one map alone, filling the block, and another double click returns the grid; there is no tile size to choose, the tiles are fitted to the space.
-    @MainActor func testASoloTileFillsTheBlockAndTheGridReturns() throws {
+    /// The maps block: the tiles are fitted to the space, with no tile size to choose and no map shown alone (both rooms pass `soloEnabled: false` since 1.0);
+    /// a double click on a map is the zoom reset (MacEMUI `MapTileView`): the wheel zooms every tile, the scale bar's length follows, a double click returns it
+    /// to the whole scan, and the grid stays as it was.
+    @MainActor func testADoubleClickResetsTheZoomAndKeepsTheGrid() throws {
         try step("launch with the demo spectrum image") { launch(["--demo-spectrum-fixture"]) }
         try step("go to the EDX room") {
             waitFor("workspace.edx", timeout: 30).click()
@@ -46,47 +48,49 @@ nonisolated final class EDXJourney: Journey {
         let mg = app.groups["Mg map, Kα"].firstMatch
         try step("there is no tile size control") {
             XCTAssertTrue(haadf.waitForExistence(timeout: 30))
+            XCTAssertTrue(mg.waitForExistence(timeout: 60))
             XCTAssertFalse(element("maps.tileSize").exists, "the maps scale with the panes")
         }
-        try step("a double click shows one map alone, another returns the grid") {
-            let before = haadf.frame.width
+        // The scale bar's length text ("5 px"): the one thing on a tile that says its zoom.
+        let bar = { self.waitFor("maps.scaleBar.HAADF", timeout: 30).staticTexts.firstMatch.label }
+        let whole = bar()
+        try step("the wheel zooms the maps") {
+            for dy in [8.0, -8.0, 16.0, -16.0] where bar() == whole { haadf.scroll(byDeltaX: 0, deltaY: dy) }
+            XCTAssertNotEqual(bar(), whole, "the wheel over the HAADF map never changed its scale bar (\(whole))")
+        }
+        try step("a double click returns to the whole scan and keeps the grid") {
+            let width = haadf.frame.width
             haadf.doubleClick()
-            let gone = NSPredicate(format: "exists == false")
-            XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: gone, object: mg)], timeout: 20), .completed, "only the HAADF map is shown")
-            XCTAssertGreaterThan(haadf.frame.width, before, "alone, it fills more of the block")
-            haadf.doubleClick()
-            XCTAssertTrue(mg.waitForExistence(timeout: 20), "the grid is back")
+            let back = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in bar() == whole }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [back], timeout: 10), .completed, "the scale bar reads \(bar()), not \(whole)")
+            XCTAssertTrue(mg.exists, "the other maps stay: no map is shown alone")
+            XCTAssertEqual(haadf.frame.width, width, accuracy: 1, "the tile keeps its size")
         }
     }
 
     /// Regions are compared: two rectangles and a line (the launch draws them with the room's own calls, `--demo-regions`; a drag with real mouse events is checked
-    /// by hand, because XCUITest's synthesized drag does not reach SwiftUI's DragGesture) are listed in the inspector, and the Results area has a row for each region
-    /// with its pixel count (planted: 4 x 4 = 16 and 8 x 8 = 64 of the 16 x 16 scan) and, the pixels all alike, a net count that scales with the pixels (64/16 = 4,
-    /// within 30 %: the demo's Mg varies across the scan, the right region holds brighter pixels); hiding one keeps its row; the profile of the line sits over the spectrum.
+    /// by hand, because XCUITest's synthesized drag does not reach SwiftUI's DragGesture). Since 1.0 there is no Regions list in the inspector: the Results area has a
+    /// Regions table with a row for each region and its pixel count (planted: 4 x 4 = 16 and 8 x 8 = 64 of the 16 x 16 scan) and, the pixels all alike, a net count
+    /// that scales with the pixels (64/16 = 4, within 30 %: the demo's Mg varies across the scan, the right region holds brighter pixels); a line is not a row; the
+    /// profile along the line (selected when drawn) is the inset over the spectrum.
     @MainActor func testRegionsAreComparedInTheTableAndTheLineHasAProfile() throws {
         try step("launch with the demo spectrum image and two regions") { launch(["--demo-spectrum-fixture", "--demo-regions"]) }
-        try step("go to the EDX room; the regions are listed") {
+        try step("go to the EDX room") {
             waitFor("workspace.edx", timeout: 30).click()
             waitFor("edx.room", timeout: 30)
-            waitFor("regions.name.Region 1", timeout: 30)
-            waitFor("regions.name.Region 2", timeout: 10)
-            waitFor("regions.name.Line 1", timeout: 10)
         }
-        try step("the table lists both regions with their pixels") {
-            waitFor("edx.regionTable", timeout: 30)
+        try step("the Regions table lists both regions with their pixels, and not the line") {
+            waitFor("edx.regionTable", timeout: 60)
             XCTAssertEqual(waitValue("edx.regionTable.Region 1.pixels", timeout: 30) { !$0.isEmpty }, "16")
             XCTAssertEqual(waitValue("edx.regionTable.Region 2.pixels", timeout: 30) { !$0.isEmpty }, "64")
+            XCTAssertFalse(element("edx.regionTable.Line 1.pixels").exists, "a line has a profile, not a row")
         }
         try step("the net counts scale with the pixels") {
             let one = Double(waitValue("edx.regionTable.Region 1.Mg.net", timeout: 60) { !$0.isEmpty }) ?? .nan
             let two = Double(waitValue("edx.regionTable.Region 2.Mg.net", timeout: 60) { !$0.isEmpty }) ?? .nan
             XCTAssertEqual(two / one, 4, accuracy: 1.2, "Mg net: \(one) in 16 pixels, \(two) in 64")
         }
-        try step("hiding a region keeps its row") {
-            element("regions.visibility.Region 2").click()
-            XCTAssertTrue(element("edx.regionTable.Region 2.pixels").waitForExistence(timeout: 10))
-        }
-        try step("the line has a profile") {
+        try step("the line has a profile over the spectrum") {
             waitFor("profile.chart", timeout: 30)
         }
     }

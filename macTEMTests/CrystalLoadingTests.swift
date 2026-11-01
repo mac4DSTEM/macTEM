@@ -3,7 +3,7 @@ import DiffractoCore
 import DiffractoScattering
 import TEMCore
 
-/// A crystal from the bytes of a CIF (slice 1a, R9): the 5 MiB cap, strict UTF-8, the kit's `CIFImport`, a SHA-256 of the bytes as the
+/// A crystal from the bytes of a CIF (R9): the 5 MiB cap, strict UTF-8, the kit's `CIFImport`, a SHA-256 of the bytes as the
 /// fingerprint, and the kit's own error text. The fingerprints are hashlib's (tools/parity/diffraction-room-parity R9 holds the kit's
 /// and the planted CIF files, including the BOM, CRLF and decomposed-accent ones). Red under: the fingerprint over re-encoded text,
 /// a cap off by one, the kit's error wrapped in a text of the app's own.

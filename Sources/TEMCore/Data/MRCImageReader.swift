@@ -4,9 +4,9 @@
 //        the first consumer's named option: the header, modes 0/1/2/6/12, the stamp's byte order, mrcfile's `voxel_size` in
 //        Å, the FEI extended-header and non-positive-cell notes; pinned in the kit to this app's source and to mrcfile
 //        1.5.4); this file is the seam: the app's refusal wording (`Refusal.reason`), the Cocoa error for an unreadable
-//        file, and `KitImages` (the one conversion of a kit image to a `CalibratedImage`). Checked by
-//        tools/parity/mrc-reader-parity against mrcfile 1.5.4. DEVIATION from RosettaSciIO 049e7d70 (nm, mode 0 unsigned,
-//        stamp ignored): mrcfile and the MRC2014 standard are followed, as before the switch.
+//        file, and `KitImages` (the one conversion of a kit image to a `CalibratedImage`). The parity against mrcfile
+//        1.5.4 is FormatoKit's. DEVIATION from RosettaSciIO 049e7d70 (nm, mode 0 unsigned, stamp ignored): mrcfile and the
+//        MRC2014 standard are followed, as before the switch.
 //
 
 import Foundation
@@ -52,16 +52,14 @@ package nonisolated enum MRCImageReader {
         package static let feiHeader = MRCAppImage.Note.feiHeader
     }
 
-    /// `acceptStacks` exists for one caller: tools/parity/mrc-reader-parity's negative control, which must show the stack
-    /// refusal is live. It reads the first image instead of refusing.
-    package static func read(path: String, acceptStacks: Bool = false) throws -> CalibratedImage {
+    package static func read(path: String) throws -> CalibratedImage {
         let data = try Data(contentsOf: URL(fileURLWithPath: path), options: .alwaysMapped)
-        return try read(data: data, fileName: formatoDisplayFileName(path), acceptStacks: acceptStacks)
+        return try read(data: data, fileName: formatoDisplayFileName(path))
     }
 
-    package static func read(data: Data, fileName: String, acceptStacks: Bool = false) throws -> CalibratedImage {
+    package static func read(data: Data, fileName: String) throws -> CalibratedImage {
         do {
-            return CalibratedImage(try MRCAppImage.read(data: data, fileName: fileName, acceptStacks: acceptStacks))
+            return CalibratedImage(try MRCAppImage.read(data: data, fileName: fileName))
         } catch let error as MRCError {
             throw Refusal(error)
         }

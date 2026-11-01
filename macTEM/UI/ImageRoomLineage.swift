@@ -1,6 +1,6 @@
 //
 //  ImageRoomLineage.swift
-//  Role: the Image room's Lineage section (V1-2 slice B's UI, archive: v12-session-ui-design-2026-10-14.md, section 3),
+//  Role: the Image room's Lineage section,
 //        third child of the Settings column after Measure. Not a second marks list: for a distance, an angle or a profile it
 //        repeats what Measure lists; what it alone shows is the RECORD a collaborator's h5py reads — each node's id and
 //        time, nodes this build cannot draw (opaque kinds, the reserved `fft`, `calibration`…), nodes removed but kept for a
@@ -15,10 +15,8 @@
 import ShellInspector
 import ImagoCore
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 // MARK: - The rows
 

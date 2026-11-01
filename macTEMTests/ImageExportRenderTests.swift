@@ -1,6 +1,6 @@
 //
 //  ImageExportRenderTests.swift
-//  The PNG export's own rules (archive: roadmap-registrations-2026-10-15.md V1-10 slice 1, `ImageExport`, `ExportFile`), read back from the bytes it writes:
+//  The PNG export's own rules (`ImageExport`, `ExportFile`), read back from the bytes it writes:
 //  the label drawn in the plate is the label the metadata states (the unit-test half of P3: the metadata's string is
 //  rendered alone through the same text routine and found pixel-equal in the label's crop), the bar's exact-white run is
 //  the drawn length, the plate-fit edge (a width and a height where the plate just fits and just does not, and nothing is
@@ -15,7 +15,7 @@
 //  `maximumSide` one larger; `moveItem` where `replaceItemAt` belongs, and a copy of the data written beside the target;
 //  the reason dropped from `writeFailed`; `export` not writing; rows written bottom to top; an ICC profile that is not
 //  sRGB; RGBA written; a CRC left unfinished; the Description written as tEXt (Latin-1) when it holds "Å"; a metadata
-//  key given the wrong number; (Gate B R1 F7) every mark given listed in the Description whether or not it was drawn, and
+//  key given the wrong number; (found in review) every mark given listed in the Description whether or not it was drawn, and
 //  the skipped count dropped.
 //
 
@@ -539,7 +539,7 @@ nonisolated final class ImageExportRenderTests: XCTestCase {
         XCTAssertTrue(json["marks"] is NSNull, "not asked for")
         XCTAssertEqual(json["anisotropic"] as? Bool, false)
         XCTAssertTrue((json["validation"] as? String)?.hasPrefix("display rendering: window, gamma, 8-bit colour, not intensities") == true)
-        XCTAssertTrue((json["lineage"] as? String)?.hasPrefix("none \u{2014} marks carry no lineage id until V1-2") == true)
+        XCTAssertTrue((json["lineage"] as? String)?.hasPrefix("none \u{2014} marks carry no lineage id;") == true)
         // The same image with a missing range and an open window: null, not 0.
         let open = try ImageExport.render(source: src, display: display(w, h, normalized: canvas), marks: [],
                                           options: ImageExport.Options(scaleBar: false, marks: false))

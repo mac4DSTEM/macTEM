@@ -1,10 +1,10 @@
-// tools/parity/metadata-parity/main.swift — macTEM's AcquisitionMetadata readers (TEMCore, compiled in from
-// tools/lib/sources.manifest group `metadata`) against reference.py's expectations from the pinned references.
+// tools/parity/metadata-parity/main.swift — macTEM's AcquisitionMetadata readers (TEMCore, through
+// Package.swift's MetadataParity target) against reference.py's expectations from the pinned references.
 //
 //     harness <out-dir-of-reference.py>
 //
 // Slice S-a: the three format readers `AcquisitionMetadata.tiff(data:)`, `.mrc(data:)` and `.dm(numbers:strings:)`.
-// Slice S-b (archive: roadmap-registrations-2026-10-15.md V1-4a, "S-b, the DM wiring and tag 65027"): `AcquisitionMetadata.read(path:)`, the entry point that
+// Slice S-b (the DM wiring and tag 65027): `AcquisitionMetadata.read(path:)`, the entry point that
 // describes a FILE, end to end (`reads` in manifest.json; every check name starts `read:`):
 //   C1  the object the open shows. `ImageOpening.primaryImageObject(in: DM4Experiment.list(path:))` is the ImageList number
 //       the reference expects, and so is the one in `ImageOpening.openNow(path:).source`; where the open shows none (a 3-D
@@ -53,7 +53,7 @@
 //   tiff-65027-skipped   INPUT  rsciio-dm-tiff-65027: the file with the tag renamed 65028 (a reader that never looks at 65027)
 //   tiff-dm-before-velox INPUT  planted-tiff-velox-and-dm: the file with its Velox tag removed, so the real reader meets only
 //                                the 120 kV DM block (what a reader that tries DM before Velox shows)
-// The eighteen SOURCE mutations (the kit's tag walker, tiff(data:) and TIFF slice guard, the app's open and read(path:)) are run.sh's: it compiles the harness again
+// The six SOURCE mutations (the app's open and read(path:)) are run.sh's: it builds the harness again
 // against an edited copy of the one file; the four wiring mutations above are their mirrored twins.
 // An unknown name exits 64 before any case.
 //
@@ -64,6 +64,7 @@
 // exits 1 with the targeted check among its failures, so a trap in the unisolated harness would be no catch (a signal is not
 // an exit 1); in the child it is.
 
+@testable import TEMCore
 import Foundation
 import FormatoCore
 import FormatoDM

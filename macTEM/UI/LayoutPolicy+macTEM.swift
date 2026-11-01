@@ -1,6 +1,6 @@
 //
 //  LayoutPolicy+macTEM.swift
-//  Role: what is macTEM's of the layout vocabulary: the sidebar's rooms list and the open files' rows (V1-13, ADR 011).
+//  Role: what is macTEM's of the layout vocabulary: the sidebar's rooms list and the open files' rows.
 //        `LayoutPolicy` (the window's numbers), `ProcessAreaLayout`, `OperationMetricsFormat` and `displayByteString` are
 //        ShellLayout's (suite task 8, MacEMUI).
 //
@@ -10,10 +10,10 @@ import SwiftUI
 
 extension LayoutPolicy {
     /// The rooms list's height once files are open, per system sidebar size: its top inset under the toolbar, the
-    /// "Workspace" header and the five rooms, and 6 pt before "Open Files" (ADR 011, no gap). Measured on scratch builds
+    /// "Workspace" header and the five rooms, and 6 pt before "Open Files" (no gap). Measured on scratch builds
     /// on 2026-10-13 (the last room's bottom in the list + 6: 145, 178, 216 pt), and a constant, not measured at run
     /// time: a measured height left a gap on some first layouts or, set during layout, tripped AppKit's layout-loop
-    /// guard (8 crashes in 15 resize cycles; archive: sidebar-gap-gate-d-2026-10-13.md). A sixth room changes it: the EDS and EELS rooms (2026-10-22) add two rows to the 2026-10-13 measurements (145, 178, 216 for five rooms), at each size's row pitch (23, 30, 38 pt): 192, 238, 291. A list too short hides the last rooms behind a scroll that `scrollDisabled` turns off — the rooms were cut off once files were open.
+    /// guard (8 crashes in 15 resize cycles). A sixth room changes it: the EDS and EELS rooms (2026-10-22) add two rows to the 2026-10-13 measurements (145, 178, 216 for five rooms), at each size's row pitch (23, 30, 38 pt): 192, 238, 291. A list too short hides the last rooms behind a scroll that `scrollDisabled` turns off — the rooms were cut off once files were open.
     static func sidebarRoomsListHeight(_ size: SidebarRowSize) -> CGFloat {
         sidebarRoomRowHeight(size) * 7 + 32
     }
@@ -35,9 +35,8 @@ extension LayoutPolicy {
     static let openItemThumbnailSide: CGFloat = 40
     static let openItemRowSpacing: CGFloat = 8
 
-    /// The Diffraction room's readout table under the pattern, and an EDS tile's colour bar gradient: room content, named once (rule 4).
+    /// The Diffraction room's readout table under the pattern: room content, named once (rule 4).
     static let diffractionReadoutHeight: CGFloat = 170
-    static let colorbarGradientHeight: CGFloat = 6
     /// The colour dot before a region's name in the Table tab.
     static let regionSwatchSize: CGFloat = 9
 }

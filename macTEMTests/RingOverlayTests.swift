@@ -2,7 +2,7 @@ import XCTest
 import DiffractoGeometry
 import TEMCore
 
-/// The Diffraction room's ring geometry (slice 1a, R1 and R4): a fitted ring in image coordinates (x = column, y = row), the polyline
+/// The Diffraction room's ring geometry (R1 and R4): a fitted ring in image coordinates (x = column, y = row), the polyline
 /// the room draws, the ring predicted for another family, and the point-to-ellipse distance. Hand values; the planted-ring
 /// comparison against the kit's fits is tools/parity/diffraction-room-parity (R1, R4), whose controls (xy-swap, ab-swap, theta-sign,
 /// theta-deg, corner-offset, offsets-kept, image-centre) are the emulated forms of the mutations named in each test.

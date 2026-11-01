@@ -26,9 +26,9 @@ package nonisolated struct ImagePoint: Sendable, Equatable, Hashable, Codable {
 
 extension ImageMeasurement {
     /// What a distance and an angle are checked against, and nothing more (the Results room and its CSV show this sentence
-    /// verbatim): the closed forms from the pixel coordinates and the file's scale, to 1e-12 relative, by tools/parity/profile-parity P1.
+    /// verbatim): the closed forms from the pixel coordinates and the file's scale, to 1e-12 relative, by tools/parity/profile-parity.
     package nonisolated static let validation = "closed form from the pixel coordinates and the file's scale, to 1e-12 relative "
-        + "(tools/parity/profile-parity, V1-5 P1); the scale as the file states it"
+        + "(tools/parity/profile-parity); the scale as the file states it"
 
     package nonisolated static func distance(_ a: ImagePoint, _ b: ImagePoint, x: AxisCalibration?, y: AxisCalibration?) -> Distance {
         distance(a.pixelPoint, b.pixelPoint, x: x, y: y)

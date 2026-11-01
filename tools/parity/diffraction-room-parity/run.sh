@@ -1,7 +1,7 @@
 #!/bin/zsh
 # tools/parity/diffraction-room-parity — the Diffraction room's core, slice 1a (TEMCore/Diffraction: StandardCrystals; RingOverlay, IndexingDisplay and CrystalLoading are DiffractoKit's since the 2026-10-20 switch,
-# calling DiffractoKit directly; archive: roadmap-registrations-2026-10-15.md "Diffraction room, slice 1a"
-# and its addendum) against reference.py's numpy and 60-digit decimal tables and plants.py's planted rings. R8 (the seed-rule grid) is not
+# calling DiffractoKit directly)
+# against reference.py's numpy and 60-digit decimal tables and plants.py's planted rings. R8 (the seed-rule grid) is not
 # part of this run. Classified `scientific` in tools/run-tests.sh. README.md says more.
 #
 #   run.sh   plants.py writes the planted rings (R8's grid in its half form, unused here); reference.py writes the tables and checks them
@@ -22,14 +22,12 @@ resolve_mactem_python "$ROOT"
 resolve_mactem_developer_dir
 
 "$ROOT/tools/lib/fetch-py4dstem-scattering.sh" > /dev/null
-"$ROOT/tools/lib/fetch-diffractokit.sh" > /dev/null
 "$PYTHON_BIN" -I -B "$HERE/plants.py" "$WORK/plants" --r8 half
 "$PYTHON_BIN" -I -B "$HERE/reference.py" "$ROOT/References/py4dstem-scattering/scattering_factors.txt" "$WORK/ref" \
   --plants "$WORK/plants" --cif-dir "$ROOT/References/crystal-structures"
 
-. "$ROOT/tools/lib/sources.manifest"
-mactem_sources "$ROOT" diffraction-room
-mactem_swiftc "$WORK/harness" "$HERE/main.swift"
+. "$ROOT/tools/lib/harness.sh"
+mactem_harness_build DiffractionRoomParity "$WORK/harness"
 
 set +e
 "$WORK/harness" "$WORK/plants" "$WORK/ref" "$ROOT/References/crystal-structures"

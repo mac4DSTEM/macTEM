@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Builds the macTEM download: archive, Developer ID signature, notarized and stapled app, then a signed, notarized and
-# stapled DMG. Paul runs it on the Mac with the certificate; it pushes nothing and uploads nothing to GitHub.
+# stapled DMG. the owner runs it on the Mac with the certificate; it pushes nothing and uploads nothing to GitHub.
 #
 #   tools/release.sh
 #

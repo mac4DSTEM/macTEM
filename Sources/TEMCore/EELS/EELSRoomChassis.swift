@@ -4,6 +4,7 @@
 import Foundation
 import SpectroCore
 import SpectroEELS
+import ShellEDXModel
 
 // MARK: - The Maps control
 
@@ -431,13 +432,6 @@ extension EELSRoomFormat {
             parts.append("\(tile.title) \(sig(v, 4, locale: locale))" + (tile.unit.isEmpty ? "" : " \(tile.unit)"))
         }
         return parts.joined(separator: " · ")
-    }
-
-    /// The Processing section's state: Align and Thickness as one.
-    package static func processingState(align: EELSStageState, thickness: EELSStageState) -> EELSStageState {
-        if align == .stale || thickness == .stale { return .stale }
-        if align == .notRun || thickness == .notRun { return .notRun }
-        return .current
     }
 
     /// The Processing section's one note: the line, and that the core loss follows the alignment when the file has one.

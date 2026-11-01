@@ -1,20 +1,10 @@
-// PROVENANCE: mac4DSTEM df1e6c994ea5b49c7ec08737628631b204736974 mac4DSTEM/App/mac4DSTEMApp.swift adapted
-// The same minimum frame above ContentView and menu relay for ⌘O with no window. Changed: one `Window`
-// scene (not a WindowGroup) with the one AppState owned by the App, an app delegate and a URL relay for Finder
-// opens, no New Window, and the Close Image / Close Window / Image-menu commands (ADR 007, V1-13), and File > Show in
-// Finder (ADR 011), the Image room's measuring tools in the Image menu (V1-5, ⌃⌘1…4); the sidebar toggle is named
-// Show/Hide Sidebar, and File > Export Image… / Export Profile… (V1-10, `ExportCommands`). Cut:
-// preferences, recents, recovery, the open-dataset registry, mac4DSTEM's export and analysis menus, the precipitate
-// table and the Settings scene — macTEM has none of them yet. Changed (EDX room): the Workspace menu enters the EDX room with no image open.
-// END PROVENANCE
+// Adapted from mac4DSTEM (mac4DSTEM/App/mac4DSTEMApp.swift).
 import ShellLayout
 import ShellControls
 import SwiftUI
 import AppKit
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// Finder integration stays in App/; the window and its controls stay SwiftUI.
 @MainActor enum DatasetLocationActions {
@@ -189,6 +179,7 @@ struct macTEMApp: App {
     // File-menu actions asked for while no window is focused (`MenuActionRelay`): read by the commands, taken
     // by the window they open.
     @State private var menuRelay = MenuActionRelay()
+    private static let isUITesting = LaunchOptions().isUITesting
 
     var body: some Scene {
         Window("macTEM", id: "image") {
@@ -196,6 +187,8 @@ struct macTEMApp: App {
         }
             .handlesExternalEvents(matching: ["*"])
             .defaultLaunchBehavior(.presented)
+            // A UI-testing launch restores nothing, so the window is always presented (a saved "window closed" state hid it); a person's launch restores as usual.
+            .restorationBehavior(Self.isUITesting ? .disabled : .automatic)
             .defaultSize(width: LayoutPolicy.datasetWindowIdealSize.width,
                          height: LayoutPolicy.datasetWindowIdealSize.height)
             .windowStyle(.titleBar)
@@ -209,5 +202,10 @@ struct macTEMApp: App {
                 // View > Zoom In, Zoom Out, Zoom to Fit (⌘+ ⌘− ⌘0) on the pane that publishes its zoom (control placement §6).
                 ZoomCommands()
             }
+        // The Particles view's object table, beside the image (ImageRoomParticles.swift); never opened at launch.
+        Window("Objects", id: ParticleTableWindow.id) { ParticleTableWindow(appState: appState) }
+            .defaultLaunchBehavior(.suppressed)
+            .restorationBehavior(.disabled)
+            .defaultSize(width: 640, height: 420)
     }
 }

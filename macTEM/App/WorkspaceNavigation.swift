@@ -3,7 +3,7 @@ import ShellLayout
 import SwiftUI
 
 /// The six rooms 1.0 ships, in the order the work goes: the image, its transform, the spectrum images, the diffraction pattern,
-/// the numbers. Prepare (calibration, stacks and alignment) was listed unbuilt until 1.0 and is gone (Paul, 2026-10-23).
+/// the numbers. Prepare (calibration, stacks and alignment) was listed unbuilt until 1.0 and is gone (the owner, 2026-10-23).
 nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, WorkspaceRoom {
     case image
     case fft

@@ -1,6 +1,6 @@
 //
 //  CalibratedImage+Micrograph.swift
-//  Role: the seam between macTEM's image and ImagoKit's (ADR 027). The kit's FFT, spectrum, profile, spot, masked-inverse and
+//  Role: the seam between macTEM's image and ImagoKit's. The kit's FFT, spectrum, profile, spot, masked-inverse and
 //        filter functions read a `Micrograph`: the same Float32 pixels and the same per-axis calibration, without the file's
 //        name, source, voltage and notes. The axes ARE the kit's `AxisCalibration`; it computes nothing, rounds nothing and guesses no unit.
 //

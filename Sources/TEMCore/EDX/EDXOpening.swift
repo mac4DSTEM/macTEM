@@ -2,6 +2,7 @@
 // (which reads them with FormatoKit). A file that is neither is refused in words; the Image room opens the rest.
 import Foundation
 import SpectroCore
+import ShellEDXModel
 
 package enum EDXOpening {
     /// File extensions the Open panel offers (a Velox EMD or a GMS DM4).
@@ -19,5 +20,13 @@ package enum EDXOpening {
         // A single spectrum (an `.msa`, a Velox spectrum) is a one-pixel spectrum image.
         if kind == .other, FileRouting.isSingleSpectrum(path: url.path) { return try FileRouting.spectrumFile(path: url.path) }
         return try SpectrumImageOpener.open(path: url.path, kind: kind, progress: progress)
+    }
+}
+
+extension EDXRoomHost {
+    /// macTEM in the shared EDS room: its names in the export files, its file routing for the room's Open button.
+    package static let macTEM = EDXRoomHost(appName: "macTEM", roomSource: "macTEM EDX room", regionsTitle: "macTEM EDX pins",
+                                            readableExtensions: EDXOpening.readableExtensions) { url, progress in
+        try EDXOpening.open(url: url, progress: progress)
     }
 }

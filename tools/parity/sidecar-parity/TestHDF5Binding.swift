@@ -1,0 +1,1 @@
+../../../macTEMTests/TestHDF5Binding.swift

@@ -1,8 +1,6 @@
 //
 //  FFTRoomFormat.swift
-//  Role: what the FFT room's inspector READS as (archive: roadmap-registrations-2026-10-15.md V1-6 "The room"; the words are the design note's,
-//        archive: fft-room-design-2026-10-13.md, "The inspector, and its cost" and "The badge and the notes, in these
-//        words"): what is transformed, a typed region, Δq and the Nyquist frequency, a spot's d and |q| in the shown units
+//  Role: what the FFT room's inspector READS as: what is transformed, a typed region, Δq and the Nyquist frequency, a spot's d and |q| in the shown units
 //        with its refusals and notes, the radial chart's bins and readout, the mask count, the HRTEM filters' seven
 //        parameters with the core's own ranges, the last run's status. Pure and nonisolated, so a test pins every string
 //        (macTEMTests/FFTRoomFormatTests.swift) and nothing here draws.
@@ -15,13 +13,11 @@
 //
 
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoCore
 import ImagoFFT
 import ImagoFilters
-#endif
 
 nonisolated enum FFTRoomFormat {
 
@@ -133,7 +129,7 @@ nonisolated enum FFTRoomFormat {
         return "\(number(q * shown.factor, locale: locale)) \(shown.label)"
     }
 
-    // MARK: Spots (R3, R4, V1-6a)
+    // MARK: Spots (R3; R4)
 
     static let noSpots = "Click a spot on the transform to measure its spacing."
     static let neighbourNote = "Another peak within 3 bins: d may be off by up to 0.3 %."
@@ -160,6 +156,14 @@ nonisolated enum FFTRoomFormat {
         let parts = spotParts(d: d, q: q, unit: unit, locale: locale)
         return "\(parts.d) · \(parts.q)"
     }
+
+    /// "+0.23": a found spot's local contrast (its display value above the median of the ring around it), two decimals; nil for a
+    /// clicked spot, which the finder did not rank.
+    static func contrastText(_ spot: FFTSpot, locale: Locale = .autoupdatingCurrent) -> String? {
+        spot.contrast.map { "+" + Num.fixed(Double($0), 2, locale: locale) }
+    }
+
+    static let contrastHelp = "Local contrast: how far the peak stands above the median of the ring 3 to 6 bins around it. Find Spots ranks by it."
 
     /// "35.2° to 1": a spot's angle to the reference spot (the first measured one), one decimal.
     static func angleText(_ angle: FFTSpotAngles.Angle, locale: Locale = .autoupdatingCurrent) -> String {
@@ -341,7 +345,7 @@ nonisolated enum FFTRoomFormat {
         return (n < 0 ? "⁻" : "") + String(abs(n)).map { digit[Int(String($0)) ?? 0] }.joined()
     }
 
-    // MARK: The HRTEM filters (V1-6b)
+    // MARK: The HRTEM filters
 
     /// The six numbers of `HRTEMFilter.Parameters` the section types (Smoothing is a switch), with the ranges the filter
     /// accepts — it refuses a value outside them and never clamps, so the field does.

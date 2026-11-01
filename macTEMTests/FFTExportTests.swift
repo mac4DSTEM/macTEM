@@ -1,7 +1,7 @@
 //
 //  FFTExportTests.swift
-//  The FFT room's export writers and the additions they made to the PNG writer (archive: roadmap-registrations-2026-10-15.md V1-10 slice 2, `FFTExport`,
-//  `RadialProfileCSV`, `SpotsCSV`, `ImageExport.Provenance`, `Mark.Kind.spot`; archive: fft-export-design-2026-10-14.md),
+//  The FFT room's export writers and the additions they made to the PNG writer (`FFTExport`,
+//  `RadialProfileCSV`, `SpotsCSV`, `ImageExport.Provenance`, `Mark.Kind.spot`),
 //  read back from the text and the bytes they write. Tier 2: tests that fail when the code is broken. The parity against
 //  Python's own float, Pillow and numpy over a planted image is tools/parity/export-parity (F-1 to F-5).
 //
@@ -103,7 +103,7 @@ nonisolated final class FFTExportTests: XCTestCase {
         XCTAssertTrue(c.contains("# spectrum: 64 x 64 bins"))
         XCTAssertTrue(c.contains("# dq x: \(CSVText.number(1.0 / (64 * 0.05))) 1/nm per bin (\(CSVText.number(1.0 / (64 * 0.05))) nm\u{207B}\u{00B9})"), "\(c)")
         XCTAssertTrue(c.contains("# notes: a note"))
-        XCTAssertTrue(c.contains { $0.hasPrefix("# validation: ") && $0.contains("fft-parity") })
+        XCTAssertTrue(c.contains { $0.hasPrefix("# validation: ") && $0.contains("numpy 2.5.4") })
         XCTAssertTrue(c.contains { $0.hasPrefix("# lineage: none") })
         XCTAssertTrue(c.contains { $0.hasPrefix("# bin width: ") })
         XCTAssertTrue(text.hasSuffix("\n") && !text.contains("\r"))
@@ -167,7 +167,7 @@ nonisolated final class FFTExportTests: XCTestCase {
         XCTAssertTrue(c.contains { $0.hasPrefix("# listed: 2 measured spots; not listed: 4") })
         XCTAssertTrue(c.contains("# mask: radius 3 bins, edge 2 bins (the masked inverse)"), "\(c)")
         XCTAssertTrue(c.contains("# note: With noise, d is good to 1\u{2013}5 % at 64 px."))
-        XCTAssertTrue(c.contains { $0.hasPrefix("# validation: ") && $0.contains("spot-parity") })
+        XCTAssertTrue(c.contains { $0.hasPrefix("# validation: ") && $0.contains("planted spots") })
         XCTAssertTrue(c.contains { $0.hasPrefix("# lineage: none") })
         XCTAssertTrue(c.contains("# subject: region 64 x 64 px at (16, 0) (column, row of its top-left pixel)"))
     }
@@ -338,7 +338,7 @@ nonisolated final class FFTExportTests: XCTestCase {
         XCTAssertEqual(provenance.fields["pane_aspect"], CSVText.number((64 * h.spacingX) / (64 * h.spacingY)))
         XCTAssertTrue(provenance.fields["transform"]?.contains("NO window") == true)
         XCTAssertTrue(provenance.fields["display"]?.contains("log10(|F|^2 / (W*H)^2)") == true)
-        XCTAssertTrue(provenance.validation.contains("fft-parity"))
+        XCTAssertTrue(provenance.validation.contains("numpy 2.5.4"))
         XCTAssertTrue(provenance.lineage.hasPrefix("none"))
     }
 }

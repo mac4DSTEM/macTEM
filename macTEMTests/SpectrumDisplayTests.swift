@@ -1,6 +1,6 @@
 //
 //  SpectrumDisplayTests.swift
-//  How the FFT room DRAWS a power spectrum (archive: roadmap-registrations-2026-10-15.md V1-6, "The room", the display; `SpectrumDisplay.make`): v =
+//  How the FFT room DRAWS a power spectrum ("The room"; the display; `SpectrumDisplay.make`): v =
 //  log₁₀(|F|² / (W·H)²), NaN at the DC and wherever the power is zero or not finite, and the default window — black at
 //  the median of the finite v (a 2048-bin histogram, interpolated), white at the largest finite v more than 3 bins from
 //  the centre. Planted spectra (an integer-frequency cosine of amplitude A has |F|² = (A·W·H/2)² at its two bins, so v =

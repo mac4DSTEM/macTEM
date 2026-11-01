@@ -10,10 +10,8 @@ import XCTest
 import DiffractoCore
 import DiffractoScattering
 import DiffractoGeometry
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class DiffractionAnalysisTests: XCTestCase {
@@ -135,7 +133,7 @@ nonisolated final class DiffractionAnalysisTests: XCTestCase {
 
     /// The beta'' CIF opened as the room's crystal lists the kit's own families: the room's list IS `kinematicReflections` of the loaded structure.
     @MainActor func testACIFCrystalListsTheKitsFamiliesInTheRoom() throws {
-        let loaded = try CrystalLoading.load(bytes: Data(MonoclinicIndexingTests.betaCIF.utf8), fileName: "beta.cif")
+        let loaded = try CrystalLoading.load(bytes: Data(BetaDoublePrimeCIF.text.utf8), fileName: "beta.cif")
         let analysis = DiffractionAnalysis()
         analysis.setCrystal(.cif(loaded))
         analysis.setKMax(1.2)
@@ -169,8 +167,6 @@ nonisolated final class DiffractionAnalysisTests: XCTestCase {
         XCTAssertEqual(view.viewHalfSide(for: image), 40)
         view.zoom(by: 1000, image: image)
         XCTAssertEqual(view.viewHalfSide(for: image), 8, "never closer than 8 px")
-        view.showWholeImage(image)
-        XCTAssertEqual(view.viewHalfSide(for: image), 256)
         view.fitView()
         XCTAssertEqual(view.viewHalfSide(for: image), 80)
     }

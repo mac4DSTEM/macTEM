@@ -2,7 +2,7 @@
 
 `tools/run-tests.sh ui PerformanceJourney` (not in the default `ui` run). `macTEMUITests/PerformanceJourney.swift`: five iterations per
 action, each a fresh launch of the real app (Debug, kits `-O`) on the generated demo documents; the measured span runs from the click to the
-element that shows the result. Machine: MacBook Pro, Apple M5 Pro (Mac17,9), macOS 27.0.1. Commit: 6f9d0c5 plus the signposts. Medians of five;
+element that shows the result. Machine: MacBook Pro, Apple M5 Pro (Mac17,9), macOS 27.0.1. Build: macTEM before v1.0.0 (history squashed), plus the signposts. Medians of five;
 the range is under 3 % everywhere except the memory peak of the EDX action (240 to 245 MB).
 
 | Action (demo document) | Wall clock (driver) | In the app (signpost) | Peak memory | CPU time |

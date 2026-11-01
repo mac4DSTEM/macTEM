@@ -1,10 +1,11 @@
 //
 //  ImageRoomParticles.swift
-//  Role: the Particles view (docs/design/rooms-2026-10-21.md section 4), a section of the Image room's inspector: precipitates on
+//  Role: the Particles view, a section of the Image room's inspector: precipitates on
 //        a 2D image, found by a threshold on the raw range (bright or dark objects), optional Gaussian smoothing, connected-component
 //        labelling and the objects' moments, then counted (not on the edge, not below the minimum area). The image keeps its marks;
 //        the objects are outlined over it (`ParticleOverlay`), the mask can be tinted while the settings are edited, and an object
-//        table (a sheet) selects a row to outline it heavier. Presentation only: the numbers are ImagoKit's through
+//        table (its own window, `ParticleTableWindow`, so it stays beside the image) selects a row to outline it heavier; the pointer
+//        readout names the object under the pointer (`ImageReadout`). Presentation only: the numbers are ImagoKit's through
 //        `ParticleCompute`, held per file by `ParticleAnalysis` (TEMSession). Badge: validation none.
 //
 
@@ -13,17 +14,17 @@ import ShellInspector
 import SwiftUI
 import ImagoCore
 import UniformTypeIdentifiers
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
+import ShellEDXModel
+import ShellSpectroscopy
 
 struct ImageRoomParticlesSection: View {
     let image: CalibratedImage
     let item: OpenItem
     let rawRange: ClosedRange<Float>?
-    @State private var showTable = false
     @State private var exporting = false
+    @Environment(\.openWindow) private var openWindow
 
     private struct PreviewKey: Equatable { var settings: ParticleSettings; var on: Bool }
 
@@ -34,15 +35,22 @@ struct ImageRoomParticlesSection: View {
             // First, under the header, so the table and the export are in view without scrolling past the settings.
             if analysis.report != nil {
                 InspectorActionRow {
-                    Button("Object Table…") { showTable = true }.accessibilityIdentifier("particles.table")
+                    Button("Object Table…") { openWindow(id: ParticleTableWindow.id) }.accessibilityIdentifier("particles.table")
                     Button("Export CSV…") { exporting = true }.accessibilityIdentifier("particles.export")
                 }
             }
             SegmentedPicker(label: "Objects", items: ParticleSettings.Polarity.allCases.map { ($0, .title($0.title)) },
                             selection: Binding(get: { settings.polarity }, set: { new in analysis.setSettings { $0.polarity = new } }))
                 .accessibilityIdentifier("particles.polarity")
-            if let range = rawRange, range.upperBound > range.lowerBound {
-                AdjustmentSlider("Threshold",
+            SegmentedPicker(label: "Threshold", items: ParticleSettings.Method.allCases.map { ($0, .title($0.title)) },
+                            selection: Binding(get: { settings.method }, set: { new in analysis.setSettings { $0.method = new } }))
+                .accessibilityIdentifier("particles.method")
+            if settings.method == .otsu {
+                InspectorNote(analysis.report.map { $0.settings.method == .otsu && analysis.isCurrent
+                    ? "Otsu's level: \(ParticleFormat.number(Double($0.thresholdValue)))" : "Otsu's level is found with the objects." }
+                    ?? "Otsu's level is found with the objects.")
+            } else if let range = rawRange, range.upperBound > range.lowerBound {
+                AdjustmentSlider("Level",
                                  value: Binding(get: { Double(range.lowerBound) + settings.thresholdFraction * Double(range.upperBound - range.lowerBound) },
                                                 set: { v in analysis.setSettings { $0.thresholdFraction = (v - Double(range.lowerBound)) / Double(range.upperBound - range.lowerBound) } }),
                                  in: Double(range.lowerBound)...Double(range.upperBound),
@@ -85,9 +93,11 @@ struct ImageRoomParticlesSection: View {
                     .accessibilityIdentifier("particles.counts")
                     .accessibilityValue("\(report.summary.counted)")
                 InspectorNote(ParticleFormat.sizes(report.summary, scale: scale))
+                InspectorNote(ParticleFormat.density(report.summary, scale: scale))
+                    .accessibilityIdentifier("particles.density")
                 if !scale.isCalibrated { InspectorNote("The image is not calibrated (or its pixels are not square): sizes are in pixels.") }
             } else if !analysis.isComputing {
-                InspectorNote("Choose bright or dark objects, drag the threshold, then Show Objects. Counts and sizes only: no density yet.")
+                InspectorNote("Choose bright or dark objects and a threshold, then Show Objects.")
             }
             InspectorNote("validation: none · no sample of known particle sizes yet; the moments are ImagoKit's.")
         }
@@ -95,9 +105,6 @@ struct ImageRoomParticlesSection: View {
             guard analysis.previewsMask else { return }
             try? await Task.sleep(for: .milliseconds(150))
             if !Task.isCancelled { analysis.updatePreview(image: image) }
-        }
-        .sheet(isPresented: $showTable) {
-            if let report = analysis.report { ParticleTableSheet(analysis: analysis, report: report, scale: ParticleCompute.scale(of: image)) }
         }
         .fileExporter(isPresented: $exporting,
                       document: EDXExportFile(data: Data(csv(analysis).utf8)),
@@ -123,7 +130,7 @@ nonisolated struct ParticleRow: Identifiable, Hashable, Sendable {
 
     init(_ o: ParticleObject, scale: ParticleScale) {
         id = o.id; counted = o.isCounted
-        note = o.touchesEdge ? "edge" : (o.isSmall ? "small" : "")
+        note = o.touchesEdge ? "edge" : ""
         area = Double(o.moments.area) * scale.perPixel * scale.perPixel
         length = o.moments.lengthPx * scale.perPixel
         width = o.moments.widthPx * scale.perPixel
@@ -135,18 +142,16 @@ private struct ParticleTableSheet: View {
     let analysis: ParticleAnalysis
     let report: ParticleReport
     let scale: ParticleScale
-    @Environment(\.dismiss) private var dismiss
     @State private var countedOnly = false
     @State private var sortOrder = [KeyPathComparator(\ParticleRow.id)]
 
     var body: some View {
         let rows = report.objects.map { ParticleRow($0, scale: scale) }.filter { !countedOnly || $0.counted }.sorted(using: sortOrder)
         VStack(alignment: .leading, spacing: 10) {
+            // A window: its title bar names it and closes it (⌘W), so no headline and no Done.
             HStack {
-                Text("Objects").font(.headline)
                 Spacer()
                 Toggle("Counted only", isOn: $countedOnly)
-                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
             }
             Table(rows, selection: Binding(get: { analysis.selectedLabel }, set: { analysis.selectedLabel = $0 }), sortOrder: $sortOrder) {
                 TableColumn("#", value: \.id) { Text("\($0.id)").monospacedDigit() }.width(40)
@@ -224,5 +229,27 @@ struct ParticleOverlay: View {
             }
             p.closeSubpath()
         }
+    }
+}
+
+// MARK: - The table's window
+
+/// The object table of the selected file, in a window of its own (Window > Objects, or the section's Object Table… button): it stays
+/// open beside the image while rows are selected, and follows the file selected in the main window. With no file or no objects it says so.
+struct ParticleTableWindow: View {
+    static let id = "particles"
+    let appState: AppState
+
+    var body: some View {
+        Group {
+            if let item = appState.openItems.selected, let image = item.session.image, let report = item.particles.report {
+                ParticleTableSheet(analysis: item.particles, report: report, scale: ParticleCompute.scale(of: image))
+            } else {
+                ContentUnavailableView("No objects", systemImage: "circle.dashed",
+                                       description: Text("Show Objects in the Image room's Particles section first."))
+                    .frame(minWidth: EDXLayout.tableSheetMinimum.width, minHeight: EDXLayout.tableSheetMinimum.height)
+            }
+        }
+        .environment(appState)
     }
 }

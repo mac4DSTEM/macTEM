@@ -1,6 +1,6 @@
 //
 //  Journey.swift
-//  Role: the base of every UI journey (macEM-suite process/ui-testing-2026-10-21.md): launch the real app fresh with the demo
+//  Role: the base of every UI journey (the suite's UI-testing design, 2026-10-21): launch the real app fresh with the demo
 //        arguments, walk it as a user would, and attach a screenshot at every named step (kept always, so the run's
 //        .xcresult holds them whatever the verdict). A journey stops at its first failure; waits are on existence or on a value,
 //        never a sleep; a control is found by its accessibility identifier, never by its label.

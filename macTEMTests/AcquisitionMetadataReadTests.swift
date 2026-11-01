@@ -1,6 +1,6 @@
 //
 //  AcquisitionMetadataReadTests.swift
-//  The wiring of acquisition metadata (archive: roadmap-registrations-2026-10-15.md V1-4a, slice S-b): `AcquisitionMetadata.read(path:)` reaching the three
+//  The wiring of acquisition metadata: `AcquisitionMetadata.read(path:)` reaching the three
 //  format readers by extension, the DM image object it describes being the one `ImageOpening.openNow` shows, a
 //  DM-saved TIFF's tag 65027 read through mac4DSTEM's tag walker (precedence FEI SEM, Velox, DM), and the open's token
 //  publishing the metadata with its image (`ImageSession.finishOpen(_:image:url:metadata:)`).
@@ -130,7 +130,7 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
             case "mrc":
                 plant = Plant.fei2MRC(voltage: 300_000)
             case "emd":
-                // HDF5 cannot be written from Swift here: the planted Velox file h5py wrote (tools/parity/velox-image-parity),
+                // HDF5 cannot be written from Swift here: the planted Velox fixture h5py wrote,
                 // 200 kV, its HAADF last in key order.
                 let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "velox-haadf-last", withExtension: "emd"),
                                         "velox-haadf-last.emd is not in the test bundle")
@@ -182,7 +182,7 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
     // MARK: A DM-saved TIFF: tag 65027
 
     /// A DM-saved TIFF's tag 65027 is a bare DM4 stream; its tags are read with the DM rules and equal what the same
-    /// ImageTags give inside a .dm4. Planted to mirror what the registration predicted for RosettaSciIO's
+    /// ImageTags give inside a.dm4. Planted to mirror what the registration predicted for RosettaSciIO's
     /// test_loading_image_saved_with_DM.tif (200 kV, 51× — Actual 83 ignored —, no camera length in TEM imaging whatever
     /// `STEM Camera Length` (255) says, 0.5 s, the day-first date, "FEI Tecnai"), written here, not copied from the file.
     /// Mutations (each red): `tiff-65027-skipped` (the branch removed or the tag id patched), `tiff-65027-strings-lost`
@@ -271,7 +271,7 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
     /// swallows the throw, so the user sees "not recorded" as before; the one change is that the other tags of such a file
     /// are no longer read either (the same files now fail to open as an image: `TIFFAppImage` throws `truncated`). Never a trap
     /// (the process survives every overrun below); a block that fits exactly still reads. Three overruns of one stream: one
-    /// byte, two, 4096; the geometry the Gate B review made the unguarded reader trap on (a 100-byte file, count 5000 at
+    /// byte, two, 4096; the geometry a review made the unguarded reader trap on (a 100-byte file, count 5000 at
     /// offset 26); and an offset past the end of the file.
     func testATag65027WhoseCountRunsPastTheEndOfTheFileThrowsTruncatedAndReadsEmptyThroughAPath() throws {
         var stream = BareDM4.stream(Plant.voltageOnly(120_000))
@@ -579,4 +579,3 @@ nonisolated final class VeloxAcquisitionReadTests: XCTestCase {
         XCTAssertTrue(m.unread.isEmpty)
     }
 }
-

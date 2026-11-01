@@ -2,11 +2,11 @@
 //  PaneKeys.swift
 //  Role: the keys of the FFT room's and the Image room's panes — arrows, Delete, ⌘C and Escape — and Edit > Copy and
 //        Delete, all through ONE routing function per room (open-items "Arrows, ⌫ and ⌘C on a pane do nothing"; design:
-//        archive: pane-keys-2026-10-15/design.md).
+//        ).
 //
 //  WHY ONE CONTAINER PER ROOM: the panes' own focusable leaves (`.focusable()` + `@FocusState` + `.onMoveCommand`…) never
 //  held focus in this shell — focus was granted and withdrawn within the click — while a room-level focusable ancestor with
-//  `.onKeyPress` does receive ←, → and ⌫ (Gate D step 2, experiment E2, 2 of 2; archive: pane-keys-gate-d-2026-10-14/).
+//  `.onKeyPress` does receive ←, → and ⌫ (experiment E2; 2 of 2).
 //  This is mac4DSTEM's arrangement (`WorkspaceView`: `.focusable().focusEffectDisabled().onKeyPress(phases: .down)` on the
 //  pane container). The room's root carries it (`FFTKeyedRoom`, `ImageKeyedRoom` below); the panes hold no focus, no
 //  `@FocusState` and no `on…Command`; a pane that has been pressed tells the room which pane the keys are for.
@@ -26,10 +26,8 @@
 
 import SwiftUI
 import AppKit
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 // MARK: - The pure part
 

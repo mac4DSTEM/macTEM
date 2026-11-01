@@ -1,7 +1,6 @@
 //
 //  ExportSnapshot.swift
-//  Role: what an export takes from the selected file when its panel opens (V1-10 slice 1, archive: roadmap-registrations-2026-10-15.md "Completed at
-//        pickup — slice 1"; archive: export-design-2026-10-13.md). Pure functions from the file's own owners (its
+//  Role: what an export takes from the selected file when its panel opens. Pure functions from the file's own owners (its
 //        image, `ImagePresentation`, `ImageMeasurements`) to TEMCore's inputs (`ExportSource`, `ImageExport.Display`,
 //        `ImageExport.Mark`, a profile and its ends) and to the words a panel shows: the default names, the message
 //        lines, the status lines, the defaults of the options, and when the two commands are enabled. Nothing is stored
@@ -14,17 +13,15 @@
 //        display-converted one (`MarkFormat.shown`) only names the unit a profile's positions are shown in.
 //
 //        THE HAND-OVER to TEMCore's writers is one function on each snapshot (`write(to:)`), and the panels only call it:
-//        the one place the snapshot's values meet the writer is then a place a unit test can reach (Gate B R2 F1: two
+//        the one place the snapshot's values meet the writer is then a place a unit test can reach (a review: two
 //        mutations there — the ends swapped, the shown unit dropped — had passed every gate while it lived in the panel).
 //
 
 import ShellMetal
 import ImagoCore
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 // MARK: - Values
 
@@ -103,7 +100,7 @@ nonisolated struct ExportAvailability: Sendable, Equatable {
 
 enum ExportSnapshot {
 
-    /// The labels in the PNG are not the reader's: a de_DE user still gets "12.43 nm" in a figure (archive: roadmap-registrations-2026-10-15.md V1-10).
+    /// The labels in the PNG are not the reader's: a de_DE user still gets "12.43 nm" in a figure.
     nonisolated static let labelLocale = Locale(identifier: "en_US_POSIX")
 
     // MARK: Software
@@ -151,7 +148,7 @@ enum ExportSnapshot {
     nonisolated static func exportingLine(name: String) -> String { "Exporting \(name)…" }
 
     /// The infobar, and the VoiceOver announcement, when the PNG is written. What was left out comes right after the name:
-    /// the infobar is one line cut at its tail (Gate B U5), and the notice is the part the user needs.
+    /// the infobar is one line cut at its tail, and the notice is the part the user needs.
     nonisolated static func imageDoneLine(name: String, width: Int, height: Int, barLeftOut: Bool) -> String {
         let size = "\(width) × \(height) px"
         return barLeftOut ? "Exported \(name) without the scale bar (the image is too small) — \(size)"
@@ -179,8 +176,8 @@ enum ExportSnapshot {
     // MARK: Enabled
 
     /// The first two commands need an image with its pixels in the Image room, no read running; the second also a profile with
-    /// samples selected. Export Results… needs the Results room, an image, no read running and `resultRows` of them (V1-10
-    /// slice 3). Exhaustive over the rooms on purpose: a room that is built later decides here whether it exports.
+    /// samples selected. Export Results… needs the Results room, an image, no read running and `resultRows` of them.
+    /// Exhaustive over the rooms on purpose: a room that is built later decides here whether it exports.
     static func availability(hasImage: Bool, area: WorkspaceArea, isLoading: Bool, profileHasSamples: Bool,
                              resultRows: Int = 0) -> ExportAvailability {
         let inExportingRoom: Bool
@@ -201,7 +198,7 @@ enum ExportSnapshot {
     static func availability(of appState: AppState) -> ExportAvailability {
         // The ledger is read only where its count decides something: the Results room.
         let rows = appState.navigation.workspaceArea == .results
-            ? appState.openItems.selected.map { ResultsLedger.rows(of: $0).count } ?? 0 : 0
+            ? appState.openItems.selected.map { appState.resultRows(of: $0).count } ?? 0 : 0
         return availability(hasImage: appState.hasImage, area: appState.navigation.workspaceArea,
                             isLoading: appState.imageSession.isLoading,
                             profileHasSamples: selectedProfile(in: appState.measurements) != nil, resultRows: rows)

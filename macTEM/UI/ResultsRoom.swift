@@ -1,6 +1,6 @@
 //
 //  ResultsRoom.swift
-//  Role: the Results room (archive: roadmap-registrations-2026-10-15.md V1-10 slice 3; archive: results-room-design-2026-10-15.md, Part 1): every finished
+//  Role: the Results room (Part 1): every finished
 //        measurement of the selected file in one native `Table` with a `Section` per group — marks and FFT spots — mounted by
 //        `WorkspaceView`'s room switch. It makes no number and keeps none: the rows are `ResultsLedger`'s, read once per body
 //        from the file's owners and handed down as values (skill, observation.md "State Capture at Body Level": a row that read
@@ -20,10 +20,8 @@
 
 import ShellLayout
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 struct ResultsRoom: View {
     let image: CalibratedImage
@@ -33,7 +31,7 @@ struct ResultsRoom: View {
     var body: some View {
         // One read of the ledger and of the state, here.
         let state = appState.resultsRoom
-        let rows = ResultsLedger.rows(of: item)
+        let rows = appState.resultRows(of: item)
         let sections = state.sections(rows)
         let shown = sections.reduce(0) { $0 + $1.rows.count }
         VStack(spacing: 0) {

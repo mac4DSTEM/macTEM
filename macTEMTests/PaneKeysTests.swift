@@ -3,18 +3,16 @@
 //  The panes' keys (open-items "Arrows, ⌫ and ⌘C on a pane do nothing"; App/PaneKeys.swift): the router's table, the two
 //  rooms' keys on real owners, Edit > Copy / Delete through the SAME path as the key (enabled exactly when the keys act, the
 //  same text copied), and the source pins that keep the dead arrangement from coming back (focusable leaves with
-//  `on…Command`, which never held focus: archive: pane-keys-gate-d-2026-10-14/). Tier 2: each test names the mutation
+//  `on…Command`, which never held focus:). Tier 2: each test names the mutation
 //  that turns it red. What no test reaches — that the container receives the keys and that the system's Edit items are
 //  validated by its commands in the live window — is open on the drive ("Unverified on screen").
 //
 
 import XCTest
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
 import ImagoCore
-#endif
 @testable import macTEM
 
 nonisolated final class PaneKeysTests: XCTestCase {
@@ -388,7 +386,7 @@ nonisolated final class PaneKeysTests: XCTestCase {
         XCTAssertGreaterThan(code.count, 5000, "the pin reads a real file")
     }
 
-    /// The panes hold no focus of their own: Gate D showed focusable leaves never receive it, so a leaf with `on…Command` is a key
+    /// The panes hold no focus of their own: a drive showed focusable leaves never receive it, so a leaf with `on…Command` is a key
     /// that does nothing. Red under: any of these back in a pane's file.
     func testThePanesHoldNoFocusAndNoKeyCommands() throws {
         for path in ["macTEM/UI/FFTRoom.swift", "macTEM/UI/FFTSourceImagePane.swift", "macTEM/UI/FFTSpectrumImagePane.swift",

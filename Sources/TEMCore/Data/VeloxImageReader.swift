@@ -1,14 +1,13 @@
 //
 //  VeloxImageReader.swift
 //  Role: open a Thermo Fisher Velox `.emd` as macTEM's `CalibratedImage` — one frame of one image stack — through
-//        SpectroKit's Velox reader (`VeloxEMDReader`, SpectroCore 0.1.0, its public API only: one Velox parser in the
-//        suite, ADR 004 D1 and ADR 019). Pre-registered as archive: roadmap-registrations-2026-10-15.md V1-3a; checked by tools/parity/velox-image-parity
-//        against RosettaSciIO 049e7d70 and h5py.
+//        SpectroKit's Velox reader (`VeloxEMDReader`, SpectroCore 0.1.0, its public API only: one Velox parser for both
+//        apps). The parity against RosettaSciIO 049e7d70 and h5py is the kits'.
 //
 //  OBJECT RULE AND AXES are FormatoKit's `VeloxImageSelection` (FormatoEMD, the first consumer's named option beside
 //  `VeloxImageSignals`, pinned in the kit to this app's source) and `VeloxImageInfo.resolvedDetector` / `.detectorType`;
 //  this file keeps the frame read, the refusal wording, the "frame 1 of N" note, `describe`, and the build of the
-//  `CalibratedImage` (the kit has no image type for Velox). The rule, as registered (one refinement after Gate B, inert on every gated file): a candidate is an entry of
+//  `CalibratedImage` (the kit has no image type for Velox). The rule, as registered (inert on every gated file): a candidate is an entry of
 //  `images()` whose `BinaryResult.DetectorIndex` resolves in the file's detector table — to the entry the image's own
 //  `BinaryResult.Detector` names when the indexed one is another (`resolvedDetector`) — to a detector whose type is
 //  not "AnalyticalDetector" (an EDX map), and whose stored type a
@@ -17,7 +16,7 @@
 //  code: this separates all 27 public image stacks and the owner's three Ceta files (a name test would open the
 //  `UltraX` and `Zebra` EDX maps of `example_velox_EELS_EDS`, which carry no DetectorIndex).
 //
-//  THE FRAME: frame 0 of the stack (`read(path:frame:)` is V1-3c-ii's seam), never a sum: an unaligned sum smears (the
+//  THE FRAME: frame 0 of the stack (`read(path:frame:)` is the seam for the other frames), never a sum: an unaligned sum smears (the
 //  measured residual shift reaches (2, −5) px over 212 frames). A stack says "frame 1 of N" in `notes`.
 //
 //  CALIBRATION, as stored: x from `PixelSize.width` in `PixelUnitX`, y from `PixelSize.height` in `PixelUnitY`, the
@@ -123,8 +122,8 @@ package nonisolated enum VeloxImageReader {
         } catch let cancelled as FormatoCancelled {
             throw cancelled
         } catch {
-            // A damaged `Metadata` column: FormatoKit's JSON parse throws a Foundation error (velox-image-parity's
-            // planted-bad-metadata), which must reach the user as a named refusal, not a raw Cocoa error.
+            // A damaged `Metadata` column: FormatoKit's JSON parse throws a Foundation error (the test fixture
+            // velox-bad-metadata.emd), which must reach the user as a named refusal, not a raw Cocoa error.
             throw Refusal.unreadable(error.localizedDescription)
         }
     }

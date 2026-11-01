@@ -1,6 +1,6 @@
 //
 //  EDXRealFileJourney.swift
-//  The EDS room on the owner's real Velox file (docs/design/eds-room-behaviour.md is the spec this drive checks). Opt-in: skipped
+//  The EDS room on the owner's real Velox file. Opt-in: skipped
 //  unless MACTEM_REAL_DATA=1 reaches the runner and the file exists. xcodebuild hands the runner only variables named
 //  TEST_RUNNER_*, so run it as
 //      TEST_RUNNER_MACTEM_REAL_DATA=1 MACTEM_REAL_DATA=1 tools/run-tests.sh ui EDXRealFileJourney
@@ -219,6 +219,21 @@ nonisolated final class EDXRealFileJourney: Journey {
         try step("Mg listed: \(mgListed)") {}
     }
 
+    /// While Quantify runs on the real file, the toolbar's busy line carries a clock after the operation ("… · 3 s").
+    @MainActor func test05b_QuantifyBusyLineHasAClock() throws {
+        try step("launch") { openReal(); waitForRoomContent() }
+        try step("Quantify; the busy line ticks") {
+            let verb = waitFor("workspace.primaryAction", timeout: 60)
+            let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == true"), object: verb)
+            XCTAssertEqual(XCTWaiter().wait(for: [enabled], timeout: 120), .completed, "Quantify never became enabled")
+            verb.click()
+            // Found by its text: the identifier inside the toolbar's ticking TimelineView is not resolved by XCUITest.
+            let busy = app.toolbars.staticTexts.matching(NSPredicate(format: "label MATCHES %@", ".* · [0-9]+( s|:[0-9][0-9])( · ETA .*)?")).firstMatch
+            XCTAssertTrue(busy.waitForExistence(timeout: 60), "no busy line with a clock in the toolbar")
+            attach("busy line", busy.exists ? busy.label : "(gone)")
+        }
+    }
+
     // MARK: 6. wt% and at% maps carry the filtered tag; Filter Off removes it
 
     @MainActor func test06_FilteredTagAndFilterOff() throws {
@@ -342,5 +357,25 @@ nonisolated final class EDXRealFileJourney: Journey {
             attach("display after the click", text(display))
         }
         XCTAssertTrue(text(display).contains(first.contains("1840") ? "1339" : "1840"), "the room's file did not change: \"\(text(display))\"")
+    }
+
+    // MARK: 12. The Results room lists the composition
+
+    @MainActor func test12_QuantifiedCompositionIsListedInTheResultsRoom() throws {
+        try step("launch, Quantify") {
+            openReal(); waitForRoomContent(); quantify()
+            waitFor("edx.composition.Al", timeout: 120)
+        }
+        try step("the Results room has a row for Al, with at% and wt%") {
+            let results = waitFor("workspace.results", timeout: 60)
+            XCTAssertTrue(results.isEnabled, "the Results room is not available for the file")
+            results.click()
+            waitFor("results.table", timeout: 30)
+            let row = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'results.row.eds:' AND identifier CONTAINS ':Al:'")).firstMatch
+            XCTAssertTrue(row.waitForExistence(timeout: 30), "no EDS row for Al")
+            let value = app.staticTexts.matching(NSPredicate(format: "label CONTAINS ' at% · ' OR value CONTAINS ' at% · '")).firstMatch
+            XCTAssertTrue(value.waitForExistence(timeout: 10), "no Value cell reads at% and wt%")
+            attach("an EDS value", text(value))
+        }
     }
 }

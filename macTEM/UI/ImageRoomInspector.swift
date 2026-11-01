@@ -1,7 +1,7 @@
 //
 //  ImageRoomInspector.swift
 //  Role: the Image room's inspector content. Settings: the calibration a distance in this room is measured
-//        in (readiness, the first section), then Display (ImageRoomDisplay.swift) and Measure (ImageRoomMeasure.swift).
+//        in (readiness, the first section), then Display (ImageRoomDisplay.swift), Particles (ImageRoomParticles.swift) and Measure (ImageRoomMeasure.swift).
 //        Info: what the open image is, as the file states it, then what it records about the acquisition
 //        (ImageRoomAcquisition.swift).
 //
@@ -14,13 +14,11 @@
 import ShellInspector
 import ImagoCore
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// The room's Settings: the calibration a distance in this room is measured in (readiness, first), then the
-/// display of the selected file (V1-4) and its marks (V1-5).
+/// display of the selected file and its marks.
 struct ImageRoomSettings: View {
     let image: CalibratedImage
     @Environment(AppState.self) private var appState
@@ -30,13 +28,13 @@ struct ImageRoomSettings: View {
         // An image stack read on demand (a multi-page TIFF): the frame shown and the slider that moves it.
         if let item = appState.openItems.selected, item.stack != nil { ImageRoomStackSection(item: item, items: appState.openItems) }
         ImageRoomDisplaySection(presentation: appState.presentation)
-        ImageRoomMeasureSection(image: image, measurements: appState.measurements, tools: appState.imageRoomTools,
-                                item: appState.openItems.selected)
-        // The Particles view (docs/design/rooms-2026-10-21.md section 4): objects found on the image, outlined over it.
+        // The Particles view: objects found on the image, outlined over it. Above Measure, so it is in view without scrolling past the tools.
         if let item = appState.openItems.selected {
             ImageRoomParticlesSection(image: image, item: item, rawRange: appState.presentation.canvas?.rawRange)
         }
-        // The record of those marks (V1-2): collapsed, drawn only when there is something to show.
+        ImageRoomMeasureSection(image: image, measurements: appState.measurements, tools: appState.imageRoomTools,
+                                item: appState.openItems.selected)
+        // The record of those marks: collapsed, drawn only when there is something to show.
         if let item = appState.openItems.selected { ImageRoomLineageSection(image: image, item: item) }
     }
 }
@@ -70,7 +68,7 @@ struct ImageInfoSection: View {
 
     var body: some View {
         imageSection
-        // What the file records about the acquisition (V1-4a, ImageRoomAcquisition.swift).
+        // What the file records about the acquisition (ImageRoomAcquisition.swift).
         AcquisitionSection(metadata: appState.imageSession.metadata,
                            formatExtension: (image.fileName as NSString).pathExtension)
     }

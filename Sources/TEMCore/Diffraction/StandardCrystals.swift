@@ -1,6 +1,6 @@
 //
 //  StandardCrystals.swift
-//  Role: the standards a ring pattern is calibrated against, named (slice 1a, R7): Au, Al and Si with the lattice constant each
+//  Role: the standards a ring pattern is calibrated against, named (R7): Au, Al and Si with the lattice constant each
 //        is taken at, as DiffractoKit structures. The structures are DiffractoKit's `CrystalPresets`; this file names
 //        them for the room and builds their kinematic lists. The lattice constant is the reference the room states, not a
 //        measurement of the sample: Au 4.0782 Å, Al 4.0495 Å (pure aluminium at room temperature), Si 5.4309 Å.

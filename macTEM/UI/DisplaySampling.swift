@@ -9,9 +9,7 @@
 
 import ImagoCore
 import Foundation
-#if canImport(TEMCore)
 import TEMCore
-#endif
 
 nonisolated enum DisplaySampling {
     /// The spellings of the metre a file writes ("m" in Velox XML and FEI INI text).

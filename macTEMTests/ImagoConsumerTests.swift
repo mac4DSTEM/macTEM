@@ -1,6 +1,6 @@
 //
 //  ImagoConsumerTests.swift
-//  Three plants macTEM's own tests held before ImagoKit 0.1.0 replaced the FFT, spot and HRTEM-filter copies (ADR 027), and
+//  Three plants macTEM's own tests held before ImagoKit 0.1.0 replaced the FFT, spot and HRTEM-filter copies, and
 //  whose cases the kit's committed pins do not contain: the filters' scaling invariance, a weak wave under a large DC on
 //  a non-power-of-two size (the mean removed in Double), and a spot whose two bins either side tie. They run the kit on
 //  images built here, through the seam (`CalibratedImage.micrograph`). The other plants of the deleted tests (a click two

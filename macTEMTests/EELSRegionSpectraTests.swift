@@ -1,6 +1,6 @@
 //
 //  EELSRegionSpectraTests.swift
-//  The EELS room's regions as the EDS room has them (Paul's first look at 143, 2026-10-23): each visible region's core loss is summed for the spectrum's overlay,
+//  The EELS room's regions as the EDS room has them (the owner's first look at 143, 2026-10-23): each visible region's core loss is summed for the spectrum's overlay,
 //  and the spectrum follows a region while it is drawn, moved or resized, the selected region and the results waiting for the release.
 //
 //  WHAT IS PINNED: the sums are the kit's (`CoreLossSpectrumImage.sum(mask:)`) over the region's mask, on a 2 x 2 core loss whose pixel k holds 100 (k + 1) counts in
@@ -12,11 +12,10 @@ import XCTest
 import ShellSpectroscopy
 import SpectroEDX
 import SpectroEELS
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
+import ShellEDXModel
 
 nonisolated final class EELSRegionSpectraTests: XCTestCase {
     static let nx = 2, ny = 2, coreChannels = 300   // 300 to 599 eV: N K and O K are offered
@@ -55,7 +54,7 @@ nonisolated final class EELSRegionSpectraTests: XCTestCase {
     }
 
     /// A selected region is drawn against the whole map (its spectrum kept beside the region's, grey under it); a dragged window goes back to the kit's default
-    /// by edge or all at once (Paul's drive, 2026-10-23). Red under: no whole-map plot with a region selected; no way back to the defaults.
+    /// by edge or all at once (the owner's drive, 2026-10-23). Red under: no whole-map plot with a region selected; no way back to the defaults.
     @MainActor func testARegionReadsAgainstTheWholeMapAndWindowsReset() async throws {
         let session = try await openRoom()
         session.drawRegion(.rectangle(PixelRect(x0: 0, y0: 0, x1: 1, y1: 1)))
@@ -106,7 +105,7 @@ nonisolated final class EELSRegionSpectraTests: XCTestCase {
     }
 }
 
-/// Zero-loss alignment as a feature of the room (Paul, 2026-10-23: "the 0 loss alignment has to be a feature for sure"): on a cube whose zero-loss peak is planted
+/// Zero-loss alignment as a feature of the room (the owner, 2026-10-23: "the 0 loss alignment has to be a feature for sure"): on a cube whose zero-loss peak is planted
 /// at a different energy in each pixel, Align moves each pixel by the planted difference and the ZLP shift tile carries those shifts (the kit's own parity with exSpy's
 /// `align_zero_loss_peak` is SpectroKit's AlignPinsTests; this pins that the room hands them on). Red under: a tile of zeros, or shifts lost on the way to the tile.
 nonisolated final class EELSAlignmentInRoomTests: XCTestCase {
@@ -155,7 +154,7 @@ nonisolated final class EELSAlignmentInRoomTests: XCTestCase {
     }
 }
 
-/// The EELS exports beside the per-pixel CSV and the method JSON, as the EDS room has them (Paul's drive, 2026-10-23). Red under: no such writer.
+/// The EELS exports beside the per-pixel CSV and the method JSON, as the EDS room has them (the owner's drive, 2026-10-23). Red under: no such writer.
 nonisolated final class EELSExportsTests: XCTestCase {
     func testResultsSpectrumAndRegionsAreCSVWithTheirProvenance() throws {
         let c = EELSEdgeRow(id: "C-K", title: "C K", onsetEV: 284, intensity: 1.925e-4, arealDensityPerNM2: 1.925e6, atomicPercent: 95.8, weightPercent: 94.5,

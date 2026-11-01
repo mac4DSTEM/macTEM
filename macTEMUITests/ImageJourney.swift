@@ -39,4 +39,29 @@ nonisolated final class ImageJourney: Journey {
             XCTAssertLessThan(length, 6, "\"\(value)\"")
         }
     }
+
+    /// The marks list takes the keys after a click on a row: ↓ selects the next mark and Delete removes it, without a second click.
+    /// Two distances of different lengths tell which one went. (Delete over the image removes the selected mark too, so ↓ is what
+    /// shows the list has the focus.)
+    @MainActor func testAClickedMarkRowTakesTheKeys() throws {
+        try step("launch with the demo image and draw two distances") {
+            launch(["--demo-fixture"])
+            XCTAssertTrue(app.staticTexts["Demo lattice"].firstMatch.waitForExistence(timeout: 30))
+            drawADistanceMark()
+            let pane = waitFor("image.view")
+            pane.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.65)).click(forDuration: 0.1, thenDragTo: pane.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.65)))
+            let two = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.app.buttons.matching(identifier: "image.mark").count == 2 }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [two], timeout: 20), .completed, "two marks listed")
+        }
+        let marks = app.buttons.matching(identifier: "image.mark")
+        let first = (marks.element(boundBy: 0).value as? String) ?? ""
+        try step("click the first row, then Down and Delete") {
+            marks.element(boundBy: 0).click()
+            app.typeKey(.downArrow, modifierFlags: [])
+            app.typeKey(.delete, modifierFlags: [])
+            let one = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in marks.count == 1 }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [one], timeout: 10), .completed, "Delete after a click left \(marks.count) marks")
+            XCTAssertEqual((marks.element(boundBy: 0).value as? String) ?? "", first, "the first mark stays: Down moved the selection to the second")
+        }
+    }
 }

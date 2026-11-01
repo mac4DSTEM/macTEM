@@ -1,10 +1,10 @@
 // tools/parity/profile-parity/main.swift — macTEM's distance, angle and line profile (`ImageMeasurement`, `LineProfile`; TEMCore,
-// compiled in from tools/lib/sources.manifest group `profile`) against reference.py's manifest: scikit-image 0.26.0's
+// through Package.swift's ProfileParity target) against reference.py's manifest: scikit-image 0.26.0's
 // `profile_line` (order 1, mode "reflect", mean) with scipy 1.18.1, and the closed forms.
 //
 //     harness <out-dir of reference.py>
 //
-// Pass bands (archive: roadmap-registrations-2026-10-15.md V1-5):
+// Pass bands:
 //   P1  distance (px and physical) and angle equal their closed forms to 1e-12 relative; the unit is the file's own string
 //       and the plane (physical or pixel) is the one the rule gives; a zero arm gives no angle.
 //   P2  every profile sample equals scikit-image's (the float32 image, float32 output) to 1e-5 relative, with the floor
@@ -17,6 +17,7 @@
 // The negative controls are SOURCE mutants of ImageMeasurement.swift and LineProfile.swift, built and run by run.sh;
 // this file does not know them. A check is named by the text before ": " on its "  FAIL  " line.
 
+@testable import TEMCore
 import ImagoCore
 import Foundation
 

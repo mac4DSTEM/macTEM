@@ -6,7 +6,7 @@
 //  One app session for the whole acceptance (the file is 1.2 GB: opened once, not once per line), one activity per acceptance line of the EELS room (the
 //  2026-10-22 acceptance page), in the order a microscopist works (Align, λ, edges, Fit, then what reads the fit; the stale-and-Stop line last because it changes
 //  the threshold). A failure is booked to its line and the run goes on; the summary attachment and the EELSLINE lines on stdout give each line's verdict. What
-//  XCUITest cannot do is reported "unverified, drag" for Paul's hand, never faked: no mouse events are posted from here.
+//  XCUITest cannot do is reported "unverified, drag" for the owner's hand, never faked: no mouse events are posted from here.
 //
 
 import XCTest
@@ -169,7 +169,6 @@ nonisolated final class EELSRealFileJourney: Journey {
         guard e.exists else { return }
         let a = XCTAttachment(screenshot: e.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
     }
-
 
     @MainActor func test_TheEELSAcceptanceOn143() throws {
         try step("launch with --open on the 143 file") { openReal(); waitForRoomContent() }

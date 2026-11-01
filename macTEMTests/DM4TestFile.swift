@@ -1,7 +1,7 @@
 //
 //  DM4TestFile.swift
 //  Test support, no tests: a minimal DM4 written in memory, tag by tag, for the object-rule and refusal tests
-//  (ImageOpeningTests). The grammar is the one DM4Experiment walks (and tools/parity/dm4-reader-parity/dm4_writer.py
+//  (ImageOpeningTests). The grammar is the one DM4Experiment walks (and tools/parity/metadata-parity/dm4_writer.py
 //  writes): version 4, little-endian data, big-endian tag headers, 8-byte sizes, strings as ushort arrays, an empty
 //  label numbered one-based by position. DM4ImageObject and DM4Image have no package initialiser, so a test builds
 //  them by listing and reading these bytes.

@@ -1,18 +1,18 @@
 #!/bin/zsh
-# tools/parity/export-parity — macTEM's export (V1-10 slice 1: `ImageExport`, `ProfileCSV`, `ExportFile`) read back with Pillow 12.3.0,
+# tools/parity/export-parity — macTEM's Image room export (`ImageExport`, `ProfileCSV`, `ExportFile`) read back with Pillow 12.3.0,
 # numpy 2.5.4 and Python's own `float` (pinned: tools/lib/references-lock.txt, reference.py). Classified `scientific` in
-# tools/run-tests.sh. Pre-registration: archive: roadmap-registrations-2026-10-15.md "V1-10 Export", the block "Completed at pickup — slice 1" (P1, P3, P4, P5,
-# P6; and P5-band, the angle's arms and P7, the label, added by Gate B round 1). README.md says more.
+# tools/run-tests.sh. Checks P1, P3, P4, P5, P6; and P5-band, the angle's arms and P7, the label, added by a review.
+# README.md says more.
 #
 #   run.sh   reference.py plants every input and its truth (pixels, look-up tables, calibrations, windows, marks, profile ends,
 #            and the bar each case must draw, worked by hand); the harness (main.swift) writes the PNGs and CSVs with the
 #            production code and dumps what it held in memory; reference.py reads it all back and checks it; then every
 #            mutation of the app's export code (the CSV writers are ImagoKit's since 0.5.0; their mutants live in the kit) must fail the check it targets, or the gate fails for being blind. Each
-#            mutation edits a COPY of one of the files (never the file in Sources/) and compiles the harness against it.
+#            mutation edits a COPY of one of the files (never the file in Sources/) and builds the harness against it.
 #
 # Pass: "export-parity: all passed", the extra controls line, then "negative controls: 16 of 16 caught by their checks", exit 0.
-# TEMCore sources (the Results room's `ResultRow` and `ResultsCSV` included, V1-10 slice 3) come from tools/lib/sources.manifest, groups `dm` and `export` (the planted DM fixture and the real
-# RosettaSciIO image enter through ImageOpening, whose closure `dm` is; the readers themselves are tools/parity/dm4-reader-parity's).
+# The harness is Package.swift's ExportParity target over TEMCore (tools/lib/harness.sh builds it); the planted DM fixture and the
+# real RosettaSciIO image enter through ImageOpening (the readers themselves are FormatoKit's).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
@@ -29,9 +29,8 @@ resolve_mactem_developer_dir
 
 "$PYTHON_BIN" -I -B "$HERE/reference.py" plant "$FIXTURE" "$PLANTED" "$ROOT/References/rosettasciio" "$WORK/ref"
 
-. "$ROOT/tools/lib/sources.manifest"
-mactem_sources "$ROOT" dm export
-mactem_swiftc "$WORK/harness" "$HERE/main.swift"
+. "$ROOT/tools/lib/harness.sh"
+mactem_harness_build ExportParity "$WORK/harness"
 
 "$WORK/harness" "$WORK/ref" "$WORK/out"
 "$PYTHON_BIN" -I -B "$HERE/reference.py" check "$WORK/ref" "$WORK/out"
@@ -46,7 +45,7 @@ mactem_swiftc "$WORK/harness" "$HERE/main.swift"
 # SAME planted inputs as the unmutated run. The mutants are independent, so they build and run in batches of JOBS at a time;
 # their results are printed in order.
 CORE="$ROOT/Sources/TEMCore/Data"
-JOBS=6
+JOBS=${MACTEM_PARITY_JOBS:-6}   # mutants run at a time (their builds take turns: tools/lib/harness.sh)
 failed_check() {   # failed_check <log> <target>: does <log> hold a "  FAIL  " line of that check (or of one below it)?
   awk -v want="$2" 'index($0, "  FAIL  ") == 1 { rest = substr($0, 9); if (index(rest, want ": ") == 1 || index(rest, want "/") == 1) hit = 1 } END { exit !hit }' "$1"
 }
@@ -76,17 +75,7 @@ open(path, "w", encoding="utf-8").write(text.replace(old, new))
 ' "$copy" "$1" "$2" || { { echo missed; echo "  FAIL  mutation '$name' does not apply to $file"; } > "$res"; return; }
     shift 2
   done
-  local -a edited=()
-  local src
-  for src in "${MACTEM_SOURCES[@]}"; do
-    if [[ "${src:t}" == "${file:t}" ]]; then edited+=("$copy"); else edited+=("$src"); fi
-  done
-  if [[ "${edited[(r)$copy]}" != "$copy" ]]; then
-    { echo missed; echo "  FAIL  mutation '$name': ${file:t} is not among the harness's sources (tools/lib/sources.manifest, group export)"; } > "$res"
-    return
-  fi
-  MACTEM_SOURCES=("${edited[@]}")
-  if ! mactem_swiftc "$dir/harness" "$HERE/main.swift" > "$dir/build.log" 2>&1; then
+  if ! mactem_harness_mutant ExportParity "$dir/harness" "Sources/TEMCore/Data/$file" "$copy" > "$dir/build.log" 2>&1; then
     { echo missed; echo "  FAIL  mutation '$name' does not compile:"; sed 's/^/        /' "$dir/build.log"; } > "$res"
     return
   fi
@@ -123,7 +112,7 @@ PC=ProfileCSV.swift
 IE=ImageExport.swift
 IO='ImageExport+Overlays.swift'
 
-# --- The registered twenty-four (archive: roadmap-registrations-2026-10-15.md V1-10, "Mutations"), each red on its own check; seven more join them below (Gate B R1), five more (Results, slice 3).
+# --- The first twenty-four mutations, each red on its own check; seven more join them below (from a review, R1), five more (Results).
 # P1, the CSV. (1) %.15g: a double no longer re-reads bit-equal.
 # (2) positions in pixels although the axes are calibrated (the pixel length scaled back from the position).
 # (3) positions in the unit the app shows (nm), though the file states metres: the Velox case.
@@ -169,7 +158,7 @@ source_mutant registered marks-option-ignored $IE 'P6-footprint/aniso512/bar-onl
   'if options.marks { drawMarks(marks, in: context, width: width, height: height, overlayScale: u) }' \
   'drawMarks(marks, in: context, width: width, height: height, overlayScale: u)'
 
-# Gate B round 1 (R1) found that these seven mutants of registered claims stayed green against the first twenty-four, and added the
+# A review (round 1, R1) found that these seven mutants of registered claims stayed green against the first twenty-four, and added the
 # plants and checks that catch them; they are REGISTERED controls now (thirty-one in all), because each answers a registered claim.
 # (25) the drawn length biased by +0.2 px (P3-drawn is "round half up"; frac40's 74.40 gives 74, and 75 with the bias) and (26) rounded half
 # to even (tie512's 62.5 gives 63, and 62 here).
@@ -190,7 +179,7 @@ source_mutant registered mark-label-not-drawn $IO 'P7-label/p7-u1/mark-0' p7-u1 
 source_mutant registered label-upside-down $IO 'P7-label/p7-u1/mark-0|P7-label/p7-u1/bar' p7-u1 marks,bar \
   'context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)' 'context.textMatrix = CGAffineTransform(scaleX: 1, y: 1)'
 
-# R-P1, the Results room's CSV (V1-10 slice 3, archive: roadmap-registrations-2026-10-15.md "Slice 3, the Results room and one tidy CSV", Mutations): the case `results`,
+# R-P1, the Results room's CSV (its mutations): the case `results`,
 # five more registered controls, each red on the check it targets. (37) %.15g: the planted 0.1, 1/3 and the lattice's spot no longer
 # re-read bit-equal. (38) a dropped quote: the planted label with a comma, a quote and a newline splits its line. (39) the NaN case written
 # as 0. (40) the validation line of one product (the angle's) omitted from the header. (41) a spot's |q| in place of its d.
@@ -201,7 +190,7 @@ source_mutant registered results-spot-q-for-d $RR 'R-P1/spot-values' results all
 
 # --- Extra controls (not registered; each failing one fails the gate as well).
 # (42) the Results CSV drops the "unvalidated (reader note)" qualifier from its header lines and its validation column (the case
-# `results-unvalidated`: a file whose reader notes say so; CLAUDE.md, unvalidated stays labelled).
+# `results-unvalidated`: a file whose reader notes say so; unvalidated stays labelled).
 # (32) the scale bar option ignored.
 source_mutant extra scale-bar-option-ignored $IE 'P6-footprint/aniso512/marks-only-plate-untouched' aniso512 marks \
   'if options.scaleBar {' 'if true {'
@@ -209,7 +198,7 @@ source_mutant extra scale-bar-option-ignored $IE 'P6-footprint/aniso512/marks-on
 # (34) the overlay scale from min(W, H) / 256.
 # (35) header values not sanitised (a file name with CR, LF, U+2028 starts a line of its own).
 # (36) the RFC 4180 quoting inverted: the column header's unit with a comma and a quote is written bare.
-# --- Gate B round 1 additions that are not registered: the other mutants that stayed green, each red on a check the first harness
+# --- Review round 1 additions beyond the first set: the other mutants that stayed green, each red on a check the first harness
 # did not have (P5-band, P7-label, P4-format/<case>/meta on unitsmix512 and yonly512).
 source_mutant extra band-along-the-line $IO 'P5-band/p5x-u1' p5x-u1 marks \
   'let nx = -dy / length * half, ny = dx / length * half' 'let nx = dx / length * half, ny = dy / length * half'

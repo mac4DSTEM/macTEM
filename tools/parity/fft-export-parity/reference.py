@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Truth and reader for tools/parity/fft-export-parity: macTEM's FFT-room export (V1-10 slice 2) read back with Pillow, numpy and Python.
+"""Truth and reader for tools/parity/fft-export-parity: macTEM's FFT-room export read back with Pillow, numpy and Python.
 
     reference.py plant <planted-dir>
     reference.py check <planted-dir> <out-dir> [<case,case...|all>]
@@ -54,13 +54,13 @@ SPOT_NOTE = ("spots: the centroid of |F|^2 (power weights) over the 5 x 5 bins a
              "In Mask = the spot passes the masked inverse")
 ASPECT_NOTE = ("the PNG is the bins, one square pixel each; the pane draws width*dq_x : height*dq_y (pane_aspect = "
                "the ratio); anisotropic compares dq_x with dq_y, which differ with the size alone")
-VALIDATION_PNG = ("the transform compared with numpy 2.5.4 (tools/parity/fft-parity, V1-6 slice A); display "
+VALIDATION_PNG = ("the transform compared with numpy 2.5.4 (ImagoKit's parity tests); display "
                   "rendering: log scaling, window, 8-bit grey, not intensities; the scale bar's length checked against its label (export-parity)")
-VALIDATION_PROFILE = ("the radial profile compared with numpy 2.5.4 (tools/parity/fft-parity, V1-6 slices A and B); "
+VALIDATION_PROFILE = ("the radial profile compared with numpy 2.5.4 (ImagoKit's parity tests); "
                       "the calibration as the file states it")
-VALIDATION_SPOTS = ("the spot centroid compared with planted spots (tools/parity/spot-parity, V1-6a slice C'); the "
+VALIDATION_SPOTS = ("the spot centroid compared with planted spots (ImagoKit's parity tests); the "
                     "calibration as the file states it")
-LINEAGE = ("none — the FFT room's state carries no lineage id until V1-2; the region, spots and parameters "
+LINEAGE = ("none — the FFT room's state carries no lineage id; the region, spots and parameters "
            "above stand in")
 
 

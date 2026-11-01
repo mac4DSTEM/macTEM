@@ -1,15 +1,13 @@
 //
 //  ImageRoomTools.swift
-//  Role: the Image room's measuring tool (archive: roadmap-registrations-2026-10-15.md V1-5) — Pan, Distance, Angle or Profile — one per window, not per
+//  Role: the Image room's measuring tool — Pan, Distance, Angle or Profile — one per window, not per
 //        file: a mode of the room, as a drawing app's tool is. The marks themselves are the file's
 //        (`ImageMeasurements`, TEMSession). Composed by `AppState`; chosen in the Measure section and the Image menu.
 //
 
 import Foundation
 import Observation
-#if canImport(TEMCore)
 import TEMSession
-#endif
 
 @Observable
 final class ImageRoomTools {

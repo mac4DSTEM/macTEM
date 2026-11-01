@@ -1,6 +1,6 @@
 //
 //  ResultsRoomInspector.swift
-//  Role: the Results room's inspector content (V1-10 slice 3; archive: results-room-design-2026-10-15.md, section 3),
+//  Role: the Results room's inspector content,
 //        mounted by `WorkspaceInspector`'s Settings and Info switches.
 //        Settings: Show (one switch per group), Session (the Image room's tail: where the marks are kept, Save to Session) and
 //        Export (one full-width button: All results as CSV…, the twin of File > Export Results…, ⇧⌥⌘E).
@@ -16,10 +16,8 @@
 
 import ShellInspector
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 /// The room's Settings tab content.
 struct ResultsRoomSettings: View {
@@ -29,7 +27,7 @@ struct ResultsRoomSettings: View {
 
     var body: some View {
         let state = appState.resultsRoom
-        let rows = ResultsLedger.rows(of: item)
+        let rows = appState.resultRows(of: item)
         let availability = ExportSnapshot.availability(hasImage: appState.hasImage, area: appState.navigation.workspaceArea,
                                                        isLoading: appState.imageSession.isLoading,
                                                        profileHasSamples: false, resultRows: rows.count)
@@ -78,7 +76,7 @@ struct ResultsRoomInfo: View {
 
     var body: some View {
         let state = appState.resultsRoom
-        let rows = ResultsLedger.rows(of: item)
+        let rows = appState.resultRows(of: item)
         InspectorSection("Result") {
             if let row = state.selected(in: rows) {
                 let value = ResultsFormat.value(row, x: image.x, y: image.y)

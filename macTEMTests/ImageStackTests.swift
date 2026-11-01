@@ -12,10 +12,8 @@ import XCTest
 import Darwin
 import FormatoCore
 import ImagoCore
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class ImageStackTests: XCTestCase {

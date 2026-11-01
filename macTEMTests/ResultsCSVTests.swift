@@ -1,6 +1,6 @@
 //
 //  ResultsCSVTests.swift
-//  The Results room's CSV and its rows (V1-10 slice 3, `ResultsCSV`, `ResultRow`): the header's keys in order and one validation
+//  The Results room's CSV and its rows (`ResultsCSV`, `ResultRow`): the header's keys in order and one validation
 //  line per product present, the columns, one line per quantity and a line for a refusal, the numbers exact (`nan`, `inf`, `-inf`,
 //  -0), RFC 4180 quoting of a cell with a comma, a quote and a newline, a header value that cannot end its line, an empty ledger that is
 //  no file, the builders' quantities against the owners' own (`ImageMeasurement`, `SpotMeasurement`), and R-P2 — every validation sentence
@@ -18,6 +18,7 @@ import DiffractoGeometry
 import TEMCore
 import ImagoCore
 import ImagoFFT
+import SpectroEDX
 
 nonisolated final class ResultsCSVTests: XCTestCase {
 
@@ -281,7 +282,7 @@ nonisolated final class ResultsCSVTests: XCTestCase {
     }
 
     /// A spot measured on an image whose axes are already reciprocal ("1/nm", a diffraction pattern) writes the unit of q, qx and qy
-    /// as "nm", not "1/1/nm" (ImagoKit's `SpotMeasurement.reciprocalUnits`; macTEM's `SpotMeasure` wrote "1/1/nm", ADR 027): the
+    /// as "nm", not "1/1/nm" (ImagoKit's `SpotMeasurement.reciprocalUnits`; macTEM's `SpotMeasure` wrote "1/1/nm"): the
     /// Results ledger and its CSV carry this string. Red under: the reciprocal of a reciprocal unit written as "1/" + unit.
     func testASpotOnAReciprocalAxisImageNamesItsReciprocalUnitNm() throws {
         let axis = AxisCalibration(scale: 0.05, unit: "1/nm", origin: 0)
@@ -324,11 +325,17 @@ nonisolated final class ResultsCSVTests: XCTestCase {
             // The kit's own self-reported sentence (validation: none) for the indexing; the calibration's is the room's statement of what its numbers are.
             case .ring: producers = RingIndexing.validation
             case .calibration: producers = product.validation
+            // SpectroKit's own constant for a composition, after the words that say what the numbers are.
+            case .edsComposition: producers = ResultRow.Product.edsCompositionLead + PooledQuantification.abundanceValidation
+            // SpectroKit's EELS results carry their validation word on each result ("none"); ResultsLedgerTests holds a real map's and fit's equal to it.
+            case .eelsThickness: producers = ResultRow.Product.eelsThicknessLead + ResultRow.Product.eelsKitValidation
+            case .eelsEdge: producers = ResultRow.Product.eelsEdgeLead + ResultRow.Product.eelsKitValidation
             }
             XCTAssertEqual(product.validation, producers, "\(product): not the producer's constant")
             XCTAssertFalse(product.validation.isEmpty)
             XCTAssertFalse(product.badge.isEmpty)
-            XCTAssertTrue(product.badge.hasPrefix(product == .ring ? "Unvalidated · " : "Checked · "), "\(product): \(product.badge)")
+            let unvalidated: [ResultRow.Product] = [.ring, .edsComposition, .eelsThickness, .eelsEdge]
+            XCTAssertTrue(product.badge.hasPrefix(unvalidated.contains(product) ? "Unvalidated · " : "Checked · "), "\(product): \(product.badge)")
         }
         XCTAssertTrue(ResultRow.Product.profile.validation.hasPrefix(ImageMeasurement.validation), "the row's numbers are closed forms")
         XCTAssertTrue(ResultRow.Product.profile.validation.hasSuffix(ProfileCSV.validation), "the samples are scikit-image's")
@@ -340,18 +347,24 @@ nonisolated final class ResultsCSVTests: XCTestCase {
             case .spots: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .spots }.count, 1)
             case .calibration: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .calibration }.count, 1)
             case .rings: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .rings }.count, 1)
+            case .eds: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .eds }.count, 1)
+            case .eelsThickness: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .eelsThickness }.count, 1)
+            case .eelsEdges: XCTAssertEqual(ResultRow.Product.allCases.filter { $0.group == .eelsEdges }.count, 1)
             }
         }
     }
 
-    /// All six badges, as worded: three claims of a closed form (a profile row's numbers are the line's length and width, not the
-    /// samples), one of planted spots, the calibration's closed forms and the ring's honest "unvalidated"; no version is written in a
-    /// badge. Red under: the profile badge naming scikit-image again; a badge reworded.
-    func testTheSixBadges() {
+    /// All nine badges, as worded: three claims of a closed form (a profile row's numbers are the line's length and width, not the
+    /// samples), one of planted spots, the calibration's closed forms, the ring's, the EDS composition's and the two EELS products' honest
+    /// "unvalidated"; no version is written in a badge. Red under: the profile badge naming scikit-image again; a badge reworded.
+    func testTheNineBadges() {
         XCTAssertEqual(ResultRow.Product.allCases.map(\.badge), ["Checked · closed form", "Checked · closed form",
                                                                 "Checked · closed form", "Checked · planted spots",
-                                                                "Checked · closed form", "Unvalidated · indexing"])
-        XCTAssertEqual(ResultRow.Product.allCases.map(\.rawValue), ["distance", "angle", "profile", "spot", "calibration", "ring"])
+                                                                "Checked · closed form", "Unvalidated · indexing",
+                                                                "Unvalidated · composition", "Unvalidated · thickness",
+                                                                "Unvalidated · edge model"])
+        XCTAssertEqual(ResultRow.Product.allCases.map(\.rawValue), ["distance", "angle", "profile", "spot", "calibration", "ring", "edsComposition",
+                                                                   "eelsThickness", "eelsEdge"])
     }
 
     /// A file whose reader notes say it is unvalidated keeps the qualifier on every claim the CSV makes: the header's validation
@@ -374,7 +387,7 @@ nonisolated final class ResultsCSVTests: XCTestCase {
     }
 
     /// "Validated" is never claimed: no sentence the room or the CSV shows contains it (only "unvalidated" may), and the distance
-    /// and angle sentence claims what V1-5's P1 gated — closed forms, 1e-12, tools/parity/profile-parity — and the file's scale as stated.
+    /// and angle sentence claims what the profile harness gated — closed forms, 1e-12, tools/parity/profile-parity — and the file's scale as stated.
     /// Red under: "validated" written into a sentence; the 1e-12 or the tool's name dropped.
     func testNoSentenceClaimsValidated() {
         for product in ResultRow.Product.allCases {
@@ -388,7 +401,7 @@ nonisolated final class ResultsCSVTests: XCTestCase {
         XCTAssertTrue(ImageMeasurement.validation.contains("tools/parity/profile-parity"))
         XCTAssertTrue(ImageMeasurement.validation.contains("as the file states it"))
         XCTAssertTrue(ProfileCSV.validation.contains("scikit-image 0.26.0"))
-        XCTAssertTrue(FFTExport.spotsValidation.contains("tools/parity/spot-parity"))
+        XCTAssertTrue(FFTExport.spotsValidation.contains("ImagoKit's parity tests"))
     }
 
     /// The profile CSV's `# validation:` line is still its constant (the line was moved into `ProfileCSV.validation`, byte for byte),
@@ -414,7 +427,13 @@ nonisolated final class ResultsCSVTests: XCTestCase {
                                                 deltaQ: 0.0125, wavelength: 0.0251, lengthPixels: 7510, lengthMM: nil, fitVersusFilePercent: -1)
         let ring = ResultRow.ring(id: "diffraction:1", label: "Ring 1", radius: 39.24, q: 0.49, d: 2.039, family: "{200}", dListed: 2.0391,
                                   deltaPercent: 0.01, odds: "> 10⁶ : 1", verdict: "accepted", refusal: nil)
-        let rows = [distance(), angle(), profile(), try spot(), calibration, ring]
+        let eds = ResultRow(id: "eds:Whole map:Mg:Mg_Ka", product: .edsComposition, label: "Mg · Whole map",
+                            entries: [ResultRow.Entry("net", 7242, unit: "counts"), ResultRow.Entry("wt", 12.5, unit: "wt%")])
+        let thickness = ResultRow(id: "eels:thickness:whole", product: .eelsThickness, label: "t/λ · Whole map",
+                                  entries: [ResultRow.Entry("t_over_lambda", 0.52), ResultRow.Entry("thickness", nil, unit: "nm", text: ResultRow.eelsNeedsLambda)])
+        let edge = ResultRow(id: "eels:edge:whole:C-K1", product: .eelsEdge, label: "C K · Whole map",
+                             entries: [ResultRow.Entry("intensity", 4.3e7), ResultRow.Entry("at", 34.5, unit: "at%")])
+        let rows = [distance(), angle(), profile(), try spot(), calibration, ring, eds, thickness, edge]
         let text = try XCTUnwrap(ResultsCSV.text(rows, source: source(), session: "s"))
         let parts = split(text)
         for product in ResultRow.Product.allCases {

@@ -1,6 +1,6 @@
 //
 //  ExportImageOptions.swift
-//  Role: the accessory of the Export Image save panel (V1-10 slice 1, archive: export-design-2026-10-13.md): two
+//  Role: the accessory of the Export Image save panel: two
 //        checkboxes, Scale bar and Marks, in one row. SwiftUI, hosted by `ExportPanels` (App/), which owns the AppKit
 //        panel: the macOS 27 SDK's `fileExporter` and `fileDialog*` modifiers offer no accessory, and the options belong
 //        in the save panel, as Preview's export does. Presentation only: what the options start as is
@@ -20,7 +20,7 @@ final class ExportImageChoices {
     var marks: Bool
     /// Whether the panel offers Marks at all: fixed when it opens.
     let offersMarks: Bool
-    /// What the second checkbox draws: the Image room's marks, or the FFT room's measured spots (V1-10 slice 2).
+    /// What the second checkbox draws: the Image room's marks, or the FFT room's measured spots.
     let kind: Kind
 
     enum Kind: Sendable {

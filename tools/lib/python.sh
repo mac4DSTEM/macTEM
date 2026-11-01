@@ -6,7 +6,7 @@
 # pins the FULL closure as wheels, so a parity result is a claim about one known stack on every machine. The venv
 # is used only while `pip freeze` in it equals the lock's package lines; anything else reprovisions it. The harness
 # then asserts the reference's version, the sha256 of the reference source, numpy's version and the Python minor
-# (tools/parity/dm4-reader-parity/reference.py), so an override (PYTHON=) cannot swap the reader or numpy silently; the rest
+# (tools/parity/metadata-parity/reference.py, for one), so an override (PYTHON=) cannot swap the reader or numpy silently; the rest
 # of an override's stack is not checked.
 #
 #   resolve_mactem_python <repo-root>   -> exports PYTHON_BIN, provisioning on first use or when the venv is not the lock

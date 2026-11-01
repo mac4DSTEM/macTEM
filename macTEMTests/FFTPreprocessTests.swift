@@ -14,10 +14,8 @@ import XCTest
 import ImagoCore
 import ImagoFFT
 import ImagoFilters
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 @testable import macTEM
 
 nonisolated final class FFTPreprocessTests: XCTestCase {
@@ -125,6 +123,34 @@ nonisolated final class FFTPreprocessTests: XCTestCase {
         XCTAssertTrue(try FFTSpotFinder.find(values: flatProduct.canvas.normalized, width: 64, height: 64, settings: FFTSpotFinder.Settings()).isEmpty)
     }
 
+    /// A planted display: two sharp lattice reflections (one bin at 0.9 on a floor of 0.2) and a brighter but broad hump (a Gaussian of
+    /// 4 bins peaking at 1.0, the low-frequency power of a non-periodic blob). Ranked by local contrast the lattice comes first and the
+    /// hump after, though it is the highest value; a count of two keeps the lattice only. Red under: ranking by value (the hump first);
+    /// cutting to `count` before ranking (with a count of two the hump crowds out a reflection).
+    func testTheFinderRanksSharpReflectionsAboveABrighterBroadHump() throws {
+        let n = 128, c = n / 2
+        var values = [Float](repeating: 0.2, count: n * n)
+        let hump = (row: c + 30, column: c - 25)
+        for r in 0..<n { for col in 0..<n {
+            let d2 = Double((r - hump.row) * (r - hump.row) + (col - hump.column) * (col - hump.column))
+            values[r * n + col] += Float(0.8 * exp(-d2 / (2 * 16)))
+        } }
+        values[c * n + c + 16] = 0.9
+        values[(c + 16) * n + c] = 0.9
+        var settings = FFTSpotFinder.Settings()
+        let found = try FFTSpotFinder.find(values: values, width: n, height: n, settings: settings)
+        XCTAssertEqual(found.count, 3, "\(found)")
+        XCTAssertEqual(Set(found.prefix(2).map { "\($0.row),\($0.column)" }), ["\(c),\(c + 16)", "\(c + 16),\(c)"], "\(found)")
+        XCTAssertEqual(found.last?.row, hump.row)
+        XCTAssertEqual(found.last?.column, hump.column)
+        XCTAssertEqual(found[0].contrast, 0.7, accuracy: 1e-5, "0.9 above a floor of 0.2")
+        XCTAssertLessThan(found[2].contrast, found[1].contrast)
+        XCTAssertEqual(found[2].contrast, FFTSpotFinder.contrast(values, width: n, height: n, row: hump.row, column: hump.column))
+        settings.count = 2
+        let two = try FFTSpotFinder.find(values: values, width: n, height: n, settings: settings)
+        XCTAssertEqual(Set(two.map { "\($0.row),\($0.column)" }), ["\(c),\(c + 16)", "\(c + 16),\(c)"])
+    }
+
     /// Through the room's owner: Find Spots puts the reflections on the transform, the existing estimator measures their d (1.6 nm, the planted
     /// period at 0.1 nm/px), and a new preprocess takes the spots away and asks for a new spectrum. Red under: spots measured on the raw pixels
     /// while a window is on; the spots kept across a change of the transform.
@@ -140,6 +166,8 @@ nonisolated final class FFTPreprocessTests: XCTestCase {
         }
         XCTAssertEqual(analysis.spots.count, 2)
         for spot in analysis.spots {
+            XCTAssertGreaterThan(try XCTUnwrap(spot.contrast, "a found spot carries its contrast"), 0)
+            XCTAssertNotNil(FFTRoomFormat.contrastText(spot))
             let m = try XCTUnwrap(spot.measured, "spot \(spot.number): \(spot.outcome)")
             XCTAssertEqual(m.d, 1.6, accuracy: 0.05, "the planted period of 16 px at 0.1 nm/px")
         }

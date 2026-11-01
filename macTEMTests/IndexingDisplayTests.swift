@@ -4,7 +4,7 @@ import DiffractoScattering
 import DiffractoGeometry
 import TEMCore
 
-/// A ring's indexing as the Diffraction room displays it (slice 1a, R6): the kit's `RingIndexing` decision over Au's kinematic list
+/// A ring's indexing as the Diffraction room displays it (R6): the kit's `RingIndexing` decision over Au's kinematic list
 /// at k_max 1.2 with the derived numbers, pinned to tools/parity/diffraction-room-parity's decimal values (Au {111} 2.35454986780913 A,
 /// {311} 1.2296235654570355 A). The 2646 plants are the harness (R6); its controls (delta-over-measured, pct-x10, tol-fraction,
 /// odds-margin, z-no-tol, sigma-pct) are the emulated forms of the mutations named in each test.

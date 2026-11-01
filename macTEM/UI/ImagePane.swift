@@ -21,16 +21,14 @@ import ShellLayout
 import ShellMetal
 import ImagoCore
 import SwiftUI
-#if canImport(TEMCore)
 import TEMCore
 import TEMSession
-#endif
 
 struct ImagePane: View {
     let image: CalibratedImage
     let canvas: CanvasPixels
     /// The item this pane shows: its committed zoom and pan are where `zp` starts and where a finished gesture writes
-    /// back (V1-13), so switching items and back restores them exactly. The pane is keyed by the item's id.
+    /// back, so switching items and back restores them exactly. The pane is keyed by the item's id.
     let item: OpenItem
     @State private var zoomModel: PaneZoomModel
     private var zp: ZoomPan { zoomModel.state }
@@ -69,13 +67,16 @@ struct ImagePane: View {
     }
 
     /// The status line's cursor readout (control placement §7): the pixel under the pointer and its raw value. No crosshair over the
-    /// picture (Paul, 2026-10-23: the system pointer is enough, as in Velox, GMS and Preview).
+    /// picture (the owner, 2026-10-23: the system pointer is enough, as in Velox, GMS and Preview).
     private func hovered(_ phase: HoverPhase, box: CGSize) {
         switch phase {
         case .active(let p):
             let geometry = MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box, zoom: zp.drawZoom, offset: zp.effectiveOffset),
                                         imageWidth: canvas.width, imageHeight: canvas.height)
-            appState.imageRoomTools.readout = ImageReadout.text(image, at: geometry.imagePoint(atPanePoint: p))
+            // While the Particles view shows its objects, the object under the pointer is named after the pixel.
+            appState.imageRoomTools.readout = ImageReadout.text(image, at: geometry.imagePoint(atPanePoint: p),
+                                                                particles: item.particles.showsObjects ? item.particles.report : nil,
+                                                                scale: ParticleCompute.scale(of: image))
         case .ended:
             appState.imageRoomTools.readout = nil
         }
@@ -217,7 +218,7 @@ struct ImagePane: View {
             .zoomCommandTarget(zoomModel, isTarget: true)
 
             PaneFooter {
-                // Hidden, never re-measured: the toggle removes the bar only (V1-4; the calibration stays in the
+                // Hidden, never re-measured: the toggle removes the bar only (the calibration stays in the
                 // inspector). Opacity, not `if`, so the footer keeps its identity and its place.
                 ScaleBar(unitsPerPoint: ImageScaleBar.unitsPerPoint(perPixel: sampling.perPixel,
                                                                     imageWidth: canvas.width,
@@ -248,6 +249,19 @@ nonisolated enum ImageReadout {
         let c = Int(q.x.rounded()), r = Int(q.y.rounded())
         guard c >= 0, c < image.width, r >= 0, r < image.height else { return nil }
         return "x \(c), y \(r) · \(Num.sig(Double(image.pixels[r * image.width + c]), 5))"
+    }
+
+    /// The pixel readout, then the found object under the pointer when there is one: "x 30, y 30 · 100 · object 2: 15.9 × 6.1 nm", its
+    /// length and width (ImagoKit's moments) in the scale's unit, "(edge)" when it is cut by the image edge. `particles` nil: the pixel alone.
+    static func text(_ image: CalibratedImage, at q: ImagePoint, particles: ParticleReport?, scale: ParticleScale) -> String? {
+        guard let pixel = text(image, at: q) else { return nil }
+        guard let report = particles, report.width == image.width, report.height == image.height else { return pixel }
+        let c = Int(q.x.rounded()), r = Int(q.y.rounded())
+        let label = report.labels.labels[r * report.width + c]
+        guard label > 0, let object = report.objects.first(where: { $0.id == label }) else { return pixel }
+        let m = object.moments
+        let size = "\(ParticleFormat.number(m.lengthPx * scale.perPixel)) × \(ParticleFormat.number(m.widthPx * scale.perPixel)) \(scale.unit)"
+        return pixel + " · object \(label): " + size + (object.touchesEdge ? " (edge)" : "")
     }
 }
 

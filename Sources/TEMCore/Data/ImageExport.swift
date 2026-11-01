@@ -1,7 +1,7 @@
 //
 //  ImageExport.swift
-//  Role: the Image room's export to PNG (V1-10 slice 1; archive: roadmap-registrations-2026-10-15.md "Completed at pickup — slice 1";
-//        archive: export-design-2026-10-13.md): the file's canvas at its own pixels through the display mapping, an
+//  Role: the Image room's export to PNG:
+//        the file's canvas at its own pixels through the display mapping, an
 //        optional scale bar and optional marks drawn over it (`ImageExport+Overlays.swift`), and one JSON text chunk that says
 //        exactly what was drawn. Pure compute on values the app snapshots when the panel opens; `export` renders and writes
 //        off the main actor.
@@ -80,7 +80,7 @@ package nonisolated enum ImageExport {
 
     package enum MarkKind: String, Sendable {
         case distance, angle, profile
-        /// One point: a ring at a measured FFT spot, its number as the label (V1-10 slice 2).
+        /// One point: a ring at a measured FFT spot, its number as the label (the FFT room's export).
         case spot
     }
 
@@ -112,7 +112,7 @@ package nonisolated enum ImageExport {
         }
     }
 
-    /// What an export that is not of an image's own pixels adds to its Description (V1-10 slice 2, the FFT transform): `fields`
+    /// What an export that is not of an image's own pixels adds to its Description (the FFT transform): `fields`
     /// go under the key "fft" (strings, sorted keys), and `validation` and `lineage` replace the image export's two sentences.
     /// nil (the default) leaves the Description exactly as slice 1 wrote it.
     package struct Provenance: Sendable, Equatable {
@@ -297,8 +297,8 @@ package nonisolated enum ImageExport {
             "overlay_scale": .int(u),
             "scale_bar": scaleBar, "marks": markList, "anisotropic": .bool(anisotropic),
             "validation": .string("display rendering: window, gamma, 8-bit colour, not intensities; "
-                                  + "the scale bar's length checked against its label (export-parity P3)"),
-            "lineage": .string("none — marks carry no lineage id until V1-2; the marks' parameters stand in"),
+                                  + "the scale bar's length checked against its label (export-parity)"),
+            "lineage": .string("none — marks carry no lineage id; the marks' parameters stand in"),
         ]
         if options.marks, drawn.count < marks.count { object["marks_skipped"] = .int(marks.count - drawn.count) }
         if let provenance {

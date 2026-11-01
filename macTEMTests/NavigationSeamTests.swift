@@ -48,7 +48,7 @@ nonisolated final class NavigationSeamTests: XCTestCase {
 
     /// The sidebar dragged to its maximum must still leave the inspector and both science panes their floor at the
     /// window's minimum. A saved sidebar wider than that crashed every launch in the constraint loop at 915 pt
-    /// (mac4DSTEM Gate D 2026-09-28).
+    /// .
     @MainActor func testTheWidestSidebarStillFitsTheMinimumWindow() {
         let required = LayoutPolicy.sidebarWidth.max + LayoutPolicy.inspectorWidth.min
             + LayoutPolicy.splitColumnDividerAllowance * 2 + LayoutPolicy.scienceMinimum

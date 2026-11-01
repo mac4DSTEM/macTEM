@@ -1,6 +1,6 @@
 //
 //  ResultsFormatTests.swift
-//  Every sentence and number the Results room shows (V1-10 slice 3, `ResultsFormat`): the groups' names, a row's Value as the
+//  Every sentence and number the Results room shows (`ResultsFormat`): the groups' names, a row's Value as the
 //  owner's room reads it (a mark as `MarkFormat`, a spot as `FFTRoomFormat`), its Source, Record and badge, the badge that turns to
 //  "Unvalidated · <note>", the spoken row, the line ⌘C copies, the Info fields, the header's count, the states' words and the export's
 //  name, message and menu title. Expected strings are literals worked out by hand. Tier 2.
@@ -211,8 +211,5 @@ nonisolated final class ResultsFormatTests: XCTestCase {
                        "3 results · Marks and FFT Spots · numbers exact, one line per quantity")
         XCTAssertEqual(ResultsFormat.exportMessage(rows: 1, groups: [.marks]), "1 result · Marks · numbers exact, one line per quantity")
         XCTAssertEqual(ResultsFormat.exportingDoneLine(name: "scan.results.csv", rows: 3), "Exported scan.results.csv — 3 results")
-        XCTAssertEqual(ResultsFormat.exportTitle(enabled: true, hasRows: true), "All Results as CSV…")
-        XCTAssertEqual(ResultsFormat.exportTitle(enabled: false, hasRows: false), "All Results as CSV… (nothing measured yet)")
-        XCTAssertEqual(ResultsFormat.exportTitle(enabled: false, hasRows: true), "All Results as CSV… (a read is running)")
     }
 }

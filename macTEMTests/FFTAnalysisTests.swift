@@ -1,6 +1,6 @@
 //
 //  FFTAnalysisTests.swift
-//  The FFT room's owner (archive: roadmap-registrations-2026-10-15.md V1-6, "The room": R2, the live-update rule, and the products it publishes). Two halves.
+//  The FFT room's owner ("The room": R2; the live-update rule; and the products it publishes). Two halves.
 //  The LANES, with an injected `FFTCompute` whose jobs park on a continuation the test finishes in its own order, so P4 is
 //  deterministic: a superseded result is never published, the newest key is always computed last, two jobs of one lane
 //  never overlap, a committed region clears the spots — and the rest of the owner's rules (what a read, a release, a

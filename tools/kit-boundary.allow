@@ -10,4 +10,3 @@
 
 # Tests of the display pipeline and the harness's crystal geometry.
 macTEMTests/ImageExportGPUTests.swift	Metal	GPU image export vs CPU rendering
-tools/parity/crystal-parity/main.swift	simd	harness: SIMD3 vectors for crystal faces, compared against the Python reference

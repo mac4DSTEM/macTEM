@@ -3,15 +3,14 @@
 //  Role: what the Diffraction room's views hold and the results owner must not: the tool, the log toggle, the annulus being set, the
 //        selected row, the zoom, and the pattern's display (colormap, window, gamma: the Display section, control placement §5). One per open file (`OpenItem.diffractionView`), beside `DiffractionAnalysis`; a change here never
 //        invalidates a reader of the results (the readout, the Results room, the exports), as the EDX room keeps `EDXRoomState`
-//        apart from `EDXSession` (docs/design/diffraction-room-2026-10-21.md section 2). Display only: no number a scientist reads.
+//        apart from `EDXSession`. Display only: no number a scientist reads.
 //
 
 import Foundation
 import Observation
 import ShellMetal
-#if canImport(TEMCore)
 import TEMCore
-#endif
+import ShellEDXModel
 
 @Observable
 package final class DiffractionViewState {
@@ -64,5 +63,4 @@ package final class DiffractionViewState {
     }
 
     package func fitView() { zoomHalfSide = nil }
-    package func showWholeImage(_ image: CalibratedImage) { zoomHalfSide = Double(min(image.width, image.height)) / 2 }
 }

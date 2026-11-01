@@ -1,0 +1,30 @@
+name: Bug report
+description: A wrong number, a crash, or something the app does that it should not.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: input
+    id: file
+    attributes:
+      label: The file
+      description: Format (DM3/DM4, TIFF, MRC, Velox .emd, spectrum image), size and pixel type. Please do not attach data.
+  - type: textarea
+    id: shown
+    attributes:
+      label: What the app reported
+      description: The calibration it read, the result's validation text, any refusal or message.
+  - type: textarea
+    id: reference
+    attributes:
+      label: What the Python reference gives, if you have it
+  - type: input
+    id: system
+    attributes:
+      label: macTEM version, macOS version and Mac model
+    validations:
+      required: true
