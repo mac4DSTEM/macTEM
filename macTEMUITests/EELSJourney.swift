@@ -55,8 +55,10 @@ nonisolated final class EELSJourney: Journey {
         }
         try step("the Methods tag is shown and no trust word") {
             let tag = waitFor("eels.methodsTag")
-            XCTAssertTrue(tag.label.contains("Methods") || ((tag.value as? String) ?? "").contains("Methods"), "tag: \(tag.label)")
-            XCTAssertFalse(element("eels.validationBadge").exists, "no validation badge")
+            // The tag reads "Methods"; its tooltip (EELSLiterature.tooltip, checked by the unit tests) names each method with its reference.
+            XCTAssertTrue(tag.label == "Methods" || (tag.value as? String) == "Methods", "tag: \"\(tag.label)\"")
+            let words = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] 'validation' OR value CONTAINS[c] 'validation'")).count
+            XCTAssertEqual(words, 0, "a validation word is shown \(words) times")
         }
     }
 
