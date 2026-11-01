@@ -7,8 +7,9 @@
 //  THE ROOM AUTHORS NO CLAIM OF TRUST (R-P2). What a measurement is checked against is `Product.validation`, and each case
 //  returns its PRODUCER's own constant (`ImageMeasurement.validation`, `FFTExport.spotsValidation`; a profile row's numbers are closed
 //  forms, so it carries `ImageMeasurement.validation`, then `ProfileCSV.validation` for the samples the Image room's CSV writes);
-//  the switch is exhaustive, so a new product without a constant does not compile. `Product.badge` is the short label of the
-//  same claim. "Validated" is never written: a product that is not checked says so in its own constant.
+//  the ring, EDS and EELS products name their method and its reference instead of a kit's trust word. The switch is exhaustive,
+//  so a new product without a constant does not compile. `Product.badge` names the method in a few words. No trust label is
+//  written ("validated", "validation: none").
 //
 //  THE NUMBERS are the owner's Doubles in the file's own unit (a Velox metre axis stays in metres; the room brings a length
 //  to nm for the eye, the file does not). A quantity without a number (a refusal) has a nil value and its words in `refusal`.
@@ -56,47 +57,51 @@ package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
             // CSV writes are scikit-image's. The sentence says both, each its producer's constant.
             case .profile: ImageMeasurement.validation + Self.profileSamplesClause + ProfileCSV.validation
             case .spot: FFTExport.spotsValidation
-            // The kit's own self-reported sentence for the indexing; the calibration's numbers are the kit's closed forms (`RingScaleTests`).
-            case .ring: RingIndexing.validation
+            // What the indexing was compared with; the kit's own word for its trust state is not shown. The calibration's numbers are
+            // the kit's closed forms (`RingScaleTests`).
+            case .ring: Self.ringMethod
             case .calibration: "Δq, λ and L are DiffractoKit's closed forms from one ring of a standard's stated lattice constant; not compared with a calibrated camera length"
-            // The kit's own constant for an at% or wt% (the cross sections are not checked against a standard of known composition).
-            case .edsComposition: Self.edsCompositionLead + PooledQuantification.abundanceValidation
-            // SpectroKit reports its EELS validation on each result (`ThicknessMap.validation`, `EELSModelResult.validation`), always "none";
-            // each row carries the result's own word as its `validation` entry, and a test holds the two equal.
-            case .eelsThickness: Self.eelsThicknessLead + Self.eelsKitValidation
-            case .eelsEdge: Self.eelsEdgeLead + Self.eelsKitValidation
+            // EDS and EELS name the method and its reference, as scientific software does; no trust label.
+            case .edsComposition: Self.edsCompositionMethod
+            case .eelsThickness: Self.eelsThicknessMethod
+            case .eelsEdge: Self.eelsEdgeMethod
             }
         }
 
-        /// The short label of `validation`: what it was checked against, in a few words.
+        /// What a ring row's indexing is and what it was compared with.
+        package static let ringMethod = "DiffractoKit's ring indexing (RingIndexing): q matched to the crystal's listed families; compared with "
+            + "a NumPy reading of the rule"
+
+        /// The method that made the numbers, in a few words (the Results room's Method column); `validation` is its full sentence.
+        /// No trust label is written: a method is named, as scientific software names it.
         package var badge: String {
             switch self {
-            case .distance, .angle, .profile: "Checked · closed form"
-            case .spot: "Checked · planted spots"
-            case .calibration: "Checked · closed form"
-            case .ring: "Unvalidated · indexing"
-            case .edsComposition: "Unvalidated · composition"
-            case .eelsThickness: "Unvalidated · thickness"
-            case .eelsEdge: "Unvalidated · edge model"
+            case .distance, .angle, .profile: "Closed form"
+            case .spot: "Spot centroid"
+            case .calibration: "Ring calibration"
+            case .ring: "Ring indexing"
+            case .edsComposition: "Cliff-Lorimer"
+            case .eelsThickness: "Log-ratio t/λ"
+            case .eelsEdge: "EELS edge model"
             }
         }
 
-        /// What an EDS row's numbers are, before SpectroKit's validation constant.
-        package static let edsCompositionLead = "SpectroKit's pooled quantification of the region's summed spectrum (net counts from the fit; at% and wt% by "
-            + "Cliff-Lorimer with the room's k-factors), validation: "
+        /// What an EDS row's numbers are, and the method's reference.
+        package static let edsCompositionMethod = "SpectroKit's pooled quantification of the region's summed spectrum (net counts from the fit; at% "
+            + "and wt% by Cliff-Lorimer with the room's k-factors); reference: exSpy 7185a4d1; Cliff and Lorimer, J. Microsc. 103 (1975) 203"
 
-        /// The word SpectroKit's EELS results report as their validation (`ThicknessMap.validation`, `EELSModelResult.validation`).
-        package static let eelsKitValidation = "none"
+        /// The log-ratio method's reference (the EELS thickness rows and the thickness exports).
+        package static let eelsThicknessReference = "Malis, Cheng and Egerton, J. Electron Microsc. Tech. 8 (1988) 193"
 
-        /// What an EELS thickness row's numbers are, before the kit's validation word.
-        package static let eelsThicknessLead = "SpectroKit's log-ratio t/λ (" + EELSThickness.methodName + "): over the whole map the median and quartiles of "
-            + "the kit's per-pixel t/λ, and t where λ is set; over a drawn region the t/λ of its summed spectrum; not compared with a sample of known "
-            + "thickness, validation: "
+        /// What an EELS thickness row's numbers are, and the method's reference.
+        package static let eelsThicknessMethod = "SpectroKit's log-ratio t/λ (" + EELSThickness.methodName + "): over the whole map the median and "
+            + "quartiles of the kit's per-pixel t/λ, and t where λ is set; over a drawn region the t/λ of its summed spectrum; reference: "
+            + eelsThicknessReference
 
-        /// What an EELS edge row's numbers are, before the kit's validation word.
-        package static let eelsEdgeLead = "SpectroKit's EELS edge model (" + EELSModelFit.methodName + ") of the region's summed spectra: I with the kit's "
-            + "1 sigma (counting statistics only, no model error); at% and wt% from the fitted intensities (EELSQuantification.composition, no "
-            + "uncertainty given); not compared with a standard, validation: "
+        /// What an EELS edge row's numbers are, and the method's reference.
+        package static let eelsEdgeMethod = "SpectroKit's EELS edge model (" + EELSModelFit.methodName + ") of the region's summed spectra: I with the "
+            + "kit's 1 sigma (counting statistics only, no model error); at% and wt% from the fitted intensities (EELSQuantification.composition, no "
+            + "uncertainty given); reference: exSpy 7185a4d1 with the dft GOS tables (Segger, Guzzinati and Kohl, v1.5.0)"
     }
 
     /// One number (or one text) of a row. `value` is nil for a text-only entry.
@@ -291,7 +296,7 @@ package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
     package static func eelsWholeMapThickness(id: String, map: ThicknessMap, lambdaSource: String?) -> ResultRow {
         let region = "Whole map"
         let reasons = EELSCompute.unavailableReasons(map).map { "\($0.count) px: \($0.reason)" }.joined(separator: "; ")
-        let tail = [Entry("method", nil, text: map.method), Entry("validation", nil, text: map.validation), Entry("region", nil, text: region)]
+        let tail = [Entry("method", nil, text: map.method), Entry("region", nil, text: region)]
         guard let stats = EELSThicknessStats.of(map, region: nil) else {
             return ResultRow(id: id, product: .eelsThickness, label: "t/λ · \(region)", entries: tail,
                              refusal: "no pixel has a t/λ" + (reasons.isEmpty ? "" : " (\(reasons))"))
@@ -308,11 +313,11 @@ package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
 
     /// A drawn region's thickness as the EELS room's Regions table reads it: the kit's t/λ of the region's summed low loss, its pixels and
     /// I total. No t/λ is a refusal with the kit's reason.
-    package static func eelsRegionThickness(id: String, row: EELSRegionRow, validation: String) -> ResultRow {
+    package static func eelsRegionThickness(id: String, row: EELSRegionRow, method: String) -> ResultRow {
         let t = finite(row.tOverLambda)
         let entries = [Entry("t_over_lambda", t, text: "of the summed spectrum"), Entry("pixels", Double(row.pixels), unit: "px"),
                        Entry("i_total", finite(row.totalCounts), unit: "counts"),
-                       Entry("validation", nil, text: validation), Entry("region", nil, text: row.pin.name)]
+                       Entry("method", nil, text: method), Entry("region", nil, text: row.pin.name)]
         return ResultRow(id: id, product: .eelsThickness, label: "t/λ · \(row.pin.name)", entries: entries,
                          refusal: t == nil ? (row.tUnavailable ?? "the kit gave no t/λ for the summed spectrum") : nil)
     }
@@ -321,7 +326,7 @@ package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
     /// where the low loss was convolved, at% and wt%, the power-law exponent. An edge the kit could not fit is a refusal with the kit's
     /// reason and no number; an at% the room has not got says why; an edge at or under 3 sigma says it is below detection; the kit's
     /// caveats (the sigma's scope, an exponent at its bound) are kept.
-    package static func eelsEdge(id: String, row: EELSEdgeRow, regionName: String, validation: String) -> ResultRow {
+    package static func eelsEdge(id: String, row: EELSEdgeRow, regionName: String, method: String) -> ResultRow {
         let failed = row.unavailable != nil
         func measured(_ v: Double?) -> Double? { failed ? nil : finite(v) }
         var entries = [Entry("onset", row.onsetEV, unit: "eV"),
@@ -333,15 +338,15 @@ package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
         if !failed, row.belowDetection { entries.append(Entry("below_detection", nil, text: eelsBelowDetection)) }
         if !failed, row.intensityStd != nil { entries.append(Entry("caveat", nil, text: eelsSigmaCaveat)) }
         if !failed, row.exponentAtBound { entries.append(Entry("exponent_at_bound", nil, text: eelsExponentAtBound)) }
-        entries += [Entry("edge", nil, text: row.title), Entry("validation", nil, text: validation), Entry("region", nil, text: regionName)]
+        entries += [Entry("edge", nil, text: row.title), Entry("method", nil, text: method), Entry("region", nil, text: regionName)]
         return ResultRow(id: id, product: .eelsEdge, label: "\(row.title) · \(regionName)", entries: entries, refusal: row.unavailable)
     }
 
     /// A drawn region whose edge fit the kit refused as a whole (a window on its summed core loss, a sum it could not make): one row with the
     /// kit's words, so the region's edges are not silently missing.
-    package static func eelsRegionEdgesRefused(id: String, regionName: String, reason: String, validation: String) -> ResultRow {
+    package static func eelsRegionEdgesRefused(id: String, regionName: String, reason: String, method: String) -> ResultRow {
         ResultRow(id: id, product: .eelsEdge, label: "Edges · \(regionName)",
-                  entries: [Entry("validation", nil, text: validation), Entry("region", nil, text: regionName)], refusal: reason)
+                  entries: [Entry("method", nil, text: method), Entry("region", nil, text: regionName)], refusal: reason)
     }
 
     private static func clickAndRegion(row: Int, col: Int, region: Region) -> [Entry] {

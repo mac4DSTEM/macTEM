@@ -134,7 +134,7 @@ private struct FFTRegionSection: View {
 }
 
 /// What is done to the transformed pixels before the transform: a window (it tapers the edges, which removes the streaks a hard edge
-/// puts on the spectrum), Gaussian smoothing and a band-pass, ImagoKit's. Unvalidated until compared with Digital Micrograph.
+/// puts on the spectrum), Gaussian smoothing and a band-pass, ImagoKit's.
 private struct FFTPreprocessRows: View {
     let analysis: FFTAnalysis
 
@@ -206,7 +206,7 @@ private struct FFTPreprocessRows: View {
             }
         }
         if !p.isNone {
-            InspectorNote("Before the transform: \(p.summary). Unvalidated: not compared with Digital Micrograph.")
+            InspectorNote("Before the transform: \(p.summary).")
         }
     }
 
@@ -643,7 +643,7 @@ private struct FFTMaskSection: View {
 
 // MARK: - HRTEM Filters
 
-/// The unvalidated filters: their warning first and always, the seven parameters, Filter, the last run and any refusal. Collapsed
+/// The HRTEM filters: their method note first, the seven parameters, Filter, the last run and any refusal. Collapsed
 /// until opened.
 private struct FFTFiltersSection: View {
     let image: CalibratedImage
@@ -659,7 +659,7 @@ private struct FFTFiltersSection: View {
         let region = analysis.region
         let centred = FFTRegion.centredSquare(width: image.width, height: image.height)
         InspectorSection("HRTEM Filters", expanded: $isExpanded) {
-            InspectorWarning(FFTRoomFormat.unvalidatedWarning)
+            InspectorNote(FFTRoomFormat.filterMethodNote)
             DisclosureGroup(isExpanded: $parametersOpen) {
                 parameterRows(parameters)
             } label: {

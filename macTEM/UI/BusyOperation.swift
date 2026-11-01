@@ -32,6 +32,7 @@ enum BusyOperation {
         switch stage {
         case .align: return "Aligning the zero-loss peak…"
         case .thickness: return "Mapping the thickness…"
+        case .deconvolve: return "Deconvolving…"
         case .fit: return "Fitting the edges…"
         case .edges, nil: return "Computing…"
         }

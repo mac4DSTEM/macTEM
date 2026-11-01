@@ -269,13 +269,13 @@ nonisolated final class ResultsWiringTests: XCTestCase {
     }
 
     /// Nothing in the room authors a trust claim: the room's files hold no validation sentence of their own — the words come from
-    /// `ResultRow.Product` (the producers' constants). Red under: a sentence written into the room.
+    /// `ResultRow.Product` (the producers' constants), and no "Unvalidated" label is added. Red under: a sentence written into the room.
     func testTheRoomAuthorsNoClaimOfTrust() throws {
         for path in ["macTEM/UI/ResultsRoom.swift", "macTEM/UI/ResultsRoomInspector.swift", "macTEM/App/ResultsFormat.swift"] {
             let text = try source(path)
             XCTAssertFalse(text.contains("compared with"), "\(path): a validation sentence")
             XCTAssertFalse(text.contains("closed form"), "\(path): a validation sentence")
-            XCTAssertFalse(text.lowercased().replacingOccurrences(of: "unvalidated", with: "").contains("validated"), "\(path)")
+            XCTAssertFalse(text.lowercased().contains("validated"), "\(path)")
         }
     }
 }

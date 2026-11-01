@@ -141,9 +141,9 @@ nonisolated enum FFTPaneFormat {
         return "Masked inverse · \(who) · radius \(r), edge \(e) bins · \(width) × \(height) px"
     }
 
-    /// The filters' plate begins with the warning, every time they are shown (design note, "The badge and the notes").
+    /// The filters' plate names the method, the filter and the size.
     static func filterPlate(_ name: String, size: Int) -> String {
-        "Unvalidated · not compared with Digital Micrograph · \(name) · \(size) × \(size) px"
+        "HRTEM filter · \(name) · \(size) × \(size) px"
     }
 
     // MARK: What is not there

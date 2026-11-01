@@ -8,7 +8,7 @@
 //        and the shown groups).
 //
 //        LAYOUT: a 26-pt header (the file · "12 results, 3 hidden" · the session sentence of the Image room's tail) over the
-//        Table. Columns Result · Value · Source · Record · Validation; the badge is the producer's label and its tooltip the
+//        Table. Columns Result · Value · Source · Record · Method; the method's name, its tooltip the
 //        producer's sentence (`ResultsFormat`). No selection: nothing is shown but the table. No result: a
 //        `ContentUnavailableView`. No chart, no statistics, no editing: a result is removed in the room that made it.
 //
@@ -119,8 +119,8 @@ private struct ResultsTable: View {
                     .lineLimit(1)
             }
             .width(min: 60, ideal: 90)
-            TableColumn("Validation") { row in
-                Text(ResultsFormat.badge(row, notes: image.notes))
+            TableColumn("Method") { row in
+                Text(ResultsFormat.badge(row))
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .help(ResultsFormat.validation(row))
@@ -140,7 +140,7 @@ private struct ResultsTable: View {
     private func value(_ row: ResultRow) -> String { ResultsFormat.value(row, x: image.x, y: image.y) }
 
     private func spoken(_ row: ResultRow) -> String {
-        ResultsFormat.spoken(row, value: value(row), badge: ResultsFormat.badge(row, notes: image.notes))
+        ResultsFormat.spoken(row, value: value(row), badge: ResultsFormat.badge(row))
     }
 
     /// ⌘C: the selected rows' lines, in table order, one per line; nothing when nothing is selected.

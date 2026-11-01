@@ -373,10 +373,6 @@ private struct DiffractionReadoutTable: View {
                     .accessibilityIdentifier("diffraction.row.\(row.kind.rawValue)\(row.number).verdict")
                     .accessibilityValue(row.verdict)
             }.width(min: 70, ideal: 90)
-            // Beside the numbers it qualifies: the kit's own word ("none"), its whole sentence as help.
-            TableColumn("validation") { row in
-                Text(row.validation.split(separator: ":").first.map(String.init) ?? row.validation).foregroundStyle(.secondary).help(row.validation)
-            }.width(min: 70, ideal: 74)
         }
         .onDeleteCommand { if let id = view.selection { analysis.remove(id); view.selection = nil } }
         .overlay {

@@ -4,7 +4,7 @@
 //        drawn and edited, the ZLP shift after Align and one tile per fitted edge on the right, one shared zoom, one cursor into the status line), the spectrum
 //        below (the region's low loss and core loss on one energy axis with a marked gap) with the results beside it. The tools, the Maps control, the edges,
 //        the processing and fitting choices and the exports are the inspector's (`EELSRoomInspector.swift`). The room has its own document, the spectrum image,
-//        opened from here and held by `EELSSession` (TEMSession). Presentation only: every number is SpectroKit's through the session, badged `validation: none`;
+//        opened from here and held by `EELSSession` (TEMSession). Presentation only: every number is SpectroKit's through the session, its method and reference named (`EELSLiterature`);
 //        the pure parts (which tile goes where, the axis, the thickness line) are `TEMCore/EELS/EELSRoomChassis.swift`.
 //        The maps block, the spectrum and the results panel live in this file because the room's file list is fixed for slice 1; they move out with slice 2.
 //
@@ -78,7 +78,7 @@ extension EELSSession {
                                        width: tile.width, height: tile.height, footer: tile.footer))
         }
         let region = selectedPin?.region ?? .wholeMap
-        return EDXFigureContent(title: fileName, subtitle: (selectedPin?.name ?? "Whole map") + " \u{00B7} EELS, validation: none", tiles: [], region: region,
+        return EDXFigureContent(title: fileName, subtitle: (selectedPin?.name ?? "Whole map") + " \u{00B7} EELS, " + EELSLiterature.figureLine, tiles: [], region: region,
                                 nx: image.nx, ny: image.ny, bar: EDXExports.scaleBar(pixelSize: scanPixel?.size, unit: scanPixel?.unit, nx: image.nx, ny: image.ny),
                                 showsScaleBar: scaleBar, showsRegion: regions, cells: cells)
     }
@@ -154,7 +154,7 @@ struct EELSRoom: View {
 /// element's colour. The scale of each is `EELSMapScale`.
 nonisolated enum EELSTileStyle {
     static func hue(forID id: String) -> Double {
-        let symbol = id.hasPrefix("edge-") ? String(id.dropFirst(5).prefix { $0 != "-" }) : (id.hasPrefix("at-") ? String(id.dropFirst(3)) : "")
+        let symbol = id.hasPrefix("edge-") ? String(id.dropFirst(5).prefix { $0 != "-" }) : (id.hasPrefix("at-") || id.hasPrefix("wt-") ? String(id.dropFirst(3)) : "")
         return symbol.isEmpty ? 0.5 : EDXRoomFormat.hue(symbol: symbol)
     }
 
@@ -190,7 +190,7 @@ nonisolated enum EELSMixComposition {
     static func selection(_ mix: ColorMix, maps: [EELSMapTile]) -> [String] {
         let ids = maps.map(\.id)
         if mix.isCustom { return ids.filter(mix.members.contains) }
-        let edges = maps.filter { $0.id.hasPrefix("edge-") || $0.id.hasPrefix("at-") }.map(\.id)
+        let edges = maps.filter { $0.id.hasPrefix("edge-") || $0.id.hasPrefix("at-") || $0.id.hasPrefix("wt-") }.map(\.id)
         return edges.isEmpty ? Array(ids.prefix(1)) : edges
     }
 
@@ -332,17 +332,21 @@ private struct EELSMapTileHost: View {
         let coloring = state.appearance.coloring(for: tile.id, default: EELSTileStyle.defaultColoring(tile.id))
         let adjustment = state.appearance.adjustment(for: tile.id)
         let inMix = EELSMixComposition.selection(state.appearance.mix, maps: maps).contains(tile.id)
+        // The display filter changes the picture only (`EELSMapDisplay`): the hover readout and the popover read `tile.values`, raw.
+        let filter = state.mapFilter
+        let filtered = EELSMapDisplay.isFiltered(tileID: tile.id, filter: filter)
         MapTileView(title: tile.title, detail: tile.detailText, image: image, size: size, scanWidth: tile.width, scanHeight: tile.height,
-                    pixelSize: session.scanPixel?.size, pixelUnit: session.scanPixel?.unit, regions: tileRegions,
+                    pixelSize: session.scanPixel?.size, pixelUnit: session.scanPixel?.unit, regions: tileRegions, filteredTag: filtered,
                     inMix: inMix, onToggleMix: { EELSMixComposition.toggle(tile.id, in: &state.appearance.mix, maps: maps) },
                     transform: $state.mapView,
                     onHover: { hover($0) },
                     controls: { EELSMapPopover(tile: tile, state: state) })
             .opacity(isRunning ? 0.5 : (isStale ? 0.7 : 1))
-            .task(id: "\(tile.id)-\(tile.version)-\(coloring.hashValue)-\(adjustment.hashValue)") {
-                let values = tile.values, coloring = coloring, adjustment = adjustment, w = tile.width, h = tile.height
+            .task(id: "\(tile.id)-\(tile.version)-\(coloring.hashValue)-\(adjustment.hashValue)-\(filtered ? filter.rawValue : "raw")") {
+                let raw = tile, coloring = coloring, adjustment = adjustment, w = tile.width, h = tile.height
                 let mode = EELSMapScale.mode(forTileID: tile.id)
                 image = await Task.detached(priority: .userInitiated) {
+                    let values = EELSMapDisplay.shownValues(raw, filter: filter)
                     // NaN (a pixel the kit refused) stays at the bottom of the scale; a stale tile is drawn as it was. A map whose pixels are all one value has no range:
                     // it is drawn at the middle of a neutral grey ramp (never the white of a diverging scale's centre) and the tile's detail names the value.
                     if EELSMapScale.isFlat(values) {
@@ -785,6 +789,10 @@ private struct EELSSpectrumView: View {
             context.draw(Text("core loss").font(.caption2).foregroundStyle(.secondary), at: CGPoint(x: jx + 4, y: area.maxY - 8), anchor: .leading)
         }
         context.stroke(path(plot.low, values: plot.low.counts, within: axis.lowShown), with: .color(.primary), lineWidth: 1)
+        // The Deconvolve stage's low loss (Fourier-log, Richardson-Lucy), dashed over the stored one.
+        if let d = plot.lowDeconvolved {
+            context.stroke(path(d, values: d.counts, within: axis.lowShown), with: .color(.accentColor), style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+        }
         if let core = plot.core { context.stroke(path(core, values: core.counts, within: axis.coreShown), with: .color(.primary), lineWidth: 1) }
         // The background under each edge's signal window from its background window: the kit's per-edge power law (fitted, or previewed while a window is dragged).
         if let core = plot.core {
@@ -818,14 +826,13 @@ private struct EELSSpectrumView: View {
 }
 
 /// The results beside the spectrum: the thickness line, one row per edge (I, at%, wt%), the regions' table, the refusal if there is one, and the footer
-/// (model · background · convolution · deconvolution). The validation badge is here once; the columns say only their names.
-private struct EELSResultsPanel: View {
+/// (model · background · convolution · deconvolution). The methods' references are here once, in the Methods tag's tooltip; the columns say only their names.
+struct EELSResultsPanel: View {
     let session: EELSSession
 
     var body: some View {
         let plot = session.plot
         let rows = session.resultRows
-        let hasFit = session.model != nil
         let failure = session.failure
         VStack(spacing: 0) {
             HStack(spacing: LayoutPolicy.inspectorRowSpacing) {
@@ -834,12 +841,12 @@ private struct EELSResultsPanel: View {
                     .font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.tail)
                     .accessibilityIdentifier("eels.results.header")
                 Spacer(minLength: 0)
-                Text("validation: none")
+                Text("Methods")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     .padding(.horizontal, 6).padding(.vertical, 1)
                     .background(.quaternary, in: Capsule())
-                    .help("t/λ, t and the edge amounts are not compared with a sample of known thickness or a standard: unvalidated")
-                    .accessibilityIdentifier("eels.validationBadge")
+                    .help(EELSLiterature.tooltip)
+                    .accessibilityIdentifier("eels.methodsTag")
                 if session.isComputing { ProgressView().controlSize(.small) }
             }
             .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
@@ -872,12 +879,17 @@ private struct EELSResultsPanel: View {
                         }.width(min: 110, ideal: 150)
                         TableColumn("at%") { r in
                             Text(EELSRoomFormat.atomicText(r)).monospacedDigit().lineLimit(1)
-                                .foregroundStyle(r.belowDetection ? .secondary : .primary)
-                                .help(r.belowDetection ? "I is at or under 3σ: this edge is not detected in the region"
-                                      : r.atomicPercent == nil ? "at% needs two or more fitted elements" : "")
+                                .foregroundStyle(r.belowDetection || r.fitOnly ? .secondary : .primary)
+                                .help(r.fitOnly ? EELSEdgeRow.fitOnlyWords
+                                      : r.belowDetection ? "I is at or under 3σ: this edge is not detected in the region"
+                                      : r.atomicPercent == nil ? (r.atomicUnavailable ?? EELSEdgeRow.atomicNeedsTwo)
+                                      : r.atomicSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "The kit gives no σ for an amount: at% without σ")
                         }.width(min: 50, ideal: 100)
-                        TableColumn("wt%") { r in Text(r.weightPercent.map { EELSRoomFormat.fixed($0, 1) } ?? "–").monospacedDigit().lineLimit(1) }
-                            .width(min: 50, ideal: 64)
+                        TableColumn("wt%") { r in
+                            Text(EELSRoomFormat.weightText(r)).monospacedDigit().lineLimit(1)
+                                .foregroundStyle(r.belowDetection || r.fitOnly ? .secondary : .primary)
+                                .help(r.weightSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "")
+                        }.width(min: 50, ideal: 100)
                     }
                     .alternatingRowBackgrounds(.disabled)   // the edges' rows, not a page of stripes (as the EDS table)
                     .accessibilityIdentifier("eels.results.table")
@@ -904,13 +916,15 @@ private struct EELSResultsPanel: View {
                     .help("The exponent of the power law the kit fitted on each edge's background window")
                     .accessibilityIdentifier("eels.results.exponents")
             }
-            Text(EELSRoomFormat.fitFooter(hasFit: hasFit, convolved: session.model?.convolved ?? false))
+            Text(EELSRoomFormat.fitFooter(hasFit: session.model != nil, convolved: session.model?.convolved ?? false, model: session.model?.model ?? .exactNNLS,
+                                          deconvolution: session.modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution")
+                 + (session.resultQuality.map { " · " + EELSRoomFormat.fitQuality($0) } ?? ""))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
                 .frame(height: LayoutPolicy.paneHeaderHeight)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .overlay(alignment: .top) { Divider() }
-                .help(session.model?.methodName ?? "No fit has run")
+                .help(session.model.map { $0.methodName + (session.modelDeconvolution.map { "\n" + $0.methodName } ?? "") } ?? "No fit has run")
                 .accessibilityIdentifier("eels.results.footer")
         }
         .accessibilityElement(children: .contain)

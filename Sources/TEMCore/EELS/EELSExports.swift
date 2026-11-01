@@ -1,21 +1,47 @@
 // The EELS room's text exports beside the per-pixel CSV and the method JSON (the owner's drive, 2026-10-23: "the options could be like in the EDS room"): the results
-// table, the shown spectrum and the regions' rows as CSV. Pure strings from the session's values; every file carries its provenance and the unvalidated badge.
+// table, the shown spectrum and the regions' rows as CSV. Pure strings from the session's values; every file carries its provenance and the references of
+// the methods that made its numbers (`EELSLiterature`).
 import Foundation
 import ShellEDXModel
+
+/// The literature each EELS method follows, as the room's tooltips, the figure subtitle and every export name it. A method is named with its
+/// reference, as scientific software does; no trust label is written.
+package nonisolated enum EELSLiterature {
+    /// The log-ratio t/λ (thickness, t in nm).
+    package static let thickness = "Malis, Cheng and Egerton, J. Electron Microsc. Tech. 8 (1988) 193"
+    /// The edge model and the composition from it.
+    package static let edges = "exSpy 7185a4d1 with the dft GOS tables (Segger, Guzzinati and Kohl, v1.5.0)"
+    /// The Fourier-ratio, Fourier-log and Richardson-Lucy deconvolutions.
+    package static let deconvolution = "Egerton, EELS in the Electron Microscope, 3rd ed. (2011), ch. 4"
+    /// The export header line naming the thickness and edge references.
+    package static let headerLine = "references: thickness: " + thickness + "; edges: " + edges
+    /// The figure subtitle's short form of the methods and their references.
+    package static let figureLine = "log-ratio t/λ (Malis, Cheng and Egerton 1988), edge model (exSpy, dft GOS)"
+    /// The results header's References tooltip: each method with its reference.
+    package static let tooltip = "t/λ and t: the log-ratio method, " + thickness + ". Edges, at% and wt%: SpectroKit's edge model, " + edges
+        + ". Deconvolution: " + deconvolution + "."
+}
 
 package nonisolated enum EELSExports {
     private static func g(_ v: Double?) -> String { v.flatMap { $0.isFinite ? String(format: "%.9g", $0) : nil } ?? "" }
     private static func quoted(_ s: String) -> String { "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }
 
-    /// The results table: one row per edge (onset, I and its 1σ, areal density, at%, wt%, the power-law exponent, below detection, why there is none).
-    package static func resultsCSV(_ rows: [EELSEdgeRow], fileName: String, regionName: String, thickness: String, method: String) -> String {
-        var out = ["# macTEM EELS results, file: \(fileName), region: \(regionName), validation: none",
+    /// The results table: one row per edge (onset, I and its 1σ, areal density, at% and wt% each with its 1σ, the power-law exponent, below detection,
+    /// why there is none) and, when one was used, a line naming the deconvolution and its parameters, and the fit quality. A fit-only edge says so in the
+    /// `unavailable` cell, and so does a row with no at% (the table's tooltip and the Results room give the same words).
+    package static func resultsCSV(_ rows: [EELSEdgeRow], fileName: String, regionName: String, thickness: String, method: String,
+                                   deconvolution: String? = nil, quality: String? = nil) -> String {
+        var out = ["# macTEM EELS results, file: \(fileName), region: \(regionName), \(EELSLiterature.headerLine)",
                    "# \(thickness)",
-                   "# \(method)",
-                   "edge,onset_eV,intensity,intensity_sigma,areal_density_per_nm2,atomic_percent,weight_percent,exponent_r,below_detection,unavailable"]
+                   "# \(method)"]
+        if let deconvolution { out.append("# deconvolution: \(deconvolution)") }
+        if let quality { out.append("# fit quality: \(quality)") }
+        out.append("edge,onset_eV,intensity,intensity_sigma,areal_density_per_nm2,atomic_percent,atomic_percent_sigma,weight_percent,weight_percent_sigma,"
+                   + "exponent_r,below_detection,unavailable")
         for r in rows {
-            out.append([quoted(r.title), g(r.onsetEV), g(r.intensity), g(r.intensityStd), g(r.arealDensityPerNM2), g(r.atomicPercent), g(r.weightPercent),
-                        g(r.exponent), r.belowDetection ? "true" : "false", r.unavailable.map(quoted) ?? ""].joined(separator: ","))
+            let why = r.unavailable ?? (r.fitOnly ? EELSEdgeRow.fitOnlyWords : nil) ?? (r.atomicPercent == nil ? r.atomicUnavailable : nil)
+            out.append([quoted(r.title), g(r.onsetEV), g(r.intensity), g(r.intensityStd), g(r.arealDensityPerNM2), g(r.atomicPercent), g(r.atomicSigma),
+                        g(r.weightPercent), g(r.weightSigma), g(r.exponent), r.belowDetection ? "true" : "false", why.map(quoted) ?? ""].joined(separator: ","))
         }
         return out.joined(separator: "\n") + "\n"
     }
@@ -25,26 +51,29 @@ package nonisolated enum EELSExports {
         var out = ["# macTEM EELS spectrum, file: \(fileName), region: \(plot.regionName), \(plot.pixels) px, counts summed over the region",
                    "segment,energy_eV,counts,model"]
         for (i, c) in plot.low.counts.enumerated() { out.append("low_loss,\(g(plot.low.energy(i))),\(g(c)),") }
+        if let d = plot.lowDeconvolved {
+            for (i, c) in d.counts.enumerated() { out.append("low_loss_deconvolved,\(g(d.energy(i))),\(g(c)),") }
+        }
         if let core = plot.core {
             for (i, c) in core.counts.enumerated() {
                 let m = plot.model.flatMap { i < $0.count ? $0[i] : nil }
-                out.append("core_loss,\(g(core.energy(i))),\(g(c)),\(g(m))")
+                out.append((plot.coreDeconvolved ? "core_loss_deconvolved," : "core_loss,") + "\(g(core.energy(i))),\(g(c)),\(g(m))")
             }
         }
         return out.joined(separator: "\n") + "\n"
     }
 
-    /// The regions' rows: name, shape's pixels, I total, t/λ, then each edge's I, 1σ and at%.
+    /// The regions' rows: name, shape's pixels, I total, t/λ, then each edge's I, 1σ, at% and its 1σ.
     package static func regionsCSV(_ rows: [EELSRegionRow], fileName: String) -> String {
         let edges = rows.flatMap(\.edges).reduce(into: [String]()) { out, e in if !out.contains(e.title) { out.append(e.title) } }
         var header = ["region", "pixels", "i_total", "t_over_lambda"]
-        for e in edges { header += ["\(e) intensity", "\(e) intensity_sigma", "\(e) atomic_percent"].map(quoted) }
-        var out = ["# macTEM EELS regions, file: \(fileName), validation: none", header.joined(separator: ",")]
+        for e in edges { header += ["\(e) intensity", "\(e) intensity_sigma", "\(e) atomic_percent", "\(e) atomic_percent_sigma"].map(quoted) }
+        var out = ["# macTEM EELS regions, file: \(fileName), \(EELSLiterature.headerLine)", header.joined(separator: ",")]
         for r in rows {
             var cells = [quoted(r.pin.name), "\(r.pixels)", g(r.totalCounts), g(r.tOverLambda)]
             for e in edges {
                 let row = r.edges.first { $0.title == e }
-                cells += [g(row?.intensity), g(row?.intensityStd), g(row?.atomicPercent)]
+                cells += [g(row?.intensity), g(row?.intensityStd), g(row?.atomicPercent), g(row?.atomicSigma)]
             }
             out.append(cells.joined(separator: ","))
         }

@@ -5,7 +5,7 @@
 //
 //  Nothing here makes a number. `TEMCore/EELS/EELSCompute` is SpectroKit's `EELSThickness.logRatio` called with the room's
 //  choices; this owner decides WHEN to ask: every pass runs in a detached task and lands only if no newer request was made
-//  meanwhile (`generation`), as `EDXSession` does. The map is badged `validation: none`.
+//  meanwhile (`generation`), as `EDXSession` does.
 //
 
 import Foundation
@@ -45,10 +45,29 @@ package final class EELSSession {
     // The edge model (Edges and Fit stages)
     package private(set) var pickedEdges: [CoreLossEdge] = []
     package private(set) var convolveLowLoss = true
-    package private(set) var model: EELSModelResult?
+    /// The Fitting section's model: the exact per-edge fit, or MLLS.
+    package private(set) var fitModel: EELSFitModel = .exactNNLS
+    /// The elements picked "Fit only": their edges stay in the fit model, their amounts stay out of the composition.
+    package private(set) var fitOnlyElements: Set<String> = []
+    package private(set) var model: EELSFitResult?
     package private(set) var modelComposition: [EELSCompositionPixel]?
+    /// The deconvolution the fit on screen was made on (Fourier-ratio only; nil when the fit took the stored core loss).
+    package private(set) var modelDeconvolution: EELSDeconvolutionResult?
     /// The whole map's summed spectra fitted as one pixel: the region table's numbers (the stable ones; the maps' per-pixel numbers are the second estimator).
-    package private(set) var regionModel: EELSModelResult?
+    package private(set) var regionModel: EELSFitResult?
+    /// How well `regionModel` fits the whole map's summed core loss (the kit's RSS, Pearson's χ²/dof).
+    package private(set) var regionQuality: EELSFitQuality?
+    /// The Fitting section's Fit to: the last energy of the MLLS window, included; nil is the axis end. The exact fit uses its signal windows instead.
+    package private(set) var fitToEV: Double?
+    /// The sentence for a Fit to the room refused (the axis end is used).
+    package private(set) var fitToNotice: String?
+    // The Deconvolve stage
+    package private(set) var deconvolutionChoice: EELSDeconvolutionChoice = .off
+    /// What the stage made last (kept, dimmed as stale, when its inputs change); nil until it ran.
+    package private(set) var deconvolution: EELSDeconvolutionResult?
+    @ObservationIgnored private var deconvolutionSignature = ""
+    /// The sentence for a method this file cannot take (the control stays where it was).
+    package private(set) var deconvolutionNotice: String?
     package private(set) var regionComposition: [EELSCompositionPixel]?
     package private(set) var modelTiles: [EELSMapTile] = []
     /// What the fit on screen was made from; a different one is stale.
@@ -173,14 +192,44 @@ package final class EELSSession {
     package var pinRowsFitCurrent: Bool { !isRefreshingRegions && fitState == .current && pinRowsFitSignature == modelSignature }
     package var edgesState: EELSStageState { pickedEdges.isEmpty ? .notRun : .current }
     package var fitState: EELSStageState { model == nil ? .notRun : (modelSignature == currentSignature ? .current : .stale) }
-    package var stages: [(stage: EELSStage, state: EELSStageState)] {
-        [(.align, alignState), (.thickness, thicknessState), (.edges, edgesState), (.fit, fitState)]
+    /// The Deconvolve stage: current when its result was made from the inputs now (the cubes, the thresholds, the method); always current when Off.
+    package var deconvolveState: EELSStageState {
+        if deconvolutionChoice == .off { return .current }
+        guard deconvolution != nil else { return .notRun }
+        return deconvolutionSignature == currentDeconvolutionSignature ? .current : .stale
     }
+    /// What a deconvolution made now would be made from: the cubes, the threshold (it cuts the zero-loss peaks and Fourier-ratio's I₀) and the method.
+    /// λ and the beam energy enter no deconvolution.
+    private var currentDeconvolutionSignature: String { "\(inputVersion)|\(threshold)|\(deconvolutionChoice)" }
+    /// The stages in order; Deconvolve is listed only when a method is chosen.
+    package var stages: [(stage: EELSStage, state: EELSStageState)] {
+        var out: [(stage: EELSStage, state: EELSStageState)] = [(.align, alignState), (.thickness, thicknessState)]
+        if deconvolutionChoice != .off { out.append((.deconvolve, deconvolveState)) }
+        return out + [(.edges, edgesState), (.fit, fitState)]
+    }
+
+    /// The core loss the spectrum shows: the Fourier-ratio deconvolved one once the stage made it, else the working core loss.
+    package var shownCoreLoss: CoreLossSpectrumImage? {
+        if deconvolutionChoice.feedsTheFit, let core = deconvolution?.coreLoss { return core }
+        return workingCoreLoss
+    }
+    /// The pixels of `shownCoreLoss` the kit answered, when it is a deconvolved one (nil: every pixel).
+    package var shownAnswered: PixelMask? {
+        guard deconvolutionChoice.feedsTheFit, let d = deconvolution, d.coreLoss != nil else { return nil }
+        return d.answered
+    }
+    /// The core loss the fit takes: the current Fourier-ratio result when that is the method (nil until it is current), else the working core loss.
+    package var fitCoreLoss: CoreLossSpectrumImage? {
+        guard deconvolutionChoice.feedsTheFit else { return workingCoreLoss }
+        return deconvolveState == .current ? deconvolution?.coreLoss : nil
+    }
+    /// Convolve with the low loss as the fit does it: never on a Fourier-ratio deconvolved core loss (the low loss is divided out already).
+    package var effectiveConvolve: Bool { convolveLowLoss && !deconvolutionChoice.feedsTheFit && workingLowLoss != nil }
 
     /// Run does every stage that is not current, in order; nothing to do when all are. Fit joins them only when it can run.
     package var canRun: Bool {
         guard hasImage, !isBusy else { return false }
-        return stages.contains { $0.stage.isRun && $0.state != .current && ($0.stage != .fit || fitBlocker == nil) }
+        return stages.contains { $0.stage.isRun && $0.state != .current && ($0.stage != .fit || fitBlockerBeforeDeconvolution == nil) }
     }
 
     /// The microscope the model needs: the beam energy (the file's or typed) and the two angles (the file's or typed); nil until all are known.
@@ -192,6 +241,18 @@ package final class EELSSession {
 
     /// Why Fit cannot run, in a sentence, or nil.
     package var fitBlocker: String? {
+        guard hasImage else { return nil }
+        if workingCoreLoss == nil { return "This file holds no core-loss spectrum image to fit." }
+        if pickedEdges.isEmpty { return "Pick at least one edge to fit." }
+        if microscope == nil { return "Type the beam energy and the convergence and collection angles under Fitting." }
+        if fittableEdges.isEmpty { return refusals.map(\.reason).joined(separator: "\n") }
+        if deconvolutionChoice.feedsTheFit && fitCoreLoss == nil { return "Fourier-ratio is chosen: the fit takes the deconvolved core loss. Run deconvolves first." }
+        return nil
+    }
+
+    /// Why Fit cannot run now, leaving out a deconvolution Run makes before it (Run does Deconvolve, then Fit).
+    private var fitBlockerBeforeDeconvolution: String? {
+        guard deconvolutionChoice.feedsTheFit, deconvolveState != .current else { return fitBlocker }
         guard hasImage else { return nil }
         if workingCoreLoss == nil { return "This file holds no core-loss spectrum image to fit." }
         if pickedEdges.isEmpty { return "Pick at least one edge to fit." }
@@ -247,7 +308,10 @@ package final class EELSSession {
     private var currentSignature: String {
         let edges = fittableEdges.map { EELSFitCompute.id($0) }.joined(separator: ",")
         let m = microscope.map { "\($0.beamEnergyKeV)/\($0.convergenceMrad)/\($0.collectionMrad)" } ?? "-"
-        return "\(inputVersion)|\(edges)|\(m)|\(convolveLowLoss && workingLowLoss != nil)|\(fitWindows.map { "\($0.backgroundEV.lowerBound)-\($0.backgroundEV.upperBound)/\($0.signalEV.lowerBound)-\($0.signalEV.upperBound)" }.joined(separator: ","))"
+        // A Fourier-ratio fit is made from the stage's result: current only while that result is.
+        let deconvolved = !deconvolutionChoice.feedsTheFit ? "-" : deconvolveState == .current ? deconvolutionSignature : "pending"
+        let fitTo = fitModel == .mlls ? fitToEV.map { "\($0)" } ?? "end" : "-"
+        return "\(inputVersion)|\(edges)|\(m)|\(effectiveConvolve)|\(fitModel)|\(fitTo)|\(deconvolved)|\(fitWindows.map { "\($0.backgroundEV.lowerBound)-\($0.backgroundEV.upperBound)/\($0.signalEV.lowerBound)-\($0.signalEV.upperBound)" }.joined(separator: ","))"
     }
 
     /// The Align section's readout: "offset −21.503 → 0.000 eV, 2041 of 2048 channels kept".
@@ -277,6 +341,12 @@ package final class EELSSession {
     package var resultRows: [EELSEdgeRow] {
         if let pin = selectedPin { return pinRows.first { $0.id == pin.id }?.edges ?? [] }
         return regionRows
+    }
+
+    /// The fit quality of the results panel's rows: the selected region's, else the whole map's.
+    package var resultQuality: EELSFitQuality? {
+        if let pin = selectedPin { return pinRows.first { $0.id == pin.id }?.quality }
+        return regionQuality
     }
 
     // MARK: Opening
@@ -317,6 +387,8 @@ package final class EELSSession {
         threshold = .estimated; meanFreePath = .none; typedBeamEnergyKeV = nil
         alignment = nil; alignmentTile = nil; alignmentShiftTile = nil; inputVersion += 1; fitUsed = nil
         pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""
+        fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
+        deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil
         typedConvergenceMrad = nil; typedCollectionMrad = nil
         map = nil; tiles = []; unavailableReasons = []; failure = nil
         resetRegions()
@@ -332,6 +404,8 @@ package final class EELSSession {
         openTask?.cancel(); openTask = nil; isOpening = false
         plotTask?.cancel(); plot = nil; wholeMapPlot = nil; fitUsed = nil; alignmentShiftTile = nil
         deadTask?.cancel(); coreDeadStretches = []; editedWindows = [:]; references = []
+        fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
+        deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil
         source = nil; alignment = nil; alignmentTile = nil; pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""; map = nil; tiles = []; unavailableReasons = []; failure = nil
         resetRegions()
     }
@@ -455,6 +529,56 @@ package final class EELSSession {
         if let i = pickedEdges.firstIndex(of: edge) { pickedEdges.remove(at: i) } else { pickedEdges.append(edge) }
         pickedEdges.sort { $0.onsetEV < $1.onsetEV }
         fitRefusal = nil
+        // An element with no edge left has no role.
+        if fitOnlyElements.contains(edge.element), !pickedEdges.contains(where: { $0.element == edge.element }) { setFitOnly(edge.element, false) }
+    }
+
+    /// The periodic table's role: Fit only keeps the element's edges in the fit and its amount out of the composition. The fit is not run again: the
+    /// composition, the at% tiles and the rows are made again from the fit on screen (and the regions' rows from theirs).
+    package func setFitOnly(_ symbol: String, _ on: Bool) {
+        guard fitOnlyElements.contains(symbol) != on else { return }
+        if on { fitOnlyElements.insert(symbol) } else { fitOnlyElements.remove(symbol) }
+        guard let model else { return }
+        modelComposition = EELSFitCompute.composition(model, fitOnly: fitOnlyElements)
+        regionComposition = regionModel.flatMap { EELSFitCompute.composition($0, fitOnly: fitOnlyElements) }
+        modelVersion += 1
+        modelTiles = EELSFitCompute.tiles(model, composition: modelComposition, fitOnly: fitOnlyElements, version: modelVersion)
+        if !pins.isEmpty { refreshPinData() }
+    }
+
+    /// The Fitting section's model; Fit is stale until it runs again.
+    package func setFitModel(_ new: EELSFitModel) { fitModel = new }
+
+    /// The Fitting section's Fit to (MLLS): nil or zero is the axis end; a value at or under the last picked edge's onset, or past the axis end, is
+    /// refused with its sentence and the axis end kept, as the EDS room's Fit to. Stales an MLLS fit.
+    package func setFitTo(_ eV: Double?) {
+        fitToNotice = nil
+        guard let eV, eV.isFinite, eV != 0 else { fitToEV = nil; return }
+        // The kit ends the window on the nearest channel: compare that channel's energy with the onsets.
+        let channelEV = workingCoreLoss.map { $0.energyOffsetEV + $0.energyScaleEV * ((eV - $0.energyOffsetEV) / $0.energyScaleEV).rounded() } ?? eV
+        if let last = fittableEdges.map(\.onsetEV).max(), channelEV <= last {
+            fitToEV = nil
+            fitToNotice = "Fit to must be above the last edge onset (\(EELSRoomFormat.sig(last, 5)) eV): the axis end is used."
+            return
+        }
+        if let core = workingCoreLoss {
+            let end = core.energyOffsetEV + core.energyScaleEV * Double(core.channels - 1)
+            if eV > end {
+                fitToEV = nil
+                fitToNotice = "Fit to is past the end of the core-loss axis (\(EELSRoomFormat.sig(end, 5)) eV): the axis end is used."
+                return
+            }
+        }
+        fitToEV = eV
+    }
+
+    /// The Processing section's Deconvolution: a method the file cannot take is refused with its sentence and the control stays where it was.
+    package func setDeconvolution(_ new: EELSDeconvolutionChoice) {
+        guard new != deconvolutionChoice else { return }
+        if let why = new.kind.blocker(hasLowLoss: hasLowLoss, hasCoreLoss: workingCoreLoss != nil) { deconvolutionNotice = why; return }
+        deconvolutionNotice = nil
+        deconvolutionChoice = new
+        refreshPlot()
     }
 
     package func setConvolveLowLoss(_ on: Bool) { convolveLowLoss = on }
@@ -546,14 +670,17 @@ package final class EELSSession {
     /// region fit (the stable numbers). Lands only if no newer request was made.
     @discardableResult
     package func fit() -> Task<Void, Never>? {
-        guard source != nil, let core = workingCoreLoss, let microscope, fitBlocker == nil else { return nil }
+        guard source != nil, let core = fitCoreLoss, let microscope, fitBlocker == nil else { return nil }
         passTask?.cancel()
         generation += 1
         let gen = generation
-        let edges = fittableEdges, windows = fitWindows
-        let low = convolveLowLoss ? workingLowLoss : nil
+        let edges = fittableEdges, windows = fitWindows, kind = fitModel, fitTo = fitModel == .mlls ? fitToEV : nil
+        let low = effectiveConvolve ? workingLowLoss : nil
         let signature = currentSignature
-        let used = EELSPlotFit(edges: edges, microscope: microscope, convolve: low != nil, windows: windows)
+        let deconvolved = deconvolutionChoice.feedsTheFit ? deconvolution : nil
+        // The pixels the deconvolution answered: the others are the kit's zeros, never summed or fitted.
+        let answered = deconvolved?.answered
+        let used = EELSPlotFit(edges: edges, microscope: microscope, convolve: low != nil, windows: windows, model: kind, deconvolved: deconvolved != nil)
         failure = nil
         fitRefusal = nil
         isComputing = true
@@ -563,17 +690,20 @@ package final class EELSSession {
                 let interval = Signposts.begin("eels.fit"); defer { Signposts.end(interval) }
                 let gate = ProgressGate()
                 // The whole map's summed spectra first: one pixel, so the kit checks the windows (and refuses a bad one by name) before the per-pixel map starts.
-                let all = [Bool](repeating: true, count: core.pixelCount)
+                let all = answered ?? [Bool](repeating: true, count: core.pixelCount)
                 let regionCore = try core.sum(mask: all)
                 let regionLow = try low.map { try $0.sum(mask: all) }
-                let region = try EELSFitCompute.fit(coreLoss: regionCore, edges: edges, microscope: microscope, lowLoss: regionLow, edgeWindows: windows)
+                let region = try EELSFitCompute.fit(coreLoss: regionCore, edges: edges, microscope: microscope, lowLoss: regionLow, model: kind, edgeWindows: windows,
+                                                    fitToEV: fitTo)
+                let quality = EELSFitQuality.of(region, core: regionCore, rawCounts: deconvolved == nil)
                 if Task.isCancelled { return }
-                let result = try EELSFitCompute.fit(coreLoss: core, edges: edges, microscope: microscope, lowLoss: low, edgeWindows: windows, progress: { f in
+                let result = try EELSFitCompute.fit(coreLoss: core, edges: edges, microscope: microscope, lowLoss: low, model: kind, edgeWindows: windows,
+                                                    fitToEV: fitTo, mask: answered, progress: { f in
                     guard gate.shouldReport(f * 0.9) else { return }
                     Task { @MainActor in self?.landProgress(f * 0.9, generation: gen) }
                 })
                 if Task.isCancelled { return }
-                await self?.landModel(result, region: region, signature: signature, used: used, generation: gen)
+                await self?.landModel(result, region: region, quality: quality, signature: signature, used: used, deconvolved: deconvolved, generation: gen)
             } catch is SpectroCancelled {
                 return
             } catch {
@@ -594,14 +724,17 @@ package final class EELSSession {
         onEvent?("Refused: \(sentence)")
     }
 
-    private func landModel(_ result: EELSModelResult, region: EELSModelResult, signature: String, used: EELSPlotFit, generation gen: Int) {
+    private func landModel(_ result: EELSFitResult, region: EELSFitResult, quality: EELSFitQuality?, signature: String, used: EELSPlotFit,
+                           deconvolved: EELSDeconvolutionResult?, generation gen: Int) {
         guard gen == generation else { return }
         modelVersion += 1
         model = result
-        modelComposition = EELSFitCompute.composition(result)
+        modelDeconvolution = deconvolved
+        modelComposition = EELSFitCompute.composition(result, fitOnly: fitOnlyElements)
         regionModel = region
-        regionComposition = EELSFitCompute.composition(region)
-        modelTiles = EELSFitCompute.tiles(result, composition: modelComposition, version: modelVersion)
+        regionQuality = quality
+        regionComposition = EELSFitCompute.composition(region, fitOnly: fitOnlyElements)
+        modelTiles = EELSFitCompute.tiles(result, composition: modelComposition, fitOnly: fitOnlyElements, version: modelVersion)
         modelSignature = signature
         fitUsed = used
         isComputing = false
@@ -611,7 +744,91 @@ package final class EELSSession {
     }
 
     /// The region table's rows: the whole map's summed spectra fitted as one pixel.
-    package var regionRows: [EELSEdgeRow] { regionModel.map { EELSFitCompute.rows($0, composition: regionComposition) } ?? [] }
+    package var regionRows: [EELSEdgeRow] {
+        regionModel.map { EELSFitCompute.rows($0, composition: regionComposition, fitOnly: fitOnlyElements, rawCounts: modelDeconvolution == nil) } ?? []
+    }
+
+    // MARK: Deconvolve
+
+    /// The Deconvolve stage: the kit's method on the working cubes (the thickness map's thresholds cut the zero-loss peaks). Lands only if no newer request
+    /// was made; a refusal keeps the previous result on screen.
+    @discardableResult
+    package func deconvolve() -> Task<Void, Never>? {
+        guard source != nil, deconvolutionChoice != .off else { return nil }
+        passTask?.cancel()
+        generation += 1
+        let gen = generation
+        let choice = deconvolutionChoice, low = hasLowLoss ? workingLowLoss : nil, core = workingCoreLoss, map = thicknessState == .current ? map : nil, threshold = threshold
+        let signature = currentDeconvolutionSignature
+        failure = nil
+        isComputing = true
+        progress = 0
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
+            do {
+                let interval = Signposts.begin("eels.deconvolve"); defer { Signposts.end(interval) }
+                let gate = ProgressGate()
+                let result = try EELSDeconvolveCompute.run(choice, low: low, core: core, map: map, threshold: threshold, progress: { f in
+                    guard gate.shouldReport(f) else { return }
+                    Task { @MainActor in self?.landProgress(f, generation: gen) }
+                })
+                if Task.isCancelled { return }
+                await self?.landDeconvolution(result, signature: signature, generation: gen)
+            } catch is SpectroCancelled {
+                return
+            } catch {
+                if Task.isCancelled { return }
+                await self?.landAlignmentFailure((error as? LocalizedError)?.errorDescription ?? "\(error)", generation: gen)
+            }
+        }
+        passTask = task
+        return task
+    }
+
+    private func landDeconvolution(_ result: EELSDeconvolutionResult?, signature: String, generation gen: Int) {
+        guard gen == generation else { return }
+        isComputing = false
+        progress = 1
+        deconvolution = result
+        deconvolutionSignature = signature
+        refreshPinData()
+        if let result {
+            onEvent?("Deconvolved: \(EELSDeconvolveCompute.line(result))" + (result.unavailableCount > 0 ? ", \(result.unavailableCount) px with no answer" : ""))
+        }
+    }
+
+    /// The deconvolved low loss the spectrum draws: the stage's, while its method is the one chosen.
+    package var shownDeconvolvedLow: LowLossSpectrumImage? {
+        guard let d = deconvolution, d.choice == deconvolutionChoice else { return nil }
+        return d.lowLoss
+    }
+
+    /// The results footer of the fit on screen (the results panel draws the same call).
+    package var fitFooter: String {
+        EELSRoomFormat.fitFooter(hasFit: model != nil, convolved: model?.convolved ?? false, model: model?.model ?? .exactNNLS,
+                                 deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution")
+    }
+
+    /// The edge fit as the method JSON records it: the model, the kit's method and its reference, the fit-only elements and the deconvolution it fitted.
+    package var fitParameters: [String: Any]? {
+        guard let model else { return nil }
+        var d: [String: Any] = ["model": model.model.title, "kit_method": model.methodName, "reference": EELSLiterature.edges,
+                                "edges": model.edges.map(EELSFitCompute.title), "convolved_with_low_loss": model.convolved,
+                                "fit_only": fitOnlyElements.sorted(), "quantified": EELSFitCompute.quantifiedSymbols(model, fitOnly: fitOnlyElements)]
+        if model.model == .mlls {
+            d["exponent"] = "two-area estimate per pixel"
+            if case .mlls(let r) = model { d["window_eV"] = [r.windowEV.lowerBound, r.windowEV.upperBound] }
+            d["fit_to_eV"] = fitToEV.map { $0 as Any } ?? "axis end"
+        }
+        d["deconvolution"] = modelDeconvolution.map { $0.choice.title } ?? "none"
+        d["composition_sigma"] = EELSCompositionSigma.formula
+        if let q = regionQuality {
+            var quality: [String: Any] = ["rss": q.rss, "channels": q.channels, "parameters": q.parameters, "degrees_of_freedom": q.degreesOfFreedom,
+                                          "chi2_reduced_pearson": q.reducedChiSquared.map { $0 as Any } ?? (q.chiSquaredUnavailable ?? "none")]
+            quality["of"] = "whole map, summed spectra"
+            d["fit_quality"] = quality
+        }
+        return d
+    }
 
     // MARK: Regions and lines
 
@@ -750,8 +967,10 @@ package final class EELSSession {
         guard let low = workingLowLoss, !pins.isEmpty else { pinSpectra = [:]; pinCoreSpectra = [:]; pinRows = []; isRefreshingRegions = false; return }
         isRefreshingRegions = true
         let thicknessMade = thicknessSignature, fitMade = fitSignature
-        let run = pinDataRun, pins = pins, core = workingCoreLoss
-        let edges = fittableEdges, microscope = microscope, convolve = convolveLowLoss && workingLowLoss != nil, edgeWindows = fitWindows
+        let run = pinDataRun, pins = pins, core = shownCoreLoss, fitCore = fitCoreLoss
+        let edges = fittableEdges, microscope = microscope, convolve = effectiveConvolve, edgeWindows = fitWindows
+        let kind = fitModel, fitOnly = fitOnlyElements, answered = shownAnswered, fitTo = fitModel == .mlls ? fitToEV : nil
+        let rawCounts = !deconvolutionChoice.feedsTheFit
         let threshold = threshold, lambda = try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)
         pinDataTask = Task.detached(priority: .userInitiated) { [weak self] in
             var spectra: [EDXPin.ID: [Double]] = [:], coreSpectra: [EDXPin.ID: [Double]] = [:]
@@ -759,9 +978,11 @@ package final class EELSSession {
             for pin in pins {
                 if Task.isCancelled { return }
                 if pin.isVisible, let sum = EELSRegionCompute.summedLowLoss(low, region: pin.region) { spectra[pin.id] = sum.counts }
-                if pin.isVisible, let core, let mask = pin.region.mask(nx: core.nx, ny: core.ny), let sum = try? core.sum(mask: mask) { coreSpectra[pin.id] = sum.counts }
-                if let row = EELSRegionCompute.row(pin: pin, low: low, core: core, edges: edges, microscope: microscope, convolve: convolve,
-                                                   threshold: threshold, meanFreePath: lambda ?? nil, edgeWindows: edgeWindows) { rows.append(row) }
+                if pin.isVisible, let core, pin.region.mask(nx: core.nx, ny: core.ny) != nil,
+                   let sum = try? core.sum(mask: EELSRegionCompute.mask(pin.region, nx: core.nx, ny: core.ny, answered: answered)) { coreSpectra[pin.id] = sum.counts }
+                if let row = EELSRegionCompute.row(pin: pin, low: low, core: fitCore, edges: edges, microscope: microscope, convolve: convolve,
+                                                   threshold: threshold, meanFreePath: lambda ?? nil, edgeWindows: edgeWindows, model: kind, fitOnly: fitOnly,
+                                                   answered: fitCore == nil ? nil : answered, fitToEV: fitTo, rawCounts: rawCounts) { rows.append(row) }
             }
             if Task.isCancelled { return }
             await self?.landPinData(spectra: spectra, coreSpectra: coreSpectra, rows: rows, run: run, thickness: thicknessMade, fit: fitMade)
@@ -773,15 +994,17 @@ package final class EELSSession {
         plotTask?.cancel()
         plotRun += 1
         guard let low = workingLowLoss else { plot = nil; wholeMapPlot = nil; return }
-        let run = plotRun, core = workingCoreLoss, map = map, threshold = threshold
+        let run = plotRun, core = shownCoreLoss, map = map, threshold = threshold, deconvolvedLow = shownDeconvolvedLow, answered = shownAnswered
         let lambda = (try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)) ?? nil
         let pin = selectedPin
         let region = pin?.region ?? .wholeMap, name = pin?.name ?? "Whole map"
-        let fit = model != nil ? fitUsed : nil
+        // The model is drawn only over the core loss it was fitted to (stored or Fourier-ratio deconvolved).
+        let fit = model != nil && fitUsed?.deconvolved == (answered != nil) ? fitUsed : nil
         plotTask = Task.detached(priority: .userInitiated) { [weak self] in
-            let data = EELSPlotCompute.make(name: name, region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: fit)
+            let data = EELSPlotCompute.make(name: name, region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: fit,
+                                            deconvolvedLow: deconvolvedLow, answered: answered)
             let whole = pin == nil ? data : EELSPlotCompute.make(name: "Whole map", region: .wholeMap, low: low, core: core, map: map, threshold: threshold,
-                                                                  meanFreePath: lambda, fit: nil)
+                                                                  meanFreePath: lambda, fit: nil, deconvolvedLow: deconvolvedLow, answered: answered)
             if Task.isCancelled { return }
             await self?.landPlot(data, whole: whole, run: run)
         }
@@ -819,12 +1042,13 @@ package final class EELSSession {
             return running
         }
         previewDone = false
-        let core = workingCoreLoss, map = map, threshold = threshold
+        let core = shownCoreLoss, map = map, threshold = threshold, answered = shownAnswered
         let lambda = (try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)) ?? nil
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             var next: EDXRegion? = shape
             while let region = next {
-                let data = EELSPlotCompute.make(name: "Selection", region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: nil)
+                let data = EELSPlotCompute.make(name: "Selection", region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: nil,
+                                                answered: answered)
                 next = await self?.landPreview(data, run: committed)
             }
         }
@@ -926,6 +1150,8 @@ package final class EELSSession {
             guard self.failure == nil else { return }
             if self.thicknessState != .current { await self.refresh()?.value }
             guard self.failure == nil else { return }
+            if self.deconvolveState != .current { await self.deconvolve()?.value }
+            guard self.failure == nil else { return }
             if self.fitState != .current, self.fitBlocker == nil { await self.fit()?.value }
         }
     }
@@ -939,14 +1165,30 @@ package final class EELSSession {
         guard !rows.isEmpty, let plot else { return nil }
         let thickness = EELSRoomFormat.thicknessLine(plot.thickness, lambdaNM: map?.meanFreePathNM, lambdaSource: EELSRoomFormat.lambdaSource(meanFreePath),
                                                      locale: Locale(identifier: "en_US_POSIX"))
-        return EELSExports.resultsCSV(rows, fileName: fileName, regionName: plot.regionName, thickness: thickness,
-                                      method: EELSRoomFormat.fitFooter(hasFit: model != nil, convolved: model?.convolved ?? false))
+        return EELSExports.resultsCSV(rows, fileName: fileName, regionName: plot.regionName, thickness: thickness, method: fitFooter,
+                                      deconvolution: modelDeconvolution.map(Self.deconvolutionRecord),
+                                      quality: resultQuality.map { EELSRoomFormat.fitQuality($0, locale: Locale(identifier: "en_US_POSIX")) })
+    }
+
+    /// The deconvolution as the results CSV records it: the line, then its parameters as key=value.
+    private static func deconvolutionRecord(_ d: EELSDeconvolutionResult) -> String {
+        EELSDeconvolveCompute.line(d) + "; " + EELSDeconvolveCompute.parameters(d).sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
     }
     /// The shown spectrum (the selected region's, else the whole map's), with the model where the fit holds one.
     package var spectrumCSV: String? { plot.map { EELSExports.spectrumCSV($0, fileName: fileName) } }
     /// The kept regions' rows; nil without a region.
     package var regionsCSV: String? { pinRows.isEmpty ? nil : EELSExports.regionsCSV(pinRows, fileName: fileName) }
-    package var methodJSON: String? { map.map { EELSCompute.methodJSON($0, fileName: fileName, origin: source?.origin ?? "") } }
+    package var methodJSON: String? {
+        map.map { EELSCompute.methodJSON($0, fileName: fileName, origin: source?.origin ?? "", deconvolution: stageRecord, fit: fitParameters) }
+    }
+
+    /// The Deconvolve stage as the method JSON records it: the chosen method's result with its parameters and whether it is current; nil when Off or not run.
+    private var stageRecord: [String: Any]? {
+        guard deconvolutionChoice != .off, let d = deconvolution, d.choice.kind == deconvolutionChoice.kind else { return nil }
+        var record = EELSDeconvolveCompute.parameters(d)
+        record["state"] = deconvolveState.word
+        return record
+    }
 }
 
 /// Lets a progress fraction through when it has moved by a percent since the last one that went (and at the end). Called from the compute

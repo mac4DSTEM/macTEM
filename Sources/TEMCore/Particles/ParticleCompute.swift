@@ -3,7 +3,7 @@
 // number of macTEM's own: the threshold is `Thresholding.level` (a fraction of the raw range) or `Thresholding.otsu`, the compare is
 // `.mask`, objects below the minimum area are removed from the mask by `BinaryMorphology.removeSmallObjects`, the summary (counts, a median
 // and a mean of the kit's lengths and widths, the Miles–Lantuéjoul areal density) is `ObjectStatistics.arealDensity`, and the labels and
-// every length, width, angle and centroid are ImagoKit's. Validation: none.
+// every length, width, angle and centroid are ImagoKit's.
 import Foundation
 import ImagoCore
 import ImagoFilters
@@ -184,9 +184,9 @@ package nonisolated enum ParticleFormat {
     package static func csv(_ r: ParticleReport, scale: ParticleScale, fileName: String) -> String {
         let u = scale.isCalibrated ? scale.unit : "px"
         let densityLine = scale.isCalibrated && r.summary.arealDensity != nil
-            ? "# areal density: \(String(format: "%.6g", r.summary.arealDensity!)) per \(scale.unit)^2, counted objects weighted by Miles-Lantuejoul's edge correction (ImagoKit ObjectStatistics.arealDensity), validation: none"
+            ? "# areal density: \(String(format: "%.6g", r.summary.arealDensity!)) per \(scale.unit)^2, counted objects weighted by Miles-Lantuejoul's edge correction (ImagoKit ObjectStatistics.arealDensity)"
             : "# areal density: none (the image is not calibrated)"
-        var out = ["# macTEM particles, file: \(fileName), validation: none",
+        var out = ["# macTEM particles, file: \(fileName)",
                    "# threshold: \(r.settings.polarity.rawValue) objects, \(threshold(r)), smoothing sigma \(csvNumber(r.settings.sigma)) px, connectivity \(r.settings.connectivity.rawValue), minimum area \(r.settings.minimumArea) px (smaller objects removed: ImagoKit BinaryMorphology.removeSmallObjects)",
                    "# \(ParticleFormat.counts(r.summary)); labels, centroids, lengths, widths and angles: ImagoKit Segmentation.objectMoments; counted = not touching the image edge",
                    densityLine,

@@ -1,15 +1,16 @@
-// The EELS room's pipeline, as words and states (design 2026-10-22 §2.3 and §2.5): Align, Thickness, then (later) Deconvolve, Edges and Fit.
-// Each stage is not run, current, or stale (its input has changed since); a stale result stays on screen, dimmed, and is never blanked.
+// The EELS room's pipeline, as words and states (design 2026-10-22 §2.3 and §2.5): Align, Thickness, Deconvolve (listed only when a method is chosen),
+// Edges and Fit. Each stage is not run, current, or stale (its input has changed since); a stale result stays on screen, dimmed, and is never blanked.
 // Pure values and strings: no kit call, no view.
 import Foundation
 
 package enum EELSStage: String, CaseIterable, Sendable {
-    case align, thickness, edges, fit
+    case align, thickness, deconvolve, edges, fit
 
     package var title: String {
         switch self {
         case .align: "Align"
         case .thickness: "Thickness"
+        case .deconvolve: "Deconvolve"
         case .edges: "Edges"
         case .fit: "Fit"
         }

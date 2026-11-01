@@ -69,13 +69,12 @@ nonisolated final class ResultsLedgerEELSTests: XCTestCase {
 
     /// A settled EELS room is listed after the image's groups: the thickness (the whole map's median and quartiles of the kit's per-pixel t/λ,
     /// then the region's t/λ of its summed spectrum), then every fitted edge of the whole map and of the region, each with the kit's own I, sigma,
-    /// at% and wt% and the result's validation word. Red under: the ledger ignoring the EELS room; a number taken from another row or region.
+    /// at% and wt% and the result's method name, and no validation entry. Red under: the ledger ignoring the EELS room; a number taken from
+    /// another row or region; a trust word listed.
     @MainActor func testASettledEELSRoomIsListedThicknessThenEdgesWithTheKitsNumbers() async throws {
         let session = try await fittedRoom()
         let map = try XCTUnwrap(session.map, session.failure ?? "no map")
         let model = try XCTUnwrap(session.regionModel, session.failure ?? session.fitRefusal ?? "no fit")
-        XCTAssertEqual(map.validation, ResultRow.Product.eelsKitValidation, "the kit's own word is the badge's")
-        XCTAssertEqual(model.validation, ResultRow.Product.eelsKitValidation, "the kit's own word is the badge's")
         let region = try XCTUnwrap(session.pinRows.first, "the region has its row")
         XCTAssertFalse(region.edges.isEmpty, "the region was fitted")
 
@@ -94,7 +93,9 @@ nonisolated final class ResultsLedgerEELSTests: XCTestCase {
         XCTAssertEqual(thickness[0].entry("pixels")?.value, 4)
         XCTAssertNil(thickness[0].entry("thickness")?.value, "no λ: no t")
         XCTAssertEqual(thickness[0].entry("thickness")?.text, ResultRow.eelsNeedsLambda)
-        XCTAssertEqual(thickness[0].entry("validation")?.text, map.validation)
+        XCTAssertEqual(thickness[0].entry("method")?.text, map.method)
+        XCTAssertEqual(thickness[1].entry("method")?.text, map.method)
+        XCTAssertTrue(listed.allSatisfy { $0.entry("validation") == nil }, "no row carries a validation entry")
         XCTAssertEqual(thickness[1].label, "t/λ · \(region.pin.name)")
         XCTAssertEqual(thickness[1].entry("t_over_lambda")?.value, region.tOverLambda)
         XCTAssertEqual(thickness[1].entry("pixels")?.value, Double(region.pixels))
@@ -119,7 +120,7 @@ nonisolated final class ResultsLedgerEELSTests: XCTestCase {
             }
             XCTAssertEqual(row.entry("onset")?.value, kit.onsetEV, row.label)
             XCTAssertEqual(row.entry("region")?.text, place)
-            XCTAssertEqual(row.entry("validation")?.text, model.validation)
+            XCTAssertEqual(row.entry("method")?.text, model.methodName)
             XCTAssertEqual(ResultsFormat.source(row, imageWidth: 40, imageHeight: 30), "EELS · \(place)")
         }
         XCTAssertTrue(rows(nil).allSatisfy { $0.group == .marks }, "no EELS room: no EELS row")
@@ -194,7 +195,7 @@ nonisolated final class ResultsLedgerEELSTests: XCTestCase {
         XCTAssertNotEqual(why, "fitFailed", "the kit's case in words, not its name")
         let failed = EELSEdgeRow(id: "Fe-L3", title: "Fe L3", onsetEV: 708, intensity: 0, arealDensityPerNM2: nil, atomicPercent: nil, weightPercent: nil,
                                  unavailable: why, intensityStd: 0, atomicUnavailable: why)
-        let refused = ResultRow.eelsEdge(id: "r", row: failed, regionName: "Whole map", validation: "none")
+        let refused = ResultRow.eelsEdge(id: "r", row: failed, regionName: "Whole map", method: "m")
         XCTAssertEqual(refused.refusal, why)
         XCTAssertNil(refused.entry("intensity")?.value)
         XCTAssertNil(refused.entry("intensity_sigma")?.value)
@@ -202,7 +203,7 @@ nonisolated final class ResultsLedgerEELSTests: XCTestCase {
 
         let weak = EELSEdgeRow(id: "Cu-L3", title: "Cu L3", onsetEV: 931, intensity: 2, arealDensityPerNM2: nil, atomicPercent: 3.1, weightPercent: 6.2,
                                unavailable: nil, intensityStd: 1, exponentAtBound: true)
-        let below = ResultRow.eelsEdge(id: "b", row: weak, regionName: "Whole map", validation: "none")
+        let below = ResultRow.eelsEdge(id: "b", row: weak, regionName: "Whole map", method: "m")
         XCTAssertEqual(below.entry("below_detection")?.text, ResultRow.eelsBelowDetection)
         XCTAssertEqual(ResultsFormat.eelsEdgeValue(below, locale: en), "I 2 ± 1 · below detection")
         XCTAssertEqual(below.entry("caveat")?.text, ResultRow.eelsSigmaCaveat)
@@ -210,18 +211,18 @@ nonisolated final class ResultsLedgerEELSTests: XCTestCase {
 
         let alone = EELSEdgeRow(id: "C-K1", title: "C K", onsetEV: 284, intensity: 4.3e7, arealDensityPerNM2: nil, atomicPercent: nil, weightPercent: nil,
                                 unavailable: nil, intensityStd: 2.1e5, atomicUnavailable: EELSEdgeRow.atomicNeedsTwo)
-        let one = ResultRow.eelsEdge(id: "o", row: alone, regionName: "Whole map", validation: "none")
+        let one = ResultRow.eelsEdge(id: "o", row: alone, regionName: "Whole map", method: "m")
         XCTAssertEqual(ResultsFormat.eelsEdgeValue(one, locale: en), "I 4.3e7 ± 2.1e5 · at%: " + EELSEdgeRow.atomicNeedsTwo)
 
         let pin = EDXPin(name: "Region 1", region: .rectangle(PixelRect(x0: 0, y0: 0, x1: 1, y1: 1)), number: 1)
         let dark = EELSRegionRow(pin: pin, pixels: 1, totalCounts: 0, tOverLambda: nil, edges: [], tUnavailable: "I_0 <= 0")
-        let noT = ResultRow.eelsRegionThickness(id: "t", row: dark, validation: "none")
+        let noT = ResultRow.eelsRegionThickness(id: "t", row: dark, method: "m")
         XCTAssertEqual(noT.refusal, "I_0 <= 0")
         XCTAssertNil(noT.entry("t_over_lambda")?.value)
 
         // A region whose edge fit the kit refused as a whole is one row with the kit's words, not silently no row.
         let windowless = EELSRegionRow(pin: pin, pixels: 1, totalCounts: 10, tOverLambda: 0.5, edges: [], edgesUnavailable: "Fe L: signal window holds 1 channels, needs 2.")
-        let listed = rows(ResultsLedger.EELSResults(map: nil, lambdaSource: nil, edges: [], fitValidation: "none", regions: [windowless],
+        let listed = rows(ResultsLedger.EELSResults(map: nil, lambdaSource: nil, edges: [], fitMethod: "m", regions: [windowless],
                                                     regionThickness: false, regionEdges: true)).filter { $0.group == .eelsEdges }
         XCTAssertEqual(listed.map(\.label), ["Edges · Region 1"])
         XCTAssertEqual(listed.first?.refusal, "Fe L: signal window holds 1 channels, needs 2.")
