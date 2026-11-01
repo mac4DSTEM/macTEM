@@ -60,7 +60,8 @@ package nonisolated struct EELSMapsAvailability: Equatable, Sendable {
             if !hasFit { return fitBlocker ?? "Run Fit first: pick edges, then Run." }
             return hasComposition ? nil : "at% needs two or more fitted elements."
         case .weightPercent:
-            return "wt% maps are not built in this version."
+            if !hasFit { return fitBlocker ?? "Run Fit first: pick edges, then Run." }
+            return hasComposition ? nil : "wt% needs two or more fitted elements."
         }
     }
 
@@ -70,14 +71,14 @@ package nonisolated struct EELSMapsAvailability: Equatable, Sendable {
     /// The one caption under the control.
     package func caption(_ segment: EELSMapsSegment) -> String {
         if onlyCoreLoss { return "Composition without plural-scattering correction: this file holds only a core loss." }
-        let stale = (segment == .atomicPercent ? fitState : thicknessState) == .stale
+        let stale = (segment == .atomicPercent || segment == .weightPercent ? fitState : thicknessState) == .stale
         let base: String
         switch segment {
         case .zlp: base = "The energy each spectrum's zero-loss peak was moved by, in eV."
         case .tOverLambda: base = "t/λ = ln(I total / I₀), the log-ratio method (\(EELSLiterature.thickness))."
         case .thickness: base = "t in nm from t/λ and the mean free path, the log-ratio method (\(EELSLiterature.thickness))."
         case .atomicPercent: base = "Atomic percent of each fitted element, from the edge model (\(EELSLiterature.edges))."
-        case .weightPercent: base = "Weight percent of each fitted element."
+        case .weightPercent: base = "Weight percent of each fitted element, from the edge model and the kit's atomic masses (\(EELSLiterature.edges))."
         }
         return stale ? base + " ● Showing the last run; Run updates it." : base
     }
@@ -86,7 +87,7 @@ package nonisolated struct EELSMapsAvailability: Equatable, Sendable {
 /// Which tiles are where: the anchor on the left, the rest on the right.
 package nonisolated enum EELSMapsComposition {
     /// - Anchor: t/λ (I total in a file with only a core loss); ZLP and t on their segment. Right: the ZLP shift after Align (unless it is the anchor), then one
-    ///   tile per fitted edge, or per element in at% when that segment is picked and exists. The room's other tiles (I₀, I total, ZLP centre before) are not
+    ///   tile per fitted edge, or per element in at% or wt% when that segment is picked and exists. The room's other tiles (I₀, I total, ZLP centre before) are not
     ///   drawn: their numbers are in the per-pixel CSV.
     package static func compose(selection: EELSMapsSegment, onlyCoreLoss: Bool, tiles: [EELSMapTile], shiftTile: EELSMapTile?, modelTiles: [EELSMapTile])
         -> (anchor: EELSMapTile?, rest: [EELSMapTile]) {
@@ -101,8 +102,10 @@ package nonisolated enum EELSMapsComposition {
         var rest: [EELSMapTile] = []
         // A flat shift (the file came aligned: 143's zero-loss peak sits at 0 eV in every pixel) says so in the Processing line; it is a tile only on the ZLP segment.
         if let shiftTile, anchor?.id != shiftTile.id, shiftTile.flatValueText == nil { rest.append(shiftTile) }
-        let atTiles = modelTiles.filter { $0.id.hasPrefix("at-") }
-        if selection == .atomicPercent, !atTiles.isEmpty { rest += atTiles } else { rest += modelTiles.filter { $0.id.hasPrefix("edge-") } }
+        let atTiles = modelTiles.filter { $0.id.hasPrefix("at-") }, wtTiles = modelTiles.filter { $0.id.hasPrefix("wt-") }
+        if selection == .atomicPercent, !atTiles.isEmpty { rest += atTiles }
+        else if selection == .weightPercent, !wtTiles.isEmpty { rest += wtTiles }
+        else { rest += modelTiles.filter { $0.id.hasPrefix("edge-") } }
         return (anchor, rest)
     }
 
@@ -111,9 +114,25 @@ package nonisolated enum EELSMapsComposition {
 
     /// Whether a tile is from a stage that needs a new run (it stays drawn, dimmed).
     package static func isStale(_ id: String, thickness: EELSStageState, fit: EELSStageState, align: EELSStageState) -> Bool {
-        if id.hasPrefix("edge-") || id.hasPrefix("at-") { return fit == .stale }
+        if id.hasPrefix("edge-") || id.hasPrefix("at-") || id.hasPrefix("wt-") { return fit == .stale }
         if id == "zlpShift" { return false }
         return thickness == .stale
+    }
+}
+
+/// The Maps section's display filter (control placement §11, DNA 5): the quantified maps (t/λ, t, at%, wt%), computed per pixel on few counts, are DRAWN
+/// through MacEMUI's `EDXMapFilter` kernel (ImagoKit's separable filters, the EDS room's own); the edge intensities, the ZLP shift and the I tiles never are.
+/// Only the picture changes: a tile's `values`, the status-line readout, the popover's histogram, the results and every export (the maps figure too) stay raw.
+package nonisolated enum EELSMapDisplay {
+    /// Whether `filter` applies to the tile `id`: the tile then carries the `filtered` tag.
+    package static func isFiltered(tileID id: String, filter: EDXMapFilter) -> Bool {
+        guard filter.isOn else { return false }
+        return id == "tOverLambda" || id == "thickness" || id.hasPrefix("at-") || id.hasPrefix("wt-")
+    }
+
+    /// The values the tile draws: the kernel's output where it applies, the raw values otherwise. A new array; the tile is not changed.
+    package static func shownValues(_ tile: EELSMapTile, filter: EDXMapFilter) -> [Double] {
+        isFiltered(tileID: tile.id, filter: filter) ? filter.apply(tile.values, width: tile.width, height: tile.height) : tile.values
     }
 }
 
@@ -130,7 +149,7 @@ package nonisolated enum EELSMapScale {
     /// t/λ, t and I total run from their smallest to their largest (viridis), the zero-loss shift is centred on 0 (diverging), edges and at% run from 0 (black to the element's colour).
     package static func mode(forTileID id: String) -> Mode {
         if id == "zlpShift" || id == "zlpCentre" || id == "zlpCentreBefore" { return .diverging }
-        if id.hasPrefix("edge-") || id.hasPrefix("at-") || id == "i0" { return .zeroToMax }
+        if id.hasPrefix("edge-") || id.hasPrefix("at-") || id.hasPrefix("wt-") || id == "i0" { return .zeroToMax }
         return .minToMax
     }
 
@@ -458,7 +477,7 @@ extension EELSRoomFormat {
     package static func readout(x: Int, y: Int, tiles: [EELSMapTile], refusal: String?, locale: Locale = .autoupdatingCurrent) -> String {
         var parts = ["row \(y)", "col \(x)"]
         if let refusal { parts.append("t/λ: \(refusal)") }
-        for tile in tiles where tile.id == "tOverLambda" || tile.id == "iTotal" || tile.id == "zlpShift" || tile.id.hasPrefix("at-") {
+        for tile in tiles where tile.id == "tOverLambda" || tile.id == "iTotal" || tile.id == "zlpShift" || tile.id.hasPrefix("at-") || tile.id.hasPrefix("wt-") {
             guard x >= 0, y >= 0, x < tile.width, y < tile.height else { continue }
             let v = tile.values[y * tile.width + x]
             guard v.isFinite else { continue }

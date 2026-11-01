@@ -154,7 +154,7 @@ struct EELSRoom: View {
 /// element's colour. The scale of each is `EELSMapScale`.
 nonisolated enum EELSTileStyle {
     static func hue(forID id: String) -> Double {
-        let symbol = id.hasPrefix("edge-") ? String(id.dropFirst(5).prefix { $0 != "-" }) : (id.hasPrefix("at-") ? String(id.dropFirst(3)) : "")
+        let symbol = id.hasPrefix("edge-") ? String(id.dropFirst(5).prefix { $0 != "-" }) : (id.hasPrefix("at-") || id.hasPrefix("wt-") ? String(id.dropFirst(3)) : "")
         return symbol.isEmpty ? 0.5 : EDXRoomFormat.hue(symbol: symbol)
     }
 
@@ -190,7 +190,7 @@ nonisolated enum EELSMixComposition {
     static func selection(_ mix: ColorMix, maps: [EELSMapTile]) -> [String] {
         let ids = maps.map(\.id)
         if mix.isCustom { return ids.filter(mix.members.contains) }
-        let edges = maps.filter { $0.id.hasPrefix("edge-") || $0.id.hasPrefix("at-") }.map(\.id)
+        let edges = maps.filter { $0.id.hasPrefix("edge-") || $0.id.hasPrefix("at-") || $0.id.hasPrefix("wt-") }.map(\.id)
         return edges.isEmpty ? Array(ids.prefix(1)) : edges
     }
 
@@ -332,17 +332,21 @@ private struct EELSMapTileHost: View {
         let coloring = state.appearance.coloring(for: tile.id, default: EELSTileStyle.defaultColoring(tile.id))
         let adjustment = state.appearance.adjustment(for: tile.id)
         let inMix = EELSMixComposition.selection(state.appearance.mix, maps: maps).contains(tile.id)
+        // The display filter changes the picture only (`EELSMapDisplay`): the hover readout and the popover read `tile.values`, raw.
+        let filter = state.mapFilter
+        let filtered = EELSMapDisplay.isFiltered(tileID: tile.id, filter: filter)
         MapTileView(title: tile.title, detail: tile.detailText, image: image, size: size, scanWidth: tile.width, scanHeight: tile.height,
-                    pixelSize: session.scanPixel?.size, pixelUnit: session.scanPixel?.unit, regions: tileRegions,
+                    pixelSize: session.scanPixel?.size, pixelUnit: session.scanPixel?.unit, regions: tileRegions, filteredTag: filtered,
                     inMix: inMix, onToggleMix: { EELSMixComposition.toggle(tile.id, in: &state.appearance.mix, maps: maps) },
                     transform: $state.mapView,
                     onHover: { hover($0) },
                     controls: { EELSMapPopover(tile: tile, state: state) })
             .opacity(isRunning ? 0.5 : (isStale ? 0.7 : 1))
-            .task(id: "\(tile.id)-\(tile.version)-\(coloring.hashValue)-\(adjustment.hashValue)") {
-                let values = tile.values, coloring = coloring, adjustment = adjustment, w = tile.width, h = tile.height
+            .task(id: "\(tile.id)-\(tile.version)-\(coloring.hashValue)-\(adjustment.hashValue)-\(filtered ? filter.rawValue : "raw")") {
+                let raw = tile, coloring = coloring, adjustment = adjustment, w = tile.width, h = tile.height
                 let mode = EELSMapScale.mode(forTileID: tile.id)
                 image = await Task.detached(priority: .userInitiated) {
+                    let values = EELSMapDisplay.shownValues(raw, filter: filter)
                     // NaN (a pixel the kit refused) stays at the bottom of the scale; a stale tile is drawn as it was. A map whose pixels are all one value has no range:
                     // it is drawn at the middle of a neutral grey ramp (never the white of a diverging scale's centre) and the tile's detail names the value.
                     if EELSMapScale.isFlat(values) {

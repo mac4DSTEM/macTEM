@@ -146,7 +146,7 @@ package nonisolated enum EELSFitCompute {
     package struct CompositionRefusal: Error, Equatable, Sendable { package let text: String }
 
     /// One tile per fitted edge (its intensity, or the exact fit's areal density when the low loss was convolved) and, with two or more quantified
-    /// elements, one at% tile per quantified element. NaN where the kit has no value; the footer counts them.
+    /// elements, one at% and one wt% tile per quantified element. NaN where the kit has no value; the footer counts them.
     package static func tiles(_ result: EELSFitResult, composition: [EELSCompositionPixel]?, fitOnly: Set<String> = [], version: Int) -> [EELSMapTile] {
         var out: [EELSMapTile] = []
         let areal = result.convolved && result.model == .exactNNLS
@@ -164,6 +164,13 @@ package nonisolated enum EELSFitCompute {
                 let values = composition.map { $0.atomicPercent.indices.contains(i) ? $0.atomicPercent[i] : Double.nan }
                 let missing = composition.filter { $0.unavailable != nil }.count
                 out.append(EELSMapTile(id: "at-" + symbol, title: symbol, unit: "at%", width: result.nx, height: result.ny, values: values, version: version,
+                                       footer: missing == 0 ? nil : "\(missing) px: no composition"))
+            }
+            // The kit's wt% of the same composition (its amounts times its atomic masses), one tile per quantified element; no arithmetic here.
+            for (i, symbol) in quantifiedSymbols(result, fitOnly: fitOnly).enumerated() {
+                let values = composition.map { $0.weightPercent.indices.contains(i) ? $0.weightPercent[i] : Double.nan }
+                let missing = composition.filter { $0.unavailable != nil }.count
+                out.append(EELSMapTile(id: "wt-" + symbol, title: symbol, unit: "wt%", width: result.nx, height: result.ny, values: values, version: version,
                                        footer: missing == 0 ? nil : "\(missing) px: no composition"))
             }
         }

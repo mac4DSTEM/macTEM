@@ -1,7 +1,7 @@
 //
 //  EELSRoomInspector.swift
 //  Role: the EELS room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the standard order:
-//        Maps (one full-width control: ZLP · t/λ · t · at% · wt%, a segment off with its reason until its stage ran, one caption), Tools (the region tool and the
+//        Maps (one full-width control: ZLP · t/λ · t · at% · wt%, a segment off with its reason until its stage ran, the display Filter row, one caption), Tools (the region tool and the
 //        Regions list), Edges (the periodic table answered from the session), Processing (Align, Threshold, λ, Deconvolution; the stage's state on the title),
 //        Fitting (model, background, convolution, E0 α β with their source) and Export. Info: the file, its grid and energy axis.
 //        Presentation only: the state is `EELSSession` (TEMSession), the numbers SpectroKit's through it, the pure answers `TEMCore/EELS/EELSRoomChassis.swift`.
@@ -16,6 +16,7 @@ import UniformTypeIdentifiers
 import SpectroEELS
 import TEMCore
 import TEMSession
+import ShellEDXModel
 
 struct EELSRoomSettings: View {
     @Environment(AppState.self) private var appState
@@ -38,7 +39,7 @@ struct EELSRoomSettings: View {
 
 /// Maps: the quantity the maps show, one full-width control, and under it the one caption. A segment whose stage has not run is refused with its reason (the caption
 /// says it; the control stays where it was).
-private struct EELSMapsSection: View {
+struct EELSMapsSection: View {
     let session: EELSSession
     @Bindable var state: EELSRoomState
 
@@ -53,6 +54,15 @@ private struct EELSMapsSection: View {
                                 if let why = availability.disabledReason(new) { state.mapsNotice = why } else { state.maps = new; state.mapsNotice = nil }
                             }))
                 .accessibilityIdentifier("eels.maps.control")
+            // The display filter (control placement §11), the EDS room's row: the picture of the quantified maps only.
+            InspectorRow("Filter") {
+                Picker("Filter", selection: $state.mapFilter) {
+                    ForEach(EDXMapFilter.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.menu).labelsHidden().fixedSize()
+                .help("A display kernel on the t/λ, t, at% and wt% maps, on by default. The readout, the histogram, the results and every export use the raw values; a filtered tile says so. Edge intensities and the ZLP shift are never filtered.")
+                .accessibilityIdentifier("eels.mapFilter")
+            }
             InspectorNote(state.mapsNotice ?? availability.caption(selection))
                 .accessibilityIdentifier("eels.maps.caption")
         }
