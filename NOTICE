@@ -23,8 +23,8 @@ first lines. mac4DSTEM's own third-party notices
 SpectroKit (a Swift package the app is built with)
 ================================================================================
 
-The app links SpectroKit (https://github.com/mac4DSTEM/SpectroKit, tag 0.13.1, commit
-e47e563bdaa2bf5ce7869b07e2be29888c458ed3), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the EDS and EELS rooms: the spectrum image, line
+The app links SpectroKit (https://github.com/mac4DSTEM/SpectroKit, tag 0.13.2, commit
+ae793cbac432c1d4dbe3fe468ddd08bf786e02d4), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the EDS and EELS rooms: the spectrum image, line
 windows and maps, Auto ID, the pooled Cliff-Lorimer quantification, and the EELS alignment, thickness and edge fits. The app embeds its resource bundle
 `SpectroKit_SpectroEDX.bundle` in Contents/Resources: the NIST EPQ mass-absorption, line-weight, ionisation cross-section and Krause fluorescence-yield
 tables, with the terms and citations in SpectroKit's NOTICE, which applies to them here. For the EELS room it embeds `SpectroKit_SpectroEELS.bundle`: the

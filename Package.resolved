@@ -1,5 +1,5 @@
 {
-  "originHash" : "ac34ae012c29984f9baf08a4053f8bb98ea0b14693c00d86f16679fb5323e59d",
+  "originHash" : "030f4f427ac09912681b64380c7f4bccb13fb5b9f07389db320bcf995a57e3f7",
   "pins" : [
     {
       "identity" : "diffractokit",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/SpectroKit",
       "state" : {
-        "revision" : "e47e563bdaa2bf5ce7869b07e2be29888c458ed3",
-        "version" : "0.13.1"
+        "revision" : "ae793cbac432c1d4dbe3fe468ddd08bf786e02d4",
+        "version" : "0.13.2"
       }
     }
   ],
