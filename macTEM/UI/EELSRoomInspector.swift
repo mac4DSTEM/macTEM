@@ -76,7 +76,7 @@ private struct EELSToolsSection: View {
 
 /// The periodic table answered from the session: only the elements with a bundled edge are live, and only those the core loss reaches. A click picks the default
 /// edge (K where bundled, else L₂,₃) to quantify, a second click takes it off; a right-click gives the edge, Quantify and Off.
-/// "Fit only" has no effect of its own yet (the composition is over every fitted edge), so it picks the edge like Quantify until the next EELS slice.
+/// "Fit only" picks the edge like Quantify and keeps the element out of the composition (its edges stay in the fit model).
 enum EELSPeriodicActions {
     static func make(_ session: EELSSession) -> PeriodicTableActions {
         func symbol(_ z: Int) -> String { PeriodicTableGrid.symbol(z) }
@@ -90,11 +90,17 @@ enum EELSPeriodicActions {
         return PeriodicTableActions(
             state: { z in
                 if let why = EELSEdgeChoices.unavailableReason(symbol: symbol(z), offered: offered, hasCoreLoss: hasCore, windowEV: window) { return .unavailable(why) }
-                return picks(z).isEmpty ? .off : .quantify
+                return picks(z).isEmpty ? .off : session.fitOnlyElements.contains(symbol(z)) ? .fitOnly : .quantify
             },
-            role: { z in picks(z).isEmpty ? .off : .quantify },
+            role: { z in picks(z).isEmpty ? .off : session.fitOnlyElements.contains(symbol(z)) ? .fitOnly : .quantify },
             click: { z in if picks(z).isEmpty { pickDefault(z) } else { clear(z) } },
-            setRole: { z, role in if role == .off { clear(z) } else { pickDefault(z) } },
+            setRole: { z, role in
+                switch role {
+                case .off: clear(z)
+                case .quantify: pickDefault(z); session.setFitOnly(symbol(z), false)
+                case .fitOnly: pickDefault(z); if !picks(z).isEmpty { session.setFitOnly(symbol(z), true) }
+                }
+            },
             families: { z in
                 EELSEdgeChoices.families(symbol: symbol(z), offered: offered).map { f in
                     let on = session.pickedEdges.contains(f.edge)
@@ -131,7 +137,7 @@ private struct EELSEdgesSection: View {
             } else if session.pickedEdges.isEmpty {
                 InspectorNote("Click an element to quantify its edge; right-click for the edge, Quantify or Off.")
             } else {
-                InspectorNote("Quantify: " + session.pickedEdges.map { "\(EELSFitCompute.title($0)) \(EELSRoomFormat.sig($0.onsetEV, 5)) eV" }.joined(separator: ", "))
+                InspectorNote(EELSRoomFormat.pickedLine(session.pickedEdges, fitOnly: session.fitOnlyElements))
                     .accessibilityIdentifier("eels.edges.picked")
                 // Back to the kit's default windows after a drag (the owner's drive, 2026-10-23: "how do I go back to the default?"); one edge: double-click its window.
                 InspectorActionRow {
@@ -145,7 +151,7 @@ private struct EELSEdgesSection: View {
     }
 }
 
-/// Processing: one section for the stages before the edges: Align (fixed options in this version), Threshold, λ and Deconvolution (next slice). The stage's state is
+/// Processing: one section for the stages before the edges: Align (fixed options in this version), Threshold, λ and Deconvolution (its own stage). The stage's state is
 /// on the title; the kit's readout is one line under the rows, and a refusal's sentence under that.
 private struct EELSProcessingSection: View {
     let session: EELSSession
@@ -162,6 +168,9 @@ private struct EELSProcessingSection: View {
         }
     }
     @State private var lambdaNotice: String?
+    private var rlIterations: Int {
+        if case .richardsonLucy(let n) = session.deconvolutionChoice { n } else { EELSDeconvolutionChoice.defaultIterations }
+    }
 
     var body: some View {
         InspectorSection("Processing") {
@@ -197,13 +206,33 @@ private struct EELSProcessingSection: View {
             }
             lambdaRows
             InspectorRow("Deconvolution") {
-                // Until the deconvolution slice (the kit has Fourier-log, Fourier-ratio and Richardson-Lucy; the session does not call them yet)
-                Picker("Deconvolution", selection: .constant("Off")) {
-                    ForEach(["Off", "Fourier-log", "Fourier-ratio", "Richardson-Lucy"], id: \.self) { Text($0) }
+                // The Deconvolve stage (SpectroKit EELSDeconvolution): Run does it after Thickness; a method the file cannot take is refused with its sentence.
+                Picker("Deconvolution", selection: Binding(get: { session.deconvolutionChoice.kind },
+                                                           set: { session.setDeconvolution(.make($0, iterations: rlIterations)) })) {
+                    ForEach(EELSDeconvolutionChoice.Kind.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
-                .labelsHidden().fixedSize().disabled(true)
-                .help("Deconvolution arrives with the next slice.")
+                .labelsHidden().fixedSize()
+                .disabled(session.isBusy)
+                .help(session.deconvolutionChoice.kind.help)
                 .accessibilityIdentifier("eels.deconvolution")
+                .accessibilityValue("\(session.deconvolutionChoice.title), \(session.deconvolveState.word)")
+            }
+            if case .richardsonLucy(let n) = session.deconvolutionChoice {
+                InspectorRow("Iterations") {
+                    OptionalNumericField(title: "Iterations", value: Double(n), format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0)),
+                                         unit: "", prompt: "\(EELSDeconvolutionChoice.defaultIterations)") { v in
+                        session.setDeconvolution(.richardsonLucy(iterations: max(0, Int(v.rounded()))))
+                    }
+                    .help("Richardson-Lucy iterations (exSpy's default 15); more iterations amplify the noise")
+                    .accessibilityIdentifier("eels.deconvolution.iterations")
+                }
+            }
+            if let notice = session.deconvolutionNotice {
+                InspectorNote(notice).accessibilityIdentifier("eels.deconvolution.notice")
+            } else if let d = session.deconvolution, session.deconvolutionChoice != .off {
+                InspectorNote(EELSDeconvolveCompute.line(d) + (d.unavailableCount > 0 ? " · \(d.unavailableCount) px with no answer" : "")
+                              + (session.deconvolveState == .stale ? " · needs a new run" : ""))
+                    .accessibilityIdentifier("eels.deconvolution.readout")
             }
             // One line for the section; the pixels the kit refused are its tooltip.
             InspectorNote(EELSRoomFormat.processingNote(align: session.alignState, thickness: session.thicknessState, alignmentReadout: session.alignmentReadout,
@@ -262,29 +291,33 @@ private struct EELSProcessingSection: View {
     }
 }
 
-/// Fitting: the model (exact NNLS; MLLS next), the background, the convolution with the low loss and the microscope (E0, α, β, each with where it comes from).
+/// Fitting: the model (exact NNLS or MLLS), the background, the convolution with the low loss and the microscope (E0, α, β, each with where it comes from).
 private struct EELSFittingSection: View {
     let session: EELSSession
 
     var body: some View {
         let file = session.source
         InspectorSection("Fitting") {
-            // Until the MLLS slice (the kit has EELSMLLS; the session fits by exact NNLS only). A pick of MLLS changes nothing.
-            SegmentedPicker(label: "Model", items: [("Exact NNLS", .title("Exact NNLS")), ("MLLS", .title("MLLS", help: "Off: the MLLS fit arrives with the next slice."))],
-                            selection: .constant("Exact NNLS"))
+            SegmentedPicker(label: "Model", items: EELSFitModel.allCases.map { ($0, .title($0.title, help: $0.help)) },
+                            selection: Binding(get: { session.fitModel }, set: { session.setFitModel($0) }))
                 .accessibilityIdentifier("eels.model")
+                .accessibilityValue(session.fitModel.title)
             SegmentedPicker(label: "Background", items: EELSBackgroundChoice.allCases.map { c in (c, .title(c.title, help: c.disabledReason.map { "Off: \($0)" })) },
                             selection: Binding(get: { session.backgroundChoice }, set: { session.setBackground($0) }))
                 .accessibilityIdentifier("eels.background")
             if let notice = session.backgroundNotice { InspectorNote(notice).accessibilityIdentifier("eels.background.notice") }
             InspectorRow("Convolve low loss") {
-                Toggle("Convolve low loss", isOn: Binding(get: { session.convolveLowLoss && session.hasLowLoss }, set: { session.setConvolveLowLoss($0) }))
+                Toggle("Convolve low loss", isOn: Binding(get: { session.convolveLowLoss && session.hasLowLoss && !session.deconvolutionChoice.feedsTheFit },
+                                                          set: { session.setConvolveLowLoss($0) }))
                     .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                    .disabled(!session.hasLowLoss)
-                    .help(session.hasLowLoss ? "Convolve each edge with the low loss, as exSpy's model does: the fitted amounts are areal densities" : "No low loss in this file.")
+                    .disabled(!session.hasLowLoss || session.deconvolutionChoice.feedsTheFit)
+                    .help(!session.hasLowLoss ? "No low loss in this file."
+                          : session.deconvolutionChoice.feedsTheFit ? "Off with Fourier-ratio: the core loss is deconvolved by the low loss already"
+                          : "Convolve each edge with the low loss, as exSpy's model does: the fitted amounts are areal densities")
                     .accessibilityIdentifier("eels.convolve")
             }
             if !session.hasLowLoss { InspectorNote("No low loss in this file: Convolve is off.") }
+            else if session.deconvolutionChoice.feedsTheFit { InspectorNote("Fourier-ratio: the fit takes the deconvolved core loss, not convolved with the low loss.") }
             InspectorRow("Beam energy") {
                 OptionalNumericField(title: "Beam energy", value: session.beamEnergyKeV, format: FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6)),
                                      unit: "keV", prompt: "Not set") { v in session.setBeamEnergy(v == file?.beamEnergyKeV ? nil : v) }

@@ -31,13 +31,19 @@ package nonisolated struct EELSPlotFit: Equatable, Sendable {
     package let convolve: Bool
     /// The windows the last Fit passed the kit: one per fitted edge, in onset order.
     package let windows: [EdgeWindows]
+    /// The model the last Fit used.
+    package let model: EELSFitModel
+    /// Whether the last Fit took the Fourier-ratio deconvolved core loss (the plot draws its model only over the same core loss).
+    package let deconvolved: Bool
 
-    package init(edges: [CoreLossEdge], microscope: EELSMicroscope, convolve: Bool, windows: [EdgeWindows]) {
-        self.edges = edges; self.microscope = microscope; self.convolve = convolve; self.windows = windows
+    package init(edges: [CoreLossEdge], microscope: EELSMicroscope, convolve: Bool, windows: [EdgeWindows], model: EELSFitModel = .exactNNLS,
+                 deconvolved: Bool = false) {
+        self.edges = edges; self.microscope = microscope; self.convolve = convolve; self.windows = windows; self.model = model; self.deconvolved = deconvolved
     }
 
     package static func == (a: EELSPlotFit, b: EELSPlotFit) -> Bool {
-        a.edges == b.edges && a.convolve == b.convolve && a.windows == b.windows && a.microscope.beamEnergyKeV == b.microscope.beamEnergyKeV
+        a.edges == b.edges && a.convolve == b.convolve && a.windows == b.windows && a.model == b.model && a.deconvolved == b.deconvolved
+            && a.microscope.beamEnergyKeV == b.microscope.beamEnergyKeV
             && a.microscope.convergenceMrad == b.microscope.convergenceMrad && a.microscope.collectionMrad == b.microscope.collectionMrad
     }
 }
@@ -59,6 +65,10 @@ package nonisolated struct EELSPlotData: Equatable, Sendable {
     package var zlpMaskEV: ClosedRange<Double>?
     /// The kit's model on the core-loss axis, NaN outside the signal windows (the model holds nothing there); nil before Fit.
     package var model: [Double]?
+    /// The deconvolved low loss of the region (Fourier-log, Richardson-Lucy), summed as the low loss is, on its own axis; nil without one.
+    package var lowDeconvolved: EELSPlotCurve?
+    /// The core loss is the Fourier-ratio deconvolved one (summed over the pixels the kit answered).
+    package var coreDeconvolved = false
     /// The kit's power law of each fitted edge (`edgeBackgrounds`) with the windows it was fitted on; empty before Fit.
     package var backgrounds: [EELSPlotBackground] = []
     package var edges: [EELSPlotEdge]
@@ -72,9 +82,11 @@ package nonisolated struct EELSPlotData: Equatable, Sendable {
 }
 
 package nonisolated enum EELSPlotCompute {
-    /// The plot of `region` (`.wholeMap` for every pixel). Nil when the region holds no pixel.
+    /// The plot of `region` (`.wholeMap` for every pixel). Nil when the region holds no pixel. `core` is the core loss the fit takes (the Fourier-ratio
+    /// deconvolved one when that is the stage's method); `deconvolvedLow` is the Deconvolve stage's low loss (Fourier-log, Richardson-Lucy).
     package static func make(name: String, region: EDXRegion, low: LowLossSpectrumImage, core: CoreLossSpectrumImage?, map: ThicknessMap?,
-                             threshold: EELSThresholdChoice, meanFreePath: MeanFreePathSource?, fit: EELSPlotFit?) -> EELSPlotData? {
+                             threshold: EELSThresholdChoice, meanFreePath: MeanFreePathSource?, fit: EELSPlotFit?,
+                             deconvolvedLow: LowLossSpectrumImage? = nil, answered: PixelMask? = nil) -> EELSPlotData? {
         guard let lowSum = EELSRegionCompute.summedLowLoss(low, region: region) else { return nil }
         let pixels = region.pixelCount(nx: low.nx, ny: low.ny)
         let lowCurve = EELSPlotCurve(origin: low.energyOffsetEV, step: low.energyScaleEV, counts: lowSum.counts)
@@ -82,21 +94,24 @@ package nonisolated enum EELSPlotCompute {
         if let cut = (try? EELSCompute.map(image: lowSum, threshold: threshold, meanFreePath: meanFreePath))?.pixels.first?.thresholdEV, cut > lowCurve.origin {
             data.zlpMaskEV = lowCurve.origin...cut
         }
+        if let deconvolvedLow, let sum = EELSRegionCompute.summedLowLoss(deconvolvedLow, region: region) {
+            data.lowDeconvolved = EELSPlotCurve(origin: sum.energyOffsetEV, step: sum.energyScaleEV, counts: sum.counts)
+        }
         guard let core else { return data }
-        let coreSum: CoreLossSpectrumImage?
-        if let mask = region.mask(nx: core.nx, ny: core.ny) { coreSum = try? core.sum(mask: mask) }
-        else { coreSum = try? core.sum(mask: [Bool](repeating: true, count: core.nx * core.ny)) }
+        // A deconvolved core loss: only the pixels the kit answered (`answered`); the others are its zeros.
+        let coreSum = try? core.sum(mask: EELSRegionCompute.mask(region, nx: core.nx, ny: core.ny, answered: answered))
         guard let coreSum else { return data }
         data.core = EELSPlotCurve(origin: coreSum.energyOffsetEV, step: coreSum.energyScaleEV, counts: coreSum.counts)
+        data.coreDeconvolved = answered != nil
         if let fit, !fit.edges.isEmpty,
            let result = try? EELSFitCompute.fit(coreLoss: coreSum, edges: fit.edges, microscope: fit.microscope, lowLoss: fit.convolve ? lowSum : nil,
-                                                edgeWindows: fit.windows) {
+                                                model: fit.model, edgeWindows: fit.windows) {
             let step = coreSum.energyScaleEV, origin = coreSum.energyOffsetEV
-            let ranges = result.fitRangeEV ?? []
+            let ranges = result.fitRangesEV
             data.model = result.modelCurve(pixel: 0).map { curve in
                 curve.enumerated().map { k, v in ranges.contains { $0.contains(origin + step * Double(k)) } ? v : .nan }
             }
-            if let all = result.edgeBackgrounds?.first {
+            if let all = result.edgeBackgroundsOfFirstPixel {
                 for (g, edge) in result.edges.enumerated() where g < all.count && g < fit.windows.count {
                     guard let p = all[g] else { continue }
                     let w = EELSEdgeWindows(fit.windows[g])
