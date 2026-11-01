@@ -823,7 +823,7 @@ private struct EELSSpectrumView: View {
 
 /// The results beside the spectrum: the thickness line, one row per edge (I, at%, wt%), the regions' table, the refusal if there is one, and the footer
 /// (model · background · convolution · deconvolution). The validation badge is here once; the columns say only their names.
-private struct EELSResultsPanel: View {
+struct EELSResultsPanel: View {
     let session: EELSSession
 
     var body: some View {
@@ -878,10 +878,14 @@ private struct EELSResultsPanel: View {
                                 .foregroundStyle(r.belowDetection || r.fitOnly ? .secondary : .primary)
                                 .help(r.fitOnly ? EELSEdgeRow.fitOnlyWords
                                       : r.belowDetection ? "I is at or under 3σ: this edge is not detected in the region"
-                                      : r.atomicPercent == nil ? (r.atomicUnavailable ?? EELSEdgeRow.atomicNeedsTwo) : "")
+                                      : r.atomicPercent == nil ? (r.atomicUnavailable ?? EELSEdgeRow.atomicNeedsTwo)
+                                      : r.atomicSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "The kit gives no σ for an amount: at% without σ")
                         }.width(min: 50, ideal: 100)
-                        TableColumn("wt%") { r in Text(r.weightPercent.map { EELSRoomFormat.fixed($0, 1) } ?? "–").monospacedDigit().lineLimit(1) }
-                            .width(min: 50, ideal: 64)
+                        TableColumn("wt%") { r in
+                            Text(EELSRoomFormat.weightText(r)).monospacedDigit().lineLimit(1)
+                                .foregroundStyle(r.belowDetection || r.fitOnly ? .secondary : .primary)
+                                .help(r.weightSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "")
+                        }.width(min: 50, ideal: 100)
                     }
                     .alternatingRowBackgrounds(.disabled)   // the edges' rows, not a page of stripes (as the EDS table)
                     .accessibilityIdentifier("eels.results.table")
@@ -909,7 +913,8 @@ private struct EELSResultsPanel: View {
                     .accessibilityIdentifier("eels.results.exponents")
             }
             Text(EELSRoomFormat.fitFooter(hasFit: session.model != nil, convolved: session.model?.convolved ?? false, model: session.model?.model ?? .exactNNLS,
-                                          deconvolution: session.modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution"))
+                                          deconvolution: session.modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution")
+                 + (session.resultQuality.map { " · " + EELSRoomFormat.fitQuality($0) } ?? ""))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
                 .frame(height: LayoutPolicy.paneHeaderHeight)

@@ -417,11 +417,35 @@ extension EELSRoomFormat {
         return sig(mantissa, digits, locale: locale) + "e\(exponent)"
     }
 
-    /// The at% cell: "below detection" for an edge at or under 3 sigma, never a bare 0.
+    /// The at% cell: "44.4 ± 0.3" with its 1σ (`percent`), "below detection" for an edge at or under 3 sigma, never a bare 0.
     package static func atomicText(_ row: EELSEdgeRow, locale: Locale = .autoupdatingCurrent) -> String {
         if row.fitOnly { return "fit only" }
         if row.belowDetection { return "below detection" }
-        return row.atomicPercent.map { fixed($0, 1, locale: locale) } ?? "–"
+        return row.atomicPercent.map { percent($0, row.atomicSigma, locale: locale) } ?? "–"
+    }
+
+    /// The wt% cell, as the at% cell.
+    package static func weightText(_ row: EELSEdgeRow, locale: Locale = .autoupdatingCurrent) -> String {
+        if row.fitOnly { return "fit only" }
+        if row.belowDetection { return "below detection" }
+        return row.weightPercent.map { percent($0, row.weightSigma, locale: locale) } ?? "–"
+    }
+
+    /// "44.4 ± 0.31": the σ to two significant digits and the value to the same decimal place (the EDS room's rule), one decimal when there is no σ,
+    /// at most three.
+    package static func percent(_ value: Double, _ sigma: Double?, locale: Locale = .autoupdatingCurrent) -> String {
+        guard value.isFinite else { return "–" }
+        guard let sigma, sigma.isFinite, sigma > 0 else { return fixed(value, 1, locale: locale) }
+        let places = max(0, min(3, 1 - Int(floor(log10(sigma)))))
+        return fixed(value, places, locale: locale) + " ± " + fixed(sigma, places, locale: locale)
+    }
+
+    /// The fit quality value row and the footer's part: "RSS 1.234e5 · χ²ᵣ 1.04 (Pearson, 312 dof)"; the kit's RSS, and Pearson's χ² over the degrees
+    /// of freedom (or why there is none).
+    package static func fitQuality(_ q: EELSFitQuality, locale: Locale = .autoupdatingCurrent) -> String {
+        let rss = "RSS " + scientific(q.rss, 4, locale: locale)
+        guard let chi = q.reducedChiSquared else { return rss + " · " + (q.chiSquaredUnavailable ?? EELSFitQuality.noFreedom) }
+        return rss + " · \u{03C7}\u{00B2}\u{1D63} " + sig(chi, 3, locale: locale) + " (Pearson, \(q.degreesOfFreedom) dof)"
     }
 
     /// "r · C K 3.42 · N K 3.31": the power-law exponent the kit fitted under each edge; nil when no row has one.
