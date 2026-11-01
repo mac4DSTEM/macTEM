@@ -99,7 +99,7 @@ nonisolated final class TIFFImageReaderTests: XCTestCase {
         XCTAssertEqual(image.x, AxisCalibration(scale: scale, unit: "m", origin: 0))
         XCTAssertEqual(image.y, AxisCalibration(scale: scale, unit: "m", origin: 0))
         XCTAssertEqual(image.notes, [TIFFImageReader.Note.render, TIFFImageReader.Note.veloxUnvalidated])
-        XCTAssertEqual(image.notes, ["8-bit render, not counts", "scale unvalidated (one acquisition)"], "the wording, pinned literally")
+        XCTAssertEqual(image.notes, ["8-bit render, not counts", "scale as Velox stores it (BinaryResult/PixelSize), not checked against a calibration standard"], "the wording, pinned literally")
     }
 
     func testTheAgreementBandIsTheTagsOwnRoundingNotMore() throws {

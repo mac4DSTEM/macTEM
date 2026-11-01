@@ -39,7 +39,7 @@ dataset of known truth says `validation: none` next to it.
 ## Building it yourself
 
 You need Xcode 27 or Xcode 26.6 on an Apple silicon Mac with macOS 26 or later. Open `macTEM.xcodeproj`, pick the `macTEM` scheme and press ⌘R. The first build fetches the kits at
-the exact tags in `Package.swift`. The tests run with `tools/run-tests.sh unit`. How the code is organised is in
+the versions in `Package.resolved`. The tests run with `tools/run-tests.sh unit`. How the code is organised is in
 [`docs/architecture.md`](docs/architecture.md).
 
 ## Problems and ideas

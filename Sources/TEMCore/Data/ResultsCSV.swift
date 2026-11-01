@@ -9,17 +9,14 @@
 //  what stays here is the rows' conversion, the title and the sentences only the app can claim.
 //
 //  THE VALIDATION: the `validation` column holds the product's own constant (`ResultRow.Product.validation`), and the header
-//  holds one `# validation (<product>): ...` line for each product present, the same constant; when the file's reader notes call
-//  for it, both carry the kit's reader-note clause (`TidyResultsCSV.unvalidatedClause`) after it. No sentence is authored here.
+//  holds one `# validation (<product>): ...` line for each product present, the same constant; when the file has reader notes,
+//  both quote them after it (`; reader note: <notes joined by "; ">`, ImagoKit 0.9.1). No sentence is authored here.
 //
 
 import Foundation
 import ImagoCore
 
 package nonisolated enum ResultsCSV {
-    /// The kit's clause added to every validation sentence when the file's reader notes call for it (ImagoKit owns the rule and the wording).
-    package static let unvalidatedClause = TidyResultsCSV.unvalidatedClause
-
     package static let columns = TidyResultsCSV.columns
 
     /// The whole file (UTF-8, LF), or nil without a row. `session` is the sentence that says where the file's marks are kept

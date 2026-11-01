@@ -114,7 +114,7 @@ nonisolated final class EDXRoomTests: XCTestCase {
     /// no image, and no export command acts in it. Red under: a slot removed; an owner composed twice; the menu rule dropped.
     func testTheShellMountsTheRoomInItsSlots() throws {
         let view = squeezed(try source("macTEM/UI/WorkspaceView.swift"))
-        XCTAssertTrue(view.contains("if appState.navigation.workspaceArea == .edx { EDXRoom(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions) } else if appState.navigation.workspaceArea == .eels { EELSRoom() } else if let item = appState.openItems.selected {"))
+        XCTAssertTrue(view.contains("if appState.navigation.workspaceArea == .edx { EDXRoom(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions, openExtensions: EDXOpening.readableExtensions) } else if appState.navigation.workspaceArea == .eels { EELSRoom() } else if let item = appState.openItems.selected {"))
         let inspector = squeezed(try source("macTEM/UI/WorkspaceInspector.swift"))
         XCTAssertTrue(inspector.contains("if appState.navigation.workspaceArea == .edx { InspectorScrollColumn {"))
         XCTAssertTrue(inspector.contains("EDXRoomSettings(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions)"))

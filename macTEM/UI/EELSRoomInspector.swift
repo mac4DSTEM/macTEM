@@ -57,7 +57,7 @@ struct EELSMapsSection: View {
             // The display filter (control placement §11), the EDS room's row: the picture of the quantified maps only.
             InspectorRow("Filter") {
                 Picker("Filter", selection: $state.mapFilter) {
-                    ForEach(EDXMapFilter.allCases) { Text($0.title).tag($0) }
+                    ForEach(EELSMapFilter.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.menu).labelsHidden().fixedSize()
                 .help("A display kernel on the t/λ, t, at% and wt% maps, on by default. The readout, the histogram, the results and every export use the raw values; a filtered tile says so. Edge intensities and the ZLP shift are never filtered.")
@@ -240,7 +240,7 @@ private struct EELSProcessingSection: View {
             if let notice = session.deconvolutionNotice {
                 InspectorNote(notice).accessibilityIdentifier("eels.deconvolution.notice")
             } else if let d = session.deconvolution, session.deconvolutionChoice != .off {
-                InspectorNote(EELSDeconvolveCompute.line(d) + (d.unavailableCount > 0 ? " · \(d.unavailableCount) px with no answer" : "")
+                InspectorNote(EELSDeconvolveCompute.line(d) + (EELSDeconvolveCompute.unansweredLine(d.unavailable).map { " · " + $0 } ?? "")
                               + (session.deconvolveState == .stale ? " · needs a new run" : ""))
                     .accessibilityIdentifier("eels.deconvolution.readout")
             }

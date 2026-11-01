@@ -22,7 +22,7 @@ nonisolated final class AcquisitionMetadataDMTests: XCTestCase {
 
     private let localTime = "local time, zone not stored"
     private let monthFirst = "month-first order assumed"
-    private let unvalidated = "unvalidated: no published reader reads it"
+    private let unvalidated = "no published reader reads this field; read as stored in the DM image tags"
 
     /// test_STEM_image.dm3 (RosettaSciIO), as ncempy reads it.
     private func stemImage() -> Tags {

@@ -49,13 +49,18 @@ nonisolated final class EDXJourney: Journey {
         try step("there is no tile size control") {
             XCTAssertTrue(haadf.waitForExistence(timeout: 30))
             XCTAssertTrue(mg.waitForExistence(timeout: 60))
-            XCTAssertFalse(element("maps.tileSize").exists, "the maps scale with the panes")
+            XCTAssertTrue(isAbsent("maps.tileSize"), "the maps scale with the panes")
         }
-        // The scale bar's length text ("5 px"): the one thing on a tile that says its zoom.
-        let bar = { self.waitFor("maps.scaleBar.HAADF", timeout: 30).staticTexts.firstMatch.label }
+        // The scale bar's spoken length ("Scale bar, 5 pixels"): the one thing on a tile that says its zoom. Since MacEMUI 0.4.0 the bar is one
+        // Button whose label is that length, with no StaticText inside, so the journey reads the button label.
+        let bar = { self.waitFor("maps.scaleBar.HAADF", timeout: 30).label }
         let whole = bar()
+        // XCUITest's scroll is one precise event of `deltaY` points, which `ImageViewport` zooms by exp(0.01 · deltaY) (`ScrollZoom`), and the
+        // bar's length is a 1-2-5 value, so its label moves only once the zoom passes its next step (about 1.6× on the demo's 16-pixel scan at
+        // this window size): 8 and 16 points (1.08× and 1.17×) never got there. The wheel's sign differs between XCUITest and a mouse, so the
+        // steps go one way and then the other; a zoom out at the whole scan does nothing.
         try step("the wheel zooms the maps") {
-            for dy in [8.0, -8.0, 16.0, -16.0] where bar() == whole { haadf.scroll(byDeltaX: 0, deltaY: dy) }
+            for dy in Array(repeating: 60.0, count: 4) + Array(repeating: -60.0, count: 4) where bar() == whole { haadf.scroll(byDeltaX: 0, deltaY: dy) }
             XCTAssertNotEqual(bar(), whole, "the wheel over the HAADF map never changed its scale bar (\(whole))")
         }
         try step("a double click returns to the whole scan and keeps the grid") {

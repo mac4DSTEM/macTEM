@@ -304,7 +304,9 @@ private struct EELSMapTileHost: View {
     private func hover(_ pixel: (x: Int, y: Int)?) {
         state.readout = pixel.map { p in
             let refusal = session.map.flatMap { m in p.x < m.nx && p.y < m.ny ? m[p.x, p.y].unavailable?.description : nil }
-            return EELSRoomFormat.readout(x: p.x, y: p.y, tiles: readoutTiles, refusal: refusal)
+            let nx = session.source?.image.nx ?? 0
+            let unanswered = nx > 0 && p.x < nx ? EELSDeconvolveCompute.reason(session.readoutDeconvolution?.unavailable, pixel: p.y * nx + p.x) : nil
+            return EELSRoomFormat.readout(x: p.x, y: p.y, tiles: readoutTiles, refusal: refusal, unanswered: unanswered)
         }
     }
 
@@ -879,15 +881,16 @@ struct EELSResultsPanel: View {
                         }.width(min: 110, ideal: 150)
                         TableColumn("at%") { r in
                             Text(EELSRoomFormat.atomicText(r)).monospacedDigit().lineLimit(1)
-                                .foregroundStyle(r.belowDetection || r.fitOnly ? .secondary : .primary)
+                                .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
                                 .help(r.fitOnly ? EELSEdgeRow.fitOnlyWords
+                                      : r.notDetected ? "The MLLS amount is at or below zero: " + EELSEdgeRow.notDetectedWords + ", counted as 0 at%"
                                       : r.belowDetection ? "I is at or under 3σ: this edge is not detected in the region"
                                       : r.atomicPercent == nil ? (r.atomicUnavailable ?? EELSEdgeRow.atomicNeedsTwo)
                                       : r.atomicSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "The kit gives no σ for an amount: at% without σ")
                         }.width(min: 50, ideal: 100)
                         TableColumn("wt%") { r in
                             Text(EELSRoomFormat.weightText(r)).monospacedDigit().lineLimit(1)
-                                .foregroundStyle(r.belowDetection || r.fitOnly ? .secondary : .primary)
+                                .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
                                 .help(r.weightSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "")
                         }.width(min: 50, ideal: 100)
                     }
@@ -918,6 +921,7 @@ struct EELSResultsPanel: View {
             }
             Text(EELSRoomFormat.fitFooter(hasFit: session.model != nil, convolved: session.model?.convolved ?? false, model: session.model?.model ?? .exactNNLS,
                                           deconvolution: session.modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution")
+                 + (EELSRoomFormat.notDetectedLine(rows).map { " · " + $0 } ?? "")
                  + (session.resultQuality.map { " · " + EELSRoomFormat.fitQuality($0) } ?? ""))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)

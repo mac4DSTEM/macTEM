@@ -79,7 +79,7 @@ struct WorkspaceView: View {
     @ViewBuilder
     private var content: some View {
         if appState.navigation.workspaceArea == .edx {
-            EDXRoom(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions)
+            EDXRoom(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions, openExtensions: EDXOpening.readableExtensions)
         } else if appState.navigation.workspaceArea == .eels {
             EELSRoom()
         } else if let item = appState.openItems.selected {
