@@ -39,7 +39,8 @@ package nonisolated enum EELSExports {
         out.append("edge,onset_eV,intensity,intensity_sigma,areal_density_per_nm2,atomic_percent,atomic_percent_sigma,weight_percent,weight_percent_sigma,"
                    + "exponent_r,below_detection,unavailable")
         for r in rows {
-            let why = r.unavailable ?? (r.fitOnly ? EELSEdgeRow.fitOnlyWords : nil) ?? (r.atomicPercent == nil ? r.atomicUnavailable : nil)
+            let why = r.unavailable ?? (r.fitOnly ? EELSEdgeRow.fitOnlyWords : nil) ?? (r.notDetected ? EELSEdgeRow.notDetectedWords : nil)
+                ?? (r.atomicPercent == nil ? r.atomicUnavailable : nil)
             out.append([quoted(r.title), g(r.onsetEV), g(r.intensity), g(r.intensityStd), g(r.arealDensityPerNM2), g(r.atomicPercent), g(r.atomicSigma),
                         g(r.weightPercent), g(r.weightSigma), g(r.exponent), r.belowDetection ? "true" : "false", why.map(quoted) ?? ""].joined(separator: ","))
         }

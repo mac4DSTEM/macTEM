@@ -1,7 +1,7 @@
 version: 2
 updates:
   # GitHub Actions only, monthly, one grouped PR; it merges itself when CI is green (dependabot-auto-merge.yml).
-  # Swift packages stay out: kit and app pins are exact and moved on purpose.
+  # Swift packages stay out: a kit update is a package update with its own PR and tests.
   - package-ecosystem: github-actions
     directory: /
     schedule:

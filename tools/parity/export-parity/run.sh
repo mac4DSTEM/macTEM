@@ -189,8 +189,8 @@ source_mutant registered results-spot-q-for-d $RR 'R-P1/spot-values' results all
   'Entry("d", m.d, unit: m.units, text: neighbour),' 'Entry("d", m.q, unit: m.units, text: neighbour),'
 
 # --- Extra controls (not registered; each failing one fails the gate as well).
-# (42) the Results CSV drops the "unvalidated (reader note)" qualifier from its header lines and its validation column (the case
-# `results-unvalidated`: a file whose reader notes say so; unvalidated stays labelled).
+# (42) the Results CSV drops the "; reader note: ..." quote from its header lines and its validation column (the case
+# `results-unvalidated`: a file with a reader note).
 # (32) the scale bar option ignored.
 source_mutant extra scale-bar-option-ignored $IE 'P6-footprint/aniso512/marks-only-plate-untouched' aniso512 marks \
   'if options.scaleBar {' 'if true {'

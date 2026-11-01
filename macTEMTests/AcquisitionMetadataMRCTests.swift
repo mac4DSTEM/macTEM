@@ -8,8 +8,8 @@
 //  bytes. The parity against mrcfile on the whole files is tools/parity/metadata-parity.
 //
 //  Three notes ride on MRC readings, each pinned here by its literal text (a reader is told them beside the value):
-//  the camera length "unvalidated: the mode is not checked" (rule c is an open deviation: the mode is undecoded),
-//  the exposure and the mode "unvalidated: no published reader reads it", and the date "clock of the writer, zone
+//  the camera length "shown as stored; the instrument mode is not checked, as no published reader decodes it" (rule c is an open deviation: the mode is undecoded),
+//  the exposure and the mode "no published reader reads this field; read as stored in the FEI extended header, at the offset mrcfile declares", and the date "clock of the writer, zone
 //  not stored" (the two pinned files disagree on the zone, so the note must not say "local time").
 //
 
@@ -48,7 +48,7 @@ nonisolated final class AcquisitionMetadataMRCTests: XCTestCase {
         imaging.put("Instrument mode", int: 1)
         imaging.put("Projection mode", int: 1)
         XCTAssertEqual(try read(imaging).cameraLengthMM, MetadataReading(0.2 * 1e3, note: Self.modeUnchecked))
-        XCTAssertEqual(Self.modeUnchecked, "unvalidated: the mode is not checked")
+        XCTAssertEqual(Self.modeUnchecked, "shown as stored; the instrument mode is not checked, as no published reader decodes it")
     }
 
     func testDwellIsStoredInSecondsAndShownInMicroseconds() throws {
@@ -326,7 +326,7 @@ nonisolated final class AcquisitionMetadataMRCTests: XCTestCase {
         f.put("Frame time", 2.72)           // a frame time is not an exposure
         f.put("Dwell time", 0.01)
         XCTAssertEqual(try read(f).exposureS, MetadataReading(0.5, note: Self.unvalidated))
-        XCTAssertEqual(Self.unvalidated, "unvalidated: no published reader reads it")
+        XCTAssertEqual(Self.unvalidated, "no published reader reads this field; read as stored in the FEI extended header, at the offset mrcfile declares")
         XCTAssertEqual(try read(f).dwellUS, MetadataReading(0.01 * 1e6), "and its dwell carries no such note")
     }
 
@@ -385,8 +385,8 @@ nonisolated final class AcquisitionMetadataMRCTests: XCTestCase {
     // MARK: helpers
 
     /// The three notes an MRC reading can carry, as the reader must say them (literal text, not the production constants).
-    private static let unvalidated = "unvalidated: no published reader reads it"
-    private static let modeUnchecked = "unvalidated: the mode is not checked"
+    private static let unvalidated = "no published reader reads this field; read as stored in the FEI extended header, at the offset mrcfile declares"
+    private static let modeUnchecked = "shown as stored; the instrument mode is not checked, as no published reader decodes it"
     private static let writerClock = "clock of the writer, zone not stored"
 
     private func read(_ f: FEIFile) throws -> AcquisitionMetadata { try AcquisitionMetadata.mrc(data: f.file(), convention: .app) }

@@ -4,7 +4,7 @@
 //
 //  THE TRUTH: the planted spectrum image of `EELSControlsTests` (C K, N K and O K in the amounts 2 : 1 : 1.5 on a power law). The wt% tiles are the
 //  kit's `EELSQuantification.composition` on the room's fit, value for value; the planted amounts times the kit's atomic masses are the sanity check.
-//  The filter is MacEMUI's `EDXMapFilter` (ImagoKit's separable kernels): the room only chooses which tiles pass through it, and the numbers (the
+//  The filter is `EELSMapFilter` (ImagoKit's separable kernels, the EDS room's): the room only chooses which tiles pass through it, and the numbers (the
 //  tiles' values, the readout, the CSVs) never do.
 //
 
@@ -120,7 +120,7 @@ nonisolated final class EELSWtMapsFilterTests: XCTestCase {
             XCTAssertFalse(EELSMapDisplay.isFiltered(tileID: id, filter: .off), id)
             let raw = tile(id)
             let shown = EELSMapDisplay.shownValues(raw, filter: .mean3x3)
-            XCTAssertEqual(shown, EDXMapFilter.mean3x3.apply(raw.values, width: 4, height: 3), "\(id): the shared kernel")
+            XCTAssertEqual(shown, EELSMapFilter.mean3x3.apply(raw.values, width: 4, height: 3), "\(id): the shared kernel")
             XCTAssertNotEqual(shown, raw.values, "\(id): drawn smoothed")
             XCTAssertEqual(EELSMapDisplay.shownValues(raw, filter: .off), raw.values)
         }

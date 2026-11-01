@@ -28,7 +28,7 @@ MacEMUI                        the window shell, controls, the Metal image view 
                                the shared EDS room
 ```
 
-The versions are exact tags in `Package.swift`, the one place that states them.
+`Package.swift` takes each kit by version range (`from:`); `Package.resolved` holds the versions built.
 
 Each layer knows nothing above it, and that is a module boundary: `Package.swift` builds `Sources/TEMCore` and
 `Sources/TEMSession` as SwiftPM targets, the app target links them as package products, and `swift build`
@@ -96,7 +96,7 @@ two fixtures may not share a name.
 
 ## The kits, and what came from mac4DSTEM
 
-**The kits are imported at exact tags, never copied** (`Package.swift` is the truth for versions; the Xcode project and `Package.resolved` follow):
+**The kits are imported by version range, never copied** (`Package.swift` states the ranges, `Package.resolved` the versions built):
 
 | Kit | What the app takes |
 |---|---|

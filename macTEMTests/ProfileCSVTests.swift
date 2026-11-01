@@ -108,7 +108,7 @@ nonisolated final class ProfileCSVTests: XCTestCase {
             "# validation: samples compared with scikit-image 0.26.0 profile_line(order=1, mode=\"reflect\", "
                 + "reduce_func=mean) (1e-5 relative; 1e-5 of the image's largest magnitude near zero); "
                 + "calibration: as the file states it",
-            "# lineage: none \u{2014} marks carry no lineage id until V1-2; the mark's parameters above stand in",
+            "# lineage: none \u{2014} marks carry no lineage id; the mark's parameters above stand in",
             "# numbers: %.17g (exact round trip); nan where a NaN pixel enters a sample",
             "position (nm),value",
             "0,108", "0.5,110", "1,112", "1.5,114", "2,116",
@@ -481,7 +481,9 @@ nonisolated final class ProfileCSVTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), [])
     }
 
-    func testTheUnvalidatedNoteAddsItsClauseToTheValidationLine() throws {
+    /// Since ImagoKit 0.9.1 the validation line quotes the reader notes ("; reader note: <notes joined by "; ">") instead of the
+    /// ", unvalidated (reader note)" clause. Red under: a note dropped; the old clause back; a clause for a file without notes.
+    func testTheReaderNotesFollowTheValidationLine() throws {
         func validation(_ notes: [String]) throws -> String {
             let header = parse(try csv(planted(notes: notes))).header
             return try XCTUnwrap(header.first { $0.hasPrefix("# validation: ") })
@@ -490,11 +492,10 @@ nonisolated final class ProfileCSVTests: XCTestCase {
             + "reduce_func=mean) (1e-5 relative; 1e-5 of the image's largest magnitude near zero); "
             + "calibration: as the file states it"
         XCTAssertEqual(try validation([]), plain)
-        XCTAssertEqual(try validation(["8-bit render, not counts"]), plain, "a note that does not say unvalidated")
-        let flagged = plain + ", unvalidated (reader note)"
-        XCTAssertEqual(try validation(["scale unvalidated (one acquisition)"]), flagged)
-        XCTAssertEqual(try validation(["Unvalidated scale"]), flagged, "case-insensitive")
-        XCTAssertEqual(try validation(["fine", "x UNVALIDATED y"]), flagged, "any one note")
+        XCTAssertEqual(try validation(["8-bit render, not counts"]), plain + "; reader note: 8-bit render, not counts")
+        XCTAssertEqual(try validation(["Unvalidated scale"]), plain + "; reader note: Unvalidated scale")
+        XCTAssertEqual(try validation(["fine", "x UNVALIDATED y"]), plain + "; reader note: fine; x UNVALIDATED y", "every note, in order")
+        XCTAssertFalse(try validation(["Unvalidated scale"]).contains("unvalidated (reader note)"))
         // The notes themselves stay verbatim and in order, joined by "; ".
         let notes = parse(try csv(planted(notes: ["8-bit render, not counts", "scale unvalidated (one acquisition)"]))).header
         XCTAssertTrue(notes.contains("# notes: 8-bit render, not counts; scale unvalidated (one acquisition)"))

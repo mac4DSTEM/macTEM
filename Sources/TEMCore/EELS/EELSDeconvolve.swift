@@ -187,6 +187,33 @@ package nonisolated enum EELSDeconvolveCompute {
         case .richardsonLucy: return r.methodName + " (zero-loss peak below the " + r.thresholdText + ")"
         }
     }
+
+    /// Why the deconvolution left a pixel unanswered, as words: a non-finite result is the low-loss tail's power-law continuation, the rest are the
+    /// kit's own reasons (`EELSFitCompute.words`).
+    package static func words(_ why: EELSUnavailable) -> String {
+        why == .nonFiniteResult ? "the low-loss tail's power-law continuation is not finite" : EELSFitCompute.words(why)
+    }
+
+    /// The reason for pixel `p` of a result's `unavailable`, or nil when the kit answered it (or `p` is outside the result).
+    package static func reason(_ unavailable: [EELSUnavailable?]?, pixel p: Int) -> String? {
+        guard let unavailable, unavailable.indices.contains(p), let why = unavailable[p] else { return nil }
+        return words(why)
+    }
+
+    /// The Deconvolve readout's part for the unanswered pixels of a result's `unavailable`: "3 px unanswered (2: the low-loss tail's …; 1: the zero-loss
+    /// threshold has no value here)", by count then by first occurrence; nil when every pixel was answered. Those pixels are left out of the fit.
+    package static func unansweredLine(_ unavailable: [EELSUnavailable?]) -> String? {
+        var counts: [EELSUnavailable: Int] = [:], order: [EELSUnavailable] = []
+        for case let why? in unavailable {
+            if counts[why] == nil { order.append(why) }
+            counts[why, default: 0] += 1
+        }
+        guard !order.isEmpty else { return nil }
+        let total = counts.values.reduce(0, +)
+        let parts = order.enumerated().sorted { (counts[$0.element]!, -$0.offset) > (counts[$1.element]!, -$1.offset) }
+            .map { "\(counts[$0.element]!): \(words($0.element))" }
+        return "\(total) px unanswered (" + parts.joined(separator: "; ") + ")"
+    }
 }
 
 package enum EELSDeconvolveRefusal: Error, Equatable, LocalizedError {
