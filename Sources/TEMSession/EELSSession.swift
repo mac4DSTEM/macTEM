@@ -808,10 +808,10 @@ package final class EELSSession {
                                  deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution")
     }
 
-    /// The edge fit as the method JSON records it: the model, the kit's method, the fit-only elements, the deconvolution it fitted and the badge.
+    /// The edge fit as the method JSON records it: the model, the kit's method and its reference, the fit-only elements and the deconvolution it fitted.
     package var fitParameters: [String: Any]? {
         guard let model else { return nil }
-        var d: [String: Any] = ["model": model.model.title, "kit_method": model.methodName, "validation": model.validation,
+        var d: [String: Any] = ["model": model.model.title, "kit_method": model.methodName, "reference": EELSLiterature.edges,
                                 "edges": model.edges.map(EELSFitCompute.title), "convolved_with_low_loss": model.convolved,
                                 "fit_only": fitOnlyElements.sorted(), "quantified": EELSFitCompute.quantifiedSymbols(model, fitOnly: fitOnlyElements)]
         if model.model == .mlls {

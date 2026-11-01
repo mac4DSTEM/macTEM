@@ -74,9 +74,9 @@ package nonisolated struct EELSMapsAvailability: Equatable, Sendable {
         let base: String
         switch segment {
         case .zlp: base = "The energy each spectrum's zero-loss peak was moved by, in eV."
-        case .tOverLambda: base = "t/λ = ln(I total / I₀), the log-ratio method; validation: none."
-        case .thickness: base = "t in nm from t/λ and the mean free path; validation: none."
-        case .atomicPercent: base = "Atomic percent of each fitted element; validation: none."
+        case .tOverLambda: base = "t/λ = ln(I total / I₀), the log-ratio method (\(EELSLiterature.thickness))."
+        case .thickness: base = "t in nm from t/λ and the mean free path, the log-ratio method (\(EELSLiterature.thickness))."
+        case .atomicPercent: base = "Atomic percent of each fitted element, from the edge model (\(EELSLiterature.edges))."
         case .weightPercent: base = "Weight percent of each fitted element."
         }
         return stale ? base + " ● Showing the last run; Run updates it." : base

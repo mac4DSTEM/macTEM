@@ -355,7 +355,7 @@ struct EELSFittingSection: View {
                           + (session.model?.model == .exactNNLS ? ". The exact fit's χ²ᵣ reads above 1 by construction (the extrapolated background's error is in every signal channel): do not compare it with MLLS's" : ""))
                     .accessibilityIdentifier("eels.fitQuality")
             }
-            if let model = session.model { InspectorNote("\(model.methodName) · validation: \(model.validation)") }
+            if let model = session.model { InspectorNote("\(model.methodName) · \(EELSLiterature.edges)") }
         }
     }
 }
@@ -428,7 +428,7 @@ private struct EELSExportSection: View {
         let hasMap = session.map != nil, hasFit = !session.resultRows.isEmpty
         InspectorSection("Export") {
             InspectorActionRow {
-                exportButton(.results, "Results CSV…", "tablecells", enabled: hasFit, help: "The results table: each edge's I and its 1σ, the areal density, at%, wt% and r, with the thickness line and the badge")
+                exportButton(.results, "Results CSV…", "tablecells", enabled: hasFit, help: "The results table: each edge's I and its 1σ, the areal density, at%, wt% and r, with the thickness line and the methods' references")
                 exportButton(.spectrum, "Spectrum CSV…", "waveform", enabled: session.plot != nil, help: "The shown spectrum: the low loss and the core loss, energy and counts, and the model where it is fitted")
             }
             InspectorActionRow {
@@ -438,7 +438,7 @@ private struct EELSExportSection: View {
             InspectorActionRow {
                 exportButton(.diagnostics, "Per-pixel CSV…", "tablecells.badge.ellipsis", enabled: hasMap,
                              help: "Every pixel: t/λ, its counting σ, I₀, I total, the zero-loss centre, the threshold, t and the kit's reason where there is none")
-                exportButton(.method, "Method JSON…", "curlybraces", enabled: hasMap, help: "What made the map, with the unvalidated badge")
+                exportButton(.method, "Method JSON…", "curlybraces", enabled: hasMap, help: "What made the map, each method with its reference")
             }
             InspectorRow("Scale bar") {
                 let hasPixelSize = session.scanPixel != nil

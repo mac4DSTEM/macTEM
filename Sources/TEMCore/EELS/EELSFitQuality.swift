@@ -19,7 +19,7 @@
 // channels; its extrapolation error enters every signal channel, so the exact fit's chi-squared reads above 1 by construction and is not comparable
 // with MLLS's). Pearson's statistic takes the counts as detected electrons: on gain-unit counts it scales with the gain. The reduced chi-squared is Pearson's, as the EDS room's: sum over those channels of (counts - model)^2 / model, divided by the degrees of
 // freedom; refused where the model is not positive on every one of them (an unconstrained MLLS can go negative). It assumes raw detected counts
-// (Poisson variance = mean): a deconvolved core loss is not, and gets none. Validation: none.
+// (Poisson variance = mean): a deconvolved core loss is not, and gets none.
 import Foundation
 import SpectroCore
 import SpectroEELS

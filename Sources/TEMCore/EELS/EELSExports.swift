@@ -1,7 +1,26 @@
 // The EELS room's text exports beside the per-pixel CSV and the method JSON (the owner's drive, 2026-10-23: "the options could be like in the EDS room"): the results
-// table, the shown spectrum and the regions' rows as CSV. Pure strings from the session's values; every file carries its provenance and the unvalidated badge.
+// table, the shown spectrum and the regions' rows as CSV. Pure strings from the session's values; every file carries its provenance and the references of
+// the methods that made its numbers (`EELSLiterature`).
 import Foundation
 import ShellEDXModel
+
+/// The literature each EELS method follows, as the room's tooltips, the figure subtitle and every export name it. A method is named with its
+/// reference, as scientific software does; no trust label is written.
+package nonisolated enum EELSLiterature {
+    /// The log-ratio t/λ (thickness, t in nm).
+    package static let thickness = "Malis, Cheng and Egerton, J. Electron Microsc. Tech. 8 (1988) 193"
+    /// The edge model and the composition from it.
+    package static let edges = "exSpy 7185a4d1 with the dft GOS tables (Segger, Guzzinati and Kohl, v1.5.0)"
+    /// The Fourier-ratio, Fourier-log and Richardson-Lucy deconvolutions.
+    package static let deconvolution = "Egerton, EELS in the Electron Microscope, 3rd ed. (2011), ch. 4"
+    /// The export header line naming the thickness and edge references.
+    package static let headerLine = "references: thickness: " + thickness + "; edges: " + edges
+    /// The figure subtitle's short form of the methods and their references.
+    package static let figureLine = "log-ratio t/λ (Malis, Cheng and Egerton 1988), edge model (exSpy, dft GOS)"
+    /// The results header's References tooltip: each method with its reference.
+    package static let tooltip = "t/λ and t: the log-ratio method, " + thickness + ". Edges, at% and wt%: SpectroKit's edge model, " + edges
+        + ". Deconvolution: " + deconvolution + "."
+}
 
 package nonisolated enum EELSExports {
     private static func g(_ v: Double?) -> String { v.flatMap { $0.isFinite ? String(format: "%.9g", $0) : nil } ?? "" }
@@ -12,7 +31,7 @@ package nonisolated enum EELSExports {
     /// `unavailable` cell, and so does a row with no at% (the table's tooltip and the Results room give the same words).
     package static func resultsCSV(_ rows: [EELSEdgeRow], fileName: String, regionName: String, thickness: String, method: String,
                                    deconvolution: String? = nil, quality: String? = nil) -> String {
-        var out = ["# macTEM EELS results, file: \(fileName), region: \(regionName), validation: none",
+        var out = ["# macTEM EELS results, file: \(fileName), region: \(regionName), \(EELSLiterature.headerLine)",
                    "# \(thickness)",
                    "# \(method)"]
         if let deconvolution { out.append("# deconvolution: \(deconvolution)") }
@@ -49,7 +68,7 @@ package nonisolated enum EELSExports {
         let edges = rows.flatMap(\.edges).reduce(into: [String]()) { out, e in if !out.contains(e.title) { out.append(e.title) } }
         var header = ["region", "pixels", "i_total", "t_over_lambda"]
         for e in edges { header += ["\(e) intensity", "\(e) intensity_sigma", "\(e) atomic_percent", "\(e) atomic_percent_sigma"].map(quoted) }
-        var out = ["# macTEM EELS regions, file: \(fileName), validation: none", header.joined(separator: ",")]
+        var out = ["# macTEM EELS regions, file: \(fileName), \(EELSLiterature.headerLine)", header.joined(separator: ",")]
         for r in rows {
             var cells = [quoted(r.pin.name), "\(r.pixels)", g(r.totalCounts), g(r.tOverLambda)]
             for e in edges {

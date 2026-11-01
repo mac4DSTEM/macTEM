@@ -4,7 +4,7 @@
 //        drawn and edited, the ZLP shift after Align and one tile per fitted edge on the right, one shared zoom, one cursor into the status line), the spectrum
 //        below (the region's low loss and core loss on one energy axis with a marked gap) with the results beside it. The tools, the Maps control, the edges,
 //        the processing and fitting choices and the exports are the inspector's (`EELSRoomInspector.swift`). The room has its own document, the spectrum image,
-//        opened from here and held by `EELSSession` (TEMSession). Presentation only: every number is SpectroKit's through the session, badged `validation: none`;
+//        opened from here and held by `EELSSession` (TEMSession). Presentation only: every number is SpectroKit's through the session, its method and reference named (`EELSLiterature`);
 //        the pure parts (which tile goes where, the axis, the thickness line) are `TEMCore/EELS/EELSRoomChassis.swift`.
 //        The maps block, the spectrum and the results panel live in this file because the room's file list is fixed for slice 1; they move out with slice 2.
 //
@@ -78,7 +78,7 @@ extension EELSSession {
                                        width: tile.width, height: tile.height, footer: tile.footer))
         }
         let region = selectedPin?.region ?? .wholeMap
-        return EDXFigureContent(title: fileName, subtitle: (selectedPin?.name ?? "Whole map") + " \u{00B7} EELS, validation: none", tiles: [], region: region,
+        return EDXFigureContent(title: fileName, subtitle: (selectedPin?.name ?? "Whole map") + " \u{00B7} EELS, " + EELSLiterature.figureLine, tiles: [], region: region,
                                 nx: image.nx, ny: image.ny, bar: EDXExports.scaleBar(pixelSize: scanPixel?.size, unit: scanPixel?.unit, nx: image.nx, ny: image.ny),
                                 showsScaleBar: scaleBar, showsRegion: regions, cells: cells)
     }
@@ -822,7 +822,7 @@ private struct EELSSpectrumView: View {
 }
 
 /// The results beside the spectrum: the thickness line, one row per edge (I, at%, wt%), the regions' table, the refusal if there is one, and the footer
-/// (model · background · convolution · deconvolution). The validation badge is here once; the columns say only their names.
+/// (model · background · convolution · deconvolution). The methods' references are here once, in the Methods tag's tooltip; the columns say only their names.
 struct EELSResultsPanel: View {
     let session: EELSSession
 
@@ -837,12 +837,12 @@ struct EELSResultsPanel: View {
                     .font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.tail)
                     .accessibilityIdentifier("eels.results.header")
                 Spacer(minLength: 0)
-                Text("validation: none")
+                Text("Methods")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     .padding(.horizontal, 6).padding(.vertical, 1)
                     .background(.quaternary, in: Capsule())
-                    .help("t/λ, t and the edge amounts are not compared with a sample of known thickness or a standard: unvalidated")
-                    .accessibilityIdentifier("eels.validationBadge")
+                    .help(EELSLiterature.tooltip)
+                    .accessibilityIdentifier("eels.methodsTag")
                 if session.isComputing { ProgressView().controlSize(.small) }
             }
             .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
