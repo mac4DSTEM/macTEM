@@ -8,7 +8,8 @@ package nonisolated enum EELSExports {
     private static func quoted(_ s: String) -> String { "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }
 
     /// The results table: one row per edge (onset, I and its 1σ, areal density, at%, wt%, the power-law exponent, below detection, why there is none) and,
-    /// when one was used, a line naming the deconvolution and its parameters. A fit-only edge says so in the `unavailable` cell.
+    /// when one was used, a line naming the deconvolution and its parameters. A fit-only edge says so in the `unavailable` cell, and so does a row with
+    /// no at% (the table's tooltip and the Results room give the same words).
     package static func resultsCSV(_ rows: [EELSEdgeRow], fileName: String, regionName: String, thickness: String, method: String,
                                    deconvolution: String? = nil) -> String {
         var out = ["# macTEM EELS results, file: \(fileName), region: \(regionName), validation: none",
@@ -17,7 +18,7 @@ package nonisolated enum EELSExports {
         if let deconvolution { out.append("# deconvolution: \(deconvolution)") }
         out.append("edge,onset_eV,intensity,intensity_sigma,areal_density_per_nm2,atomic_percent,weight_percent,exponent_r,below_detection,unavailable")
         for r in rows {
-            let why = r.unavailable ?? (r.fitOnly ? EELSEdgeRow.fitOnlyWords : nil)
+            let why = r.unavailable ?? (r.fitOnly ? EELSEdgeRow.fitOnlyWords : nil) ?? (r.atomicPercent == nil ? r.atomicUnavailable : nil)
             out.append([quoted(r.title), g(r.onsetEV), g(r.intensity), g(r.intensityStd), g(r.arealDensityPerNM2), g(r.atomicPercent), g(r.weightPercent),
                         g(r.exponent), r.belowDetection ? "true" : "false", why.map(quoted) ?? ""].joined(separator: ","))
         }

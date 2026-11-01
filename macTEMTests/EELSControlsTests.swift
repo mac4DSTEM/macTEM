@@ -276,4 +276,17 @@ nonisolated final class EELSControlsTests: XCTestCase {
         XCTAssertTrue(inspector.contains("session.setFitModel("))
         XCTAssertTrue(inspector.contains("session.setFitOnly("))
     }
+
+    /// A row with no at% says why in the results CSV, as the table's tooltip and the Results room do: an MLLS fit with a negative amount has no
+    /// composition (the kit refuses it), and the export must not leave the at% cell empty without a reason.
+    func testResultsCSVSaysWhyAnEdgeHasNoAtomicPercent() {
+        let why = "the kit gave no composition: an amount is negative"
+        let c = EELSEdgeRow(id: "C-K", title: "C K", onsetEV: 284, intensity: 3.4e-4, arealDensityPerNM2: nil, atomicPercent: nil, weightPercent: nil,
+                            unavailable: nil, intensityStd: 1.3e-6, atomicUnavailable: why)
+        let n = EELSEdgeRow(id: "N-K", title: "N K", onsetEV: 401, intensity: 0, arealDensityPerNM2: 0, atomicPercent: 0, weightPercent: 0,
+                            unavailable: nil, intensityStd: 1.4e-9)
+        let lines = EELSExports.resultsCSV([c, n], fileName: "planted.dm4", regionName: "Whole map", thickness: "t/λ 0.5", method: "MLLS").split(separator: "\n")
+        XCTAssertTrue(lines[4].hasSuffix(",\"\(why)\""), "the C K row names why it has no at%: \(lines[4])")
+        XCTAssertTrue(lines[5].hasSuffix(",false,") || lines[5].hasSuffix(",true,"), "an at% of 0 has no reason cell: \(lines[5])")
+    }
 }
