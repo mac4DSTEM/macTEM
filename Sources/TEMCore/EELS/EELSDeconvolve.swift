@@ -38,8 +38,29 @@ package enum EELSDeconvolutionChoice: Equatable, Hashable, Sendable {
 
     package var title: String { kind.title }
 
-    /// Whether the edge model fits the deconvolved core loss (Fourier-ratio), so the low loss is not convolved in again.
-    package var feedsTheFit: Bool { self == .fourierRatio }
+    /// Whether the stage makes a deconvolved core loss (Fourier-ratio), the one Fit on Deconvolved can fit. Fourier-log and Richardson-Lucy deconvolve
+    /// the low loss only.
+    package var deconvolvesCoreLoss: Bool { self == .fourierRatio }
+}
+
+/// The Fitting section's Fit on (Paul, 2026-11-02: "Offer both as a fit option", as GMS does): the recorded core loss with the model convolved with the
+/// low loss (the default, and the room's behaviour before this choice), or the Deconvolve stage's deconvolved core loss with the model not convolved.
+package enum EELSFitOn: String, CaseIterable, Hashable, Sendable {
+    case convolved, deconvolved
+
+    package var title: String {
+        switch self {
+        case .convolved: "Convolved"
+        case .deconvolved: "Deconvolved"
+        }
+    }
+
+    package var help: String {
+        switch self {
+        case .convolved: "Fit the core loss as recorded; the model is convolved with the low loss (Convolve low loss), as exSpy's model does"
+        case .deconvolved: "Fit the core loss the Deconvolve stage made; the model is not convolved, the low loss is divided out already"
+        }
+    }
 }
 
 extension EELSDeconvolutionChoice.Kind {
@@ -56,9 +77,9 @@ extension EELSDeconvolutionChoice.Kind {
     package var help: String {
         switch self {
         case .off: "No deconvolution: the edge model fits the core loss as stored"
-        case .fourierLog: "Fourier-log: the low loss by its zero-loss peak, the single-scattering distribution (drawn dashed; the thickness and the fit do not use it)"
-        case .fourierRatio: "Fourier-ratio: the core loss by the low loss; the edge model then fits the single-scattering core loss, not convolved with the low loss"
-        case .richardsonLucy: "Richardson-Lucy: the low loss by its zero-loss peak as the point-spread function (drawn dashed; the thickness and the fit do not use it)"
+        case .fourierLog: "Fourier-log: the low loss by its zero-loss peak, the single-scattering distribution (drawn dashed; the thickness does not use it, and it gives no core loss to fit)"
+        case .fourierRatio: "Fourier-ratio: the core loss by the low loss, the single-scattering core loss; Fitting's Fit on Deconvolved fits it, not convolved with the low loss"
+        case .richardsonLucy: "Richardson-Lucy: the low loss by its zero-loss peak as the point-spread function (drawn dashed; the thickness does not use it, and it gives no core loss to fit)"
         }
     }
 
@@ -168,7 +189,7 @@ package nonisolated enum EELSDeconvolveCompute {
             d["fwhm_source"] = "estimated (estimate_peak_width of the first low-loss pixel)"
             d["extrapolate_low_loss"] = true; d["extrapolate_core_loss"] = true
             d["fft_size"] = r.fftSize; d["tapered_channels"] = r.taperedChannels
-            d["output"] = "single-scattering core loss, fitted by the edge model without the low-loss convolution"
+            d["output"] = "single-scattering core loss (Fit on Deconvolved fits it without the low-loss convolution)"
         case .richardsonLucy(let iterations):
             d["iterations"] = iterations
             d["psf"] = "each pixel's zero-loss peak: its low loss below its thickness-map threshold (\(r.thresholdText))"

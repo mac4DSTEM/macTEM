@@ -351,18 +351,25 @@ struct EELSFittingSection: View {
                             selection: Binding(get: { session.backgroundChoice }, set: { session.setBackground($0) }))
                 .accessibilityIdentifier("eels.background")
             if let notice = session.backgroundNotice { InspectorNote(notice).accessibilityIdentifier("eels.background.notice") }
+            // Fit on (Paul, 2026-11-02, as GMS): the recorded core loss with the model convolved, or the Deconvolve stage's core loss, not convolved.
+            SegmentedPicker(label: "Fit on", items: EELSFitOn.allCases.map { c in
+                                (c, .title(c.title, help: c.help, disabledReason: c == .deconvolved ? session.deconvolvedFitBlocker : nil)) },
+                            selection: Binding(get: { session.fitOn }, set: { session.setFitOn($0) }))
+                .accessibilityIdentifier("eels.fitOn")
+                .accessibilityValue(session.fitOn.title)
+            if let notice = session.fitOnNotice { InspectorNote(notice).accessibilityIdentifier("eels.fitOn.notice") }
             InspectorRow("Convolve low loss") {
-                Toggle("Convolve low loss", isOn: Binding(get: { session.convolveLowLoss && session.hasLowLoss && !session.deconvolutionChoice.feedsTheFit },
+                Toggle("Convolve low loss", isOn: Binding(get: { session.convolveLowLoss && session.hasLowLoss && !session.fitsDeconvolved },
                                                           set: { session.setConvolveLowLoss($0) }))
                     .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                    .disabled(!session.hasLowLoss || session.deconvolutionChoice.feedsTheFit)
+                    .disabled(!session.hasLowLoss || session.fitsDeconvolved)
                     .help(!session.hasLowLoss ? "No low loss in this file."
-                          : session.deconvolutionChoice.feedsTheFit ? "Off with Fourier-ratio: the core loss is deconvolved by the low loss already"
+                          : session.fitsDeconvolved ? "Off on Deconvolved: the low loss is divided out of the core loss already"
                           : "Convolve each edge with the low loss, as exSpy's model does: the fitted amounts are areal densities")
                     .accessibilityIdentifier("eels.convolve")
             }
             if !session.hasLowLoss { InspectorNote("No low loss in this file: Convolve is off.") }
-            else if session.deconvolutionChoice.feedsTheFit { InspectorNote("Fourier-ratio: the fit takes the deconvolved core loss, not convolved with the low loss.") }
+            else if session.fitsDeconvolved { InspectorNote("Fit on Deconvolved: the fit takes the Fourier-ratio core loss, the model not convolved with the low loss.") }
             InspectorRow("Beam energy") {
                 OptionalNumericField(title: "Beam energy", value: session.beamEnergyKeV, format: FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6)),
                                      unit: "keV", prompt: "Not set") { v in session.setBeamEnergy(v == file?.beamEnergyKeV ? nil : v) }
@@ -390,7 +397,12 @@ struct EELSFittingSection: View {
                           + (session.model?.model == .exactNNLS ? ". The exact fit's χ²ᵣ reads above 1 by construction (the extrapolated background's error is in every signal channel): do not compare it with MLLS's" : ""))
                     .accessibilityIdentifier("eels.fitQuality")
             }
-            if let model = session.model { InspectorNote("\(model.methodName) · \(EELSLiterature.edges)") }
+            if let model = session.model {
+                InspectorNote("\(model.methodName) · " + EELSRoomFormat.fitOnWords(convolved: model.convolved,
+                                                                                 deconvolution: session.modelDeconvolution.map { EELSDeconvolveCompute.line($0) })
+                              + " · \(EELSLiterature.edges)")
+                    .accessibilityIdentifier("eels.fitNote")
+            }
         }
     }
 }

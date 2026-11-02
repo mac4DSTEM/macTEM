@@ -102,6 +102,10 @@ nonisolated final class EELSFitQualityTests: XCTestCase {
         session.setDeconvolution(.fourierRatio)
         await session.run().value
         await session.settled()
+        session.setFitOn(.deconvolved)
+        XCTAssertEqual(session.fitOn, .deconvolved, session.fitOnNotice ?? "")
+        await session.fit()?.value
+        await session.settled()
         let rows = session.regionRows
         XCTAssertEqual(rows.compactMap(\.atomicPercent).count, 3, session.failure ?? session.fitRefusal ?? "")
         XCTAssertTrue(rows.allSatisfy { $0.atomicSigma == nil && $0.weightSigma == nil })
