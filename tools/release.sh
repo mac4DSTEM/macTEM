@@ -23,6 +23,12 @@ mkdir -p "$OUT"
 
 [[ -z "$(git -C "$ROOT" status --porcelain)" ]] || { echo "The working tree is not clean; commit first so the build has a commit." >&2; exit 1; }
 security find-identity -v -p codesigning | grep -q "$IDENTITY" || { echo "No certificate \"$IDENTITY\" in the keychain." >&2; exit 1; }
+# A download is built from a release tag, and the app must carry that tag's version (Config/Version.xcconfig, which
+# release-please bumps): checked here before the archive and again on the built app.
+TAG="$(git -C "$ROOT" describe --exact-match --tags HEAD 2>/dev/null)" || { echo "HEAD is not a release tag; check out the tag to build (git worktree add … vX.Y.Z)." >&2; exit 1; }
+EXPECTED="${TAG#v}"
+SET="$(sed -n 's/^MARKETING_VERSION = \([0-9.]*\).*/\1/p' "$ROOT/Config/Version.xcconfig")"
+[[ "$SET" == "$EXPECTED" ]] || { echo "Config/Version.xcconfig says $SET but the tag is $TAG." >&2; exit 1; }
 
 echo "== Archive ($(git -C "$ROOT" rev-parse --short HEAD))"
 # ARCHS=arm64 on the command line: the project's setting does not reach the package targets, and the HDF5
@@ -40,6 +46,7 @@ done
 codesign --verify --deep --strict "$APP"
 codesign -d --entitlements :- "$APP" 2>/dev/null | grep -q "get-task-allow" && { echo "The app carries get-task-allow." >&2; exit 1; }
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
+[[ "$VERSION" == "$EXPECTED" ]] || { echo "The built app says $VERSION but the tag is $TAG." >&2; exit 1; }
 echo "macTEM $VERSION"
 
 echo "== Notarize the app"
