@@ -35,6 +35,7 @@ extension AppState {
                 if let why = inventory.refusal { present(OpenRefusal(text: why)); continue }
                 if inventory.image { images.append(url) }
                 if inventory.image, inventory.opensInEDS || inventory.eelsSpectrumImage { spectrumCompanionImages.insert(url) }
+                if let scan = inventory.scan { spectrumScans[url] = scan }
                 if inventory.opensInEDS { edsFiles.insert(url); edsBatch.append(url) }
                 if inventory.eelsSpectrumImage { eelsFiles.insert(url); eelsBatch.append(url) }
                 if let found = inventory.landing, landing == nil || found.richness > landing!.richness { landing = found }

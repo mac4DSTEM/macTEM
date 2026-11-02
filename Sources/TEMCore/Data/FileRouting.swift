@@ -22,10 +22,28 @@ package nonisolated struct FileInventory: Equatable, Sendable {
     package var singleSpectrum = false
     /// Set instead of the above when the file is not opened here: the sentence says what it is and where it goes.
     package var refusal: String?
+    /// The scan of a DM4 spectrum image, from its header: the size the file's Open Files row shows. The image the Image room draws from the
+    /// same file is the survey (2048 x 2048 beside a 432 x 172 scan), so its size is not the scan's. Nil for any other file (a Velox
+    /// spectrum image's image is the scan image itself).
+    package var scan: Scan?
 
-    package init(image: Bool = false, edsSpectrumImage: Bool = false, eelsSpectrumImage: Bool = false, singleSpectrum: Bool = false, refusal: String? = nil) {
+    /// A spectrum image's scan grid and its x sampling as the file writes it.
+    package struct Scan: Equatable, Sendable {
+        package var width: Int
+        package var height: Int
+        /// Units per scan pixel along x and the unit as written; nil when the file writes no calibration.
+        package var xScale: Double?
+        package var xUnit: String?
+
+        package init(width: Int, height: Int, xScale: Double? = nil, xUnit: String? = nil) {
+            self.width = width; self.height = height; self.xScale = xScale; self.xUnit = xUnit
+        }
+    }
+
+    package init(image: Bool = false, edsSpectrumImage: Bool = false, eelsSpectrumImage: Bool = false, singleSpectrum: Bool = false, refusal: String? = nil,
+                 scan: Scan? = nil) {
         self.image = image; self.edsSpectrumImage = edsSpectrumImage; self.eelsSpectrumImage = eelsSpectrumImage
-        self.singleSpectrum = singleSpectrum; self.refusal = refusal
+        self.singleSpectrum = singleSpectrum; self.refusal = refusal; self.scan = scan
     }
 
     /// The room an Open lands in: the richest dataset the file holds (a spectrum cube before an image).
@@ -71,6 +89,7 @@ package nonisolated enum FileRouting {
                 found.eelsSpectrumImage = objects.contains { $0.role == .eels }
                 // A file of spectrum cubes alone has no image to draw (a GMS thumbnail or survey is one).
                 found.image = objects.isEmpty || objects.contains { $0.role != .eels && $0.role != .eds }
+                found.scan = scan(of: objects)
             }
             return found
         case .tiff, .mrc: return FileInventory(image: true)
@@ -91,6 +110,16 @@ package nonisolated enum FileRouting {
         case .unknown:
             return FileInventory(refusal: "\(name) is not a format macTEM opens (or its extension and its first bytes disagree).")
         }
+    }
+
+    /// The scan of a DM4 file's spectrum image (the EDS cube when there is one, as the landing room, else the first EELS cube): GMS writes a spectrum image's dimensions fastest first, [x, y, energy], as FormatoKit's spectrum-image readers take them.
+    package static func scan(of objects: [DM4ImageObject]) -> FileInventory.Scan? {
+        let cube = objects.first { $0.role == .eds && $0.dimensions.count == 3 } ?? objects.first { $0.role == .eels && $0.dimensions.count == 3 }
+        guard let cube, cube.dimensions[0] > 0, cube.dimensions[1] > 0 else { return nil }
+        let x = cube.axes.first.flatMap { $0 }
+        let calibrated = x.map { $0.scale > 0 && !$0.units.isEmpty } ?? false
+        return FileInventory.Scan(width: cube.dimensions[0], height: cube.dimensions[1],
+                                  xScale: calibrated ? x?.scale : nil, xUnit: calibrated ? x?.units : nil)
     }
 
     /// Whether `path` is a single spectrum the EDX room opens (an `.msa` that is not EELS, or a Velox file of spectra).
