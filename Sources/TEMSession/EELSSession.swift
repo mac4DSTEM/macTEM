@@ -838,6 +838,13 @@ package final class EELSSession {
                                  deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution")
     }
 
+    /// What the fit on screen says about its own numbers, the results footer's notes: the rows on screen (the selected region's or the whole map's),
+    /// the picked edges refused before the fit, and the pixels the fit's deconvolution left unanswered.
+    package var fitNotes: [String] {
+        guard model != nil else { return [] }
+        return EELSRoomFormat.fitNotes(rows: resultRows, refusals: refusals.map(\.reason), unanswered: modelDeconvolution?.unavailable)
+    }
+
     /// The edge fit as the method JSON records it: the model, the kit's method and its reference, the fit-only elements and the deconvolution it fitted.
     package var fitParameters: [String: Any]? {
         guard let model else { return nil }
