@@ -54,6 +54,8 @@ final class EELSRoomState {
         switch kind {
         case .results: data = session.resultsCSV.map { Data($0.utf8) }
         case .spectrum: data = session.spectrumCSV.map { Data($0.utf8) }
+        case .spectrumMSA:
+            do { data = try session.spectrumMSA() } catch { report("MSA export failed: \(error.localizedDescription)"); return }
         case .regions: data = session.regionsCSV.map { Data($0.utf8) }
         case .diagnostics: data = session.diagnosticsCSV.map { Data($0.utf8) }
         case .method: data = session.methodJSON.map { Data($0.utf8) }

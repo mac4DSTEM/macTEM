@@ -26,12 +26,13 @@ import ShellEDXModel
 /// What the EELS room's Export section writes, as the EDS room's (the owner's drive, 2026-10-23): the results, the spectrum, the regions, the maps as one PNG, the
 /// per-pixel thickness and the method.
 nonisolated enum EELSExportKind: String, CaseIterable, Identifiable {
-    case results, spectrum, regions, mapsPNG, diagnostics, method
+    case results, spectrum, spectrumMSA, regions, mapsPNG, diagnostics, method
     var id: String { rawValue }
     var title: String {
         switch self {
         case .results: "Results CSV…"
         case .spectrum: "Spectrum CSV…"
+        case .spectrumMSA: "Spectrum MSA…"
         case .regions: "Regions CSV…"
         case .mapsPNG: "Maps…"
         case .diagnostics: "Per-pixel CSV…"
@@ -42,6 +43,7 @@ nonisolated enum EELSExportKind: String, CaseIterable, Identifiable {
         switch self {
         case .method: .json
         case .mapsPNG: .png
+        case .spectrumMSA: UTType(filenameExtension: "msa") ?? .plainText
         default: .commaSeparatedText
         }
     }
@@ -49,7 +51,7 @@ nonisolated enum EELSExportKind: String, CaseIterable, Identifiable {
     var suffix: String {
         switch self {
         case .results: " results"
-        case .spectrum: " spectrum"
+        case .spectrum, .spectrumMSA: " spectrum"
         case .regions: " regions"
         case .mapsPNG: " maps"
         case .diagnostics: " thickness"

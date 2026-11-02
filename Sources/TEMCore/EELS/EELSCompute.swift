@@ -1,5 +1,6 @@
 // The EELS room's compute, on SpectroKit's `EELSThickness.logRatio`: the t/λ map with the room's choices, and the tiles and
 // words made from it. Nothing here is a number of macTEM's own: every value is a `ThicknessPixel` field.
+import CryptoKit
 import Foundation
 import SpectroCore
 import SpectroEELS
@@ -159,12 +160,30 @@ extension EELSCompute {
 
     /// The method as JSON: what made the map and the method's reference, so another reader (mac4DSTEM's thickness row) can name its source.
     /// `deconvolution` is the Deconvolve stage's method and parameters (`EELSDeconvolveCompute.parameters`), `fit` the edge model's, when they ran.
-    package static func methodJSON(_ map: ThicknessMap, fileName: String, origin: String, deconvolution: [String: Any]? = nil,
-                                   fit: [String: Any]? = nil) -> String {
-        var d: [String: Any] = ["file": fileName, "origin": origin, "method": map.method, "reference": ResultRow.Product.eelsThicknessReference,
-                                "width": map.nx, "height": map.ny]
+    /// With no map (a file with only a core loss, or a thickness the room refused) the record says so in `thicknessUnavailable`'s words and keeps the
+    /// rest. `sha256` is the SHA-256 of the record itself: the object without that key as compact sorted-keys JSON (`JSONSerialization`, `.sortedKeys`),
+    /// as the EDS method JSON carries the hash of its method's sorted-keys encoding.
+    package static func methodJSON(_ map: ThicknessMap?, fileName: String, origin: String, width: Int, height: Int, thicknessUnavailable: String? = nil,
+                                   deconvolution: [String: Any]? = nil, fit: [String: Any]? = nil) -> String {
+        var d: [String: Any] = ["file": fileName, "origin": origin, "width": width, "height": height]
         if let deconvolution { d["deconvolution"] = deconvolution }
         if let fit { d["edge_fit"] = fit }
+        if let map {
+            thicknessRecord(map, into: &d)
+        } else {
+            d["thickness"] = "none"
+            d["thickness_unavailable"] = thicknessUnavailable ?? "not run"
+        }
+        let canonical = (try? JSONSerialization.data(withJSONObject: d, options: [.sortedKeys])) ?? Data()
+        d["sha256"] = SHA256.hash(data: canonical).map { String(format: "%02x", $0) }.joined()
+        let data = (try? JSONSerialization.data(withJSONObject: d, options: [.sortedKeys, .prettyPrinted])) ?? Data()
+        return String(decoding: data, as: UTF8.self) + "\n"
+    }
+
+    /// The thickness map's part of the method record: the rule, its reference and parameters, and how many pixels have a t/λ.
+    private static func thicknessRecord(_ map: ThicknessMap, into d: inout [String: Any]) {
+        d["method"] = map.method
+        d["reference"] = ResultRow.Product.eelsThicknessReference
         switch map.zeroLoss {
         case .zeroLossSpectrum: d["zero_loss"] = "separate zero-loss spectrum"
         case .threshold(let rule):
@@ -180,7 +199,5 @@ extension EELSCompute {
         let finite = map.pixels.compactMap(\.tOverLambda)
         d["pixels_with_t_over_lambda"] = finite.count
         d["pixels_unavailable"] = map.pixels.count - finite.count
-        let data = (try? JSONSerialization.data(withJSONObject: d, options: [.sortedKeys, .prettyPrinted])) ?? Data()
-        return String(decoding: data, as: UTF8.self) + "\n"
     }
 }
