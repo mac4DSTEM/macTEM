@@ -183,7 +183,7 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(loaded.origin, "GMS DM4 object 2 (EELS)")
         let two = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/planted-2d.dm4")
         XCTAssertThrowsError(try EELSOpening.open(url: two)) {
-            XCTAssertEqual(($0 as? LocalizedError)?.errorDescription, "planted-2d.dm4 holds no EELS spectrum image.")
+            XCTAssertEqual(($0 as? LocalizedError)?.errorDescription, "planted-2d.dm4 holds no EELS spectrum or spectrum image.")
         }
         XCTAssertThrowsError(try EELSOpening.open(url: URL(fileURLWithPath: "/tmp/x.tif"))) { XCTAssertEqual($0 as? EELSOpeningError, .notEELS("x.tif")) }
     }

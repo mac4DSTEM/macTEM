@@ -16,7 +16,7 @@ package nonisolated struct FileInventory: Equatable, Sendable {
     package var image = false
     /// An EDS spectrum image: the EDS room.
     package var edsSpectrumImage = false
-    /// An EELS spectrum image: the EELS room.
+    /// An EELS spectrum image, or one EELS spectrum (a GMS spectrum saved alone, an `.msa` of signal type ELS): the EELS room.
     package var eelsSpectrumImage = false
     /// One spectrum (an `.msa`, a Velox file of spectra and nothing else), opened in the EDS room as a one-pixel spectrum image.
     package var singleSpectrum = false
@@ -74,7 +74,11 @@ package nonisolated enum FileRouting {
             }
             return found
         case .tiff, .mrc: return FileInventory(image: true)
-        case .msa: return FileInventory(singleSpectrum: true)
+        case .msa:
+            // One spectrum: an EELS one (`#SIGNALTYPE ELS`) goes to the EELS room; any other (EDS, or a file the reader refuses, which the EDS room
+            // then reports in its words) to the EDS room.
+            if (try? MSAReader.read(path: path).signal.signalType) == "EELS" { return FileInventory(eelsSpectrumImage: true) }
+            return FileInventory(singleSpectrum: true)
         case .veloxEMD:
             guard let held = VeloxEMDReader.contents(path: path) else { return FileInventory(image: true) }   // the reader says in words what the file lacks
             var found = FileInventory(image: held.images > 0, edsSpectrumImage: held.edsSpectrumImages > 0, eelsSpectrumImage: held.eelsSpectrumImages > 0)
@@ -89,10 +93,10 @@ package nonisolated enum FileRouting {
         }
     }
 
-    /// Whether `path` is a single spectrum the EDX room opens (`.msa`, or a Velox file of spectra).
+    /// Whether `path` is a single spectrum the EDX room opens (an `.msa` that is not EELS, or a Velox file of spectra).
     package static func isSingleSpectrum(path: String) -> Bool {
         let kind = FormatoLoader.sniff(path: path)
-        return kind == .msa || (kind == .veloxEMD && inventory(path: path).singleSpectrum)
+        return (kind == .msa || kind == .veloxEMD) && inventory(path: path).singleSpectrum
     }
 
     /// The single spectrum in `path` as a 1 x 1 spectrum image on a keV axis. Counts are rounded to whole counts (a spectrum with negative or

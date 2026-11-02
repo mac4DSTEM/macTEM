@@ -1,10 +1,12 @@
 // Opening a low-loss EELS spectrum image: a GMS .dm4 with an EELS spectrum-image object (FormatoKit's `DM4Experiment.readEELSSpectrumImage`)
-// or a Velox.emd with an EELS stream (`VeloxSpectrumImageSignals`; NOT yet verified on a real Velox EELS file).
+// or a Velox.emd with an EELS stream (`VeloxSpectrumImageSignals`; NOT yet verified on a real Velox EELS file). A single spectrum (a GMS EELS
+// object of dimensions [energy], an EMSA/MSA file of signal type ELS) opens as a 1 x 1 spectrum image.
 // The counts stay as stored. What the file states (E0, the two angles) rides along for the mean free path; nothing is assumed.
 import Foundation
 import FormatoCore
 import FormatoDM
 import FormatoEMD
+import FormatoMSA
 import SpectroEELS
 
 /// One EELS cube of a file before its role is known: its energy window decides (a window that holds 0 eV is a low loss, one that starts above
@@ -62,14 +64,14 @@ package enum EELSOpeningError: Error, Equatable, LocalizedError {
 
     package var errorDescription: String? {
         switch self {
-        case .notEELS(let name): "\(name) holds no EELS spectrum image."
+        case .notEELS(let name): "\(name) holds no EELS spectrum or spectrum image."
         case .unsupportedShape(let why): why
         }
     }
 }
 
 package enum EELSOpening {
-    package static let readableExtensions = ["dm4", "emd"]
+    package static let readableExtensions = ["dm4", "emd", "msa"]
 
     /// Reads the EELS spectrum images of the file and gives each its role by its energy window: the first that holds 0 eV is the low loss (what the
     /// thickness map and the zero-loss alignment work on), the first that starts above it is the core loss (what the edge model fits). A file with
@@ -86,6 +88,16 @@ package enum EELSOpening {
             guard !objects.isEmpty else { throw EELSOpeningError.notEELS(name) }
             var firstFailure: (any Error)?
             for object in objects {
+                // A spectrum saved alone ([energy]) is a 1 x 1 spectrum image; a line scan ([x, energy]) is refused in words.
+                if object.dimensions.count <= 2 {
+                    do {
+                        let spectrum = try Self.singleSpectrum(object, path: url.path, name: name)
+                        if beam == nil { beam = spectrum.beam; convergence = spectrum.convergence; collection = spectrum.collection }
+                        if stated == nil { stated = Self.stated(numbers: object.imageTagNumbers, strings: object.imageTagStrings) }
+                        cubes.append(spectrum.cube)
+                    } catch { firstFailure = firstFailure ?? error }
+                    continue
+                }
                 // An EELS object that is not a spectrum image in eV (a GMS "energy in nm" stack) is skipped while another reads; if none does, its reason is raised.
                 let si: DM4EELSSpectrumImage
                 do { si = try DM4Experiment.readEELSSpectrumImage(path: url.path, index: object.index) } catch { firstFailure = firstFailure ?? error; continue }
@@ -111,6 +123,20 @@ package enum EELSOpening {
                 cubes.append(EELSCube(nx: signal.data.shape[1], ny: signal.data.shape[0], channels: signal.data.shape[2], counts: signal.data.doubles(),
                                       offsetEV: axis.offset, scaleEV: axis.scale, origin: "Velox EMD (EELS stream \(i + 1) of \(signals.count))"))
             }
+        case "msa":
+            // An EMSA/MSA file holds one spectrum; FormatoKit's reader names its signal (`#SIGNALTYPE ELS` is EELS) and its axis.
+            let signal = try MSAReader.read(path: url.path).signal
+            guard signal.signalType == "EELS", let axis = signal.axes.first, signal.axes.count == 1 else { throw EELSOpeningError.notEELS(name) }
+            guard axis.units == "eV" else {
+                throw EELSOpeningError.unsupportedShape("\(name): the energy axis of the EELS spectrum is in \"\(axis.units)\", not eV.")
+            }
+            func number(_ key: String) -> Double? { signal.metadata[key]?.value.number }
+            beam = number("Acquisition_instrument.TEM.beam_energy").flatMap { $0 > 0 ? $0 : nil }
+            convergence = number("Acquisition_instrument.TEM.convergence_angle")
+            collection = number("Acquisition_instrument.TEM.Detector.EELS.collection_angle")
+            let counts = signal.data.doubles()
+            cubes.append(EELSCube(nx: 1, ny: 1, channels: counts.count, counts: counts, offsetEV: axis.offset, scaleEV: axis.scale,
+                                  origin: "EMSA/MSA spectrum (EELS)"))
         default:
             throw EELSOpeningError.notEELS(name)
         }
@@ -121,6 +147,40 @@ package enum EELSOpening {
         return LoadedEELS(fileName: name, image: image, beamEnergyKeV: beam, convergenceMrad: convergence, collectionMrad: collection, origin: low.origin,
                           coreLoss: coreImage, coreLossOrigin: core?.origin, alphaTiltDegrees: stated?.alphaTiltDegrees, betaTiltDegrees: stated?.betaTiltDegrees,
                           instrument: stated?.instrument, scanPixelSize: pixel?.size, scanPixelUnit: pixel?.unit, filePath: url.path)
+    }
+
+    /// One GMS EELS spectrum saved alone (an object of dimensions [energy], what a spectrum picker saves; [energy, 1] reads the same) as a 1 x 1 cube.
+    /// FormatoKit's `readEELSSpectrumImage` reads [x, y, energy] only, so the counts come from its general DM reader (`DMFile.signal`, the data as
+    /// stored), rounded to Float as that reader rounds a cube's; the axis is the object's calibration in eV, as for a cube (offset = -origin x scale);
+    /// E0 and the two semi-angles are the tags `readEELSSpectrumImage` reads, by its rule (`ImageTags.source.Tags at creation.` on a stack-builder object).
+    /// Interim, delete when FormatoKit reads a single EELS spectrum (FormatoKit#77). A line scan ([x, energy]) is refused in a sentence: the room maps a scan of
+    /// two dimensions or shows one spectrum.
+    private static func singleSpectrum(_ object: DM4ImageObject, path: String, name: String) throws
+        -> (cube: EELSCube, beam: Double?, convergence: Double?, collection: Double?) {
+        let dims = object.dimensions
+        guard !dims.isEmpty, dims.allSatisfy({ $0 > 0 }) else {
+            throw EELSOpeningError.unsupportedShape("\(name): the EELS object \(object.index) holds no channels.")
+        }
+        if dims.count == 2, dims.allSatisfy({ $0 > 1 }) {
+            let energy = object.axes.firstIndex { $0?.units == "eV" } ?? 1
+            throw EELSOpeningError.unsupportedShape(
+                "\(name) holds an EELS line scan (\(dims[1 - energy]) positions of \(dims[energy]) channels): the EELS room opens a spectrum image [x, y, energy] or a single spectrum.")
+        }
+        let energy = dims.firstIndex { $0 > 1 } ?? 0
+        guard energy < object.axes.count, let axis = object.axes[energy] else {
+            throw EELSOpeningError.unsupportedShape("\(name): the EELS spectrum carries no energy calibration.")
+        }
+        guard axis.units == "eV" else {
+            throw EELSOpeningError.unsupportedShape("\(name): the energy axis of the EELS spectrum is in \"\(axis.units)\", not eV.")
+        }
+        let counts = try DMFile(path: path).signal(index: object.index).load().data.doubles().map { Double(Float($0)) }
+        let stack = "source.Tags at creation."
+        let fromStack = object.imageTagNumbers.keys.contains { $0.hasPrefix(stack) } || object.imageTagStrings.keys.contains { $0.hasPrefix(stack) }
+        let base = fromStack ? stack : "", conditions = base + "EELS.Experimental Conditions."
+        let cube = EELSCube(nx: 1, ny: 1, channels: counts.count, counts: counts, offsetEV: -axis.origin * axis.scale, scaleEV: axis.scale,
+                            origin: "GMS DM4 object \(object.index) (EELS spectrum)")
+        return (cube, object.imageTagNumbers[base + "Microscope Info.Voltage"].map { $0 / 1e3 },
+                object.imageTagNumbers[conditions + "Convergence semi-angle (mrad)"], object.imageTagNumbers[conditions + "Collection semi-angle (mrad)"])
     }
 
     /// What a GMS EELS object states about the stage and the instrument.
