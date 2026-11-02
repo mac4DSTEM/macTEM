@@ -209,6 +209,11 @@ nonisolated enum EELSMixComposition {
         mix.isCustom = true
     }
 
+    /// The maps the mix's popover lists, each with its default colours, as the EDS room's mix popover lists its maps.
+    @MainActor static func colorItems(maps: [EELSMapTile]) -> [MapColorItem] {
+        maps.map { MapColorItem(id: $0.id, title: $0.title, defaultColoring: EELSTileStyle.defaultColoring($0.id)) }
+    }
+
     /// One layer per map in the mix, each on its own 0...1 scale (`EELSMapScale`) in the map's colour (an edge's element colour, a colormap's top colour).
     static func layers(_ members: [EELSMapTile], appearance: MapAppearance) -> [MapRaster.MixLayer] {
         members.map { tile in
@@ -331,7 +336,8 @@ private struct EELSMapTileHost: View {
                     scanWidth: w, scanHeight: h, pixelSize: session.scanPixel?.size, pixelUnit: session.scanPixel?.unit, regions: tileRegions,
                     placeholder: members.isEmpty ? EELSMixComposition.placeholder : nil, transform: $state.mapView,
                     onHover: { hover($0) },
-                    controls: { EmptyView() })
+                    // The scale bar opens the maps in the mix, as the EDS room's mix does (an empty popover stood over the tile before).
+                    controls: { EELSMixPopover(maps: maps, state: state) })
             // The keyboard route to a region, heard on the anchor itself (it has the focus after a click, or by Tab), as the EDS room's: Return draws the chosen
             // tool's shape in the middle of the scan, the arrows move the selected region a pixel (shift: ten).
             .onKeyPress(.return) { EELSRegionBridge.drawByKeyboard(in: session, state: state) ? .handled : .ignored }
@@ -375,6 +381,22 @@ private struct EELSMapTileHost: View {
                     return EDXMapRaster.cgImage(rgba: MapRaster.rgba(values: scaled.values, coloring: coloring, upper: 1, adjustment: adjustment), width: w, height: h)
                 }.value
             }
+    }
+}
+
+/// The popover of the colour mix's scale bar: the maps shown, a checkbox each for the mix (MacEMUI's `MapDisplayPopover` of kind `.mix`, as the EDS room's).
+/// The mix has no histogram or window of its own: each layer keeps its map's.
+private struct EELSMixPopover: View {
+    let maps: [EELSMapTile]
+    @Bindable var state: EELSRoomState
+
+    var body: some View {
+        MapDisplayPopover(kind: .mix(items: EELSMixComposition.colorItems(maps: maps),
+                                     isIn: { EELSMixComposition.selection(state.appearance.mix, maps: maps).contains($0) },
+                                     toggle: { EELSMixComposition.toggle($0, in: &state.appearance.mix, maps: maps) }),
+                          histogram: nil, low: .constant(0), high: .constant(1), gamma: .constant(1))
+            .formStyle(.grouped).scrollContentBackground(.hidden).fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("eels.mixPopover")
     }
 }
 
