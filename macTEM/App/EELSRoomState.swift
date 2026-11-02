@@ -34,6 +34,12 @@ final class EELSRoomState {
     var mapFilter: EELSMapFilter = .mean3x3
     /// The status line's cursor readout: the pixel and its values over a map, the energy and counts over the spectrum; nil when the pointer is elsewhere.
     var readout: String?
+    /// The map pixel under the pointer (nil off the maps), and whether ⌥ is down: while both hold, the plot draws that pixel's spectra as a temporary
+    /// layer (control placement §7), gone when the key is released.
+    var hoverPixel: EELSHoverPixel?
+    var optionHeld = false
+    /// The pixel whose spectra the plot draws now: the hovered one while ⌥ is down. Reads `hoverPixel` only then, so a plain hover redraws no plot.
+    var spectrumPixel: EELSHoverPixel? { optionHeld ? hoverPixel : nil }
     /// The spectrum's counts axis: log (the room's default) or linear.
     var spectrumIsLog = true
     /// The spectrum's energy window (nil: the whole axis) and its counts zoom (1: the automatic top), as the EDS spectrum's `window` and `yZoom`.
@@ -81,6 +87,6 @@ final class EELSRoomState {
 
     /// A new file starts the view over.
     func reset() {
-        soloTile = nil; mapView.reset(); appearance = MapAppearance(); maps = .tOverLambda; mapsNotice = nil; readout = nil; spectrumWindow = nil; spectrumYZoom = 1
+        soloTile = nil; mapView.reset(); appearance = MapAppearance(); maps = .tOverLambda; mapsNotice = nil; readout = nil; hoverPixel = nil; spectrumWindow = nil; spectrumYZoom = 1
     }
 }

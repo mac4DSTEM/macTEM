@@ -261,6 +261,8 @@ struct EELSMapsBlock: View {
                 }
             }
         }
+        // ⌥ held or released anywhere in the window: the hovered pixel's spectra join the plot while it is down (control placement §7).
+        .onModifierKeysChanged(mask: .option) { _, keys in state.optionHeld = keys.contains(.option) }
         .accessibilityIdentifier("eels.maps")
     }
 }
@@ -302,6 +304,7 @@ private struct EELSMapTileHost: View {
     }
 
     private func hover(_ pixel: (x: Int, y: Int)?) {
+        state.hoverPixel = pixel.map { EELSHoverPixel(x: $0.x, y: $0.y) }
         state.readout = pixel.map { p in
             let refusal = session.map.flatMap { m in p.x < m.nx && p.y < m.ny ? m[p.x, p.y].unavailable?.description : nil }
             let nx = session.source?.image.nx ?? 0
@@ -322,6 +325,13 @@ private struct EELSMapTileHost: View {
                     placeholder: members.isEmpty ? EELSMixComposition.placeholder : nil, transform: $state.mapView,
                     onHover: { hover($0) },
                     controls: { EmptyView() })
+            // The keyboard route to a region, heard on the anchor itself (it has the focus after a click, or by Tab), as the EDS room's: Return draws the chosen
+            // tool's shape in the middle of the scan, the arrows move the selected region a pixel (shift: ten).
+            .onKeyPress(.return) { EELSRegionBridge.drawByKeyboard(in: session, state: state) ? .handled : .ignored }
+            .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
+                guard let step = EELSRegionBridge.arrowStep(press.key, shift: press.modifiers.contains(.shift)) else { return .ignored }
+                return EELSRegionBridge.nudgeSelected(dx: step.dx, dy: step.dy, in: session, state: state) ? .handled : .ignored
+            }
             .opacity(isRunning ? 0.5 : 1)
             .task(id: key) {
                 guard !members.isEmpty else { image = nil; return }
@@ -423,7 +433,7 @@ struct EELSLowerPane: View {
         let profile = EELSRegionBridge.series(session) { EELSTileStyle.hue(forID: $0) }
         let refusals = Dictionary(session.refusals.map { (EELSFitCompute.id($0.edge), $0.reason) }, uniquingKeysWith: { first, _ in first })
         let items = session.plot?.core == nil ? [] : session.pickedEdges.map { EELSWindowItem(edge: $0, windows: session.windows(for: $0), refusal: refusals[EELSFitCompute.id($0)]) }
-        let layers = Self.layers(session)
+        let layers = Self.layers(session, pixel: state.spectrumPixel)
         HorizontalPaneSplit(storageKey: "eels.resultsSplit", defaultFraction: 0.6, resizeLabel: "Resize the spectrum and the results", leadingName: "Spectrum",
                             minimumLeading: EDXLayout.spectrumMinimumWidth, minimumTrailing: EDXLayout.resultsWidth.min) {
             EELSSpectrumView(plot: session.plot, items: items, references: session.references, layers: layers,
@@ -432,12 +442,13 @@ struct EELSLowerPane: View {
                              hasEditedWindows: session.hasEditedWindows, state: state)
                 .overlay(alignment: .bottomLeading) {
                     // The regions' names in their colours, as in the EDS room (one entry per region: its low loss and core loss share the colour).
-                    SpectrumLayerLegend(layers: layers.reduce(into: [SpectrumLayer]()) { out, l in if !out.contains(where: { $0.name == l.name }) { out.append(l) } })
+                    SpectrumLayerLegend(layers: Self.legendLayers(layers))
                         .padding(.leading, 56).padding(.bottom, 40)
                 }
                 .overlay(alignment: .topTrailing) {
                     if !profile.isEmpty {
-                        ProfileChart(series: profile, unit: "px", valueTitle: "Value")
+                        // The distance in the scan's pixel unit, the value axis named after the maps the line reads (as the EDS room's inset).
+                        ProfileChart(series: profile, unit: EELSRegionBridge.profileUnit(session), valueTitle: EELSRegionBridge.profileValueTitle(session))
                             .frame(width: 240, height: 120)   // science: an inset chart
                             .padding(6)
                             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
@@ -451,6 +462,26 @@ struct EELSLowerPane: View {
 
     /// Each visible region's low loss and core loss, in its colour, drawn over the selected region's spectrum (the EDS room's `EDXRegionBridge.layers`). The low loss
     /// is on the file's low-loss axis, the core loss on the working core loss's (the plot's own two axes).
+    /// The legend's entries: one per region (its low loss and core loss share the colour), never the hovered pixel (the EDS room's legend leaves it out too).
+    static func legendLayers(_ layers: [SpectrumLayer]) -> [SpectrumLayer] {
+        layers.filter { !$0.isTemporary }.reduce(into: [SpectrumLayer]()) { out, l in if !out.contains(where: { $0.name == l.name }) { out.append(l) } }
+    }
+
+    /// The regions' layers and, with `pixel` (⌥ over a map), that pixel's stored low loss and core loss as temporary layers on the plot's own axes, white as
+    /// the EDS room's pixel layer (`EDXRegionBridge.layers`).
+    static func layers(_ session: EELSSession, pixel: EELSHoverPixel?) -> [SpectrumLayer] {
+        var out = layers(session)
+        guard let pixel, session.plot != nil else { return out }
+        let white = RegionColor(red: 1, green: 1, blue: 1)
+        if let low = session.workingLowLoss, let curve = EELSPixelSpectrum.low(low, x: pixel.x, y: pixel.y) {
+            out.append(SpectrumLayer(id: "pixel-low", name: "Pixel", color: white, origin: curve.origin, step: curve.step, counts: curve.counts, isTemporary: true))
+        }
+        if let core = session.shownCoreLoss, let curve = EELSPixelSpectrum.core(core, x: pixel.x, y: pixel.y, answered: session.shownAnswered) {
+            out.append(SpectrumLayer(id: "pixel-core", name: "Pixel", color: white, origin: curve.origin, step: curve.step, counts: curve.counts, isTemporary: true))
+        }
+        return out
+    }
+
     static func layers(_ session: EELSSession) -> [SpectrumLayer] {
         guard let plot = session.plot else { return [] }
         var out: [SpectrumLayer] = []
@@ -803,11 +834,18 @@ private struct EELSSpectrumView: View {
                 context.stroke(path(core, values: background), with: .color(item.refusal == nil ? .orange : .red), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
             }
         }
-        // The regions' spectra over the selected one, each in its region's colour (the EDS room's layers).
+        // The regions' spectra over the selected one, each in its region's colour (the EDS room's layers). The hovered pixel's (⌥) is temporary: thin, dashed,
+        // on a dark halo so the white reads on either appearance, as MacEMUI's `SpectrumLayers` draws it.
         for layer in layers where !layer.id.hasPrefix("wholeMap") {
             let curve = EELSPlotCurve(origin: layer.origin, step: layer.step, counts: layer.counts)
             let within = layer.id.hasSuffix("-low") ? axis.lowShown : axis.coreShown
-            context.stroke(path(curve, values: layer.counts, within: within), with: .color(layer.color.color), lineWidth: 1)
+            let line = path(curve, values: layer.counts, within: within)
+            if layer.isTemporary {
+                context.stroke(line, with: .color(.black.opacity(0.35)), style: StrokeStyle(lineWidth: 2.4, lineJoin: .round, dash: [4, 3]))
+                context.stroke(line, with: .color(layer.color.color), style: StrokeStyle(lineWidth: 1.2, lineJoin: .round, dash: [4, 3]))
+            } else {
+                context.stroke(line, with: .color(layer.color.color), lineWidth: 1)
+            }
         }
         // The kit's model over the signal windows only (it holds nothing elsewhere).
         if let core = plot.core, let model = plot.model { context.stroke(path(core, values: model), with: .color(.accentColor), lineWidth: 1.25) }
