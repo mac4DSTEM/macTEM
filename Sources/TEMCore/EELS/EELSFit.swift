@@ -99,15 +99,16 @@ package nonisolated enum EELSFitCompute {
 
     /// The MLLS options the room hands the kit: the kit's two-area exponent, and the fit window from the start of the first edge's background window (the
     /// window the person sees and drags) to the end of the axis. Without windows, the kit's defaults (the axis start).
-    /// `fitToEV` is the Fitting section's Fit to: the last energy of the window, included (nil: the axis end).
-    package static func mllsOptions(edgeWindows: [EdgeWindows]?, fitToEV: Double? = nil) -> EELSMLLSOptions {
-        EELSMLLSOptions(exponent: .twoArea, startEnergyEV: edgeWindows?.map(\.backgroundEV.lowerBound).min(), endEnergyEV: fitToEV)
+    /// `fitToEV` is the Fitting section's Fit to: the last energy of the window, included (nil: the axis end). `references` are the Edges section's
+    /// reference spectra on the core loss's channels (`EELSReferenceCompute.onAxis`), one more fitted amplitude each.
+    package static func mllsOptions(edgeWindows: [EdgeWindows]?, fitToEV: Double? = nil, references: [[Double]] = []) -> EELSMLLSOptions {
+        EELSMLLSOptions(exponent: .twoArea, startEnergyEV: edgeWindows?.map(\.backgroundEV.lowerBound).min(), endEnergyEV: fitToEV, references: references)
     }
 
     /// The fit by `model`: the exact fit on the per-edge windows, or MLLS over one window from the first background window to `fitToEV` (`mllsOptions`).
     package static func fit(coreLoss: CoreLossSpectrumImage, edges: [CoreLossEdge], microscope: EELSMicroscope, lowLoss: LowLossSpectrumImage?,
                             model: EELSFitModel = .exactNNLS, options: EELSModelOptions = EELSModelOptions(), edgeWindows: [EdgeWindows]? = nil,
-                            fitToEV: Double? = nil, mask: PixelMask? = nil,
+                            fitToEV: Double? = nil, references: [[Double]] = [], mask: PixelMask? = nil,
                             cancelled: @Sendable () -> Bool = SpectroCancellation.task, progress: (@Sendable (Double) -> Void)? = nil) throws -> EELSFitResult {
         switch model {
         case .exactNNLS:
@@ -115,7 +116,7 @@ package nonisolated enum EELSFitCompute {
                                                    edgeWindows: edgeWindows, cancelled: cancelled, progress: progress))
         case .mlls:
             return .mlls(try EELSMLLS.fit(coreLoss: coreLoss, edges: edges, microscope: microscope, lowLoss: lowLoss, mask: mask,
-                                          options: mllsOptions(edgeWindows: edgeWindows, fitToEV: fitToEV), cancelled: cancelled, progress: progress))
+                                          options: mllsOptions(edgeWindows: edgeWindows, fitToEV: fitToEV, references: references), cancelled: cancelled, progress: progress))
         }
     }
 

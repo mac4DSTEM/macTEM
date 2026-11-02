@@ -759,7 +759,7 @@ nonisolated final class EELSRoomTests: XCTestCase {
         let imported = try EELSReferenceCompute.importMSA(url: url)
         XCTAssertEqual(imported.curve.counts, [1, 2, 4, 8]); XCTAssertEqual(imported.curve.origin, 100); XCTAssertEqual(imported.curve.step, 0.5)
         XCTAssertTrue(imported.originText.hasPrefix("from eels-reference-"))
-        XCTAssertTrue(EELSReference.note.contains("MLLS fit with references is not in SpectroKit yet"))
+        XCTAssertTrue(EELSReference.note(for: .mlls).hasPrefix("References enter the MLLS fit"))
     }
 
     /// The session keeps the references and says why one could not be made.

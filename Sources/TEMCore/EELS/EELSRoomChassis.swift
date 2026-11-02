@@ -440,10 +440,12 @@ extension EELSRoomFormat {
     }
 
     /// The results footer: model · background · convolution · deconvolution (what the fit on screen was made with).
-    package static func fitFooter(hasFit: Bool, convolved: Bool, model: EELSFitModel = .exactNNLS, deconvolution: String = "no deconvolution") -> String {
+    package static func fitFooter(hasFit: Bool, convolved: Bool, model: EELSFitModel = .exactNNLS, deconvolution: String = "no deconvolution",
+                                  references: Int = 0) -> String {
         guard hasFit else { return "No fit yet" }
         let background = model == .mlls ? "power-law background, exponent by two areas" : "power-law background"
-        return "\(model.title) · \(background) · " + (convolved ? "convolved with the low loss" : "not convolved") + " · \(deconvolution)"
+        let refs = references == 0 ? "" : " · \(references) reference" + (references == 1 ? "" : "s")
+        return "\(model.title) · \(background)\(refs) · " + (convolved ? "convolved with the low loss" : "not convolved") + " · \(deconvolution)"
     }
 
     /// What the fit says about its own numbers, for the results footer's popover (as the EDS room's notes). Each note is a sentence the room already
