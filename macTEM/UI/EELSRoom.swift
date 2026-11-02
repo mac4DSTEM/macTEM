@@ -435,12 +435,13 @@ private struct EELSMapPopover: View {
 struct EELSLowerPane: View {
     let session: EELSSession
     @Bindable var state: EELSRoomState
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let profile = EELSRegionBridge.series(session) { EELSTileStyle.hue(forID: $0) }
+        let profile = EELSRegionBridge.series(session, state: state) { EELSTileStyle.hue(forID: $0) }
         let refusals = Dictionary(session.refusals.map { (EELSFitCompute.id($0.edge), $0.reason) }, uniquingKeysWith: { first, _ in first })
         let items = session.plot?.core == nil ? [] : session.pickedEdges.map { EELSWindowItem(edge: $0, windows: session.windows(for: $0), refusal: refusals[EELSFitCompute.id($0)]) }
-        let layers = Self.layers(session, pixel: state.spectrumPixel)
+        let layers = Self.layers(session, pixel: state.spectrumPixel, scheme: colorScheme)
         HorizontalPaneSplit(storageKey: "eels.resultsSplit", defaultFraction: 0.6, resizeLabel: "Resize the spectrum and the results", leadingName: "Spectrum",
                             minimumLeading: EDXLayout.spectrumMinimumWidth, minimumTrailing: EDXLayout.resultsWidth.min) {
             EELSSpectrumView(plot: session.plot, items: items, references: session.references, layers: layers,
@@ -454,12 +455,14 @@ struct EELSLowerPane: View {
                 }
                 .overlay(alignment: .topTrailing) {
                     if !profile.isEmpty {
-                        // The distance in the scan's pixel unit, the value axis named after the maps the line reads (as the EDS room's inset).
-                        ProfileChart(series: profile, unit: EELSRegionBridge.profileUnit(session), valueTitle: EELSRegionBridge.profileValueTitle(session))
+                        // The maps the Maps control shows, one quantity, the distance in the scan's pixel unit and the value axis that quantity's short name
+                        // (as the EDS room's inset). Below the spectrum's "Whole map · N px" line, which it covered.
+                        ProfileChart(series: profile, unit: EELSRegionBridge.profileUnit(session), valueTitle: EELSRegionBridge.profileValueTitle(session, state: state))
                             .frame(width: 240, height: 120)   // science: an inset chart
                             .padding(6)
                             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
                             .padding(8)
+                            .padding(.top, 14)
                     }
                 }
         } trailing: {
@@ -474,17 +477,22 @@ struct EELSLowerPane: View {
         layers.filter { !$0.isTemporary }.reduce(into: [SpectrumLayer]()) { out, l in if !out.contains(where: { $0.name == l.name }) { out.append(l) } }
     }
 
-    /// The regions' layers and, with `pixel` (⌥ over a map), that pixel's stored low loss and core loss as temporary layers on the plot's own axes, white as
-    /// the EDS room's pixel layer (`EDXRegionBridge.layers`).
-    static func layers(_ session: EELSSession, pixel: EELSHoverPixel?) -> [SpectrumLayer] {
+    /// The regions' layers and, with `pixel` (⌥ over a map), that pixel's stored low loss and core loss as temporary layers on the plot's own axes, in
+    /// `pixelColor` for the appearance (the EDS room's pixel layer, `EDXRegionBridge.layers`, is white in both).
+    /// The hovered pixel's colour: the plot's own ink, near black on the light plot and white on the dark one (white alone vanished on the light plot).
+    nonisolated static func pixelColor(_ scheme: ColorScheme) -> RegionColor {
+        scheme == .dark ? RegionColor(red: 1, green: 1, blue: 1) : RegionColor(red: 0.1, green: 0.1, blue: 0.1)
+    }
+
+    static func layers(_ session: EELSSession, pixel: EELSHoverPixel?, scheme: ColorScheme) -> [SpectrumLayer] {
         var out = layers(session)
         guard let pixel, session.plot != nil else { return out }
-        let white = RegionColor(red: 1, green: 1, blue: 1)
+        let ink = pixelColor(scheme)
         if let low = session.workingLowLoss, let curve = EELSPixelSpectrum.low(low, x: pixel.x, y: pixel.y) {
-            out.append(SpectrumLayer(id: "pixel-low", name: "Pixel", color: white, origin: curve.origin, step: curve.step, counts: curve.counts, isTemporary: true))
+            out.append(SpectrumLayer(id: "pixel-low", name: "Pixel", color: ink, origin: curve.origin, step: curve.step, counts: curve.counts, isTemporary: true))
         }
         if let core = session.shownCoreLoss, let curve = EELSPixelSpectrum.core(core, x: pixel.x, y: pixel.y, answered: session.shownAnswered) {
-            out.append(SpectrumLayer(id: "pixel-core", name: "Pixel", color: white, origin: curve.origin, step: curve.step, counts: curve.counts, isTemporary: true))
+            out.append(SpectrumLayer(id: "pixel-core", name: "Pixel", color: ink, origin: curve.origin, step: curve.step, counts: curve.counts, isTemporary: true))
         }
         return out
     }
@@ -842,13 +850,14 @@ private struct EELSSpectrumView: View {
             }
         }
         // The regions' spectra over the selected one, each in its region's colour (the EDS room's layers). The hovered pixel's (⌥) is temporary: thin, dashed,
-        // on a dark halo so the white reads on either appearance, as MacEMUI's `SpectrumLayers` draws it.
+        // in the appearance's ink (`EELSLowerPane.pixelColor`) on a halo of the opposite tone, so it reads over the regions' lines.
         for layer in layers where !layer.id.hasPrefix("wholeMap") {
             let curve = EELSPlotCurve(origin: layer.origin, step: layer.step, counts: layer.counts)
             let within = layer.id.hasSuffix("-low") ? axis.lowShown : axis.coreShown
             let line = path(curve, values: layer.counts, within: within)
             if layer.isTemporary {
-                context.stroke(line, with: .color(.black.opacity(0.35)), style: StrokeStyle(lineWidth: 2.4, lineJoin: .round, dash: [4, 3]))
+                let c = layer.color, light = 0.2126 * c.red + 0.7152 * c.green + 0.0722 * c.blue > 0.5
+                context.stroke(line, with: .color(light ? .black.opacity(0.35) : .white.opacity(0.6)), style: StrokeStyle(lineWidth: 2.4, lineJoin: .round, dash: [4, 3]))
                 context.stroke(line, with: .color(layer.color.color), style: StrokeStyle(lineWidth: 1.2, lineJoin: .round, dash: [4, 3]))
             } else {
                 context.stroke(line, with: .color(layer.color.color), lineWidth: 1)

@@ -100,11 +100,11 @@ nonisolated final class EELSKeyboardCursorTests: XCTestCase {
 
         state.hoverPixel = EELSHoverPixel(x: 2, y: 1)
         XCTAssertNil(state.spectrumPixel, "no ⌥: no pixel layer")
-        XCTAssertTrue(EELSLowerPane.layers(session, pixel: state.spectrumPixel).filter(\.isTemporary).isEmpty)
+        XCTAssertTrue(EELSLowerPane.layers(session, pixel: state.spectrumPixel, scheme: .light).filter(\.isTemporary).isEmpty)
 
         state.optionHeld = true
         let pixel = try XCTUnwrap(state.spectrumPixel)
-        let layers = EELSLowerPane.layers(session, pixel: pixel).filter(\.isTemporary)
+        let layers = EELSLowerPane.layers(session, pixel: pixel, scheme: .light).filter(\.isTemporary)
         XCTAssertEqual(layers.count, 2)
         let image = try EELSRoomTests.image(), coreImage = try EELSControlsTests.core()
         let p = 1 * image.nx + 2
@@ -115,7 +115,7 @@ nonisolated final class EELSKeyboardCursorTests: XCTestCase {
         XCTAssertEqual(coreLayer.counts, Array(coreImage.counts[(p * coreImage.channels)..<((p + 1) * coreImage.channels)]), "the pixel's stored core loss")
         XCTAssertEqual(coreLayer.origin, core.origin); XCTAssertEqual(coreLayer.step, core.step)
         XCTAssertNotEqual(low.counts, plot.low.counts, "a pixel, not the whole map's sum")
-        XCTAssertTrue(EELSLowerPane.legendLayers(EELSLowerPane.layers(session, pixel: pixel)).allSatisfy { !$0.isTemporary }, "the pixel is not in the legend")
+        XCTAssertTrue(EELSLowerPane.legendLayers(EELSLowerPane.layers(session, pixel: pixel, scheme: .light)).allSatisfy { !$0.isTemporary }, "the pixel is not in the legend")
 
         state.hoverPixel = nil
         XCTAssertNil(state.spectrumPixel, "off the maps: no pixel layer")
@@ -135,7 +135,7 @@ nonisolated final class EELSKeyboardCursorTests: XCTestCase {
         XCTAssertFalse(series.isEmpty)
         for (s, p) in zip(series, raw) { XCTAssertEqual(s.spacing, (p.positions[1] - p.positions[0]) * 2.5, accuracy: 1e-12, s.name) }
         XCTAssertEqual(EELSRegionBridge.profileUnit(session), "nm")
-        let title = EELSRegionBridge.profileValueTitle(session)
+        let title = EELSRegionBridge.profileValueTitle(session, state: EELSRoomState())
         XCTAssertNotEqual(title, "Value")
         XCTAssertTrue(title.hasPrefix("t/λ"), title)
 
@@ -144,11 +144,122 @@ nonisolated final class EELSKeyboardCursorTests: XCTestCase {
         XCTAssertNotNil(bare.drawLine(from: PixelPoint(x: 0, y: 1.5), to: PixelPoint(x: 4, y: 1.5)))
         let bareSeries = EELSRegionBridge.series(bare) { _ in 0.5 }
         for (s, p) in zip(bareSeries, bare.profiles()) { XCTAssertEqual(s.spacing, p.positions[1] - p.positions[0], accuracy: 1e-12) }
+        // The title's rule: `testTheProfileKeepsOneQuantityAndAShortTitle`.
+    }
+
+    // MARK: The profile reads the maps the Maps control shows
+
+    /// The planted room aligned and fitted for C, N and O: it then holds fourteen maps (t/λ, ZLP centre before and after, I₀, I total, three edges, three
+    /// at%, three wt%).
+    @MainActor private func fitted() async throws -> EELSSession {
+        let session = try await room(scanPixel: (2.5, "nm"))
+        session.setConvolveLowLoss(false)
+        for (edge, _) in EELSControlsTests.amounts { session.toggleEdge(edge) }
+        await session.run().value
+        await session.settled()
+        XCTAssertNotNil(session.model, session.failure ?? "no fit")
+        XCTAssertNotNil(session.drawLine(from: PixelPoint(x: 0, y: 1.5), to: PixelPoint(x: 4, y: 1.5)))
+        return session
+    }
+
+    /// With every map held and one Maps segment picked, the profile's series and its value axis are the shown maps of that segment's quantity, in the
+    /// order the block shows them, as the EDS room's profile is its map mode's tiles: t/λ alone on t/λ (its edge maps are another unit), the at% maps
+    /// on at%, the wt% maps on wt%. Each series is the line's own profile of that map, value for value. Red under: every map the room holds (14 series,
+    /// "t/λ, ZLP centre, I₀, I total, C K, …"); at% and wt% both listed; units mixed on one axis.
+    @MainActor func testTheProfileReadsOnlyTheShownMapsOfOneQuantity() async throws {
+        let session = try await fitted()
+        let state = EELSRoomState()
+        XCTAssertEqual(session.displayedTiles.count, 14, session.displayedTiles.map(\.title).joined(separator: ", "))
+        let all = Dictionary(session.profiles().map { ($0.id, $0.samples) }, uniquingKeysWith: { a, _ in a })
+
+        state.maps = .tOverLambda
+        XCTAssertEqual(EELSMapsBlock.shownMaps(session, state).count, 4, "t/λ and the three edge maps are on screen")
+        var series = EELSRegionBridge.series(session, state: state) { _ in 0.5 }
+        XCTAssertEqual(series.map(\.name), ["t/λ"])
+        XCTAssertEqual(EELSRegionBridge.profileValueTitle(session, state: state), "t/λ")
+
+        state.maps = .atomicPercent
+        series = EELSRegionBridge.series(session, state: state) { _ in 0.5 }
+        XCTAssertEqual(series.map(\.id), ["at-C", "at-N", "at-O"])
+        XCTAssertEqual(series.map(\.name), ["C", "N", "O"])
+        XCTAssertEqual(EELSRegionBridge.profileValueTitle(session, state: state), "at%")
+        for s in series { XCTAssertEqual(s.values, all[s.id], "the line's own profile of \(s.id)") }
+
+        state.maps = .weightPercent
+        series = EELSRegionBridge.series(session, state: state) { _ in 0.5 }
+        XCTAssertEqual(series.map(\.id), ["wt-C", "wt-N", "wt-O"])
+        XCTAssertEqual(EELSRegionBridge.profileValueTitle(session, state: state), "wt%")
+        for s in series { XCTAssertEqual(s.values, all[s.id], "the line's own profile of \(s.id)") }
+    }
+
+    /// The rule on its own: the segment's quantity (the at% or wt% maps on those segments, else the first map shown), every shown map of its unit, in order;
+    /// the title one short quantity name. Red under: the shown list unfiltered; a title that lists every map.
+    func testTheProfileKeepsOneQuantityAndAShortTitle() {
+        func tile(_ id: String, _ title: String, _ unit: String) -> EELSMapTile {
+            EELSMapTile(id: id, title: title, unit: unit, width: 1, height: 1, values: [0], version: 0, footer: nil)
+        }
+        let shown = [tile("tOverLambda", "t/λ", ""), tile("edge-C", "C K", "intensity"), tile("edge-N", "N K", "intensity")]
+        XCTAssertEqual(EELSRegionBridge.profileMaps(shown: shown, segment: .tOverLambda).map(\.id), ["tOverLambda"])
+        let at = [tile("tOverLambda", "t/λ", ""), tile("at-C", "C", "at%"), tile("at-N", "N", "at%")]
+        XCTAssertEqual(EELSRegionBridge.profileMaps(shown: at, segment: .atomicPercent).map(\.id), ["at-C", "at-N"])
+        let zlp = [tile("zlpShift", "ZLP shift", "eV"), tile("edge-C", "C K", "intensity")]
+        XCTAssertEqual(EELSRegionBridge.profileMaps(shown: zlp, segment: .zlp).map(\.id), ["zlpShift"])
+        XCTAssertEqual(EELSRegionBridge.profileMaps(shown: [], segment: .atomicPercent).map(\.id), [])
 
         XCTAssertEqual(EELSRegionBridge.profileValueTitle(maps: [("t/λ", "")]), "t/λ")
         XCTAssertEqual(EELSRegionBridge.profileValueTitle(maps: [("t", "nm")]), "t (nm)")
-        XCTAssertEqual(EELSRegionBridge.profileValueTitle(maps: [("C", "at%"), ("N", "at%")]), "C, N (at%)")
-        XCTAssertEqual(EELSRegionBridge.profileValueTitle(maps: [("t/λ", ""), ("I total", "counts")]), "t/λ, I total")
+        XCTAssertEqual(EELSRegionBridge.profileValueTitle(maps: [("C", "at%"), ("N", "at%"), ("O", "at%")]), "at%")
+        XCTAssertEqual(EELSRegionBridge.profileValueTitle(maps: [("C", "wt%"), ("N", "wt%")]), "wt%")
+        XCTAssertEqual(EELSRegionBridge.profileValueTitle(maps: [("C K", "intensity"), ("N K", "intensity")]), "2 maps (intensity)")
+        XCTAssertEqual(EELSRegionBridge.profileValueTitle(maps: [("t/λ", ""), ("I total", "counts")]), "t/λ", "the first map's quantity, never a mix")
+    }
+
+    // MARK: The hovered pixel's colour
+
+    /// The hovered pixel's layers are dark in the light appearance and light in the dark one, so they read on either plot (white vanished on the light
+    /// plot). Red under: white in the light appearance.
+    @MainActor func testTheHoveredPixelShowsInBothAppearances() async throws {
+        let session = try await room()
+        let pixel = EELSHoverPixel(x: 2, y: 1)
+        func luminance(_ c: RegionColor) -> Double { 0.2126 * c.red + 0.7152 * c.green + 0.0722 * c.blue }
+        let light = EELSLowerPane.layers(session, pixel: pixel, scheme: .light).filter(\.isTemporary)
+        XCTAssertEqual(light.count, 2)
+        for layer in light {
+            XCTAssertNotEqual(layer.color, RegionColor(red: 1, green: 1, blue: 1), layer.id)
+            XCTAssertLessThan(luminance(layer.color), 0.35, "dark on the light plot: \(layer.id)")
+        }
+        let dark = EELSLowerPane.layers(session, pixel: pixel, scheme: .dark).filter(\.isTemporary)
+        XCTAssertEqual(dark.count, 2)
+        for layer in dark { XCTAssertGreaterThan(luminance(layer.color), 0.65, "light on the dark plot: \(layer.id)") }
+        XCTAssertEqual(EELSLowerPane.pixelColor(.light), light[0].color)
+    }
+
+    /// The fitted room's lower pane in the light appearance, on t/λ and on at%, with the hovered pixel: written as `macTEM-98fix1-<tag>-<segment>.png`
+    /// when MACEM_SHOT_DIR is set (tag MACEM_SHOT_TAG, default "after"); otherwise only checks that it renders.
+    @MainActor func testTheProfileInsetRendersOffscreenOnEachSegment() async throws {
+        let session = try await fitted()
+        let env = ProcessInfo.processInfo.environment
+        for segment in [EELSMapsSegment.tOverLambda, .atomicPercent] {
+            let state = EELSRoomState()
+            state.maps = segment
+            state.hoverPixel = EELSHoverPixel(x: 3, y: 2)
+            state.optionHeld = true
+            let canvas = NSSize(width: 900, height: 360)
+            let host = NSHostingView(rootView: EELSLowerPane(session: session, state: state).frame(width: canvas.width, height: canvas.height)
+                .background(Color(nsColor: .windowBackgroundColor)).environment(\.colorScheme, .light))
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: canvas), styleMask: [.borderless], backing: .buffered, defer: true)
+            window.appearance = NSAppearance(named: .aqua)
+            window.contentView = host
+            host.frame = NSRect(origin: .zero, size: canvas)
+            host.layoutSubtreeIfNeeded()
+            let rep = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+            host.cacheDisplay(in: host.bounds, to: rep)
+            XCTAssertGreaterThan(rep.pixelsWide, 0)
+            guard let dir = env["MACEM_SHOT_DIR"] else { continue }
+            let data = try XCTUnwrap(rep.representation(using: .png, properties: [:]))
+            let name = "macTEM-98fix1-\(env["MACEM_SHOT_TAG"] ?? "after")-\(segment == .tOverLambda ? "tlambda" : "at").png"
+            try data.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
+        }
     }
 
     // MARK: The picture

@@ -986,10 +986,10 @@ package final class EELSSession {
     package func setLineVisible(_ id: EDXLine.ID, _ visible: Bool) { if let i = lines.firstIndex(where: { $0.id == id }) { lines[i].isVisible = visible } }
     package func setLineColor(_ id: EDXLine.ID, _ color: EDXPinColor) { if let i = lines.firstIndex(where: { $0.id == id }) { lines[i].color = color } }
 
-    /// The selected line's profile on each map the grid shows: (tile id, title, positions in scan pixels, samples).
-    package func profiles(width: Int = 1) -> [(id: String, title: String, positions: [Double], samples: [Double])] {
+    /// The selected line's profile on each of `tiles` (every map the room holds when nil): (tile id, title, positions in scan pixels, samples).
+    package func profiles(of tiles: [EELSMapTile]? = nil, width: Int = 1) -> [(id: String, title: String, positions: [Double], samples: [Double])] {
         guard let id = selectedLineID, let line = lines.first(where: { $0.id == id }) else { return [] }
-        return displayedTiles.map { tile in
+        return (tiles ?? displayedTiles).map { tile in
             let p = EDXLineProfiles.profile(values: tile.values, width: tile.width, height: tile.height, along: line, linewidth: width)
             return (tile.id, tile.title, p.positions, p.samples)
         }
