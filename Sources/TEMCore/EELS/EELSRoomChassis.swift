@@ -22,6 +22,19 @@ package nonisolated enum EELSMapsSegment: String, CaseIterable, Sendable, Identi
         case .weightPercent: "wt%"
         }
     }
+
+    /// The Maps section's status line while a stage is making maps, as the EDS room's ("Computing wt% maps…"): the maps the running stage makes, named as
+    /// the Maps control names them (the picked segment where the stage makes it). nil when nothing runs, or the stage makes no map (Deconvolve).
+    package static func status(computing stage: EELSStage?, selection: EELSMapsSegment) -> String? {
+        let maps: String
+        switch stage {
+        case .none, .deconvolve?, .edges?: return nil
+        case .align?: maps = EELSMapsSegment.zlp.title
+        case .thickness?: maps = selection == .thickness ? EELSMapsSegment.thickness.title : EELSMapsSegment.tOverLambda.title
+        case .fit?: maps = selection == .atomicPercent || selection == .weightPercent ? selection.title : "edge"
+        }
+        return "Computing \(maps) maps…"
+    }
 }
 
 /// What the Maps control needs to know about the session, as values.
