@@ -4,7 +4,8 @@
 //        Maps (one full-width control: ZLP · t/λ · t · at% · wt%, a segment off with its reason until its stage ran, the display Filter row, one caption or,
 //        while maps are computed, the status line with a spinner), Tools (the region tool and the
 //        Regions list), Edges (the periodic table answered from the session), Processing (Align, Threshold, λ, Deconvolution; the stage's state on the title),
-//        Fitting (model, background, convolution, E0 α β with their source) and Export. Info: the file, its grid and energy axis.
+//        Fitting (model, background, convolution, E0 α β with their source) and Export. Info: the file, its grid and energy axis, the microscope, the
+//        stage tilts and the instrument the file states (`TEMCore/EELS/EELSInfo.swift`).
 //        Presentation only: the state is `EELSSession` (TEMSession), the numbers SpectroKit's through it, the pure answers `TEMCore/EELS/EELSRoomChassis.swift`.
 //
 
@@ -452,8 +453,9 @@ private struct EELSReferencesBlock: View {
 }
 
 /// Export: the buttons the session can serve today, each disabled with its reason before its stage ran.
-/// Export: the EDS room's rows (the owner's drive, 2026-10-23): Results and Spectrum, Regions and Maps, the per-pixel thickness and the method; the maps' region switch.
-private struct EELSExportSection: View {
+/// Export: the EDS room's rows (the owner's drive, 2026-10-23): Results and Method, Spectrum CSV and MSA, Regions and Maps, the per-pixel thickness; the maps'
+/// region switch.
+struct EELSExportSection: View {
     @Environment(AppState.self) private var appState
     let session: EELSSession
     @Bindable var state: EELSRoomState
@@ -461,9 +463,16 @@ private struct EELSExportSection: View {
     var body: some View {
         let hasMap = session.map != nil, hasFit = !session.resultRows.isEmpty
         InspectorSection("Export") {
+            // The EDS room's rows (control placement §4): Results and Method, Spectrum CSV and MSA, Regions and Maps; the per-pixel thickness alone, full width.
             InspectorActionRow {
                 exportButton(.results, "Results CSV…", "tablecells", enabled: hasFit, help: "The results table: each edge's I and its 1σ, the areal density, at%, wt% and r, with the thickness line and the methods' references")
+                exportButton(.method, "Method JSON…", "curlybraces", enabled: session.hasMethodRecord,
+                             help: "What made the map and the fit, each method with its reference, and the record's SHA-256")
+            }
+            InspectorActionRow {
                 exportButton(.spectrum, "Spectrum CSV…", "waveform", enabled: session.plot != nil, help: "The shown spectrum: the low loss and the core loss, energy and counts, and the model where it is fitted")
+                exportButton(.spectrumMSA, "Spectrum MSA…", "waveform.path", enabled: session.plot != nil,
+                             help: "The shown spectrum as an EMSA/MAS file: the core loss when the file has one, else the low loss")
             }
             InspectorActionRow {
                 exportButton(.regions, "Regions CSV…", "square.dashed", enabled: !session.pinRows.isEmpty, help: "Each kept region's pixels, I total, t/λ and the edges' I and at%")
@@ -472,7 +481,6 @@ private struct EELSExportSection: View {
             InspectorActionRow {
                 exportButton(.diagnostics, "Per-pixel CSV…", "tablecells.badge.ellipsis", enabled: hasMap,
                              help: "Every pixel: t/λ, its counting σ, I₀, I total, the zero-loss centre, the threshold, t and the kit's reason where there is none")
-                exportButton(.method, "Method JSON…", "curlybraces", enabled: hasMap, help: "What made the map, each method with its reference")
             }
             InspectorRow("Scale bar") {
                 let hasPixelSize = session.scanPixel != nil
@@ -504,22 +512,12 @@ struct EELSRoomInfo: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        if let source = appState.eels.source {
-            let image = source.image
+        let session = appState.eels
+        if let source = session.source {
             InspectorSection("Spectrum Image") {
-                InspectorValueRow("File", source.fileName)
-                InspectorValueRow("Read as", source.origin)
-                InspectorValueRow("Scan", "\(image.nx) × \(image.ny) px")
-                InspectorValueRow("Channels", "\(image.channels)")
-                InspectorValueRow("Energy axis", "\(EELSRoomFormat.sig(image.energyOffsetEV, 4)) eV + i × \(EELSRoomFormat.sig(image.energyScaleEV, 4)) eV")
-                if let core = source.coreLoss {
-                    InspectorValueRow("Core loss", "\(core.channels) ch from \(EELSRoomFormat.sig(core.energyOffsetEV, 5)) eV")
-                    if let origin = source.coreLossOrigin { InspectorValueRow("Core loss from", origin) }
+                ForEach(EELSInfoFormat.rows(source, beamEnergyKeV: session.beamEnergyKeV, beamEnergySource: session.beamEnergySource)) { row in
+                    InspectorValueRow(row.label, row.value)
                 }
-                if let kv = source.beamEnergyKeV { InspectorValueRow("Beam", "\(EELSRoomFormat.sig(kv, 6)) keV") }
-                if let a = source.convergenceMrad { InspectorValueRow("Convergence", "\(EELSRoomFormat.sig(a, 6)) mrad") }
-                if let b = source.collectionMrad { InspectorValueRow("Collection", "\(EELSRoomFormat.sig(b, 6)) mrad") }
-                if let size = source.scanPixelSize, let unit = source.scanPixelUnit { InspectorValueRow("Scan pixel", "\(EELSRoomFormat.sig(size, 6)) \(unit)") }
                 InspectorNote("Counts are as the file stores them (no gain or dark reference).")
             }
         } else {

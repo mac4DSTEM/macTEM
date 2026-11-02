@@ -2,6 +2,8 @@
 // table, the shown spectrum and the regions' rows as CSV. Pure strings from the session's values; every file carries its provenance and the references of
 // the methods that made its numbers (`EELSLiterature`).
 import Foundation
+import FormatoCore
+import FormatoMSA
 import ShellEDXModel
 
 /// The literature each EELS method follows, as the room's tooltips, the figure subtitle and every export name it. A method is named with its
@@ -62,6 +64,53 @@ package nonisolated enum EELSExports {
             }
         }
         return out.joined(separator: "\n") + "\n"
+    }
+
+    /// What the room's spectrum MSA file states about the microscope: the beam energy and the two angles the room uses (the file's or typed) and the
+    /// stage tilt the file states; nil where there is none.
+    package struct MSAMicroscope: Equatable, Sendable {
+        package var beamEnergyKeV: Double?
+        package var convergenceMrad: Double?
+        package var collectionMrad: Double?
+        package var alphaTiltDegrees: Double?
+        package init(beamEnergyKeV: Double? = nil, convergenceMrad: Double? = nil, collectionMrad: Double? = nil, alphaTiltDegrees: Double? = nil) {
+            self.beamEnergyKeV = beamEnergyKeV; self.convergenceMrad = convergenceMrad; self.collectionMrad = collectionMrad; self.alphaTiltDegrees = alphaTiltDegrees
+        }
+    }
+
+    /// The shown spectrum as an EMSA/MAS file, as the EDS room writes its own (FormatoKit's `MSAWriter`, RosettaSciIO's `file_writer`: latin-1, CR LF,
+    /// `Y` data printed with `%f`). An MSA file holds one spectrum on one axis, so it is the core loss when the file has one (the Fourier-ratio
+    /// deconvolved one when the plot shows it), else the low loss; the Spectrum CSV keeps both and the model. The axis is in eV, the signal EELS
+    /// (`SIGNALTYPE ELS`), the microscope as `BEAMKV`, `CONVANGLE`, `COLLANGLE` and `XTILTSTGE` where known. The counts are the region's sums as plotted.
+    package static func spectrumMSA(_ plot: EELSPlotData, fileName: String, microscope: MSAMicroscope, creator: String = "macTEM") throws -> Data {
+        let segment: (curve: EELSPlotCurve, words: String)
+        if let core = plot.core {
+            segment = (core, plot.coreDeconvolved ? "core loss, Fourier-ratio deconvolved" : "core loss")
+        } else {
+            segment = (plot.low, "low loss")
+        }
+        let counts = segment.curve.counts
+        var bytes = Data(capacity: counts.count * 8)
+        for c in counts { withUnsafeBytes(of: c.bitPattern.littleEndian) { bytes.append(contentsOf: $0) } }
+        let array = try FormatoArray(dataType: .float64, shape: [counts.count], bytes: bytes)
+        let title = "\(fileName) \(plot.regionName) \(segment.words)"
+        func entry(_ key: String, _ value: FormatoValue, _ units: String?, _ rule: String) -> FormatoMetadataEntry {
+            FormatoMetadataEntry(key: key, value: value, units: units, provenance: FormatoProvenance(file: "", source: "\(creator) EELS room", rule: rule))
+        }
+        var entries = [entry("General.title", .text(title), nil, "the file, the region and the spectrum written")]
+        if let kv = microscope.beamEnergyKeV { entries.append(entry("Acquisition_instrument.TEM.beam_energy", .number(kv), "kV", "the beam energy the room uses")) }
+        if let a = microscope.convergenceMrad {
+            entries.append(entry("Acquisition_instrument.TEM.convergence_angle", .number(a), "mrad", "the convergence semi-angle the room uses"))
+        }
+        if let b = microscope.collectionMrad {
+            entries.append(entry("Acquisition_instrument.TEM.Detector.EELS.collection_angle", .number(b), "mrad", "the collection semi-angle the room uses"))
+        }
+        if let t = microscope.alphaTiltDegrees { entries.append(entry("Acquisition_instrument.TEM.Stage.tilt_alpha", .number(t), "°", "the stage tilt the file states")) }
+        let signal = FormatoSignal(title: title, signalType: "EELS",
+                                   axes: [FormatoAxis(name: "Energy loss", size: counts.count, scale: segment.curve.step, offset: segment.curve.origin, units: "eV",
+                                                      navigate: false)],
+                                   metadata: FormatoMetadata(entries), data: array)
+        return try MSAWriter.encode(signal, creator: creator)
     }
 
     /// The regions' rows: name, shape's pixels, I total, t/λ, then each edge's I, 1σ, at% and its 1σ.

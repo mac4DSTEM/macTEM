@@ -176,6 +176,11 @@ package final class EELSSession {
         return (size, unit)
     }
     package var beamEnergyKeV: Double? { typedBeamEnergyKeV ?? source?.beamEnergyKeV }
+    /// Where `beamEnergyKeV` came from: typed (it wins), else the file; nil when there is none.
+    package var beamEnergySource: BeamEnergySource? {
+        if typedBeamEnergyKeV != nil { return .typed }
+        return source?.beamEnergyKeV != nil ? .file : nil
+    }
     package var isBusy: Bool { isOpening || isComputing }
     package var exportStem: String { (fileName as NSString).deletingPathExtension + " thickness" }
 
@@ -1204,8 +1209,23 @@ package final class EELSSession {
     package var spectrumCSV: String? { plot.map { EELSExports.spectrumCSV($0, fileName: fileName) } }
     /// The kept regions' rows; nil without a region.
     package var regionsCSV: String? { pinRows.isEmpty ? nil : EELSExports.regionsCSV(pinRows, fileName: fileName) }
+    /// Whether there is a method to record: a thickness map, an edge fit, or a file with only a core loss (whose record says it has no thickness).
+    package var hasMethodRecord: Bool { hasImage && (onlyCoreLoss || map != nil || model != nil) }
+    /// The method JSON (`EELSCompute.methodJSON`), with its SHA-256. A file with only a core loss records no thickness map, in the Maps control's words.
     package var methodJSON: String? {
-        map.map { EELSCompute.methodJSON($0, fileName: fileName, origin: source?.origin ?? "", deconvolution: stageRecord, fit: fitParameters) }
+        guard hasMethodRecord, let image = source?.image else { return nil }
+        let thickness = onlyCoreLoss ? nil : map
+        let why = thickness == nil ? (onlyCoreLoss ? nil : failure) ?? mapsAvailability.disabledReason(.tOverLambda) : nil
+        return EELSCompute.methodJSON(thickness, fileName: fileName, origin: source?.origin ?? "", width: image.nx, height: image.ny, thicknessUnavailable: why,
+                                      deconvolution: stageRecord, fit: fitParameters)
+    }
+    /// The shown spectrum as an EMSA/MAS file (`EELSExports.spectrumMSA`): the core loss when the file has one, else the low loss, with the beam energy and
+    /// the angles the room uses and the stage tilt the file states. Nil before there is a spectrum.
+    package func spectrumMSA() throws -> Data? {
+        guard let plot else { return nil }
+        let microscope = EELSExports.MSAMicroscope(beamEnergyKeV: beamEnergyKeV, convergenceMrad: typedConvergenceMrad ?? source?.convergenceMrad,
+                                                   collectionMrad: typedCollectionMrad ?? source?.collectionMrad, alphaTiltDegrees: source?.alphaTiltDegrees)
+        return try EELSExports.spectrumMSA(plot, fileName: fileName, microscope: microscope)
     }
 
     /// The Deconvolve stage as the method JSON records it: the chosen method's result with its parameters and whether it is current; nil when Off or not run.

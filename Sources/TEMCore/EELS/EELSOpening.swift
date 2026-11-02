@@ -38,13 +38,19 @@ package struct LoadedEELS: Sendable {
     /// The file's path as it was opened ("" for a document made in memory): the Results room lists the room's numbers only under this file, so two
     /// files of one name in two folders are told apart (`AppState.eelsResultsBelong`).
     package let filePath: String
+    /// The stage tilts in degrees and the instrument as the file states them (FormatoKit's DM reading, `EELSOpening.stated`); nil where it states none.
+    /// Shown in Info and written to the spectrum's MSA file; nothing computes with them.
+    package let alphaTiltDegrees: Double?
+    package let betaTiltDegrees: Double?
+    package let instrument: String?
 
     package init(fileName: String, image: LowLossSpectrumImage, beamEnergyKeV: Double?, convergenceMrad: Double?, collectionMrad: Double?, origin: String,
-                 coreLoss: CoreLossSpectrumImage? = nil, coreLossOrigin: String? = nil, scanPixelSize: Double? = nil, scanPixelUnit: String? = nil,
-                 filePath: String = "") {
+                 coreLoss: CoreLossSpectrumImage? = nil, coreLossOrigin: String? = nil, alphaTiltDegrees: Double? = nil, betaTiltDegrees: Double? = nil,
+                 instrument: String? = nil, scanPixelSize: Double? = nil, scanPixelUnit: String? = nil, filePath: String = "") {
         self.fileName = fileName; self.image = image; self.beamEnergyKeV = beamEnergyKeV
         self.convergenceMrad = convergenceMrad; self.collectionMrad = collectionMrad; self.origin = origin
         self.coreLoss = coreLoss; self.coreLossOrigin = coreLossOrigin
+        self.alphaTiltDegrees = alphaTiltDegrees; self.betaTiltDegrees = betaTiltDegrees; self.instrument = instrument
         self.scanPixelSize = scanPixelSize; self.scanPixelUnit = scanPixelUnit
         self.filePath = filePath
     }
@@ -72,6 +78,7 @@ package enum EELSOpening {
         let name = url.lastPathComponent
         var beam: Double?, convergence: Double?, collection: Double?
         var pixel: (size: Double, unit: String)?
+        var stated: Stated?
         var cubes: [EELSCube] = []
         switch url.pathExtension.lowercased() {
         case "dm4":
@@ -83,6 +90,7 @@ package enum EELSOpening {
                 let si: DM4EELSSpectrumImage
                 do { si = try DM4Experiment.readEELSSpectrumImage(path: url.path, index: object.index) } catch { firstFailure = firstFailure ?? error; continue }
                 if beam == nil { beam = si.beamEnergyKeV; convergence = si.convergenceSemiAngleMrad; collection = si.collectionSemiAngleMrad }
+                if stated == nil { stated = Self.stated(numbers: si.object.imageTagNumbers, strings: si.object.imageTagStrings) }
                 if pixel == nil, let x = si.xAxis, x.scale > 0, !x.units.isEmpty { pixel = (x.scale, x.units) }
                 cubes.append(EELSCube(nx: si.nx, ny: si.ny, channels: si.channels, counts: si.counts.map { Double($0) },
                                       offsetEV: -si.energyAxis.origin * si.energyAxis.scale, scaleEV: si.energyAxis.scale,
@@ -111,6 +119,23 @@ package enum EELSOpening {
         let image = try LowLossSpectrumImage(nx: low.nx, ny: low.ny, channels: low.channels, counts: low.counts, energyOffsetEV: low.offsetEV, energyScaleEV: low.scaleEV)
         let coreImage = try core.map { try CoreLossSpectrumImage(nx: $0.nx, ny: $0.ny, channels: $0.channels, counts: $0.counts, energyOffsetEV: $0.offsetEV, energyScaleEV: $0.scaleEV) }
         return LoadedEELS(fileName: name, image: image, beamEnergyKeV: beam, convergenceMrad: convergence, collectionMrad: collection, origin: low.origin,
-                          coreLoss: coreImage, coreLossOrigin: core?.origin, scanPixelSize: pixel?.size, scanPixelUnit: pixel?.unit, filePath: url.path)
+                          coreLoss: coreImage, coreLossOrigin: core?.origin, alphaTiltDegrees: stated?.alphaTiltDegrees, betaTiltDegrees: stated?.betaTiltDegrees,
+                          instrument: stated?.instrument, scanPixelSize: pixel?.size, scanPixelUnit: pixel?.unit, filePath: url.path)
+    }
+
+    /// What a GMS EELS object states about the stage and the instrument.
+    package struct Stated: Equatable, Sendable {
+        package let alphaTiltDegrees: Double?
+        package let betaTiltDegrees: Double?
+        package let instrument: String?
+    }
+
+    /// The stage tilts and the instrument of one GMS image object, as FormatoKit's DM reader maps them (`AcquisitionMetadata.dm`, RosettaSciIO's
+    /// `get_mapping`: `Microscope Info.Stage Position.Stage Alpha` / `Beta` in degrees as stored, the instrument the first of `Session Info.Microscope`,
+    /// `Microscope Info.Name`, `Microscope Info.Microscope`; a stack-builder object from its `source.Tags at creation.` copy). A Velox EELS stream carries
+    /// neither through FormatoKit's spectrum-image reader, so a Velox file shows none.
+    package static func stated(numbers: [String: Double], strings: [String: String]) -> Stated {
+        let m = AcquisitionMetadata.dm(numbers: numbers, strings: strings)
+        return Stated(alphaTiltDegrees: m.stageTiltAlphaDeg?.value, betaTiltDegrees: m.stageTiltBetaDeg?.value, instrument: m.instrument?.value)
     }
 }
