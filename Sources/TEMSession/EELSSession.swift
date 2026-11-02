@@ -86,6 +86,8 @@ package final class EELSSession {
     /// window change, pick or fit.
     package private(set) var fitRefusal: String?
     package private(set) var references: [EELSReference] = []
+    /// The names of the references the MLLS fit on screen took (empty for the exact fit, or an MLLS fit with none).
+    package private(set) var modelReferenceNames: [String] = []
     package private(set) var referenceNotice: String?
     /// Where the working core loss's summed spectrum holds no counts (a detector range that ends); a signal window on one is refused by name.
     package private(set) var coreDeadStretches: [ClosedRange<Double>] = []
@@ -274,6 +276,38 @@ package final class EELSSession {
         if microscope == nil { return "Type the beam energy and the convergence and collection angles under Fitting." }
         if fittableEdges.isEmpty { return refusals.map(\.reason).joined(separator: "\n") }
         if deconvolutionChoice.feedsTheFit && fitCoreLoss == nil { return "Fourier-ratio is chosen: the fit takes the deconvolved core loss. Run deconvolves first." }
+        return referenceBlocker
+    }
+
+    /// The reference spectra the MLLS fit takes, on the fitted core loss's channels (`EELSReferenceCompute.onAxis`); none for the exact fit.
+    package var fitReferences: [[Double]] {
+        guard fitModel == .mlls, let core = fitCoreLoss ?? workingCoreLoss else { return [] }
+        return references.map { EELSReferenceCompute.onAxis($0.curve, offsetEV: core.energyOffsetEV, scaleEV: core.energyScaleEV, channels: core.channels) }
+    }
+
+    /// A reference with no counts inside the MLLS window: the kit's column would be all zeros and no pixel could be fitted, so Fit says which one.
+    private var referenceBlocker: String? {
+        guard fitModel == .mlls, !references.isEmpty, let core = fitCoreLoss ?? workingCoreLoss else { return nil }
+        let axisEnd = core.energyOffsetEV + core.energyScaleEV * Double(core.channels - 1)
+        // A reference taken from a region over an edge that is still picked is that edge again: its column and the edge's are nearly the same, so the
+        // split between them is arbitrary (or the design is singular). The person picks one of the two.
+        let picked = Set(fittableEdges.map(EELSFitCompute.title))
+        for reference in references {
+            if case .region(_, let edge) = reference.origin, picked.contains(edge) {
+                return "\(reference.name) is the \(edge) edge taken from a region, and \(edge) is also picked: the fit cannot tell them apart. "
+                    + "Remove the reference or set \(edge) Off."
+            }
+        }
+        let start = fitWindows.map(\.backgroundEV.lowerBound).min() ?? core.energyOffsetEV, end = fitToEV ?? axisEnd
+        for (reference, shape) in zip(references, fitReferences) {
+            let inside = shape.indices.contains { k in
+                let e = core.energyOffsetEV + core.energyScaleEV * Double(k)
+                return e >= start && e <= end && shape[k] != 0
+            }
+            if !inside {
+                return "\(reference.name) has no counts in the MLLS window (\(EELSRoomFormat.eV(start)) to \(EELSRoomFormat.eV(end)) eV): remove it or move the window."
+            }
+        }
         return nil
     }
 
@@ -285,7 +319,7 @@ package final class EELSSession {
         if pickedEdges.isEmpty { return "Pick at least one edge to fit." }
         if microscope == nil { return "Type the beam energy and the convergence and collection angles under Fitting." }
         if fittableEdges.isEmpty { return refusals.map(\.reason).joined(separator: "\n") }
-        return nil
+        return referenceBlocker
     }
 
     /// The axis the windows are made for: the working core loss's (a large one before a file is open; no edge can be picked then).
@@ -338,7 +372,9 @@ package final class EELSSession {
         // A Fourier-ratio fit is made from the stage's result: current only while that result is.
         let deconvolved = !deconvolutionChoice.feedsTheFit ? "-" : deconvolveState == .current ? deconvolutionSignature : "pending"
         let fitTo = fitModel == .mlls ? fitToEV.map { "\($0)" } ?? "end" : "-"
-        return "\(inputVersion)|\(edges)|\(m)|\(effectiveConvolve)|\(fitModel)|\(fitTo)|\(deconvolved)|\(fitWindows.map { "\($0.backgroundEV.lowerBound)-\($0.backgroundEV.upperBound)/\($0.signalEV.lowerBound)-\($0.signalEV.upperBound)" }.joined(separator: ","))"
+        // The MLLS fit takes the references: adding or removing one stales it. The exact fit takes none.
+        let refs = fitModel == .mlls ? references.map(\.id).joined(separator: ",") : "-"
+        return "\(inputVersion)|\(edges)|\(m)|\(effectiveConvolve)|\(fitModel)|\(fitTo)|\(refs)|\(deconvolved)|\(fitWindows.map { "\($0.backgroundEV.lowerBound)-\($0.backgroundEV.upperBound)/\($0.signalEV.lowerBound)-\($0.signalEV.upperBound)" }.joined(separator: ","))"
     }
 
     /// The Align section's readout: "offset −21.503 → 0.000 eV, 2041 of 2048 channels kept".
@@ -419,7 +455,7 @@ package final class EELSSession {
         typedConvergenceMrad = nil; typedCollectionMrad = nil
         map = nil; tiles = []; unavailableReasons = []; failure = nil
         resetRegions()
-        editedWindows = [:]; references = []; referenceNotice = nil; backgroundChoice = .powerLaw; backgroundNotice = nil; coreDeadStretches = []
+        editedWindows = [:]; references = []; referenceNotice = nil; modelReferenceNames = []; backgroundChoice = .powerLaw; backgroundNotice = nil; coreDeadStretches = []
         refreshDeadStretches()
         refreshPlot()
         onEvent?("Opened \(loaded.fileName) — \(loaded.image.nx) × \(loaded.image.ny) px, \(loaded.image.channels) channels")
@@ -430,7 +466,7 @@ package final class EELSSession {
         cancelPass()
         openTask?.cancel(); openTask = nil; isOpening = false
         plotTask?.cancel(); plot = nil; wholeMapPlot = nil; fitUsed = nil; alignmentShiftTile = nil
-        deadTask?.cancel(); coreDeadStretches = []; editedWindows = [:]; references = []
+        deadTask?.cancel(); coreDeadStretches = []; editedWindows = [:]; references = []; modelReferenceNames = []
         fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
         deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil
         source = nil; alignment = nil; alignmentTile = nil; pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""; map = nil; tiles = []; unavailableReasons = []; failure = nil
@@ -703,12 +739,13 @@ package final class EELSSession {
         generation += 1
         let gen = generation
         let edges = fittableEdges, windows = fitWindows, kind = fitModel, fitTo = fitModel == .mlls ? fitToEV : nil
+        let refs = fitReferences, refNames = fitModel == .mlls ? references.map(\.name) : []
         let low = effectiveConvolve ? workingLowLoss : nil
         let signature = currentSignature
         let deconvolved = deconvolutionChoice.feedsTheFit ? deconvolution : nil
         // The pixels the deconvolution answered: the others are the kit's zeros, never summed or fitted.
         let answered = deconvolved?.answered
-        let used = EELSPlotFit(edges: edges, microscope: microscope, convolve: low != nil, windows: windows, model: kind, deconvolved: deconvolved != nil)
+        let used = EELSPlotFit(edges: edges, microscope: microscope, convolve: low != nil, windows: windows, model: kind, deconvolved: deconvolved != nil, references: refs)
         failure = nil
         fitRefusal = nil
         isComputing = true
@@ -723,16 +760,17 @@ package final class EELSSession {
                 let regionCore = try core.sum(mask: all)
                 let regionLow = try low.map { try $0.sum(mask: all) }
                 let region = try EELSFitCompute.fit(coreLoss: regionCore, edges: edges, microscope: microscope, lowLoss: regionLow, model: kind, edgeWindows: windows,
-                                                    fitToEV: fitTo)
+                                                    fitToEV: fitTo, references: refs)
                 let quality = EELSFitQuality.of(region, core: regionCore, rawCounts: deconvolved == nil)
                 if Task.isCancelled { return }
                 let result = try EELSFitCompute.fit(coreLoss: core, edges: edges, microscope: microscope, lowLoss: low, model: kind, edgeWindows: windows,
-                                                    fitToEV: fitTo, mask: answered, progress: { f in
+                                                    fitToEV: fitTo, references: refs, mask: answered, progress: { f in
                     guard gate.shouldReport(f * 0.9) else { return }
                     Task { @MainActor in self?.landProgress(f * 0.9, generation: gen) }
                 })
                 if Task.isCancelled { return }
-                await self?.landModel(result, region: region, quality: quality, signature: signature, used: used, deconvolved: deconvolved, generation: gen)
+                await self?.landModel(result, region: region, quality: quality, signature: signature, used: used, deconvolved: deconvolved,
+                                     referenceNames: refNames, generation: gen)
             } catch is SpectroCancelled {
                 return
             } catch {
@@ -754,10 +792,11 @@ package final class EELSSession {
     }
 
     private func landModel(_ result: EELSFitResult, region: EELSFitResult, quality: EELSFitQuality?, signature: String, used: EELSPlotFit,
-                           deconvolved: EELSDeconvolutionResult?, generation gen: Int) {
+                           deconvolved: EELSDeconvolutionResult?, referenceNames: [String], generation gen: Int) {
         guard gen == generation else { return }
         modelVersion += 1
         model = result
+        modelReferenceNames = referenceNames
         modelDeconvolution = deconvolved
         modelComposition = EELSFitCompute.composition(result, fitOnly: fitOnlyElements)
         regionModel = region
@@ -835,7 +874,8 @@ package final class EELSSession {
     /// The results footer of the fit on screen (the results panel draws the same call).
     package var fitFooter: String {
         EELSRoomFormat.fitFooter(hasFit: model != nil, convolved: model?.convolved ?? false, model: model?.model ?? .exactNNLS,
-                                 deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution")
+                                 deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution",
+                                 references: modelReferenceNames.count)
     }
 
     /// What the fit on screen says about its own numbers, the results footer's notes: the rows on screen (the selected region's or the whole map's),
@@ -855,6 +895,7 @@ package final class EELSSession {
             d["exponent"] = "two-area estimate per pixel"
             if case .mlls(let r) = model { d["window_eV"] = [r.windowEV.lowerBound, r.windowEV.upperBound] }
             d["fit_to_eV"] = fitToEV.map { $0 as Any } ?? "axis end"
+            d["references"] = modelReferenceNames
         }
         d["deconvolution"] = modelDeconvolution.map { $0.choice.title } ?? "none"
         d["composition_sigma"] = EELSCompositionSigma.formula
@@ -1006,7 +1047,7 @@ package final class EELSSession {
         let thicknessMade = thicknessSignature, fitMade = fitSignature
         let run = pinDataRun, pins = pins, core = shownCoreLoss, fitCore = fitCoreLoss
         let edges = fittableEdges, microscope = microscope, convolve = effectiveConvolve, edgeWindows = fitWindows
-        let kind = fitModel, fitOnly = fitOnlyElements, answered = shownAnswered, fitTo = fitModel == .mlls ? fitToEV : nil
+        let kind = fitModel, fitOnly = fitOnlyElements, answered = shownAnswered, fitTo = fitModel == .mlls ? fitToEV : nil, refs = fitReferences
         let rawCounts = !deconvolutionChoice.feedsTheFit
         let threshold = threshold, lambda = try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)
         pinDataTask = Task.detached(priority: .userInitiated) { [weak self] in
@@ -1019,7 +1060,8 @@ package final class EELSSession {
                    let sum = try? core.sum(mask: EELSRegionCompute.mask(pin.region, nx: core.nx, ny: core.ny, answered: answered)) { coreSpectra[pin.id] = sum.counts }
                 if let row = EELSRegionCompute.row(pin: pin, low: low, core: fitCore, edges: edges, microscope: microscope, convolve: convolve,
                                                    threshold: threshold, meanFreePath: lambda ?? nil, edgeWindows: edgeWindows, model: kind, fitOnly: fitOnly,
-                                                   answered: fitCore == nil ? nil : answered, fitToEV: fitTo, rawCounts: rawCounts) { rows.append(row) }
+                                                   answered: fitCore == nil ? nil : answered, fitToEV: fitTo, references: refs,
+                                                   rawCounts: rawCounts) { rows.append(row) }
             }
             if Task.isCancelled { return }
             await self?.landPinData(spectra: spectra, coreSpectra: coreSpectra, rows: rows, run: run, thickness: thicknessMade, fit: fitMade)

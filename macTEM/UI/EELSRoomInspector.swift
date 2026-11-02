@@ -444,7 +444,7 @@ private struct EELSReferencesBlock: View {
                     .help("Remove the selected reference")
                     .accessibilityIdentifier("eels.references.remove")
             }
-            InspectorNote(session.referenceNotice ?? EELSReference.note).accessibilityIdentifier("eels.references.note")
+            InspectorNote(session.referenceNotice ?? EELSReference.note(for: session.fitModel)).accessibilityIdentifier("eels.references.note")
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [UTType(filenameExtension: "msa"), .plainText].compactMap { $0 }, allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first { selected = session.importReference(url: url)?.id }
