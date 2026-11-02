@@ -66,13 +66,87 @@ enum EELSRegionBridge {
         session.selectWholeMap()
     }
 
-    /// The selected line's profile, one series per map in the map's own hue.
+    /// The selected line's profile, one series per map in the map's own hue. Positions are in scan pixels; with the file's pixel size they are in its unit
+    /// (`profileUnit`), as the EDS room's `EDXRegionBridge.series`.
     static func series(_ session: EELSSession, hue: (String) -> Double) -> [ProfileSeries] {
-        session.profiles().compactMap { p in
+        let size = session.scanPixel?.size ?? 1
+        return session.profiles().compactMap { p in
             guard !p.samples.isEmpty else { return nil }
-            let spacing = p.positions.count > 1 ? p.positions[1] - p.positions[0] : 1
+            let spacing = (p.positions.count > 1 ? p.positions[1] - p.positions[0] : 1) * size
             let rgb = EDXRoomFormat.rgb(hue: hue(p.id))
             return ProfileSeries(id: p.id, name: p.title, color: RegionColor(red: rgb.0, green: rgb.1, blue: rgb.2), values: p.samples, spacing: spacing)
         }
+    }
+
+    /// The profile's distance unit: the scan's pixel unit when the file states a pixel size, else pixels.
+    static func profileUnit(_ session: EELSSession) -> String { session.scanPixel?.unit ?? "px" }
+
+    /// The profile's value axis, named after the maps the line reads (`profileValueTitle(maps:)`).
+    static func profileValueTitle(_ session: EELSSession) -> String {
+        profileValueTitle(maps: session.displayedTiles.map { (title: $0.title, unit: $0.unit) })
+    }
+
+    /// One map: its title, with its unit when it has one ("t/λ", "t (nm)"). Maps of one unit: their titles and the unit ("C, N (at%)"). Maps of
+    /// different units: their titles.
+    nonisolated static func profileValueTitle(maps: [(title: String, unit: String)]) -> String {
+        let titles = maps.map(\.title).joined(separator: ", ")
+        let units = Set(maps.map(\.unit))
+        guard units.count == 1, let unit = units.first, !unit.isEmpty else { return titles }
+        return "\(titles) (\(unit))"
+    }
+
+    // MARK: The keyboard route (the anchor tile with the focus: after a click on it, or by Tab), as the EDS room's
+
+    /// The shape Return draws with `tool` on a scan `nx` x `ny`: the middle half of the scan, a pixel at least (a polygon is that box's four corners, a line
+    /// along the centres of its middle row). nil for the arrow tool or an empty scan. The EDS room's `EDXRegionBridge.keyboardShape` (internal to MacEMUI).
+    nonisolated static func keyboardShape(_ tool: RegionTool, nx: Int, ny: Int) -> RegionGeometry? {
+        guard nx > 0, ny > 0 else { return nil }
+        let w = max(nx / 2, 1), h = max(ny / 2, 1)
+        let x0 = Double((nx - w) / 2), y0 = Double((ny - h) / 2), x1 = x0 + Double(w), y1 = y0 + Double(h)
+        switch tool {
+        case .pointer: return nil
+        case .rectangle: return .rectangle(x0: x0, y0: y0, x1: x1, y1: y1)
+        case .ellipse: return .ellipse(x0: x0, y0: y0, x1: x1, y1: y1)
+        case .polygon: return .polygon([RegionPoint(x: x0, y: y0), RegionPoint(x: x1, y: y0), RegionPoint(x: x1, y: y1), RegionPoint(x: x0, y: y1)])
+        case .line: return .line(RegionPoint(x: x0, y: Double(ny / 2) + 0.5), RegionPoint(x: x1, y: Double(ny / 2) + 0.5))
+        }
+    }
+
+    /// Return: the chosen tool's shape is drawn as the mouse draws it (kept as the next numbered region, or line, and selected). False with the arrow tool
+    /// or when nothing was drawn, so the key is left to whatever else wants it.
+    @discardableResult
+    static func drawByKeyboard(in session: EELSSession, state: EELSRoomState) -> Bool {
+        guard let image = session.source?.image, let shape = keyboardShape(state.tool, nx: image.nx, ny: image.ny) else { return false }
+        if case .line(let a, let b) = shape {
+            guard session.drawLine(from: PixelPoint(x: a.x, y: a.y), to: PixelPoint(x: b.x, y: b.y)) != nil else { return false }
+            state.linesFocused = true
+            return true
+        }
+        guard let region = EDXRegionBridge.region(shape), session.drawRegion(region) != nil else { return false }
+        state.linesFocused = false
+        return true
+    }
+
+    /// The step an arrow key moves the selected region, in scan pixels: one, ten with shift; nil for any other key.
+    nonisolated static func arrowStep(_ key: KeyEquivalent, shift: Bool) -> (dx: Int, dy: Int)? {
+        let n = shift ? 10 : 1
+        switch key {
+        case .leftArrow: return (-n, 0)
+        case .rightArrow: return (n, 0)
+        case .upArrow: return (0, -n)
+        case .downArrow: return (0, n)
+        default: return nil
+        }
+    }
+
+    /// An arrow key: the selected region (or line) moves by `dx`, `dy` scan pixels, kept on the scan, as a drag on its body moves it. False when nothing is
+    /// selected, the selection is hidden, or it cannot move further.
+    @discardableResult
+    static func nudgeSelected(dx: Int, dy: Int, in session: EELSSession, state: EELSRoomState) -> Bool {
+        guard let image = session.source?.image, let selected = set(session, linesFocused: state.linesFocused).selected, selected.isVisible else { return false }
+        let moved = RegionEditing.moved(selected.geometry, dx: Double(dx), dy: Double(dy), scanWidth: image.nx, scanHeight: image.ny)
+        guard moved != selected.geometry else { return false }
+        edit(selected.id, moved, in: session)
+        return true
     }
 }
