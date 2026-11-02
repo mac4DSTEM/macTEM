@@ -425,10 +425,19 @@ extension EELSRoomFormat {
     }
 
     /// The results footer: model · background · convolution · deconvolution (what the fit on screen was made with).
-    package static func fitFooter(hasFit: Bool, convolved: Bool, model: EELSFitModel = .exactNNLS, deconvolution: String = "no deconvolution") -> String {
+    /// The fit's method line (the results footer, the results CSV): the model, the background and what the fit was made on. `deconvolution` is the
+    /// line of the deconvolution the fit took (Fit on Deconvolved); nil is Fit on Convolved, the recorded core loss.
+    package static func fitFooter(hasFit: Bool, convolved: Bool, model: EELSFitModel = .exactNNLS, deconvolution: String? = nil) -> String {
         guard hasFit else { return "No fit yet" }
         let background = model == .mlls ? "power-law background, exponent by two areas" : "power-law background"
-        return "\(model.title) · \(background) · " + (convolved ? "convolved with the low loss" : "not convolved") + " · \(deconvolution)"
+        return "\(model.title) · \(background) · " + fitOnWords(convolved: convolved, deconvolution: deconvolution)
+    }
+
+    /// What the fit was made on, in words that read right next to a current Deconvolve stage the fit did not take.
+    package static func fitOnWords(convolved: Bool, deconvolution: String?) -> String {
+        if let deconvolution { return "Fit on Deconvolved: \(deconvolution), the model not convolved" }
+        return convolved ? "Fit on Convolved: the recorded core loss, the model convolved with the low loss"
+            : "Fit on Convolved: the recorded core loss, the model not convolved (Convolve low loss off)"
     }
 
     /// What the fit says about its own numbers, for the results footer's popover (as the EDS room's notes). Each note is a sentence the room already

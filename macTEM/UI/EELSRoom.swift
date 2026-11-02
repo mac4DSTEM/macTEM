@@ -974,9 +974,7 @@ struct EELSResultsPanel: View {
                     .accessibilityIdentifier("eels.results.exponents")
             }
             EELSFitFooter(hasFit: session.model != nil, notes: session.fitNotes, quality: session.resultQuality.map { EELSRoomFormat.fitQuality($0) },
-                          method: EELSRoomFormat.fitFooter(hasFit: session.model != nil, convolved: session.model?.convolved ?? false,
-                                                           model: session.model?.model ?? .exactNNLS,
-                                                           deconvolution: session.modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution"),
+                          method: session.fitFooter,
                           methodNames: [session.model?.methodName, session.modelDeconvolution?.methodName].compactMap { $0 })
         }
         .accessibilityElement(children: .contain)

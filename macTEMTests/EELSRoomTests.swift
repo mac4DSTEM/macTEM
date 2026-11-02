@@ -415,7 +415,7 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(EELSRoomFormat.valueSource(typed: nil, file: 200), "from the file")
         XCTAssertEqual(EELSRoomFormat.valueSource(typed: nil, file: nil), "not set")
         XCTAssertEqual(EELSRoomFormat.fitFooter(hasFit: false, convolved: false), "No fit yet")
-        XCTAssertEqual(EELSRoomFormat.fitFooter(hasFit: true, convolved: true), "Exact NNLS · power-law background · convolved with the low loss · no deconvolution")
+        XCTAssertEqual(EELSRoomFormat.fitFooter(hasFit: true, convolved: true), "Exact NNLS · power-law background · Fit on Convolved: the recorded core loss, the model convolved with the low loss")
     }
 
     /// The median and the quartiles are over the region's pixels (numpy's linear rule), through the room: the planted t/λ of pixel k is 0.5 + 0.25 k.
@@ -532,7 +532,7 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertTrue(room.contains("EELSLiterature.figureLine"), "the figure names the methods")
         XCTAssertFalse(inspector.lowercased().contains("validation"), "the inspector names the method and its reference instead")
         XCTAssertFalse(inspector.lowercased().contains("unvalidated"))
-        XCTAssertTrue(room.contains("EELSRoomFormat.thicknessLine(")); XCTAssertTrue(room.contains("EELSRoomFormat.fitFooter("))
+        XCTAssertTrue(room.contains("EELSRoomFormat.thicknessLine(")); XCTAssertTrue(room.contains("method: session.fitFooter"))
         let verb = squeezed(try source("macTEM/UI/RoomPrimaryAction.swift"))
         XCTAssertTrue(verb.contains("title: \"Run\""))
         XCTAssertTrue(squeezed(try source("macTEM/UI/ContentView.swift")).contains("PrimaryActionButton(RoomPrimaryAction.current(appState))"))

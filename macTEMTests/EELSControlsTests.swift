@@ -111,7 +111,7 @@ nonisolated final class EELSControlsTests: XCTestCase {
         XCTAssertTrue(EELSRoomFormat.fitFooter(hasFit: true, convolved: false, model: .mlls).hasPrefix("MLLS · "))
         let json = try XCTUnwrap(session.methodJSON)
         XCTAssertTrue(json.contains("\"model\" : \"MLLS\""), json)
-        XCTAssertTrue(try XCTUnwrap(session.resultsCSV).contains("# MLLS · power-law background, exponent by two areas · not convolved · no deconvolution"))
+        XCTAssertTrue(try XCTUnwrap(session.resultsCSV).contains("# MLLS · power-law background, exponent by two areas · Fit on Convolved: the recorded core loss, the model not convolved (Convolve low loss off)"))
     }
 
     // MARK: Fit only
@@ -166,8 +166,8 @@ nonisolated final class EELSControlsTests: XCTestCase {
     // MARK: Deconvolution
 
     /// Fourier-ratio is a stage: listed once chosen, run by Run after Thickness, its core loss the kit's `fourierRatio` of the working cubes with the room's
-    /// threshold, and the fit then takes that core loss, not convolved with the low loss. The method and its parameters are in the method JSON and the
-    /// results CSV. Red under: the control a constant Off; the fit taking the stored core loss; the export not naming it.
+    /// threshold, and Fit on Deconvolved then takes that core loss, not convolved with the low loss. The method and its parameters are in the method JSON
+    /// and the results CSV. Red under: the control a constant Off; the fit taking the stored core loss; the export not naming it.
     @MainActor func testFourierRatioIsAStageAndTheFitTakesItsCoreLoss() async throws {
         let session = try await room()
         pickCNO(session)
@@ -176,12 +176,17 @@ nonisolated final class EELSControlsTests: XCTestCase {
         XCTAssertEqual(session.deconvolutionChoice, .fourierRatio)
         XCTAssertEqual(session.stages.map(\.stage), [.align, .thickness, .deconvolve, .edges, .fit])
         XCTAssertEqual(session.deconvolveState, .notRun)
-        XCTAssertNotNil(session.fitBlocker, "the fit waits for the deconvolved core loss")
         XCTAssertTrue(session.canRun)
         await session.run().value
         await session.settled()
         let d = try XCTUnwrap(session.deconvolution, session.failure ?? "no deconvolution")
         XCTAssertEqual(session.deconvolveState, .current)
+        XCTAssertEqual(session.modelDeconvolution == nil, true, "Fit on Convolved (the default) took the recorded core loss")
+        session.setFitOn(.deconvolved)
+        XCTAssertEqual(session.fitOn, .deconvolved)
+        XCTAssertNotEqual(session.fitState, .current, "a new Fit on stales Fit")
+        await session.fit()?.value
+        await session.settled()
         let kit = try EELSDeconvolution.fourierRatio(coreLoss: try XCTUnwrap(session.workingCoreLoss), lowLoss: try XCTUnwrap(session.workingLowLoss),
                                                      options: FourierRatioOptions(threshold: .fixed(2.5)))
         XCTAssertEqual(d.coreLoss?.counts, kit.image.counts, "the kit's Fourier-ratio of the working cubes with the room's threshold")
@@ -200,7 +205,9 @@ nonisolated final class EELSControlsTests: XCTestCase {
         XCTAssertTrue(json.contains("\"low_loss_threshold\" : \"fixed threshold 2.5 eV\""), json)
         let csv = try XCTUnwrap(session.resultsCSV)
         XCTAssertTrue(csv.contains("# deconvolution: Fourier-ratio deconvolution (FWHM"), csv)
-        XCTAssertTrue(csv.contains("· not convolved · Fourier-ratio deconvolution"), csv)
+        XCTAssertTrue(csv.contains("· Fit on Deconvolved: Fourier-ratio deconvolution (FWHM"), csv)
+        XCTAssertTrue(csv.contains(", the model not convolved"), csv)
+        XCTAssertTrue(json.contains("\"fit_on\" : \"Deconvolved\""), json)
         // A new threshold stales the stage (its I₀ is cut there) and the fit with it.
         session.setThreshold(.fixed(3))
         XCTAssertEqual(session.deconvolveState, .stale)
@@ -241,7 +248,7 @@ nonisolated final class EELSControlsTests: XCTestCase {
         XCTAssertEqual(rl.methodName, "Richardson-Lucy deconvolution, 5 iterations")
         let json = try XCTUnwrap(session.methodJSON)
         XCTAssertTrue(json.contains("\"iterations\" : 5"), json)
-        XCTAssertFalse(EELSDeconvolutionChoice.richardsonLucy(iterations: 5).feedsTheFit)
+        XCTAssertFalse(EELSDeconvolutionChoice.richardsonLucy(iterations: 5).deconvolvesCoreLoss)
         XCTAssertEqual(session.fitCoreLoss?.counts, session.workingCoreLoss?.counts, "the fit takes the stored core loss")
     }
 
