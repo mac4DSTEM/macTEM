@@ -919,19 +919,84 @@ struct EELSResultsPanel: View {
                     .help("The exponent of the power law the kit fitted on each edge's background window")
                     .accessibilityIdentifier("eels.results.exponents")
             }
-            Text(EELSRoomFormat.fitFooter(hasFit: session.model != nil, convolved: session.model?.convolved ?? false, model: session.model?.model ?? .exactNNLS,
-                                          deconvolution: session.modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution")
-                 + (EELSRoomFormat.notDetectedLine(rows).map { " · " + $0 } ?? "")
-                 + (session.resultQuality.map { " · " + EELSRoomFormat.fitQuality($0) } ?? ""))
+            EELSFitFooter(hasFit: session.model != nil, notes: session.fitNotes, quality: session.resultQuality.map { EELSRoomFormat.fitQuality($0) },
+                          method: EELSRoomFormat.fitFooter(hasFit: session.model != nil, convolved: session.model?.convolved ?? false,
+                                                           model: session.model?.model ?? .exactNNLS,
+                                                           deconvolution: session.modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution"),
+                          methodNames: [session.model?.methodName, session.modelDeconvolution?.methodName].compactMap { $0 })
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("eels.results")
+    }
+}
+
+/// One line under the table, as the EDS room's: how many notes the fit has on its numbers and how well it fits ("2 notes · RSS … · χ²ᵣ …"). A click
+/// opens everything the fit says about itself in a popover (the notes, then the fit quality and how the fit was made), so the table is never squeezed.
+/// Before a fit: "No fit yet".
+private struct EELSFitFooter: View {
+    let hasFit: Bool
+    let notes: [String]
+    let quality: String?
+    /// The fit's method line: model · background · convolution · deconvolution.
+    let method: String
+    /// The kit's method names of the fit and of its deconvolution.
+    let methodNames: [String]
+    @State private var open = false
+
+    var body: some View {
+        if hasFit {
+            let summary = EELSRoomFormat.fitNotesSummary(notes: notes.count, quality: quality ?? method)
+            Button { open.toggle() } label: {
+                HStack(spacing: 6) {
+                    Text(summary)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.up").font(.caption2)
+                }
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
+                .frame(height: LayoutPolicy.paneHeaderHeight)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .overlay(alignment: .top) { Divider() }
+            .popover(isPresented: $open, arrowEdge: .top) {
+                EELSFitNotesList(notes: notes, quality: quality, method: method, methodNames: methodNames)
+                    .frame(width: 360, height: 280)   // science: a popover's text
+            }
+            .help("What the fit says about its own numbers")
+            .accessibilityLabel("Fit notes")
+            .accessibilityValue(summary)
+            .accessibilityIdentifier("eels.results.footer")
+        } else {
+            Text("No fit yet")
                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
                 .frame(height: LayoutPolicy.paneHeaderHeight)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .overlay(alignment: .top) { Divider() }
-                .help(session.model.map { $0.methodName + (session.modelDeconvolution.map { "\n" + $0.methodName } ?? "") } ?? "No fit has run")
                 .accessibilityIdentifier("eels.results.footer")
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("eels.results")
+    }
+}
+
+/// The results footer's popover: each note as a warning, then "Fit · <quality>" and how the fit was made, as the EDS room's.
+struct EELSFitNotesList: View {
+    let notes: [String]
+    let quality: String?
+    let method: String
+    let methodNames: [String]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(notes, id: \.self) { InspectorWarning($0) }
+                Text("Fit" + (quality.map { " · " + $0 } ?? "")).font(.caption.weight(.semibold))
+                InspectorNote(method)
+                ForEach(methodNames, id: \.self) { InspectorNote($0) }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("eels.notes")
     }
 }

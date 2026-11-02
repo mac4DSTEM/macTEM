@@ -418,6 +418,30 @@ extension EELSRoomFormat {
         return "\(model.title) · \(background) · " + (convolved ? "convolved with the low loss" : "not convolved") + " · \(deconvolution)"
     }
 
+    /// What the fit says about its own numbers, for the results footer's popover (as the EDS room's notes). Each note is a sentence the room already
+    /// writes elsewhere, only grouped, in this order: the picked edges refused before the fit (`refusals`), the edges the kit left with no answer, the
+    /// composition's refusal, the exponent on a bound (once: the kit flags the fit, not an edge), each edge at or under 3σ, the MLLS not-detected
+    /// elements, and the deconvolution's unanswered pixels (`unanswered`, left out of the fit). A fit-only edge's missing at% is a choice, not a note.
+    package static func fitNotes(rows: [EELSEdgeRow], refusals: [String], unanswered: [EELSUnavailable?]?) -> [String] {
+        var out = refusals
+        for r in rows { if let why = r.unavailable { out.append("\(r.title): \(why)") } }
+        for r in rows where !r.fitOnly {
+            guard let why = r.atomicUnavailable, why != EELSEdgeRow.fitOnlyWords else { continue }
+            let note = "at% not computed: \(why)"
+            if !out.contains(note) { out.append(note) }
+        }
+        if rows.contains(where: \.exponentAtBound) { out.append(ResultRow.eelsExponentAtBound) }
+        for r in rows where r.belowDetection && !r.fitOnly && !r.notDetected { out.append("\(r.title) " + ResultRow.eelsBelowDetection) }
+        if let line = notDetectedLine(rows) { out.append(line) }
+        if let unanswered, let line = EELSDeconvolveCompute.unansweredLine(unanswered) { out.append("deconvolution: " + line) }
+        return out
+    }
+
+    /// The results footer, as the EDS room's: "2 notes · " and the fit quality; the quality alone when the fit has no note.
+    package static func fitNotesSummary(notes: Int, quality: String) -> String {
+        notes == 0 ? quality : "\(notes) \(notes == 1 ? "note" : "notes") · " + quality
+    }
+
     /// The I cell: "43180000 ± 210000", sigma to two significant digits; I alone where the kit gives no sigma.
     package static func intensityText(_ row: EELSEdgeRow, locale: Locale = .autoupdatingCurrent) -> String {
         guard let i = row.intensity else { return "–" }
