@@ -374,7 +374,7 @@ nonisolated final class EELSRealDataJourney: Journey {
                     shot("option hover pixel spectrum")
                 }
             }
-            note("SHOT (the pixel layer is drawn, not an accessibility element: check the white dashed curve)")
+            note("SHOT (the pixel layer is drawn, not an accessibility element: check the dashed pixel curve, white on the dark plot, near black on the light one)")
         }
 
         check("profile axis shows the file unit") {
