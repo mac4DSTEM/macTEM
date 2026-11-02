@@ -72,6 +72,8 @@ final class AppState {
     @ObservationIgnored var lastOpen: Task<Void, Never>?
     /// Files opened into the Image room that are also spectrum images (the HAADF of a Velox SI): their image is a scan image, which the Diffraction room does not take.
     var spectrumCompanionImages: Set<URL> = []
+    /// The scan of each opened DM4 spectrum image, from its header: its Open Files row shows the scan, not the survey image's size.
+    var spectrumScans: [URL: FileInventory.Scan] = [:]
     /// The files that opened into the EDS room and into the EELS room: a room follows the selected file (`spectrumRoomsFollowSelection`).
     var edsFiles: Set<URL> = []
     var eelsFiles: Set<URL> = []
