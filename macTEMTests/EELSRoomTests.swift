@@ -353,8 +353,9 @@ nonisolated final class EELSRoomTests: XCTestCase {
     /// the bottom of the scale, never as a value).
     func testTheTileScalesAreCentredOrMinToMaxOrFromZero() {
         let d = EELSMapScale.scaled([-2, 0, 1, .nan], mode: EELSMapScale.mode(forTileID: "zlpShift"))
-        XCTAssertEqual(d.low, -2); XCTAssertEqual(d.high, 2)
-        XCTAssertEqual(d.values[0], 0); XCTAssertEqual(d.values[1], 0.5); XCTAssertEqual(d.values[2], 0.75); XCTAssertTrue(d.values[3].isNaN)
+        // Centred on 0 out to max(|p1|, |p99|) = 1.96 (NumPy's linear percentiles of [-2, 0, 1]); -2 is past the end and takes the end colour.
+        XCTAssertEqual(d.low, -1.96, accuracy: 1e-12); XCTAssertEqual(d.high, 1.96, accuracy: 1e-12)
+        XCTAssertEqual(d.values[0], 0); XCTAssertEqual(d.values[1], 0.5); XCTAssertEqual(d.values[2], 2.96 / 3.92, accuracy: 1e-12); XCTAssertTrue(d.values[3].isNaN)
         XCTAssertEqual(EELSMapScale.scaled([1, 3, 2], mode: EELSMapScale.mode(forTileID: "tOverLambda")).values, [0, 1, 0.5])
         let z = EELSMapScale.scaled([0, 5, 10], mode: EELSMapScale.mode(forTileID: "edge-Mg-K1"))
         XCTAssertEqual(z.values, [0, 0.5, 1]); XCTAssertEqual(z.high, 10)
