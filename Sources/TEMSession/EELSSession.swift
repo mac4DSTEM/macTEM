@@ -37,6 +37,12 @@ package final class EELSSession {
     /// The zero-loss alignment (`EELSAlignment.alignZeroLossPeak`): the aligned low loss (and core loss), and the shifts. Nil until Align has run;
     /// from then the thickness map and the edge model work on the aligned cubes.
     package private(set) var alignment: ZeroLossAlignment?
+    /// Align's Signal range and Crop (the Processing section's rows); the next Align uses them.
+    package private(set) var alignChoice = EELSAlignChoice()
+    /// The options `alignment` was made with: a different `alignChoice` makes Align stale.
+    package private(set) var alignedWith: EELSAlignChoice?
+    /// The sentence for a Signal range the room refused (the previous one is kept).
+    package private(set) var alignNotice: String?
     /// Bumped whenever the cube the stages work on changes (a new file, an alignment): a map made from an older one is stale.
     @ObservationIgnored private var inputVersion = 0
     package private(set) var mapInputVersion = 0
@@ -186,7 +192,7 @@ package final class EELSSession {
 
     // MARK: Stages (design 2026-10-22: state on sections and the header readout, never blanking a result)
 
-    package var alignState: EELSStageState { alignment == nil ? .notRun : .current }
+    package var alignState: EELSStageState { alignment == nil ? .notRun : (alignedWith == alignChoice ? .current : .stale) }
     package var thicknessState: EELSStageState {
         map == nil ? .notRun : (mapInputVersion == inputVersion && mapSignature == thicknessSignature ? .current : .stale)
     }
@@ -220,9 +226,10 @@ package final class EELSSession {
     }
 
     /// The Processing section's state on its title row: Thickness (when the file has a low loss to map) and Deconvolve (when a method is chosen).
-    /// Align is left out: it is a step the person may skip, and it has no stale state.
+    /// Align joins only once it has run (it is a step the person may skip): then a change of its options stales the section.
     package var processingState: EELSStageState? {
         var states: [EELSStageState] = []
+        if alignState != .notRun { states.append(alignState) }
         if !onlyCoreLoss { states.append(thicknessState) }
         if deconvolutionChoice != .off { states.append(deconvolveState) }
         return EELSStageState.section(states)
@@ -413,6 +420,7 @@ package final class EELSSession {
         source = loaded
         threshold = .estimated; meanFreePath = .none; typedBeamEnergyKeV = nil
         alignment = nil; alignmentTile = nil; alignmentShiftTile = nil; inputVersion += 1; fitUsed = nil
+        alignChoice = EELSAlignChoice(); alignedWith = nil; alignNotice = nil
         pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""
         fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
         deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil
@@ -433,6 +441,7 @@ package final class EELSSession {
         deadTask?.cancel(); coreDeadStretches = []; editedWindows = [:]; references = []
         fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
         deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil
+        alignChoice = EELSAlignChoice(); alignedWith = nil; alignNotice = nil
         source = nil; alignment = nil; alignmentTile = nil; pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""; map = nil; tiles = []; unavailableReasons = []; failure = nil
         resetRegions()
     }
@@ -443,6 +452,23 @@ package final class EELSSession {
         guard new != threshold else { return }
         threshold = new
         refresh()
+    }
+
+    /// Align's Signal range: the search window for the zero-loss peak, in eV. One that does not start below its end is refused with a sentence. Align is
+    /// then stale until it runs again (a manual step: nothing reruns by itself).
+    package func setAlignSignalRange(fromEV: Double, toEV: Double) {
+        guard fromEV.isFinite, toEV.isFinite, fromEV < toEV else {
+            alignNotice = "The signal range must start below its end; it is still \(EELSRoomFormat.eV(alignChoice.signalRangeEV.lowerBound)) to "
+                + "\(EELSRoomFormat.eV(alignChoice.signalRangeEV.upperBound)) eV."
+            return
+        }
+        alignNotice = nil
+        alignChoice.signalRangeEV = fromEV...toEV
+    }
+
+    /// Align's Crop: drop the channels any shift left undefined (on), or keep the size and extrapolate linearly (off), as exSpy's `crop`.
+    package func setAlignCrop(_ crop: Bool) {
+        alignChoice.crop = crop
     }
 
     package func setMeanFreePath(_ new: EELSMeanFreePathChoice) {
@@ -1119,8 +1145,8 @@ package final class EELSSession {
 
     // MARK: Align and Run
 
-    /// The zero-loss alignment on the low loss (and the core loss with it): the kit's `EELSAlignment.alignZeroLossPeak` with its defaults
-    /// (recalibrate the offset, subpixel pass, crop). Lands only if no newer request was made; the thickness map is then stale until it runs.
+    /// The zero-loss alignment on the low loss (and the core loss with it): the kit's `EELSAlignment.alignZeroLossPeak` with the Signal range and Crop
+    /// of `alignChoice`, and the kit's defaults otherwise (recalibrate the offset, subpixel pass). Lands only if no newer request was made; the thickness map is then stale until it runs.
     @discardableResult
     package func align() -> Task<Void, Never>? {
         guard let loaded = source else { return nil }
@@ -1129,6 +1155,7 @@ package final class EELSSession {
         let gen = generation
         let low = loaded.image
         let core = loaded.coreLoss
+        let choice = alignChoice
         failure = nil
         isComputing = true
         computingStage = .align
@@ -1137,18 +1164,14 @@ package final class EELSSession {
             do {
                 let interval = Signposts.begin("eels.align"); defer { Signposts.end(interval) }
                 let gate = ProgressGate()
-                // The search window for the peak: ±5 eV about 0 (the design's default Signal range), cut to the axis. Over the whole axis a noisy pixel's
-                // maximum is anywhere, and its shift empties the cropped axis.
-                let axisHigh = low.energyOffsetEV + low.energyScaleEV * Double(low.channels - 1)
-                let window = max(low.energyOffsetEV, -5)...min(axisHigh, 5)
-                var options = ZeroLossAlignmentOptions()
-                if window.lowerBound < window.upperBound { options.signalRangeEV = window }
+                // The Signal range (±5 eV about 0 by default) cut to the axis, and Crop.
+                let options = choice.kitOptions(for: low)
                 let result = try EELSAlignment.alignZeroLossPeak(low, alsoAlign: core.map { [$0] } ?? [], options: options, progress: { f in
                     guard gate.shouldReport(f) else { return }
                     Task { @MainActor in self?.landProgress(f, generation: gen) }
                 })
                 if Task.isCancelled { return }
-                await self?.landAlignment(result, generation: gen)
+                await self?.landAlignment(result, choice: choice, generation: gen)
             } catch is SpectroCancelled {
                 return
             } catch {
@@ -1160,9 +1183,10 @@ package final class EELSSession {
         return task
     }
 
-    private func landAlignment(_ result: ZeroLossAlignment, generation gen: Int) {
+    private func landAlignment(_ result: ZeroLossAlignment, choice: EELSAlignChoice, generation gen: Int) {
         guard gen == generation else { return }
         alignment = result
+        alignedWith = choice
         alignmentTile = EELSCompute.beforeTile(result, nx: source?.image.nx ?? 0, ny: source?.image.ny ?? 0, version: inputVersion + 1)
         alignmentShiftTile = EELSCompute.shiftTile(result, nx: source?.image.nx ?? 0, ny: source?.image.ny ?? 0, version: inputVersion + 1)
         inputVersion += 1

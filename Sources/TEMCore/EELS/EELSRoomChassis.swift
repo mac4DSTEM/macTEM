@@ -553,7 +553,7 @@ extension EELSRoomFormat {
 
     /// The Processing section's one line under its rows.
     package static func processingLine(align: EELSStageState, thickness: EELSStageState, alignmentReadout: String?) -> String {
-        if let alignmentReadout { return "Aligned: " + alignmentReadout }
+        if let alignmentReadout { return "Aligned: " + alignmentReadout + (align == .stale ? " · needs a new run" : "") }
         if align == .notRun { return "Align —: Run aligns the zero-loss peak." }
         return "Align " + align.word + "."
     }
