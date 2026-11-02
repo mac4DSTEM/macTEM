@@ -8,6 +8,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). App
 - **Runs on macOS 26** (was macOS 27) on Apple silicon. MacEMUI 0.3.2. CI builds and runs the unit tests, on Xcode 26.6.
 - Exports no longer carry internal milestone ids: the `validation` and `lineage` text in PNG metadata, FFT CSVs and the line profile and measurement CSVs names what each number is checked against (numpy, scikit-image, ImagoKit's parity tests), without "V1-…" or "until V1-2".
 
+## [1.2.0](https://github.com/mac4DSTEM/macTEM/compare/v1.1.1...v1.2.0) (2026-11-02)
+
+
+### Features
+
+* EELS keyboard regions, hovered pixel spectrum and profile labels ([#82](https://github.com/mac4DSTEM/macTEM/issues/82)) ([36aadd5](https://github.com/mac4DSTEM/macTEM/commit/36aadd518e6a7559ba4e00e5f9293d05ba1f629d))
+* EELS Maps status line while maps are computed ([#78](https://github.com/mac4DSTEM/macTEM/issues/78)) ([3b3812d](https://github.com/mac4DSTEM/macTEM/commit/3b3812da73e01b22767b65f6503c9372bfeff7ae))
+* EELS MLLS fit uses the reference spectra ([#90](https://github.com/mac4DSTEM/macTEM/issues/90)) ([903f3b9](https://github.com/mac4DSTEM/macTEM/commit/903f3b9608bedaf156adb7da65bf6924b4eb78ab))
+* EELS results footer opens the fit notes, as the EDS room ([#81](https://github.com/mac4DSTEM/macTEM/issues/81)) ([124d663](https://github.com/mac4DSTEM/macTEM/commit/124d6632e3abe7d8ed520a2c2f9f64791e137810))
+* EELS room keyboard regions, the hovered pixel's spectrum and profile labels ([36aadd5](https://github.com/mac4DSTEM/macTEM/commit/36aadd518e6a7559ba4e00e5f9293d05ba1f629d))
+* EELS single spectrum and stage state on the section titles ([#77](https://github.com/mac4DSTEM/macTEM/issues/77)) ([521675d](https://github.com/mac4DSTEM/macTEM/commit/521675d1c7c32721f5df3bc998d80669d3b47139))
+* EELS Spectrum MSA export, method JSON SHA-256, Info tilts and beam source ([#79](https://github.com/mac4DSTEM/macTEM/issues/79)) ([e2bd1f6](https://github.com/mac4DSTEM/macTEM/commit/e2bd1f6b7db8adacabd5b369c2981b69206229b1))
+
+
+### Bug Fixes
+
+* EELS profile lists only the shown maps; the hovered spectrum shows in light mode ([#84](https://github.com/mac4DSTEM/macTEM/issues/84)) ([d49acb1](https://github.com/mac4DSTEM/macTEM/commit/d49acb13514b2d23d2f1c61807dbdf9dcdc3923a))
+* EELS results table shows at% and wt% without clipping ([#88](https://github.com/mac4DSTEM/macTEM/issues/88)) ([7383d0f](https://github.com/mac4DSTEM/macTEM/commit/7383d0f07414496d848cd790e9238d486d8f69c4))
+* EELS ZLP shift tile contrast and the empty tooltip on the colour mix ([#91](https://github.com/mac4DSTEM/macTEM/issues/91)) ([1d43ad8](https://github.com/mac4DSTEM/macTEM/commit/1d43ad8cd2f329ae134456feae78a4569f4e3e30))
+* Open Files shows the scan size of an EELS spectrum image ([#89](https://github.com/mac4DSTEM/macTEM/issues/89)) ([a701ded](https://github.com/mac4DSTEM/macTEM/commit/a701ded5083d0fb39410a1030c6dd6124488a980))
+* the EELS room opens a single spectrum ([#85](https://github.com/mac4DSTEM/macTEM/issues/85)) ([77d81fc](https://github.com/mac4DSTEM/macTEM/commit/77d81fca95de9f0522cb655fac69b603e4d1bda5))
+
 ## [1.1.1](https://github.com/mac4DSTEM/macTEM/compare/v1.1.0...v1.1.1) (2026-11-02)
 
 
