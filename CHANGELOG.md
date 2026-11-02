@@ -8,6 +8,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). App
 - **Runs on macOS 26** (was macOS 27) on Apple silicon. MacEMUI 0.3.2. CI builds and runs the unit tests, on Xcode 26.6.
 - Exports no longer carry internal milestone ids: the `validation` and `lineage` text in PNG metadata, FFT CSVs and the line profile and measurement CSVs names what each number is checked against (numpy, scikit-image, ImagoKit's parity tests), without "V1-…" or "until V1-2".
 
+## [1.1.1](https://github.com/mac4DSTEM/macTEM/compare/v1.1.0...v1.1.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* the app version comes from the release tag ([#75](https://github.com/mac4DSTEM/macTEM/issues/75)) ([5994de9](https://github.com/mac4DSTEM/macTEM/commit/5994de9bbe6fb5f0a5399ecd9c352db2667423c6))
+
 ## [1.1.0](https://github.com/mac4DSTEM/macTEM/compare/v1.0.0...v1.1.0) (2026-11-01)
 
 
