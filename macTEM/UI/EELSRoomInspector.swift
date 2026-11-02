@@ -1,7 +1,8 @@
 //
 //  EELSRoomInspector.swift
 //  Role: the EELS room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the standard order:
-//        Maps (one full-width control: ZLP · t/λ · t · at% · wt%, a segment off with its reason until its stage ran, the display Filter row, one caption), Tools (the region tool and the
+//        Maps (one full-width control: ZLP · t/λ · t · at% · wt%, a segment off with its reason until its stage ran, the display Filter row, one caption or,
+//        while maps are computed, the status line with a spinner), Tools (the region tool and the
 //        Regions list), Edges (the periodic table answered from the session), Processing (Align, Threshold, λ, Deconvolution; the stage's state on the title),
 //        Fitting (model, background, convolution, E0 α β with their source) and Export. Info: the file, its grid and energy axis.
 //        Presentation only: the state is `EELSSession` (TEMSession), the numbers SpectroKit's through it, the pure answers `TEMCore/EELS/EELSRoomChassis.swift`.
@@ -67,8 +68,17 @@ struct EELSMapsSection: View {
                 .help("A display kernel on the t/λ, t, at% and wt% maps, on by default. The readout, the histogram, the results and every export use the raw values; a filtered tile says so. Edge intensities and the ZLP shift are never filtered.")
                 .accessibilityIdentifier("eels.mapFilter")
             }
-            InspectorNote(state.mapsNotice ?? availability.caption(selection))
-                .accessibilityIdentifier("eels.maps.caption")
+            // While a stage makes maps, the one line says so with a spinner (the EDS room's status line); the caption returns when it lands.
+            if let status = EELSMapsSegment.status(computing: session.computingStage, selection: selection) {
+                HStack(spacing: 6) { ProgressView().controlSize(.small); Text(status) }
+                    .font(.caption).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("eels.mapsStatus")
+            } else {
+                InspectorNote(state.mapsNotice ?? availability.caption(selection))
+                    .accessibilityIdentifier("eels.maps.caption")
+            }
         }
     }
 }

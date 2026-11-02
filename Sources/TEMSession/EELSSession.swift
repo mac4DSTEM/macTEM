@@ -127,7 +127,11 @@ package final class EELSSession {
     @ObservationIgnored private var linesIssued = 0
     @ObservationIgnored private var pinDataTask: Task<Void, Never>?
     @ObservationIgnored private var pinDataRun = 0
-    package private(set) var isComputing = false
+    package private(set) var isComputing = false {
+        didSet { if !isComputing { computingStage = nil } }
+    }
+    /// The stage the running pass computes (Align, Thickness, Deconvolve or Fit), nil when none runs: the Maps section's status line names its maps.
+    package private(set) var computingStage: EELSStage?
     package private(set) var progress = 0.0
     package private(set) var failure: String?
     /// Why pixels have no t/λ and how many, from the map on screen (made once when a map lands).
@@ -480,6 +484,7 @@ package final class EELSSession {
         }
         failure = nil
         isComputing = true
+        computingStage = .thickness
         progress = 0
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
@@ -702,6 +707,7 @@ package final class EELSSession {
         failure = nil
         fitRefusal = nil
         isComputing = true
+        computingStage = .fit
         progress = 0
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
@@ -780,6 +786,7 @@ package final class EELSSession {
         let signature = currentDeconvolutionSignature
         failure = nil
         isComputing = true
+        computingStage = .deconvolve
         progress = 0
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
@@ -1112,6 +1119,7 @@ package final class EELSSession {
         let core = loaded.coreLoss
         failure = nil
         isComputing = true
+        computingStage = .align
         progress = 0
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
