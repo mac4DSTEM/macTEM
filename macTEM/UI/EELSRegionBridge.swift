@@ -66,11 +66,35 @@ enum EELSRegionBridge {
         session.selectWholeMap()
     }
 
-    /// The selected line's profile, one series per map in the map's own hue. Positions are in scan pixels; with the file's pixel size they are in its unit
-    /// (`profileUnit`), as the EDS room's `EDXRegionBridge.series`.
-    static func series(_ session: EELSSession, hue: (String) -> Double) -> [ProfileSeries] {
+    /// The maps the profile reads: the maps the block shows for the Maps control's segment (`EELSMapsBlock.shownMaps`), in their order, kept to one quantity.
+    static func profileMaps(_ session: EELSSession, state: EELSRoomState) -> [EELSMapTile] {
+        profileMaps(shown: EELSMapsBlock.shownMaps(session, state), segment: session.mapsAvailability.effective(state.maps))
+    }
+
+    /// One quantity, as the EDS room's profile is its map mode's tiles: the segment's own (the at% or wt% maps on those segments, else the first map shown:
+    /// t/λ, t, the ZLP shift, I total in a file with only a core loss), and every shown map in its unit, in the order shown. The edge maps beside t/λ are
+    /// another unit and are left out, so no map lies flat along 0 on another's axis.
+    nonisolated static func profileMaps(shown: [EELSMapTile], segment: EELSMapsSegment) -> [EELSMapTile] {
+        let own = segment == .atomicPercent || segment == .weightPercent ? shown.first { $0.unit == segment.title } : nil
+        guard let lead = own ?? shown.first else { return [] }
+        return shown.filter { $0.unit == lead.unit }
+    }
+
+    /// The selected line's profile on the maps the Maps control shows (`profileMaps`), one series per map in the map's own hue.
+    static func series(_ session: EELSSession, state: EELSRoomState, hue: (String) -> Double) -> [ProfileSeries] {
+        series(session, maps: profileMaps(session, state: state), hue: hue)
+    }
+
+    /// The profile's value axis for the maps the Maps control shows (`profileValueTitle(maps:)`).
+    static func profileValueTitle(_ session: EELSSession, state: EELSRoomState) -> String {
+        profileValueTitle(maps: profileMaps(session, state: state).map { (title: $0.title, unit: $0.unit) })
+    }
+
+    /// The selected line's profile on `maps` (every map the room holds when nil), one series per map in the map's own hue. Positions are in scan pixels;
+    /// with the file's pixel size they are in its unit (`profileUnit`), as the EDS room's `EDXRegionBridge.series`.
+    static func series(_ session: EELSSession, maps: [EELSMapTile]? = nil, hue: (String) -> Double) -> [ProfileSeries] {
         let size = session.scanPixel?.size ?? 1
-        return session.profiles().compactMap { p in
+        return session.profiles(of: maps).compactMap { p in
             guard !p.samples.isEmpty else { return nil }
             let spacing = (p.positions.count > 1 ? p.positions[1] - p.positions[0] : 1) * size
             let rgb = EDXRoomFormat.rgb(hue: hue(p.id))
@@ -81,18 +105,15 @@ enum EELSRegionBridge {
     /// The profile's distance unit: the scan's pixel unit when the file states a pixel size, else pixels.
     static func profileUnit(_ session: EELSSession) -> String { session.scanPixel?.unit ?? "px" }
 
-    /// The profile's value axis, named after the maps the line reads (`profileValueTitle(maps:)`).
-    static func profileValueTitle(_ session: EELSSession) -> String {
-        profileValueTitle(maps: session.displayedTiles.map { (title: $0.title, unit: $0.unit) })
-    }
-
-    /// One map: its title, with its unit when it has one ("t/λ", "t (nm)"). Maps of one unit: their titles and the unit ("C, N (at%)"). Maps of
-    /// different units: their titles.
+    /// One short quantity name, so it fits the inset, as the EDS room's (its map mode's title, "at%"); the series are told apart by their maps' colours.
+    /// The first map's quantity: one map is its title with its unit ("t/λ", "t (nm)"); several are their unit when it names the quantity ("at%", "wt%"),
+    /// else "n maps (unit)".
     nonisolated static func profileValueTitle(maps: [(title: String, unit: String)]) -> String {
-        let titles = maps.map(\.title).joined(separator: ", ")
-        let units = Set(maps.map(\.unit))
-        guard units.count == 1, let unit = units.first, !unit.isEmpty else { return titles }
-        return "\(titles) (\(unit))"
+        guard let first = maps.first else { return "Value" }
+        let same = maps.filter { $0.unit == first.unit }
+        if same.count == 1 { return first.unit.isEmpty ? first.title : "\(first.title) (\(first.unit))" }
+        if first.unit == "at%" || first.unit == "wt%" { return first.unit }
+        return first.unit.isEmpty ? "\(same.count) maps" : "\(same.count) maps (\(first.unit))"
     }
 
     // MARK: The keyboard route (the anchor tile with the focus: after a click on it, or by Tab), as the EDS room's
