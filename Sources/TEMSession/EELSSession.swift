@@ -147,6 +147,8 @@ package final class EELSSession {
     // MARK: Derived
 
     package var hasImage: Bool { source != nil }
+    /// A file of one scan pixel (a 1 x 1 spectrum image): no maps, no regions; the room shows the spectrum and its results only, as the EDS room's `isSingleSpectrum`.
+    package var isSingleSpectrum: Bool { (source?.image.nx ?? 0) * (source?.image.ny ?? 0) == 1 }
     /// The low loss the thickness map is made from: the aligned one once Align has run.
     package var workingLowLoss: LowLossSpectrumImage? { alignment?.aligned ?? source?.image }
     /// The core loss the edge model fits: the aligned one once Align has run.
@@ -207,6 +209,17 @@ package final class EELSSession {
         if deconvolutionChoice != .off { out.append((.deconvolve, deconvolveState)) }
         return out + [(.edges, edgesState), (.fit, fitState)]
     }
+
+    /// The Processing section's state on its title row: Thickness (when the file has a low loss to map) and Deconvolve (when a method is chosen).
+    /// Align is left out: it is a step the person may skip, and it has no stale state.
+    package var processingState: EELSStageState? {
+        var states: [EELSStageState] = []
+        if !onlyCoreLoss { states.append(thicknessState) }
+        if deconvolutionChoice != .off { states.append(deconvolveState) }
+        return EELSStageState.section(states)
+    }
+    /// The Fitting section's state on its title row: the Fit stage's.
+    package var fittingState: EELSStageState? { EELSStageState.section([fitState]) }
 
     /// The core loss the spectrum shows: the Fourier-ratio deconvolved one once the stage made it, else the working core loss.
     package var shownCoreLoss: CoreLossSpectrumImage? {
@@ -1002,7 +1015,7 @@ package final class EELSSession {
         let run = plotRun, core = shownCoreLoss, map = map, threshold = threshold, deconvolvedLow = shownDeconvolvedLow, answered = shownAnswered
         let lambda = (try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)) ?? nil
         let pin = selectedPin
-        let region = pin?.region ?? .wholeMap, name = pin?.name ?? "Whole map"
+        let region = pin?.region ?? .wholeMap, name = pin?.name ?? (isSingleSpectrum ? "Spectrum" : "Whole map")
         // The model is drawn only over the core loss it was fitted to (stored or Fourier-ratio deconvolved).
         let fit = model != nil && fitUsed?.deconvolved == (answered != nil) ? fitUsed : nil
         plotTask = Task.detached(priority: .userInitiated) { [weak self] in

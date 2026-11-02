@@ -25,7 +25,7 @@ struct EELSRoomSettings: View {
         let session = appState.eels
         if session.hasImage {
             EELSMapsSection(session: session, state: appState.eelsRoom)
-            EELSToolsSection(state: appState.eelsRoom)
+            EELSToolsSection(session: session, state: appState.eelsRoom)
             EELSEdgesSection(session: session)
             EELSProcessingSection(session: session)
             EELSFittingSection(session: session)
@@ -38,12 +38,16 @@ struct EELSRoomSettings: View {
 }
 
 /// Maps: the quantity the maps show, one full-width control, and under it the one caption. A segment whose stage has not run is refused with its reason (the caption
-/// says it; the control stays where it was).
+/// says it; the control stays where it was). A single spectrum has no maps and no section (the EDS room's `isSingleSpectrum`).
 struct EELSMapsSection: View {
     let session: EELSSession
     @Bindable var state: EELSRoomState
 
     var body: some View {
+        if !session.isSingleSpectrum { section }
+    }
+
+    @ViewBuilder private var section: some View {
         let availability = session.mapsAvailability
         let selection = availability.effective(state.maps)
         InspectorSection("Maps") {
@@ -70,18 +74,26 @@ struct EELSMapsSection: View {
 }
 
 /// Tools: the region tool, one full-width control of icons, as in the EDS room. The regions live on the anchor tile and in the results' Regions table (the owner,
-/// 2026-10-23: no region rows in the inspector).
-private struct EELSToolsSection: View {
+/// 2026-10-23: no region rows in the inspector). A single spectrum has no map to draw a region on, and no section.
+struct EELSToolsSection: View {
+    let session: EELSSession
     @Bindable var state: EELSRoomState
 
     var body: some View {
         // The tool's hint is its tooltip: no paragraph under the control.
-        InspectorSection("Tools") {
-            SegmentedPicker(label: "Region tool", items: RegionTool.allCases.map { ($0, .symbol(name: $0.symbolName, label: $0.title, help: $0.hint)) }, selection: $state.tool)
-                .controlSize(.large)
-                .accessibilityIdentifier("eels.tool")
+        if !session.isSingleSpectrum {
+            InspectorSection("Tools") {
+                SegmentedPicker(label: "Region tool", items: RegionTool.allCases.map { ($0, .symbol(name: $0.symbolName, label: $0.title, help: $0.hint)) }, selection: $state.tool)
+                    .controlSize(.large)
+                    .accessibilityIdentifier("eels.tool")
+            }
         }
     }
+}
+
+/// A section's stage state on its title row: MacEMUI's status glyph at the trailing edge (the stage's SF Symbol, secondary) and the state's word for VoiceOver.
+nonisolated enum EELSSectionStatus {
+    static func glyph(_ state: EELSStageState?) -> Image? { state.map { Image(systemName: $0.symbolName) } }
 }
 
 /// The periodic table answered from the session: only the elements with a bundled edge are live, and only those the core loss reaches. A click picks the default
@@ -163,7 +175,7 @@ private struct EELSEdgesSection: View {
 
 /// Processing: one section for the stages before the edges: Align (fixed options in this version), Threshold, λ and Deconvolution (its own stage). The stage's state is
 /// on the title; the kit's readout is one line under the rows, and a refusal's sentence under that.
-private struct EELSProcessingSection: View {
+struct EELSProcessingSection: View {
     let session: EELSSession
 
     private var isFixed: Bool { if case .fixed = session.threshold { true } else { false } }
@@ -183,7 +195,8 @@ private struct EELSProcessingSection: View {
     }
 
     var body: some View {
-        InspectorSection("Processing") {
+        let stage = session.processingState
+        InspectorSection("Processing", status: stage?.word, statusGlyph: EELSSectionStatus.glyph(stage)) {
             // The first row also carries the pipeline's four stages in words, for the UI journey (`eels.pipeline`: "Align current · Thickness
             // current · Edges not run · Fit not run").
             InspectorValueRow("Align method", "Maximum, then cross-correlation")
@@ -307,7 +320,8 @@ struct EELSFittingSection: View {
 
     var body: some View {
         let file = session.source
-        InspectorSection("Fitting") {
+        let stage = session.fittingState
+        InspectorSection("Fitting", status: stage?.word, statusGlyph: EELSSectionStatus.glyph(stage)) {
             SegmentedPicker(label: "Model", items: EELSFitModel.allCases.map { ($0, .title($0.title, help: $0.help)) },
                             selection: Binding(get: { session.fitModel }, set: { session.setFitModel($0) }))
                 .accessibilityIdentifier("eels.model")
