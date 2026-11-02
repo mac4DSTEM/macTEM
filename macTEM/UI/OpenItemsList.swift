@@ -25,6 +25,14 @@ nonisolated enum OpenItemRowFormat {
     /// "2048 × 2048".
     static func size(width: Int, height: Int) -> String { "\(width) × \(height)" }
 
+    /// The size and x sampling a row states: a spectrum image's scan (`FileInventory.scan`) when the file has one, else the image's own. A DM4
+    /// spectrum image's image is its survey (2048 × 2048 beside a 432 × 172 scan), which is not the size of the data the file holds.
+    static func shown(width: Int, height: Int, x: AxisCalibration?, scan: FileInventory.Scan?) -> (width: Int, height: Int, x: AxisCalibration?) {
+        guard let scan else { return (width, height, x) }
+        let sampling = scan.xScale.flatMap { scale in scan.xUnit.map { AxisCalibration(scale: scale, unit: $0) } }
+        return (scan.width, scan.height, sampling)
+    }
+
     /// The x sampling as the Info line writes it (`AppState.openedLine`): a metre axis in nm, µm or mm
     /// (`DisplaySampling`), the unit through `UnitDisplay.label`; nil when x is not calibrated —
     /// the x axis decides, whatever y says.
@@ -284,10 +292,11 @@ struct OpenItemRow: View {
     @ViewBuilder
     private func detail(_ summary: ImageSummary?) -> some View {
         if let summary {
+            let shown = OpenItemRowFormat.shown(width: summary.width, height: summary.height, x: summary.x, scan: appState.spectrumScans[item.url])
             let size = OpenItemRowFormat.withFolder(
-                OpenItemRowFormat.size(width: summary.width, height: summary.height), folder: folder)
+                OpenItemRowFormat.size(width: shown.width, height: shown.height), folder: folder)
             let full = OpenItemRowFormat.withFolder(
-                OpenItemRowFormat.detailLine(width: summary.width, height: summary.height, x: summary.x), folder: folder)
+                OpenItemRowFormat.detailLine(width: shown.width, height: shown.height, x: shown.x), folder: folder)
             // The first that fits wins; the size, which every image has, never gets cut (ImagePane's header rule); a
             // folder too long for the row is the part that truncates.
             ViewThatFits(in: .horizontal) {
@@ -320,7 +329,8 @@ struct OpenItemRow: View {
     private func spokenLabel(_ summary: ImageSummary?) -> String {
         var label: String
         if let summary {
-            label = OpenItemRowFormat.accessibilityLabel(name: spokenName, width: summary.width, height: summary.height, x: summary.x)
+            let shown = OpenItemRowFormat.shown(width: summary.width, height: summary.height, x: summary.x, scan: appState.spectrumScans[item.url])
+            label = OpenItemRowFormat.accessibilityLabel(name: spokenName, width: shown.width, height: shown.height, x: shown.x)
         } else {
             label = "\(spokenName), reading"
         }
