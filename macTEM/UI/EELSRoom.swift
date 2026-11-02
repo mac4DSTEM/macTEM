@@ -2,7 +2,8 @@
 //  EELSRoom.swift
 //  Role: the EELS room on the EDS room's chassis. Centre: the maps block on top (the t/λ map is the anchor tile where regions are
 //        drawn and edited, the ZLP shift after Align and one tile per fitted edge on the right, one shared zoom, one cursor into the status line), the spectrum
-//        below (the region's low loss and core loss on one energy axis with a marked gap) with the results beside it. The tools, the Maps control, the edges,
+//        below (the region's low loss and core loss on one energy axis with a marked gap) with the results beside it; a single spectrum (a 1 x 1 file) is the
+//        spectrum and its results alone, as the EDS room's. The tools, the Maps control, the edges,
 //        the processing and fitting choices and the exports are the inspector's (`EELSRoomInspector.swift`). The room has its own document, the spectrum image,
 //        opened from here and held by `EELSSession` (TEMSession). Presentation only: every number is SpectroKit's through the session, its method and reference named (`EELSLiterature`);
 //        the pure parts (which tile goes where, the axis, the thickness line) are `TEMCore/EELS/EELSRoomChassis.swift`.
@@ -105,6 +106,10 @@ struct EELSRoom: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("eels.opening")
+            } else if session.hasImage && session.isSingleSpectrum {
+                // One pixel has no maps: the spectrum and its results are the whole room (the EDS room's `isSingleSpectrum`).
+                EELSLowerPane(session: session, state: state)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if session.hasImage {
                 // No strip above the maps: the file and the stage are the toolbar's display; the tools and the Maps control are the inspector's.
                 VerticalPaneSplit(storageKey: "eels.lowerSplit", defaultFraction: 0.6, resizeLabel: "Resize the maps and the spectrum", topName: "Maps",

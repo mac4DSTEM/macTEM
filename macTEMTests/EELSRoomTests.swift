@@ -503,12 +503,13 @@ nonisolated final class EELSRoomTests: XCTestCase {
     /// missing; the header strip back; the verb changed; regions drawn on every tile.
     func testTheRoomIsTheChassisInTheDesignsOrder() throws {
         let inspector = squeezed(try source("macTEM/UI/EELSRoomInspector.swift"))
-        let order = ["EELSMapsSection(session: session, state: appState.eelsRoom)", "EELSToolsSection(state: appState.eelsRoom)", "EELSEdgesSection(session: session)",
+        let order = ["EELSMapsSection(session: session, state: appState.eelsRoom)", "EELSToolsSection(session: session, state: appState.eelsRoom)", "EELSEdgesSection(session: session)",
                      "EELSProcessingSection(session: session)", "EELSFittingSection(session: session)", "EELSExportSection(session: session, state: appState.eelsRoom)"]
         let at = try order.map { try XCTUnwrap(inspector.range(of: $0), $0).lowerBound }
         XCTAssertEqual(at, at.sorted(), "Maps, Tools, Edges, Processing, Fitting, Export")
         XCTAssertTrue(inspector.contains("InspectorSection(\"Maps\")")); XCTAssertTrue(inspector.contains("InspectorSection(\"Tools\")"))
-        XCTAssertTrue(inspector.contains("InspectorSection(\"Processing\")")); XCTAssertTrue(inspector.contains("InspectorSection(\"Fitting\")"))
+        XCTAssertTrue(inspector.contains("InspectorSection(\"Processing\", status: stage?.word, statusGlyph: EELSSectionStatus.glyph(stage))"), "the stage state on the title")
+        XCTAssertTrue(inspector.contains("InspectorSection(\"Fitting\", status: stage?.word, statusGlyph: EELSSectionStatus.glyph(stage))"))
         XCTAssertTrue(inspector.contains("SegmentedPicker(label: \"Maps\""), "full-width segmented controls (MacEMUI's)")
         XCTAssertTrue(inspector.contains("SegmentedPicker(label: \"Region tool\""))
         XCTAssertTrue(inspector.contains("PeriodicTable(actions: EELSPeriodicActions.make(session))"))

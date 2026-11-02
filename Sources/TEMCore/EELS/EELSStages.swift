@@ -40,6 +40,14 @@ package enum EELSStageState: Equatable, Sendable {
         case .notRun: "not run"
         }
     }
+
+    /// One inspector section's state over the stages it holds: stale when any is stale (a result on screen that Run would change), else not run
+    /// when any has not run, else current; nil for a section that holds no stage now.
+    package static func section(_ states: [EELSStageState]) -> EELSStageState? {
+        if states.isEmpty { return nil }
+        if states.contains(.stale) { return .stale }
+        return states.contains(.notRun) ? .notRun : .current
+    }
 }
 
 package nonisolated enum EELSRoomFormat {

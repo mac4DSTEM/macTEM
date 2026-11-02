@@ -127,7 +127,11 @@ package final class EELSSession {
     @ObservationIgnored private var linesIssued = 0
     @ObservationIgnored private var pinDataTask: Task<Void, Never>?
     @ObservationIgnored private var pinDataRun = 0
-    package private(set) var isComputing = false
+    package private(set) var isComputing = false {
+        didSet { if !isComputing { computingStage = nil } }
+    }
+    /// The stage the running pass computes (Align, Thickness, Deconvolve or Fit), nil when none runs: the Maps section's status line names its maps.
+    package private(set) var computingStage: EELSStage?
     package private(set) var progress = 0.0
     package private(set) var failure: String?
     /// Why pixels have no t/λ and how many, from the map on screen (made once when a map lands).
@@ -147,6 +151,8 @@ package final class EELSSession {
     // MARK: Derived
 
     package var hasImage: Bool { source != nil }
+    /// A file of one scan pixel (a 1 x 1 spectrum image): no maps, no regions; the room shows the spectrum and its results only, as the EDS room's `isSingleSpectrum`.
+    package var isSingleSpectrum: Bool { (source?.image.nx ?? 0) * (source?.image.ny ?? 0) == 1 }
     /// The low loss the thickness map is made from: the aligned one once Align has run.
     package var workingLowLoss: LowLossSpectrumImage? { alignment?.aligned ?? source?.image }
     /// The core loss the edge model fits: the aligned one once Align has run.
@@ -207,6 +213,17 @@ package final class EELSSession {
         if deconvolutionChoice != .off { out.append((.deconvolve, deconvolveState)) }
         return out + [(.edges, edgesState), (.fit, fitState)]
     }
+
+    /// The Processing section's state on its title row: Thickness (when the file has a low loss to map) and Deconvolve (when a method is chosen).
+    /// Align is left out: it is a step the person may skip, and it has no stale state.
+    package var processingState: EELSStageState? {
+        var states: [EELSStageState] = []
+        if !onlyCoreLoss { states.append(thicknessState) }
+        if deconvolutionChoice != .off { states.append(deconvolveState) }
+        return EELSStageState.section(states)
+    }
+    /// The Fitting section's state on its title row: the Fit stage's.
+    package var fittingState: EELSStageState? { EELSStageState.section([fitState]) }
 
     /// The core loss the spectrum shows: the Fourier-ratio deconvolved one once the stage made it, else the working core loss.
     package var shownCoreLoss: CoreLossSpectrumImage? {
@@ -467,6 +484,7 @@ package final class EELSSession {
         }
         failure = nil
         isComputing = true
+        computingStage = .thickness
         progress = 0
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
@@ -689,6 +707,7 @@ package final class EELSSession {
         failure = nil
         fitRefusal = nil
         isComputing = true
+        computingStage = .fit
         progress = 0
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
@@ -767,6 +786,7 @@ package final class EELSSession {
         let signature = currentDeconvolutionSignature
         failure = nil
         isComputing = true
+        computingStage = .deconvolve
         progress = 0
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
@@ -1009,7 +1029,7 @@ package final class EELSSession {
         let run = plotRun, core = shownCoreLoss, map = map, threshold = threshold, deconvolvedLow = shownDeconvolvedLow, answered = shownAnswered
         let lambda = (try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)) ?? nil
         let pin = selectedPin
-        let region = pin?.region ?? .wholeMap, name = pin?.name ?? "Whole map"
+        let region = pin?.region ?? .wholeMap, name = pin?.name ?? (isSingleSpectrum ? "Spectrum" : "Whole map")
         // The model is drawn only over the core loss it was fitted to (stored or Fourier-ratio deconvolved).
         let fit = model != nil && fitUsed?.deconvolved == (answered != nil) ? fitUsed : nil
         plotTask = Task.detached(priority: .userInitiated) { [weak self] in
@@ -1106,6 +1126,7 @@ package final class EELSSession {
         let core = loaded.coreLoss
         failure = nil
         isComputing = true
+        computingStage = .align
         progress = 0
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
