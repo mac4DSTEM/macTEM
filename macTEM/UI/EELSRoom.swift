@@ -242,7 +242,6 @@ struct EELSMapsBlock: View {
         let availability = session.mapsAvailability
         let composition = EELSMapsComposition.compose(selection: availability.effective(state.maps), onlyCoreLoss: availability.onlyCoreLoss, tiles: session.tiles,
                                                       shiftTile: session.alignmentShiftTile, modelTiles: session.modelTiles)
-        let readoutTiles = session.tiles + (session.alignmentShiftTile.map { [$0] } ?? []) + session.modelTiles
         let regions = EELSRegionBridge.set(session, linesFocused: state.linesFocused)
         let image = session.source?.image
         let aspect = EELSMapsComposition.aspect(nx: image?.nx, ny: image?.ny)
@@ -267,7 +266,7 @@ struct EELSMapsBlock: View {
                 let mix = EELSGridItem(id: EELSGridItem.mixID, kind: .mix(maps.filter { chosen.contains($0.id) }))
                 AnchoredMapsBlock(anchor: mix, items: maps.map { EELSGridItem(id: $0.id, kind: .map($0)) }, aspect: CGFloat(aspect), storageKey: "eels.mapsSplit",
                                   solo: $state.soloTile, soloEnabled: false) { item, size, isAnchor in
-                    EELSMapTileHost(item: item, size: size, isAnchor: isAnchor, session: session, readoutTiles: readoutTiles, maps: maps,
+                    EELSMapTileHost(item: item, size: size, isAnchor: isAnchor, session: session, maps: maps,
                                     regions: isAnchor ? regions : nil, state: state,
                                     isStale: EELSMapsComposition.isStale(item.id, thickness: thickness, fit: fit, align: align), isRunning: running)
                 }
@@ -285,7 +284,6 @@ private struct EELSMapTileHost: View {
     let size: CGSize
     let isAnchor: Bool
     let session: EELSSession
-    let readoutTiles: [EELSMapTile]
     /// Every map on the right (what the mix chooses from).
     let maps: [EELSMapTile]
     let regions: SpectralRegionSet?
@@ -315,13 +313,22 @@ private struct EELSMapTileHost: View {
         }
     }
 
+    /// What the status line reads over this tile: the map itself, or the mix's members.
+    private var hoveredTiles: [EELSMapTile] {
+        switch item.kind {
+        case .map(let tile): [tile]
+        case .mix(let members): members
+        }
+    }
+
     private func hover(_ pixel: (x: Int, y: Int)?) {
         state.hoverPixel = pixel.map { EELSHoverPixel(x: $0.x, y: $0.y) }
         state.readout = pixel.map { p in
             let refusal = session.map.flatMap { m in p.x < m.nx && p.y < m.ny ? m[p.x, p.y].unavailable?.description : nil }
             let nx = session.source?.image.nx ?? 0
             let unanswered = nx > 0 && p.x < nx ? EELSDeconvolveCompute.reason(session.readoutDeconvolution?.unavailable, pixel: p.y * nx + p.x) : nil
-            return EELSRoomFormat.readout(x: p.x, y: p.y, tiles: readoutTiles, refusal: refusal, unanswered: unanswered)
+            // The hovered map's value only, as the EDS room's: every map at once ran past the status line ("O 3,77…" on the drive).
+            return EELSRoomFormat.tileReadout(x: p.x, y: p.y, tiles: hoveredTiles, refusal: refusal, unanswered: unanswered)
         }
     }
 
@@ -1042,7 +1049,8 @@ struct EELSResultsPanel: View {
                     .help("The exponent of the power law the kit fitted on each edge's background window")
                     .accessibilityIdentifier("eels.results.exponents")
             }
-            EELSFitFooter(hasFit: session.model != nil, notes: session.fitNotes, quality: session.resultQuality.map { EELSRoomFormat.fitQuality($0) },
+            EELSFitFooter(hasFit: session.model != nil, notes: session.fitNotes, quality: session.resultQuality.map { EELSRoomFormat.fitQualityText($0) },
+                          qualitySummary: session.resultQuality.map { EELSRoomFormat.fitQualitySummary($0) },
                           method: EELSRoomFormat.fitFooter(hasFit: session.model != nil, convolved: session.model?.convolved ?? false,
                                                            model: session.model?.model ?? .exactNNLS,
                                                            deconvolution: session.modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution"),
@@ -1053,13 +1061,16 @@ struct EELSResultsPanel: View {
     }
 }
 
-/// One line under the table, as the EDS room's: how many notes the fit has on its numbers and how well it fits ("2 notes · RSS … · χ²ᵣ …"). A click
-/// opens everything the fit says about itself in a popover (the notes, then the fit quality and how the fit was made), so the table is never squeezed.
-/// Before a fit: "No fit yet".
+/// One line under the table, as the EDS room's: how many notes the fit has on its numbers and how well it fits ("2 notes · χ²/dof 1.42 · Pearson"). A
+/// click opens everything the fit says about itself in a popover (the notes, then the full fit quality and how the fit was made), so the table is never
+/// squeezed; the tooltip holds the full line. Before a fit: "No fit yet".
 private struct EELSFitFooter: View {
     let hasFit: Bool
     let notes: [String]
+    /// The full fit quality ("RSS … · χ²/dof … · Pearson, n dof"), in the popover and the tooltip.
     let quality: String?
+    /// The footer's short part ("χ²/dof 1.42 · Pearson"), which fits the results column at its minimum width.
+    let qualitySummary: String?
     /// The fit's method line: model · background · convolution · deconvolution.
     let method: String
     /// The kit's method names of the fit and of its deconvolution.
@@ -1068,7 +1079,7 @@ private struct EELSFitFooter: View {
 
     var body: some View {
         if hasFit {
-            let summary = EELSRoomFormat.fitNotesSummary(notes: notes.count, quality: quality ?? method)
+            let summary = EELSRoomFormat.fitNotesSummary(notes: notes.count, quality: qualitySummary ?? method)
             Button { open.toggle() } label: {
                 HStack(spacing: 6) {
                     Text(summary)
@@ -1084,9 +1095,8 @@ private struct EELSFitFooter: View {
             .overlay(alignment: .top) { Divider() }
             .popover(isPresented: $open, arrowEdge: .top) {
                 EELSFitNotesList(notes: notes, quality: quality, method: method, methodNames: methodNames)
-                    .frame(width: 360, height: 280)   // science: a popover's text
             }
-            .help("What the fit says about its own numbers")
+            .help(EELSRoomFormat.fitNotesSummary(notes: notes.count, quality: quality ?? method) + ". Click for what the fit says about its own numbers")
             .accessibilityLabel("Fit notes")
             .accessibilityValue(summary)
             .accessibilityIdentifier("eels.results.footer")
@@ -1102,12 +1112,16 @@ private struct EELSFitFooter: View {
     }
 }
 
-/// The results footer's popover: each note as a warning, then "Fit · <quality>" and how the fit was made, as the EDS room's.
+/// The results footer's popover: each note as a warning, then "Fit · <quality>" and how the fit was made, as the EDS room's. As tall as its text up to
+/// `maximumHeight` (the EDS popover's 280 pt), scrolling beyond: a fixed height left the lower half empty under three lines.
 struct EELSFitNotesList: View {
     let notes: [String]
     let quality: String?
     let method: String
     let methodNames: [String]
+
+    static let width: CGFloat = 360   // science: a popover's text
+    static let maximumHeight: CGFloat = 280   // science: a popover's text, the EDS room's
 
     var body: some View {
         ScrollView {
@@ -1120,6 +1134,10 @@ struct EELSFitNotesList: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // The scroll view's ideal height is its text's; the frame caps it and `fixedSize` makes the popover take that ideal height.
+        .frame(width: Self.width)
+        .frame(maxHeight: Self.maximumHeight)
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityIdentifier("eels.notes")
     }
 }

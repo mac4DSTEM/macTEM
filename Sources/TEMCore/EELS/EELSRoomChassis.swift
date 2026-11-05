@@ -533,6 +533,31 @@ extension EELSRoomFormat {
         return rss + " · \u{03C7}\u{00B2}\u{1D63} " + sig(chi, 3, locale: locale) + " (Pearson, \(q.degreesOfFreedom) dof)"
     }
 
+    /// The fit quality on screen (the Fitting row, the notes popover): "RSS 1.373e19 · χ²/dof 1.42 · Pearson, 162 dof", or the RSS and why there is no χ².
+    /// Written "χ²/dof", not with a subscript r (it drew as a comma in the caption font), to the EDS room's figures (`chiText`). Display only: the results
+    /// CSV keeps `fitQuality`, the method JSON the numbers.
+    package static func fitQualityText(_ q: EELSFitQuality, locale: Locale = .autoupdatingCurrent) -> String {
+        let rss = "RSS " + scientific(q.rss, 4, locale: locale)
+        guard let chi = q.reducedChiSquared else { return rss + " · " + (q.chiSquaredUnavailable ?? EELSFitQuality.noFreedom) }
+        return rss + " · \u{03C7}\u{00B2}/dof " + chiText(chi, locale: locale) + " · Pearson, \(q.degreesOfFreedom) dof"
+    }
+
+    /// The results footer's part, as the EDS room's "χ²ᵣ 54.8 · Pearson": "χ²/dof 1.42 · Pearson"; the RSS alone when there is no χ². The full line is
+    /// `fitQualityText`, in the popover and the footer's tooltip.
+    package static func fitQualitySummary(_ q: EELSFitQuality, locale: Locale = .autoupdatingCurrent) -> String {
+        guard let chi = q.reducedChiSquared else { return "RSS " + scientific(q.rss, 4, locale: locale) }
+        return "\u{03C7}\u{00B2}/dof " + chiText(chi, locale: locale) + " · Pearson"
+    }
+
+    /// A χ²/dof to the EDS room's figures (SpectroKit's `PooledQuantifier.qualityText`): two decimals under 10, one under 100, none from 100, in the
+    /// locale's decimal mark; from 100 000 and under 0.01 three significant digits in scientific form ("2.3e7", "1.23e-3"), so an exact fit's huge χ²
+    /// stays a few characters wide and a tiny one does not read 0.00.
+    package static func chiText(_ x: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        guard x.isFinite else { return "n/a" }
+        if x != 0, abs(x) >= 1e5 || abs(x) < 0.01 { return scientific(x, 3, locale: locale) }
+        return fixed(x, abs(x) >= 100 ? 0 : (abs(x) >= 10 ? 1 : 2), locale: locale)
+    }
+
     /// "r · C K 3.42 · N K 3.31": the power-law exponent the kit fitted under each edge; nil when no row has one.
     package static func exponentsLine(_ rows: [EELSEdgeRow]) -> String? {
         let parts = rows.compactMap { r in r.exponent.map { "\(r.title) \(sig($0, 3))" } }
@@ -551,6 +576,25 @@ extension EELSRoomFormat {
             let v = tile.values[y * tile.width + x]
             guard v.isFinite else { continue }
             parts.append("\(tile.title) \(sig(v, 4, locale: locale))" + (tile.unit.isEmpty ? "" : " \(tile.unit)"))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// The status line over one map, as the EDS room's (the pixel and the hovered map's value, not every map at once): "row 4 · col 3 · C K 12.5 nm⁻²".
+    /// `tiles` is the hovered map, or the colour mix's members. `refusal` (why the pixel has no t/λ) is named over a thickness map, `unanswered` (why the
+    /// deconvolution left the pixel unanswered) over a fitted map. Values to four significant digits, scientific outside 0.01–100 000.
+    package static func tileReadout(x: Int, y: Int, tiles: [EELSMapTile], refusal: String?, unanswered: String? = nil,
+                                    locale: Locale = .autoupdatingCurrent) -> String {
+        var parts = ["row \(y)", "col \(x)"]
+        if let refusal, tiles.contains(where: { $0.id == "tOverLambda" || $0.id == "thickness" }) { parts.append("t/λ: \(refusal)") }
+        if let unanswered, tiles.contains(where: { $0.id.hasPrefix("edge-") || $0.id.hasPrefix("at-") || $0.id.hasPrefix("wt-") }) {
+            parts.append("deconvolution: no answer, \(unanswered)")
+        }
+        for tile in tiles {
+            guard x >= 0, y >= 0, x < tile.width, y < tile.height else { continue }
+            let v = tile.values[y * tile.width + x]
+            guard v.isFinite else { continue }
+            parts.append("\(tile.title) \(scientific(v, 4, locale: locale))" + (tile.unit.isEmpty ? "" : " \(tile.unit)"))
         }
         return parts.joined(separator: " · ")
     }

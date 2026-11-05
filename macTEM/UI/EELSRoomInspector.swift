@@ -404,9 +404,9 @@ struct EELSFittingSection: View {
             if let why = session.fitBlocker { InspectorNote(why).accessibilityIdentifier("eels.fitBlocker") }
             if let why = session.fitRefusal { InspectorWarning(why, systemImage: "xmark.octagon.fill").accessibilityIdentifier("eels.fitRefusal") }
             if let quality = session.resultQuality {
-                InspectorValueRow("Fit quality", EELSRoomFormat.fitQuality(quality))
+                InspectorValueRow("Fit quality", EELSRoomFormat.fitQualityText(quality))
                     .help("The kit's residual sum of squares over the \(quality.channels) fitted channels, and Pearson's χ² over \(quality.degreesOfFreedom) degrees of freedom (counts taken as detected electrons, Poisson); of the region the results show"
-                          + (session.model?.model == .exactNNLS ? ". The exact fit's χ²ᵣ reads above 1 by construction (the extrapolated background's error is in every signal channel): do not compare it with MLLS's" : ""))
+                          + (session.model?.model == .exactNNLS ? ". The exact fit's χ²/dof reads above 1 by construction (the extrapolated background's error is in every signal channel): do not compare it with MLLS's" : ""))
                     .accessibilityIdentifier("eels.fitQuality")
             }
             if let model = session.model { InspectorNote("\(model.methodName) · \(EELSLiterature.edges)") }
