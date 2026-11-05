@@ -1,0 +1,11 @@
+Primary: Education
+The Mac App Store has no Science category, and Education is where Apple and users place scientific and research tools, so a microscopist browsing for analysis software looks here.
+
+Secondary: Productivity
+The app is a working tool for analysing and exporting data, which fits Productivity better than the remaining categories.
+
+Compared:
+- Education: recommended as primary; the closest home for scientific analysis on the store.
+- Productivity: good secondary; covers working tools, but on its own it is crowded with office, note and task apps.
+- Developer Tools: no; Apple means tools for software developers, and App Review can question the fit.
+- Utilities: no; Apple means system utilities (disk, clipboard, menu bar), not data analysis.

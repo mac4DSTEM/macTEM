@@ -1,0 +1,17 @@
+Notes for App Review
+
+[Paul, before submission: macTEM has no demo menu item or button today. Its generated demo documents (a lattice image, an Au ring pattern, an image stack, an EDS and an EELS spectrum image) open only with developer launch arguments (--demo-fixture and similar, macTEM/App/LaunchOptions.swift), which App Review cannot pass. Either add an in-app entry such as "Help > Open Demo Image" before submission and name it in step 2 below, or put a link to sample files here. Delete this paragraph once done.]
+
+macTEM analyses transmission electron microscope images, EDS and EELS spectrum images and diffraction patterns. You do not need data of your own to try it.
+
+How to try it:
+1. Launch the app.
+2. [Open the built-in demo: menu item to be named, see the note above.]
+3. Work down the sidebar: Image (measure a distance, change the contrast), FFT (the transform and its spots), Diffraction (calibrate on the ring pattern), Results (every measurement in one table, exported as CSV).
+
+No account, sign-in, purchase or network connection is needed anywhere in the app. macTEM makes no network requests.
+
+Open source:
+macTEM is free software under GPL-3.0. Source: https://github.com/mac4DSTEM/macTEM
+
+Contact: mail@mac4dstem.com
