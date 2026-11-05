@@ -1,0 +1,62 @@
+//
+//  DemoData.swift
+//  Role: Help > Open Demo Data. The generated demo documents (TEMSession's DemoDocuments) opened from the menu, so anyone
+//        without a microscope file, App Review first, can try every room (macTEM#105). The launch options for the UI tests
+//        open the same documents through `openDemo`, so the menu and the tests cannot drift apart.
+//
+
+import Foundation
+import TEMSession
+import ShellEDXModel
+import ShellSpectroscopy
+
+nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
+    case lattice, diffraction, edx, eels
+
+    var id: String { rawValue }
+
+    /// The menu title: what the document is, then the room it opens in.
+    var title: String {
+        switch self {
+        case .lattice: "Lattice Image"
+        case .diffraction: "Au Diffraction Pattern"
+        case .edx: "EDX Spectrum Image"
+        case .eels: "EELS Spectrum Image"
+        }
+    }
+
+    /// The room the document is shown in once open.
+    var room: WorkspaceArea {
+        switch self {
+        case .lattice: .image
+        case .diffraction: .diffraction
+        case .edx: .edx
+        case .eels: .eels
+        }
+    }
+}
+
+extension AppState {
+    /// Opens one generated demo document and shows its room. `regions` draws the UI tests' two rectangles and line on a
+    /// spectrum image (`--demo-regions`); the menu never does. Returns the image open's task (the two images load like a
+    /// file); the spectrum images bind at once.
+    @discardableResult
+    func openDemo(_ demo: DemoDocument, regions: Bool = false) -> Task<Void, Never>? {
+        var task: Task<Void, Never>?
+        switch demo {
+        case .lattice:
+            task = open(urls: [DemoDocuments.latticeURL])
+        case .diffraction:
+            task = open(urls: [DemoDocuments.patternURL])
+        case .edx:
+            edx.bind(DemoDocuments.edx())
+            if regions { DemoDocuments.drawRegions(on: edx) }
+        case .eels:
+            guard let loaded = try? DemoDocuments.eels() else { return nil }
+            eels.bind(loaded)
+            if regions { DemoDocuments.drawRegions(on: eels) }
+        }
+        navigation.workspaceArea = demo.room
+        return task
+    }
+}
