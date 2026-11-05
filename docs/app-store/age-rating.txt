@@ -1,0 +1,28 @@
+Age rating questionnaire (App Store Connect)
+
+Features
+- Parental Controls: No
+- Age Assurance: No
+- Unrestricted Web Access: No (the app makes no network connection)
+- User-Generated Content: No
+- Messaging and Chat: No
+- Advertising: No
+
+Mature themes, medical and wellness, sexuality and nudity, violence, chance-based activities
+- Profanity or Crude Humor: None
+- Horror/Fear Themes: None
+- Alcohol, Tobacco, or Drug Use or References: None
+- Medical or Treatment Information: None
+- Health or Wellness Topics: No
+- Sexual Content or Nudity: None
+- Graphic Sexual Content and Nudity: None
+- Cartoon or Fantasy Violence: None
+- Realistic Violence: None
+- Prolonged Graphic or Sadistic Realistic Violence: None
+- Guns or Other Weapons: None
+- Contests: None
+- Gambling: No
+- Simulated Gambling: None
+- Loot Boxes: No
+
+Result: 4+

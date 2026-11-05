@@ -1,0 +1,27 @@
+macTEM analyses TEM images, EDS and EELS spectrum images and electron diffraction patterns natively on Apple silicon. Open a file, look, measure, and export a figure, with every number traceable to the method it came from.
+
+OPEN YOUR FILES
+DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIFF and MRC, and single .msa spectra. The file's content decides where it opens: an image in the Image room, a spectrum image in the EDS or EELS room. A multi-page TIFF or ImageJ stack opens frame by frame, read on demand.
+
+ROOMS
+• Image: calibration from the file, colormap, contrast and gamma; distances, angles, line profiles and particles; image stacks. Your marks are saved in a session file next to the image.
+• FFT: the transform of the image or a region with a window, spots and their d-spacings, the radial profile, a masked inverse, and Gaussian, band-pass, ABSF and Wiener filters.
+• EDS: Velox and GMS spectrum images. Pick elements from the periodic table or let Auto ID suggest them, then get net-count, wt%, at% and thickness maps, regions, and the Cliff-Lorimer composition, with zeta-factor and cross-section methods.
+• EELS: Dual-EELS spectrum images. Align the zero-loss peak, map t/λ, pick edges from 383 K, L and M edges of 95 elements, and fit their intensities and at%, each with its uncertainty.
+• Diffraction: calibrate on a ring of a standard (Au, Al or Si), then index rings and spots against a standard or a CIF and read their d-spacings.
+• Results: every measurement of a file in one table, exported as CSV.
+
+Exports are PNG figures with the scale bar, CSV tables, MSA spectra, and a method JSON for the spectroscopy rooms.
+
+WHERE THE NUMBERS COME FROM
+Every number is computed by the open macEM Swift packages, each checked against the Python package it ports, within that package's own tolerance: file readers, FFT and image maths, crystallography, and EDS and EELS. EELS cross sections are the generalised oscillator strengths of Segger, Guzzinati and Kohl, bundled with the app.
+
+YOUR DATA STAYS ON YOUR MAC
+No account, no analytics, no telemetry, and no network access. Your files are read from and written to your own storage only.
+
+OPEN SOURCE
+macTEM is free software under GPL-3.0. The source and the issue tracker are at github.com/mac4DSTEM/macTEM.
+
+Its companion app, mac4DSTEM, analyses 4D-STEM data: virtual images, strain, orientation, ptychography and EDS.
+
+Requires a Mac with Apple silicon.

@@ -1,0 +1,1 @@
+Calibrated TEM images, FFTs, EDS and EELS spectrum images and electron diffraction, analysed natively on Apple silicon. Open source, and your data stays on your Mac.

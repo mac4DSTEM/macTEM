@@ -1,0 +1,7 @@
+Support URL: https://mac4dstem.com/support.html
+Marketing URL: https://mac4dstem.com/mactem/
+Privacy Policy URL: https://mac4dstem.com/privacy.html
+
+The domain is mac4dstem.com (website/CNAME); www redirects to the apex.
+
+Before submission: privacy.html and impressum.html still carry the name and address placeholders; Paul supplies them. Both pages already cover macTEM.
