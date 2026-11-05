@@ -12,7 +12,7 @@ nonisolated final class AppStoreReleaseTests: XCTestCase {
 
     /// Mutation: method back to "developer-id", destination "upload", or another team - red.
     func testTheStoreExportOptionsExportAnAppStorePackageForTheTeam() throws {
-        let url = root.appendingPathComponent("tools/release/ExportOptions-AppStore.plist")
+        let url = root.appendingPathComponent("tools/lib/ExportOptions-AppStore.plist")
         let options = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil)
             as? [String: Any])
         XCTAssertEqual(options["method"] as? String, "app-store-connect")

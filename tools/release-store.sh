@@ -51,7 +51,7 @@ xcodebuild archive -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configurati
 
 echo "== Export"
 xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportPath "$EXPORT" \
-  -exportOptionsPlist "$ROOT/tools/release/ExportOptions-AppStore.plist" -allowProvisioningUpdates \
+  -exportOptionsPlist "$ROOT/tools/lib/ExportOptions-AppStore.plist" -allowProvisioningUpdates \
   > "$OUT/export.log" 2>&1 || { tail -30 "$OUT/export.log"; exit 1; }
 PKG="$(print -l "$EXPORT"/*.pkg(N) | head -1)"
 [[ -f "$PKG" ]] || { echo "The export wrote no .pkg to $EXPORT." >&2; exit 1; }
