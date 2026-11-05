@@ -916,6 +916,37 @@ nonisolated enum EELSResultsColumns {
     static let percentMinimum: CGFloat = 116
 }
 
+/// How the results pane shares its height between the edges table and the regions table (the EDS room gives its regions table rows × 22 pt and the
+/// rest to its elements table). The edges table never drops under its header, every edge's row and the room for the horizontal scroll bar, up to
+/// `edgesShownAtLeast` rows: a region drawn must not cut the quantified edges to a row and a half.
+nonisolated enum EELSResultsLayout {
+    /// A row of the system table in the regular size (the cell's text and its inset).
+    static let tableRowHeight: CGFloat = 24
+    /// The column headers' strip (28 pt) and the 5-pt inset the table leaves above its first row (measured offscreen, `EELSResultsRowsTests`).
+    static let tableHeaderHeight: CGFloat = 33
+    /// The horizontal scroll bar the columns' minimum widths bring in a narrow pane: an overlay bar draws over the last row unless the table leaves it this.
+    static let scrollBarAllowance: CGFloat = 16
+    /// More edges than this scroll inside the table (a quantification typically has three to six).
+    static let edgesShownAtLeast = 6
+
+    /// The edges table's floor for `rows` edges, at least one row, at most `edgesShownAtLeast`.
+    static func edgesTableMinimumHeight(rows: Int) -> CGFloat {
+        edgesTableHeight(rows: min(rows, edgesShownAtLeast))
+    }
+
+    /// The edges table with every one of its `rows` in view: its most while regions share the pane, so the regions table gets the rest.
+    static func edgesTableHeight(rows: Int) -> CGFloat {
+        tableHeaderHeight + CGFloat(max(rows, 1)) * tableRowHeight + scrollBarAllowance
+    }
+
+    /// The regions grid gives way first in a short pane: its header line and one row at least; at most every region's row and the scroll bar (the
+    /// regions scroll past six).
+    static let regionsTableMinimumHeight: CGFloat = 2 * tableRowHeight
+    static func regionsTableHeight(rows: Int) -> CGFloat {
+        CGFloat(1 + min(max(rows, 1), edgesShownAtLeast)) * tableRowHeight + scrollBarAllowance
+    }
+}
+
 /// The results beside the spectrum: the thickness line, one row per edge (I, at%, wt%), the regions' table, the refusal if there is one, and the footer
 /// (model · background · convolution · deconvolution). The methods' references are here once, in the Methods tag's tooltip; the columns say only their names.
 struct EELSResultsPanel: View {
@@ -925,6 +956,7 @@ struct EELSResultsPanel: View {
         let plot = session.plot
         let rows = session.resultRows
         let failure = session.failure
+        let hasRegions = !session.pinRows.isEmpty
         VStack(spacing: 0) {
             HStack(spacing: LayoutPolicy.inspectorRowSpacing) {
                 Text(EELSRoomFormat.resultsHeader(region: plot?.regionName ?? "Whole map", lambdaNM: session.map?.meanFreePathNM,
@@ -987,14 +1019,19 @@ struct EELSResultsPanel: View {
                     .accessibilityIdentifier("eels.results.table")
                 }
             }
-            .frame(maxHeight: .infinity)
-            if !session.pinRows.isEmpty {
+            // Every edge's row before the regions table takes any of the pane; with regions, the edges table stops at its rows and the regions get the rest.
+            .frame(minHeight: rows.isEmpty ? nil : EELSResultsLayout.edgesTableMinimumHeight(rows: rows.count),
+                   maxHeight: hasRegions && !rows.isEmpty ? EELSResultsLayout.edgesTableHeight(rows: rows.count) : .infinity)
+            .layoutPriority(1)
+            if hasRegions {
                 Divider()
                 Text("Regions").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding).padding(.top, 4)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 EELSRegionsTable(session: session)
-                    .frame(height: min(CGFloat(session.pinRows.count) * 22 + 60, 190))   // science: a table's rows
+                    .frame(minHeight: EELSResultsLayout.regionsTableMinimumHeight, maxHeight: EELSResultsLayout.regionsTableHeight(rows: session.pinRows.count))
+                    .layoutPriority(0.5)
+                Spacer(minLength: 0)
             }
             if let failure {
                 InspectorWarning(failure, systemImage: "xmark.octagon.fill")

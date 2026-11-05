@@ -344,6 +344,23 @@ struct EELSProcessingSection: View {
     }
 }
 
+/// The Fitting section's Fit to: a number in eV under MLLS; under the exact fit, which fits each edge on its own signal window, the field is off and
+/// says so in words, whole and without a unit, with the reason in its help (as the EDS room's off controls: "Off: why").
+nonisolated enum EELSFitToField {
+    struct Shown: Equatable {
+        /// The word the off field reads; nil when the field takes a number.
+        let word: String?
+        let unit: String?
+        let help: String
+    }
+
+    static func shown(_ model: EELSFitModel) -> Shown {
+        model == .mlls
+            ? Shown(word: nil, unit: "eV", help: "The last energy of the MLLS window, included; 0 returns to the end of the core-loss axis")
+            : Shown(word: "signal windows", unit: nil, help: "Off: exact NNLS fits each edge on its own signal window. Drag the windows on the spectrum.")
+    }
+}
+
 /// Fitting: the model (exact NNLS or MLLS), the background, the convolution with the low loss and the microscope (E0, α, β, each with where it comes from).
 struct EELSFittingSection: View {
     let session: EELSSession
@@ -357,13 +374,21 @@ struct EELSFittingSection: View {
                 .accessibilityIdentifier("eels.model")
                 .accessibilityValue(session.fitModel.title)
             InspectorRow("Fit to") {
-                OptionalNumericField(title: "Fit to", value: session.fitModel == .mlls ? session.fitToEV : nil,
-                                     format: FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6)), unit: "eV",
-                                     prompt: session.fitModel == .mlls ? "Axis end" : "Signal windows") { v in session.setFitTo(v) }
-                    .disabled(session.fitModel != .mlls)
-                    .help(session.fitModel == .mlls ? "The last energy of the MLLS window, included; 0 returns to the end of the core-loss axis"
-                          : "Exact NNLS fits each edge on its own signal window: drag the windows on the spectrum")
-                    .accessibilityIdentifier("eels.fitTo")
+                let fitTo = EELSFitToField.shown(session.fitModel)
+                Group {
+                    if let word = fitTo.word {
+                        // Off: the word whole, in a field of its own width, and no unit (the numeric field's width clips it to "Signal win").
+                        TextField("Fit to", text: .constant(word))
+                            .labelsHidden().textFieldStyle(.roundedBorder).fixedSize()
+                            .disabled(true)
+                    } else {
+                        OptionalNumericField(title: "Fit to", value: session.fitToEV,
+                                             format: FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6)), unit: fitTo.unit,
+                                             prompt: "Axis end") { v in session.setFitTo(v) }
+                    }
+                }
+                .help(fitTo.help)
+                .accessibilityIdentifier("eels.fitTo")
             }
             if let notice = session.fitToNotice { InspectorNote(notice).accessibilityIdentifier("eels.fitTo.notice") }
             SegmentedPicker(label: "Background", items: EELSBackgroundChoice.allCases.map { c in (c, .title(c.title, help: c.disabledReason.map { "Off: \($0)" })) },
