@@ -35,14 +35,18 @@ package nonisolated struct EELSPlotFit: Equatable, Sendable {
     package let model: EELSFitModel
     /// Whether the last Fit took the Fourier-ratio deconvolved core loss (the plot draws its model only over the same core loss).
     package let deconvolved: Bool
+    /// The reference spectra the last MLLS fit took, on the core loss's channels (empty for the exact fit).
+    package let references: [[Double]]
 
     package init(edges: [CoreLossEdge], microscope: EELSMicroscope, convolve: Bool, windows: [EdgeWindows], model: EELSFitModel = .exactNNLS,
-                 deconvolved: Bool = false) {
+                 deconvolved: Bool = false, references: [[Double]] = []) {
         self.edges = edges; self.microscope = microscope; self.convolve = convolve; self.windows = windows; self.model = model; self.deconvolved = deconvolved
+        self.references = references
     }
 
     package static func == (a: EELSPlotFit, b: EELSPlotFit) -> Bool {
         a.edges == b.edges && a.convolve == b.convolve && a.windows == b.windows && a.model == b.model && a.deconvolved == b.deconvolved
+            && a.references == b.references
             && a.microscope.beamEnergyKeV == b.microscope.beamEnergyKeV
             && a.microscope.convergenceMrad == b.microscope.convergenceMrad && a.microscope.collectionMrad == b.microscope.collectionMrad
     }
@@ -105,7 +109,7 @@ package nonisolated enum EELSPlotCompute {
         data.coreDeconvolved = answered != nil
         if let fit, !fit.edges.isEmpty,
            let result = try? EELSFitCompute.fit(coreLoss: coreSum, edges: fit.edges, microscope: fit.microscope, lowLoss: fit.convolve ? lowSum : nil,
-                                                model: fit.model, edgeWindows: fit.windows) {
+                                                model: fit.model, edgeWindows: fit.windows, references: fit.references) {
             let step = coreSum.energyScaleEV, origin = coreSum.energyOffsetEV
             let ranges = result.fitRangesEV
             data.model = result.modelCurve(pixel: 0).map { curve in

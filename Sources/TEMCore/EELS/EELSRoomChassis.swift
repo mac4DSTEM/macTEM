@@ -195,10 +195,25 @@ package nonisolated enum EELSMapScale {
             }
             return Scaled(values: values.map { $0.isFinite ? ($0 - lo) / (hi - lo) : .nan }, low: lo, high: hi)
         case .diverging:
-            let m = finite.map { abs($0) }.max() ?? 0
+            // Centred on 0, reaching the larger of |1st percentile| and |99th percentile| (the display range the EDS room gives a filtered map): one
+            // pixel far out (a zero-loss peak the alignment lost at the scan's edge) no longer squeezes every other pixel into the white of the centre.
+            // A map whose percentiles are both 0 takes its largest |value|; beyond the range a pixel takes the end colour.
+            let range = robustHalfRange(finite)
+            let m = range > 0 ? range : (finite.map { abs($0) }.max() ?? 0)
             guard m > 0 else { return Scaled(values: values.map { $0.isFinite ? 0.5 : .nan }, low: -1, high: 1) }
-            return Scaled(values: values.map { $0.isFinite ? ($0 + m) / (2 * m) : .nan }, low: -m, high: m)
+            return Scaled(values: values.map { $0.isFinite ? min(max(($0 + m) / (2 * m), 0), 1) : .nan }, low: -m, high: m)
         }
+    }
+
+    /// The half range of a diverging scale: max(|p1|, |p99|) of the finite values, percentiles linear between ranks as NumPy's default.
+    package static func robustHalfRange(_ finite: [Double], low: Double = 0.01, high: Double = 0.99) -> Double {
+        let sorted = finite.sorted()
+        guard !sorted.isEmpty else { return 0 }
+        func percentile(_ q: Double) -> Double {
+            let position = q * Double(sorted.count - 1), i = Int(position.rounded(.down)), j = min(i + 1, sorted.count - 1)
+            return sorted[i] + (sorted[j] - sorted[i]) * (position - Double(i))
+        }
+        return max(abs(percentile(low)), abs(percentile(high)))
     }
 }
 
@@ -425,10 +440,12 @@ extension EELSRoomFormat {
     }
 
     /// The results footer: model · background · convolution · deconvolution (what the fit on screen was made with).
-    package static func fitFooter(hasFit: Bool, convolved: Bool, model: EELSFitModel = .exactNNLS, deconvolution: String = "no deconvolution") -> String {
+    package static func fitFooter(hasFit: Bool, convolved: Bool, model: EELSFitModel = .exactNNLS, deconvolution: String = "no deconvolution",
+                                  references: Int = 0) -> String {
         guard hasFit else { return "No fit yet" }
         let background = model == .mlls ? "power-law background, exponent by two areas" : "power-law background"
-        return "\(model.title) · \(background) · " + (convolved ? "convolved with the low loss" : "not convolved") + " · \(deconvolution)"
+        let refs = references == 0 ? "" : " · \(references) reference" + (references == 1 ? "" : "s")
+        return "\(model.title) · \(background)\(refs) · " + (convolved ? "convolved with the low loss" : "not convolved") + " · \(deconvolution)"
     }
 
     /// What the fit says about its own numbers, for the results footer's popover (as the EDS room's notes). Each note is a sentence the room already

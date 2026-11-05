@@ -53,7 +53,7 @@ package nonisolated enum EELSRegionCompute {
     package static func row(pin: EDXPin, low: LowLossSpectrumImage, core: CoreLossSpectrumImage?, edges: [CoreLossEdge], microscope: EELSMicroscope?,
                             convolve: Bool, threshold: EELSThresholdChoice, meanFreePath: MeanFreePathSource?, edgeWindows: [EdgeWindows]? = nil,
                             model: EELSFitModel = .exactNNLS, fitOnly: Set<String> = [], answered: PixelMask? = nil, fitToEV: Double? = nil,
-                            rawCounts: Bool = true) -> EELSRegionRow? {
+                            references: [[Double]] = [], rawCounts: Bool = true) -> EELSRegionRow? {
         guard let lowSum = summedLowLoss(low, region: pin.region) else { return nil }
         let pixels = pin.region.pixelCount(nx: low.nx, ny: low.ny)
         let t: Double?, tWhy: String?
@@ -73,7 +73,7 @@ package nonisolated enum EELSRegionCompute {
                 let mask = Self.mask(pin.region, nx: core.nx, ny: core.ny, answered: answered)
                 let coreSum = try core.sum(mask: mask)
                 let fit = try EELSFitCompute.fit(coreLoss: coreSum, edges: edges, microscope: microscope, lowLoss: convolve ? lowSum : nil,
-                                                 model: model, edgeWindows: edgeWindows, fitToEV: fitToEV)
+                                                 model: model, edgeWindows: edgeWindows, fitToEV: fitToEV, references: references)
                 edgeRows = EELSFitCompute.rows(fit, composition: EELSFitCompute.composition(fit, fitOnly: fitOnly), fitOnly: fitOnly, rawCounts: rawCounts)
                 quality = EELSFitQuality.of(fit, core: coreSum, rawCounts: rawCounts)
             } catch {

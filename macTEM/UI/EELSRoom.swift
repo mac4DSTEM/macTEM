@@ -209,6 +209,11 @@ nonisolated enum EELSMixComposition {
         mix.isCustom = true
     }
 
+    /// The maps the mix's popover lists, each with its default colours, as the EDS room's mix popover lists its maps.
+    @MainActor static func colorItems(maps: [EELSMapTile]) -> [MapColorItem] {
+        maps.map { MapColorItem(id: $0.id, title: $0.title, defaultColoring: EELSTileStyle.defaultColoring($0.id)) }
+    }
+
     /// One layer per map in the mix, each on its own 0...1 scale (`EELSMapScale`) in the map's colour (an edge's element colour, a colormap's top colour).
     static func layers(_ members: [EELSMapTile], appearance: MapAppearance) -> [MapRaster.MixLayer] {
         members.map { tile in
@@ -331,7 +336,8 @@ private struct EELSMapTileHost: View {
                     scanWidth: w, scanHeight: h, pixelSize: session.scanPixel?.size, pixelUnit: session.scanPixel?.unit, regions: tileRegions,
                     placeholder: members.isEmpty ? EELSMixComposition.placeholder : nil, transform: $state.mapView,
                     onHover: { hover($0) },
-                    controls: { EmptyView() })
+                    // The scale bar opens the maps in the mix, as the EDS room's mix does (an empty popover stood over the tile before).
+                    controls: { EELSMixPopover(maps: maps, state: state) })
             // The keyboard route to a region, heard on the anchor itself (it has the focus after a click, or by Tab), as the EDS room's: Return draws the chosen
             // tool's shape in the middle of the scan, the arrows move the selected region a pixel (shift: ten).
             .onKeyPress(.return) { EELSRegionBridge.drawByKeyboard(in: session, state: state) ? .handled : .ignored }
@@ -375,6 +381,22 @@ private struct EELSMapTileHost: View {
                     return EDXMapRaster.cgImage(rgba: MapRaster.rgba(values: scaled.values, coloring: coloring, upper: 1, adjustment: adjustment), width: w, height: h)
                 }.value
             }
+    }
+}
+
+/// The popover of the colour mix's scale bar: the maps shown, a checkbox each for the mix (MacEMUI's `MapDisplayPopover` of kind `.mix`, as the EDS room's).
+/// The mix has no histogram or window of its own: each layer keeps its map's.
+private struct EELSMixPopover: View {
+    let maps: [EELSMapTile]
+    @Bindable var state: EELSRoomState
+
+    var body: some View {
+        MapDisplayPopover(kind: .mix(items: EELSMixComposition.colorItems(maps: maps),
+                                     isIn: { EELSMixComposition.selection(state.appearance.mix, maps: maps).contains($0) },
+                                     toggle: { EELSMixComposition.toggle($0, in: &state.appearance.mix, maps: maps) }),
+                          histogram: nil, low: .constant(0), high: .constant(1), gamma: .constant(1))
+            .formStyle(.grouped).scrollContentBackground(.hidden).fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("eels.mixPopover")
     }
 }
 
@@ -881,6 +903,19 @@ private struct EELSSpectrumView: View {
     }
 }
 
+/// The minimum widths of the results table's columns, as the EDS room's `EDXResultsColumns`: the longest cell `EELSRoomFormat` writes inside the bounds
+/// `EELSResultsColumnsTests` states, measured in the cell font, plus the cell's own inset. Narrower columns cut at% and wt% off ("95,88…", "not de…").
+nonisolated enum EELSResultsColumns {
+    /// The cell's inset around its text, both sides together (the EDS room's allowance).
+    static let cellAllowance: CGFloat = 12
+    /// Edge: "Ba M45" semibold, 48 pt, and the 16-pt mark of a refused edge after a 4-pt gap.
+    static let edgeMinimum: CGFloat = 82
+    /// I: "-8.888e-6 ± 8.8e-5", 121 pt (the EDS room's net counts column).
+    static let intensityMinimum: CGFloat = 134
+    /// at% and wt%: "100.000 ± 0.010", 104 pt (the EDS room's at% and wt% columns); "below detection" is 97 pt.
+    static let percentMinimum: CGFloat = 116
+}
+
 /// The results beside the spectrum: the thickness line, one row per edge (I, at%, wt%), the regions' table, the refusal if there is one, and the footer
 /// (model · background · convolution · deconvolution). The methods' references are here once, in the Methods tag's tooltip; the columns say only their names.
 struct EELSResultsPanel: View {
@@ -927,12 +962,12 @@ struct EELSResultsPanel: View {
                                 Text(r.title).fontWeight(.semibold)
                                 if let why = r.unavailable { Image(systemName: "exclamationmark.circle").foregroundStyle(.secondary).help(why).accessibilityLabel(why) }
                             }
-                        }.width(min: 56, ideal: 74)
+                        }.width(min: EELSResultsColumns.edgeMinimum, ideal: EELSResultsColumns.edgeMinimum + 6)
                         TableColumn("I") { r in
                             Text(EELSRoomFormat.intensityText(r)).monospacedDigit().lineLimit(1)
                                 .help("± is 1σ from the counts, carried through the background fit (counts taken as Poisson)"
                                       + (r.exponent.map { "\nPower-law exponent r under this edge: \(EELSRoomFormat.sig($0, 4))" } ?? ""))
-                        }.width(min: 110, ideal: 150)
+                        }.width(min: EELSResultsColumns.intensityMinimum, ideal: EELSResultsColumns.intensityMinimum + 6)
                         TableColumn("at%") { r in
                             Text(EELSRoomFormat.atomicText(r)).monospacedDigit().lineLimit(1)
                                 .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
@@ -941,12 +976,12 @@ struct EELSResultsPanel: View {
                                       : r.belowDetection ? "I is at or under 3σ: this edge is not detected in the region"
                                       : r.atomicPercent == nil ? (r.atomicUnavailable ?? EELSEdgeRow.atomicNeedsTwo)
                                       : r.atomicSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "The kit gives no σ for an amount: at% without σ")
-                        }.width(min: 50, ideal: 100)
+                        }.width(min: EELSResultsColumns.percentMinimum, ideal: EELSResultsColumns.percentMinimum + 6)
                         TableColumn("wt%") { r in
                             Text(EELSRoomFormat.weightText(r)).monospacedDigit().lineLimit(1)
                                 .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
                                 .help(r.weightSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "")
-                        }.width(min: 50, ideal: 100)
+                        }.width(min: EELSResultsColumns.percentMinimum, ideal: EELSResultsColumns.percentMinimum + 6)
                     }
                     .alternatingRowBackgrounds(.disabled)   // the edges' rows, not a page of stripes (as the EDS table)
                     .accessibilityIdentifier("eels.results.table")

@@ -149,8 +149,13 @@ package nonisolated struct EELSReference: Identifiable, Equatable, Sendable {
         }
     }
 
-    /// The note under the list: the references are kept and drawn; the fit that uses them is not in the kit.
-    package static let note = "References are kept and drawn. The MLLS fit with references is not in SpectroKit yet, so they change no number."
+    /// The note under the list: what the references do under the model picked in Fitting.
+    package static func note(for model: EELSFitModel) -> String {
+        switch model {
+        case .mlls: "References enter the MLLS fit, one fitted amplitude each, and count as 0 outside their own energy range."
+        case .exactNNLS: "References enter only the MLLS fit: pick MLLS under Fitting to fit with them."
+        }
+    }
 }
 
 package nonisolated enum EELSReferenceError: Error, Equatable, LocalizedError {
@@ -260,6 +265,23 @@ package nonisolated enum EELSReferenceCompute {
         guard let first, counts.count > 1 else { return nil }
         return EELSReference(name: "\(name) · \(EELSFitCompute.title(edge))", origin: .region(name, edge: EELSFitCompute.title(edge)),
                              curve: EELSPlotCurve(origin: core.energy(first), step: core.step, counts: counts))
+    }
+
+    /// A reference on the core loss's channels (`offsetEV + scaleEV * k`), as the kit's MLLS takes it (`EELSMLLSOptions.references`, one value per
+    /// channel): the reference's own value where a channel meets one of its channels, linear between two, 0 outside its energy range.
+    package static func onAxis(_ curve: EELSPlotCurve, offsetEV: Double, scaleEV: Double, channels: Int) -> [Double] {
+        let n = curve.counts.count
+        guard n > 0, curve.step > 0 else { return [Double](repeating: 0, count: channels) }
+        let tolerance = 1e-9
+        return (0..<channels).map { k in
+            let u = (offsetEV + scaleEV * Double(k) - curve.origin) / curve.step
+            guard u >= -tolerance, u <= Double(n - 1) + tolerance else { return 0 }
+            let i = min(max(Int(u.rounded(.down)), 0), n - 1)
+            let w = u - Double(i)
+            if i == n - 1 || abs(w) <= tolerance { return curve.counts[i] }
+            if abs(1 - w) <= tolerance { return curve.counts[i + 1] }
+            return curve.counts[i] * (1 - w) + curve.counts[i + 1] * w
+        }
     }
 
     /// An MSA file read through FormatoKit: one spectrum on an energy axis in eV (FormatoKit's MSA reader gives the axis offset and scale and the counts).
