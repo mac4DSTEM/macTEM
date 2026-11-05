@@ -107,7 +107,7 @@ final class AppState {
     private func applyLaunchOptions(_ launch: LaunchOptions) {
         if launch.isUITesting { LaunchOptions.resetSavedState(); UITestingPlacement.installIfTesting() }
         if launch.demoImage { open(urls: [DemoDocuments.latticeURL]) }
-        if launch.demoPattern { open(urls: [DemoDocuments.patternURL]); navigation.workspaceArea = .diffraction }
+        if launch.demoPattern { openDemo(.diffraction) }
         if launch.demoStack, let url = try? DemoDocuments.stackFile() { open(urls: [url]) }
         if launch.demoSpectrumFile, let url = try? DemoDocuments.spectrumFile() { open(urls: [url]) }
         if launch.demoSpectrum {

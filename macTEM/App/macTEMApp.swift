@@ -159,6 +159,15 @@ private struct ImageCommands: Commands {
                 .keyboardShortcut(".", modifiers: .command)
                 .disabled(appState.map { !RoomPrimaryAction.canStop($0) } ?? true)
         }
+        // Generated documents for someone with no microscope file at hand, App Review first (macTEM#105, DemoData.swift).
+        CommandGroup(after: .help) {
+            Menu("Open Demo Data") {
+                ForEach(DemoDocument.allCases) { demo in
+                    Button(demo.title) { appState?.openDemo(demo) }
+                }
+            }
+            .disabled(appState == nil || appState?.imageSession.isLoading == true)
+        }
     }
 
     private func perform(_ action: MenuAction) {
