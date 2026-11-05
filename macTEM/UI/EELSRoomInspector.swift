@@ -184,7 +184,7 @@ private struct EELSEdgesSection: View {
     }
 }
 
-/// Processing: one section for the stages before the edges: Align (fixed options in this version), Threshold, λ and Deconvolution (its own stage). The stage's state is
+/// Processing: one section for the stages before the edges: Align (Signal range and Crop), Threshold, λ and Deconvolution (its own stage). The stage's state is
 /// on the title; the kit's readout is one line under the rows, and a refusal's sentence under that.
 struct EELSProcessingSection: View {
     let session: EELSSession
@@ -213,8 +213,27 @@ struct EELSProcessingSection: View {
             InspectorValueRow("Align method", "Maximum, then cross-correlation")
                 .accessibilityIdentifier("eels.pipeline")
                 .accessibilityValue(session.stages.map { "\($0.stage.title) \($0.state.word)" }.joined(separator: " · "))
-            InspectorValueRow("Signal range", "±5 eV about 0")
-            InspectorValueRow("Crop", "On")
+            // Signal range (two fields, one row each) and Crop: SpectroKit ZeroLossAlignmentOptions.signalRangeEV and .crop. A change stales Align; Run or Align uses it.
+            let range = session.alignChoice.signalRangeEV
+            InspectorRow("Signal from") {
+                OptionalNumericField(title: "Signal range from", value: range.lowerBound, format: FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6)),
+                                     unit: "eV", prompt: "-5") { v in session.setAlignSignalRange(fromEV: v, toEV: range.upperBound) }
+                    .help("Where Align searches for each pixel's zero-loss maximum, and the window of its cross-correlation (exSpy signal_range); cut to the axis")
+                    .accessibilityIdentifier("eels.align.signalFrom")
+            }
+            InspectorRow("Signal to") {
+                OptionalNumericField(title: "Signal range to", value: range.upperBound, format: FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6)),
+                                     unit: "eV", prompt: "5") { v in session.setAlignSignalRange(fromEV: range.lowerBound, toEV: v) }
+                    .help("The end of Align's search window (exSpy signal_range); cut to the axis")
+                    .accessibilityIdentifier("eels.align.signalTo")
+            }
+            if let notice = session.alignNotice { InspectorNote(notice).accessibilityIdentifier("eels.align.notice") }
+            InspectorRow("Crop") {
+                Toggle("Crop", isOn: Binding(get: { session.alignChoice.crop }, set: { session.setAlignCrop($0) }))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .help("On: drop the channels a shift left undefined. Off: keep every channel, extrapolated linearly at the ends (exSpy crop)")
+                    .accessibilityIdentifier("eels.align.crop")
+            }
             InspectorActionRow {
                 Button("Align") { session.align() }
                     .disabled(session.isBusy || session.onlyCoreLoss)
