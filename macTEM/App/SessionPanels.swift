@@ -204,7 +204,7 @@ enum SessionPanels {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         guard let image = item.session.image, let identity = item.openedIdentity else { return }
-        let bookmark = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+        let bookmark = try? SecurityScopedBookmark.make(for: url)
         let outcome = await read(url, source: item.url, identity: identity, image: image)
         if case .needsAccess = outcome { return }
         if case .none = outcome {} else { SessionGrants.store(bookmark, for: item) }
