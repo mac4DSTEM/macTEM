@@ -477,10 +477,11 @@ struct EELSLowerPane: View {
                              onWindows: { session.setWindows($1, for: $0) },
                              onResetWindows: { edge in if let edge { session.resetWindows(for: edge) } else { session.resetAllWindows() } },
                              hasEditedWindows: session.hasEditedWindows, state: state)
-                .overlay(alignment: .bottomLeading) {
-                    // The regions' names in their colours, as in the EDS room (one entry per region: its low loss and core loss share the colour).
+                .overlay(alignment: .topLeading) {
+                    // The regions' names in their colours, top left above the plot as in the EDS room (one entry per region: its low loss and core loss share
+                    // the colour). At the bottom left it covered the "low loss" and "core loss" names (the drive of 2026-11-02).
                     SpectrumLayerLegend(layers: Self.legendLayers(layers))
-                        .padding(.leading, 56).padding(.bottom, 40)
+                        .padding(.leading, EELSSpectrumLayout.legendLeading).padding(.top, EELSSpectrumLayout.legendInset)
                 }
                 .overlay(alignment: .topTrailing) {
                     if !profile.isEmpty {
@@ -550,6 +551,38 @@ struct EELSLowerPane: View {
     }
 }
 
+/// Where the spectrum's legend and its "low loss" / "core loss" names sit (pure, so a test checks they never meet).
+nonisolated enum EELSSpectrumLayout {
+    static let lowLossName = "low loss", coreLossName = "core loss"
+    /// The legend's offset from the spectrum's top-left corner: in the band above the plot as in the EDS room, 6 pt further right than the EDS room's 56 so
+    /// it clears "log counts" (52 pt wide from x = 4), which is longer than the EDS room's "counts".
+    static let legendLeading: CGFloat = 62, legendInset: CGFloat = 2
+    /// The bands around the plot: the titles above, the energy ticks and title below, a margin on the right.
+    static let top: CGFloat = 20, bottom: CGFloat = 36, right: CGFloat = 8
+
+    /// The plot inside a spectrum of `size` whose counts labels take `left`.
+    static func plotArea(in size: CGSize, left: CGFloat) -> CGRect {
+        CGRect(x: left, y: top, width: max(size.width - left - right, 1), height: max(size.height - top - bottom, 1))
+    }
+
+    /// The legend's frame in a spectrum of `size`, for a legend of `legend` size.
+    static func legendFrame(in size: CGSize, legend: CGSize) -> CGRect {
+        CGRect(x: legendLeading, y: legendInset, width: legend.width, height: legend.height)
+    }
+
+    /// Where the two names are drawn at the junction `junction` of a plot `area`: the low loss's right end left of it, the core loss's left end right of it.
+    static func sectionLabelCentres(area: CGRect, junction: CGFloat) -> (low: CGPoint, core: CGPoint) {
+        (CGPoint(x: junction - 4, y: area.maxY - 8), CGPoint(x: junction + 4, y: area.maxY - 8))
+    }
+
+    /// The names' frames for text of `low` and `core` size (trailing and leading anchors, centred vertically).
+    static func sectionLabelFrames(area: CGRect, junction: CGFloat, low: CGSize, core: CGSize) -> (low: CGRect, core: CGRect) {
+        let c = sectionLabelCentres(area: area, junction: junction)
+        return (CGRect(x: c.low.x - low.width, y: c.low.y - low.height / 2, width: low.width, height: low.height),
+                CGRect(x: c.core.x, y: c.core.y - core.height / 2, width: core.width, height: core.height))
+    }
+}
+
 /// What a drag on the EELS spectrum does, by where it starts (pure; the EDS spectrum's `EDXSpectrumDrag` with the EELS view's measured left margin): under the plot
 /// the energy axis, left of it the counts axis, inside it a pan (or an edge's window, when the drag starts on one).
 nonisolated enum EELSSpectrumDrag {
@@ -590,7 +623,7 @@ private struct EELSSpectrumView: View {
     @State private var viewDrag: (zone: EELSSpectrumDrag.Zone, window: ClosedRange<Double>, yZoom: Double)?
     @State private var pinchStart: ClosedRange<Double>?
 
-    private static let bottom: CGFloat = 36, top: CGFloat = 20, right: CGFloat = 8, gapWidth: CGFloat = 30, handleReach: CGFloat = 5
+    private static let bottom = EELSSpectrumLayout.bottom, top = EELSSpectrumLayout.top, right = EELSSpectrumLayout.right, gapWidth: CGFloat = 30, handleReach: CGFloat = 5
 
     /// The counts scale over the energies shown: log10 from 1 to the next power of ten above the largest value, or linear from 0; the counts zoom lowers the top.
     private struct Scale {
@@ -760,7 +793,7 @@ private struct EELSSpectrumView: View {
 
     private static func draw(_ context: inout GraphicsContext, size: CGSize, left: CGFloat, plot: EELSPlotData, axis: EELSOneAxis, shown: ClosedRange<Double>, scale: Scale,
                              isLog: Bool, items: [EELSWindowItem], backgrounds: [[Double]?], references: [EELSReference], layers: [SpectrumLayer]) {
-        let area = CGRect(x: left, y: top, width: max(size.width - left - right, 1), height: max(size.height - top - bottom, 1))
+        let area = EELSSpectrumLayout.plotArea(in: size, left: left)
         func x(_ e: Double) -> CGFloat? { axis.x(forEnergy: e).map { area.minX + CGFloat($0) } }
         let (logTop, linearTop) = (scale.logTop, scale.linearTop)
         func y(_ v: Double) -> CGFloat {
@@ -862,8 +895,9 @@ private struct EELSSpectrumView: View {
             let jx = area.minX + CGFloat(axis.segments[1].x.lowerBound)
             var rule = Path(); rule.move(to: CGPoint(x: jx, y: area.minY)); rule.addLine(to: CGPoint(x: jx, y: area.maxY))
             context.stroke(rule, with: .color(.secondary), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-            context.draw(Text("low loss").font(.caption2).foregroundStyle(.secondary), at: CGPoint(x: jx - 4, y: area.maxY - 8), anchor: .trailing)
-            context.draw(Text("core loss").font(.caption2).foregroundStyle(.secondary), at: CGPoint(x: jx + 4, y: area.maxY - 8), anchor: .leading)
+            let names = EELSSpectrumLayout.sectionLabelCentres(area: area, junction: jx)
+            context.draw(Text(EELSSpectrumLayout.lowLossName).font(.caption2).foregroundStyle(.secondary), at: names.low, anchor: .trailing)
+            context.draw(Text(EELSSpectrumLayout.coreLossName).font(.caption2).foregroundStyle(.secondary), at: names.core, anchor: .leading)
         }
         context.stroke(path(plot.low, values: plot.low.counts, within: axis.lowShown), with: .color(.primary), lineWidth: 1)
         // The Deconvolve stage's low loss (Fourier-log, Richardson-Lucy), dashed over the stored one.
