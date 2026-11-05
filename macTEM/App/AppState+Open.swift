@@ -162,8 +162,7 @@ extension AppState {
                                       maxSide: Thumbnail.defaultMaxSide)
         try Task.checkCancellation()
         // Nil when none can be made: the item then keeps its pixels for its life (`OpenItems`' memory rule).
-        let bookmark = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil,
-                                             relativeTo: nil)
+        let bookmark = try? SecurityScopedBookmark.make(for: url)
         return OpenedImage(image: image, canvas: canvas, metadata: metadata, url: url,
                            thumbnail: thumbnail, bookmark: bookmark, identity: identity, sidecar: sidecar,
                            hasGrant: SessionGrants.bookmark(forSource: url) != nil)

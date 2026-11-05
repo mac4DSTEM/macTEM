@@ -217,8 +217,7 @@ package nonisolated enum SessionSaving {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         try SessionSave.write(request, to: url)
-        let bookmark = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil,
-                                             relativeTo: nil)
+        let bookmark = try? SecurityScopedBookmark.make(for: url)
         return Saved(url: url, bookmark: bookmark, marks: marks)
     }
 
