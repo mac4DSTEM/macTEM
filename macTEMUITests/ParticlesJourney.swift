@@ -9,7 +9,7 @@ import XCTest
 nonisolated final class ParticlesJourney: Journey {
     @MainActor func testShowObjectsCountsThePlantedFiveDiscs() throws {
         try step("launch with the demo image") {
-            launch(["--demo-fixture"])
+            launch(["--demo-fixture", "--export-dir", "macTEM-particles-demo-export"])
             XCTAssertTrue(app.staticTexts["Demo lattice"].firstMatch.waitForExistence(timeout: 30))
         }
         try step("show objects") {
@@ -35,6 +35,10 @@ nonisolated final class ParticlesJourney: Journey {
             waitFor("particles.table").click()
             waitFor("particles.tableView", timeout: 20)
             XCTAssertGreaterThanOrEqual(app.windows.count, 2, "the table is a window beside the image")
+        }
+        try step("Export CSV writes into --export-dir") {
+            waitFor("particles.export").click()
+            waitStatus(containing: ["Exported", "particles.csv"])
         }
     }
 
