@@ -10,19 +10,6 @@
 import XCTest
 
 nonisolated final class DemoDataJourney: Journey {
-    /// Stops the journey unless macTEM is frontmost with its window on screen and hittable.
-    @MainActor private func requireFrontmost(file: StaticString = #filePath, line: UInt = #line) throws {
-        guard app.state == .runningForeground else {
-            XCTFail("macTEM is not the frontmost app (state \(app.state.rawValue)): no click", file: file, line: line)
-            throw XCTSkip("not frontmost")
-        }
-        let window = app.windows.firstMatch
-        guard window.exists, window.isHittable, window.frame.width > 0, window.frame.height > 0 else {
-            XCTFail("macTEM's window is not on screen: no click", file: file, line: line)
-            throw XCTSkip("no window on screen")
-        }
-    }
-
     /// Help > Open Demo Data > `title`, with the frontmost check before each of the three clicks.
     @MainActor private func openDemo(_ title: String) throws {
         try requireFrontmost()

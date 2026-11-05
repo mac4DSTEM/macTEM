@@ -28,6 +28,13 @@ nonisolated final class EELSJourney: Journey {
         return line().components(separatedBy: "t/\u{03BB} ").last?.components(separatedBy: " ").first ?? ""
     }
 
+    /// An element's text: its label, else its value, else its first text's label (an InspectorNote carries it on either, by macOS release).
+    @MainActor func text(_ e: XCUIElement) -> String {
+        if !e.label.isEmpty { return e.label }
+        if let v = e.value as? String, !v.isEmpty { return v }
+        return e.staticTexts.firstMatch.label
+    }
+
     @MainActor func testTheDemoThicknessReadsThePlantedHalf() throws {
         try step("launch with the demo EELS image") { launch(["--demo-eels-fixture"]) }
         try step("go to the EELS room") {
@@ -64,29 +71,51 @@ nonisolated final class EELSJourney: Journey {
 
     /// Run (the toolbar's verb) aligns the planted spectrum image, recomputes the thickness on the aligned cube and says so in the header and the Align
     /// section; the planted t/λ is still 0.5 afterwards (the alignment moved nothing: the planted peak is already at 0 eV). There is no "before" tile since 1.0:
-    /// what Align did is the ZLP shift, read under the pointer with t/λ (and a tile only when it is not flat).
+    /// what Align did is the ZLP shift. The status line names the hovered map only since macTEM#96 (as the EDS room's), so the shift is not read over t/λ: the
+    /// Processing line says the file came aligned (a flat shift is no tile beside t/λ), and the Maps control's ZLP segment draws the shift, read under the pointer.
     @MainActor func testRunAlignsAndKeepsThePlantedHalf() throws {
         try step("launch with the demo EELS image") { launch(["--demo-eels-fixture"]) }
         try step("go to the EELS room") {
-            waitFor("workspace.eels", timeout: 30).click()
+            let eels = waitFor("workspace.eels", timeout: 30)
+            try requireFrontmost()
+            eels.click()
             waitFor("eels.room", timeout: 30)
         }
         try step("Run aligns, then maps the thickness") {
             let run = waitFor("workspace.primaryAction", timeout: 30)
             let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == true"), object: run)
             XCTAssertEqual(XCTWaiter().wait(for: [enabled], timeout: 60), .completed, "Run is enabled while Align has not run")
+            try requireFrontmost()
             run.click()
             let pipeline = waitValue("eels.pipeline", timeout: 60) { $0.contains("Align current") }
             XCTAssertTrue(pipeline.contains("Thickness current"), pipeline)
             XCTAssertTrue(waitFor("eels.alignReadout", timeout: 30).exists)
         }
-        try step("the planted half is still read after Align, with the shift Align applied") {
+        try step("the planted half is still read after Align") {
+            try requireFrontmost()
             pointAtTheThicknessMap()
             let value = thicknessFromStatusLine()
             let t = try XCTUnwrap(Double(value.replacingOccurrences(of: ",", with: ".")), "no number in \"\(value)\"")
             XCTAssertEqual(t, 0.5, accuracy: 0.01, "t/λ = \(t)")
-            waitStatus(containing: ["ZLP shift"], timeout: 30)
             XCTAssertFalse(app.groups["ZLP centre (before) map"].firstMatch.exists, "the before tile is not drawn since 1.0")
+        }
+        try step("the Processing line says what Align moved: nothing, the planted peak sits at 0 eV") {
+            let readout = waitFor("eels.alignReadout", timeout: 30)
+            let said = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.text(readout).contains("already aligned in the file") }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [said], timeout: 30), .completed, "the Processing line reads \"\(text(readout))\"")
+            XCTAssertTrue(text(readout).contains("max |shift| 0 eV"), text(readout))
+        }
+        try step("the ZLP segment draws the shift Align applied, read under the pointer") {
+            let control = waitFor("eels.maps.control", timeout: 30)
+            let zlp = control.radioButtons["ZLP"].exists ? control.radioButtons["ZLP"] : control.buttons["ZLP"]
+            XCTAssertTrue(zlp.waitForExistence(timeout: 10), "the Maps control has no ZLP segment")
+            try requireFrontmost()
+            zlp.click()
+            let tile = app.groups.matching(NSPredicate(format: "label BEGINSWITH %@", "ZLP shift map")).firstMatch
+            XCTAssertTrue(tile.waitForExistence(timeout: 30), "the ZLP shift map never appeared")
+            try requireFrontmost()
+            tile.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4)).hover()
+            waitStatus(containing: ["ZLP shift ", " eV"], timeout: 30)
         }
     }
 
