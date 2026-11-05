@@ -1,0 +1,15 @@
+The other App Store Connect fields (one line each, as entered)
+
+Bundle ID: com.mac4dstem.macTEM
+SKU: mactem-macos
+Primary language: English (U.S.)
+Platform: macOS
+Copyright: 2026 Paul Lobpreis
+Price: Free (Tier 0), all territories
+Seller: individual; EU Digital Services Act: non-trader
+Sign-in required for review: No
+Content rights: the app contains no third-party content (code ported from GPL-3.0 projects is credited in NOTICE and Licenses/)
+Export compliance: uses no non-exempt encryption (Info.plist ITSAppUsesNonExemptEncryption = NO; macTEM makes no network connection)
+Version: the release tag's version (Config/Version.xcconfig); build: CURRENT_PROJECT_VERSION, or STORE_BUILD_NUMBER for a re-upload
+Build: uploaded with tools/release-store.sh --upload from the release tag
+Release: manual release after approval

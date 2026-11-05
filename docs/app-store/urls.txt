@@ -4,4 +4,4 @@ Privacy Policy URL: https://mac4dstem.com/privacy.html
 
 The domain is mac4dstem.com (website/CNAME); www redirects to the apex.
 
-Before submission: privacy.html and support.html are written for mac4DSTEM only and do not name macTEM. privacy.html also carries the [FULL NAME] and [STREET AND NUMBER] controller placeholders. Either add macTEM to both pages (macTEM makes no network request at all) or give macTEM its own pages, and update these URLs to match.
+Before submission: privacy.html and impressum.html still carry the name and address placeholders (macEM-suite#80); Paul supplies them. Both pages already cover macTEM.
