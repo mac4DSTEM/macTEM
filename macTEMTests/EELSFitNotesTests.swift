@@ -54,7 +54,7 @@ nonisolated final class EELSFitNotesTests: XCTestCase {
         XCTAssertEqual(EELSRoomFormat.fitNotes(rows: [Self.row("C K")], refusals: [], unanswered: [nil, nil]), [])
     }
 
-    /// The footer line: "2 notes · RSS … · χ²ᵣ …", "1 note · …", and the quality alone with no note; with no quality, the method line. Red under: the
+    /// The footer line: "2 notes · χ²/dof … · Pearson", "1 note · …", and the quality alone with no note; with no quality, the method line. Red under: the
     /// old "model · background · …" footer.
     func testTheFooterSaysHowManyNotesAndTheFitQuality() {
         let en = Locale(identifier: "en_US")
@@ -65,7 +65,10 @@ nonisolated final class EELSFitNotesTests: XCTestCase {
         XCTAssertEqual(EELSRoomFormat.fitNotesSummary(notes: 0, quality: quality), quality)
     }
 
-    @MainActor private func fitted(_ model: EELSFitModel) async throws -> EELSSession {
+    @MainActor private func fitted(_ model: EELSFitModel) async throws -> EELSSession { try await Self.fittedSession(model) }
+
+    /// The planted C K, N K, O K session of `EELSControlsTests`, fitted by `model` with no low-loss convolution.
+    @MainActor static func fittedSession(_ model: EELSFitModel) async throws -> EELSSession {
         let loaded = LoadedEELS(fileName: "notes.dm4", image: try EELSRoomTests.image(), beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: 10,
                                 origin: "planted", coreLoss: try EELSControlsTests.core(), coreLossOrigin: "planted core")
         let session = EELSSession()
@@ -113,7 +116,7 @@ nonisolated final class EELSFitNotesTests: XCTestCase {
         }
         let notes = session.fitNotes + [ResultRow.eelsExponentAtBound, "O K " + ResultRow.eelsBelowDetection]
         let panel = try render(EELSResultsPanel(session: session), size: NSSize(width: 560, height: 300))
-        let list = try render(EELSFitNotesList(notes: notes, quality: session.resultQuality.map { EELSRoomFormat.fitQuality($0) },
+        let list = try render(EELSFitNotesList(notes: notes, quality: session.resultQuality.map { EELSRoomFormat.fitQualityText($0) },
                                                method: session.fitFooter, methodNames: [session.model?.methodName].compactMap { $0 }),
                               size: NSSize(width: 360, height: 280))
         XCTAssertGreaterThan(panel.pixelsWide, 0); XCTAssertGreaterThan(list.pixelsWide, 0)
