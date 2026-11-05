@@ -25,6 +25,7 @@ struct ImageRoomParticlesSection: View {
     let rawRange: ClosedRange<Float>?
     @State private var exporting = false
     @Environment(\.openWindow) private var openWindow
+    @Environment(AppState.self) private var appState
 
     private struct PreviewKey: Equatable { var settings: ParticleSettings; var on: Bool }
 
@@ -36,7 +37,7 @@ struct ImageRoomParticlesSection: View {
             if analysis.report != nil {
                 InspectorActionRow {
                     Button("Object Table…") { openWindow(id: ParticleTableWindow.id) }.accessibilityIdentifier("particles.table")
-                    Button("Export CSV…") { exporting = true }.accessibilityIdentifier("particles.export")
+                    Button("Export CSV…") { export(analysis) }.accessibilityIdentifier("particles.export")
                 }
             }
             SegmentedPicker(label: "Objects", items: ParticleSettings.Polarity.allCases.map { ($0, .title($0.title)) },
@@ -108,11 +109,37 @@ struct ImageRoomParticlesSection: View {
         .fileExporter(isPresented: $exporting,
                       document: EDXExportFile(data: Data(csv(analysis).utf8)),
                       contentType: .commaSeparatedText,
-                      defaultFilename: (image.fileName as NSString).deletingPathExtension + " particles") { _ in }
+                      defaultFilename: ParticleExport.baseName(of: image.fileName)) { result in
+            switch result {
+            case .success(let url): appState.statusText = "Exported \(url.lastPathComponent)"
+            case .failure(let error): appState.present(error)
+            }
+        }
+    }
+
+    /// `--export-dir` (a UI journey) writes without a panel, as the Diffraction readout does; otherwise the save panel.
+    private func export(_ analysis: ParticleAnalysis) {
+        guard let directory = appState.exportDirectory else { exporting = true; return }
+        do {
+            let url = try ParticleExport.write(csv(analysis), imageFileName: image.fileName, into: directory)
+            appState.statusText = "Exported \(url.lastPathComponent)"
+        } catch { appState.present(error) }
     }
 
     private func csv(_ analysis: ParticleAnalysis) -> String {
         analysis.report.map { ParticleFormat.csv($0, scale: ParticleCompute.scale(of: image), fileName: image.fileName) } ?? ""
+    }
+}
+
+/// Where Export CSV writes when the launch gave `--export-dir`: "<image name> particles.csv" in that folder.
+nonisolated enum ParticleExport {
+    static func baseName(of imageFileName: String) -> String { (imageFileName as NSString).deletingPathExtension + " particles" }
+
+    static func write(_ text: String, imageFileName: String, into directory: URL) throws -> URL {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent(baseName(of: imageFileName) + ".csv")
+        try Data(text.utf8).write(to: url)
+        return url
     }
 }
 

@@ -281,4 +281,16 @@ nonisolated final class ParticleTests: XCTestCase {
         XCTAssertEqual(analysis.failure, "The image holds no finite value to threshold.")
         XCTAssertNil(analysis.report); XCTAssertFalse(analysis.isComputing)
     }
+
+    // MARK: Export into --export-dir
+
+    /// With `--export-dir` Export CSV writes "<image> particles.csv" into that folder without a save panel (a UI journey cannot drive the
+    /// panel; seen 2026-11-05 on the real Ceta TIFFs: the journey waited on a panel). Red under: no writer, the panel was the only way.
+    func testExportCSVWritesIntoTheExportDirectory() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("particles-export-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = try ParticleExport.write("label,counted\n1,1\n", imageFileName: "Camera Ceta 1305.tif", into: dir)
+        XCTAssertEqual(url.lastPathComponent, "Camera Ceta 1305 particles.csv")
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "label,counted\n1,1\n")
+    }
 }
