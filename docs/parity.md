@@ -55,6 +55,21 @@ Upstream's own tests compare hand-written 3 x 3 uint8 answers exactly (`test_rem
 - Figure F2 (`docs/sem/north-star.md`): `tools/parity/sem/background_figure.py` draws the reference pattern beside the one the
   unit test `testFigureF2PatternZeroAfterStaticAndDynamicBackground` writes to `$TMPDIR/macTEM-F2-ours.u8` (and prints as base64).
 
+## Orientation maths
+
+orix 0.15.0's quaternion package ported into `Sources/TEMCore/SEM/Orientation/` (P3-01): conventions of Rowenhorst et al.
+(2015), "Consistent representations of and conversions between 3D rotations" (unit quaternions scalar first, passive,
+P = -1, Bunge Euler angles lab to crystal). Bundles from `tools/parity/sem/emit.py`, inputs in
+`tools/parity/sem/fixtures/orientation_inputs.json`, tests in `SEMOrientationParityTests`.
+
+| Function | Reference | Test | Tolerance | Notes |
+| --- | --- | --- | --- | --- |
+| `RotationConversions` (eu2qu, qu2eu, om2qu, qu2om, ax2qu, qu2ax, qu2ho, ho2ax, ax2ro, ro2ax, ho2ro, cu2ho, cu2ro, pyramid) | `orix.quaternion._conversions` (Rowenhorst et al. 2015; cubochoric: Roşca et al. 2014) | `testConversionsFromQuaternionsMatchOrix`, `testEulerAndCubochoricConversionsMatchOrix` | atol 1e-7 | orix has no qu2cu, so neither does the port; Rodrigues-Frank lengths within 1e-3 of a two-fold rotation are +∞ as orix writes them |
+| `Rotation` (`*`, `inverse`, `angle`, `axis`, `angle(with:)`, `absDot`, `angleOuter`, `outer`, `unique`, `fromEuler`/`fromMatrix`/`fromAxisAngle`/`fromHomochoric`/`fromRodrigues` and back) | `orix.quaternion.Rotation`, `Quaternion` | `testCompositionVectorsOuterProductsAndUniqueMatchOrix` | atol 1e-7; `unique` indices exact | products renormalised as orix's constructor does; `angle(with:)` rounds the dot product to 15 decimals and `unique` keys on 12-decimal differentiators, as orix |
+| `PointGroup` (the 38 groups and 2, m, 32; `fromGenerators`, `subgroups`, `properSubgroup`, `laue`, `laueProperSubgroup`, `system`, `eulerFundamentalRegion`, `fundamentalSectorNormals`, `fundamentalZoneNormals`) | `orix.quaternion.symmetry` | `testPointGroupsMatchOrixElementForElement` | elements and normals 1e-10, in orix's order; names exact | rotation axes grouped by their 10-decimal rounding in `axisOrders` where orix compares exactly (D-SEM-35); orix's `fundamental_sector` spells "6m2" for the rotated case, so "-6m2" is not rotated, kept |
+| `OrientationRegion.fromSymmetry`, `contains`, `vertices` | `orix.quaternion.OrientationRegion` | `testOrientationRegionsMatchOrix` | normals 1e-10 | a pair of improper groups without inversion throws as orix raises |
+| `Orientations` (`reduced`, `angles(with:)`, `misorientations(from:)`, `anglesOuter`, `distanceMatrix`), `Misorientations` (`reduced`, `angles`, `distanceMatrix`) | `Orientation.reduce`, `angle_with`, `__sub__`, `angle_with_outer`/`get_distance_matrix` (numba kernels), `Misorientation.reduce`, `get_distance_matrix(lazy=False)` | `testTiOrientationsReduceAndDisorientationsMatchOrix`, `testCubicOrientationsReduceAndDisorientationsMatchOrix` | atol 1e-7 | `reduce` keeps orix's loop (first `end · M · start` inside the zone of (start, end)); for two different groups that is not always the smallest angle (DiffractoKit's pins document the case), the same as orix; float64 loops, not Accelerate (D-SEM-35) |
+
 ## Patterns room
 
 | Function | Reference | Test | Tolerance | Notes |
