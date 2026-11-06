@@ -4,5 +4,6 @@
 nickel_ebsd_large/patterns_v2.h5	5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934	https://raw.githubusercontent.com/pyxem/kikuchipy-data/bcab8f7a4ffdb86a97f14e2327a4813d3156a85e/nickel_ebsd_large/patterns_v2.h5
 silicon_ebsd_moving_screen/si_in.h5	de57b8ef7213420af694c191c939f44818979b3db9873e74cc85cabde824b7eb	https://raw.githubusercontent.com/pyxem/kikuchipy-data/bcab8f7a4ffdb86a97f14e2327a4813d3156a85e/silicon_ebsd_moving_screen/si_in.h5
 orix/sdss_ferrite_austenite.ang	ac2fc2fc2b8c9c598703c96f9888677bccc9cd88cddd5e78735653fd5504e371	https://raw.githubusercontent.com/pyxem/orix-data/main/sdss_ferrite_austenite/sdss_ferrite_austenite.ang
+orix/Ti_orientations.ctf	d8228c58af45ed70f3617b8865c13878bb1fc40b3d60163042be4b761105dcde	https://raw.githubusercontent.com/pyxem/orix-data/main/ti_orientations/Ti_orientations.ctf
 # Phase 4 (dictionary indexing) and later; Zenodo, so manual from the cloud. md5 from kikuchipy's registry: 8b69c071a036ad3488d465093b67fe4d.
 ebsd_master_pattern/ni_mc_mp_20kv.h5	-	manual:https://zenodo.org/record/7498645/files/ni_mc_mp_20kv.h5

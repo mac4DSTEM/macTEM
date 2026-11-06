@@ -67,6 +67,16 @@ P = -1, Bunge Euler angles lab to crystal). Bundles from `tools/parity/sem/emit.
 | `OrientationRegion.fromSymmetry`, `contains`, `vertices` | `orix.quaternion.OrientationRegion` | `testOrientationRegionsMatchOrix` | normals 1e-10 | a pair of improper groups without inversion throws as orix raises |
 | `Orientations` (`reduced`, `angles(with:)`, `misorientations(from:)`, `anglesOuter`, `distanceMatrix`), `Misorientations` (`reduced`, `angles`, `distanceMatrix`) | `Orientation.reduce`, `angle_with`, `__sub__`, `angle_with_outer`/`get_distance_matrix` (numba kernels), `Misorientation.reduce`, `get_distance_matrix(lazy=False)` | `testTiOrientationsReduceAndDisorientationsMatchOrix`, `testCubicOrientationsReduceAndDisorientationsMatchOrix` | atol 1e-7 | `reduce` keeps orix's loop (first `end · M · start` inside the zone of (start, end)); for two different groups that is not always the smallest angle (DiffractoKit's pins document the case), the same as orix; float64 loops, not Accelerate (D-SEM-35) |
 
+## Crystal map
+
+orix 0.15.0's `orix.crystal_map` ported into `Sources/TEMCore/SEM/CrystalMap/` (P3-03): one `CrystalMap` for every reader and
+every later indexing result. Tests in `CrystalMapParityTests`; bundles from `tools/parity/sem/emit.py`.
+
+| Function | Reference | Test | Tolerance | Notes |
+| --- | --- | --- | --- | --- |
+| `CrystalMap` (`init` with orix's phase-list matching and `not_indexed`, `shape`, `dx`, `dy`, `size`, `ids`, `row`, `col`, `isIndexed`, `phasesInData`, `points(ofPhases:)`/`[phase:]`, `masked`, `sliced(rows:columns:)`, `mapData`, `orientations`), `PhaseList`, `CrystalPhase` | `orix.crystal_map.CrystalMap`, `PhaseList`, `Phase` | `testTheTwoPhaseMapSlicesAsOrix`, `testNotIndexedPointsAndPhaseListMatching`, `testSlicesKeepTheirPlaceAndPartialRectanglesAreRefused` | exact; orientations atol 1e-7 | orix's `is_in_data` mask kept: a slice hides points and keeps its place in the grid. Two departures: a row and column slice of an already sliced map keeps hidden points hidden (orix re-shows hidden points inside the window), and `mapData` offsets by where the whole map starts (orix assumes index 0); both agree with orix on every map that starts at 0 and is sliced once. Phase colours cycle matplotlib's ten Tableau names (orix goes on into xkcd names after ten phases) |
+| `NeighbourMisorientation` (`misorientations(of:)`, `anglesDegrees(of:)`), `AngleHistogram` | `Orientation.__sub__` of `O[:, 1:]`, `O[:, :-1]` and `O[1:, :]`, `O[:-1, :]`; `Misorientation.angle`; `numpy.histogram` | `testNeighbourMisorientationsOfTheTiHeadMatchOrix`, `testFigureF7NeighbourMisorientationHistogramOfTheTiMap` | misorientations and angles atol 1e-7; counts and edges exact | figure F7: 1° bins from 0° to 94° (D-SEM-37); the closest angle to an edge is 6.5e-7°, far above the 1e-7 rad port difference, so the counts are exact. The whole map is a fetched dataset (skips without it); the committed 3 x 507 map holds the port on every PR |
+
 ## Patterns room
 
 | Function | Reference | Test | Tolerance | Notes |

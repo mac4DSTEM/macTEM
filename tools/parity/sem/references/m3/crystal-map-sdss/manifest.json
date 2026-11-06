@@ -1,0 +1,204 @@
+{
+  "arrays": {
+    "austenite_quaternions": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "austenite_quaternions.bin",
+      "rtol": 0.0,
+      "sha256": "f296669d52cb59068733503ea7edcceeb3cf3952ffe32ae55171471b3ca95397",
+      "shape": [
+        5657,
+        4
+      ]
+    },
+    "ferrite_col": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "ferrite_col.bin",
+      "rtol": 0.0,
+      "sha256": "f26d3991547c77be41698635c6e35ca6fc1ac3d47f2775a9716e0f7ac587c78f",
+      "shape": [
+        6043
+      ]
+    },
+    "ferrite_iq_map": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ferrite_iq_map.bin",
+      "note": "NaN where the point is not ferrite; compared as equal NaNs",
+      "rtol": 0.0,
+      "sha256": "100721fdd198d1829547792be18abde06704920dc6d32a05d42b187a2498dd39",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "ferrite_row": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "ferrite_row.bin",
+      "rtol": 0.0,
+      "sha256": "a0b740798c38bb122fad34dfd9fdd4b2b9959389128a5ce7c34abfa8092c9d80",
+      "shape": [
+        6043
+      ]
+    },
+    "phase_id_map": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "phase_id_map.bin",
+      "rtol": 0.0,
+      "sha256": "ece2b538616b06978ab1633c7b32eac547d1b1e62d6fe9e4463595fd092c70dd",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "window_col": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "window_col.bin",
+      "rtol": 0.0,
+      "sha256": "a1a25ef3c369a09a3c0f02d5d6eb5959a99739cc54a5fef762b54628f6327165",
+      "shape": [
+        100
+      ]
+    },
+    "window_id": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "window_id.bin",
+      "rtol": 0.0,
+      "sha256": "cd347e587e6a69d32a9f6ca3504dd2a0bd475983d2a6244bf2f896e40904a68c",
+      "shape": [
+        100
+      ]
+    },
+    "window_iq": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "window_iq.bin",
+      "rtol": 0.0,
+      "sha256": "ff9671f408ff584e3d00c093700a558fdb99466ea2a61963649fa49dcb1a6d95",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "window_row": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "window_row.bin",
+      "rtol": 0.0,
+      "sha256": "7d8caa66123b2ae6946edc4ba19499c1c580ac50dadfbe410acead4d701456ac",
+      "shape": [
+        100
+      ]
+    }
+  },
+  "case": "m3/crystal-map-sdss",
+  "inputs": [
+    {
+      "path": "sem-data/orix/sdss_ferrite_austenite.ang",
+      "sha256": "ac2fc2fc2b8c9c598703c96f9888677bccc9cd88cddd5e78735653fd5504e371"
+    }
+  ],
+  "milestone": 3,
+  "reference": {
+    "function": "orix.crystal_map.CrystalMap (__getitem__, row, col, get_map_data, orientations)",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "all_indexed": true,
+    "austenite_symmetry": "432",
+    "dx": 1.5,
+    "dy": 1.5,
+    "ferrite_name": "ferrite/ferrite",
+    "indexed_count": 11700,
+    "phase_colors": [
+      "tab:blue",
+      "tab:orange"
+    ],
+    "phase_ids": [
+      1,
+      2
+    ],
+    "phase_names": [
+      "austenite/austenite",
+      "ferrite/ferrite"
+    ],
+    "phase_slices": {
+      "austenite/austenite": {
+        "phases_in_data": [
+          1
+        ],
+        "shape": [
+          100,
+          117
+        ],
+        "size": 5657
+      },
+      "ferrite/ferrite": {
+        "phases_in_data": [
+          2
+        ],
+        "shape": [
+          100,
+          117
+        ],
+        "size": 6043
+      },
+      "indexed": {
+        "phases_in_data": [
+          1,
+          2
+        ],
+        "shape": [
+          100,
+          117
+        ],
+        "size": 11700
+      }
+    },
+    "point_groups": [
+      "432",
+      "432"
+    ],
+    "shape": [
+      100,
+      117
+    ],
+    "size": 11700,
+    "window": {
+      "columns": [
+        5,
+        15
+      ],
+      "rows": [
+        10,
+        20
+      ],
+      "shape": [
+        10,
+        10
+      ],
+      "size": 100
+    }
+  }
+}

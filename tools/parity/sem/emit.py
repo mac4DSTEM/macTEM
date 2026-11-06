@@ -541,6 +541,131 @@ def case_m3_ti_disorientations(ctx):
     ctx.done("m3/ti-disorientations")
 
 
+TI_MAP_COLUMNS = 507  # orix-data's Ti map is 381 x 507 (x varies fastest)
+F7_EDGES = np.arange(0.0, 95.0, 1.0)  # 1 degree bins to 94, above 622's largest disorientation (93.84 degrees)
+
+
+def case_m3_ti_neighbour_misorientations(ctx):
+    """Figure F7 on a committed map: the first three rows (3 x 507) of orix-data's Ti orientations (point group 622), the
+    misorientations of horizontal and vertical neighbours (Orientation subtraction, reduced into the (622, 622) zone),
+    their angles and the histogram of the angles in degrees on 1-degree bins (numpy.histogram)."""
+    from orix.quaternion import Orientation
+    from orix.quaternion.symmetry import D6
+
+    inp = _orientation_inputs()
+    assert inp["ti_point_group"] == D6.name
+    rows = 3
+    eu = np.asarray(inp["ti_euler_degrees"], dtype=np.float64)[: rows * TI_MAP_COLUMNS]
+    O = Orientation.from_euler(eu, symmetry=D6, degrees=True).reshape(rows, TI_MAP_COLUMNS)
+    h = (O[:, 1:] - O[:, :-1]).flatten()
+    v = (O[1:, :] - O[:-1, :]).flatten()
+    angles = np.rad2deg(np.concatenate([h.angle, v.angle]))
+    counts, edges = np.histogram(angles, F7_EDGES)
+    b = Bundle("m3/ti-neighbour-misorientations", 3, "orix",
+               "orix.quaternion.Orientation.__sub__ of map neighbours, Misorientation.angle; numpy.histogram", ctx.out)
+    b.input(ORIENTATION_INPUTS, "fixtures/orientation_inputs.json")
+    b.value("point_group", D6.name)
+    b.value("map_shape", [rows, TI_MAP_COLUMNS])
+    b.value("pairs", {"horizontal": int(h.size), "vertical": int(v.size)})
+    b.array("euler_degrees", eu, **EXACT)
+    b.array("horizontal_misorientations", h.data, **ORI)
+    b.array("vertical_misorientations", v.data, **ORI)
+    b.array("horizontal_angles", h.angle, **ORI)
+    b.array("vertical_angles", v.angle, **ORI)
+    b.array("edges_degrees", edges.astype(np.float64), **EXACT)
+    b.array("counts", counts.astype(np.int64), **EXACT)
+    frac = angles - np.floor(angles)
+    b.scalar("closest_to_an_edge_degrees", float(np.min(np.minimum(frac, 1 - frac)[angles > 1e-6])), atol=1e-9)
+    b.write()
+    ctx.done("m3/ti-neighbour-misorientations")
+
+
+def case_m3_ti_neighbour_misorientations_full(ctx):
+    """Figure F7: the neighbour disorientation angle histogram of orix-data's whole Ti map (Ti_orientations.ctf, 381 x
+    507, point group 622, read as orix.data.ti_orientations reads it: numpy.loadtxt of phi1, Phi, phi2 in degrees). Counts
+    and edges exact; a sample of the angles (every 997th) within atol 1e-7 rad."""
+    from orix.quaternion import Orientation
+    from orix.quaternion.symmetry import D6
+
+    p = ctx.data / "orix" / "Ti_orientations.ctf"
+    if not ctx.have(p, "m3/ti-neighbour-misorientations-full"):
+        return
+    table = np.loadtxt(p, skiprows=1)
+    rows = len(np.unique(table[:, 10]))
+    assert len(np.unique(table[:, 9])) == TI_MAP_COLUMNS and rows * TI_MAP_COLUMNS == table.shape[0]
+    O = Orientation.from_euler(np.deg2rad(table[:, :3]), D6).reshape(rows, TI_MAP_COLUMNS)
+    h = (O[:, 1:] - O[:, :-1]).flatten()
+    v = (O[1:, :] - O[:-1, :]).flatten()
+    rad = np.concatenate([h.angle, v.angle])
+    angles = np.rad2deg(rad)
+    counts, edges = np.histogram(angles, F7_EDGES)
+    b = Bundle("m3/ti-neighbour-misorientations-full", 3, "orix",
+               "orix.data.ti_orientations; Orientation.__sub__ of map neighbours, Misorientation.angle; numpy.histogram", ctx.out)
+    b.input(p, "sem-data/orix/Ti_orientations.ctf")
+    b.value("point_group", D6.name)
+    b.value("map_shape", [rows, TI_MAP_COLUMNS])
+    b.value("pairs", {"horizontal": int(h.size), "vertical": int(v.size)})
+    b.value("above_7_degrees", int(np.count_nonzero(angles > 7)))
+    b.array("edges_degrees", edges.astype(np.float64), **EXACT)
+    b.array("counts", counts.astype(np.int64), **EXACT)
+    b.array("sample_index", np.arange(0, rad.size, 997, dtype=np.int64), **EXACT)
+    b.array("sample_angles", rad[::997], **ORI)
+    frac = angles - np.floor(angles)
+    b.scalar("closest_to_an_edge_degrees", float(np.min(np.minimum(frac, 1 - frac)[angles > 1e-6])), atol=1e-9)
+    b.write()
+    ctx.done("m3/ti-neighbour-misorientations-full")
+
+
+def case_m3_crystal_map_sdss(ctx):
+    """orix's CrystalMap on a two-phase map (orix-data's sdss_ferrite_austenite.ang, 100 x 117):
+    the phase list, the slices by phase, by "indexed" and by rows and columns, their sizes, shapes, rows and columns, map
+    data with NaN where a point is not in the slice, and the orientations of one phase. Everything a reader hands through
+    is exact; orientations within atol 1e-7."""
+    from orix import io
+
+    p = ctx.data / "orix" / "sdss_ferrite_austenite.ang"
+    if not ctx.have(p, "m3/crystal-map-sdss"):
+        return
+    xm = io.load(str(p))
+    b = Bundle("m3/crystal-map-sdss", 3, "orix", "orix.crystal_map.CrystalMap (__getitem__, row, col, get_map_data, orientations)", ctx.out)
+    b.input(p, "sem-data/orix/sdss_ferrite_austenite.ang")
+    b.value("shape", list(xm.shape))
+    b.value("size", int(xm.size))
+    b.value("dx", float(xm.dx))
+    b.value("dy", float(xm.dy))
+    b.value("phase_ids", [int(i) for i in xm.phases.ids])
+    b.value("phase_names", list(xm.phases.names))
+    b.value("phase_colors", list(xm.phases.colors))
+    b.value("point_groups", [pg.name if pg is not None else None for pg in xm.phases.point_groups])
+    b.value("all_indexed", bool(xm.all_indexed))
+    b.value("indexed_count", int(np.count_nonzero(xm.is_indexed)))
+    slices = {}
+    for key in list(xm.phases.names) + ["indexed"]:
+        s = xm[key]
+        slices[key] = {"size": int(s.size), "shape": list(s.shape),
+                       "phases_in_data": [int(i) for i in s.phases_in_data.ids]}
+    b.value("phase_slices", slices)
+    window = xm[10:20, 5:15]
+    b.value("window", {"rows": [10, 20], "columns": [5, 15], "size": int(window.size), "shape": list(window.shape)})
+    b.array("window_row", window.row.astype(np.int64), **EXACT)
+    b.array("window_col", window.col.astype(np.int64), **EXACT)
+    b.array("window_iq", window.get_map_data("iq").astype(np.float64), **EXACT)
+    b.array("window_id", window.id.astype(np.int64), **EXACT)
+    first, second = xm.phases.names  # orix autogenerates "austenite/austenite", "ferrite/ferrite" (name/formula)
+    b.value("ferrite_name", second)
+    ferrite = xm[second]
+    b.array("ferrite_iq_map", ferrite.get_map_data("iq").astype(np.float64), **EXACT,
+            note="NaN where the point is not ferrite; compared as equal NaNs")
+    b.array("ferrite_row", ferrite.row.astype(np.int64), **EXACT)
+    b.array("ferrite_col", ferrite.col.astype(np.int64), **EXACT)
+    b.array("phase_id_map", xm.get_map_data("phase_id").astype(np.float64), **EXACT)
+    aus = xm[first].orientations
+    b.value("austenite_symmetry", aus.symmetry.name)
+    b.array("austenite_quaternions", aus.data, **ORI)
+    b.write()
+    ctx.done("m3/crystal-map-sdss")
+
+
 # --------------------------------------------------------------------------------------------- SEM-EDS (m1 read, m7)
 
 
