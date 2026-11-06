@@ -1,23 +1,38 @@
 # Decisions
 
-Engineering decisions of the SEM program, logged instead of asked (program rule, 2026-11-06). One line of context,
-the decision, the reason. Numbered D-SEM-n; the room designs keep their own D1-D8 in `sem/design/README.md`.
+Engineering decisions taken without asking, as the SEM program requires (Paul, 2026-11-06: "decide and log in
+docs/decisions.md, never ask"). One entry per decision: date, what, why, what would reverse it. Newest at the bottom.
+
+## 2026-11-06 — CI: every PR check on GitHub's runners, only the UI journeys on the Mac
+
+**What.** `core` and `inventory` move from the org's Mac runner to `macos-26`, where `unit` already ran; the four
+required checks (`unit`, `core`, `inventory`, `kit boundary`) and the lint jobs now never touch the Mac. A new workflow
+`ui.yml` runs the XCUITest journeys on the Mac runner nightly (03:30 UTC) and by hand, uploads the step screenshots and
+the result bundle as run artifacts, and has no fallback to a GitHub runner: while the Mac is offline it queues. The
+SwiftPM repository cache (`~/Library/Caches/org.swift.swiftpm`) is restored per `Package.resolved` in the three macOS
+jobs so the kit clones are not fetched again on an unchanged pin set; the builds themselves still start from scratch,
+which the zero-warnings gate needs.
+
+**Why.** The last PR run before this change had `core` queued 15 minutes on the Mac (run 42277943410); with the Mac
+asleep a PR could not merge at all. On `macos-26` the same jobs took about 3 min (`core`) and under 1 min
+(`inventory`) in late October, and `unit` takes 8 to 10 min. Only the journeys need a screen and the Mac's permission
+grants, so only they stay.
+
+**Also decided.** `ui.yml` uses the Mac's selected Xcode, not ci.yml's pinned 26.6: the UI runner app keeps its Screen
+Recording and Accessibility grants by path, and that path is what the Mac's own toolchain builds and what Paul drives.
+`ui.yml` is not a pull-request trigger and not a required check: a room PR runs the journeys by hand
+(`workflow_dispatch` with its journey names) and attaches the artifact's screenshots to `release-assets/sem/`.
+`scientific` stays unrun in CI until the parity environment of the SEM program exists (`tools/parity`).
+
+**Reversal.** Set the jobs' `runs-on` back to the `vars.MACEM_MAC_RUNNER` expression (git history of ci.yml, before
+this entry) if the hosted macOS queue (free plan, few concurrent macOS jobs) becomes the slower path again.
+
+## 2026-11-06 — SEM TIFF metadata in the Image room (P1-05): D-SEM-17 to D-SEM-21
 
 | # | Date | Decision | Reason |
 |---|---|---|---|
-| D-SEM-1 | 2026-11-06 | SEM code lives in `Sources/TEMCore/SEM/` (readers, patterns, rotations, indexing, maps) and `Sources/TEMSession/` owners, over FormatoKit's HDF5 layer and ImagoKit's images; no kit changes | the program's boundary; a kit move is a later program once the API has settled |
-| D-SEM-2 | 2026-11-06 | North star: kikuchipy `nickel_ebsd_large` (EBSD) and exspy `EDS_SEM_TM002` (SEM-EDS) | both public, licensed (CC BY 4.0, GPL-3.0), small enough to ship as demo data, with published figures and Python code that emits every reference number |
-| D-SEM-3 | 2026-11-06 | The parity Python environment is `tools/parity/sem` on CPython 3.13 with a full lock, separate from the existing 3.14 TEM lock | kikuchipy 0.13.1 and pyebsdindex 0.3.10.1 have no 3.14 wheels yet; one stack per program keeps each lock reproducible |
-| D-SEM-4 | 2026-11-06 | pyebsdindex is ported although it is not GPL: it is a US NRL public-domain work with a worldwide grant; `NOTICE` acknowledges NRL and marks the port as a modified derivative | the licence asks exactly that; it is the only open Hough indexer with tests |
-| D-SEM-5 | 2026-11-06 | Rooms: Patterns ⌘6, Indexing ⌘7, Maps ⌘8, Results moves to ⌘9; no Simulation room | nine rooms is the ceiling of the ⌘1-9 keys; the simulation is a layer of the Indexing room's pattern pane. Room design decisions D1-D8: `sem/design/README.md` |
-| D-SEM-6 | 2026-11-06 | Briefs live in `docs/sem/briefs/` in the repo (and are copied to the project's shared folder) | the program runs from the repo; the shared folder is not versioned |
-| D-SEM-7 | 2026-11-06 | SEM-EDS quantification ships what exspy ships (line intensities, k-factor quantification with supplied factors); no ZAF | there is no GPL Python ZAF reference with tests; DTSA-II is Java and public domain and can become a later reference |
-| D-SEM-8 | 2026-11-06 | Grains, KAM, GOS and GND take DefDAP (Apache-2.0) as the reference, orix for everything orientation | orix has no grain segmentation; DefDAP's is tested and its licence is compatible |
-| D-SEM-9 | 2026-11-06 | Hex-grid EBSD maps are refused with a sentence in phase 1 | kikuchipy refuses them; square-grid conversion is a phase 5 issue |
-| D-SEM-10 | 2026-11-06 | Zenodo-only datasets (si_wafer, ni_gain, master patterns) are fetched on the Mac; the cloud sandbox reaches PyPI and raw.githubusercontent.com only | measured 2026-11-06: zenodo.org is refused by the sandbox proxy |
-| D-SEM-11 | 2026-11-06 | Phase 1 orders the formats kikuchipy h5ebsd first (the north-star file), then Oxford h5oina, Bruker and EDAX h5ebsd, EDAX binary, Oxford binary, NORDIF, ctf and ang maps | the first figure needs the first; the others follow by how common they are in labs |
-| D-SEM-12 | 2026-11-06 | SEM TIFF metadata (Thermo/FEI, Zeiss, Tescan) is read in `TEMCore/SEM/SEMImageMetadata.swift` from the vendor tag through FormatoKit's public TIFF tag walker; FormatoKit's `AcquisitionMetadata` stays the Acquisition section's source and the SEM record adds a section of its own | no kit change (D-SEM-1); the kit's nine TEM fields cannot hold pixel size, working distance, stage, pressure or a databar |
-| D-SEM-13 | 2026-11-06 | The databar is cut only where the file states its height and the height fits the image: Thermo `[PrivateFei] DatabarHeight` with `[Image] ResolutionY` (all five Helios test files agree), Tescan `[MAIN] ImageStripSize` below the image height. Zeiss files are never cropped | SmartSEM draws its data zone into the scan's own rows and records no height (the `ap_line_counter` of one test file matches the zone's edge, one file is no rule; a later issue if a documented field appears). Nothing is guessed |
-| D-SEM-14 | 2026-11-06 | Tescan is read as NexusLIMS's public `tescan_tif` extractor reads tag 50431 (`[MAIN]`/`[SEM]` INI; metres, volts, seconds, pascals), every value marked unvalidated | RosettaSciIO has no Tescan branch and no public Tescan test file was reachable; the keys and units come from a published reader, not a guess |
-| D-SEM-15 | 2026-11-06 | The databar switch (`Crop Databar`, Calibration section, on by default) is a UserDefaults setting applied at read time; flipping it reads the selected file again (`OpenItems.reread`). Export writes what is shown; the whole frame is one flip away | one image per item keeps every room, measurement and export on the same pixels; a second resident copy per item would double the memory of a 4k SEM frame |
-| D-SEM-16 | 2026-11-06 | The SEM TIFF parity runs in the unit target on the vendor tags of RosettaSciIO's eight SEM test files (the tag bytes as fixtures, 72 KB, GPL-3.0-or-later) against `sem-tiff-reference.json` written by `tools/parity/sem/sem-image/reference.py` | the parity gate then runs on every PR on the hosted runner without the 9 MB of images or the network; the images themselves stay fetched, not vendored |
+| D-SEM-17 | 2026-11-06 | SEM TIFF metadata (Thermo/FEI, Zeiss, Tescan) is read in `TEMCore/SEM/SEMImageMetadata.swift` from the vendor tag through FormatoKit's public TIFF tag walker; FormatoKit's `AcquisitionMetadata` stays the Acquisition section's first nine rows and the SEM record adds its rows beneath them, in the design's order | no kit change (D-SEM-1); the kit's nine TEM fields cannot hold pixel size, working distance, stage, pressure or a databar |
+| D-SEM-18 | 2026-11-06 | The databar is cut only where the file states its height and the height fits the image: Thermo `[PrivateFei] DatabarHeight` with `[Image] ResolutionY` (all five Helios test files agree), Tescan `[MAIN] ImageStripSize` below the image height. Zeiss files are never cropped | SmartSEM draws its data zone into the scan's own rows and records no height (the `ap_line_counter` of one test file matches the zone's edge; one file is no rule, a later issue if a documented field appears). Nothing is guessed |
+| D-SEM-19 | 2026-11-06 | Tescan is read as NexusLIMS's public `tescan_tif` extractor reads tag 50431 (`[MAIN]`/`[SEM]` INI; metres, volts, seconds, pascals), every value marked unvalidated until a public fixture exists (D-SEM-15) | RosettaSciIO has no Tescan branch and no public Tescan test file was reachable; the keys and units come from a published reader, not a guess |
+| D-SEM-20 | 2026-11-06 | `Databar · Hide · Show` (Display section, Hide by default) is a UserDefaults setting applied at read time; flipping it reads the selected file again (`OpenItems.reread`). Show shows the whole frame; the design's footer strip under the picture is a follow-up issue | one image per item keeps every room, measurement and export on the same pixels; a second resident copy per item would double the memory of a 4k SEM frame |
+| D-SEM-21 | 2026-11-06 | The SEM TIFF parity runs in the unit target on the vendor tags of RosettaSciIO's eight SEM test files (the tag bytes as fixtures, 72 KB, GPL-3.0-or-later) against `macTEMTests/Fixtures/sem-tiff/sem-tiff-reference.json`, written by `tools/parity/sem/sem-image/reference.py` with rsciio 0.15.0 + tifffile 2026.9.20; folding it into `tools/parity/sem/emit.py`'s bundles (D-SEM-12, D-SEM-16) is a follow-up once #130 is on main | the gate runs on every PR on the hosted runner without the 9 MB of images or the network, and the PR stays independent of #130 (one PR, never stacked) |
