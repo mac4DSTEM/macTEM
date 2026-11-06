@@ -123,7 +123,17 @@ package nonisolated enum DemoDocuments {
         package static let semEDSPeakChannel = 37, semEDSPeakCounts: UInt32 = 13_726
         package static let semEDSElements = ["Al", "C", "Cu", "Mn", "Zr"]
 
-        package static let all = [nickelEBSD, semEDSSpectrum]
+        /// kikuchipy's in-package EMsoft master pattern of nickel at 20 kV (`nickel_ebsd_master_pattern_small`): 401 x 401 px, uint8,
+        /// square Lambert and stereographic projections of both hemispheres; what the patterns above are simulated and indexed
+        /// against (figure F15). The simulation is Ånes, Zenodo 10.5281/zenodo.7498645, CC BY 4.0; the uint8 copy ships in kikuchipy
+        /// 0.13.1 (`data/emsoft_ebsd_master_pattern/`), GPL-3.0-or-later.
+        package static let nickelMasterPattern = ShippedFile(relativePath: "ni_mc_mp_20kv_uint8_gzip_opts9.h5", bytes: 908_492,
+                                                             md5: "807c8306a0d02b46effbcb12bd44cd02", title: "Ni Master Pattern 20 kV (kikuchipy)")
+        package static let nickelMasterPatternSide = 401
+        /// The sum of each hemisphere's Lambert pattern (kikuchipy reads both hemispheres alike; 2026-11-06).
+        package static let nickelMasterPatternLambertSum: UInt64 = 7_099_353
+
+        package static let all = [nickelEBSD, semEDSSpectrum, nickelMasterPattern]
     }
 
     /// The md5 of a file, as `md5sum` prints it: how a shipped file is pinned to the copy its source publishes.

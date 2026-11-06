@@ -86,6 +86,22 @@ on the same map, rtol 1e-7 for angles, exact for grain ids after relabelling by 
 Kikuchipy *Geometrical EBSD simulations*: Kikuchi bands and zone axes of the indexed orientation drawn on the
 experimental pattern (0, 0); band and zone-axis detector coordinates rtol 1e-7.
 
+Figure F15 (milestone 6): the Ni 20 kV master pattern projected onto a detector, kikuchipy's
+`EBSDMasterPattern.get_patterns`. The master pattern is kikuchipy's in-package uint8 copy of the EMsoft Ni pattern
+(401 x 401 px, both hemispheres, `kikuchipy.data.nickel_ebsd_master_pattern_small`); figure script
+`tools/parity/sem/master_pattern_figure.py`.
+
+| Part | Bundle | Arrays and tolerance |
+| --- | --- | --- |
+| The reader: the Ni pattern in Lambert and stereographic, upper, lower, both (phase `ni`, space group 225, m-3m, a = 0.35236 nm; 20 kV) | `m6/read-master-pattern-ni` | the whole array by sha256, every 50th row and the hemisphere sums exact; orix's point group for all 230 space groups exact |
+| The reader on float32 files of 11 energies (EBSD, TKD, ECP): every energy, the nearest to 15.4 and to 25 kV, 12 to 16 kV | `m6/read-master-pattern-dummy`, `m6/read-master-pattern-tkd`, `m6/read-master-pattern-ecp` | every value exact, the energy axis exact |
+| The docstring example: four identity rotations on a 60 x 60 detector, PCs (0.4 or 0.6, 0.5, 0.4 or 0.6) | `m6/project-master-pattern-docs` | direction cosines rtol 1e-7; `patterns_float32` rtol 1e-5 and atol 1e-8 (`np.allclose`'s defaults, kikuchipy's own tests); `patterns_uint8` within 1 count |
+| F15: the north-star detector (60 x 60, PC (0.4214, 0.2142, 0.5013), sample tilt 70°) for Bunge (0, 0, 0), (120, 45, 60) and (263.7, 32.1, 151.4)° | `m6/project-master-pattern-ni` | the same, and `patterns_float64` at rtol 1e-5 |
+| A non-square 48 x 64 detector at sample tilt 68°, tilt 10°, azimuthal 2.5°, twist 1.2°, one PC per rotation, a multi-energy pattern at its highest energy and at 12.4 kV | `m6/project-master-pattern-tilted` | the sample-to-detector matrix and gnomonic bounds rtol 1e-7; patterns as above |
+
+Measured on 2026-11-06 with a numpy port of the Swift steps: every float32 and uint8 pattern equal to kikuchipy's,
+bit for bit. The GPU (float32) path is held to the CPU path within 1e-3 on the -1 to 1 scale.
+
 ## Study 2, SEM-EDS: the BAM EDS-TM002 standard in exspy
 
 exspy's bundled SEM-EDS spectrum of the BAM EDS-TM002 thin-film standard (C, Al, Mn, Cu and Zr, about 6 µm, on
