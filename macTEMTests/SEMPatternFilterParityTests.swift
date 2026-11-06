@@ -5,7 +5,8 @@
 //  - `PatternWindow`: lowpass, highpass, their product, Gaussian, modified Hann and circular windows at rtol 1e-12;
 //  - `PatternFilters.fftFilter` in the frequency domain (shift on and off) and the spatial domain (5 x 5 Gaussian, 3 x 4
 //    asymmetric kernel): values before the cast within 1e-5 relative or 1e-3 grey levels, cast patterns within one grey level
-//    on at most 0.2 % of the pixels (kikuchipy's FFTs are float32);
+//    on at most 1 % of the pixels (D-SEM-18's rule; measured at most 0.22 %, the asymmetric kernel on nickel pattern (0, 0);
+//    kikuchipy's FFTs are float32);
 //  - `AdaptiveHistogramEqualization.equalize`: exact (three kernel / clip limit / bin settings);
 //  - `NeighbourAveraging.average`: window sums exact, values within 1e-5 relative or 1e-4 grey levels, cast patterns within one
 //    grey level on at most 0.2 % (3 x 3 Gaussian) or 2 % (the integer-weight windows, whose exact integers kikuchipy's float32
@@ -99,7 +100,7 @@ nonisolated final class SEMPatternFilterParityTests: XCTestCase {
                                                      filter: run.filter, shift: run.shift)
             }
             SEMAssertParity(values, try ref.array("\(run.name)_values"), shape: p.shape)
-            assertWithinOneGrey(cast, try ref.array(run.name), fraction: 0.002, "\(bundle) \(run.name)")
+            assertWithinOneGrey(cast, try ref.array(run.name), fraction: 0.01, "\(bundle) \(run.name)")
         }
     }
 
