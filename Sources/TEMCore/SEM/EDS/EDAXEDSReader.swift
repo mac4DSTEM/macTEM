@@ -97,6 +97,14 @@ package nonisolated enum EDAXEDSReader {
         return SEMEDSFile(url: url, signals: [.spectrum(SEMEDSSpectrum(axis: axis, dtype: "uint32", counts: counts, metadata: md))])
     }
 
+    /// `os.path.splitext(os.path.basename(name))[0]` as rsciio takes it: the text after the last "/" up to its last ".", whatever
+    /// follows (`fName` can hold a NUL and padding after the extension, which a path API would not call an extension).
+    static func pythonStem(_ name: String) -> String {
+        let base = name.split(separator: "/", omittingEmptySubsequences: false).last.map(String.init) ?? name
+        guard let dot = base.lastIndex(of: "."), base[base.startIndex..<dot].contains(where: { $0 != "." }) else { return base }
+        return String(base[base.startIndex..<dot])
+    }
+
     static func companion(_ url: URL, name: String) -> URL? {
         let candidate = url.deletingLastPathComponent().appendingPathComponent(name)
         return FileManager.default.fileExists(atPath: candidate.path) ? candidate : nil
@@ -150,7 +158,7 @@ package nonisolated enum EDAXEDSReader {
         } else {
             rows = ny; cols = nx
             md.title = "EDS Spectrum Image"
-            let iprName = ((fName as NSString).deletingPathExtension as NSString).lastPathComponent + ".ipr"
+            let iprName = pythonStem(fName) + ".ipr"
             var mppX: Float?, mppY: Float?
             if let ipr = companion(url, name: iprName) {
                 let b = try bytes(ipr, limit: 264)

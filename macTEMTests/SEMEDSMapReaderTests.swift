@@ -47,8 +47,17 @@ nonisolated final class SEMEDSMapReaderTests: XCTestCase {
         return SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
     }
 
-    static func axesJSON(_ axes: [SEMEDSAxis]) -> [[String: Any]] {
-        axes.map { ["name": $0.name, "size": $0.size, "scale": $0.scale, "offset": $0.offset, "units": $0.units ?? NSNull()] }
+    /// The reference axes decoded by `JSONDecoder`, which parses each float to the nearest Double; `JSONSerialization` rounds some
+    /// 17-digit floats (0.014235896058380604, a float32 pixel size widened) one unit in the last place off.
+    nonisolated struct Axis: Decodable, Equatable { let name: String; let size: Int; let scale: Double; let offset: Double; let units: String? }
+    nonisolated struct AxesManifest: Decodable {
+        nonisolated struct Values: Decodable { nonisolated struct Signal: Decodable { let axes: [Axis] }; let signals: [Signal]? }
+        let values: Values
+    }
+
+    static func referenceAxes(_ name: String) throws -> [[Axis]] {
+        let url = SEMParityReference.referencesRoot.appendingPathComponent(name).appendingPathComponent("manifest.json")
+        return try JSONDecoder().decode(AxesManifest.self, from: Data(contentsOf: url)).values.signals?.map(\.axes) ?? []
     }
 
     /// Every committed m7 reader bundle, read by the Swift port and compared field by field.
@@ -91,7 +100,9 @@ nonisolated final class SEMEDSMapReaderTests: XCTestCase {
         XCTAssertEqual(kind, e["kind"] as? String, "\(label): kind")
         XCTAssertEqual(shape, e["shape"] as? [Int], "\(label): shape")
         XCTAssertEqual(dtype, e["dtype"] as? String, "\(label): dtype")
-        XCTAssertEqual(NSArray(array: Self.axesJSON(axes)), NSArray(array: e["axes"] as? [Any] ?? []), "\(label): axes")
+        let expectedAxes = try Self.referenceAxes(name)
+        XCTAssertEqual(axes.map { Axis(name: $0.name, size: $0.size, scale: $0.scale, offset: $0.offset, units: $0.units) },
+                       expectedAxes.indices.contains(i) ? expectedAxes[i] : [], "\(label): axes")
         XCTAssertEqual(NSDictionary(dictionary: md.flattened), NSDictionary(dictionary: e["metadata"] as? [String: Any] ?? [:]),
                        "\(label): metadata")
         switch signal {
