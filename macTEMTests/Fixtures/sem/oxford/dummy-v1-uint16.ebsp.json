@@ -1,0 +1,51 @@
+{
+ "version": 1,
+ "nPatternsInHeader": 6,
+ "navigationShape": [
+  2,
+  3
+ ],
+ "signalShape": [
+  60,
+  60
+ ],
+ "dtype": "uint16",
+ "stepSizes": [
+  1.0,
+  1.0
+ ],
+ "scanUnit": "um",
+ "map1dID": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5
+ ],
+ "fileOrder": [
+  5,
+  0,
+  1,
+  2,
+  3,
+  4
+ ],
+ "beam_x": [
+  0.0,
+  1.0,
+  2.0,
+  0.0,
+  1.0,
+  2.0
+ ],
+ "beam_y": [
+  0.0,
+  0.0,
+  0.0,
+  1.0,
+  1.0,
+  1.0
+ ],
+ "patterns": "dummy-v1-uint16.ebsp.u16"
+}
