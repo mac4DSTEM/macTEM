@@ -15,11 +15,11 @@ extension LayoutPolicy {
     /// time: a measured height left a gap on some first layouts or, set during layout, tripped AppKit's layout-loop
     /// guard (8 crashes in 15 resize cycles). A sixth room changes it: the EDS and EELS rooms (2026-10-22) add two rows to the 2026-10-13 measurements (145, 178, 216 for five rooms), at each size's row pitch (23, 30, 38 pt): 192, 238, 291. A list too short hides the last rooms behind a scroll that `scrollDisabled` turns off — the rooms were cut off once files were open.
     static func sidebarRoomsListHeight(_ size: SidebarRowSize) -> CGFloat {
-        sidebarRoomRowHeight(size) * 7 + 32
+        sidebarRoomRowHeight(size) * CGFloat(WorkspaceArea.allCases.count) + 32
     }
 
     /// The rooms' row height per system sidebar size, a little more than the system's own (23, 30, 38 pt) so the list breathes (Paul, 2026-10-22: the sidebar was cramped). The rooms list's height
-    /// is seven of these and the header with its insets (about 32 pt, measured as the earlier constants were), a constant like the earlier ones.
+    /// is one per room and the header with its insets (about 32 pt, measured as the earlier constants were), a constant like the earlier ones.
     static func sidebarRoomRowHeight(_ size: SidebarRowSize) -> CGFloat {
         switch size {
         case .small: 30

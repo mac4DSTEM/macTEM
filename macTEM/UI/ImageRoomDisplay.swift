@@ -17,6 +17,8 @@ import TEMSession
 /// placement §5): the Diffraction room draws it for its pattern with the log switch in place of the scale bar (its pane has none).
 struct ImageRoomDisplaySection: View {
     @Bindable var presentation: ImagePresentation
+    /// The section's title: "Display" for a room's one picture; the Patterns room names its second ("Pattern Display").
+    var title = "Display"
     /// The colormap pop-up's and the log switch's identifiers, the room's own (spelled whole: the inventory finds them by name).
     var colormapID = "image.colormap"
     var logID = "diffraction.log"
@@ -27,7 +29,7 @@ struct ImageRoomDisplaySection: View {
     private static let colormaps: [ColormapKind] = [.gray, .inferno, .viridis, .rdbu]
 
     var body: some View {
-        InspectorSection("Display") {
+        InspectorSection(title) {
             InspectorRow("Colormap") {
                 Picker("Colormap", selection: $presentation.colormap) {
                     ForEach(Self.colormaps) { Text($0.displayName).tag($0) }
