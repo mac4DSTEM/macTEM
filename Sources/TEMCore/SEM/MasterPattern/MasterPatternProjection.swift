@@ -251,14 +251,15 @@ package nonisolated enum MasterPatternProjection {
         upper.withUnsafeBufferPointer { up in
             lower.withUnsafeBufferPointer { lo in
                 values.withUnsafeMutableBufferPointer { out in
-                    let base = out.baseAddress!
+                    let shared = SharedBuffers(upper: up, lower: lo, out: out.baseAddress!)
                     DispatchQueue.concurrentPerform(iterations: rotations.count) { n in
+                        let upperRows = shared.upper, lowerRows = shared.lower, base = shared.out
                         let dc = cosines[centres == 1 ? 0 : n]
                         let q = rotations[n]
                         let row = base + n * pixels
                         var lowest = Double.infinity, highest = -Double.infinity
                         for p in 0 ..< pixels {
-                            let x = sample(q, dc[p], upper: up, lower: lo, side: side, scale: scale)
+                            let x = sample(q, dc[p], upper: upperRows, lower: lowerRows, side: side, scale: scale)
                             row[p] = x
                             lowest = min(lowest, x); highest = max(highest, x)
                         }
@@ -276,6 +277,13 @@ package nonisolated enum MasterPatternProjection {
         // A flat pattern divides zero by zero in the rescale, as kikuchipy's does: refused instead of handing NaN on.
         if rescale, let flat = (0 ..< rotations.count).first(where: { values[$0 * pixels].isNaN }) { throw Error.flatPattern(flat) }
         return Patterns(count: rotations.count, rows: detector.rows, columns: detector.columns, outputType: output, values: values)
+    }
+
+    /// The buffers `project` shares across its patterns: the hemispheres are only read, each pattern writes its own rows.
+    private struct SharedBuffers: @unchecked Sendable {
+        let upper: UnsafeBufferPointer<Float>
+        let lower: UnsafeBufferPointer<Float>
+        let out: UnsafeMutablePointer<Double>
     }
 
     /// Work (patterns × pixels) from which the GPU pays for its setup and transfer on the automatic backend: about 300 patterns of
