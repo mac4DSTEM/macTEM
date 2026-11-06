@@ -1,0 +1,187 @@
+{
+  "arrays": {
+    "angle_with_next": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "angle_with_next.bin",
+      "rtol": 0.0,
+      "sha256": "1a2ab470bb1c155da0b95356681d780a7233cae55607544f938f677c14498b67",
+      "shape": [
+        1999
+      ]
+    },
+    "cubic_disorientation_next": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "cubic_disorientation_next.bin",
+      "rtol": 0.0,
+      "sha256": "b8ab3ad371da9c69c33161e21495bdd74a34efe0141e21d6973285a65e831dee",
+      "shape": [
+        99
+      ]
+    },
+    "cubic_distance_matrix": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "cubic_distance_matrix.bin",
+      "rtol": 0.0,
+      "sha256": "1bb762c75bc9af7309c8e370b00709bb20e3de093643dcf0927cb6500552ae42",
+      "shape": [
+        100,
+        100
+      ]
+    },
+    "cubic_misorientation_distance_matrix_30": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "cubic_misorientation_distance_matrix_30.bin",
+      "rtol": 0.0,
+      "sha256": "00614084cfc2e3c21cc76fdd3a5510ba31d65284fee8781c66c7323b2726e4b1",
+      "shape": [
+        30,
+        30
+      ]
+    },
+    "cubic_misorientation_next": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "cubic_misorientation_next.bin",
+      "rtol": 0.0,
+      "sha256": "a4731c28a44612d97d73523c25aa2ae008c4fbf74bb46a9a2183d1cf33687b5b",
+      "shape": [
+        99,
+        4
+      ]
+    },
+    "cubic_quaternions": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "cubic_quaternions.bin",
+      "rtol": 0.0,
+      "sha256": "2041f82e1c5a067eda8aefca09271189e9d7e000b1c2e9454bb16f7f07283c3c",
+      "shape": [
+        100,
+        4
+      ]
+    },
+    "cubic_reduced": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "cubic_reduced.bin",
+      "rtol": 0.0,
+      "sha256": "2a01942ba95e0bf2e1d0f95f0926727eca6bb8c6a49be9ac0ef1b5cfa3cdbfa1",
+      "shape": [
+        100,
+        4
+      ]
+    },
+    "disorientation_next": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "disorientation_next.bin",
+      "rtol": 0.0,
+      "sha256": "a009b5f54d640f808e484ab8bb16ca572318ba2efe37e86c4881d4770ade0216",
+      "shape": [
+        1999
+      ]
+    },
+    "distance_matrix_150": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "distance_matrix_150.bin",
+      "rtol": 0.0,
+      "sha256": "4986c30acbece1e68b232c38b51d82a94b12da5364ce267047b29d0961f332c7",
+      "shape": [
+        150,
+        150
+      ]
+    },
+    "euler_degrees": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "euler_degrees.bin",
+      "rtol": 0.0,
+      "sha256": "1ed039b854b016a70b5799ec1458db9e2d9aeda3b5f56e895913e37e261d54be",
+      "shape": [
+        2000,
+        3
+      ]
+    },
+    "misorientation_distance_matrix_40": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "misorientation_distance_matrix_40.bin",
+      "rtol": 0.0,
+      "sha256": "5381d28148090b01f62d66fa75c0e0d14e70b3385906dc30bcef7c21d6b9063b",
+      "shape": [
+        40,
+        40
+      ]
+    },
+    "misorientation_next": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "misorientation_next.bin",
+      "rtol": 0.0,
+      "sha256": "34315d1c76f866d66db710fafee9733dc810326df9c97314d458238c07cf0f68",
+      "shape": [
+        1999,
+        4
+      ]
+    },
+    "quaternions": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "quaternions.bin",
+      "rtol": 0.0,
+      "sha256": "087a45edee97cdcb298919cf7d99f7cc42c3c69e7d17063c311bcb163d6e448a",
+      "shape": [
+        2000,
+        4
+      ]
+    },
+    "reduced": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "reduced.bin",
+      "rtol": 0.0,
+      "sha256": "a741867f3d579f2de09dc28ddba8338f76821229aee7a781b025d83f8079ad6b",
+      "shape": [
+        2000,
+        4
+      ]
+    }
+  },
+  "case": "m3/ti-disorientations",
+  "inputs": [
+    {
+      "path": "fixtures/orientation_inputs.json",
+      "sha256": "faf36e30d99e1b9261c4075804a15488762c97ff16d5ac9a7c53b5e4da479f23"
+    }
+  ],
+  "milestone": 3,
+  "reference": {
+    "function": "orix.quaternion.Orientation / Misorientation (reduce, angle_with, -, get_distance_matrix)",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "cubic_point_group": "m-3m",
+    "point_group": "622"
+  }
+}

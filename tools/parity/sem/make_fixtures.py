@@ -13,6 +13,10 @@ Planted, deterministic, small, committed under fixtures/ with the hand-written t
 * `oxford_h5oina_patterns.h5oina` and `bruker_h5ebsd_patterns.h5`: kikuchipy's own dummy writers
   (`kikuchipy.data._dummy_files`), which build a 3 x 3 file around the Ni small dataset. Regenerated here so a
   kikuchipy change in the writers is a visible diff, never a silent one.
+* `orientation_inputs.json`: the inputs of the orientation-maths bundles (m3): seeded unit quaternions with seven
+  special rotations, Bunge angles, cubochoric points, vectors, seeded m-3m orientations, the point-group names orix
+  defines, and the Bunge angles of the first 2000 rows of orix-data's `Ti_orientations.ctf` (CC BY 4.0, the head
+  committed as macTEMTests/Fixtures/sem/oxford/ti_orientations_head.ctf). `--orientation-only` writes just this file.
 
 Run with `python -I -B`.
 """
@@ -93,12 +97,58 @@ def write_kikuchipy_dummies() -> None:
     bruker.create_dummy_bruker_h5ebsd_file(FIXTURES / "bruker_h5ebsd_patterns.h5")
 
 
+def write_orientation_inputs() -> None:
+    import numpy as np
+    from orix.quaternion import Rotation, symmetry
+
+    rng = np.random.default_rng(20261106)
+    axes = [(0, 0, 1), (0, 0, 1), (1, 0, 0), (1, 1, 1), (0, 1, 0), (1, 1, 0)]
+    angles = [0.0, np.pi / 2, np.pi, 2 * np.pi / 3, 1e-5, np.pi]
+    special = np.concatenate([Rotation.from_axes_angles(a, w).data for a, w in zip(axes, angles)]
+                             + [[[-np.sqrt(0.5), 0, 0, np.sqrt(0.5)]]])
+    q = rng.normal(size=(57, 4))
+    q /= np.linalg.norm(q, axis=1, keepdims=True)
+    eu = np.column_stack([rng.uniform(0, 2 * np.pi, 64), rng.uniform(0, np.pi, 64), rng.uniform(0, 2 * np.pi, 64)])
+    half = np.pi ** (2 / 3) / 2
+    cu = np.concatenate([[[0, 0, 0], [0, 0, 0.5], [0, 0, -0.5], [0.5, 0, 0], [-0.5, 0, 0], [0, 0.5, 0], [0, -0.5, 0]],
+                         rng.uniform(-half, half, size=(57, 3)) * 0.999])
+    v = rng.normal(size=(64, 3))
+    c = np.random.default_rng(3).normal(size=(100, 4))
+    c /= np.linalg.norm(c, axis=1, keepdims=True)
+    ti = HERE.parent.parent.parent / "macTEMTests" / "Fixtures" / "sem" / "oxford" / "ti_orientations_head.ctf"
+    ti_eu = np.loadtxt(ti, skiprows=1, usecols=(0, 1, 2))
+    groups = list(symmetry._groups) + [symmetry.C2, symmetry.Cs, symmetry.D3]
+    out = {
+        "note": "Inputs of tools/parity/sem bundles m3/*: seeded (numpy default_rng 20261106 and 3) except ti_euler_degrees, "
+                "the first 2000 rows of orix-data Ti_orientations.ctf (CC BY 4.0).",
+        "quaternions": np.concatenate([special, q]).tolist(),
+        "special_rows": ["identity", "90 deg about z", "180 deg about x", "120 deg about [111]", "1e-5 rad about y",
+                         "180 deg about [110]", "270 deg about z written with a < 0"],
+        "euler_radians": eu.tolist(),
+        "cubochoric": cu.tolist(),
+        "vectors": v.tolist(),
+        "improper_every": 3,
+        "point_groups": [g.name for g in groups],
+        "ti_point_group": "622",
+        "ti_euler_degrees": ti_eu.tolist(),
+        "cubic_point_group": "m-3m",
+        "cubic_quaternions": c.tolist(),
+    }
+    (FIXTURES / "orientation_inputs.json").write_text(json.dumps(out) + "\n", encoding="utf-8")
+
+
 def main() -> int:
-    argparse.ArgumentParser(description=__doc__.split("\n")[0]).parse_args()
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--orientation-only", action="store_true", help="write orientation_inputs.json only")
+    args = ap.parse_args()
     FIXTURES.mkdir(exist_ok=True)
+    write_orientation_inputs()
+    if args.orientation_only:
+        print("make_fixtures.py: orientation_inputs.json written")
+        return 0
     write_ctf()
     write_kikuchipy_dummies()
-    print("make_fixtures.py: planted_oxford.ctf, oxford_h5oina_patterns.h5oina, bruker_h5ebsd_patterns.h5 written")
+    print("make_fixtures.py: planted_oxford.ctf, oxford_h5oina_patterns.h5oina, bruker_h5ebsd_patterns.h5, orientation_inputs.json written")
     return 0
 
 
