@@ -1,31 +1,37 @@
 # Adapted from mac4DSTEM (.github/workflows/ci.yml).
 #
-# CI — what a public checkout can reproduce, on every push and pull request.
+# CI — what a public checkout can reproduce, on every push and pull request. Every job here runs on GitHub's own
+# runners (macos-26 or ubuntu-latest), never on the org's Mac, so no PR waits on that Mac being awake (SEM program,
+# 2026-11-06; docs/decisions.md). The Mac runner keeps only what needs a screen: the UI journeys and their screenshots
+# (.github/workflows/ui.yml, nightly and by hand, queued while the Mac is offline).
 #
 # WHAT RUNS:
+#   * `tools/run-tests.sh unit`      — the XCTest suite (macTEMTests) through xcodebuild, every declared test run by name.
 #   * `tools/run-tests.sh core`      — TEMCore and TEMSession built standalone by `swift build` (Package.swift)
 #     from a fresh scratch path: the layering gate. It fails the moment Core reaches into Session or either
 #     reaches into the app, and on any compiler warning.
 #   * `tools/run-tests.sh inventory` — the repo's own review. Its checks are listed in tools/run-tests.sh, not
 #     here, so this comment cannot go stale. It needs no sibling checkout and no reference venv.
 #
-#   * `tools/run-tests.sh unit`      — the XCTest suite. Paused while the app targeted macOS 27; runs since the app
-#     and MacEMUI 0.3.2 deploy to macOS 26 (2026-10-28).
-#
-# XCODE: every job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
+# XCODE: every macOS job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
 # change the toolchain on an unchanged tree.
+#
+# KITS: Package.swift takes the kits and MacEMUI by version range from github.com/mac4DSTEM (public repos, no token);
+# Package.resolved pins the exact versions. The SwiftPM repository cache is restored per Package.resolved so the clones
+# are not fetched again on an unchanged pin set; the builds themselves start from scratch (the warnings gate needs that).
 #
 # NOT RUN YET: `scientific`. Its reference stack is a venv that tools/lib/python.sh builds on CPython 3.14 from
 # tools/lib/references-lock.txt (the full closure, as wheels), and the harnesses fetch further pinned sources
 # into the gitignored References/. No job sets that up yet, so every parity number is a local, dated run.
 #
-# EXCLUDED: on-screen verification. The app is driven by hand; no runner can stand in for it.
+# EXCLUDED: on-screen verification by a person. The UI journeys run on the Mac (ui.yml); Paul's own drive of a build
+# is what ships a room.
 #
 # KNOWN CAVEATS, so a green run is not made to claim too much:
 #   * CI builds with Xcode 26.6 and its macOS 26 SDK; the dev Mac builds with Xcode 27. A source that uses an API only in the macOS 27 SDK, or a Swift 6 language
 #     mode diagnostic (now including a warning) only one of the two compilers emits, will part the two results;
 #     that is the runner's limit, stated here, not a flake.
-#   * The timeouts are margin, not measurement; nothing has timed these jobs off the dev Mac yet.
+#   * Measured 2026-11-06 on macos-26: unit 8-10 min, core about 3 min, inventory under 1 min. The timeouts are margin.
 
 name: CI
 
@@ -58,6 +64,12 @@ jobs:
           sw_vers
           xcode-select -p
           xcodebuild -version
+      - name: Restore the SwiftPM repository cache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-
       - name: Ensure the Metal toolchain component
         # Xcode 26 ships the Metal compiler as a separate download; the app compiles macTEM/Shaders/*.metal.
         run: |
@@ -70,8 +82,7 @@ jobs:
 
   inventory:
     name: inventory (repo review)
-    # The org's Mac runner while the org variable MACEM_MAC_RUNNER is set (never for a fork PR); else GitHub's macos-26.
-    runs-on: ${{ vars.MACEM_MAC_RUNNER && !github.event.pull_request.head.repo.fork && fromJSON(vars.MACEM_MAC_RUNNER) || 'macos-26' }}
+    runs-on: macos-26
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
@@ -80,6 +91,12 @@ jobs:
           # job could never pass until this was set (mac4DSTEM, 2026-09-09). Kept so a rule that compares
           # against the previous commit does not repeat that.
           fetch-depth: 2
+      - name: Restore the SwiftPM repository cache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-
       - name: Resolve the pinned MacEMUI
         # The UI-journey identifier check reads the shell's sources from .build/checkouts/MacEMUI (no ../MacEMUI here).
         run: swift package resolve
@@ -88,8 +105,7 @@ jobs:
 
   core:
     name: core (TEMCore + TEMSession package build)
-    # The org's Mac runner while the org variable MACEM_MAC_RUNNER is set (never for a fork PR); else GitHub's macos-26.
-    runs-on: ${{ vars.MACEM_MAC_RUNNER && !github.event.pull_request.head.repo.fork && fromJSON(vars.MACEM_MAC_RUNNER) || 'macos-26' }}
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -97,6 +113,12 @@ jobs:
         run: |
           xcode-select -p
           swift --version
+      - name: Restore the SwiftPM repository cache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-
       - name: Build the package layers standalone
         run: tools/run-tests.sh core
 
