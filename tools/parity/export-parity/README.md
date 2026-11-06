@@ -7,7 +7,7 @@ A `scientific` gate (`tools/run-tests.sh scientific`) with the checks P1, P3, P4
 the check P7, below. Run
 `tools/parity/export-parity/run.sh`, redirect it to a log, and read the exit code on its own line.
 
-Pass lines: one `ok` line per check family, `export-parity: all passed — …`, then `extra controls (not registered): 13 of 13
+Pass lines: one `ok` line per check family, `export-parity: all passed — …`, then `extra controls: 13 of 13
 caught by their checks` and, last, `negative controls: 36 of 36 caught by their checks`. The `ok` lines carry the measured numbers
 (the largest pixel difference, the largest bar, centroid, band and label errors).
 
@@ -35,7 +35,7 @@ opened by `ImageOpening` equal ncempy 1.16's reading: every pixel, each axis's s
 (`struct.pack("<d")`) to the in-memory Double, `nan` exactly where the sample is NaN; the rows equal the samples in count and order
 and the count is ⌈hypot + 1⌉ by the rule; the positions also equal i/(n − 1) of the planted length (the physical length in the
 file's unit when both axes are calibrated in one unit, pixels otherwise, 1e-12 relative); on the ramp and the planted DM fixture
-the samples equal the analytic profile (1e-5 relative, measured 3e-8). The header: the fixed keys in the registered order, start
+the samples equal the analytic profile (1e-5 relative, measured 3e-8). The header: the fixed keys in their fixed order, start
 and end re-read bit-equal to the planted points, width, samples, image size, each axis's scale, unit and origin (`none` when not
 calibrated), the length, the position sentence, the `shown` line only when planted, notes joined by `; ` or `none`, the
 `; reader note: <notes>` after the validation when the file has notes, the control characters, U+0085, U+2028 and U+2029 turned into
@@ -83,7 +83,7 @@ an angle drawn through the wrong vertex leaves its first arm with no yellow at t
 
 **P7, the label** (`P7-label`; `p7-u1`, `p7-u2`, black, three labelled marks and the bar). The harness draws each label alone and
 UPRIGHT in a plain CoreGraphics context with the settings the export draws text under (the bytes read top to bottom are the
-picture as a person sees it; it does not use `draw`), and `reference.py` cuts the PNG at the place the registration puts the
+picture as a person sees it; it does not use `draw`), and `reference.py` cuts the PNG at the place the app puts the
 label (a mark's box at x = min(max(ax + 6u, 2u), …); the bar's label 3u above the bar at x = 16u; the anchors are whole pixels)
 and compares: within 2 levels (measured 0). A label never drawn, drawn without its unit, drawn one point off, or drawn upside
 down differs by 229 to 255 levels, and a constant bias of 0.04 px in every mark moves the label's crop (P5's 0.15 px band does not
@@ -118,7 +118,7 @@ A second case, `results-unvalidated`, plants the same pixels in a file whose rea
 `# validation (...)` header line and every validation cell must then end with `; reader note: Unvalidated scale (test)`, as the profile CSV's
 does (ImagoKit 0.9.1); control (42) drops it. A profile row's sentence is `ImageMeasurement.validation`, then `; samples (the
 Image room's profile CSV): `, then `ProfileCSV.validation` (its numbers are closed forms, its samples scikit-image's).
-Controls (37)-(41) are registered with it; (42) is an extra.
+Controls (37)-(42) target it.
 
 ## Datasets (`reference.py plant`)
 
@@ -161,7 +161,7 @@ file), `csv-dm4` (the planted DM fixture, analytic) and `csv-stem` (the real ima
 
 ## Negative controls
 
-Thirty-six registered and thirteen more, all SOURCE mutations: each edits a COPY of `ProfileCSV.swift`, `ImageExport.swift`,
+Forty-nine SOURCE mutations: each edits a COPY of `ProfileCSV.swift`, `ImageExport.swift`,
 `ImageExport+Overlays.swift`, `ResultsCSV.swift` or `ResultRow.swift` in the scratch directory (the edit must match its target text exactly once, so a changed line fails
 loudly instead of testing nothing; the build has `-warnings-as-errors`), the harness is compiled against it and run on the case
 and variants the mutation is aimed at (the optional arguments of `main.swift` and `reference.py check`), and the mutant counts as
@@ -215,19 +215,16 @@ mutants build and run six at a time (the whole gate takes about two minutes on t
 | 42 | *extra:* `anisotropic` ignores the units | `P4-format/unitsmix512` | `unitsmix512`: 0.5 nm against 0.5 Å, `anisotropic` false instead of true |
 | 43 | *extra:* `y_scale` hidden when x has no calibration | `P4-format/yonly512` | `yonly512`: `y_scale` null instead of the file's |
 
-Notes on the readings. **(19)**: a DEVICE RGB context is not a mutation: ImageIO tags it with an sRGB chunk as well (measured
-2026-10-13 on macOS 27.0.1), so the control puts the bitmap in another colour space. The check accepts only the standard `sRGB`
+Notes on the readings. **(19)**: a DEVICE RGB context is not a mutation: ImageIO tags it with an sRGB chunk as well (measured on macOS 27.0.1), so the control puts the bitmap in another colour space. The check accepts only the standard `sRGB`
 chunk or an `iCCP` named `sRGB IEC61966-2.1` (a profile named "Linear sRGB" is not sRGB). **(8)**: with the bar computed from the
 laddered number the planned length is 0.4 px and the plate fit rule drops the bar; the check sees the missing bar (a wrong length
-at 1000 times the true one cannot be drawn on that plant, so #7 is the wrong-length demonstration). **(25)–(31)**: a review (2026-10-13) showed that these seven mutants of registered claims stayed green against the first
-twenty-four and all four unit-test classes, and added the plants and checks that catch them (`tie512`, `frac40`, `p5x-*`,
-`p7-*`); they answer registered claims (the length "rounded half up", the marks "where they were measured", the band at the
-width the profile averages over, the label a mark carries), so they are registered. **(21)**: a
+at 1000 times the true one cannot be drawn on that plant, so #7 is the wrong-length demonstration). **(25)–(31)**: the plants `tie512`, `frac40`, `p5x-*` and `p7-*` exist to catch these seven (the length "rounded half up", the marks
+"where they were measured", the band at the width the profile averages over, the label a mark carries). **(21)**: a
 half-pixel shift moves a 30° stroke only 0.2 px along its normal, just outside the 0.15 band, which is why the target is the
 horizontal stroke and the rings. **(23), (24), (32)**: P6's baseline is the recomputation of the plain export, not the harness's
 own plain PNG; the option mutations change the plain export too, so against its own plain PNG they would pass.
 
-**(37)-(41), R-P1 (Results, slice 3; case `results`).** (37) `%.15g` (`R-P1/values`); (38) the cells written without quoting
+**(37)-(41), R-P1 (Results; case `results`).** (37) `%.15g` (`R-P1/values`); (38) the cells written without quoting
 (`R-P1/text`: the planted label splits its line); (39) NaN written as 0 (`R-P1/values`); (40) the angle's validation line omitted
 from the header (`R-P1/header`); (41) a spot's |q| filed under d (`R-P1/spot-values`, and the closed form).
 
@@ -236,7 +233,7 @@ from the header (`R-P1/header`); (41) a spot's |q| filed under d (`R-P1/spot-val
 `main.swift` restates `DisplayWindow.fractions` (TEMSession is not in the closure) and builds the canvas as `AppState.canvas(for:)`
 does; `reference.py` recomputes both (`P4-format/<case>/window-fractions` compares what the harness passed). The unit table that
 turns "20 nm" and a metre axis into comparable lengths, the 1-2-5 rule and the footprint bounds are `reference.py`'s own, written
-from the registration. Not checked here: the look of the plate, the label's typeface (P7 compares the label's pixels against the
+from the app's rules. Not checked here: the look of the plate, the label's typeface (P7 compares the label's pixels against the
 same fonts, so a changed font size is not caught here), the twins against the app's functions and the GPU (ImageExportTwinTests,
 ImageExportGPUTests), `ExportFile.write` and the sandboxed save panel (ImageExportRenderTests, ExportFileTests and the drive), and
 the PNG's alpha-blended overlay colours.

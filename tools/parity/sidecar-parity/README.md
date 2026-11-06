@@ -1,6 +1,6 @@
 # sidecar-parity
 
-macTEM's session sidecar (slice A, the file layer): `SessionSidecarFile` (create,
+macTEM's session sidecar (the file layer): `SessionSidecarFile` (create,
 replace and read the four root attributes through FormatoHDF5's `HDF5RootAttributes`; the refusals; the name rule) and `SessionLineage` (the lineage, the source identity
 and the restore verdict), TEMCore, through Package.swift's `SidecarParity` target (FormatoKit's FormatoHDF5 as Package.resolved pins it; built by
 `tools/lib/harness.sh`) against **h5py 3.16.0**
@@ -11,14 +11,11 @@ never "no file", P4 the restore verdict. Run `tools/parity/sidecar-parity/run.sh
 its own line.
 
 Pass lines: `sidecar-parity: all passed — N cases, M checks against h5py 3.16.0`, then
-`sidecar-parity: negative controls: 105 of 105 caught by their checks`. About an hour (2026-10-14, this Mac, with the other lanes running): every control compiles the sources
+`sidecar-parity: negative controls: 105 of 105 caught by their checks`. About an hour on a Mac: every control compiles the sources
 again and runs the whole gate.
 
-Updated 2026-10-14 for a review of slice A (the refuter's plants and the fixes that review led to): the removal cascade
-and the refused add, a newer schema, the minimum reader judged first, the name limit in UTF-16 units, a link to nothing, dates
-to the nearest millisecond, the writer's own limits, and the library check, each with a control that breaks it.
 
-**Memory cap** (suite rule, 2026-10-15): run under a 24 GB memory cap, one at a time, nothing else heavy running. Measured peak 18.3 GB resident over 8 processes (the negative controls' parallel mutant builds and the h5py read-backs; 2026-10-15, killed at 16 GB); the main run fits 8 GB. The negative controls move to the nightly set.
+**Memory cap**: run under a 24 GB memory cap, one at a time, nothing else heavy running. Measured peak 18.3 GB resident over 8 processes (the negative controls' parallel mutant builds and the h5py read-backs; 2026-10-15, killed at 16 GB); the main run fits 8 GB. The negative controls move to the nightly set.
 
 ## Two directions, two independent libraries
 
@@ -66,7 +63,7 @@ planted doubles round-trip through `repr`), so a planted file can never pass as 
   add and the refused replace above), `cascade` (the same, then the last citer deleted: it goes, then the removed node only it
   cited, then the one only that one cited), `dates` (a `Date` with a fraction of a millisecond recorded to the **nearest**
   millisecond, before and after 1970; four exact ties, 62.5 and 312.5 ms either side of zero, which go away from zero where
-  half-to-even would not; a date of +∞, -∞ and NaN, which the registered clamp records as ±9e15 and 0), `chain` (a chain of
+  half-to-even would not; a date of +∞, -∞ and NaN, which the clamp records as ±9e15 and 0), `chain` (a chain of
   250 nodes each citing the one before, all but the last removed and kept, a live node added, the last of the chain
   deleted: 249 removed nodes go in one cascade, leaving the live node, `next_id` 252) and `longname` (a source named with 245
   × "µ": a sidecar name of 255 UTF-16 units and 500 bytes, written to the real file system).
@@ -106,7 +103,7 @@ planted doubles round-trip through `repr`), so a planted file can never pass as 
 - **The fingerprint** against `hashlib.sha256` over numpy's float32 little-endian bytes of the same planted pixels, for every
   pixel set (cross-checked in Python over the uint32 words packed by `struct`).
 
-The independent lineage: the `simulate` function of `reference.py` re-implements the registered rules (ids from `next_id`, never
+The independent lineage: the `simulate` function of `reference.py` re-implements the lineage rules (ids from `next_id`, never
 reused and not spent by a refused add; replace in place, never of a removed node; a deleted mark leaves no node; a cited node
 is kept with `removed` and goes with its last citer, and every removed node only it cited goes too), so the nodes Swift must
 write are derived, not copied from the Swift code. The cascade is stated twice there: as the walk over the edges from the live
@@ -115,7 +112,7 @@ node nothing cites, again and again), which every plan of up to 200 operations m
 checked on exact fractions: the recorded value an operation states must be what rounding to the nearest millisecond, a tie away
 from zero, gives for the date it plants.
 
-## The fixed-length strings (slice B, step 1): what was added
+## The fixed-length strings
 
 - **The writer's form** (P1), held by h5py in the checks `h5py <session> <attribute> type | strpad | charset | size | bytes`
   (five properties of each of the four attributes of each Swift-written session), and the file's **format** by
@@ -128,17 +125,17 @@ from zero, gives for the date it plants.
   leaves the bytes as they were. Every read of these runs in a child process with a 10 s deadline (`fuzz.swift`), so a reader
   that parsed the damaged heap times out and fails `swift reads hangcase-flip` instead of stalling the gate.
 - **The fuzz** (P3, `fuzz.swift`; the files and schedule are `reference.py`'s `FUZZ`): three sidecars Swift writes (a marks
-  session of 1,678 bytes; a lineage text of about 58 KB; one of 2,000 nodes, about 315 KB, which h5py plants in dense storage because the writer refuses it), mutated at the bytes the
-  registration names (every byte of the small file, every 61st of the second, every 997th of the third; xor 0xFF, bit 0, set to
-  zero as registered; 16 truncations of each), each mutated file read by the Swift reader in its own process with a 10 s
+  session of 1,678 bytes; a lineage text of about 58 KB; one of 2,000 nodes, about 315 KB, which h5py plants in dense storage because the writer refuses it), mutated at the bytes
+  named here (every byte of the small file, every 61st of the second, every 997th of the third; xor 0xFF, bit 0, set to
+  zero; 16 truncations of each), each mutated file read by the Swift reader in its own process with a 10 s
   deadline. Pass: 0 hangs, 0 crashes (a signal), 0 unnamed outcomes, and 0 silent changes on the two files whose text is within
   the checksummed object header; the third file's silent changes are counted, not gated. **This fuzz does not repair
-  checksums**: it is the registered plain-corruption fuzz. The structure-aware fuzz that recomputes HDF5's checksums and found
+  checksums**: it is the plain-corruption fuzz. The structure-aware fuzz that recomputes HDF5's checksums and found
   the dense-storage hang and crash is not part of this gate.
 - **Controls of the fuzz driver** (`--fuzz-selftest`): against a stub reader that hangs, crashes, changes silently or answers
   unnamed, the driver must fail its own check for each, and report nothing against a stub that only refuses by name.
 
-## Slice B, the core: the marks (`marks.swift`, `marks_reference.py`)
+## The marks (`marks.swift`, `marks_reference.py`)
 
 `SessionMarks`, `SessionRestore` and `SessionSave` (TEMCore) against h5py and closed forms. The owner (`ImageMeasurements`, TEMSession) is gated by the
 app-hosted unit run, not here. The truth is `marks_reference.py`, independent of the Swift code:
@@ -201,10 +198,8 @@ further down) were dropped when the harness moved to SwiftPM: that code is Forma
 they aimed at stay, and still run on the unmutated build. The count before: 105 of 105 caught (2026-10-21, one full run under a
 40 GB memory cap; `dense-header-read-with-meta-size`, now dropped, was the one that needed it).
 
-Controls 1-14: the nine registered mutations (1-9) and five of the same kind (10-14). Re-aimed 2026-10-14: control 5 (the
-cascade after a delete is now `sweepOrphans()`) and control 13 (the writer's check is now `requireReplaceable`).
-Controls 15-40: the guards and rules the plan reaches that the fourteen left open (a review's plants and the fixes
-of that review). Control 41: the library check.
+Controls 1-14: the source mutations of the file layer (control 5 targets the cascade after a delete, `sweepOrphans()`; control 13
+the writer's check, `requireReplaceable`). Controls 15-40: the guards and rules the fourteen leave open. Control 41: the library check.
 
 | # | mutation | the checks it must fail |
 |---|---|---|
@@ -256,7 +251,7 @@ of that review). Control 41: the library check.
 | 46 | the padding check removed (text, NUL, text read as the first text) | `swift reads nul-then-text-lineage`, `nul-then-text-source`, `nul-first-lineage`, `nul-then-text-identity` |
 | 47 | the whole storage taken as the text, padding and all | `swift reads padded-lineage`, `padded-markers`, `valid-empty-strings`, `all-nul-lineage` |
 | 48 | the string class not checked (an integer read as text) | `swift reads integer-source` |
-| 49 | the writer back to a variable-length string (slice A's) — re-aimed: the harness's own read-back of what it wrote refuses it first | `swift writes marks`, `swift writes unicode`, `h5py marks file` |
+| 49 | the writer back to a variable-length string — re-aimed: the harness's own read-back of what it wrote refuses it first | `swift writes marks`, `swift writes unicode`, `h5py marks file` |
 | 50 | the writer's padding NULLTERM | `h5py marks mactem_source strpad`, `mactem_lineage strpad`, `mactem_session_schema strpad` |
 | 51 | the writer one byte longer (a trailing NUL) | `h5py marks mactem_source size`, `mactem_lineage size`, `mactem_session_schema size`, `mactem_lineage bytes` |
 | 52 | the writer's character set ASCII | `h5py marks mactem_source charset`, `mactem_lineage charset`, `h5py unicode mactem_lineage charset` |
@@ -267,7 +262,7 @@ Control 41 is not a source mutant: the named copy is made unloadable and the com
 loader's fallback path, so the binding's fall-back to the bare `libhdf5.dylib` loads it. Everything else would pass on that
 library (it is the same one); only the check that the loaded copy is the named one fails.
 
-## The text cap (slice B, step 2, part a): the writer's 60,000-byte cap
+## The text cap: the writer's 60,000-byte cap
 
 - **Raw writes** (`swift writer total-cap-*`): the four attributes' text at the cap exactly (a lineage of 60,000 minus the other
   three attributes' bytes) is written, one byte over is refused by name (`sidecarTooLarge`) and nothing is written, and the same
@@ -282,7 +277,7 @@ library (it is the same one); only the check that the loaded copy is the named o
   cannot be written any more, so `many` is 200 nodes, `chain` 250 (the cascade's 2,000-node time is `SessionLineageTests`'), and
   the fuzz's third file is planted by h5py.
 
-## The dense-storage refusal (slice B, step 2, part d'): the reader's header-only refusal of dense storage
+## The dense-storage refusal: the reader's header-only refusal of dense storage
 
 - **The dense plants** (`dense=True` cases, each proved dense by h5py's `meta_size.attr` heap and index): lineages of 65,600 B and
   100 KB, and of 4 MiB, 4 MiB + 1 and 5 MiB (and the source at 5 MiB), 40 more attributes with and without creation order tracked, a
@@ -294,7 +289,7 @@ library (it is the same one); only the check that the loaded copy is the named o
   lineages); for every byte of each FRHP, BTHD and BTLF block six byte operations and every 2-, 4- and 8-byte window at the sheet's values,
   the block's lookup3 checksum recomputed (the second opinion's 648 FRHP windows are a subset, counted); 12,708 / 12,705 / 12,706
   mutations, each read by the Swift reader in a child process with a 10 s deadline. Pass: 0 hangs, 0 crashes, 0 unnamed, 0 reads that
-  succeed (every read a named refusal; the registered outcome is `denseAttributeStorage` for all). The compact fuzz of step 1 is
+  succeed (every read a named refusal; the outcome is `denseAttributeStorage` for all). The compact fuzz above is
   unchanged except that its third file (h5py-planted, 315 KB) is now a dense file read as that refusal.
 - **Measured, not gated**: four forged headers (a compact sidecar with creation order tracked, its attribute-info message pointed at the
   superblock, the root header, the end of the file, beyond it; checksum recomputed): all four `refused hdf5` by the library
@@ -320,7 +315,7 @@ library (it is the same one); only the check that the loaded copy is the named o
   2026 is not (a Double of seconds there has a step of 1.2e-7 s), so the four ties are in 1970 (62.5 and 312.5 ms, 1/16 and
   5/16 s). The ±∞ and NaN dates have their truth in the source's own documented clamp (±9e15, NaN is 0), not in an
   independent reference.
-- **What is not checked here**: the UI (slice B), mac4DSTEM's lineage vocabulary beyond what macTEM uses, and Metal. The publish race
+- **What is not checked here**: the UI, mac4DSTEM's lineage vocabulary beyond what macTEM uses, and Metal. The publish race
   (the target replaced or created between the check and the rename) and what a replace drops (mode, extended attributes,
   link-ness) are the unit tests' (`SessionSidecarFile.WriteSeams` puts a test exactly between the check and the publish); the
   time a cascade takes is the unit test's too (`testRemovingTheEndOfAChainOfTwoThousandRemovedNodesIsOnePass`: here the

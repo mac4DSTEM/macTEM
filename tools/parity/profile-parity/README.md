@@ -6,7 +6,7 @@ with scipy 1.18.1 and numpy 2.5.4 (pinned: `tools/lib/references-lock.txt`; `ref
 `skimage/measure/profile.py`). A `scientific` gate (`tools/run-tests.sh scientific`).
 Run `tools/parity/profile-parity/run.sh`, redirect it to a log, and read the exit code on its own line.
 
-Pass lines: `profile-parity: all passed — …`, `extra controls (not registered): 4 of 4 caught by their checks` and, last,
+Pass lines: `profile-parity: all passed — …`, `extra controls: 4 of 4 caught by their checks` and, last,
 `negative controls: 8 of 8 caught by their checks`. A `measured:` line reports the largest differences seen and a `timing:`
 line the speed of a 3000-pixel line at width 25 (reported, not gated).
 
@@ -24,7 +24,7 @@ an angle of 1e-9 rad between two arms of 1000 px, which arccos loses and atan2 k
 
 **P2, profiles** (scikit-image 0.26.0). The reference call is `profile_line(image, (r0, c0), (r1, c1), linewidth=w, order=1,
 mode="reflect", reduce_func=np.mean)` on the float32 image, as the app holds it. A sample passes when it is within
-1e-5 × max(|reference|, 0.1 × the image's largest magnitude); the registered floor was 1e-5 × the image's largest magnitude,
+1e-5 × max(|reference|, 0.1 × the image's largest magnitude); the earlier floor was 1e-5 × the image's largest magnitude,
 and this one is ten times tighter. The sample count must be equal, and the positions i/(n−1) of the line's length, in the axes'
 unit when both axes are calibrated in one unit and in pixels otherwise (also the unit and the width). Every sample must also
 equal scikit-image's run on the image cast to float64, to 1e-12 of the image's largest magnitude: the port works in Double, and
@@ -76,7 +76,7 @@ must equal their analytic value. Any disagreement exits 1 before a byte is writt
 
 ## Negative controls
 
-The eight registered controls and four more are SOURCE mutations: each edits a COPY of `ImageMeasurement.swift` or
+The twelve controls are SOURCE mutations: each edits a COPY of `ImageMeasurement.swift` or
 `LineProfile.swift` in the scratch directory (the edit must match its target text exactly once, so a changed line fails loudly
 instead of testing nothing), the harness is compiled against it, and the mutant counts as caught only when it exits 1 and
 its log holds a `  FAIL  ` line of the check the mutation targets.
@@ -96,7 +96,7 @@ its log holds a `  FAIL  ` line of the check the mutation targets.
 | *extra:* positions i/n | `profile wave horizontal w1 positions` |
 | *extra:* positions in pixels although calibrated | `profile wave horizontal w1 positions` |
 
-The registered "perpendicular's sign flipped" needs a reading. Flipping the whole perpendicular offset (both components) gives
+"Perpendicular's sign flipped" needs a reading. Flipping the whole perpendicular offset (both components) gives
 the same w points and the same mean, so no check could see it. The control flips ONE component (`sin(-theta)` written
 `sin(theta)`), the bug a transcription makes; it is not perpendicular on any oblique line, and a horizontal or a vertical
 line cannot see it (sin θ or cos θ is zero), which is why the target is the diagonal at width 3. "mirror" is scipy's name for

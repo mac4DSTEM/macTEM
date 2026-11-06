@@ -1,6 +1,6 @@
 # diffraction-room-parity
 
-The Diffraction room's first slice against numpy and planted truth. The
+The Diffraction room's core against numpy and planted truth. The
 core is `Sources/TEMCore/Diffraction/` (`StandardCrystals`; `RingOverlay`, `IndexingDisplay` and `CrystalLoading` are DiffractoKit's since the 2026-10-20 switch); it calls (RingScale is DiffractoGeometry's since 0.4.0)
 DiffractoKit `0.3.1` directly (no `RingMeasurement` or `RingGeometry` interim). `scientific` in `tools/run-tests.sh`.
 **R8, the seed-rule grid, is not built**: `plants.py` writes it, nothing reads it yet (`run.sh` asks for the half grid, which is cheap).
@@ -35,9 +35,9 @@ infinities are the strings `"NaN"`, `"Infinity"`, `"-Infinity"`. Run with the lo
 `reference.py`'s self-check (what it proves before anything counts): Au {111} d = 2.3545498678091317 Å; λ(200 kV) equal to
 the decimal chain of the retired ring-calibration harness (now DiffractoKit's parity target); R -> q -> R within 1e-9 px over all cases; the numpy route against the decimal
 chain at 3e-16; the exact-vs-linear difference; Au 8 / 22, Si 10 families; every T4 verdict equal to the rule's; the distance
-helper exact to 1e-9 px; every registered mutation moves its target by more than 1e-6 (the ones R3 to R7 name).
+helper exact to 1e-9 px; every named mutation moves its target by more than 1e-6 (the ones R3 to R7 name).
 
-## What main.swift checks, and what it learned
+## What main.swift checks
 
 Kinds: R1 ellipse / on-fit / on-truth / distance-helper; R2 pin; R3 q / radius / roundtrip / cal-ring / linear / invalid; R4 radius / ellipse /
 on-truth; R5 spelling / reject / invalid-value / fit-vs-file; R6 verdict / family / sigma-q / delta / delta-pct / abs-dd / z / odds / margin / d;
@@ -45,11 +45,10 @@ R7 standard / count / family; R9 hash / read / refuse / cap / text. `MACTEM_PARI
 `MACTEM_PARITY_MUTATE` applies one control (listed in main.swift's header). The mutations are emulated on the core's outputs or on what is passed
 to it, since the core has no option to break.
 
-- JSON numbers are read as strings and parsed with `Double(String)`: `JSONSerialization` returns some `%.17g` literals one ulp off, which turned
-  the R3 linear form's bit-for-bit clause red until fixed.
+- JSON numbers are read as strings and parsed with `Double(String)`: `JSONSerialization` returns some `%.17g` literals one ulp off.
 - R6: the T1 plants at s = 0 are built on the REFERENCE's g, which differs from the kit's by an ulp, so delta is 2.2e-16 and z up to 2.6e-13 where
   the reference says 0; those four fields carry an absolute floor (1e-15, 1e-13, 1e-15, 1e-12) beside the 1e-12 relative band. Nothing else needed one.
 - R4 fits ring 1 in the click rule's annulus (`rule_inner`, `rule_outer`, half-width 10 px): the plants' full annulus holds ring 2 and the kit
-  refuses it (`secondRingInAnnulus`). The predicted polyline's worst distance to the planted ring 2 is printed (registered prediction 0.3 px; band 0.5 px).
+  refuses it (`secondRingInAnnulus`). The predicted polyline's worst distance to the planted ring 2 is printed (predicted 0.3 px; band 0.5 px).
 - R9: whether "fingerprint over re-encoded text" is separable is printed by the run (the control's own check, `R9 hash`, decides).
-- 2026-10-15: R1's 0.05 px centre band holds on whole rings only (60° gap plants reach 0.13 px, held to the 0.5 px polyline band); R4's predicted 0.3 px measured 0.35 px, the 0.5 px band holds — likely ring 1's fit error scaled by the radius ratio (not investigated).
+- R1's 0.05 px centre band holds on whole rings only (60° gap plants reach 0.13 px, held to the 0.5 px polyline band); R4's predicted 0.3 px measures 0.35 px, inside the 0.5 px band.
