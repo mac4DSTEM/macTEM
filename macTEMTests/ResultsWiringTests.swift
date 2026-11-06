@@ -64,7 +64,7 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         state.selectWorkspace(.diffraction)
         XCTAssertEqual(state.navigation.workspaceArea, .diffraction)
         XCTAssertEqual(WorkspaceArea.image.shortcutDigit, "1")
-        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "6", "Results is the last of the rooms, after EDS, EELS and Diffraction")
+        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "7", "Results is the last of the rooms, after EDS, EELS, Diffraction and Patterns")
         XCTAssertTrue(state.resultsRoom.selection.isEmpty)
     }
 
