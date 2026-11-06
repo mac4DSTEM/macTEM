@@ -14,12 +14,15 @@
 //          * the map shape from the first, second and last footers (the step is the second x minus the first); a file that
 //            lists only its unindexed patterns (a zero in the start table) or has no footer is a 1D list in pixels;
 //          * patterns in map order: record i of the file is moved to the map position its start-table entry names.
-//        Compressed patterns are refused by name, as in kikuchipy. The parity test reads kikuchipy's own `patterns.ebsp` and
-//        the layouts kikuchipy's tests write (macTEMTests/Fixtures/sem/oxford, from tools/parity/sem-readers/make_oxford_fixtures.py)
-//        bit-exact.
+//        The result is an `EBSDDataset` whose patterns stay in the file (`EBSDPatternSource.Layout.records`, one record per
+//        pattern, read by map position through `fileIndexByPosition`); kikuchipy's `original_metadata` (beam and map positions,
+//        the map's 1D ids, the file order) is `metadata(data:)`. Compressed patterns are refused by name, as in kikuchipy. The
+//        parity test reads kikuchipy's own `patterns.ebsp` and the layouts kikuchipy's tests write (macTEMTests/Fixtures/sem/oxford,
+//        from tools/parity/sem-readers/make_oxford_fixtures.py) bit-exact. The `.ctf` map next to the file is `OxfordOpening`'s.
 //
 
 import Foundation
+import FormatoCore
 
 package nonisolated enum OxfordBinaryReader {
     package enum Refusal: Error, Equatable {
@@ -46,14 +49,36 @@ package nonisolated enum OxfordBinaryReader {
         }
     }
 
-    package static func read(path: String) throws -> EBSDPatternSet {
-        let data = try Data(contentsOf: URL(fileURLWithPath: path), options: .alwaysMapped)
-        return try read(data: data)
+    /// kikuchipy's `original_metadata` of the file: per pattern in map order, the record it came from, its 1D id in the map, and
+    /// the beam position (µm) and map column and row the vendor wrote, when the file carries them.
+    package struct Metadata: Sendable, Equatable {
+        /// For each pattern in map order, its index in the file's own pattern list (the map's 1D index).
+        package var map1DIDs: [Int]
+        /// For each pattern in map order, the record it came from (0 is the first record after the header).
+        package var fileOrder: [Int]
+        /// Beam position per pattern, in µm, when the file footers carry it.
+        package var beamX: [Double]?
+        package var beamY: [Double]?
+        /// Map column and row per pattern, when the pattern headers carry them (version 5 and later).
+        package var mapX: [Int]?
+        package var mapY: [Int]?
     }
 
-    package static func read(data: Data) throws -> EBSDPatternSet {
+    /// The scan the file at `url` holds, its patterns left in the file. The whole file is mapped, not read: the header and the first
+    /// pattern's header and footer decide the layout, the footers of the first, second and last patterns the map.
+    package static func read(url: URL) throws -> EBSDDataset {
+        let data = try Data(contentsOf: url, options: .alwaysMapped)
+        return try read(data: data, url: url)
+    }
+
+    package static func read(data: Data, url: URL) throws -> EBSDDataset {
         let layout = try Layout(data: data)
-        return try layout.patterns(data: data)
+        return try layout.dataset(data: data, url: url)
+    }
+
+    package static func metadata(data: Data) throws -> Metadata {
+        let layout = try Layout(data: data)
+        return try layout.metadata(data: data)
     }
 
     /// The number of patterns the header's start table names (kikuchipy's `n_patterns`), without reading a pattern.
@@ -180,7 +205,17 @@ package nonisolated enum OxfordBinaryReader {
             return data.float64(at: recordStart(record) + headerSize + patternBytes + beamYOffset)
         }
 
-        func patterns(data: Data) throws -> EBSDPatternSet {
+        /// The present patterns in map order, and the map they make (or the 1D list in pixels).
+        struct Order {
+            var fileOrder: [Int]
+            var map1DIDs: [Int]
+            var scanRows: Int
+            var scanColumns: Int
+            var step: Double
+            var scanUnit: String
+        }
+
+        func order(data: Data) throws -> Order {
             let present = patternStarts.map { $0 != 0 }
             let n = presentCount
             let needed = firstPatternPosition + n * bytesPerRecord
@@ -192,9 +227,7 @@ package nonisolated enum OxfordBinaryReader {
             let map1DIDs = present.enumerated().filter { $0.element }.map { $0.offset }
 
             // The map shape (get_navigation_shape_and_step_size) or a 1D list.
-            var navigationShape = [n]
-            var stepSizes = [1.0]
-            var scanUnit = "px"
+            var found = Order(fileOrder: fileOrder, map1DIDs: map1DIDs, scanRows: 1, scanColumns: n, step: 1, scanUnit: "px")
             if allPresent, footerSize > 0, hasBeamX, hasBeamY, n >= 2 {
                 let firstRecord = fileOrder[0], secondRecord = fileOrder[1], lastRecord = fileOrder[n - 1]
                 let firstX = beamX(data: data, record: firstRecord)!, secondX = beamX(data: data, record: secondRecord)!
@@ -205,33 +238,30 @@ package nonisolated enum OxfordBinaryReader {
                 let rows = Int(abs((lastY / step).rounded(.toNearestOrEven) - (firstY / step).rounded(.toNearestOrEven))) + 1
                 let columns = Int(abs((lastX / step).rounded(.toNearestOrEven) - (firstX / step).rounded(.toNearestOrEven))) + 1
                 guard rows * columns == n else { throw Refusal.mapShape(rows: rows, columns: columns, patterns: n) }
-                navigationShape = [rows, columns]
-                stepSizes = [step, step]
-                scanUnit = "um"
+                found.scanRows = rows; found.scanColumns = columns; found.step = step; found.scanUnit = "um"
             }
+            return found
+        }
 
-            // The pixels, record by record in map order (kikuchipy sorts the memmap by pattern_order when it is not already
-            // consecutive and every pattern is present; a partial file keeps file order, which is what fileOrder lists too).
-            let pixelCount = patternRows * patternColumns
-            let pixels: EBSDPatternSet.Pixels
-            if sixteenBit {
-                var out = [UInt16]()
-                out.reserveCapacity(n * pixelCount)
-                for record in fileOrder {
-                    let start = recordStart(record) + headerSize
-                    for p in 0..<pixelCount { out.append(data.uint16(at: start + 2 * p)) }
-                }
-                pixels = .uint16(out)
-            } else {
-                var out = [UInt8]()
-                out.reserveCapacity(n * pixelCount)
-                for record in fileOrder {
-                    let start = data.startIndex + recordStart(record) + headerSize
-                    out.append(contentsOf: data[start..<(start + pixelCount)])
-                }
-                pixels = .uint8(out)
-            }
+        /// The dataset: patterns in map order through `fileIndexByPosition` (nil when the records are already in map order, as
+        /// kikuchipy leaves a consecutive file unsorted), kikuchipy's default detector (projection centre 0.5, 0.5, 0.5 in the
+        /// Bruker convention, sample tilt 70°) and no map of its own.
+        func dataset(data: Data, url: URL) throws -> EBSDDataset {
+            let found = try order(data: data)
+            let n = found.fileOrder.count
+            let consecutive = found.fileOrder == Array(0..<n)
+            let source = EBSDPatternSource(url: url, layout: .records(offset: firstPatternPosition, recordBytes: bytesPerRecord, patternOffset: headerSize),
+                                           fileShape: [n, patternRows, patternColumns], dataType: sixteenBit ? .uint16 : .uint8,
+                                           fileIndexByPosition: consecutive ? nil : found.fileOrder.map { Optional($0) })
+            let detector = EBSDDetectorGeometry(rows: patternRows, columns: patternColumns, projectionCenters: [SIMD3(0.5, 0.5, 0.5)])
+            return EBSDDataset(format: .oxfordBinary, manufacturer: "oxford instruments", version: String(version), scanGroup: "", scanGroups: [],
+                               scanRows: found.scanRows, scanColumns: found.scanColumns, patternRows: patternRows, patternColumns: patternColumns,
+                               dataType: source.dataType, stepY: found.step, stepX: found.step, scanUnit: found.scanUnit, detector: detector, patterns: source)
+        }
 
+        func metadata(data: Data) throws -> Metadata {
+            let found = try order(data: data)
+            let fileOrder = found.fileOrder
             let beamXs: [Double]? = hasBeamX ? fileOrder.map { beamX(data: data, record: $0)! } : nil
             let beamYs: [Double]? = hasBeamY ? fileOrder.map { beamY(data: data, record: $0)! } : nil
             var mapX: [Int]?
@@ -240,9 +270,7 @@ package nonisolated enum OxfordBinaryReader {
                 mapX = fileOrder.map { Int(data.int32(at: recordStart($0))) }
                 mapY = fileOrder.map { Int(data.int32(at: recordStart($0) + 4)) }
             }
-            return EBSDPatternSet(navigationShape: navigationShape, patternShape: [patternRows, patternColumns], pixels: pixels,
-                                  stepSizes: stepSizes, scanUnit: scanUnit, map1DIDs: map1DIDs, fileOrder: fileOrder,
-                                  beamX: beamXs, beamY: beamYs, mapX: mapX, mapY: mapY)
+            return Metadata(map1DIDs: found.map1DIDs, fileOrder: fileOrder, beamX: beamXs, beamY: beamYs, mapX: mapX, mapY: mapY)
         }
     }
 }
@@ -259,9 +287,6 @@ fileprivate extension Data {
         Int32(littleEndian: withUnsafeBytes { $0.loadUnaligned(fromByteOffset: offset, as: Int32.self) })
     }
 
-    func uint16(at offset: Int) -> UInt16 {
-        UInt16(littleEndian: withUnsafeBytes { $0.loadUnaligned(fromByteOffset: offset, as: UInt16.self) })
-    }
 
     func float64(at offset: Int) -> Double {
         Double(bitPattern: UInt64(littleEndian: withUnsafeBytes { $0.loadUnaligned(fromByteOffset: offset, as: UInt64.self) }))

@@ -27,7 +27,7 @@ Recording and Accessibility grants by path, and that path is what the Mac's own 
 **Reversal.** Set the jobs' `runs-on` back to the `vars.MACEM_MAC_RUNNER` expression (git history of ci.yml, before
 this entry) if the hosted macOS queue (free plan, few concurrent macOS jobs) becomes the slower path again.
 
-## 2026-11-06 — SEM program: D-SEM-1 to D-SEM-24
+## 2026-11-06 — SEM program: D-SEM-1 to D-SEM-25
 
 Numbered so briefs and PRs can cite them; the room designs keep their own D1-D8 in `sem/design/README.md`. One line of context, the decision, the reason.
 
@@ -57,6 +57,7 @@ Numbered so briefs and PRs can cite them; the room designs keep their own D1-D8 
 | D-SEM-22 | 2026-11-06 | Patterns takes ⌘6 at once and Results moves to ⌘7; Results moves again to ⌘9 as Indexing and Maps land (the room list is one row per built room, `WorkspaceArea.allCases`) | a key for a room that does not exist yet would open nothing; design D1's final order holds once the rooms do |
 | D-SEM-23 | 2026-11-06 | The Patterns room's demo entry (Help > Open Demo Data, Try Demo Data) opens the shipped nickel scan (`DemoDocuments.Shipped.nickelEBSD`, #127) through the app's own Open; the room's tests and journey use a generated dataset (`DemoDocuments.ebsd`, six grains of cosine bands, `--demo-ebsd-fixture`) answered from memory through `EBSDPatternAccess` | the menu shows real data as every other shipped entry does; the tests need planted numbers to assert against, and FormatoKit has no HDF5 writer, so the generated set is in memory, not a file |
 | D-SEM-24 | 2026-11-06 | P1-06's scan map is the mean intensity of every pattern; P1-07 replaces it with the virtual BSE and adds the tiles, the bottom pane, ⌘P's pinned list and the ROI tool | the design's first picture is the virtual BSE (§2); the mean is its one-tile case and lets the room land before `VirtualBSEImaging` exists, with no placeholder in the code |
+| D-SEM-25 | 2026-11-06 | One value for every pattern file: `OxfordBinaryReader` and `EDAXOpening` return `EBSDDataset` with the patterns left in the file (`EBSDPatternSource.Layout.records`: fixed-size records, read by map position through `EBSDPatternReader` as HDF5 datasets are); `CTFReader` and the `.ang` map fill `EBSDCrystalMapData` (Euler angles in radians, `x`/`y` coordinates added; `EBSDPhase` gains `id` and `formula`); `EBSDPatternSet` and `CrystalMapData` are gone. `.ebsp`/`.up1`/`.up2` route to the Patterns room with the `.ctf`/`.ang` of the same name as the crystal map; a `.ctf`/`.ang` opened alone opens the patterns next to it or is refused with the sentence that names them | the Patterns room reads one type through `EBSDPatternAccess` (P1-06, P1-07); a map without patterns has nothing to draw there, and the Maps room (M3) reads maps on their own when it lands; supersedes the own-type part of D-SEM-19 (macTEM#142) |
 
 ## 2026-11-06 — NORDIF: follow kikuchipy on the damaged settings files, read Setting.txt by section and key
 
