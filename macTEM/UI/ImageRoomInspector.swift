@@ -3,7 +3,7 @@
 //  Role: the Image room's inspector content. Settings: the calibration a distance in this room is measured
 //        in (readiness, the first section), then Display (ImageRoomDisplay.swift), Particles (ImageRoomParticles.swift) and Measure (ImageRoomMeasure.swift).
 //        Info: what the open image is, as the file states it, then what it records about the acquisition
-//        (ImageRoomAcquisition.swift).
+//        (ImageRoomAcquisition.swift) and, for an SEM TIFF, the vendor's record and databar (ImageRoomSEM.swift).
 //
 //  Every number shown is the file's own (`CalibratedImage`), in the reader's locale at up to 6 significant
 //  digits (DM stores calibrations as float32, about 7); the value range uses 9, so an integer image's
@@ -43,13 +43,17 @@ struct ImageRoomSettings: View {
 /// for its own direction.
 struct ImageRoomCalibrationSection: View {
     let image: CalibratedImage
+    @Environment(AppState.self) private var appState
 
     var body: some View {
+        let sem = appState.imageSession.sem
         InspectorSection("Calibration") {
             InspectorValueRow("Horizontal (x)", ImageInfoFormat.sampling(image.x))
             InspectorValueRow("Vertical (y)", ImageInfoFormat.sampling(image.y))
             InspectorValueRow("Source", image.x?.isCalibrated == true || image.y?.isCalibrated == true
-                              ? "The file" : "None in the file")
+                              ? (sem?.vendor).map { "The file (\($0.rawValue) tag)" } ?? "The file" : "None in the file")
+            // An SEM file with a databar under the scan: the switch that cuts it off (ImageRoomSEM.swift).
+            if let sem, sem.databarRows != nil { SEMDatabarToggle(sem: sem) }
             if image.x?.isCalibrated != true {
                 InspectorWarning("Not calibrated: the scale bar counts pixels.")
             } else if image.hasSquarePixels == false {
@@ -68,9 +72,10 @@ struct ImageInfoSection: View {
 
     var body: some View {
         imageSection
-        // What the file records about the acquisition (ImageRoomAcquisition.swift).
+        // What the file records about the acquisition (ImageRoomAcquisition.swift), then what an SEM file records beyond it (ImageRoomSEM.swift).
         AcquisitionSection(metadata: appState.imageSession.metadata,
                            formatExtension: (image.fileName as NSString).pathExtension)
+        if let sem = appState.imageSession.sem { SEMSection(sem: sem) }
     }
 
     private var imageSection: some View {

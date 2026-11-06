@@ -11,6 +11,7 @@
 //          --demo-regions          with the EDX fixture: two rectangles (4 x 4 and 8 x 8 pixels) and a line across the maps, as if drawn
 //          --demo-stack-fixture    open the generated "Demo stack" (24 frames, a multi-page TIFF written to the temporary folder)
 //          --demo-msa-fixture      open the demo EDX spectrum as an .msa file through the app's Open (routed by content to the EDX room)
+//          --demo-sem-tiff-fixture open the generated "Demo SEM image" (a Thermo-style SEM TIFF with a databar, written to the temporary folder)
 //          --appearance light|dark force the window's colour scheme (the system's otherwise)
 //          --open <path>           (repeatable) open that file at launch through a drop's path, after the demo fixtures; an absolute path only
 //          --export-dir <path>     where an export journey writes without a save panel (Export Results); relative: inside the app's temporary folder
@@ -25,6 +26,7 @@ struct LaunchOptions: Equatable {
     var demoSpectrum = false
     var demoEELS = false
     var demoStack = false
+    var demoSEMImage = false
     var demoSpectrumFile = false
     var demoRegions = false
     /// `--appearance light|dark`: the colour scheme the window is forced to (a journey's light-mode screenshot), else the system's.
@@ -44,6 +46,7 @@ struct LaunchOptions: Equatable {
         demoEELS = arguments.contains("--demo-eels-fixture")
         demoRegions = arguments.contains("--demo-regions")
         demoStack = arguments.contains("--demo-stack-fixture")
+        demoSEMImage = arguments.contains("--demo-sem-tiff-fixture")
         demoSpectrumFile = arguments.contains("--demo-msa-fixture")
         for (i, argument) in arguments.enumerated() where argument == "--open" && arguments.indices.contains(i + 1) && arguments[i + 1].hasPrefix("/") {
             openFiles.append(URL(fileURLWithPath: arguments[i + 1]))

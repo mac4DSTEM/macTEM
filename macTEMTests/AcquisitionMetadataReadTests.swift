@@ -351,11 +351,11 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
         XCTAssertTrue(session.metadata.isEmpty, "no image, nothing recorded")
         let first = session.beginOpen()
         let second = session.beginOpen()
-        XCTAssertFalse(session.finishOpen(first, image: Self.image("a"), url: Self.urlA, metadata: Self.metadata(kV: 100)))
+        XCTAssertFalse(session.finishOpen(first, image: Self.image("a"), url: Self.urlA, metadata: Self.metadata(kV: 100), sem: nil))
         XCTAssertTrue(session.metadata.isEmpty, "a superseded open changes nothing, its metadata included")
-        XCTAssertTrue(session.finishOpen(second, image: Self.image("b"), url: Self.urlB, metadata: Self.metadata(kV: 200)))
+        XCTAssertTrue(session.finishOpen(second, image: Self.image("b"), url: Self.urlB, metadata: Self.metadata(kV: 200), sem: nil))
         XCTAssertEqual(session.metadata, Self.metadata(kV: 200))
-        XCTAssertFalse(session.finishOpen(first, image: Self.image("a"), url: Self.urlA, metadata: Self.metadata(kV: 100)))
+        XCTAssertFalse(session.finishOpen(first, image: Self.image("a"), url: Self.urlA, metadata: Self.metadata(kV: 100), sem: nil))
         XCTAssertEqual(session.metadata, Self.metadata(kV: 200), "a slower, earlier read never replaces the newer image's metadata")
     }
 
@@ -363,16 +363,16 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
     /// stays under the new image. Mutation: `if !metadata.isEmpty { self.metadata = metadata }` (red).
     @MainActor func testANewImageNeverKeepsThePreviousFilesMetadata() {
         let session = ImageSession()
-        XCTAssertTrue(session.finishOpen(session.beginOpen(), image: Self.image("a"), url: Self.urlA, metadata: Self.metadata(kV: 300)))
+        XCTAssertTrue(session.finishOpen(session.beginOpen(), image: Self.image("a"), url: Self.urlA, metadata: Self.metadata(kV: 300), sem: nil))
         XCTAssertEqual(session.metadata, Self.metadata(kV: 300))
-        XCTAssertTrue(session.finishOpen(session.beginOpen(), image: Self.image("b"), url: Self.urlB, metadata: AcquisitionMetadata()))
+        XCTAssertTrue(session.finishOpen(session.beginOpen(), image: Self.image("b"), url: Self.urlB, metadata: AcquisitionMetadata(), sem: nil))
         XCTAssertTrue(session.metadata.isEmpty, "the second file records nothing: nothing is shown, not the first file's 300 kV")
     }
 
     /// A failed open keeps the image already shown and so its metadata. Mutation: `failOpen` resetting `metadata` (red).
     @MainActor func testAFailedOpenKeepsTheMetadataOfTheImageShown() {
         let session = ImageSession()
-        XCTAssertTrue(session.finishOpen(session.beginOpen(), image: Self.image("a"), url: Self.urlA, metadata: Self.metadata(kV: 300)))
+        XCTAssertTrue(session.finishOpen(session.beginOpen(), image: Self.image("a"), url: Self.urlA, metadata: Self.metadata(kV: 300), sem: nil))
         XCTAssertTrue(session.failOpen(session.beginOpen()))
         XCTAssertEqual(session.image, Self.image("a"))
         XCTAssertEqual(session.metadata, Self.metadata(kV: 300), "the image on screen is still a.dm4's, with a.dm4's metadata")
