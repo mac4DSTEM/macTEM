@@ -54,6 +54,8 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
                 return nil
             }
             let sem = "Acquisition_instrument.SEM."
+            XCTAssertFalse(got.rawFields.isEmpty, "\(name): the Vendor fields disclosure lists every key of the tag")
+            XCTAssertNotNil(got.pixelSizeSource, "\(name): the Calibration Source row names the vendor field")
             assertClose(got.beamEnergyKV, number(sem + "beam_energy"), "\(name) beam energy")
             assertClose(got.workingDistanceMM, number(sem + "working_distance"), "\(name) working distance")
             assertClose(got.dwellS, number(sem + "dwell_time"), "\(name) dwell")

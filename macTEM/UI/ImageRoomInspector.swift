@@ -3,7 +3,7 @@
 //  Role: the Image room's inspector content. Settings: the calibration a distance in this room is measured
 //        in (readiness, the first section), then Display (ImageRoomDisplay.swift), Particles (ImageRoomParticles.swift) and Measure (ImageRoomMeasure.swift).
 //        Info: what the open image is, as the file states it, then what it records about the acquisition
-//        (ImageRoomAcquisition.swift) and, for an SEM TIFF, the vendor's record and databar (ImageRoomSEM.swift).
+//        (ImageRoomAcquisition.swift; an SEM TIFF's vendor rows and databar control: ImageRoomSEM.swift).
 //
 //  Every number shown is the file's own (`CalibratedImage`), in the reader's locale at up to 6 significant
 //  digits (DM stores calibrations as float32, about 7); the value range uses 9, so an integer image's
@@ -27,7 +27,7 @@ struct ImageRoomSettings: View {
         ImageRoomCalibrationSection(image: image)
         // An image stack read on demand (a multi-page TIFF): the frame shown and the slider that moves it.
         if let item = appState.openItems.selected, item.stack != nil { ImageRoomStackSection(item: item, items: appState.openItems) }
-        ImageRoomDisplaySection(presentation: appState.presentation)
+        ImageRoomDisplaySection(presentation: appState.presentation, sem: appState.imageSession.sem)
         // The Particles view: objects found on the image, outlined over it. Above Measure, so it is in view without scrolling past the tools.
         if let item = appState.openItems.selected {
             ImageRoomParticlesSection(image: image, item: item, rawRange: appState.presentation.canvas?.rawRange)
@@ -50,10 +50,9 @@ struct ImageRoomCalibrationSection: View {
         InspectorSection("Calibration") {
             InspectorValueRow("Horizontal (x)", ImageInfoFormat.sampling(image.x))
             InspectorValueRow("Vertical (y)", ImageInfoFormat.sampling(image.y))
+            // An SEM file names the vendor field the pixel size came from (design §4: "The file (Thermo PixelWidth)").
             InspectorValueRow("Source", image.x?.isCalibrated == true || image.y?.isCalibrated == true
-                              ? (sem?.vendor).map { "The file (\($0.rawValue) tag)" } ?? "The file" : "None in the file")
-            // An SEM file with a databar under the scan: the switch that cuts it off (ImageRoomSEM.swift).
-            if let sem, sem.databarRows != nil { SEMDatabarToggle(sem: sem) }
+                              ? (sem?.pixelSizeSource).map { "The file (\($0))" } ?? "The file" : "None in the file")
             if image.x?.isCalibrated != true {
                 InspectorWarning("Not calibrated: the scale bar counts pixels.")
             } else if image.hasSquarePixels == false {
@@ -74,8 +73,7 @@ struct ImageInfoSection: View {
         imageSection
         // What the file records about the acquisition (ImageRoomAcquisition.swift), then what an SEM file records beyond it (ImageRoomSEM.swift).
         AcquisitionSection(metadata: appState.imageSession.metadata,
-                           formatExtension: (image.fileName as NSString).pathExtension)
-        if let sem = appState.imageSession.sem { SEMSection(sem: sem) }
+                           formatExtension: (image.fileName as NSString).pathExtension, sem: appState.imageSession.sem)
     }
 
     private var imageSection: some View {

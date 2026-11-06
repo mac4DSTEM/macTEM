@@ -1,6 +1,6 @@
 //
 //  SEMImageMetadata.swift
-//  Role: what an SEM image TIFF records about its acquisition, read from the vendor's own tag as RosettaSciIO 0.15.0's TIFF
+//  Role: what an SEM image TIFF records about its acquisition (design: docs/sem/design/sem-image-room.md), read from the vendor's own tag as RosettaSciIO 0.15.0's TIFF
 //        reader (`rsciio/tiff/_api.py`: `_axes_fei`, `_axes_zeiss`, `mapping_fei`, `mapping_cz_sem`) and tifffile 2026.9.20
 //        (`read_fei_metadata`, `read_cz_sem`) read it, plus the one thing neither maps and the Image room needs: the height of
 //        the databar the vendor drew under the scan, so the room can show the scan alone. Three vendors:
@@ -86,6 +86,25 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
     /// The rows of the databar under the scan; nil when the file records none (a Zeiss file) or the record disagrees with
     /// the image height.
     package var databarRows: Int?
+    /// Every field of the vendor block, raw, in the file's order: "Section.Key" (Thermo, Tescan) or the CZ_SEM key with its
+    /// display name, and the value as written. The Info tab's "Vendor fields" disclosure.
+    package var rawFields: [RawField] = []
+
+    package struct RawField: Sendable, Equatable {
+        package let key: String
+        package let value: String
+        package init(key: String, value: String) { self.key = key; self.value = value }
+    }
+
+    /// The field the pixel size was read from, for the Calibration section's Source row ("Thermo PixelWidth").
+    package var pixelSizeSource: String? {
+        guard pixelSizeX != nil else { return nil }
+        switch vendor {
+        case .thermo: return rawFields.contains { $0.key == "Scan.PixelWidth" } ? "Thermo PixelWidth" : "Thermo HFW / ResolutionX"
+        case .zeiss: return "Zeiss CZ_SEM"
+        case .tescan: return "Tescan PixelSizeX"
+        }
+    }
 
     package init(vendor: Vendor, imageWidth: Int, imageHeight: Int, stageUnit: String) {
         self.vendor = vendor
@@ -133,14 +152,19 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
     /// tifffile's `fei_metadata`: tag 34680 then 34682, each an INI; a later section replaces an earlier of the same name.
     static func thermo(_ page: TIFFDirectory, width: Int, height: Int) -> SEMImageMetadata {
         var sections: [String: [String: String]] = [:]
+        var raw: [RawField] = []
         for code in [34680, 34682] {
             guard let tag = page[code] else { continue }
-            for (name, body) in feiSections(pythonText(tag.raw)) { sections[name] = body }
+            for (name, body) in feiSections(pythonText(tag.raw)) {
+                sections[name] = body
+                raw += body.sorted { $0.key < $1.key }.map { RawField(key: "\(name).\($0.key)", value: $0.value) }
+            }
         }
         func value(_ section: String, _ key: String) -> String? { sections[section]?[key] }
         func number(_ section: String, _ key: String) -> Double? { value(section, key).flatMap(pythonNumber) }
 
         var m = SEMImageMetadata(vendor: .thermo, imageWidth: width, imageHeight: height, stageUnit: "m")
+        m.rawFields = raw
         // `_axes_fei`: [Scan] PixelWidth/PixelHeight, else [IRBeam] HFW / [Image] ResolutionX and VFW / ResolutionY; a
         // missing key leaves the axes unset, a value that is not a number raises there (the file then opens uncalibrated).
         if let w = value("Scan", "PixelWidth"), let h = value("Scan", "PixelHeight") {
@@ -256,6 +280,9 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
     static func zeiss(_ tag: TIFFTag, width: Int, height: Int) -> SEMImageMetadata {
         let (unnamed, keyed) = czSEM(pythonText(tag.raw))
         var m = SEMImageMetadata(vendor: .zeiss, imageWidth: width, imageHeight: height, stageUnit: "mm")
+        m.rawFields = keyed.sorted { $0.key < $1.key }.map { key, v in
+            RawField(key: "\(key) (\(v.name))", value: v.unit.map { "\(v.text) \($0)" } ?? v.text)
+        }
         // `_axes_zeiss`: `op["CZ_SEM"][""][3] * 1024 / shape[1]`, metres; an IndexError or TypeError there leaves the file
         // uncalibrated.
         if unnamed.count > 3, let scale = unnamed[3] {
@@ -304,6 +331,9 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
         func number(_ section: String, _ key: String) -> Double? { value(section, key).flatMap(pythonNumber) }
 
         var m = SEMImageMetadata(vendor: .tescan, imageWidth: width, imageHeight: height, stageUnit: "m")
+        m.rawFields = sections.sorted { $0.key < $1.key }.flatMap { name, body in
+            body.sorted { $0.key < $1.key }.map { RawField(key: "\(name).\($0.key)", value: $0.value) }
+        }
         if let x = number("MAIN", "PixelSizeX"), let y = number("MAIN", "PixelSizeY") { m.pixelSizeX = x; m.pixelSizeY = y }
         m.beamEnergyKV = finite((number("SEM", "HV") ?? number("SEM", "AcceleratorVoltage")).map { $0 * 1e-3 })
         m.workingDistanceMM = finite(number("SEM", "WD").map { $0 * 1e3 })
