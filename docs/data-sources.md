@@ -16,9 +16,9 @@ test files are compatible, and each entry below says which it is. Demo data ship
 
 | Dataset | What | Source | Licence | DOI / citation |
 | --- | --- | --- | --- | --- |
-| `nickel_ebsd_large/patterns_v2.h5` (15.4 MB) | 55 x 75 EBSD patterns of 60 x 60 px (uint8), recrystallised Ni, NORDIF UF-1100 on a Hitachi SU-6600 at 20 kV, 1.5 µm step; kikuchipy h5ebsd with static background, per-pattern projection centres and the indexed crystal map (`kikuchipy.data.nickel_ebsd_large`) | github.com/pyxem/kikuchipy-data at commit `bcab8f7a`, served from raw.githubusercontent.com | CC BY 4.0 | Ånes, H. W., Hjelen, J., Sørensen, B. E., van Helvoort, A. T. J. & Marthinsen, K. (2019). *Electron backscatter patterns from Nickel acquired with varying camera gain*. Zenodo, concept DOI 10.5281/zenodo.7497682 (version record 7498632). Paper: Ånes et al. (2020), *Processing and indexing of electron backscatter patterns using open-source software*, IOP Conf. Ser.: Mater. Sci. Eng. 891, 012002, doi:10.1088/1757-899X/891/1/012002 |
+| `nickel_ebsd_large/patterns_v2.h5` (15.4 MB); shipped in the app as `DemoData/nickel_ebsd_large/patterns_v2.h5` (macTEM#127) | 55 x 75 EBSD patterns of 60 x 60 px (uint8), recrystallised Ni, NORDIF UF-1100 on a Hitachi SU-6600 at 20 kV, 1.5 µm step; kikuchipy h5ebsd with static background, per-pattern projection centres and the indexed crystal map (`kikuchipy.data.nickel_ebsd_large`) | github.com/pyxem/kikuchipy-data at commit `bcab8f7a`, served from raw.githubusercontent.com | CC BY 4.0 | Ånes, H. W., Hjelen, J., Sørensen, B. E., van Helvoort, A. T. J. & Marthinsen, K. (2019). *Electron backscatter patterns from Nickel acquired with varying camera gain*. Zenodo, concept DOI 10.5281/zenodo.7497682 (version record 7498632). Paper: Ånes et al. (2020), *Processing and indexing of electron backscatter patterns using open-source software*, IOP Conf. Ser.: Mater. Sci. Eng. 891, 012002, doi:10.1088/1757-899X/891/1/012002 |
 | `ebsd_master_pattern/ni_mc_mp_20kv.h5` (manual) | EMsoft Ni master pattern at 20 kV, for dictionary indexing and geometrical simulation (phases 4 and 6) | Zenodo record 7498645 (kikuchipy's registry; md5 `8b69c071a036ad3488d465093b67fe4d`) | CC BY 4.0 | Ånes, H. W. (2023). *EBSD master pattern of nickel at 20 kV*, doi:10.5281/zenodo.7498645 |
-| `exspy_EDS_SEM_TM002.hspy` / `.msa` (fixture, 31 KB) | One SEM-EDS spectrum, 1024 channels at 10 eV from -0.1 keV, of the BAM EDS-TM002 thin-film standard (C, Al, Mn, Cu, Zr on Si), Zeiss Nvision40 at 10 kV, Oxford X-Max 80, 20 s live time (`exspy.data.EDS_SEM_TM002`); the `.msa` twin is HyperSpy's EMSA export of the same signal | exspy 0.3.2 package data (`exspy/data/EDS_SEM_TM002.hspy`), original `1D_EDS_SEM_Spectrum.msa` of the HyperSpy demos | GPL-3.0 (exspy) | exspy: doi:10.5281/zenodo.10700224; HyperSpy: de la Peña, F. et al., doi:10.5281/zenodo.592838. Sample: BAM EDS-TM002 (www.webshop.bam.de) |
+| `exspy_EDS_SEM_TM002.hspy` / `.msa` (fixture, 31 KB); shipped in the app as `DemoData/EDS_SEM_TM002.hspy` (macTEM#127) | One SEM-EDS spectrum, 1024 channels at 10 eV from -0.1 keV, of the BAM EDS-TM002 thin-film standard (C, Al, Mn, Cu, Zr on Si), Zeiss Nvision40 at 10 kV, Oxford X-Max 80, 20 s live time (`exspy.data.EDS_SEM_TM002`); the `.msa` twin is HyperSpy's EMSA export of the same signal | exspy 0.3.2 package data (`exspy/data/EDS_SEM_TM002.hspy`), original `1D_EDS_SEM_Spectrum.msa` of the HyperSpy demos | GPL-3.0 (exspy) | exspy: doi:10.5281/zenodo.10700224; HyperSpy: de la Peña, F. et al., doi:10.5281/zenodo.592838. Sample: BAM EDS-TM002 (www.webshop.bam.de) |
 
 ## Datasets (downloaded)
 
@@ -53,5 +53,9 @@ test files are compatible, and each entry below says which it is. Demo data ship
 
 ## Shipped with the app
 
-Nothing yet. A dataset moves here when a build's "Try Demo Data" opens it; the row then names the build and the
-file's size in the bundle.
+Since macTEM#127 (2026-11-06), reachable from "Try Demo Data":
+
+| Bundle path | Dataset | Size | Licence |
+| --- | --- | --- | --- |
+| `DemoData/nickel_ebsd_large/patterns_v2.h5` | kikuchipy `nickel_ebsd_large`, the EBSD north star | 15.4 MB | CC BY 4.0 |
+| `DemoData/EDS_SEM_TM002.hspy` | exspy `EDS_SEM_TM002`, the SEM-EDS north star | 31 KB | GPL-3.0 |
