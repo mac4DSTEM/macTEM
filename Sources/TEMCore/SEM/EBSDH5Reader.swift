@@ -65,7 +65,7 @@ package nonisolated enum EBSDH5Reader {
 
     // MARK: - The top group
 
-    /// `manufacturer` and `version` (lowercased, as kikuchipy keeps them) and the scan groups: every top group that holds `EBSD/Data` and
+    /// `manufacturer` and `version` (lowercased, as kikuchipy keeps them; EDAX writes the names with a leading space, stripped like `_hdf5group2dict` does) and the scan groups: every top group that holds `EBSD/Data` and
     /// `EBSD/Header` (`H5EBSDReader.get_manufacturer_version`, `get_scan_groups`, `check_file`).
     struct TopGroup {
         var manufacturer: String
@@ -78,7 +78,7 @@ package nonisolated enum EBSDH5Reader {
             for name in try reader.children(of: "/") {
                 switch try reader.kind(of: "/" + name) {
                 case .dataset:
-                    let key = name.lowercased()
+                    let key = name.lowercased().trimmingCharacters(in: .whitespaces)
                     if key == "manufacturer" { manufacturer = try reader.readStrings("/" + name).first?.lowercased() }
                     else if key == "version" || key == "format version" { version = try reader.readStrings("/" + name).first?.lowercased() }
                 case .group:
