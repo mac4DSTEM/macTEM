@@ -35,6 +35,8 @@ extension LayoutPolicy {
     static let openItemThumbnailSide: CGFloat = 40
     static let openItemRowSpacing: CGFloat = 8
 
+    /// The Patterns room's map progress bar in the pane header: short, beside the title (rule 4).
+    static let paneHeaderProgressWidth: CGFloat = 80
     /// The Diffraction room's readout table under the pattern: room content, named once (rule 4).
     static let diffractionReadoutHeight: CGFloat = 170
     /// The colour dot before a region's name in the Table tab.

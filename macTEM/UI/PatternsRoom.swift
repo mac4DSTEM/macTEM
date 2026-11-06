@@ -15,6 +15,7 @@
 import ShellControls
 import ShellLayout
 import ShellMetal
+import ShellSpectroscopy
 import SwiftUI
 import UniformTypeIdentifiers
 import TEMCore
@@ -32,7 +33,7 @@ struct PatternsRoom: View {
         Group {
             if session.isOpening {
                 VStack(spacing: 12) {
-                    ProgressView().progressViewStyle(.linear).frame(maxWidth: 240)
+                    ProgressView().progressViewStyle(.linear).frame(maxWidth: EDXLayout.openingBarWidth)
                     Text("Opening dataset").font(.headline)
                     Button("Stop") { session.stop() }
                         .keyboardShortcut(.cancelAction)
@@ -157,7 +158,7 @@ struct ScanMapPane: View {
                 .font(.headline).lineLimit(1)
             Spacer(minLength: 8)
             if session.isMapping {
-                ProgressView(value: session.mapProgress).progressViewStyle(.linear).frame(width: 80)
+                ProgressView(value: session.mapProgress).progressViewStyle(.linear).frame(width: LayoutPolicy.paneHeaderProgressWidth)
                     .accessibilityLabel("Reading the scan")
                     .accessibilityIdentifier("patterns.map.progress")
             } else if let why = session.mapFailure {
