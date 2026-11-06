@@ -14,10 +14,11 @@ import TEMCore
 
 nonisolated final class NORDIFReaderTests: XCTestCase {
     private static let folder = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/sem/nordif")
-    private static let reference: [String: Any] = {
-        let data = try! Data(contentsOf: folder.appendingPathComponent("reference.json"))
+    /// reference.json, read per test (37 KB): a shared static of `[String: Any]` is not Sendable under Swift 6.
+    private var reference: [String: Any] {
+        let data = try! Data(contentsOf: Self.folder.appendingPathComponent("reference.json"))
         return try! JSONSerialization.jsonObject(with: data) as! [String: Any]
-    }()
+    }
 
     private func path(_ name: String) -> String { Self.folder.appendingPathComponent(name).path }
     private var scratch: [URL] = []
@@ -36,8 +37,8 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
         try! contents.write(to: url)
         return url.path
     }
-    private func acquisition(_ file: String) -> [String: Any] { (Self.reference["acquisition"] as! [String: Any])[file] as! [String: Any] }
-    private func calibration(_ file: String) -> [String: Any] { (Self.reference["calibration"] as! [String: Any])[file] as! [String: Any] }
+    private func acquisition(_ file: String) -> [String: Any] { (reference["acquisition"] as! [String: Any])[file] as! [String: Any] }
+    private func calibration(_ file: String) -> [String: Any] { (reference["calibration"] as! [String: Any])[file] as! [String: Any] }
     private func ints(_ any: Any?) -> [Int]? { (any as? [NSNumber])?.map(\.intValue) }
     private func pairs(_ any: Any?) -> [[Int]]? { (any as? [[NSNumber]])?.map { $0.map(\.intValue) } }
     private func sha256(_ bytes: some Sequence<UInt8>) -> String {
@@ -71,12 +72,12 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
     // MARK: - The fixtures are the reference's
 
     func testTheFixtureFilesAreTheOnesTheReferenceRead() throws {
-        let files = try XCTUnwrap(Self.reference["files"] as? [String: String])
+        let files = try XCTUnwrap(reference["files"] as? [String: String])
         XCTAssertEqual(files.count, 9)
         for (name, hash) in files {
             XCTAssertEqual(sha256(try Data(contentsOf: Self.folder.appendingPathComponent(name))), hash, name)
         }
-        let reference = try XCTUnwrap(Self.reference["reference"] as? [String: String])
+        let reference = try XCTUnwrap(reference["reference"] as? [String: String])
         XCTAssertEqual(reference["package"], "kikuchipy")
         XCTAssertEqual(reference["version"], "0.13.1")
     }
