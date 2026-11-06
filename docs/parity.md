@@ -51,3 +51,26 @@ Upstream's own tests compare hand-written 3 x 3 uint8 answers exactly (`test_rem
   path behind the same parity test is phase 2's optimisation (P2-01, the Patterns room's processing).
 - Figure F2 (`docs/sem/north-star.md`): `tools/parity/sem/background_figure.py` draws the reference pattern beside the one the
   unit test `testFigureF2PatternZeroAfterStaticAndDynamicBackground` writes to `$TMPDIR/macTEM-F2-ours.u8` (and prints as base64).
+
+## Pattern quality
+
+References: `tools/parity/sem/emit.py` cases `m2/quality-kikuchipy-h5ebsd` and `m2/quality-nickel-ebsd-large` (kikuchipy
+0.13.1, numpy 2.5.4, scipy 1.18.1; north-star figure F3); tests in `SEMQualityParityTests`. kikuchipy computes in float32
+(the FFT of the float32 pattern, numba fastmath sums, dot products in the float32 output type); TEMCore in float64. The
+bundles hold rtol 1e-5, the float32 bound.
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `PatternQuality.frequencyVectors` | `pattern._pattern.fft_frequency_vectors` | `testFrequencyVectors…` | exact | |
+| `PatternQuality.ImageQuality` / `imageQuality` / `imageQualityMap` (`normalize` on, off) | `get_image_quality`, `_get_image_quality`, `EBSD.get_image_quality` (Krieger Lassen 1994) | `testImageQuality…`, `testWholeRawScan…`, `testBlockOfCorrected…` | 1e-5 relative (measured 8.5e-8; 2.6e-6 unnormalised) | ImagoKit's `FFT2DDouble` for the transform; one plan per pattern shape |
+| `PatternQuality.averageNeighbourDotProductMap` (window rectangular or circular of any size, `zeroMean`, `normalize`) | `EBSD.get_average_neighbour_dot_product_map`, `_map_helper._neighbour_dot_products` (Brewick, Wright & Rowenhorst 2019) | `testAverageDotProduct…`, `testWholeRawScan…`, `testBlockOfCorrected…` | 1e-5 relative (measured 5.6e-7) | edge rule: cells outside the map are no neighbours (SciPy `generic_filter`, constant −1); NaN dot products skipped as `np.nanmean` |
+| F3 end to end (the app's background removal, then both maps) | kikuchipy's docs chain, whole scan | `testFigureF3…` | IQ 1e-2 relative, ADP 5e-3 relative | inherits D-SEM-18's one-grey-level background differences, decision D-SEM-27 |
+
+### Known limits and decisions
+
+- D-SEM-27 (2026-11-06): the quality maps are held to rtol 1e-5 on kikuchipy's own input patterns (raw scan, a 6 x 6 block
+  and the 3 x 3 fixture of its corrected patterns); the end-to-end F3 chain on the app's corrected patterns to rtol 1e-2 (IQ)
+  and 5e-3 (ADP). Reason: the image quality is a ratio of spectrum sums that moves by about 5e-4 relative when 0.2 % of the
+  pixels shift by one grey level (measured), so D-SEM-18's background differences propagate; a float64 replica of the chain
+  measured 5.3e-3 (IQ) and 1.1e-3 (ADP) at worst. Both maps run on the CPU in float64: the 4125 nickel patterns take well
+  under a second, so a Metal path does not pay (D16).

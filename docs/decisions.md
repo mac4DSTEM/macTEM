@@ -75,3 +75,4 @@ bit-exact without colour management; a bitmap of any other kind is refused with 
 
 **Reversal.** Refuse `Setting_bad3.txt` once the Patterns room shows that an unknown area shape breaks a view; add
 the sentence to `reference.json` and the test.
+| D-SEM-27 | 2026-11-06 | The image quality and average neighbour dot product maps (`PatternQuality`, figure F3) match kikuchipy within rtol 1e-5 on kikuchipy's own input patterns; the end-to-end F3 chain on the app's own corrected patterns within rtol 1e-2 (IQ) and 5e-3 (ADP); both maps run on the CPU in float64 without a Metal path | the image quality moves about 5e-4 relative when 0.2 % of the pixels shift by one grey level, so D-SEM-18's background differences propagate into the chain (float64 replica: 5.3e-3 and 1.1e-3 at worst); the function itself agrees to 1e-7 (IQ) and 6e-7 (ADP); 4125 patterns of 60 x 60 take well under a second (`docs/parity.md`, Pattern quality) |
