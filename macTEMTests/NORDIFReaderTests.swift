@@ -101,31 +101,31 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
         XCTAssertEqual(s.softwareVersion, "3.1.2")
         XCTAssertEqual(s.scanDirection, "Direct")
         XCTAssertEqual(s.tiltAngleDeg, 70)
-        XCTAssertEqual(s.electronImageResolution, .init(width: 1000, height: 1000))
+        XCTAssertEqual(s.electronImageResolution, NORDIFSettings.Resolution(width: 1000, height: 1000))
         XCTAssertEqual(s.detectorModel, "UF1100")
         XCTAssertEqual(s.eulerDeg, [0, 0, 0])
         XCTAssertEqual(s.acquisition.frameRateFPS, 202)
         XCTAssertEqual(s.acquisition.exposureUS, 3500)
         XCTAssertEqual(s.acquisition.gain, 0)
-        XCTAssertEqual(s.calibration?.resolution, .init(width: 60, height: 60))
+        XCTAssertEqual(s.calibration?.resolution, NORDIFSettings.Resolution(width: 60, height: 60))
         XCTAssertEqual(s.calibration?.frameRateFPS, 10)
         XCTAssertEqual(s.calibration?.exposureUS, 99950)
         XCTAssertEqual(s.calibration?.gain, 8)
         XCTAssertEqual(s.specimenName, "Ni")
-        XCTAssertEqual(s.area.top, .init(micrometres: 89.2, pixels: 223))
-        XCTAssertEqual(s.area.left, .init(micrometres: 60.384, pixels: 152))
-        XCTAssertEqual(s.area.width, .init(micrometres: 4.5, pixels: 11))
-        XCTAssertEqual(s.area.height, .init(micrometres: 4.5, pixels: 11))
+        XCTAssertEqual(s.area.top, NORDIFSettings.Measure(micrometres: 89.2, pixels: 223))
+        XCTAssertEqual(s.area.left, NORDIFSettings.Measure(micrometres: 60.384, pixels: 152))
+        XCTAssertEqual(s.area.width, NORDIFSettings.Measure(micrometres: 4.5, pixels: 11))
+        XCTAssertEqual(s.area.height, NORDIFSettings.Measure(micrometres: 4.5, pixels: 11))
         XCTAssertEqual(s.area.scanTime, "00:02:28")
-        XCTAssertEqual(s.acquisitionPositions, [.init(x: 507, y: 500), .init(x: 393, y: 501), .init(x: 440, y: 448)])
-        XCTAssertEqual(s.calibrationPositions, [.init(x: 425, y: 447), .init(x: 294, y: 532)])
+        XCTAssertEqual(s.acquisitionPositions, [NORDIFSettings.Position(x: 507, y: 500), .init(x: 393, y: 501), .init(x: 440, y: 448)])
+        XCTAssertEqual(s.calibrationPositions, [NORDIFSettings.Position(x: 425, y: 447), .init(x: 294, y: 532)])
         XCTAssertEqual(s.lines.count, 92, "kikuchipy's nordif_header has 92 lines")
         XCTAssertEqual(s.lines[10], "Tilt angle\t70\t°", "Latin-1, as kikuchipy decodes it")
     }
 
     func testTheDetectorTiltIsMinusTheElevationAndNeverMinusZero() throws {
         var lines = try NORDIFSettings.read(path: path("Setting.txt")).lines
-        XCTAssertEqual(NORDIFSettings.parse(lines: lines, fileName: "Setting.txt").detector.tiltDeg.sign, .plus)
+        XCTAssertEqual(try NORDIFSettings.parse(lines: lines, fileName: "Setting.txt").detector.tiltDeg.sign, .plus)
         lines[43] = "Elevation\t12.5\t°"
         let tilted = try NORDIFSettings.parse(lines: lines, fileName: "Setting.txt")
         XCTAssertEqual(tilted.elevationDeg, 12.5)
@@ -245,9 +245,9 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
         XCTAssertTrue(r["area_shape_yx"] is NSNull)
         XCTAssertNil(c.settings.area.top)
         XCTAssertEqual([c.roiOrigin.row, c.roiOrigin.column], ints(r["roi_origin_yx"]))
-        XCTAssertEqual(c.roiOrigin, .init(row: 0, column: 152))
+        XCTAssertEqual(c.roiOrigin, NORDIFCalibrationPatterns.Point(row: 0, column: 152))
         XCTAssertEqual(c.roiShapeScaled.map { [$0.row, $0.column] }, ints(r["roi_shape_scaled_yx"]))
-        XCTAssertEqual(c.roiShapeScaled, .init(row: 4, column: 4))
+        XCTAssertEqual(c.roiShapeScaled, NORDIFCalibrationPatterns.Point(row: 4, column: 4))
         XCTAssertEqual(c.positionsScaled?.map { [$0.row, $0.column] }, pairs(r["indices_scaled_yx"]))
         XCTAssertEqual(sha256(c.patterns.flatMap(\.pixels)), (r["data"] as? [String: Any])?["sha256"] as? String)
     }
@@ -271,7 +271,7 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
         // A 3 x 2 bitmap written here: bottom-up rows padded to 4 bytes, identity greyscale palette.
         func bitmap(height: Int32, palette: (Int) -> [UInt8]) -> Data {
             var d = Data([0x42, 0x4D]) + Data(count: 8)
-            func le32(_ v: Int32) -> [UInt8] { withUnsafeBytes(of: v.littleEndian, Array.init) }
+            func le32(_ v: Int32) -> [UInt8] { withUnsafeBytes(of: v.littleEndian) { Array($0) } }
             d += le32(54 + 1024)                                   // pixel offset
             d += le32(40) + le32(3) + le32(height) + [1, 0, 8, 0] + le32(0) + le32(8) + le32(0) + le32(0) + le32(256) + le32(0)
             for i in 0 ..< 256 { d += palette(i) }
@@ -279,7 +279,7 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
             return d
         }
         let bottomUp = try NORDIFBitmap.decode(bitmap(height: 2) { [UInt8($0), UInt8($0), UInt8($0), 0] }, fileName: "p.bmp")
-        XCTAssertEqual(bottomUp, .init(width: 3, height: 2, pixels: [20, 21, 22, 10, 11, 12]))
+        XCTAssertEqual(bottomUp, NORDIFBitmap.Image(width: 3, height: 2, pixels: [20, 21, 22, 10, 11, 12]))
         XCTAssertEqual(bottomUp[0, 2], 22)
         let topDown = try NORDIFBitmap.decode(bitmap(height: -2) { [UInt8($0), UInt8($0), UInt8($0), 0] }, fileName: "p.bmp")
         XCTAssertEqual(topDown.pixels, [10, 11, 12, 20, 21, 22])
