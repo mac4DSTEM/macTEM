@@ -13,8 +13,8 @@ import Foundation
 import Metal
 
 package nonisolated enum MasterPatternProjectionMetal {
-    /// The bound on |GPU − CPU| of a pattern rescaled to -1 ... 1: 1e-3, five times the 1.8e-4 a float32 emulation of these
-    /// steps measured on the Ni 20 kV pattern over 20 random orientations (tools/parity/sem, 2026-11-06).
+    /// The bound on |GPU − CPU| of a pattern rescaled to -1 ... 1: 1e-3, thirty times the 3.2e-5 a float32 emulation of the
+    /// kernel measured on the Ni 20 kV pattern over 403 orientations (2026-11-06); the GPU's own transcendentals sit inside it.
     package static let tolerance = 1e-3
 
     /// Whether this Mac has a Metal device.
@@ -140,7 +140,9 @@ package nonisolated enum MasterPatternProjectionMetal {
         float n = precise::sqrt(vx * vx + vy * vy + vz * vz);
         float x = vx / n, y = vy / n, z = vz / n;
         float az = fabs(z);
-        float sz = precise::sqrt(2.0f * (1.0f - az));
+        // 1 - |z| as (x² + y²) / (1 + |z|): the same number for a unit vector, without float32's cancellation near the
+        // pole (1 - |z| loses up to 3e-4 px of Lambert coordinate there, measured as 2e-3 on the -1 ... 1 scale on an M-series GPU).
+        float sz = precise::sqrt(2.0f * (x * x + y * y) / (1.0f + az));
         const float sqrtPiOver2 = 0.886226925452758f;
         const float twoOverSqrtPi = 1.128379167095513f;
         const float sqrtPiHalf = 1.253314137315500f;

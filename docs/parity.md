@@ -91,7 +91,7 @@ patterns bit for bit on all three projection bundles (2026-11-06).
 | `MasterPatternProjection.gnomonicBounds` | `EBSDDetector.gnomonic_bounds` (Britton et al. 2016) | same | rtol 1e-7 | |
 | `MasterPatternProjection.directionCosines` | `_get_direction_cosines_for_fixed_pc` / `_varying_pc` | same | rtol 1e-7 | |
 | `MasterPatternProjection.project` (float32, float64, uint8, uint16) | `EBSDMasterPattern.get_patterns` (`_project_single_pattern_from_master_pattern`, `_vector2lambert`, `_get_lambert_interpolation_parameters`, `_rescale_with_min_max`) | `testTheDocsExample…`, `testFigureF15…`, `testATiltedDetector…` | float: rtol 1e-5, atol 1e-8; integer: 1 count | a flat pattern is refused (kikuchipy divides by zero); the master pattern must be Lambert, with both hemispheres unless the point group holds the inversion |
-| `MasterPatternProjectionMetal.project` (float32 GPU) | `MasterPatternProjection.project` (float64 CPU) | `testTheMetalPathMatchesTheCPUReference` (skipped without a Metal device) | 1e-3 absolute on the -1 to 1 scale | float32 emulation measured 1.8e-4; `patternsFloat32` picks it from 10⁶ pattern pixels |
+| `MasterPatternProjectionMetal.project` (float32 GPU) | `MasterPatternProjection.project` (float64 CPU) | `testTheMetalPathMatchesTheCPUReference` (skipped without a Metal device) | 1e-3 absolute on the -1 to 1 scale | float32 emulation of the kernel measured 3.2e-5 (it takes 1 - |z| as (x² + y²) / (1 + |z|) against float32 cancellation near the pole); `patternsFloat32` picks it from 10⁶ pattern pixels |
 
 ### Known limits and decisions
 
