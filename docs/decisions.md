@@ -53,3 +53,25 @@ Numbered so briefs and PRs can cite them; the room designs keep their own D1-D8 
 | D-SEM-18 | 2026-11-06 | Integer patterns match kikuchipy within one grey level on at most 1 % of a pattern's pixels (0.2 % of a whole set); rescaled float values within 1e-5 relative | kikuchipy rescales in float32 under numba fastmath and truncates to the integer type, so a float64 port lands one level lower or higher where the float32 value crosses an integer (measured 0.006 % to 0.10 % of the nickel set's pixels); exactness would mean reproducing float32 fastmath rounding instead of the reference numbers |
 | D-SEM-19 | 2026-11-06 | The Oxford readers return value types of their own (`OxfordBinaryReader` → `EBSDPatternSet`, `CTFReader` → `CrystalMapData`) instead of waiting for P1-01's `EBSDDataset` (macTEM#125); a follow-up issue folds them together once both are on `main`. orix-data's `Ti_orientations.ctf` is an MTEX export without the Channel Text File header (first line names thirteen columns); `CTFReader` reads that form too, keeps every column under its name and leaves the phase to the caller, and the parity test attaches 622 as `orix.data.ti_orientations` does | the brief allows own types with adoption at closeout and the PRs stay independent; orix's reference reading of the Ti file has no phase list, so inventing a header would test numbers orix never produced |
 | D-SEM-20 | 2026-11-06 | A hexagonal-grid EDAX `.up2` is read by `EDAXBinaryReader` as one row of patterns with kikuchipy's warning as its note, and refused at the app's door (`EDAXOpening`) together with a `HexGrid` `.ang` | the reader stays parity-exact with kikuchipy, which reads such a file rather than refusing it; the app lays out square grids only (D-SEM-9) |
+
+## 2026-11-06 — NORDIF: follow kikuchipy on the damaged settings files, read Setting.txt by section and key
+
+**What.** The NORDIF readers (`Sources/TEMCore/SEM/NORDIF`, brief P1-04) treat kikuchipy's three damaged settings
+files as kikuchipy 0.13.1 does, not as the brief guessed ("the three bad settings files refused each with its
+sentence"): `Setting_bad1.txt` and `Setting_bad2.txt` are refused for calibration patterns with one sentence (kikuchipy
+raises `ValueError`), while `Setting_bad3.txt` reads in both readers, its missing `Top` corner counting as 0 and its
+missing electron-image `Resolution` leaving the area shape unknown; all three still read the acquisition patterns.
+`Setting.txt` is read by section and key, not by kikuchipy's fixed line offsets, which gives the same values on every
+file of the parity set and refuses a file whose required line is missing by naming the section and the key.
+
+**Why.** The parity reference is the behaviour, and a reader that refuses what kikuchipy reads would fail the user on
+a file the Python stack accepts. The by-key lookup survives a reordered or extended settings file, where an offset
+reads the wrong line silently.
+
+**Also decided.** Until P1-01's `EBSDDataset` (macTEM#125) merges, the NORDIF scan is its own value type
+(`NORDIFScan`, a uint8 block in map order); adopting `EBSDDataset` is a follow-up issue filed at closeout. The
+bitmaps are decoded by a small reader of the 8-bit greyscale BMP NORDIF writes, not by ImageIO, so the parity stays
+bit-exact without colour management; a bitmap of any other kind is refused with a sentence.
+
+**Reversal.** Refuse `Setting_bad3.txt` once the Patterns room shows that an unknown area shape breaks a view; add
+the sentence to `reference.json` and the test.
