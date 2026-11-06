@@ -93,9 +93,10 @@ nonisolated final class SEMBackgroundParityTests: XCTestCase {
 
     /// The mean pattern as the background when the file carries none: numpy's `mean(axis=0).astype(uint8)`, exact.
     func testMeanBackgroundEqualsNumpyAndRemovesLikeTheFilesOwn() throws {
-        // Four patterns whose mean has a fraction: the cast truncates (numpy's astype), 2.75 -> 2.
+        // Four two-pixel patterns (count-major): pixel 0 is 1, 3, 0, 0 (mean 1), pixel 1 is 2, 5, 0, 0 (mean 1.75): the cast
+        // truncates as numpy's astype does, 1.75 -> 1.
         let four: [UInt8] = [1, 2, 3, 5, 0, 0, 0, 0]
-        XCTAssertEqual(try PatternProcessing.meanBackground(of: four, count: 4, pixels: 2), [2, 1])
+        XCTAssertEqual(try PatternProcessing.meanBackground(of: four, count: 4, pixels: 2), [1, 1])
         // The set's mean in the fixture was taken over all 4125 patterns; the per-pattern removal with it is one more static case.
         let mean = try u8("mean_background")
         for p in ["p0_0", "p27_37"] {
