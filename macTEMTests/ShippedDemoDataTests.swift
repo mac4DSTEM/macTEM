@@ -7,6 +7,7 @@
 //
 
 import XCTest
+import FormatoCore
 import FormatoHDF5
 import SpectroCore
 import TEMCore
