@@ -81,6 +81,13 @@ package nonisolated enum FileRouting {
     /// only): run it off the main actor.
     package static func inventory(path: String) -> FileInventory {
         let name = (path as NSString).lastPathComponent
+        // HyperSpy's own HDF5 layout (`.hspy`, which FormatoKit's sniff does not know): one spectrum opens in the EDS room, anything else is
+        // refused in the reader's words.
+        if HyperSpySpectrumFile.isHyperSpyFile(path: path) {
+            do { _ = try HyperSpySpectrumFile.header(path: path); return FileInventory(singleSpectrum: true) } catch {
+                return FileInventory(refusal: (error as? LocalizedError)?.errorDescription ?? "\(name) is not a spectrum macTEM opens.")
+            }
+        }
         switch FormatoLoader.sniff(path: path) {
         case .digitalMicrograph:
             var found = FileInventory(image: true)
@@ -124,6 +131,7 @@ package nonisolated enum FileRouting {
 
     /// Whether `path` is a single spectrum the EDX room opens (an `.msa` that is not EELS, or a Velox file of spectra).
     package static func isSingleSpectrum(path: String) -> Bool {
+        if HyperSpySpectrumFile.isHyperSpyFile(path: path) { return inventory(path: path).singleSpectrum }
         let kind = FormatoLoader.sniff(path: path)
         return (kind == .msa || kind == .veloxEMD) && inventory(path: path).singleSpectrum
     }
@@ -132,6 +140,11 @@ package nonisolated enum FileRouting {
     /// non-finite values is refused); the beam energy is the file's when it states one.
     package static func spectrumFile(path: String) throws -> LoadedSpectrumImage {
         let name = (path as NSString).lastPathComponent
+        if HyperSpySpectrumFile.isHyperSpyFile(path: path) {
+            let spectrum = try HyperSpySpectrumFile.read(path: path)
+            return try onePixel(name: name, path: path, values: spectrum.counts, offset: spectrum.offset, scale: spectrum.scale, units: spectrum.units,
+                                beamEnergyKeV: spectrum.beamEnergyKeV, instrument: spectrum.microscope)
+        }
         let signal: FormatoSignal
         switch FormatoLoader.sniff(path: path) {
         case .msa: signal = try MSAReader.read(path: path).signal
@@ -143,17 +156,25 @@ package nonisolated enum FileRouting {
         default: throw SpectrumReadError(text: "\(name) is not a single spectrum.")
         }
         guard let axis = signal.axes.first else { throw SpectrumReadError(text: "The spectrum has no energy axis.") }
-        let values = signal.data.doubles()
+        let beam = signal.metadata["Acquisition_instrument.TEM.beam_energy"]?.value.number
+        return try onePixel(name: name, path: path, values: signal.data.doubles(), offset: axis.offset, scale: axis.scale, units: axis.units,
+                            beamEnergyKeV: beam.flatMap { $0 > 0 ? $0 : nil }, instrument: nil)
+    }
+
+    /// The one spectrum as a 1 x 1 spectrum image: counts rounded to whole counts (negative or non-finite values are refused), the axis in
+    /// keV (eV unless the file says keV), the beam energy and instrument when the file states them.
+    private static func onePixel(name: String, path: String, values: [Double], offset: Double, scale: Double, units: String,
+                                 beamEnergyKeV: Double?, instrument: String?) throws -> LoadedSpectrumImage {
         guard !values.isEmpty, values.allSatisfy({ $0.isFinite && $0 >= 0 }) else {
             throw SpectrumReadError(text: "The spectrum holds negative or non-finite values: it is not a count spectrum.")
         }
-        // Axes are eV unless the file says keV.
-        let toKeV = axis.units.lowercased() == "kev" ? 1.0 : 0.001
-        let energyAxis = EnergyAxis(offset: axis.offset * toKeV, scale: axis.scale * toKeV, size: values.count)
+        let toKeV = units.lowercased() == "kev" ? 1.0 : 0.001
+        let energyAxis = EnergyAxis(offset: offset * toKeV, scale: scale * toKeV, size: values.count)
         guard energyAxis.scale > 0 else { throw SpectrumReadError(text: "The spectrum's channel width is not positive.") }
         var meta = SpectrumImageMetadata(fileName: name, filePath: path, scanWidth: 1, scanHeight: 1, channelCount: values.count,
-                                         energyOffsetEV: axis.offset * toKeV * 1000, energyDispersionEV: axis.scale * toKeV * 1000)
-        if let beam = signal.metadata["Acquisition_instrument.TEM.beam_energy"]?.value.number, beam > 0 { meta.beamEnergyKeV = beam }
+                                         energyOffsetEV: offset * toKeV * 1000, energyDispersionEV: scale * toKeV * 1000)
+        meta.beamEnergyKeV = beamEnergyKeV
+        meta.instrument = instrument
         let counts = values.map { UInt32(min($0.rounded(), Double(UInt32.max))) }
         return LoadedSpectrumImage(image: DenseSpectrumImage(ny: 1, nx: 1, channels: values.count, counts: counts), metadata: meta, energyAxis: energyAxis)
     }

@@ -106,6 +106,32 @@ files (FormatoKit 0.5.0, tools/xcframework/vendored/) the frameworks are built f
 Their provenance and the framework packaging (tools/xcframework/build.sh) are in FormatoKit's NOTICE.
 
 ================================================================================
+Demo data shipped in the app (Contents/Resources/DemoData/)
+================================================================================
+
+Two public datasets ship in the application bundle unchanged, so that anyone can try the SEM rooms without a microscope file
+(Help > Open Demo Data, the welcome window's Try Demo Data). Each is the copy its source publishes; the repository's
+DemoData/ folder holds them and `DemoDocuments.Shipped` pins their size and md5.
+
+nickel_ebsd_large/patterns_v2.h5 (15,368,325 bytes, md5 51d6bc0f5ff23dcb0c1a8e1f4c52d4d4)
+    4125 electron backscatter diffraction patterns (55 x 75 scan, 60 x 60 pixels, 8 bit) from polycrystalline nickel, acquired
+    on a NORDIF UF-1100 detector at 20 kV and 70° tilt, with the static background, the projection centres and an orix
+    crystal map. From the kikuchipy data repository https://github.com/pyxem/kikuchipy-data (commit
+    bcab8f7a4ffdb86a97f14e2327a4813d3156a85e, the file kikuchipy 0.13's `data.nickel_ebsd_large()` fetches), part of
+    H. W. Ånes, J. Hjelen, A. T. J. van Helvoort and K. Marthinsen, "Electron backscatter patterns from Nickel acquired with
+    varying camera gain" [Data set], Zenodo, https://doi.org/10.5281/zenodo.7498632. Licensed under the Creative Commons
+    Attribution 4.0 International licence (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/); text in
+    `Licenses/kikuchipy-data-nickel_ebsd_large-LICENSE.txt`.
+
+EDS_SEM_TM002.hspy (31,008 bytes, md5 1c3b8fddb2698741a0948d5a7c4eec51)
+    One SEM-EDS spectrum of the EDS-TM002 standard of the Bundesanstalt für Materialforschung und -prüfung (BAM): a layer of
+    about 6 µm holding C, Al, Mn, Cu and Zr on a silicon substrate, acquired on a Carl Zeiss Nvision40 with an Oxford
+    Instruments X-max 80 detector at 10 kV (1024 channels of 10 eV from -100 eV; live time 20.0 s). The file is
+    `exspy/data/EDS_SEM_TM002.hspy` of the eXSpy package (https://github.com/hyperspy/exspy), Copyright 2007-2026 The eXSpy
+    developers, GPL-3.0-or-later (text in LICENSE, which is version 3 of the same licence). macTEM reads the spectrum with its
+    own reader of HyperSpy's HDF5 layout (`HyperSpySpectrumFile`); no eXSpy or RosettaSciIO code is copied.
+
+================================================================================
 Validation references (used by the test harnesses; not part of the app)
 ================================================================================
 
