@@ -89,15 +89,19 @@ package nonisolated enum OxfordBinaryReader {
         init(data: Data) throws {
             guard data.count >= 8 else { throw Refusal.tooShort }
             let word = data.int64(at: 0)
-            version = word < 0 ? Int(-word) : 0
-            startTablePosition = version == 0 ? 0 : (version > 3 ? 9 : 8)
-            headerSize = version < 5 ? 16 : 24
+            // Locals first: a closure below cannot read a stored constant before every one is set.
+            let version = word < 0 ? Int(-word) : 0
+            let tablePosition = version == 0 ? 0 : (version > 3 ? 9 : 8)
+            let headerSize = version < 5 ? 16 : 24
+            self.version = version
+            startTablePosition = tablePosition
+            self.headerSize = headerSize
 
             // guess_number_of_patterns: the start table ends at the first jump larger than twenty maximal patterns.
             let minimumPixels = 1600
             let maximumRecords = data.count / (minimumPixels + headerSize)
-            let available = max(0, (data.count - startTablePosition) / 8)
-            let assumed = (0..<min(maximumRecords, available)).map { data.int64(at: startTablePosition + $0 * 8) }
+            let available = max(0, (data.count - tablePosition) / 8)
+            let assumed = (0..<min(maximumRecords, available)).map { data.int64(at: tablePosition + $0 * 8) }
             let maximumPatternSize = Int64(1024 * 1344 * 2 + headerSize)
             var jump: Int?
             if assumed.count > 1 {
@@ -106,12 +110,13 @@ package nonisolated enum OxfordBinaryReader {
                 }
             }
             guard let jump else { throw Refusal.noPatternTable }
-            patternsInHeader = version < 5 ? jump + 1 : jump
-            guard patternsInHeader > 0 else { throw Refusal.noPatternTable }
-            patternStarts = (0..<patternsInHeader).map { data.int64(at: startTablePosition + $0 * 8) }
+            let count = version < 5 ? jump + 1 : jump
+            guard count > 0 else { throw Refusal.noPatternTable }
+            patternsInHeader = count
+            patternStarts = (0..<count).map { data.int64(at: tablePosition + $0 * 8) }
 
             // The first pattern's header fixes shape, pixel type and footer layout.
-            let first = startTablePosition + patternsInHeader * 8
+            let first = tablePosition + count * 8
             guard first + headerSize <= data.count else { throw Refusal.tooShort }
             let fixed = first + (version < 5 ? 0 : 8)
             let compressed = data.int32(at: fixed)
