@@ -4,12 +4,12 @@
 
 TEM images, EDS and EELS spectrum images and electron diffraction, analysed natively on the Mac.
 
-macTEM is the companion to [mac4DSTEM](https://github.com/mac4DSTEM/mac4DSTEM). Both are free, open source and built for
+macTEM is the companion to [mac4DSTEM](https://github.com/macEMSuite/mac4DSTEM). Both are free, open source and built for
 Apple silicon.
 
 ## Download
 
-Get the signed and notarised DMG from the [latest release](https://github.com/mac4DSTEM/macTEM/releases/latest). It needs
+Get the signed and notarised DMG from the [latest release](https://github.com/macEMSuite/macTEM/releases/latest). It needs
 macOS 26 or later on an Apple silicon Mac.
 
 ## What it does
@@ -30,10 +30,10 @@ Open a DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIFF or MRC file and work t
 ## Where the numbers come from
 
 Every number is computed by the suite's Swift kits, each checked against the Python package it ports, within that
-package's own tolerance: [FormatoKit](https://github.com/mac4DSTEM/FormatoKit) (file readers),
-[ImagoKit](https://github.com/mac4DSTEM/ImagoKit) (FFT and image maths),
-[DiffractoKit](https://github.com/mac4DSTEM/DiffractoKit) (crystallography) and
-[SpectroKit](https://github.com/mac4DSTEM/SpectroKit) (EDS and EELS). A result that has not yet been compared with a
+package's own tolerance: [FormatoKit](https://github.com/macEMSuite/FormatoKit) (file readers),
+[ImagoKit](https://github.com/macEMSuite/ImagoKit) (FFT and image maths),
+[DiffractoKit](https://github.com/macEMSuite/DiffractoKit) (crystallography) and
+[SpectroKit](https://github.com/macEMSuite/SpectroKit) (EDS and EELS). A result that has not yet been compared with a
 dataset of known truth says `validation: none` next to it.
 
 ## Building it yourself

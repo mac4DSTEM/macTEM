@@ -38,9 +38,9 @@ The Xcode project uses synchronized folder groups, so placement is wiring: a fil
 Views describe the interface only; compute lives in `Sources/TEMCore`, session state in `Sources/TEMSession`, and
 neither imports SwiftUI or anything above it. More in [`docs/architecture.md`](docs/architecture.md).
 
-The numerics are the suite's kits ([FormatoKit](https://github.com/mac4DSTEM/FormatoKit),
-[DiffractoKit](https://github.com/mac4DSTEM/DiffractoKit), [ImagoKit](https://github.com/mac4DSTEM/ImagoKit),
-[SpectroKit](https://github.com/mac4DSTEM/SpectroKit)). A wrong number in a reader, a fit or a transform is fixed in
+The numerics are the suite's kits ([FormatoKit](https://github.com/macEMSuite/FormatoKit),
+[DiffractoKit](https://github.com/macEMSuite/DiffractoKit), [ImagoKit](https://github.com/macEMSuite/ImagoKit),
+[SpectroKit](https://github.com/macEMSuite/SpectroKit)). A wrong number in a reader, a fit or a transform is fixed in
 the kit's repository and reaches the app when `Package.swift` moves to the kit's new tag.
 
 ## The rules that matter

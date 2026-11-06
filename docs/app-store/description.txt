@@ -20,7 +20,7 @@ YOUR DATA STAYS ON YOUR MAC
 No account, no analytics, no telemetry, and no network access. Your files are read from and written to your own storage only.
 
 OPEN SOURCE
-macTEM is free software under GPL-3.0. The source and the issue tracker are at github.com/mac4DSTEM/macTEM.
+macTEM is free software under GPL-3.0. The source and the issue tracker are at github.com/macEMSuite/macTEM.
 
 Its companion app, mac4DSTEM, analyses 4D-STEM data: virtual images, strain, orientation, ptychography and EDS.
 
