@@ -119,3 +119,14 @@ by tools/parity/metadata-parity; none is committed or distributed.
 
 The committed test fixture macTEMTests/Fixtures/planted-2d.dm4 is synthetic, written by this repository's
 tools/parity/metadata-parity/make_dm4_fixture.py.
+
+================================================================================
+kikuchipy (the SEM readers are ported from it; its test data are fixtures)
+================================================================================
+
+The NORDIF readers (Sources/TEMCore/SEM/NORDIF) are ported from kikuchipy 0.13.1
+(https://github.com/pyxem/kikuchipy, `kikuchipy/io/plugins/nordif` and `nordif_calibration_patterns`), Copyright
+2019-2026 the kikuchipy developers, GPL-3.0-or-later, rewritten in Swift with the same conventions; each file names its
+source in its first lines. macTEMTests/Fixtures/sem/nordif holds kikuchipy's `data/nordif` test files unchanged
+(GPL-3.0-or-later; the patterns are from the recrystallised nickel dataset of Ånes et al. 2020, CC BY 4.0,
+https://doi.org/10.5281/zenodo.7497682).
