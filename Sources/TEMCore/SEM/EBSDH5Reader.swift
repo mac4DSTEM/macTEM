@@ -403,8 +403,10 @@ package nonisolated enum EBSDH5Reader {
         var detector = EBSDDetectorGeometry(rows: sy, columns: sx, pixelSize: 1, binning: 1, tilt: 0, azimuthal: 0, twist: 0, sampleTilt: 70,
                                             projectionCenters: [])
         // H5OINA stores the angles as float32 and kikuchipy converts them with `np.rad2deg`, which for float32 is `x * 180 / pi` in
-        // float32; matched (docs/parity.md), so the degrees are the reference's to the last bit.
-        func degrees(_ radians: Double) -> Double { Double(Float(radians) * 180 / Float.pi) }
+        // float32; matched (docs/parity.md), so the degrees are the reference's to the last bit. numpy's float32 pi is pi rounded to
+        // nearest (3.1415927); Swift's `Float.pi` is rounded toward zero (3.1415925) and lands one ulp away.
+        let pi32 = Float(Double.pi)
+        func degrees(_ radians: Double) -> Double { Double(Float(radians) * 180 / pi32) }
         if let tiltAngle = try header.double("Tilt Angle") { detector.sampleTilt = degrees(tiltAngle) }
         if let euler = try header.doubles("Detector Orientation Euler"), euler.count > 1 { detector.tilt = Double(Float(degrees(euler[1])) - 90) }
         if let binning = try oxfordBinning(header: header, version: version) { detector.binning = binning }
