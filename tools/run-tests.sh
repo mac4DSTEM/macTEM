@@ -22,7 +22,8 @@ scientific=(metadata-parity profile-parity export-parity fft-export-parity sidec
 diagnostic=()                    # never gated
 owner_only=()                    # the owner's own runs
 retired=()                       # kept for history, not run
-support=(crystal-structures sem)     # not harnesses
+support=(crystal-structures)     # not harnesses
+references=(sem)                 # emits committed reference bundles (Python, Linux CI: .github/workflows/sem-parity.yml); macTEMTests compares
 
 # A near-full disk fakes code regressions (mac4DSTEM, 2026-08-06: three runs, three different spurious failure
 # sets). 4 GB is mac4DSTEM's floor for the same lanes: 3.2x its measured unit-suite peak (1245 MB).
@@ -245,7 +246,7 @@ inventory() {
   local rc=0 name dir src f
 
   echo "== tools classification"
-  local -a all=("${scientific[@]}" "${diagnostic[@]}" "${owner_only[@]}" "${retired[@]}" "${support[@]}")
+  local -a all=("${scientific[@]}" "${diagnostic[@]}" "${owner_only[@]}" "${retired[@]}" "${support[@]}" "${references[@]}")
   for name in "${all[@]}"; do
     [[ -d "$ROOT/tools/parity/$name" ]] || { echo "  MISSING tools/parity/$name (classified, not present)"; rc=1; }
   done

@@ -1,0 +1,103 @@
+{
+  "arrays": {
+    "background_windows_keV": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "background_windows_keV.bin",
+      "rtol": 1e-07,
+      "sha256": "73e03d0835ec5b760f437e1d7074cd42af56a82b13c129fde3fff45e496df3fd",
+      "shape": [
+        5,
+        4
+      ]
+    },
+    "integration_windows_keV": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "integration_windows_keV.bin",
+      "rtol": 1e-07,
+      "sha256": "4f3659664b6b60353eb2427843e33d880474087c7129809fb7cc83307bf9ea59",
+      "shape": [
+        5,
+        2
+      ]
+    },
+    "intensity_background_subtracted": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "intensity_background_subtracted.bin",
+      "rtol": 1e-07,
+      "sha256": "0460b44e5d48709efd88ba594996e4df2a51895a5f9abfd17810c770d4917ba7",
+      "shape": [
+        5
+      ]
+    },
+    "intensity_raw": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "intensity_raw.bin",
+      "rtol": 1e-07,
+      "sha256": "a7699e5f0caffa4d09326dc06a9d8894074888828910b9790392b8725979fb33",
+      "shape": [
+        5
+      ]
+    }
+  },
+  "case": "m7/eds-lines-tm002",
+  "inputs": [
+    {
+      "path": "fixtures/exspy_EDS_SEM_TM002.hspy",
+      "sha256": "b5a5828dc694c7ed6e33745b7022594f48457e33140fb8d7371472fe18b6b359"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "exspy.signals.EDSSEMSpectrum.get_lines_intensity",
+    "package": "exspy",
+    "version": "0.3.2"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "background_line_width": [
+      5.0,
+      2.0
+    ],
+    "beam_energy_keV": 10.0,
+    "elements": [
+      "Al",
+      "C",
+      "Cu",
+      "Mn",
+      "Zr"
+    ],
+    "integration_windows_width": 2.0,
+    "line_energies_keV": {
+      "Al_Ka": 1.4865,
+      "C_Ka": 0.2774,
+      "Cu_La": 0.9295,
+      "Mn_La": 0.63316,
+      "Zr_La": 2.0423
+    },
+    "xray_lines": [
+      "Al_Ka",
+      "C_Ka",
+      "Cu_La",
+      "Mn_La",
+      "Zr_La"
+    ]
+  }
+}
