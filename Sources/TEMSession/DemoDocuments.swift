@@ -11,6 +11,7 @@
 
 import CryptoKit
 import Foundation
+import FormatoCore
 import ImagoCore
 import SpectroCore
 import SpectroEDX
@@ -56,6 +57,27 @@ package nonisolated enum DemoDocuments {
         package static func patternRadius(n: Double) -> Double { n.squareRoot() / (patternLattice * patternDeltaQ) }
         /// A fixed threshold (eV) above the zero-loss peak and below the plasmon, for an exact recovery.
         package static let eelsThresholdEV = 4.0
+        /// The EBSD pattern dataset: a 30 x 40 scan of 60 x 60 uint8 patterns at 1.5 µm, six grains (the nearest of `ebsdGrainSeeds`, row and
+        /// column), each with its own band directions and its own mean level `ebsdGrainLevel(g)`, so the mean-intensity map shows the grains.
+        package static let ebsdScanRows = 30
+        package static let ebsdScanColumns = 40
+        package static let ebsdPatternSide = 60
+        package static let ebsdStepUm = 1.5
+        package static let ebsdBeamKeV = 20.0
+        package static let ebsdSampleTilt = 70.0
+        package static let ebsdBinning = 8
+        package static let ebsdProjectionCenter = SIMD3<Double>(0.5, 0.5, 0.5)
+        package static let ebsdGrainSeeds: [(row: Int, column: Int)] = [(5, 6), (8, 28), (16, 15), (22, 34), (26, 8), (14, 38)]
+        package static func ebsdGrain(row: Int, column: Int) -> Int {
+            var best = 0, bestDistance = Int.max
+            for (g, seed) in ebsdGrainSeeds.enumerated() {
+                let d = (seed.row - row) * (seed.row - row) + (seed.column - column) * (seed.column - column)
+                if d < bestDistance { bestDistance = d; best = g }
+            }
+            return best
+        }
+        /// The level the bands of grain `g` sit on (counts), before the vignetting and the noise.
+        package static func ebsdGrainLevel(_ g: Int) -> Double { 100 + 12 * Double(g) }
     }
 
     /// The regions of `--demo-regions` on an EDX session whose demo image is bound: what a person would draw, as the room's own calls.
@@ -73,6 +95,7 @@ package nonisolated enum DemoDocuments {
     /// A marker for the lattice: a path that opens through the app's own open path and is answered from memory, not from disk.
     package static let latticeURL = URL(fileURLWithPath: "/macTEM-demo/Demo lattice")
     package static let patternURL = URL(fileURLWithPath: "/macTEM-demo/Demo Au pattern")
+    package static let ebsdURL = URL(fileURLWithPath: "/macTEM-demo/Demo EBSD")
     package static func isDemo(_ url: URL) -> Bool { url.path.hasPrefix("/macTEM-demo/") }
 
     // MARK: Shipped demo data
@@ -324,5 +347,48 @@ package nonisolated enum DemoDocuments {
         let image = try LowLossSpectrumImage(nx: n, ny: n, channels: channels, counts: counts,
                                              energyOffsetEV: Truth.eelsOffsetEV, energyScaleEV: Truth.eelsDispersionEV)
         return LoadedEELS(fileName: "Demo EELS", image: image, beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: 10, origin: "generated demo")
+    }
+
+    // MARK: The EBSD pattern dataset
+
+    /// 30 x 40 patterns of 60 x 60 uint8 in memory: each grain's pattern is two cosine band systems at the grain's own angles on the grain's
+    /// own level, dimmed towards the detector's corners, with fixed-seed noise; the geometry is a kikuchipy-like header (1.5 µm step, 20 kV,
+    /// 70° sample tilt, binning 8, the projection centre at the detector's centre) so the Calibration rows read real words.
+    package static func ebsd() throws -> EBSDSession.Document {
+        let rows = Truth.ebsdScanRows, columns = Truth.ebsdScanColumns, side = Truth.ebsdPatternSide
+        var g = Generator(seed: 2026_11_06)
+        var bytes = Data(count: rows * columns * side * side)
+        let half = Double(side - 1) / 2
+        bytes.withUnsafeMutableBytes { raw in
+            let out = raw.bindMemory(to: UInt8.self)
+            for row in 0..<rows {
+                for column in 0..<columns {
+                    let grain = Truth.ebsdGrain(row: row, column: column)
+                    let theta = Double(grain) * .pi / 6 + 0.3, phi = theta + 1.1
+                    let level = Truth.ebsdGrainLevel(grain)
+                    let base = (row * columns + column) * side * side
+                    for y in 0..<side {
+                        for x in 0..<side {
+                            let dx = Double(x) - half, dy = Double(y) - half
+                            let band1 = 30 * cos(2 * .pi * (dx * cos(theta) + dy * sin(theta)) / 12)
+                            let band2 = 20 * cos(2 * .pi * (dx * cos(phi) + dy * sin(phi)) / 9)
+                            let vignette = 1 - 0.4 * (dx * dx + dy * dy) / (2 * half * half)
+                            let value = (level + band1 + band2) * vignette + (g.uniform() - 0.5) * 10
+                            out[base + y * side + x] = UInt8(min(max(value.rounded(), 0), 255))
+                        }
+                    }
+                }
+            }
+        }
+        let detector = EBSDDetectorGeometry(rows: side, columns: side, pixelSize: 70, binning: Truth.ebsdBinning, tilt: 0, azimuthal: 0, twist: 0,
+                                            sampleTilt: Truth.ebsdSampleTilt, projectionCenters: [Truth.ebsdProjectionCenter])
+        let dataset = EBSDDataset(format: .generated, manufacturer: "macTEM", version: "", scanGroup: "Demo", scanGroups: ["Demo"],
+                                  scanRows: rows, scanColumns: columns, patternRows: side, patternColumns: side, dataType: .uint8,
+                                  stepY: Truth.ebsdStepUm, stepX: Truth.ebsdStepUm, detector: detector,
+                                  sem: EBSDSEMHeader(beamEnergyKeV: Truth.ebsdBeamKeV, magnification: 200, workingDistanceMM: 24.7, microscope: "generated demo"),
+                                  crystalMap: EBSDCrystalMapData(euler: [], phaseIDs: [], phases: [EBSDPhase(name: "Ni", spaceGroup: 225, pointGroup: "m-3m", lattice: [3.524, 3.524, 3.524, 90, 90, 90])]),
+                                  patterns: EBSDPatternSource(url: ebsdURL, datasetPath: "", fileShape: [rows, columns, side, side], dataType: .uint8))
+        let access = try EBSDMemoryPatterns(dataset: dataset, bytes: bytes)
+        return EBSDSession.Document(fileName: "Demo EBSD", url: nil, dataset: dataset, access: access)
     }
 }

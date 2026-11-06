@@ -15,6 +15,8 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
     case lattice, diffraction, edx, eels
     /// The shipped SEM-EDS spectrum (`DemoDocuments.Shipped.semEDSSpectrum`), opened through the app's own Open like a file from disk.
     case semSpectrum
+    /// The shipped nickel EBSD scan (`DemoDocuments.Shipped.nickelEBSD`), opened through the app's own Open into the Patterns room.
+    case ebsd
 
     var id: String { rawValue }
 
@@ -26,6 +28,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
         case .edx: "EDX Spectrum Image"
         case .eels: "EELS Spectrum Image"
         case .semSpectrum: DemoDocuments.Shipped.semEDSSpectrum.title
+        case .ebsd: DemoDocuments.Shipped.nickelEBSD.title
         }
     }
 
@@ -36,6 +39,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
         case .diffraction: .diffraction
         case .edx, .semSpectrum: .edx
         case .eels: .eels
+        case .ebsd: .patterns
         }
     }
 }
@@ -43,7 +47,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
 extension AppState {
     /// Opens one generated demo document and shows its room. `regions` draws the UI tests' two rectangles and line on a
     /// spectrum image (`--demo-regions`); the menu never does. Returns the image open's task (the two images load like a
-    /// file); the spectrum images bind at once.
+    /// file, the EBSD dataset's first pattern); the spectrum images bind at once.
     @discardableResult
     func openDemo(_ demo: DemoDocument, regions: Bool = false) -> Task<Void, Never>? {
         var task: Task<Void, Never>?
@@ -62,6 +66,10 @@ extension AppState {
         case .semSpectrum:
             // The file in the bundle, through the Open route (`FileRouting`: a `.hspy` of one spectrum lands in the EDS room).
             guard let url = DemoDocuments.Shipped.semEDSSpectrum.url else { return nil }
+            task = open(urls: [url])
+        case .ebsd:
+            // The file in the bundle, through the Open route (`FileRouting`: an h5ebsd file lands in the Patterns room).
+            guard let url = DemoDocuments.Shipped.nickelEBSD.url else { return nil }
             task = open(urls: [url])
         }
         navigation.workspaceArea = demo.room
