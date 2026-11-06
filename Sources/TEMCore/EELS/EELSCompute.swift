@@ -106,13 +106,6 @@ package enum EELSCompute {
                     values: alignment.shiftEV.map { $0 ?? .nan }, version: version, footer: nil)
     }
 
-    /// The pixel under the pointer, in scan pixels. Equatable, so a hover that stays on the same pixel notifies nobody.
-    package nonisolated struct Pixel: Equatable, Sendable {
-        package var x: Int
-        package var y: Int
-        package init(x: Int, y: Int) { self.x = x; self.y = y }
-    }
-
     /// One reason a pixel has no t/λ and how many pixels have it.
     package nonisolated struct UnavailableReason: Equatable, Sendable {
         package let reason: String

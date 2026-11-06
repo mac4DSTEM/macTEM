@@ -138,7 +138,6 @@ private struct DiffractionCalibrationSection: View {
 private struct DiffractionCrystalSection: View {
     let analysis: DiffractionAnalysis
     @State private var importing = false
-    @Environment(AppState.self) private var appState
 
     var body: some View {
         InspectorSection("Crystal") {

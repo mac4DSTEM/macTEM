@@ -35,12 +35,6 @@ import TEMCore
 
 // MARK: - Values
 
-/// What an open item is. The rooms offered follow the selected item's kind; only images exist so far (spectrum images
-/// and EDX files join as kinds).
-package nonisolated enum OpenItemKind: Sendable, Equatable {
-    case image
-}
-
 /// The committed zoom and pan of an item's pane, in the types `ZoomPan` uses so a round trip changes no bit. The live
 /// gesture values stay in the pane's `@State`; the pane writes here when a gesture ends and starts from here.
 package nonisolated struct ImageViewport: Sendable, Equatable {
@@ -254,7 +248,6 @@ package final class OpenItem: Identifiable {
     }
 
     package nonisolated let id = UUID()
-    package nonisolated let kind = OpenItemKind.image
     /// The file as the sandbox granted it (a name for the row before the read has answered, and what is read again);
     /// after a read that found the file moved, where its bookmark resolved to.
     package fileprivate(set) var url: URL

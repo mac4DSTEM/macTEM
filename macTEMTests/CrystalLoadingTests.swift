@@ -1,7 +1,6 @@
 import XCTest
 import DiffractoCore
 import DiffractoScattering
-import TEMCore
 
 /// A crystal from the bytes of a CIF (R9): the 5 MiB cap, strict UTF-8, the kit's `CIFImport`, a SHA-256 of the bytes as the
 /// fingerprint, and the kit's own error text. The fingerprints are hashlib's (tools/parity/diffraction-room-parity R9 holds the kit's

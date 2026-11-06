@@ -10,7 +10,6 @@ import XCTest
 import FormatoCore
 import FormatoDM
 import TEMCore
-@testable import macTEM
 
 nonisolated final class AcquisitionMetadataDMTests: XCTestCase {
 

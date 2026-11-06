@@ -3,7 +3,6 @@ import ShellLayout
 import ShellControls
 import SwiftUI
 import AppKit
-import TEMCore
 import TEMSession
 
 /// Finder integration stays in App/; the window and its controls stay SwiftUI.

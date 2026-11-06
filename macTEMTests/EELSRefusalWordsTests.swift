@@ -11,8 +11,6 @@ import XCTest
 import SpectroCore
 import SpectroEELS
 import TEMCore
-import TEMSession
-@testable import macTEM
 
 nonisolated final class EELSRefusalWordsTests: XCTestCase {
 

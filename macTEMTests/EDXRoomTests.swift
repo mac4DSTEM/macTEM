@@ -12,7 +12,6 @@ import XCTest
 import UniformTypeIdentifiers
 import SpectroCore
 import SpectroEDX
-import TEMCore
 import TEMSession
 @testable import macTEM
 

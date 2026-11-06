@@ -1,7 +1,6 @@
 import ImagoCore
 import XCTest
 import DiffractoGeometry
-import TEMCore
 
 /// The Diffraction room's reciprocal scale (R3; R4's radius; R5), pinned to tools/parity/diffraction-room-parity's 60-digit
 /// decimal values for Au {111} at 200 kV, calibrated on a ring of radius 80 px at a 0.014 mm pixel (L_px 7510.403862920632,

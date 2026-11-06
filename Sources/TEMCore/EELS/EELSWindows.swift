@@ -191,7 +191,6 @@ package nonisolated enum EELSWindowPlan {
         package let edges: [CoreLossEdge]
         package let windows: EELSEdgeWindows
         package let isEdited: Bool
-        package var key: String { EELSFitCompute.id(master) }
     }
 
     /// The kit's groups: one per element and shell family, ordered by the master's onset (then the element).

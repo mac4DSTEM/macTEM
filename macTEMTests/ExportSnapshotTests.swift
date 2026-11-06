@@ -46,7 +46,6 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
     // MARK: - Fixtures
 
     private static let software = "macTEM 0.1.0 (1)"
-    private static let posix = Locale(identifier: "en_US_POSIX")
     private static let german = Locale(identifier: "de_DE")
 
     private static func axis(_ scale: Double, _ units: String) -> AxisCalibration { AxisCalibration(scale: scale, unit: units, origin: 0) }
