@@ -43,8 +43,8 @@ package nonisolated struct EBSDMasterPattern: Sendable, Equatable {
 
     /// A phase as `_crystaldata2phase` builds it from `CrystalData`, named from the Monte Carlo `xtalname` as the reader does.
     package struct Phase: Sendable, Equatable {
-        /// nil where the file names none (kikuchipy's `None`).
-        package var name: String?
+        /// "None" where the file names none (kikuchipy assigns `None`, orix stores `str(None)`).
+        package var name: String
         package var spaceGroup: Int
         /// The point group of the space group (orix's `get_point_group(number, proper=False)` name, e.g. `m-3m`).
         package var pointGroup: String
@@ -146,7 +146,8 @@ package nonisolated enum EMsoftMasterPatternReader {
             let lattice = try reader.readDataset("/CrystalData/LatticeParameters").doubles()
             let atoms = try Int(requiredDouble(reader, "/CrystalData/Natomtypes"))
             let xtalPath = "\(nml)/MCCLNameList/xtalname"
-            let name: String? = try reader.exists(xtalPath) ? try reader.readStrings(xtalPath).first.map { splitExtension(pathHead($0)) } : nil
+            // Without one kikuchipy sets `phase.name = None`, which orix's setter stores as the text "None".
+            let name = try reader.exists(xtalPath) ? try reader.readStrings(xtalPath).first.map { splitExtension(pathHead($0)) } ?? "None" : "None"
             guard let group = SpaceGroupPointGroup.pointGroup(ofSpaceGroup: spaceGroup) else {
                 throw EBSDReadError(text: "the file's space group \(spaceGroup) is not one of the 230.")
             }

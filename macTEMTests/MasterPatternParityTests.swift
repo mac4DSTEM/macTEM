@@ -144,7 +144,7 @@ nonisolated final class MasterPatternParityTests: XCTestCase {
                 let mp = try EMsoftMasterPatternReader.read(url: url, type: type, projection: projection, hemisphere: hemisphere,
                                                             energy: selection(kwargs))
                 try checkReading(mp, reading, "\(name)/\(key)")
-                XCTAssertNil(mp.phase.name, "\(name)/\(key)")
+                XCTAssertEqual(mp.phase.name, "None", "\(name)/\(key)")
                 SEMAssertParity(mp.values.map { Double($0) }, try ref.array("data_\(key)"))
             }
         }

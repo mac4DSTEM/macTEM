@@ -538,7 +538,8 @@ def _projection_bundle(ctx, case: str, mp_path: Path, mp_label: str, detector: d
     b.value("master_pattern_shape", list(mp.data.shape))
     b.array("euler_deg", np.asarray(euler_deg, dtype=np.float64), **EXACT)
     b.array("quaternions", rot.data.reshape(-1, 4).astype(np.float64), **EXACT, note="orix (a, b, c, d) of the Euler angles")
-    b.array("sample_to_detector", det.sample_to_detector.to_matrix().squeeze().astype(np.float64), **F64)
+    # orix builds the matrix through a quaternion, so an exact zero comes back as ~1e-17: atol at float64 rounding.
+    b.array("sample_to_detector", det.sample_to_detector.to_matrix().squeeze().astype(np.float64), rtol=1e-7, atol=1e-12)
     b.array("gnomonic_bounds", det.gnomonic_bounds.reshape(-1, 4).astype(np.float64), **F64)
     dc = _get_direction_cosines_from_detector(det)
     b.array("direction_cosines", np.asarray(dc, dtype=np.float64).reshape(-1, 3), **F64,
@@ -582,8 +583,10 @@ def case_m6_project_master_pattern_tilted(ctx):
     _projection_bundle(ctx, "m6/project-master-pattern-tilted", DUMMY_MP, "fixtures/" + DUMMY_MP.name,
                        {"shape": (48, 64), "pc": np.asarray(pc), "sample_tilt": 68.0, "tilt": 10.0, "azimuthal": 2.5,
                         "twist": 1.2},
-                       [[200.0, 30.0, 10.0], [15.0, 80.0, 300.0], [90.0, 90.0, 90.0]], ("float32", "uint8"),
-                       energies=(None, 12.4))
+                       [[200.0, 30.0, 10.0], [15.0, 80.0, 300.0], [90.0, 90.0, 90.0]], ("float32",),
+                       energies=(None, 12.4),
+                       note="the dummy master pattern is flat at each energy (its value is the energy), so only the "
+                            "float32 output (no rescale) is compared: a rescale of a flat pattern divides zero by zero")
 
 
 # --------------------------------------------------------------------------------------------------------- driver

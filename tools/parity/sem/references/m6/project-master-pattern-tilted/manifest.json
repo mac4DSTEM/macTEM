@@ -58,30 +58,6 @@
         64
       ]
     },
-    "patterns_uint8": {
-      "atol": 1.0,
-      "dtype": "uint8",
-      "file": "patterns_uint8.bin",
-      "rtol": 0.0,
-      "sha256": "2d07a41ae992770085117e9815300bfd0730745883e60b24aaad5e69dfc087ae",
-      "shape": [
-        3,
-        48,
-        64
-      ]
-    },
-    "patterns_uint8_e12_4": {
-      "atol": 1.0,
-      "dtype": "uint8",
-      "file": "patterns_uint8_e12_4.bin",
-      "rtol": 0.0,
-      "sha256": "2d07a41ae992770085117e9815300bfd0730745883e60b24aaad5e69dfc087ae",
-      "shape": [
-        3,
-        48,
-        64
-      ]
-    },
     "quaternions": {
       "atol": 0.0,
       "dtype": "float64",
@@ -95,7 +71,7 @@
       ]
     },
     "sample_to_detector": {
-      "atol": 0.0,
+      "atol": 1e-12,
       "dtype": "float64",
       "file": "sample_to_detector.bin",
       "rtol": 1e-07,
@@ -163,8 +139,7 @@
       "twist": 1.2
     },
     "dtypes": [
-      "float32",
-      "uint8"
+      "float32"
     ],
     "energies": [
       null,
@@ -175,6 +150,7 @@
       11,
       13,
       13
-    ]
+    ],
+    "note": "the dummy master pattern is flat at each energy (its value is the energy), so only the float32 output (no rescale) is compared: a rescale of a flat pattern divides zero by zero"
   }
 }
