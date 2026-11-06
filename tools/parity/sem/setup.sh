@@ -12,8 +12,11 @@ VENV="${MACTEM_SEM_VENV:-$ROOT/References/sem-venv}"
 LOCK="$HERE/requirements.lock"
 MINOR=3.14
 
-pins() { sed -E 's/#.*$//; s/[[:space:]]+$//; /^$/d' "$LOCK" | LC_ALL=C sort; }
-frozen() { "$VENV/bin/python" -I -m pip freeze --disable-pip-version-check 2>/dev/null | LC_ALL=C sort; }
+# Names normalised as PEP 503 does (lower case, "." and "_" as "-"): pip freeze prints a distribution's own spelling
+# (ImageIO, diffpy.structure, typing_extensions) while the lock holds the normalised one.
+normalize() { awk -F'==' 'NF == 2 { n = tolower($1); gsub(/[._]/, "-", n); print n "==" $2 }'; }
+pins() { sed -E 's/#.*$//; s/[[:space:]]+$//; /^$/d' "$LOCK" | normalize | LC_ALL=C sort; }
+frozen() { "$VENV/bin/python" -I -m pip freeze --disable-pip-version-check 2>/dev/null | normalize | LC_ALL=C sort; }
 
 if [[ -x "$VENV/bin/python" ]] && diff -q <(pins) <(frozen) >/dev/null 2>&1; then
   echo "setup.sh: References/sem-venv is requirements.lock" >&2; echo "$VENV/bin/python"; exit 0
