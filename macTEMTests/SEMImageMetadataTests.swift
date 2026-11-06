@@ -296,6 +296,47 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
 
     // MARK: Helpers
 
+    /// The two SEM TIFFs the parity harness commits (tools/parity/sem/fixtures) read as its bundles `m1/read-sem-tiff-fei-helios`
+    /// and `m1/read-sem-tiff-zeiss` state (hyperspy.api.load over RosettaSciIO 0.15.0, D-SEM-16): the whole file through
+    /// `SEMImageMetadata.read(path:)`, not only its tag bytes.
+    func testTheHarnessBundlesReadAsTheirReference() throws {
+        for (name, vendor) in [("m1/read-sem-tiff-fei-helios", SEMImageMetadata.Vendor.thermo), ("m1/read-sem-tiff-zeiss", .zeiss)] {
+            let ref = try SEMParityReference.load(name)
+            let url = try XCTUnwrap(ref.inputURL(), name)
+            let got = try XCTUnwrap(SEMImageMetadata.read(path: url.path), "\(name): no SEM record")
+            XCTAssertEqual(got.vendor, vendor, name)
+            let axes = try XCTUnwrap(ref.values["axes"] as? [[String: Any]], name)
+            XCTAssertEqual(axes.count, 2, name)
+            XCTAssertEqual(got.imageWidth, axes[0]["size"] as? Int, "\(name) width")
+            XCTAssertEqual(got.imageHeight, axes[1]["size"] as? Int, "\(name) height, the whole frame as RosettaSciIO reads it")
+            XCTAssertEqual(axes[0]["units"] as? String, "m", name)
+            assertClose(got.pixelSizeX, axes[0]["scale"] as? Double, "\(name) x scale")
+            assertClose(got.pixelSizeY, axes[1]["scale"] as? Double, "\(name) y scale")
+            let general = try XCTUnwrap(ref.values["general"] as? [String: Any], name)
+            XCTAssertEqual(got.date, general["date"] as? String, "\(name) date")
+            XCTAssertEqual(got.time, general["time"] as? String, "\(name) time")
+            XCTAssertEqual(got.user, general["authors"] as? String, "\(name) user")
+            let sem = try XCTUnwrap(ref.values["sem_metadata"] as? [String: Any], name)
+            func number(_ v: Any?) -> Double? { (v as? Double) ?? (v as? Int).map(Double.init) }
+            XCTAssertEqual(got.instrument, sem["microscope"] as? String, "\(name) microscope")
+            assertClose(got.beamEnergyKV, number(sem["beam_energy"]), "\(name) beam energy")
+            assertClose(got.workingDistanceMM, number(sem["working_distance"]), "\(name) working distance")
+            assertClose(got.beamCurrentNA, number(sem["beam_current"]), "\(name) beam current")
+            assertClose(got.dwellS, number(sem["dwell_time"]), "\(name) dwell")
+            if let text = sem["magnification"] as? String {
+                XCTAssertEqual(got.magnificationText, text, "\(name) magnification as text")
+            } else {
+                assertClose(got.magnification, number(sem["magnification"]), "\(name) magnification")
+            }
+            let stage = try XCTUnwrap(sem["Stage"] as? [String: Any], name)
+            assertClose(got.stageX, number(stage["x"]), "\(name) stage x")
+            assertClose(got.stageY, number(stage["y"]), "\(name) stage y")
+            assertClose(got.stageZ, number(stage["z"]), "\(name) stage z")
+            assertClose(got.stageRotationDeg, number(stage["rotation"]), "\(name) stage rotation")
+            assertClose(got.stageTiltDeg, number(stage["tilt"]), "\(name) stage tilt")
+        }
+    }
+
     private func assertClose(_ got: Double?, _ want: Double?, _ what: String, file: StaticString = #filePath, line: UInt = #line) {
         switch (got, want) {
         case (nil, nil): break

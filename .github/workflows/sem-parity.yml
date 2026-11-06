@@ -1,0 +1,60 @@
+# SEM parity references — the drift gate of tools/parity/sem on a Linux runner, off the macOS queue.
+#
+# The committed bundles under tools/parity/sem/references are what the pinned Python stack (requirements.lock: kikuchipy,
+# orix, diffsims, HyperSpy, exspy, RosettaSciIO, pyEBSDindex on CPython 3.14) emits for the committed fixtures and the
+# fetched datasets. This job rebuilds that stack, fetches the data (raw.githubusercontent.com; Zenodo items are
+# "manual" and no milestone-1 case needs one), emits every bundle afresh and compares within the committed tolerances
+# (tools/parity/sem/check.py). Red means a reference moved: a stack pin, a fixture, or emit.py changed, and the bundle
+# must be regenerated on purpose (`emit.py --out references`) and committed with the reason.
+#
+# The Swift side (macTEMTests/SEMParity*.swift) runs in the unit job of ci.yml on every PR: it holds the ports to these
+# bundles. This job holds the bundles to the stack. Both red on drift; neither per session on a Mac.
+
+name: SEM parity references
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/parity/sem/**'
+      - '.github/workflows/sem-parity.yml'
+  pull_request:
+    paths:
+      - 'tools/parity/sem/**'
+      - '.github/workflows/sem-parity.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: sem-parity-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  references:
+    name: references reproduce from the pinned stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: tools/parity/sem/requirements.lock
+      - name: Cache the fetched datasets
+        uses: actions/cache@v5
+        with:
+          path: References/sem-data
+          key: sem-data-${{ hashFiles('tools/parity/sem/data-manifest.txt') }}
+      - name: Provision the pinned stack
+        run: tools/parity/sem/setup.sh
+      - name: Fetch the datasets
+        run: tools/parity/sem/fetch-data.sh
+      - name: Fixtures are their checksums
+        working-directory: tools/parity/sem/fixtures
+        run: sha256sum -c SHA256SUMS
+      - name: Planted fixtures regenerate unchanged
+        run: |
+          References/sem-venv/bin/python -I -B tools/parity/sem/make_fixtures.py
+          git diff --exit-code --stat -- tools/parity/sem/fixtures
+      - name: Emit and compare every bundle
+        run: References/sem-venv/bin/python -I -B tools/parity/sem/check.py --require-data

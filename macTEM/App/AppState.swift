@@ -121,6 +121,7 @@ final class AppState {
         if launch.demoStack, let url = try? DemoDocuments.stackFile() { open(urls: [url]) }
         if launch.demoSEMImage, let url = try? DemoDocuments.semImageFile() { open(urls: [url]) }
         if launch.demoSpectrumFile, let url = try? DemoDocuments.spectrumFile() { open(urls: [url]) }
+        if launch.demoSEMSpectrum { openDemo(.semSpectrum) }
         if launch.demoSpectrum {
             edx.bind(DemoDocuments.edx())
             if launch.demoRegions { DemoDocuments.drawRegions(on: edx) }

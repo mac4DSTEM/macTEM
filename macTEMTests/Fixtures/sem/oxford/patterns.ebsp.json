@@ -1,0 +1,63 @@
+{
+ "version": 2,
+ "nPatternsInHeader": 9,
+ "navigationShape": [
+  3,
+  3
+ ],
+ "signalShape": [
+  60,
+  60
+ ],
+ "dtype": "uint8",
+ "stepSizes": [
+  1.5,
+  1.5
+ ],
+ "scanUnit": "um",
+ "map1dID": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ ],
+ "fileOrder": [
+  8,
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7
+ ],
+ "beam_x": [
+  0.0,
+  1.5,
+  3.0,
+  0.0,
+  1.5,
+  3.0,
+  0.0,
+  1.5,
+  3.0
+ ],
+ "beam_y": [
+  0.0,
+  0.0,
+  0.0,
+  1.5,
+  1.5,
+  1.5,
+  3.0,
+  3.0,
+  3.0
+ ],
+ "patterns": "patterns.ebsp.u8"
+}

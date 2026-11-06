@@ -1,0 +1,275 @@
+{
+  "arrays": {
+    "grid_images": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "grid_images.bin",
+      "note": "[grid_row, grid_col, scan_row, scan_col]: sum of the tile's pixels, HyperSpy ROI half-open on the right and bottom",
+      "rtol": 0.0,
+      "sha256": "1fe036022c774733ef9322aa289416e13c7e40d20d8b76f1db500326e8452f8c",
+      "shape": [
+        5,
+        5,
+        3,
+        3
+      ]
+    },
+    "mean_intensity_map": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "mean_intensity_map.bin",
+      "rtol": 1e-07,
+      "sha256": "19bff56393cebf192d79b1c040568d2ea340c5fe3dba26ae279cadfa2a5bf312",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "rgb_image": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "rgb_image.bin",
+      "note": "[scan_row, scan_col, channel]; each channel min-max rescaled to 0..255 then rounded",
+      "rtol": 0.0,
+      "sha256": "baf8aa971d40c90982f333d55c5228e92e56e6d880b501e5b94f5f06fd07f447",
+      "shape": [
+        3,
+        3,
+        3
+      ]
+    },
+    "roi_image": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "roi_image.bin",
+      "rtol": 0.0,
+      "sha256": "8ff30718edfc2657e4bcb625cd83575de0607310c1ab38ed45e3778763d0fb81",
+      "shape": [
+        3,
+        3
+      ]
+    }
+  },
+  "case": "m1/vbse-kikuchipy-h5ebsd",
+  "inputs": [
+    {
+      "path": "fixtures/kikuchipy_h5ebsd_patterns.h5",
+      "sha256": "8f46638f5affa21c08db447b7b472b9a8d02e9e1e70fe11488dc5a50c2b8ee67"
+    }
+  ],
+  "milestone": 1,
+  "reference": {
+    "function": "kikuchipy.imaging.VirtualBSEImager",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "grid_cols": [
+      0.0,
+      12.0,
+      24.0,
+      36.0,
+      48.0,
+      60.0
+    ],
+    "grid_rows": [
+      0.0,
+      12.0,
+      24.0,
+      36.0,
+      48.0,
+      60.0
+    ],
+    "grid_shape": [
+      5,
+      5
+    ],
+    "rgb_tiles": {
+      "b": [
+        2,
+        3
+      ],
+      "g": [
+        2,
+        2
+      ],
+      "r": [
+        2,
+        1
+      ]
+    },
+    "roi_px": {
+      "bottom": 40,
+      "left": 10,
+      "right": 50,
+      "top": 20
+    },
+    "tile_bounds": {
+      "0,0": {
+        "bottom": 12.0,
+        "left": 0.0,
+        "right": 12.0,
+        "top": 0.0
+      },
+      "0,1": {
+        "bottom": 12.0,
+        "left": 12.0,
+        "right": 24.0,
+        "top": 0.0
+      },
+      "0,2": {
+        "bottom": 12.0,
+        "left": 24.0,
+        "right": 36.0,
+        "top": 0.0
+      },
+      "0,3": {
+        "bottom": 12.0,
+        "left": 36.0,
+        "right": 48.0,
+        "top": 0.0
+      },
+      "0,4": {
+        "bottom": 12.0,
+        "left": 48.0,
+        "right": 60.0,
+        "top": 0.0
+      },
+      "1,0": {
+        "bottom": 24.0,
+        "left": 0.0,
+        "right": 12.0,
+        "top": 12.0
+      },
+      "1,1": {
+        "bottom": 24.0,
+        "left": 12.0,
+        "right": 24.0,
+        "top": 12.0
+      },
+      "1,2": {
+        "bottom": 24.0,
+        "left": 24.0,
+        "right": 36.0,
+        "top": 12.0
+      },
+      "1,3": {
+        "bottom": 24.0,
+        "left": 36.0,
+        "right": 48.0,
+        "top": 12.0
+      },
+      "1,4": {
+        "bottom": 24.0,
+        "left": 48.0,
+        "right": 60.0,
+        "top": 12.0
+      },
+      "2,0": {
+        "bottom": 36.0,
+        "left": 0.0,
+        "right": 12.0,
+        "top": 24.0
+      },
+      "2,1": {
+        "bottom": 36.0,
+        "left": 12.0,
+        "right": 24.0,
+        "top": 24.0
+      },
+      "2,2": {
+        "bottom": 36.0,
+        "left": 24.0,
+        "right": 36.0,
+        "top": 24.0
+      },
+      "2,3": {
+        "bottom": 36.0,
+        "left": 36.0,
+        "right": 48.0,
+        "top": 24.0
+      },
+      "2,4": {
+        "bottom": 36.0,
+        "left": 48.0,
+        "right": 60.0,
+        "top": 24.0
+      },
+      "3,0": {
+        "bottom": 48.0,
+        "left": 0.0,
+        "right": 12.0,
+        "top": 36.0
+      },
+      "3,1": {
+        "bottom": 48.0,
+        "left": 12.0,
+        "right": 24.0,
+        "top": 36.0
+      },
+      "3,2": {
+        "bottom": 48.0,
+        "left": 24.0,
+        "right": 36.0,
+        "top": 36.0
+      },
+      "3,3": {
+        "bottom": 48.0,
+        "left": 36.0,
+        "right": 48.0,
+        "top": 36.0
+      },
+      "3,4": {
+        "bottom": 48.0,
+        "left": 48.0,
+        "right": 60.0,
+        "top": 36.0
+      },
+      "4,0": {
+        "bottom": 60.0,
+        "left": 0.0,
+        "right": 12.0,
+        "top": 48.0
+      },
+      "4,1": {
+        "bottom": 60.0,
+        "left": 12.0,
+        "right": 24.0,
+        "top": 48.0
+      },
+      "4,2": {
+        "bottom": 60.0,
+        "left": 24.0,
+        "right": 36.0,
+        "top": 48.0
+      },
+      "4,3": {
+        "bottom": 60.0,
+        "left": 36.0,
+        "right": 48.0,
+        "top": 48.0
+      },
+      "4,4": {
+        "bottom": 60.0,
+        "left": 48.0,
+        "right": 60.0,
+        "top": 48.0
+      }
+    }
+  }
+}
