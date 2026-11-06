@@ -17,6 +17,9 @@ Planted, deterministic, small, committed under fixtures/ with the hand-written t
   special rotations, Bunge angles, cubochoric points, vectors, seeded m-3m orientations, the point-group names orix
   defines, and the Bunge angles of the first 2000 rows of orix-data's `Ti_orientations.ctf` (CC BY 4.0, the head
   committed as macTEMTests/Fixtures/sem/oxford/ti_orientations_head.ctf). `--orientation-only` writes just this file.
+* `ipf_inputs.json`: the inputs of the vector, projection and colour-key bundle (m3/ipf-color-keys): seeded directions
+  with the inverse-pole-figure corners, stereographic points, lattices from triclinic to hexagonal with Miller indices,
+  seeded rotations for the Euler colour key. `--ipf-only` writes just this file.
 
 Run with `python -I -B`.
 """
@@ -137,18 +140,55 @@ def write_orientation_inputs() -> None:
     (FIXTURES / "orientation_inputs.json").write_text(json.dumps(out) + "\n", encoding="utf-8")
 
 
+def write_ipf_inputs() -> None:
+    import numpy as np
+
+    rng = np.random.default_rng(20261107)
+    corners = [(0, 0, 1), (1, 0, 1), (1, 1, 1), (1, 0, 0), (0, 1, 0), (1, 1, 0), (0, 0, -1), (-1, 1, 0), (2, 1, 0),
+               (1, 2, 3), (-1, -1, -1), (0.5, -0.25, 1)]
+    v = rng.normal(size=(388, 3))
+    v /= np.linalg.norm(v, axis=1, keepdims=True)
+    xy = rng.uniform(-1.2, 1.2, size=(48, 2))
+    q = rng.normal(size=(200, 4))
+    q /= np.linalg.norm(q, axis=1, keepdims=True)
+    out = {
+        "note": "Inputs of tools/parity/sem bundle m3/ipf-color-keys: seeded (numpy default_rng 20261107) after the "
+                "first 12 directions, which are the corners of the inverse pole figures and a few hand-picked ones.",
+        "directions": [list(map(float, c)) for c in corners] + v.tolist(),
+        "stereographic_xy": xy.tolist(),
+        "lattices": [
+            {"name": "Ni", "point_group": "m-3m", "abc": [3.52, 3.52, 3.52], "angles": [90, 90, 90]},
+            {"name": "Ti", "point_group": "6/mmm", "abc": [2.95, 2.95, 4.68], "angles": [90, 90, 120]},
+            {"name": "monoclinic", "point_group": "2/m", "abc": [5.1, 6.2, 7.3], "angles": [90, 103.5, 90]},
+            {"name": "triclinic", "point_group": "-1", "abc": [5.1, 6.2, 7.3], "angles": [80, 95, 105]},
+        ],
+        "hkl": [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, 1, 1], [2, 0, 0], [1, -1, 2], [3, 1, 1], [-2, 1, 4], [0, 0, 0]],
+        "uvw": [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, 1, 1], [1, -1, 2], [2, 1, 0], [-1, 3, 2]],
+        "hkil": [[1, 0, -1, 0], [0, 0, 0, 1], [1, 1, -2, 0], [1, 0, -1, 1], [2, -1, -1, 3]],
+        "UVTW": [[2, -1, -1, 0], [0, 0, 0, 1], [1, 1, -2, 3], [1, 0, -1, 0]],
+        "round_xyz": (rng.normal(size=(24, 3))).tolist(),
+        "quaternions": q.tolist(),
+    }
+    (FIXTURES / "ipf_inputs.json").write_text(json.dumps(out) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--orientation-only", action="store_true", help="write orientation_inputs.json only")
+    ap.add_argument("--ipf-only", action="store_true", help="write ipf_inputs.json only")
     args = ap.parse_args()
     FIXTURES.mkdir(exist_ok=True)
+    write_ipf_inputs()
+    if args.ipf_only:
+        print("make_fixtures.py: ipf_inputs.json written")
+        return 0
     write_orientation_inputs()
     if args.orientation_only:
         print("make_fixtures.py: orientation_inputs.json written")
         return 0
     write_ctf()
     write_kikuchipy_dummies()
-    print("make_fixtures.py: planted_oxford.ctf, oxford_h5oina_patterns.h5oina, bruker_h5ebsd_patterns.h5, orientation_inputs.json written")
+    print("make_fixtures.py: planted_oxford.ctf, oxford_h5oina_patterns.h5oina, bruker_h5ebsd_patterns.h5, orientation_inputs.json, ipf_inputs.json written")
     return 0
 
 
