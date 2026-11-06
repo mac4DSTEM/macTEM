@@ -37,6 +37,26 @@ Copyright (C) 2019-2026 the kikuchipy developers, GPL-3.0-or-later, taken under 
 ports in its first lines. The h5ebsd fixtures in macTEMTests/Fixtures/ebsd-* are kikuchipy's in-package test files and
 the files its dummy writers produce (the nickel patterns are CC BY 4.0, Aanes et al.), see docs/data-sources.md.
 
+The EBSD pattern filters in Sources/TEMCore/SEM/PatternWindow.swift, PatternFilters.swift and NeighbourAveraging.swift are
+ports of kikuchipy 0.13.1 (filters.window, filters.fft_barnes, EBSD.fft_filter, EBSD.average_neighbour_patterns),
+GPL-3.0-or-later, taken under GPL-3.0. Sources/TEMCore/SEM/AdaptiveHistogramEqualization.swift ports kikuchipy's
+EBSD.adaptive_histogram_equalization and scikit-image 0.26.0's exposure.equalize_adapthist (https://scikit-image.org;
+skimage/exposure/_adapthist.py Copyright (C) 1994 Karel Zuiderveld, the package Copyright (C) 2009-2022 the scikit-image team), BSD-3-Clause:
+
+    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+    following conditions are met: 1. Redistributions of source code must retain the above copyright notice, this list of
+    conditions and the following disclaimer. 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation and/or other materials provided with the
+    distribution. 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or
+    promote products derived from this software without specific prior written permission. THIS SOFTWARE IS PROVIDED BY
+    THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+    THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+    COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+    BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+    POSSIBILITY OF SUCH DAMAGE.
+
 ================================================================================
 SpectroKit (a Swift package the app is built with)
 ================================================================================

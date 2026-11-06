@@ -345,6 +345,177 @@ def case_m2_background_nickel_large(ctx):
         _background_bundle(ctx, "m2/background-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5")
 
 
+# ------------------------------------------------------------- pattern filters (m2: FFT filter, CLAHE, averaging)
+
+# The FFT filters of kikuchipy's *Pattern processing* guide: the frequency-domain transfer function is the product of a
+# Gaussian lowpass (cutoff 22, width 10) and highpass (cutoff 3, width 2) of the pattern's shape, applied with
+# shift=True (north-star figure F4); the spatial-domain kernels are a 5 x 5 Gaussian (std 1) and a 3 x 4 asymmetric
+# kernel that pins the taps' direction and an even window's offsets (Barnes et al. 2016, kikuchipy.filters.fft_barnes).
+FFT_LOW = {"cutoff": 22, "cutoff_width": 10}
+FFT_HIGH = {"cutoff": 3, "cutoff_width": 2}
+FFT_ASYM = np.array([[0.0, 1.0, 2.0, 3.0], [4.0, 5.0, 6.0, 7.0], [-1.0, -2.0, 0.5, 1.5]])
+# Values before the cast: within 1e-5 relative or 1e-3 grey levels of kikuchipy's (its FFT runs in float32). Cast
+# patterns: within one grey level (kikuchipy truncates float32/fastmath values), the fraction bound in macTEMTests.
+FILTER_VALUES = {"rtol": 1e-5, "atol": 1e-3}
+WINDOW = {"rtol": 1e-12, "atol": 1e-15}
+
+
+def _rescaled(values: np.ndarray) -> np.ndarray:
+    """kikuchipy's `_rescale_with_min_max` to the uint8 range per pattern, before the cast (computed in float64)."""
+    v = values.astype(np.float64)
+    lo, hi = v.min(axis=(-2, -1), keepdims=True), v.max(axis=(-2, -1), keepdims=True)
+    return ((v - lo) / (hi - lo) * 255.0).astype(np.float32)  # float32 on disk: 6e-8 relative, far inside the tolerance
+
+
+def _fft_filter_bundle(ctx, case: str, path: Path, label: str, first_only: bool) -> None:
+    """kikuchipy's EBSD.fft_filter: (a) frequency domain, transfer function lowpass x highpass with shift=True (F4) and
+    the same function with shift=False, (b) spatial domain (Barnes' padded real FFT) with a 5 x 5 Gaussian and a 3 x 4
+    asymmetric kernel; plus the windows themselves (lowpass, highpass, modified Hann, Gaussian, circular)."""
+    import kikuchipy as kp
+    from kikuchipy.filters.fft_barnes import _fft_filter, _fft_filter_setup
+    from kikuchipy.pattern._pattern import fft_filter as freq_filter
+
+    s = kp.load(str(path))
+    if first_only:
+        s = s.inav[:1, :1]
+    shape = s.axes_manager.signal_shape[::-1]
+    b = Bundle(case, 2, "kikuchipy", "kikuchipy.signals.EBSD.fft_filter; kikuchipy.filters.Window", ctx.out)
+    b.input(path, label)
+    raw = np.asarray(s.data)
+    b.array("patterns", raw, **EXACT, note="the input patterns" + (" (pattern (0, 0) only)" if first_only else ""))
+    w_low = kp.filters.Window("lowpass", shape=shape, **FFT_LOW)
+    w_high = kp.filters.Window("highpass", shape=shape, **FFT_HIGH)
+    transfer = np.asarray(w_low * w_high)
+    gauss = kp.filters.Window("gaussian", shape=(5, 5), std=1)
+    b.value("frequency", {"lowpass": FFT_LOW, "highpass": FFT_HIGH, "shape": list(shape)})
+    b.value("spatial", {"gaussian": {"shape": [5, 5], "std": 1}, "asymmetric": FFT_ASYM.tolist()})
+    b.array("window_lowpass", np.asarray(w_low), **WINDOW)
+    b.array("window_highpass", np.asarray(w_high), **WINDOW)
+    b.array("transfer_function", transfer, **WINDOW)
+    b.array("window_gaussian_5x5_std1", np.asarray(gauss), **WINDOW)
+    b.array("window_modified_hann_60", np.asarray(kp.filters.Window("modified_hann", shape=(shape[1],))), **WINDOW)
+    b.array("window_circular_5x7", np.asarray(kp.filters.Window("circular", shape=(5, 7))), **EXACT)
+    flat = raw.reshape(-1, *shape)
+    runs = [("frequency_shift", dict(transfer_function=transfer, function_domain="frequency", shift=True)),
+            ("frequency_noshift", dict(transfer_function=transfer, function_domain="frequency", shift=False)),
+            ("spatial_gaussian", dict(transfer_function=np.asarray(gauss), function_domain="spatial")),
+            ("spatial_asymmetric", dict(transfer_function=FFT_ASYM, function_domain="spatial"))]
+    for name, kwargs in runs:
+        out = s.fft_filter(inplace=False, show_progressbar=False, **kwargs)
+        b.array(name, np.asarray(out.data), **U8)
+        if kwargs["function_domain"] == "frequency":
+            vals = [freq_filter(p.astype(np.float32), transfer_function=transfer, shift=kwargs["shift"]) for p in flat]
+        else:
+            k = kwargs["transfer_function"]
+            fft_shape, tf, ob, oa = _fft_filter_setup(shape, k)
+            vals = [_fft_filter(p.astype(np.float32), tf, fft_shape, k.shape, ob, oa) for p in flat]
+        b.array(f"{name}_values", _rescaled(np.stack(vals)).reshape(raw.shape), **FILTER_VALUES,
+                note="kikuchipy's filtered pattern rescaled to 0..255 before the uint8 cast")
+    b.write()
+    ctx.done(case)
+
+
+def case_m2_fft_filter_small(ctx):
+    _fft_filter_bundle(ctx, "m2/fft-filter-kikuchipy-h5ebsd", FIXTURES / "kikuchipy_h5ebsd_patterns.h5",
+                       "fixtures/kikuchipy_h5ebsd_patterns.h5", first_only=False)
+
+
+def case_m2_fft_filter_nickel_large(ctx):
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    if ctx.have(p, "m2/fft-filter-nickel-ebsd-large"):
+        _fft_filter_bundle(ctx, "m2/fft-filter-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5",
+                           first_only=True)
+
+
+# CLAHE: kikuchipy's default (kernel = pattern shape / 4, clip limit 0, 128 bins) and two others that exercise the
+# clip-limit redistribution, a non-square kernel and the bin count. scikit-image's float32 accumulation is reproduced
+# exactly, so the uint8 patterns are exact.
+CLAHE_RUNS = [("default", None, 0.0, 128), ("k10x12_clip0p01_nbins64", (10, 12), 0.01, 64),
+              ("k7_clip0p05_nbins256", (7, 7), 0.05, 256)]
+
+
+def _clahe_bundle(ctx, case: str, path: Path, label: str, first_only: bool) -> None:
+    """kikuchipy's EBSD.adaptive_histogram_equalization (scikit-image's equalize_adapthist, then rescaled to uint8)."""
+    import kikuchipy as kp
+
+    s = kp.load(str(path))
+    if first_only:
+        s = s.inav[:1, :1]
+    b = Bundle(case, 2, "kikuchipy", "kikuchipy.signals.EBSD.adaptive_histogram_equalization (skimage.exposure.equalize_adapthist)", ctx.out)
+    b.input(path, label)
+    b.array("patterns", np.asarray(s.data), **EXACT, note="the input patterns" + (" (pattern (0, 0) only)" if first_only else ""))
+    runs = {}
+    for name, kernel, clip, nbins in CLAHE_RUNS:
+        out = s.adaptive_histogram_equalization(kernel_size=kernel, clip_limit=clip, nbins=nbins, inplace=False,
+                                                show_progressbar=False)
+        runs[name] = {"kernel_size": list(kernel) if kernel else "pattern shape // 4", "clip_limit": clip, "nbins": nbins}
+        b.array(name, np.asarray(out.data), **EXACT)
+    b.value("runs", runs)
+    b.write()
+    ctx.done(case)
+
+
+def case_m2_clahe_small(ctx):
+    _clahe_bundle(ctx, "m2/clahe-kikuchipy-h5ebsd", FIXTURES / "kikuchipy_h5ebsd_patterns.h5",
+                  "fixtures/kikuchipy_h5ebsd_patterns.h5", first_only=False)
+
+
+def case_m2_clahe_nickel_large(ctx):
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    if ctx.have(p, "m2/clahe-nickel-ebsd-large"):
+        _clahe_bundle(ctx, "m2/clahe-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5", first_only=True)
+
+
+# Neighbour averaging: kikuchipy's default circular 3 x 3 window, the 3 x 3 Gaussian (std 1) of its guide, and a 1 x 3
+# rectangular window (along the scan rows only; upstream's 1D window shape fails on a chunked 2D map, so the 2D form). Map borders read zeros; each pattern divided by the sum
+# of the window weights inside the map (an integer: SciPy's correlate of ones into an int array truncates).
+AVERAGE_RUNS = [("circular_3x3", "circular", (3, 3), {}), ("gaussian_3x3_std1", "gaussian", (3, 3), {"std": 1}),
+                ("rectangular_1x3", "rectangular", (1, 3), {})]
+
+
+def _average_bundle(ctx, case: str, path: Path, label: str, corner: int | None) -> None:
+    """kikuchipy's EBSD.average_neighbour_patterns. For a whole scan, the input's (corner + 1)^2 corner and the averaged
+    corner^2 corner (which reads no pattern beyond the input corner for a 3-wide window)."""
+    import kikuchipy as kp
+    from scipy.ndimage import correlate
+
+    s = kp.load(str(path))
+    b = Bundle(case, 2, "kikuchipy", "kikuchipy.signals.EBSD.average_neighbour_patterns", ctx.out)
+    b.input(path, label)
+    data = np.asarray(s.data)
+    cut = (slice(None), slice(None)) if corner is None else (slice(0, corner), slice(0, corner))
+    inp = data if corner is None else data[: corner + 1, : corner + 1]
+    b.array("patterns", inp, **EXACT, note="the input patterns" + ("" if corner is None else f" (scan rows and columns 0..{corner})"))
+    runs = {}
+    for name, window, wshape, kw in AVERAGE_RUNS:
+        w = np.asarray(kp.filters.Window(window, shape=wshape, **kw))
+        out = s.average_neighbour_patterns(window=window, window_shape=wshape, inplace=False, show_progressbar=False, **kw)
+        w2 = w
+        sums = correlate(np.ones(data.shape[:2], dtype=int), weights=w2, mode="constant")
+        vals = correlate(data.astype(np.float32), weights=w2.reshape(w2.shape + (1, 1)), mode="constant")
+        vals = _rescaled(vals.astype(np.float64) / sums[..., None, None])
+        runs[name] = {"window": window, "window_shape": list(wshape), **kw}
+        b.array(f"window_{name}", w, **WINDOW)
+        b.array(f"window_sums_{name}", sums[cut].astype(np.int64), **EXACT)
+        b.array(name, np.asarray(out.data)[cut], **U8)
+        b.array(f"{name}_values", vals[cut], rtol=1e-5, atol=1e-4,
+                note="kikuchipy's steps (float32 correlate, window sums, min-max) before the uint8 cast")
+    b.value("runs", runs)
+    b.write()
+    ctx.done(case)
+
+
+def case_m2_average_small(ctx):
+    _average_bundle(ctx, "m2/average-neighbours-kikuchipy-h5ebsd", FIXTURES / "kikuchipy_h5ebsd_patterns.h5",
+                    "fixtures/kikuchipy_h5ebsd_patterns.h5", corner=None)
+
+
+def case_m2_average_nickel_large(ctx):
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    if ctx.have(p, "m2/average-neighbours-nickel-ebsd-large"):
+        _average_bundle(ctx, "m2/average-neighbours-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5", corner=3)
+
+
 # --------------------------------------------------------------------------------------------- SEM-EDS (m1 read, m7)
 
 
