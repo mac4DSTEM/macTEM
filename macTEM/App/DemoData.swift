@@ -1,8 +1,9 @@
 //
 //  DemoData.swift
-//  Role: Help > Open Demo Data. The generated demo documents (TEMSession's DemoDocuments) opened from the menu, so anyone
-//        without a microscope file, App Review first, can try every room (macTEM#105). The launch options for the UI tests
-//        open the same documents through `openDemo`, so the menu and the tests cannot drift apart.
+//  Role: Help > Open Demo Data and the welcome canvas's Try Demo Data. The generated demo documents (TEMSession's DemoDocuments) and
+//        the shipped ones (`DemoDocuments.Shipped`, real licensed files in the bundle) opened from the menu, so anyone without a
+//        microscope file, App Review first, can try every room (macTEM#105). The launch options for the UI tests open the same
+//        documents through `openDemo`, so the menu and the tests cannot drift apart.
 //
 
 import Foundation
@@ -12,6 +13,8 @@ import ShellSpectroscopy
 
 nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
     case lattice, diffraction, edx, eels
+    /// The shipped SEM-EDS spectrum (`DemoDocuments.Shipped.semEDSSpectrum`), opened through the app's own Open like a file from disk.
+    case semSpectrum
 
     var id: String { rawValue }
 
@@ -22,6 +25,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
         case .diffraction: "Au Diffraction Pattern"
         case .edx: "EDX Spectrum Image"
         case .eels: "EELS Spectrum Image"
+        case .semSpectrum: DemoDocuments.Shipped.semEDSSpectrum.title
         }
     }
 
@@ -30,7 +34,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .lattice: .image
         case .diffraction: .diffraction
-        case .edx: .edx
+        case .edx, .semSpectrum: .edx
         case .eels: .eels
         }
     }
@@ -55,6 +59,10 @@ extension AppState {
             guard let loaded = try? DemoDocuments.eels() else { return nil }
             eels.bind(loaded)
             if regions { DemoDocuments.drawRegions(on: eels) }
+        case .semSpectrum:
+            // The file in the bundle, through the Open route (`FileRouting`: a `.hspy` of one spectrum lands in the EDS room).
+            guard let url = DemoDocuments.Shipped.semEDSSpectrum.url else { return nil }
+            task = open(urls: [url])
         }
         navigation.workspaceArea = demo.room
         return task
