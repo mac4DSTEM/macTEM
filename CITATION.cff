@@ -12,7 +12,7 @@ authors:
 version: 1.0.0
 date-released: 2026-10-23
 license: GPL-3.0-only
-repository-code: https://github.com/mac4DSTEM/macTEM
+repository-code: https://github.com/macEMSuite/macTEM
 keywords:
   - transmission electron microscopy
   - electron diffraction

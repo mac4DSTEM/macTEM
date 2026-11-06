@@ -10,6 +10,6 @@ How to try it:
 No account, sign-in, purchase or network connection is needed anywhere in the app. macTEM makes no network requests.
 
 Open source:
-macTEM is free software under GPL-3.0. Source: https://github.com/mac4DSTEM/macTEM
+macTEM is free software under GPL-3.0. Source: https://github.com/macEMSuite/macTEM
 
 Contact: mail@mac4dstem.com
