@@ -61,6 +61,17 @@ Kikuchipy *Pattern processing*: the static and dynamic background figures above 
 the FFT filters, and the moving-screen projection-centre estimate on `si_in.h5` (bundles to be emitted with the
 phase, same stack).
 
+Figure F5 and the detector geometry under it (`tools/parity/sem/detector_cases.py`, no download needed: the
+calibration reads only the marked points and the 480 x 480 shape):
+
+| Claim | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| F5: moving-screen PC of `si_in` / `si_out5mm` (Δz 5 mm), the tutorial's three zone axes (0.5123, 0.8606, DD 21.65 mm; PCz 0.5012 at 90 µm px) and the tests' five points (0.5054, 0.8624, 0.5036), every estimate, its spread | `PCCalibrationMovingScreen` | `m2/pc-moving-screen-si` | rtol 1e-5 |
+| Every PC convention name read to Bruker and written back (TSL, Oxford, EMsoft 4 and 5), seven detector shapes, 2 x 3 PC maps | `EBSDDetector(pc, convention)`, `pc_tsl`, `pc_oxford`, `pc_emsoft` | `m2/detector-pc-conventions` | rtol 1e-7 (round trip 1e-12 in the Swift test) |
+| Sizes, gnomonic bounds, pixel scales, r_max, specimen-scintillator distance; pixel <-> gnomonic coordinates | `gnomonic_bounds`, `x_scale`, `y_scale`, `r_max`, `to_gnomonic_coords`, `to_pixel_coords` | `m2/detector-gnomonic` | rtol 1e-7 |
+| Sample-to-detector rotation, kikuchipy's test angles and a grid | `sample_to_detector` | `m2/detector-sample-to-detector` | rtol 1e-7, atol 1e-12 |
+| TKD set-ups (sample tilt −20° to 10°, detector tilt −20° to 5°) | `EBSDDetector` with TKD angles | `m2/detector-tkd-geometry` | rtol 1e-7, atol 1e-12 |
+
 ### Figure 3 (milestone 3): orientation maths
 
 orix: rotations, quaternions, the m-3m symmetry of Ni, misorientation and IPF colour keys on the file's crystal map.

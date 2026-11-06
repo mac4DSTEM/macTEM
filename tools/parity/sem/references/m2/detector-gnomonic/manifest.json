@@ -1,0 +1,229 @@
+{
+  "arrays": {
+    "coords_back": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "coords_back.bin",
+      "note": "row, col, row, col, point, (y, x): kikuchipy broadcasts gn per PC again",
+      "rtol": 1e-07,
+      "sha256": "8b479bc6159bfe533de00c89b2da065182e07b83f3f667740e29b25bcbf1da0d",
+      "shape": [
+        2,
+        2,
+        5,
+        2
+      ]
+    },
+    "coords_back_same_pc": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "coords_back_same_pc.bin",
+      "note": "row, col, point, (y, x)",
+      "rtol": 1e-07,
+      "sha256": "8b479bc6159bfe533de00c89b2da065182e07b83f3f667740e29b25bcbf1da0d",
+      "shape": [
+        2,
+        2,
+        5,
+        2
+      ]
+    },
+    "coords_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "coords_gnomonic.bin",
+      "note": "row, col, point, (gy, gx)",
+      "rtol": 1e-07,
+      "sha256": "a56465e0e78553ebca9184b19841d46292c7d67b648030598d7b574efb548b2b",
+      "shape": [
+        2,
+        2,
+        5,
+        2
+      ]
+    },
+    "coords_pc": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "coords_pc.bin",
+      "rtol": 1e-07,
+      "sha256": "6b27ce7a0730ad53fbcaafb269e18dc186a4bcfb065f6540eaa5c2dc3f485561",
+      "shape": [
+        2,
+        2,
+        3
+      ]
+    },
+    "coords_pixel": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "coords_pixel.bin",
+      "rtol": 1e-07,
+      "sha256": "3a71dbf8f682f1acc48cf1c1e5ec7c1ee78228e920f8e7c485ccf156a4c4d547",
+      "shape": [
+        5,
+        2
+      ]
+    },
+    "gnomonic_bounds": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "gnomonic_bounds.bin",
+      "note": "detector, row, col, (x_min, x_max, y_min, y_max)",
+      "rtol": 1e-07,
+      "sha256": "eb27b494d711b0f7eef267199c5c2b8b71ce6514fe0d1428fafe72f668638f06",
+      "shape": [
+        7,
+        2,
+        3,
+        4
+      ]
+    },
+    "gnomonic_scale": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "gnomonic_scale.bin",
+      "note": "detector, row, col, (x_scale, y_scale)",
+      "rtol": 1e-07,
+      "sha256": "83e093efbd092413c39318dc63b824d1645b5dbab7a3524eb4886b6c667ba764",
+      "shape": [
+        7,
+        2,
+        3,
+        2
+      ]
+    },
+    "pcs_bruker": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pcs_bruker.bin",
+      "rtol": 1e-07,
+      "sha256": "28009032df989cd5d8b695f13bce502642d12401590157da71bbe5664025ab64",
+      "shape": [
+        2,
+        3,
+        3
+      ]
+    },
+    "r_max": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "r_max.bin",
+      "note": "detector, row, col; kikuchipy's corner list (lower left as x_min, y_min)",
+      "rtol": 1e-07,
+      "sha256": "83e3c952bd73f0259d117f1d2c2925a6bf8f19961a374ad00fe102b60813e744",
+      "shape": [
+        7,
+        2,
+        3
+      ]
+    },
+    "sizes": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "sizes.bin",
+      "note": "detector, (height, width, px_size_binned, unbinned rows, unbinned cols)",
+      "rtol": 1e-07,
+      "sha256": "d823b04cf49762de7a634dd22fab609a8d10b7537815e1064c677fafb5a42177",
+      "shape": [
+        7,
+        5
+      ]
+    },
+    "specimen_scintillator_distance": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "specimen_scintillator_distance.bin",
+      "rtol": 1e-07,
+      "sha256": "6c992892ac9fe4c9a4365762228b56d209cecfe6e4cc799476b6c138a9e621b5",
+      "shape": [
+        7,
+        2,
+        3
+      ]
+    }
+  },
+  "case": "m2/detector-gnomonic",
+  "inputs": [],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.detectors.EBSDDetector gnomonic_bounds / x_scale / y_scale / r_max / to_gnomonic_coords / to_pixel_coords",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "detectors": [
+      {
+        "binning": 1,
+        "px_size": 1.0,
+        "shape": [
+          60,
+          60
+        ]
+      },
+      {
+        "binning": 8,
+        "px_size": 59.2,
+        "shape": [
+          60,
+          80
+        ]
+      },
+      {
+        "binning": 2,
+        "px_size": 70.0,
+        "shape": [
+          480,
+          640
+        ]
+      },
+      {
+        "binning": 1,
+        "px_size": 1.0,
+        "shape": [
+          1,
+          1
+        ]
+      },
+      {
+        "binning": 1,
+        "px_size": 6.5,
+        "shape": [
+          1024,
+          1244
+        ]
+      },
+      {
+        "binning": 4,
+        "px_size": 30.0,
+        "shape": [
+          240,
+          200
+        ]
+      },
+      {
+        "binning": 1,
+        "px_size": 2.5,
+        "shape": [
+          510,
+          510
+        ]
+      }
+    ]
+  }
+}

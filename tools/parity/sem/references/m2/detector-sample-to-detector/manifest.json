@@ -1,0 +1,65 @@
+{
+  "arrays": {
+    "angles_deg": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "angles_deg.bin",
+      "note": "(tilt, azimuthal, twist, sample_tilt)",
+      "rtol": 1e-07,
+      "sha256": "88571c29df0cf5541dd7243fc9aee6f8f2075bfada639c34ae8f55b255c8b79b",
+      "shape": [
+        9,
+        4
+      ]
+    },
+    "matrix": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "matrix.bin",
+      "note": "case, row (detector X, Y, Z), sample (x, y, z)",
+      "rtol": 1e-07,
+      "sha256": "d5468aecdd9ecb57462c2e2e8bbcefa02b8c60749f57127c245a05b78d89b548",
+      "shape": [
+        9,
+        3,
+        3
+      ]
+    },
+    "quaternion_orix": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "quaternion_orix.bin",
+      "note": "orix Rotation.from_matrix of each matrix, (a, b, c, d); kikuchipy's test values for the first three",
+      "rtol": 1e-07,
+      "sha256": "aa4452af982260985d80f37ad832ee623b5abf6ced0d610ae28b884f371fc145",
+      "shape": [
+        9,
+        4
+      ]
+    }
+  },
+  "case": "m2/detector-sample-to-detector",
+  "inputs": [],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.detectors.EBSDDetector.sample_to_detector",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {}
+}

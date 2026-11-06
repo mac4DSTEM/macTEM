@@ -51,3 +51,24 @@ Upstream's own tests compare hand-written 3 x 3 uint8 answers exactly (`test_rem
   path behind the same parity test is phase 2's optimisation (P2-01, the Patterns room's processing).
 - Figure F2 (`docs/sem/north-star.md`): `tools/parity/sem/background_figure.py` draws the reference pattern beside the one the
   unit test `testFigureF2PatternZeroAfterStaticAndDynamicBackground` writes to `$TMPDIR/macTEM-F2-ours.u8` (and prints as base64).
+
+## Detector geometry and projection-centre calibration
+
+References: `tools/parity/sem/detector_cases.py` (kikuchipy 0.13.1), bundles `m2/detector-*` and `m2/pc-moving-screen-si`,
+tests in `SEMDetectorGeometryParityTests`. kikuchipy computes these in float64 (the rotation and the coordinate maps under
+numba fastmath); its own tests compare at `atol=1e-6` (gnomonic ranges), `1e-4` (rotations as quaternions, the moving-screen
+PC) and `np.allclose` defaults (coordinates).
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `EBSDDetectorGeometry.Convention(kikuchipyName:)`, `init(…, convention:)`, `brukerCenter`, `center(_:in:)`, `centers(in:)` | `EBSDDetector(pc, convention)`, `pc_tsl`, `pc_oxford`, `pc_emsoft(4/5)` | `testEveryConventionName…`, `testBrukerWritten…`, `testConventionRoundTrip…` | rtol 1e-7, atol 1e-12; round trip 1e-12 | aliases edax/amatek → TSL, aztec → Oxford, emsoft = emsoft5 |
+| `height`, `width`, `binnedPixelSize`, `unbinnedShape`, `specimenScintillatorDistance` | same names | `testSizesGnomonicBounds…` | rtol 1e-7 | |
+| `gnomonicBounds`, `gnomonicScale`, `rMax` | `gnomonic_bounds`, `x_scale`/`y_scale`, `r_max` (Britton et al. 2016) | `testSizesGnomonicBounds…` | rtol 1e-7 | `rMax` keeps kikuchipy's corner list (D-SEM-28) |
+| `gnomonic(pixel:pc:)`, `pixel(gnomonic:pc:)` | `to_gnomonic_coords`, `to_pixel_coords` | `testPixelToGnomonicAndBack…` | rtol 1e-7, atol 1e-12 | (y, x) order as kikuchipy |
+| `sampleToDetector`, `detectorToSample`, `FrameRotation` | `sample_to_detector` (`_sample_to_detector_matrix`) | `testSampleToDetector…`, `testAzimuthalTurnsAboutDetectorY` | rtol 1e-7, atol 1e-12 | the matrix, rows = detector axes in sample coordinates; quaternions come with the orientation core (P3-01) |
+| TKD set-ups | `EBSDDetector` with TKD angles | `testTKDGeometryAsKikuchipy` | rtol 1e-7, atol 1e-12 | D-SEM-29 |
+| `PCCalibrationMovingScreen` (Hjelen et al. 1991) | `PCCalibrationMovingScreen` | `testMovingScreenPCOfSiliconAsKikuchipy` (figure F5) | rtol 1e-5 | line crossings in closed form where kikuchipy calls `np.linalg.det`; `standardDeviation` is numpy's `std` of `pc_all` |
+
+- Figure F5 (`docs/sem/north-star.md`): `tools/parity/sem/detector_figure.py` draws si_in and si_out5mm with the marked
+  points, the out → in lines and the PC, kikuchipy's beside the one `testMovingScreenPCOfSiliconAsKikuchipy` prints
+  (`F5 ours …` in the test log, passed with `--ours`).

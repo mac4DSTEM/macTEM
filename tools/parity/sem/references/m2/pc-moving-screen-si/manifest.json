@@ -1,0 +1,716 @@
+{
+  "arrays": {
+    "points_in": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "points_in.bin",
+      "note": "(x, y) px in si_in (0 mm)",
+      "rtol": 1e-07,
+      "sha256": "282a22753288a5e26a001c2bdcc6a5c5c005190ac992dbe46475006cf53180e5",
+      "shape": [
+        5,
+        2
+      ]
+    },
+    "points_out": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "points_out.bin",
+      "note": "(x, y) px in si_out5mm",
+      "rtol": 1e-07,
+      "sha256": "6ea59a4b1cf12707a775f271fdd3aae12cb0c7c626fba0e431b1b60c39b10398",
+      "shape": [
+        5,
+        2
+      ]
+    },
+    "tests-3-tsl__line_lengths": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-3-tsl__line_lengths.bin",
+      "rtol": 1e-05,
+      "sha256": "1fdcab222fab10ed905fdbfc0090014b6c2f29101b5505c3d4c856c12a44f175",
+      "shape": [
+        2,
+        3
+      ]
+    },
+    "tests-3-tsl__pc": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-3-tsl__pc.bin",
+      "rtol": 1e-05,
+      "sha256": "036a347328a465df79a6ca3c3f48a4af739bfc27ffdf7b1f59e9f98e2866bdfb",
+      "shape": [
+        3
+      ]
+    },
+    "tests-3-tsl__pc_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-3-tsl__pc_all.bin",
+      "note": "one row per point pair whose intersection is on the detector",
+      "rtol": 1e-05,
+      "sha256": "93242c9f4182f4ad3848c646728d1515b49f79a60516e3e338e8768d8b38e804",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "tests-3-tsl__pc_std": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-3-tsl__pc_std.bin",
+      "note": "population std of pc_all (the tutorial's uncertainty)",
+      "rtol": 1e-05,
+      "sha256": "3263c464e51b2d62d96269f16c05b5b3e0eb23a55cf3e03aa45d069be4c2a69f",
+      "shape": [
+        3
+      ]
+    },
+    "tests-3-tsl__pxy": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-3-tsl__pxy.bin",
+      "rtol": 1e-05,
+      "sha256": "382a2f8a3b2a2338205ce649efb764f581c60e4601b76ee0f2ed47d95f355d23",
+      "shape": [
+        2
+      ]
+    },
+    "tests-3-tsl__pxy_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-3-tsl__pxy_all.bin",
+      "rtol": 1e-05,
+      "sha256": "020c5667d7e5e46026dce3e1b62ebfec8cbec51cdefa4e4fd0c0ede4d9164f87",
+      "shape": [
+        3,
+        2
+      ]
+    },
+    "tests-3-tsl__within": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "tests-3-tsl__within.bin",
+      "rtol": 0.0,
+      "sha256": "75c8fd04ad916aec3e3d5cb76a452b116b3d4d0912a0a485e9fb8e3d240e210c",
+      "shape": [
+        3
+      ]
+    },
+    "tests-4-tsl__line_lengths": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-4-tsl__line_lengths.bin",
+      "rtol": 1e-05,
+      "sha256": "a9f66a304d26c030d953be006be7d713b6e4f7b7820312bab4d5cff6ab007bfb",
+      "shape": [
+        2,
+        6
+      ]
+    },
+    "tests-4-tsl__pc": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-4-tsl__pc.bin",
+      "rtol": 1e-05,
+      "sha256": "58ab91ceba01762d462bbf4f25432e19ec5239f70a128880d58747abc5faa82d",
+      "shape": [
+        3
+      ]
+    },
+    "tests-4-tsl__pc_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-4-tsl__pc_all.bin",
+      "note": "one row per point pair whose intersection is on the detector",
+      "rtol": 1e-05,
+      "sha256": "a1dcb16b84732c760e17318615adb3f96d3a739dabc8d1c9c3a47057437ccdf4",
+      "shape": [
+        6,
+        3
+      ]
+    },
+    "tests-4-tsl__pc_std": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-4-tsl__pc_std.bin",
+      "note": "population std of pc_all (the tutorial's uncertainty)",
+      "rtol": 1e-05,
+      "sha256": "e626070c36575650dbaf429085781a187230efc8632fdae71fceb0b1289bc5d1",
+      "shape": [
+        3
+      ]
+    },
+    "tests-4-tsl__pxy": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-4-tsl__pxy.bin",
+      "rtol": 1e-05,
+      "sha256": "74d01c4e80af991ca03799bd760cb29247bfdfbc9e0a1b85afa5f4b94a48f996",
+      "shape": [
+        2
+      ]
+    },
+    "tests-4-tsl__pxy_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-4-tsl__pxy_all.bin",
+      "rtol": 1e-05,
+      "sha256": "44dac9e8e6148ff03b74e3d72f093cdd0bdc4c6393318afbdce510ac58e3cf49",
+      "shape": [
+        6,
+        2
+      ]
+    },
+    "tests-4-tsl__within": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "tests-4-tsl__within.bin",
+      "rtol": 0.0,
+      "sha256": "dfea2964b5deedea7b1ef077de529c3959e6788bdbb3441e70c77a1ae875bb48",
+      "shape": [
+        6
+      ]
+    },
+    "tests-5-binned__line_lengths": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-binned__line_lengths.bin",
+      "rtol": 1e-05,
+      "sha256": "85315f43b7b421cc1886aef75b9158f09b824b0b5d72c6ae18ce02b9127d7b79",
+      "shape": [
+        2,
+        10
+      ]
+    },
+    "tests-5-binned__pc": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-binned__pc.bin",
+      "rtol": 1e-05,
+      "sha256": "215ce2f474167e30c94208fbcdb9421ecc2ea737f36a6c701d1b06efe02b2498",
+      "shape": [
+        3
+      ]
+    },
+    "tests-5-binned__pc_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-binned__pc_all.bin",
+      "note": "one row per point pair whose intersection is on the detector",
+      "rtol": 1e-05,
+      "sha256": "5b2d349e7e63ca12f90456b58d0f2a40bbe37c82c7fc70ccfe9240fcddf46733",
+      "shape": [
+        10,
+        3
+      ]
+    },
+    "tests-5-binned__pc_std": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-binned__pc_std.bin",
+      "note": "population std of pc_all (the tutorial's uncertainty)",
+      "rtol": 1e-05,
+      "sha256": "638892ff8705b7b391b8b9be685870ed3ab1d15f56a3a963b804dab7a0c0a987",
+      "shape": [
+        3
+      ]
+    },
+    "tests-5-binned__pxy": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-binned__pxy.bin",
+      "rtol": 1e-05,
+      "sha256": "97e9f7d4878b30a8fa9352bb2cc6113676fb51627dae3b5c16f59add500f3929",
+      "shape": [
+        2
+      ]
+    },
+    "tests-5-binned__pxy_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-binned__pxy_all.bin",
+      "rtol": 1e-05,
+      "sha256": "b70a098fab45a651ed1361f378443979091625857391910371a6b53f9029cf50",
+      "shape": [
+        10,
+        2
+      ]
+    },
+    "tests-5-binned__within": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "tests-5-binned__within.bin",
+      "rtol": 0.0,
+      "sha256": "ffadf8d89d37b3b55fe1847b513cf92e3be87e4c168708c7851845df96fb36be",
+      "shape": [
+        10
+      ]
+    },
+    "tests-5-bruker__line_lengths": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-bruker__line_lengths.bin",
+      "rtol": 1e-05,
+      "sha256": "85315f43b7b421cc1886aef75b9158f09b824b0b5d72c6ae18ce02b9127d7b79",
+      "shape": [
+        2,
+        10
+      ]
+    },
+    "tests-5-bruker__pc": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-bruker__pc.bin",
+      "rtol": 1e-05,
+      "sha256": "5e5c31c482cc80de2f7ab557692edf37b41973fa580fedb9c517894224bc9fe3",
+      "shape": [
+        3
+      ]
+    },
+    "tests-5-bruker__pc_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-bruker__pc_all.bin",
+      "note": "one row per point pair whose intersection is on the detector",
+      "rtol": 1e-05,
+      "sha256": "d71c27309da1fbe024c27301290dfb2e86315b48b35ca84e7bf1f34afe906ec9",
+      "shape": [
+        10,
+        3
+      ]
+    },
+    "tests-5-bruker__pc_std": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-bruker__pc_std.bin",
+      "note": "population std of pc_all (the tutorial's uncertainty)",
+      "rtol": 1e-05,
+      "sha256": "f26674ec4d607cd73a6b9977a8032ae83bbcc1e4a7951c1adab49b570369ec0b",
+      "shape": [
+        3
+      ]
+    },
+    "tests-5-bruker__pxy": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-bruker__pxy.bin",
+      "rtol": 1e-05,
+      "sha256": "97e9f7d4878b30a8fa9352bb2cc6113676fb51627dae3b5c16f59add500f3929",
+      "shape": [
+        2
+      ]
+    },
+    "tests-5-bruker__pxy_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-bruker__pxy_all.bin",
+      "rtol": 1e-05,
+      "sha256": "b70a098fab45a651ed1361f378443979091625857391910371a6b53f9029cf50",
+      "shape": [
+        10,
+        2
+      ]
+    },
+    "tests-5-bruker__within": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "tests-5-bruker__within.bin",
+      "rtol": 0.0,
+      "sha256": "ffadf8d89d37b3b55fe1847b513cf92e3be87e4c168708c7851845df96fb36be",
+      "shape": [
+        10
+      ]
+    },
+    "tests-5-mm__line_lengths": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-mm__line_lengths.bin",
+      "rtol": 1e-05,
+      "sha256": "85315f43b7b421cc1886aef75b9158f09b824b0b5d72c6ae18ce02b9127d7b79",
+      "shape": [
+        2,
+        10
+      ]
+    },
+    "tests-5-mm__pc": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-mm__pc.bin",
+      "rtol": 1e-05,
+      "sha256": "b50978582da69f43413f2148caafd782e823af1f44b0fcbe6e110dd283973405",
+      "shape": [
+        3
+      ]
+    },
+    "tests-5-mm__pc_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-mm__pc_all.bin",
+      "note": "one row per point pair whose intersection is on the detector",
+      "rtol": 1e-05,
+      "sha256": "d502421615faa3b37842ce9e8ee202f0c2c2815f8920f2a56abf966aa085edb6",
+      "shape": [
+        10,
+        3
+      ]
+    },
+    "tests-5-mm__pc_std": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-mm__pc_std.bin",
+      "note": "population std of pc_all (the tutorial's uncertainty)",
+      "rtol": 1e-05,
+      "sha256": "81123c82766ca1b4b13d8dae0f495a753d205876b8327fb1a30ef100c1297a2b",
+      "shape": [
+        3
+      ]
+    },
+    "tests-5-mm__pxy": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-mm__pxy.bin",
+      "rtol": 1e-05,
+      "sha256": "97e9f7d4878b30a8fa9352bb2cc6113676fb51627dae3b5c16f59add500f3929",
+      "shape": [
+        2
+      ]
+    },
+    "tests-5-mm__pxy_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-mm__pxy_all.bin",
+      "rtol": 1e-05,
+      "sha256": "b70a098fab45a651ed1361f378443979091625857391910371a6b53f9029cf50",
+      "shape": [
+        10,
+        2
+      ]
+    },
+    "tests-5-mm__within": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "tests-5-mm__within.bin",
+      "rtol": 0.0,
+      "sha256": "ffadf8d89d37b3b55fe1847b513cf92e3be87e4c168708c7851845df96fb36be",
+      "shape": [
+        10
+      ]
+    },
+    "tests-5-tsl__line_lengths": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-tsl__line_lengths.bin",
+      "rtol": 1e-05,
+      "sha256": "85315f43b7b421cc1886aef75b9158f09b824b0b5d72c6ae18ce02b9127d7b79",
+      "shape": [
+        2,
+        10
+      ]
+    },
+    "tests-5-tsl__pc": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-tsl__pc.bin",
+      "rtol": 1e-05,
+      "sha256": "215ce2f474167e30c94208fbcdb9421ecc2ea737f36a6c701d1b06efe02b2498",
+      "shape": [
+        3
+      ]
+    },
+    "tests-5-tsl__pc_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-tsl__pc_all.bin",
+      "note": "one row per point pair whose intersection is on the detector",
+      "rtol": 1e-05,
+      "sha256": "5b2d349e7e63ca12f90456b58d0f2a40bbe37c82c7fc70ccfe9240fcddf46733",
+      "shape": [
+        10,
+        3
+      ]
+    },
+    "tests-5-tsl__pc_std": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-tsl__pc_std.bin",
+      "note": "population std of pc_all (the tutorial's uncertainty)",
+      "rtol": 1e-05,
+      "sha256": "638892ff8705b7b391b8b9be685870ed3ab1d15f56a3a963b804dab7a0c0a987",
+      "shape": [
+        3
+      ]
+    },
+    "tests-5-tsl__pxy": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-tsl__pxy.bin",
+      "rtol": 1e-05,
+      "sha256": "97e9f7d4878b30a8fa9352bb2cc6113676fb51627dae3b5c16f59add500f3929",
+      "shape": [
+        2
+      ]
+    },
+    "tests-5-tsl__pxy_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tests-5-tsl__pxy_all.bin",
+      "rtol": 1e-05,
+      "sha256": "b70a098fab45a651ed1361f378443979091625857391910371a6b53f9029cf50",
+      "shape": [
+        10,
+        2
+      ]
+    },
+    "tests-5-tsl__within": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "tests-5-tsl__within.bin",
+      "rtol": 0.0,
+      "sha256": "ffadf8d89d37b3b55fe1847b513cf92e3be87e4c168708c7851845df96fb36be",
+      "shape": [
+        10
+      ]
+    },
+    "tutorial-3-mm__line_lengths": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-mm__line_lengths.bin",
+      "rtol": 1e-05,
+      "sha256": "1fdcab222fab10ed905fdbfc0090014b6c2f29101b5505c3d4c856c12a44f175",
+      "shape": [
+        2,
+        3
+      ]
+    },
+    "tutorial-3-mm__pc": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-mm__pc.bin",
+      "rtol": 1e-05,
+      "sha256": "f96b52f017da77e16c4837cdf37325dbf189ec991b9ea7568354d7e23dd2d142",
+      "shape": [
+        3
+      ]
+    },
+    "tutorial-3-mm__pc_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-mm__pc_all.bin",
+      "note": "one row per point pair whose intersection is on the detector",
+      "rtol": 1e-05,
+      "sha256": "89139cf908c6c44ded44d7b9214f3fb260cef2c0a5977382c35edeff410aa417",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "tutorial-3-mm__pc_std": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-mm__pc_std.bin",
+      "note": "population std of pc_all (the tutorial's uncertainty)",
+      "rtol": 1e-05,
+      "sha256": "bf3f9fde09530863068211b34afacaf20441af2a78e8ce6c4ddf16d2a9863e63",
+      "shape": [
+        3
+      ]
+    },
+    "tutorial-3-mm__pxy": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-mm__pxy.bin",
+      "rtol": 1e-05,
+      "sha256": "382a2f8a3b2a2338205ce649efb764f581c60e4601b76ee0f2ed47d95f355d23",
+      "shape": [
+        2
+      ]
+    },
+    "tutorial-3-mm__pxy_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-mm__pxy_all.bin",
+      "rtol": 1e-05,
+      "sha256": "020c5667d7e5e46026dce3e1b62ebfec8cbec51cdefa4e4fd0c0ede4d9164f87",
+      "shape": [
+        3,
+        2
+      ]
+    },
+    "tutorial-3-mm__within": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "tutorial-3-mm__within.bin",
+      "rtol": 0.0,
+      "sha256": "75c8fd04ad916aec3e3d5cb76a452b116b3d4d0912a0a485e9fb8e3d240e210c",
+      "shape": [
+        3
+      ]
+    },
+    "tutorial-3-tsl__line_lengths": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-tsl__line_lengths.bin",
+      "rtol": 1e-05,
+      "sha256": "1fdcab222fab10ed905fdbfc0090014b6c2f29101b5505c3d4c856c12a44f175",
+      "shape": [
+        2,
+        3
+      ]
+    },
+    "tutorial-3-tsl__pc": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-tsl__pc.bin",
+      "rtol": 1e-05,
+      "sha256": "95e9ea3a13284e9a5884f0c82abc569dab2b0e2ce17b26fdb3753d7f5f4c7501",
+      "shape": [
+        3
+      ]
+    },
+    "tutorial-3-tsl__pc_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-tsl__pc_all.bin",
+      "note": "one row per point pair whose intersection is on the detector",
+      "rtol": 1e-05,
+      "sha256": "e20cef294a0e8565e0d777f1dba6f608f7aa506c92cef52b262e19f380ef358f",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "tutorial-3-tsl__pc_std": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-tsl__pc_std.bin",
+      "note": "population std of pc_all (the tutorial's uncertainty)",
+      "rtol": 1e-05,
+      "sha256": "fe4002c3424d928692ba76a0a336a83b9d96340fa8d3c7804fdc1871fda00c0f",
+      "shape": [
+        3
+      ]
+    },
+    "tutorial-3-tsl__pxy": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-tsl__pxy.bin",
+      "rtol": 1e-05,
+      "sha256": "382a2f8a3b2a2338205ce649efb764f581c60e4601b76ee0f2ed47d95f355d23",
+      "shape": [
+        2
+      ]
+    },
+    "tutorial-3-tsl__pxy_all": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "tutorial-3-tsl__pxy_all.bin",
+      "rtol": 1e-05,
+      "sha256": "020c5667d7e5e46026dce3e1b62ebfec8cbec51cdefa4e4fd0c0ede4d9164f87",
+      "shape": [
+        3,
+        2
+      ]
+    },
+    "tutorial-3-tsl__within": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "tutorial-3-tsl__within.bin",
+      "rtol": 0.0,
+      "sha256": "75c8fd04ad916aec3e3d5cb76a452b116b3d4d0912a0a485e9fb8e3d240e210c",
+      "shape": [
+        3
+      ]
+    }
+  },
+  "case": "m2/pc-moving-screen-si",
+  "inputs": [],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.detectors.PCCalibrationMovingScreen",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "cases": [
+      {
+        "binning": 1,
+        "convention": "tsl",
+        "label": "tutorial-3-tsl",
+        "n_points": 3,
+        "px_size_mm": 0.09
+      },
+      {
+        "binning": 1,
+        "convention": "tsl",
+        "label": "tutorial-3-mm",
+        "n_points": 3,
+        "px_size_mm": null
+      },
+      {
+        "binning": 1,
+        "convention": "tsl",
+        "label": "tests-3-tsl",
+        "n_points": 3,
+        "px_size_mm": 0.09055118110236221
+      },
+      {
+        "binning": 1,
+        "convention": "tsl",
+        "label": "tests-4-tsl",
+        "n_points": 4,
+        "px_size_mm": 0.09055118110236221
+      },
+      {
+        "binning": 1,
+        "convention": "tsl",
+        "label": "tests-5-tsl",
+        "n_points": 5,
+        "px_size_mm": 0.09055118110236221
+      },
+      {
+        "binning": 1,
+        "convention": "bruker",
+        "label": "tests-5-bruker",
+        "n_points": 5,
+        "px_size_mm": 0.09055118110236221
+      },
+      {
+        "binning": 1,
+        "convention": "tsl",
+        "label": "tests-5-mm",
+        "n_points": 5,
+        "px_size_mm": null
+      },
+      {
+        "binning": 2,
+        "convention": "tsl",
+        "label": "tests-5-binned",
+        "n_points": 5,
+        "px_size_mm": 0.045275590551181105
+      }
+    ],
+    "delta_z_mm": 5.0,
+    "shape": [
+      480,
+      480
+    ]
+  }
+}
