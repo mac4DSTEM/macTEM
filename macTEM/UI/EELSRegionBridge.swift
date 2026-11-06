@@ -31,26 +31,6 @@ enum EELSRegionBridge {
         else if case .line(let a, let b) = geometry { session.setLineEnds(id, from: PixelPoint(x: a.x, y: a.y), to: PixelPoint(x: b.x, y: b.y)) }
     }
 
-    static func apply(_ new: SpectralRegionSet, to session: EELSSession, from old: SpectralRegionSet, state: EELSRoomState) {
-        let kept = Set(new.regions.map(\.id))
-        for region in old.regions where !kept.contains(region.id) {
-            if session.pins.contains(where: { $0.id == region.id }) { session.removePin(region.id) } else { session.removeLine(region.id) }
-        }
-        for region in new.regions {
-            guard let before = old.regions.first(where: { $0.id == region.id }) else { continue }
-            let isPin = session.pins.contains { $0.id == region.id }
-            if region.name != before.name { isPin ? session.renamePin(region.id, to: region.name) : session.renameLine(region.id, to: region.name) }
-            if region.color != before.color {
-                let c = EDXRegionBridge.stored(region.color)
-                isPin ? session.setPinColor(region.id, c) : session.setLineColor(region.id, c)
-            }
-            if region.isVisible != before.isVisible { isPin ? session.setPinVisible(region.id, region.isVisible) : session.setLineVisible(region.id, region.isVisible) }
-        }
-        if new.selectedID != old.selectedID, let id = new.selectedID {
-            if session.pins.contains(where: { $0.id == id }) { state.linesFocused = false; session.selectPin(id) } else { state.linesFocused = true; session.selectLine(id) }
-        }
-    }
-
     /// A click on a region of the anchor selects it; a click on none returns to the whole map.
     static func select(_ id: UUID?, in session: EELSSession, state: EELSRoomState) {
         guard let id else { state.linesFocused = false; session.selectWholeMap(); return }

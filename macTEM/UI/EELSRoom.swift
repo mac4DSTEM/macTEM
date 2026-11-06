@@ -623,7 +623,7 @@ private struct EELSSpectrumView: View {
     @State private var viewDrag: (zone: EELSSpectrumDrag.Zone, window: ClosedRange<Double>, yZoom: Double)?
     @State private var pinchStart: ClosedRange<Double>?
 
-    private static let bottom = EELSSpectrumLayout.bottom, top = EELSSpectrumLayout.top, right = EELSSpectrumLayout.right, gapWidth: CGFloat = 30, handleReach: CGFloat = 5
+    private static let right = EELSSpectrumLayout.right, gapWidth: CGFloat = 30, handleReach: CGFloat = 5
 
     /// The counts scale over the energies shown: log10 from 1 to the next power of ten above the largest value, or linear from 0; the counts zoom lowers the top.
     private struct Scale {
