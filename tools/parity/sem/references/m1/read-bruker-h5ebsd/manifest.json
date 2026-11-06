@@ -1,0 +1,235 @@
+{
+  "arrays": {
+    "first_pattern": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "first_pattern.bin",
+      "rtol": 0.0,
+      "sha256": "b70922f29bc5ffbae02051d9eccdf9cbbecd74318f296b7428f438d2f4b967af",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "last_pattern": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "last_pattern.bin",
+      "rtol": 0.0,
+      "sha256": "66c181ef835f9c62496cfd6f145550bcb969349f51d82b069e4f26dbe83b6b4c",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "mean_pattern": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "mean_pattern.bin",
+      "rtol": 1e-07,
+      "sha256": "f6740b973e1bb4a23f3f66c2d2f58949b47c8b42338f6fc966a571d2761fb57c",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "pattern_max": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "pattern_max.bin",
+      "rtol": 0.0,
+      "sha256": "c3197fb0017f5601d139880384236f426bc49cf1e684514a31969d458cbd7a76",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "pattern_mean": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pattern_mean.bin",
+      "note": "the navigator's mean-intensity map",
+      "rtol": 1e-07,
+      "sha256": "19bff56393cebf192d79b1c040568d2ea340c5fe3dba26ae279cadfa2a5bf312",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "pattern_min": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "pattern_min.bin",
+      "rtol": 0.0,
+      "sha256": "ec4a184b130aa52ed0a86f11a7951a8bfebf03c1ca4b8e8cfd97df5de7e682cc",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "pc": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pc.bin",
+      "note": "per-pattern projection centres, Bruker convention",
+      "rtol": 0.0,
+      "sha256": "ea1fad13fb695e103e49625a8a6016d18f70f8e894b7616f0594cba43b4eb27c",
+      "shape": [
+        9,
+        3
+      ]
+    },
+    "static_background": {
+      "atol": 0.0,
+      "dtype": "uint16",
+      "file": "static_background.bin",
+      "rtol": 0.0,
+      "sha256": "32586cb0de4500a727fd5c9915bf6e46842c3cd5fb05af4823d54b9d8a324e68",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "xmap_euler_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "xmap_euler_head.bin",
+      "note": "Bunge Euler angles in radians, first 16 points",
+      "rtol": 1e-07,
+      "sha256": "a5645e7a3fa0866cde8842c4dab96567507c3d1a3c028b816bc63f6966367b70",
+      "shape": [
+        9,
+        3
+      ]
+    }
+  },
+  "case": "m1/read-bruker-h5ebsd",
+  "inputs": [
+    {
+      "path": "fixtures/bruker_h5ebsd_patterns.h5",
+      "sha256": "f740a96fd091a2db30d2bab0fc63663cd68139287136f18114e32e3a361c78bd"
+    }
+  ],
+  "milestone": 1,
+  "reference": {
+    "function": "kikuchipy.load",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "detector": {
+      "azimuthal": 0.0,
+      "binning": 1.0,
+      "pc_first": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "pc_shape": [
+        3,
+        3,
+        3
+      ],
+      "px_size": 1.0,
+      "sample_tilt": 0.0,
+      "shape_rc": [
+        60,
+        60
+      ],
+      "tilt": 0.0
+    },
+    "dtype": "uint8",
+    "navigation_axes": [
+      {
+        "name": "x",
+        "offset": 0.0,
+        "scale": 1.5,
+        "size": 3,
+        "units": "um"
+      },
+      {
+        "name": "y",
+        "offset": 0.0,
+        "scale": 1.5,
+        "size": 3,
+        "units": "um"
+      }
+    ],
+    "navigation_shape_rc": [
+      3,
+      3
+    ],
+    "patterns": {
+      "dtype": "uint8",
+      "sha256": "ffab6bc6c2f20015338e95270c6379c5aaf6be5a2b9c58106622ae31b0673fdd",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "sem_metadata": {
+      "beam_energy": 20.0,
+      "magnification": 200.0,
+      "working_distance": 1.0
+    },
+    "signal_axes": [
+      {
+        "name": "dx",
+        "offset": 0.0,
+        "scale": 1.0,
+        "size": 60,
+        "units": "um"
+      },
+      {
+        "name": "dy",
+        "offset": 0.0,
+        "scale": 1.0,
+        "size": 60,
+        "units": "um"
+      }
+    ],
+    "signal_shape_rc": [
+      60,
+      60
+    ],
+    "title": "bruker_h5ebsd_patter...",
+    "xmap": {
+      "phase_id_first": 0,
+      "phases": {
+        "0": ""
+      },
+      "properties": [],
+      "scan_unit": "px",
+      "shape": [
+        3,
+        3
+      ],
+      "size": 9
+    },
+    "xmap_euler": {
+      "dtype": "float64",
+      "sha256": "a5645e7a3fa0866cde8842c4dab96567507c3d1a3c028b816bc63f6966367b70",
+      "shape": [
+        9,
+        3
+      ]
+    }
+  }
+}
