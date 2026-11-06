@@ -10,7 +10,7 @@
 //
 //  Numbers: float64 throughout, the operations in exspy's order, so a window edge and an intensity land on exspy's double. The
 //  spectrum is a few thousand channels: plain loops on the CPU (D16: small arrays stay on the CPU). Parity: the bundles
-//  `m7/eds-lines-tm002` (F16) and `m7/eds-quant-tm002` (F17) at rtol 1e-7, `m7/eds-xray-database` exact (SEMEDSParityTests).
+//  `m7/eds-lines-tm002` (F16) and `m7/eds-quant-tm002` (F17, its `db_` arrays exact) at rtol 1e-7 (SEMEDSParityTests).
 //  Energies are keV: a file on an eV axis is converted on reading, so exspy's eV branch (the same formula times 1000) is not kept.
 //
 

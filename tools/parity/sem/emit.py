@@ -461,23 +461,17 @@ def case_m7_eds_quant_tm002(ctx):
     raw21 = s.get_lines_intensity(xray_lines=lines, integration_windows=iw21)
     b.array("intensity_raw_width_2_1", np.asarray([float(np.asarray(i.data).ravel()[0]) for i in raw21]), **F64)
     b.value("xray_lines_by_beam_energy", {str(kv): list(_lines_at(kv)) for kv in (5.0, 20.0, 30.0)})
+    _xray_database(b)
     b.write()
     ctx.done("m7/eds-quant-tm002")
 
 
-def _lines_at(kv):
-    t = _tm002(beam_energy=kv)
-    t.add_lines()
-    return t.metadata.Sample.xray_lines
-
-
-def case_m7_eds_xray_database(ctx):
-    """exspy's element database as the SEM-EDS port reads it: every element's Z and atomic weight and every X-ray line's
-    energy and weight, in the database's own order (Sources/TEMCore/EDX/XrayLineDatabase.swift is generated from the
-    same dict by make_xray_database.py and must equal this bundle exactly)."""
+def _xray_database(b):
+    """exspy's element database as the quantification above reads it: every element's Z and atomic weight and every X-ray
+    line's energy and weight, in the database's own order, exact (Sources/TEMCore/EDX/XrayLineDatabase.swift is generated
+    from the same dict by make_xray_database.py and must equal these arrays)."""
     from exspy._misc.elements import elements as db
 
-    b = Bundle("m7/eds-xray-database", 7, "exspy", "exspy._misc.elements.elements", ctx.out)
     symbols, names, energies, weights, z, aw = [], [], [], [], [], []
     for el in db:
         symbols.append(el)
@@ -487,14 +481,18 @@ def case_m7_eds_xray_database(ctx):
             names.append(f"{el}_{ln}")
             energies.append(float(d["energy (keV)"]))
             weights.append(float(d["weight"]))
-    b.value("elements", symbols)
-    b.value("xray_lines", names)
-    b.array("z", np.asarray(z, dtype=np.int64), **EXACT)
-    b.array("atomic_weight", np.asarray(aw, dtype=np.float64), **EXACT)
-    b.array("line_energy_keV", np.asarray(energies, dtype=np.float64), **EXACT)
-    b.array("line_weight", np.asarray(weights, dtype=np.float64), **EXACT)
-    b.write()
-    ctx.done("m7/eds-xray-database")
+    b.value("db_elements", symbols)
+    b.value("db_xray_lines", names)
+    b.array("db_z", np.asarray(z, dtype=np.int64), **EXACT)
+    b.array("db_atomic_weight", np.asarray(aw, dtype=np.float64), **EXACT)
+    b.array("db_line_energy_keV", np.asarray(energies, dtype=np.float64), **EXACT)
+    b.array("db_line_weight", np.asarray(weights, dtype=np.float64), **EXACT)
+
+
+def _lines_at(kv):
+    t = _tm002(beam_energy=kv)
+    t.add_lines()
+    return t.metadata.Sample.xray_lines
 
 
 # --------------------------------------------------------------------------------------------------------- driver

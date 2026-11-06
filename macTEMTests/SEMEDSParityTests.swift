@@ -4,8 +4,8 @@
 //  `quantification_cliff_lorimer` and `weight_to_atomic`) against the committed bundles of tools/parity/sem on the BAM TM002 spectrum:
 //  `m7/eds-lines-tm002` (figure F16: the lines exspy picks, the integration and background windows, the raw and background-subtracted
 //  intensities), `m7/eds-quant-tm002` (figure F17: Cliff-Lorimer weight and atomic percent with unit and planted k-factors, the take-off
-//  angle, each line's FWHM, the default background windows, a 2.1-FWHM window, the lines at 5, 20 and 30 kV) and `m7/eds-xray-database`
-//  (the X-ray line table, exact). Tolerances are the bundles' (float64 reductions rtol 1e-7, docs/parity.md).
+//  angle, each line's FWHM, the default background windows, a 2.1-FWHM window, the lines at 5, 20 and 30 kV) with the X-ray line table
+//  (its `db_` arrays, exact). Tolerances are the bundles' (float64 reductions rtol 1e-7, docs/parity.md).
 //  Red before the port: no `SEMEDSLines`. Red after a change to the channel rounding, the window merge or the Cliff-Lorimer chain:
 //  the intensities move by whole channels' counts and the composition by percent.
 //
@@ -25,14 +25,14 @@ nonisolated final class SEMEDSParityTests: XCTestCase {
     // MARK: - The database
 
     func testXrayLineDatabaseIsExspys() throws {
-        let ref = try SEMParityReference.load("m7/eds-xray-database")
+        let ref = try SEMParityReference.load("m7/eds-quant-tm002")
         let elements = XrayLineDatabase.elements
-        XCTAssertEqual(elements.map(\.symbol), ref.values["elements"] as? [String])
-        XCTAssertEqual(elements.flatMap { e in e.lines.map { "\(e.symbol)_\($0.name)" } }, ref.values["xray_lines"] as? [String])
-        SEMAssertParity(elements.map { Double($0.z) }, try ref.array("z"))
-        SEMAssertParity(elements.map(\.atomicWeight), try ref.array("atomic_weight"))
-        SEMAssertParity(elements.flatMap { $0.lines.map(\.energyKeV) }, try ref.array("line_energy_keV"))
-        SEMAssertParity(elements.flatMap { $0.lines.map(\.weight) }, try ref.array("line_weight"))
+        XCTAssertEqual(elements.map(\.symbol), ref.values["db_elements"] as? [String])
+        XCTAssertEqual(elements.flatMap { e in e.lines.map { "\(e.symbol)_\($0.name)" } }, ref.values["db_xray_lines"] as? [String])
+        SEMAssertParity(elements.map { Double($0.z) }, try ref.array("db_z"))
+        SEMAssertParity(elements.map(\.atomicWeight), try ref.array("db_atomic_weight"))
+        SEMAssertParity(elements.flatMap { $0.lines.map(\.energyKeV) }, try ref.array("db_line_energy_keV"))
+        SEMAssertParity(elements.flatMap { $0.lines.map(\.weight) }, try ref.array("db_line_weight"))
         XCTAssertEqual(XrayLineDatabase.line("Mn_La")?.energyKeV, 0.63316)
         XCTAssertNil(XrayLineDatabase.line("Mn_Xa"))
         XCTAssertEqual(XrayLineDatabase.element("Li")?.lines, [], "exspy lists Li without X-ray lines")

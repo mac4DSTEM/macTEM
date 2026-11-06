@@ -108,7 +108,7 @@ background windows `estimate_background_windows(line_width=[5.0, 2.0])`:
 | Zr Lα | 2.0423 | 1.9571 to 2.1275 | 99075 | 82215.86 |
 
 Tolerance rtol 1e-7 on the intensities and the window edges. The line table exspy reads is held exact by
-`m7/eds-xray-database` (every element's atomic weight, every line's energy and weight).
+the `db_` arrays of `m7/eds-quant-tm002` (every element's atomic weight, every line's energy and weight).
 
 ### Figure 7b (milestone 7, F17): quantification
 

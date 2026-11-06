@@ -54,7 +54,7 @@ Upstream's own tests compare hand-written 3 x 3 uint8 answers exactly (`test_rem
 
 ## SEM-EDS (exspy's window path)
 
-References: the bundles `m7/eds-lines-tm002` (F16), `m7/eds-quant-tm002` (F17) and `m7/eds-xray-database` in
+References: the bundles `m7/eds-lines-tm002` (F16) and `m7/eds-quant-tm002` (F17, with the X-ray line table as its `db_` arrays) in
 `tools/parity/sem` (exspy 0.3.2, HyperSpy 2.5.0) on the BAM TM002 spectrum (`fixtures/exspy_EDS_SEM_TM002.hspy`); tests in
 `SEMEDSParityTests`. Port: `Sources/TEMCore/EDX/SEMEDSLines.swift` (Fiori and Newbury 1978 for the line width; Cliff and
 Lorimer 1975 for the k-factor ratio); SpectroKit's model-fit quantification is unchanged and stays the EDS room's own path.
