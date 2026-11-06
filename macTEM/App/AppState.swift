@@ -26,6 +26,8 @@ final class AppState {
     let resultsRoom = ResultsRoomState()
     let edx = EDXSession(host: .macTEM)
     let edxRoom = EDXRoomState()
+    /// The EDS room's SEM rows for an SEM `.hspy` spectrum (line intensities with background windows, window quantification).
+    let semEDS = SEMEDSState()
     let eels = EELSSession()
 
     /// The window's title: the file of the room that is shown (the spectrum image in the EDX and EELS rooms, the image elsewhere).

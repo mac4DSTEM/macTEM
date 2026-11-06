@@ -1,0 +1,158 @@
+{
+  "arrays": {
+    "atomic_percent_planted": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "atomic_percent_planted.bin",
+      "rtol": 1e-07,
+      "sha256": "9f6ad16762b05b8e5a8ac2311c82cf8d8be7319f763fb234000ff936ad49927f",
+      "shape": [
+        5
+      ]
+    },
+    "atomic_percent_unit": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "atomic_percent_unit.bin",
+      "rtol": 1e-07,
+      "sha256": "b16e6b279337aa36881d8cf7f9e186611e731340c1bba5b9d6df7ea7b311b40b",
+      "shape": [
+        5
+      ]
+    },
+    "background_windows_default_keV": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "background_windows_default_keV.bin",
+      "rtol": 1e-07,
+      "sha256": "32e6819994c19b45561f51b1f8602421777d6d9d7bcac7c4ca27058e94e71810",
+      "shape": [
+        5,
+        4
+      ]
+    },
+    "intensity_background_default": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "intensity_background_default.bin",
+      "rtol": 1e-07,
+      "sha256": "b95194a2219ef9d8b822c02d6d841fe7d66e452f9bd155f054de69ba0786307e",
+      "shape": [
+        5
+      ]
+    },
+    "intensity_raw_width_2_1": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "intensity_raw_width_2_1.bin",
+      "rtol": 1e-07,
+      "sha256": "5d24940fcc353074d237b3a01a046eb3b9f81baa056028c859645c4bf5c64715",
+      "shape": [
+        5
+      ]
+    },
+    "line_fwhm_keV": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "line_fwhm_keV.bin",
+      "rtol": 1e-07,
+      "sha256": "738d71397903acfad554b667ece2251c0bc7d0d3257162a62d2023b386e8f1c0",
+      "shape": [
+        5
+      ]
+    },
+    "weight_percent_planted": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "weight_percent_planted.bin",
+      "rtol": 1e-07,
+      "sha256": "e29c757cda31a25d080b405313faab299b889d306153b339f44f0e122f719ab1",
+      "shape": [
+        5
+      ]
+    },
+    "weight_percent_unit": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "weight_percent_unit.bin",
+      "rtol": 1e-07,
+      "sha256": "2d38b00e811cb35a7145fcd4d8c361aa92f8548ae4a3074263dc98dc7f6a90b5",
+      "shape": [
+        5
+      ]
+    }
+  },
+  "case": "m7/eds-quant-tm002",
+  "inputs": [
+    {
+      "path": "fixtures/exspy_EDS_SEM_TM002.hspy",
+      "sha256": "b5a5828dc694c7ed6e33745b7022594f48457e33140fb8d7371472fe18b6b359"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "exspy._misc.eds.utils.quantification_cliff_lorimer",
+    "package": "exspy",
+    "version": "0.3.2"
+  },
+  "scalars": {
+    "take_off_angle_deg": {
+      "atol": 0.0,
+      "rtol": 1e-07,
+      "value": 37.0
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "kfactors_planted": [
+      1.0,
+      2.5,
+      1.5,
+      1.25,
+      2.0
+    ],
+    "xray_lines": [
+      "Al_Ka",
+      "C_Ka",
+      "Cu_La",
+      "Mn_La",
+      "Zr_La"
+    ],
+    "xray_lines_by_beam_energy": {
+      "20.0": [
+        "Al_Ka",
+        "C_Ka",
+        "Cu_Ka",
+        "Mn_Ka",
+        "Zr_La"
+      ],
+      "30.0": [
+        "Al_Ka",
+        "C_Ka",
+        "Cu_Ka",
+        "Mn_Ka",
+        "Zr_La"
+      ],
+      "5.0": [
+        "Al_Ka",
+        "C_Ka",
+        "Cu_La",
+        "Mn_La",
+        "Zr_La"
+      ]
+    }
+  }
+}

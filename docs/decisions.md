@@ -75,3 +75,11 @@ bit-exact without colour management; a bitmap of any other kind is refused with 
 
 **Reversal.** Refuse `Setting_bad3.txt` once the Patterns room shows that an unknown area shape breaks a view; add
 the sentence to `reference.json` and the test.
+
+## 2026-11-06 — SEM-EDS: exspy's window path in TEMCore, k-factors for F17, the SEM rows in the inspector
+
+| ID | Date | Decision | Reason |
+|---|---|---|---|
+| D-SEM-28 | 2026-11-06 | Figure F17 (Cliff-Lorimer on the TM002 window intensities) is held to exspy with two stated k-factor sets in the bundle `m7/eds-quant-tm002`: unit factors and a planted set (Al Kα 1.0, C Kα 2.5, Cu Lα 1.5, Mn Lα 1.25, Zr Lα 2.0); the app quantifies with k-factors the person types, `validation: none` beyond exspy (D-SEM-7) | exspy ships no SEM k-factors and the BAM TM002 layer has no certified composition, so no published number exists to reproduce; parity checks the algorithm (every ratio of the Cliff-Lorimer chain, the 0.1-count floor, `weight_to_atomic`), not a composition |
+| D-SEM-29 | 2026-11-06 | The SEM additions to the EDS room are macTEM inspector sections below MacEMUI's (`Line Intensities` with each line's integration and background windows as value rows, `Window Quantification`, `SEM Conditions` in Info); the windows are not shaded on the spectrum and their edges are not draggable | the EDS room's spectrum view is MacEMUI's and the program changes no shared package; drawing the windows on it is a MacEMUI ask for after the program (filed as an issue) |
+| D-SEM-30 | 2026-11-06 | The X-ray line table the SEM-EDS port reads is exspy's own database, generated into `Sources/TEMCore/EDX/XrayLineDatabase.swift` by `tools/parity/sem/make_xray_database.py` and checked exactly against `m7/eds-xray-database` | the line picked for an element, its window and the atomic weights must be exspy's to match F16 and F17; SpectroKit's table is left unchanged |
