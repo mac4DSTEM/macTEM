@@ -38,6 +38,19 @@ ports in its first lines. The h5ebsd fixtures in macTEMTests/Fixtures/ebsd-* are
 the files its dummy writers produce (the nickel patterns are CC BY 4.0, Aanes et al.), see docs/data-sources.md.
 
 ================================================================================
+PyEBSDIndex (NLPAR, derived and modified)
+================================================================================
+
+Sources/TEMCore/SEM/NLPAR.swift is derived from PyEBSDIndex 0.3.10.1 (https://github.com/USNavalResearchLaboratory/PyEBSDIndex,
+`pyebsdindex/nlpar_cpu.py`), developed by employees of the US Naval Research Laboratory (NRL), an agency of the Federal
+Government, and not subject to copyright protection in the United States (17 U.S.C. § 105); where NRL may hold copyright
+elsewhere it grants the right to prepare and distribute derivative works. This derived work acknowledges the US Naval
+Research Laboratory as the original source. Modified 2026-11-06: ported to Swift (in memory rather than through pattern
+files, tile budget fixed at pyebsdindex's 32e9-byte cap, a search window larger than the scan refused). Its one-dimensional
+Nelder–Mead minimiser follows SciPy 1.18.1's `_minimize_neldermead` (BSD-3-Clause, Copyright (c) 2001-2002 Enthought, Inc.
+and 2003-2026 SciPy Developers).
+
+================================================================================
 SpectroKit (a Swift package the app is built with)
 ================================================================================
 

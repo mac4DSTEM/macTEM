@@ -61,6 +61,14 @@ Kikuchipy *Pattern processing*: the static and dynamic background figures above 
 the FFT filters, and the moving-screen projection-centre estimate on `si_in.h5` (bundles to be emitted with the
 phase, same stack).
 
+NLPAR denoising (PyEBSDIndex 0.3.10.1, `opt_lambda` then `calcnlpar`, search radius 3, automask, saturation protection):
+
+| Part | Reference | Bundle | Arrays and tolerance |
+| --- | --- | --- | --- |
+| Noise estimate σ per pattern and the normalised distances to the 3 x 3 neighbours | `NLPAR.calcsigma_cpu(nn=1)` | `m2/nlpar-nickel-ebsd-large`, `m2/nlpar-kikuchipy-h5ebsd` | `sigma` float32 [55, 75] and `distances` [55, 75, 9], rtol 1e-5 (distances atol 1e-5); mask uint8 [60, 60] and both tilings exact |
+| λ for the target weights 0.5, 0.34, 0.25 and their median | `NLPAR.opt_lambda` | same | `lambdas` (0.70977, 1.09844, 2.25186 on the nickel set), `lambda` 1.0984375, rtol 1e-4 |
+| The denoised set | `NLPAR.calcnlpar` | `m2/nlpar-nickel-ebsd-large` | `denoised_corner` [3, 3, 60, 60] and `denoised_seam` (rows 26..28, columns 33..39, across the tile seam) float32, rtol 1e-5 atol 1e-4; `denoised_mean` [55, 75] rtol 1e-5; the whole set's sha256 in values |
+
 ### Figure 3 (milestone 3): orientation maths
 
 orix: rotations, quaternions, the m-3m symmetry of Ni, misorientation and IPF colour keys on the file's crystal map.

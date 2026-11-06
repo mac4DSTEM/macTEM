@@ -345,6 +345,129 @@ def case_m2_background_nickel_large(ctx):
         _background_bundle(ctx, "m2/background-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5")
 
 
+# ------------------------------------------------------------------------------------- NLPAR denoising (m2)
+
+F32 = {"rtol": 1e-5, "atol": 0.0}   # float32 results: the harness rule for float32 scores (D-SEM-13)
+NLPAR_TILE_BYTES = 32e9             # pyebsdindex's cap on its tile budget; fixed so the tiling is machine-independent
+
+
+class _MemoryPatternFile:
+    """The in-memory stand-in for a pyebsdindex pattern file: `read_data` hands out a slab of the scan as float32
+    (as `convertToFloat=True` does), `write_data` keeps NLPAR's float32 output before any cast to a file type. The
+    NLPAR code itself runs unchanged."""
+
+    def __init__(self, data: np.ndarray):
+        self.data = data
+        self.nRows, self.nCols, self.patternH, self.patternW = data.shape
+        self.filetype, self.filepath, self.version = "MEMORY", "memory", 1
+        self.filedatatype = np.float32
+        self.datamin = self.datamax = None
+        self.out = np.full(data.shape, np.nan, dtype=np.float32)
+
+    def read_header(self):
+        pass
+
+    def read_datamaxmin(self):
+        pass
+
+    def write_datamaxmin(self):
+        pass
+
+    def read_data(self, patStartCount, convertToFloat=True, returnArrayOnly=True):
+        (c0, r0), (nc, nr) = patStartCount
+        block = self.data[r0:r0 + nr, c0:c0 + nc].reshape(-1, self.patternH, self.patternW).astype(np.float32)
+        return block, None
+
+    def write_data(self, newpatterns, patStartCount, flt2int=None, scalevalue=1.0):
+        (c0, r0), (nc, nr) = patStartCount
+        self.out[r0:r0 + nr, c0:c0 + nc] = np.asarray(newpatterns, dtype=np.float32).reshape(nr, nc, self.patternH, self.patternW)
+
+
+def _nlpar_bundle(ctx, case: str, path: Path, label: str, searchradius: int, blocks: dict | None) -> None:
+    """pyebsdindex's NLPAR as its documentation runs it: `opt_lambda()` (noise estimate over the 3 x 3 neighbourhood,
+    Nelder-Mead on the three target weights 0.5, 0.34, 0.25; lambda = their median), then `calcnlpar()` with that
+    lambda and the estimate, defaults otherwise (dthresh 0, saturation protection, automask). The CPU path
+    (`pyebsdindex.nlpar_cpu`, what `pyebsdindex.nlpar.NLPAR` is without a GPU), tile budget fixed at pyebsdindex's
+    32e9-byte cap. The input is the raw uint8 scan as float32. `blocks` None writes the noise estimate and lambda only:
+    on a scan whose tiles are narrower than the search window pyebsdindex reads outside the tile, so its average there
+    is not a reference."""
+    import contextlib
+    import io
+
+    import kikuchipy as kp
+    from pyebsdindex.nlpar_cpu import NLPAR
+
+    class MemoryNLPAR(NLPAR):
+        def __init__(self, data, **kw):
+            super().__init__(**kw)
+            self._file = _MemoryPatternFile(data)
+            self.nrows, self.ncols = data.shape[:2]
+
+        def getinfileobj(self):
+            return self._file
+
+        def getoutfileobj(self):
+            return self._file
+
+        def setoutfile(self, patternfile, filepath=None):
+            pass
+
+    s = kp.load(str(path))
+    data = np.asarray(s.data)
+    rows, cols, h, w = data.shape
+    nl = MemoryNLPAR(data, searchradius=searchradius)
+    with contextlib.redirect_stdout(io.StringIO()):
+        lambdas = np.asarray(nl.opt_lambda(chunksize=NLPAR_TILE_BYTES, verbose=0), dtype=np.float64)
+        sigma, d2, n2 = nl.calcsigma_cpu(chunksize=NLPAR_TILE_BYTES, nn=1, verbose=0)
+        if blocks is not None:
+            nl.calcnlpar(chunksize=NLPAR_TILE_BYTES, verbose=0)
+    out = nl._file.out
+    if blocks is not None and np.isnan(out).any():
+        raise RuntimeError(f"{case}: NLPAR left patterns unwritten")
+    sig_tiles = nl._calcchunks([w, h], cols, rows, target_bytes=NLPAR_TILE_BYTES, col_overlap=1, row_overlap=1)
+    nl_tiles = nl._calcchunks([w, h], cols, rows, target_bytes=NLPAR_TILE_BYTES, col_overlap=searchradius, row_overlap=searchradius)
+
+    b = Bundle(case, 2, "pyebsdindex", "pyebsdindex.nlpar_cpu.NLPAR.opt_lambda / calcsigma / calcnlpar", ctx.out)
+    b.input(path, label)
+    b.value("scan_shape_rc", [rows, cols])
+    b.value("pattern_shape", [h, w])
+    b.value("search_radius", searchradius)
+    b.value("dthresh", 0.0)
+    b.value("target_weights", [0.5, 0.34, 0.25])
+    b.value("tile_bytes", NLPAR_TILE_BYTES)
+    b.value("sigma_tiles", {"columns": sig_tiles[2].tolist(), "rows": sig_tiles[3].tolist()})
+    b.value("nlpar_tiles", {"columns": nl_tiles[2].tolist(), "rows": nl_tiles[3].tolist()})
+    b.array("automask", np.asarray(nl.mask, dtype=np.uint8), **EXACT)
+    b.array("sigma", np.asarray(sigma, dtype=np.float32), **F32)
+    b.array("distances", np.asarray(d2, dtype=np.float32), rtol=1e-5, atol=1e-5,
+            note="normalised squared distances to the 3 x 3 neighbours, the lambda optimisation's input")
+    b.array("lambdas", lambdas, rtol=1e-4, atol=0.0, note="target weights 0.5, 0.34, 0.25")
+    b.scalar("lambda", float(np.median(lambdas)), rtol=1e-4)
+    if blocks is None:
+        b.write()
+        ctx.done(case)
+        return
+    b.fingerprint("denoised", out)
+    b.array("denoised_mean", out.astype(np.float64).mean(axis=(-2, -1)), **F32)
+    for name, (r0, r1, c0, c1) in blocks.items():
+        b.array(name, out[r0:r1, c0:c1], rtol=1e-5, atol=1e-4, note=f"scan rows {r0}..{r1 - 1}, cols {c0}..{c1 - 1}")
+    b.write()
+    ctx.done(case)
+
+
+def case_m2_nlpar_small(ctx):
+    _nlpar_bundle(ctx, "m2/nlpar-kikuchipy-h5ebsd", FIXTURES / "kikuchipy_h5ebsd_patterns.h5",
+                  "fixtures/kikuchipy_h5ebsd_patterns.h5", searchradius=1, blocks=None)
+
+
+def case_m2_nlpar_nickel_large(ctx):
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    if ctx.have(p, "m2/nlpar-nickel-ebsd-large"):
+        # the corner (window shifted at two edges) and a block across the seam of pyebsdindex's two column tiles
+        _nlpar_bundle(ctx, "m2/nlpar-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5", searchradius=3,
+                      blocks={"denoised_corner": (0, 3, 0, 3), "denoised_seam": (26, 29, 33, 40)})
+
+
 # --------------------------------------------------------------------------------------------- SEM-EDS (m1 read, m7)
 
 
