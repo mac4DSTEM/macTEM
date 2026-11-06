@@ -75,6 +75,15 @@ orix: rotations, quaternions, the m-3m symmetry of Ni, misorientation and IPF co
 Reference `orix.plot.IPFColorKeyTSL` colours of the 4125 orientations and the pairwise misorientation of the first
 16 points, rtol 1e-7 (bundles with the phase).
 
+The orientation core underneath it (P3-01), on inputs that need no download (`fixtures/orientation_inputs.json`):
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| Every conversion of Rowenhorst et al. (2015) (Euler, matrix, axis-angle, Rodrigues and Rodrigues-Frank, homochoric, cubochoric), composition, inverse, angles, vector action (proper and improper), outer products, `unique` on 64 rotations with seven special ones | `orix.quaternion.Rotation`, `_conversions` | `m3/rotation-conversions` | atol 1e-7; indices exact; +∞ two-fold Rodrigues-Frank lengths equal |
+| The 38 point-group objects (32 groups with their axis settings) and the aliases 2, m, 32: elements in orix's order, improper flags, proper subgroup, Laue group and its proper subgroup, system, Euler region, subgroups, inverse-pole-figure sector, fundamental zone | `orix.quaternion.symmetry` | `m3/point-groups` | elements and normals 1e-10; names and flags exact |
+| The orientation fundamental zone of each group and the misorientation zone of each pair (G, G) | `OrientationRegion.from_symmetry` | `m3/orientation-regions` | normals 1e-10 |
+| The first 2000 Ti orientations of orix-data (622) and 100 seeded m-3m orientations (the Ni symmetry): reduced orientations, neighbour angles, disorientations of neighbours, orientation and misorientation distance matrices | `Orientation.reduce`, `angle_with`, `-`, `get_distance_matrix` | `m3/ti-disorientations` | atol 1e-7 |
+
 ### Figure 4 (milestone 4): the indexed map
 
 The paper's Figure 3 and the kikuchipy *Hough indexing* and *Dictionary indexing* tutorials: the IPF-Z map of the

@@ -360,14 +360,10 @@ package nonisolated enum ANGReader {
     }
 
     /// `eu2qu` (Rowenhorst et al. 2015, eqs. A.5 and A.6): Bunge (passive Z-X-Z) Euler angles in radians to a unit quaternion with a
-    /// non-negative scalar part; orix's `from_euler` default direction (lab to crystal).
+    /// non-negative scalar part; orix's `from_euler` default direction (lab to crystal). The orientation core's
+    /// `RotationConversions.eu2qu` (Sources/TEMCore/SEM/Orientation).
     package static func quaternion(fromBungeEuler eu: SIMD3<Double>) -> SIMD4<Double> {
-        let sigma = 0.5 * (eu.x + eu.z)
-        let delta = 0.5 * (eu.x - eu.z)
-        let c = cos(eu.y / 2), s = sin(eu.y / 2)
-        var q = SIMD4(c * cos(sigma), -s * cos(delta), -s * sin(delta), -c * sin(sigma))
-        if q.x < 0 { q = -q }
-        return q
+        RotationConversions.eu2qu(eu)
     }
 
     private static func rstrip(_ line: String) -> String {
