@@ -287,7 +287,6 @@ fileprivate extension Data {
         Int32(littleEndian: withUnsafeBytes { $0.loadUnaligned(fromByteOffset: offset, as: Int32.self) })
     }
 
-
     func float64(at offset: Int) -> Double {
         Double(bitPattern: UInt64(littleEndian: withUnsafeBytes { $0.loadUnaligned(fromByteOffset: offset, as: UInt64.self) }))
     }
