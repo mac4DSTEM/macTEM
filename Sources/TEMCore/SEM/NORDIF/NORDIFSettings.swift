@@ -160,12 +160,9 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
     package static func parse(_ data: Data, fileName: String) throws -> NORDIFSettings {
         // Latin-1 decodes every byte, as kikuchipy's `open(encoding="latin-1")`.
         let text = String(data: data, encoding: .isoLatin1) ?? String(decoding: data, as: UTF8.self)
-        // Python's `splitlines`: a trailing newline ends the last line and opens no empty one.
-        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map {
-            var line = Substring($0)
-            if line.hasSuffix("\r") { line = line.dropLast() }
-            return String(line)
-        }
+        // Python's `splitlines`: every newline kind ends a line (a Swift Character "\r\n" is one grapheme, so the split is
+        // by `isNewline`, never by "\n"), and a trailing newline ends the last line and opens no empty one.
+        var lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
         if lines.last == "" { lines.removeLast() }
         return try parse(lines: lines, fileName: fileName)
     }
