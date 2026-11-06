@@ -150,7 +150,7 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
     // MARK: Thermo Fisher / FEI
 
     /// tifffile's `fei_metadata`: tag 34680 then 34682, each an INI; a later section replaces an earlier of the same name.
-    static func thermo(_ page: TIFFDirectory, width: Int, height: Int) -> SEMImageMetadata {
+    package static func thermo(_ page: TIFFDirectory, width: Int, height: Int) -> SEMImageMetadata {
         var sections: [String: [String: String]] = [:]
         var raw: [RawField] = []
         for code in [34680, 34682] {
@@ -202,7 +202,7 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
 
     /// tifffile's `read_fei_metadata`: `[name]` starts a section, the first "=" splits a key from its value, both stripped;
     /// a line without "=" is skipped; a repeated key replaces the earlier (an empty value included).
-    static func feiSections(_ text: String) -> [(String, [String: String])] {
+    package static func feiSections(_ text: String) -> [(String, [String: String])] {
         var result: [(String, [String: String])] = []
         var current: [String: String] = [:]
         var name: String?
@@ -277,7 +277,7 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
         return (unnamed, keyed)
     }
 
-    static func zeiss(_ tag: TIFFTag, width: Int, height: Int) -> SEMImageMetadata {
+    package static func zeiss(_ tag: TIFFTag, width: Int, height: Int) -> SEMImageMetadata {
         let (unnamed, keyed) = czSEM(pythonText(tag.raw))
         var m = SEMImageMetadata(vendor: .zeiss, imageWidth: width, imageHeight: height, stageUnit: "mm")
         m.rawFields = keyed.sorted { $0.key < $1.key }.map { key, v in
@@ -322,7 +322,7 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
     /// NexusLIMS `tescan_tif`: the INI from the first `[MAIN]` marker, NULs removed, `[MAIN]` and `[SEM]` sections of `Key=Value`
     /// lines (configparser, keys case-preserved). Pixel sizes, WD, spot and stage in metres, HV in volts, dwell in seconds,
     /// pressure in pascals; `ImageStripSize` the rows of the info strip under the scan.
-    static func tescan(_ tag: TIFFTag, width: Int, height: Int) -> SEMImageMetadata {
+    package static func tescan(_ tag: TIFFTag, width: Int, height: Int) -> SEMImageMetadata {
         var header = pythonText(tag.raw)
         if let main = header.range(of: "[MAIN]") { header = String(header[main.lowerBound...]) }
         var sections: [String: [String: String]] = [:]
@@ -365,7 +365,7 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
     private static func text(_ s: String?) -> String? { s.flatMap { $0.isEmpty ? nil : $0 } }
 
     /// pint's conversion for the units SmartSEM writes, then `float("%.6e" % v)`: 7 significant digits.
-    static func convert(_ value: Double, from: String, to: String) -> Double? {
+    package static func convert(_ value: Double, from: String, to: String) -> Double? {
         guard let f = siFactor(from), let t = siFactor(to), f.base == t.base else { return nil }
         let converted = value * f.scale / t.scale
         guard converted.isFinite, let rounded = Double(String(format: "%.6e", converted)) else { return nil }
@@ -373,7 +373,7 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
     }
 
     /// The base unit and the factor to it of an SI-prefixed m, s, A or Pa (µ as U+00B5 or U+03BC, "u" too).
-    static func siFactor(_ unit: String) -> (base: String, scale: Double)? {
+    package static func siFactor(_ unit: String) -> (base: String, scale: Double)? {
         let bases = ["m", "s", "A", "Pa"]
         let prefixes: [String: Double] = ["": 1, "k": 1e3, "M": 1e6, "m": 1e-3, "µ": 1e-6, "μ": 1e-6, "u": 1e-6, "n": 1e-9, "p": 1e-12, "f": 1e-15]
         for base in bases where unit.hasSuffix(base) {
@@ -386,7 +386,7 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
     // MARK: Dates (RosettaSciIO: dateutil, `.date().isoformat()` and `.time().isoformat()`)
 
     /// "06/13/2016" (month first; a first field above 12 is the day, as dateutil reads it), "23 Dec 2015", "2016-06-13".
-    static func isoDate(_ text: String) -> String? {
+    package static func isoDate(_ text: String) -> String? {
         let s = pythonStrip(text)
         let months = ["jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12]
         func iso(_ y: Int, _ mo: Int, _ d: Int) -> String? {
@@ -409,7 +409,7 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
     }
 
     /// "05:06:40 PM", "9:40:32", "17:06:40" → "HH:mm:ss".
-    static func isoTime(_ text: String) -> String? {
+    package static func isoTime(_ text: String) -> String? {
         let words = pythonSplit(pythonStrip(text))
         guard let clock = words.first else { return nil }
         let parts = clock.split(separator: ":").map(String.init)
@@ -428,13 +428,13 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
     // MARK: Python's text rules (tifffile reads the tag through them)
 
     /// tifffile's `bytes2str`: the bytes up to the first NUL, UTF-8 or else cp1252.
-    static func pythonText(_ raw: Data) -> String {
+    package static func pythonText(_ raw: Data) -> String {
         let bytes = raw.prefix { $0 != 0 }
         return String(data: bytes, encoding: .utf8) ?? String(data: bytes, encoding: .windowsCP1252) ?? ""
     }
 
     /// `str.splitlines()`: \r\n, \r, \n, \v, \f, U+001C–U+001E, U+0085, U+2028, U+2029; no trailing empty line.
-    static func pythonSplitLines(_ s: String) -> [String] {
+    package static func pythonSplitLines(_ s: String) -> [String] {
         var lines: [String] = []
         var current = ""
         var scalars = s.unicodeScalars.makeIterator()
@@ -459,7 +459,7 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
     }
 
     /// `str.isupper()`: at least one cased character and no lower-case one.
-    static func pythonIsUpper(_ s: String) -> Bool {
+    package static func pythonIsUpper(_ s: String) -> Bool {
         var cased = false
         for c in s {
             if c.isLowercase { return false }
@@ -468,16 +468,16 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
         return cased
     }
 
-    static func pythonStrip(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
+    package static func pythonStrip(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     /// `str.split()` with no argument: runs of whitespace separate, none at the ends.
-    static func pythonSplit(_ s: String) -> [String] {
+    package static func pythonSplit(_ s: String) -> [String] {
         s.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).map(String.init)
     }
 
     /// `astype(value, (int, float))` as a number: Python's `int()` then `float()` of the text (ASCII digits, a sign, a
     /// point, an exponent, inf and nan; whitespace around it); nil where both raise.
-    static func pythonNumber(_ s: String) -> Double? {
+    package static func pythonNumber(_ s: String) -> Double? {
         let t = pythonStrip(s)
         guard !t.isEmpty, t.unicodeScalars.allSatisfy({ $0.isASCII }), !t.contains("_") else { return nil }
         if let i = Int(t) { return Double(i) }
