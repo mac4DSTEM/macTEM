@@ -5,7 +5,7 @@
 //        intensity of every pattern, one pass over the scan) and how the two pictures are drawn (`ImagePresentation` each, so the
 //        map and the pattern keep their own contrast). The room's views read it; they hold none of it.
 //
-//  Nothing here makes a number: the mean map is `EBSDBrowsing.meanIntensityMap` (TEMCore), the patterns are the readers'. This
+//  Nothing here makes a number: the mean map and the virtual images are `VirtualBSEImaging` (TEMCore), the patterns are the readers'. This
 //  owner decides WHEN to read: the map in one detached pass that lands only if no newer dataset was bound meanwhile (`generation`),
 //  the hovered pattern in a task that is cancelled by the next hover, so a fast sweep over the map reads the pattern the pointer
 //  rests on, not every one it passed. Patterns read once stay in a bounded cache by map index.
@@ -42,6 +42,33 @@ package final class EBSDSession {
     package private(set) var meanIntensities: [Float]?
     /// Why the map could not be made (the reader's sentence); nil while it is being made or once it has landed.
     package private(set) var mapFailure: String?
+
+    // MARK: The virtual images (north star F1)
+
+    /// The detector grid the pass cuts the patterns into (`VirtualBSEGrid`); changing it runs the pass again.
+    package private(set) var virtualGrid = VirtualBSEGrid(5)
+    /// The sum images the pass landed: index 0 the whole detector (the virtual BSE), then `virtualGrid.tiles` in order; each
+    /// `scanRows * scanColumns` long. nil until the pass lands.
+    package private(set) var virtualImages: [[Float]]?
+    /// What the scan map draws.
+    package enum MapChoice: Sendable, Hashable {
+        /// The mean intensity of every pattern (the navigator).
+        case mean
+        /// The sum over the whole detector (grid tile 1).
+        case bse
+        /// One tile of `virtualGrid`.
+        case tile(VirtualBSETile)
+        /// The colour mix of `mixTiles` (kikuchipy's `get_rgb_image`).
+        case mix
+    }
+    package private(set) var mapChoice = MapChoice.mean
+    /// The tiles of the colour mix: red, green, blue; nil until picked.
+    package private(set) var mixTiles: [VirtualBSETile?] = [nil, nil, nil]
+    /// The colour mix as RGBA bytes for the Metal view, once the three tiles are picked and the pass has landed; its version for the view.
+    package private(set) var mixRGBA: [UInt8]?
+    package private(set) var mixVersion = 0
+    /// The lower pane with every tile (the inspector's "Show the tiles").
+    package var showsTiles = false
 
     // MARK: The position
 
@@ -84,6 +111,93 @@ package final class EBSDSession {
     package func meanIntensity(at position: EBSDPosition) -> Float? {
         guard let dataset = document?.dataset, let meanIntensities, position.isInside(rows: dataset.scanRows, columns: dataset.scanColumns) else { return nil }
         return meanIntensities[position.index(columns: dataset.scanColumns)]
+    }
+
+    /// The value of the map on screen at `position` with its name ("BSE", "r2 c1"), once the pass has landed; nil for the mean map (the
+    /// readout carries the mean on its own) and for the colour mix.
+    package func mapValue(at position: EBSDPosition) -> (label: String, value: Float)? {
+        guard let dataset = document?.dataset, let image = chosenImage, position.isInside(rows: dataset.scanRows, columns: dataset.scanColumns) else { return nil }
+        let label: String
+        switch mapChoice {
+        case .bse: label = "BSE"
+        case .tile(let tile): label = tile.label
+        case .mean, .mix: return nil
+        }
+        return (label, image[position.index(columns: dataset.scanColumns)])
+    }
+
+    /// The sum image `mapChoice` names, once landed.
+    package var chosenImage: [Float]? {
+        guard let virtualImages else { return nil }
+        switch mapChoice {
+        case .bse: return virtualImages.first
+        case .tile(let tile):
+            let k = virtualGrid.index(of: tile) + 1
+            return k < virtualImages.count ? virtualImages[k] : nil
+        case .mean, .mix: return nil
+        }
+    }
+
+    /// The tile image of `tile`, once landed.
+    package func tileImage(_ tile: VirtualBSETile) -> [Float]? {
+        guard let virtualImages else { return nil }
+        let k = virtualGrid.index(of: tile) + 1
+        return k < virtualImages.count ? virtualImages[k] : nil
+    }
+
+    /// Cuts the detector into `grid` and runs the pass again (the tiles and the colour mix are the new grid's).
+    package func setVirtualGrid(_ grid: VirtualBSEGrid) {
+        guard grid != virtualGrid, let document else { virtualGrid = grid; return }
+        virtualGrid = grid
+        mixTiles = [nil, nil, nil]
+        mixRGBA = nil
+        if case .tile = mapChoice { mapChoice = .mean }
+        if mapChoice == .mix { mapChoice = .mean }
+        generation += 1
+        mapTask?.cancel()
+        startMap(document)
+    }
+
+    /// Shows `choice` on the scan map (nothing changes until its image has landed; the mix needs its three tiles).
+    package func showMap(_ choice: MapChoice) {
+        mapChoice = choice
+        remakeMap()
+    }
+
+    /// Picks `tile` (nil: none) for `channel` of the colour mix (0 red, 1 green, 2 blue); the map shows the mix once all three are picked.
+    package func setMixTile(_ tile: VirtualBSETile?, channel: Int) {
+        guard (0..<3).contains(channel) else { return }
+        mixTiles[channel] = tile
+        remakeMix()
+        if mixRGBA != nil { mapChoice = .mix }
+        remakeMap()
+    }
+
+    /// Whether the colour mix can be drawn: three tiles picked and the pass landed.
+    package var hasMix: Bool { mixRGBA != nil }
+
+    private func remakeMix() {
+        guard let r = mixTiles[0], let g = mixTiles[1], let b = mixTiles[2],
+              let red = tileImage(r), let green = tileImage(g), let blue = tileImage(b) else { mixRGBA = nil; return }
+        let rgb = VirtualBSEImaging.rgb(red: red, green: green, blue: blue)
+        guard !rgb.isEmpty else { mixRGBA = nil; return }
+        var rgba = [UInt8](repeating: 255, count: red.count * 4)
+        for i in 0..<red.count {
+            rgba[4 * i] = rgb[3 * i]; rgba[4 * i + 1] = rgb[3 * i + 1]; rgba[4 * i + 2] = rgb[3 * i + 2]
+        }
+        mixRGBA = rgba
+        mixVersion &+= 1
+    }
+
+    /// The map's canvas for `mapChoice`: the mean map, a sum image, or (for the mix, drawn from `mixRGBA`) the mean map's canvas underneath.
+    private func remakeMap() {
+        guard let dataset = document?.dataset else { return }
+        let pixels: [Float]?
+        switch mapChoice {
+        case .mean, .mix: pixels = meanIntensities
+        case .bse, .tile: pixels = chosenImage
+        }
+        if let pixels { mapPresentation.show(CanvasPixels.make(width: dataset.scanColumns, height: dataset.scanRows, pixels: pixels)) }
     }
 
     // MARK: Opening
@@ -129,6 +243,7 @@ package final class EBSDSession {
         cache = [:]; cacheOrder = []
         pinned = .origin; hovered = nil
         patternPosition = nil; meanIntensities = nil; mapFailure = nil; mapProgress = 0
+        virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
         onEvent?("Opened \(document.fileName) — \(EBSDBrowsing.capsuleDetail(document.dataset)), step \(UnitDisplay.number(document.dataset.stepX)) \(EBSDBrowsing.unitLabel(document.dataset.scanUnit))")
         startMap(document)
         return showPattern(at: .origin)
@@ -147,25 +262,35 @@ package final class EBSDSession {
         isOpening = false; isMapping = false
         document = nil; cache = [:]; cacheOrder = []
         meanIntensities = nil; mapFailure = nil; patternPosition = nil; hovered = nil; pinned = .origin
+        virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean; showsTiles = false
     }
 
     // MARK: The map
 
+    /// One pass over the scan in rows (`VirtualBSEImaging.images`): the whole detector's sum and every tile of `virtualGrid`; the mean map
+    /// is the whole sum over the pattern's pixels (`EBSDBrowsing.meanIntensityMap`'s number, tested against it).
     private func startMap(_ document: Document) {
         let gen = generation
         isMapping = true
         mapProgress = 0
+        mapFailure = nil
         let access = document.access
+        let dataset = document.dataset
+        let rects = [DetectorRect(top: 0, bottom: dataset.patternRows, left: 0, right: dataset.patternColumns)]
+            + virtualGrid.rects(patternRows: dataset.patternRows, patternColumns: dataset.patternColumns)
         mapTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
-                let map = try EBSDBrowsing.meanIntensityMap(access, progress: { f in
+                let sums = try VirtualBSEImaging.images(access, rects: rects, progress: { f in
                     Task { @MainActor in self?.landMapProgress(f, generation: gen) }
                 }, isCancelled: { Task.isCancelled })
-                let canvas = map.map { CanvasPixels.make(width: access.dataset.scanColumns, height: access.dataset.scanRows, pixels: $0) }
-                await self?.landMap(map, canvas: canvas, failure: nil, generation: gen)
+                guard let sums else { return }
+                let pixels = Double(max(dataset.patternPixels, 1))
+                let mean = sums[0].map { Float($0 / pixels) }
+                let images = sums.map { $0.map(Float.init) }
+                await self?.landMap(mean, images: images, failure: nil, generation: gen)
             } catch {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                await self?.landMap(nil, canvas: nil, failure: words, generation: gen)
+                await self?.landMap(nil, images: nil, failure: words, generation: gen)
             }
         }
     }
@@ -175,13 +300,15 @@ package final class EBSDSession {
         mapProgress = f
     }
 
-    private func landMap(_ map: [Float]?, canvas: CanvasPixels?, failure: String?, generation gen: Int) {
+    private func landMap(_ map: [Float]?, images: [[Float]]?, failure: String?, generation gen: Int) {
         guard gen == generation else { return }
         isMapping = false
         mapProgress = map == nil ? mapProgress : 1
-        if let map, let canvas {
+        if let map, let images {
             meanIntensities = map
-            mapPresentation.show(canvas)
+            virtualImages = images
+            remakeMix()
+            remakeMap()
         } else if let failure {
             mapFailure = failure
             onEvent?("Error: \(failure)")
