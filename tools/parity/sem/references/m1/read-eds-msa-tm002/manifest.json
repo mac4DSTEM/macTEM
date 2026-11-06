@@ -1,0 +1,97 @@
+{
+  "arrays": {
+    "counts": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "counts.bin",
+      "rtol": 0.0,
+      "sha256": "ae8041ad4334b1e43c72f610970ff3688bf3d70e0ebc3ce442b59311ec0f221e",
+      "shape": [
+        1024
+      ]
+    }
+  },
+  "case": "m1/read-eds-msa-tm002",
+  "inputs": [
+    {
+      "path": "fixtures/exspy_EDS_SEM_TM002.msa",
+      "sha256": "9f92145513b7336c0368e828e19a9c26c9b9cdf5dc109c9f91694ad2d6487a8b"
+    }
+  ],
+  "milestone": 1,
+  "reference": {
+    "function": "rsciio.msa.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "total_counts": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 1000279.0
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "axes": [
+      {
+        "name": "",
+        "offset": -0.1,
+        "scale": 0.01,
+        "size": 1024,
+        "units": "keV"
+      }
+    ],
+    "dtype": "float64",
+    "original_metadata": {
+      "AZIMANGLE": 0.0,
+      "BEAMKV": 10.0,
+      "CHOFFSET": 10.0,
+      "COMMENT": "File created by RosettaSciIO version 0.15.0",
+      "DATATYPE": "Y",
+      "DATE": "10-JAN-2011",
+      "ELEVANGLE": 37.0,
+      "FORMAT": "EMSA/MAS Spectral Data File",
+      "FWHMMNKA": 130.0,
+      "LIVETIME": 19.997292,
+      "MAGCAM": 236.0,
+      "NCOLUMNS": 1.0,
+      "NPOINTS": 1024.0,
+      "OFFSET": -0.1,
+      "OWNER": "",
+      "OXINSTELEMS": "6,8,13,25,29,40,47",
+      "OXINSTLABEL": "47, 2.634, Ag",
+      "OXINSTPT": "4",
+      "OXINSTSTROB": "48.23",
+      "PROBECUR": 0.0,
+      "REALTIME": 39.593745,
+      "SIGNALTYPE": "EDS",
+      "TIME": "11:18",
+      "TITLE": "EDS SEM Spectrum",
+      "VERSION": "1.0",
+      "XLABEL": "",
+      "XPERCHAN": 0.01,
+      "XPOSITION mm": "45.7421",
+      "XTILTSTGE": 0.0,
+      "XUNITS": "keV",
+      "YPOSITION mm": "67.6363",
+      "YUNITS": "counts",
+      "ZPOSITION mm": "40.7000"
+    },
+    "sem_metadata": {},
+    "signal_type": "EDS_SEM"
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "arrays": {
+    "after_static_and_dynamic_corner": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "after_static_and_dynamic_corner.bin",
+      "note": "scan rows 0..2, cols 0..2",
+      "rtol": 0.0,
+      "sha256": "476d8b9344a0258a560d7097882548cff9646d078fe9b26a318c0382f19d2584",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "after_static_and_dynamic_first": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "after_static_and_dynamic_first.bin",
+      "rtol": 0.0,
+      "sha256": "78c1f56be4cd9d2b859ee3ffd8431f0b19502763e87aed74918185c8d3ba36f0",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "after_static_corner": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "after_static_corner.bin",
+      "note": "scan rows 0..2, cols 0..2",
+      "rtol": 0.0,
+      "sha256": "6c2c056c71818f7f56e53b16e277787d57cdf56a20ed3e47e237e3b9330330bd",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "after_static_first": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "after_static_first.bin",
+      "rtol": 0.0,
+      "sha256": "1ab3d04eaafc839d69446b9b512785c118356732df4fc0b94e2b58cb1003252d",
+      "shape": [
+        60,
+        60
+      ]
+    }
+  },
+  "case": "m2/background-nickel-ebsd-large",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.remove_static_background / remove_dynamic_background",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "after_static": {
+      "dtype": "uint8",
+      "sha256": "37224aca203191a9c7052f0f9e5ce6f010ef9c1df3a32692a938f632b9a9b848",
+      "shape": [
+        55,
+        75,
+        60,
+        60
+      ]
+    },
+    "after_static_and_dynamic": {
+      "dtype": "uint8",
+      "sha256": "e76a8b011a187e04ed25c931ee2a67cc062a962abfd71535937c2a7ab2f1ca01",
+      "shape": [
+        55,
+        75,
+        60,
+        60
+      ]
+    },
+    "dynamic_kwargs": {
+      "filter_domain": "frequency",
+      "operation": "subtract",
+      "std": null,
+      "truncate": 4.0
+    },
+    "static_kwargs": {
+      "operation": "subtract",
+      "scale_bg": false,
+      "static_bg": "from file"
+    }
+  }
+}

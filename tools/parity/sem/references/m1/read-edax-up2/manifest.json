@@ -1,0 +1,164 @@
+{
+  "arrays": {
+    "first_pattern": {
+      "atol": 0.0,
+      "dtype": "uint16",
+      "file": "first_pattern.bin",
+      "rtol": 0.0,
+      "sha256": "971e8e12b554765e4f633605bc63242b1e579f420c07cc19440596ed0b502091",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "last_pattern": {
+      "atol": 0.0,
+      "dtype": "uint16",
+      "file": "last_pattern.bin",
+      "rtol": 0.0,
+      "sha256": "e4331b4b5dff91084b34db4018c5905a016cdf9c0d74d02c0d5af88dabfc6bc6",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "mean_pattern": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "mean_pattern.bin",
+      "rtol": 1e-07,
+      "sha256": "c67ac3df676cd2986e7982db63c137e2a27d3370e4b4063719ccba76721e3f6f",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "pattern_max": {
+      "atol": 0.0,
+      "dtype": "uint16",
+      "file": "pattern_max.bin",
+      "rtol": 0.0,
+      "sha256": "db11b8b544edf1ba1b77ed19e35e4442b7b2387e890a8b1fa176c93bac0a6a26",
+      "shape": [
+        10
+      ]
+    },
+    "pattern_mean": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pattern_mean.bin",
+      "note": "the navigator's mean-intensity map",
+      "rtol": 1e-07,
+      "sha256": "acafa0d8f6dfa7ebb0c00a2e638f0882db6195a23c96391d7f99310f8a671c61",
+      "shape": [
+        10
+      ]
+    },
+    "pattern_min": {
+      "atol": 0.0,
+      "dtype": "uint16",
+      "file": "pattern_min.bin",
+      "rtol": 0.0,
+      "sha256": "ae413bdab4529ed5ef553eccf3595bba2ef25ef717157d70d6c3a7b60f72c4bd",
+      "shape": [
+        10
+      ]
+    }
+  },
+  "case": "m1/read-edax-up2",
+  "inputs": [
+    {
+      "path": "fixtures/edax_binary.up2",
+      "sha256": "37cdaa0d4c044492abad9454381a53d976e8cbea529a18cc73bc2b4316a4333a"
+    }
+  ],
+  "milestone": 1,
+  "reference": {
+    "function": "kikuchipy.load",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "detector": {
+      "azimuthal": 0.0,
+      "binning": 1.0,
+      "pc_first": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "pc_shape": [
+        1,
+        3
+      ],
+      "px_size": 1.0,
+      "sample_tilt": 70.0,
+      "shape_rc": [
+        60,
+        60
+      ],
+      "tilt": 0.0
+    },
+    "dtype": "uint16",
+    "navigation_axes": [
+      {
+        "name": "x",
+        "offset": 0.0,
+        "scale": 1.5707963267948966,
+        "size": 10,
+        "units": "um"
+      }
+    ],
+    "navigation_shape_rc": [
+      10
+    ],
+    "patterns": {
+      "dtype": "uint16",
+      "sha256": "6b0a4981d1951ef0f016161866e3d5ece3dbaf32982936e7be6ba56e41ff6d85",
+      "shape": [
+        10,
+        60,
+        60
+      ]
+    },
+    "sem_metadata": {},
+    "signal_axes": [
+      {
+        "name": "dx",
+        "offset": 0.0,
+        "scale": 1.0,
+        "size": 60,
+        "units": "um"
+      },
+      {
+        "name": "dy",
+        "offset": 0.0,
+        "scale": 3.141592653589793,
+        "size": 60,
+        "units": "um"
+      }
+    ],
+    "signal_shape_rc": [
+      60,
+      60
+    ],
+    "static_background": null,
+    "title": "edax_binary",
+    "xmap": null
+  }
+}
