@@ -4,7 +4,7 @@ kikuchipy 0.13.1's `EBSDDetector` (projection-centre conventions both ways, size
 pixel <-> gnomonic coordinates, the sample-to-detector rotation) and `PCCalibrationMovingScreen` (Hjelen et al. 1991)
 on the points kikuchipy's tutorial and tests pick on `si_ebsd_moving_screen` in (0 mm) and out (5 mm). The cases take
 no downloaded data: the calibration reads only the points and the 480 x 480 detector shape, so the bundles are emitted
-from those (the figure script, `detector_figure.py`, draws them on the fetched patterns). emit.py imports every
+from those and the other inputs in fixtures/detector_geometry_cases.json (the figure script, `detector_figure.py`, draws them on the fetched patterns). emit.py imports every
 `case_` function here.
 
 Tolerances: numpy's float64 default (rtol 1e-7) for everything kikuchipy computes in float64, part of it under numba
@@ -14,6 +14,9 @@ at rtol 1e-5 (the brief's bound; kikuchipy intersects lines through `np.linalg.d
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import numpy as np
 
 from refbundle import Bundle
@@ -22,19 +25,19 @@ F64 = {"rtol": 1e-7, "atol": 0.0}
 F64Z = {"rtol": 1e-7, "atol": 1e-12}
 PC5 = {"rtol": 1e-5, "atol": 1e-12}
 
-# kikuchipy's names, aliases included; emsoft == emsoft5.
-CONVENTIONS = ["bruker", "tsl", "edax", "amatek", "oxford", "aztec", "emsoft", "emsoft4", "emsoft5"]
+# Every input is the committed fixture below (detectors, PCs, angles, the moving-screen points): each bundle names it.
+CASES_FILE = Path(__file__).resolve().parent / "fixtures" / "detector_geometry_cases.json"
+CASES_LABEL = "fixtures/detector_geometry_cases.json"
+_C = json.loads(CASES_FILE.read_text())
 
+# kikuchipy's names, aliases included; emsoft == emsoft5.
+CONVENTIONS = _C["conventions"]
 # Detectors: (shape, px_size, binning). kikuchipy's tests use (60, 60), (510, 510), (1, 1) and (480, 640); its docstring
 # example (60, 80) at 59.2 µm binned 8; an Oxford-like 1244 x 1024 unbinned; a tall one so min(rows, cols) != rows.
-DETECTORS = [((60, 60), 1.0, 1), ((60, 80), 59.2, 8), ((480, 640), 70.0, 2), ((1, 1), 1.0, 1), ((1024, 1244), 6.5, 1),
-             ((240, 200), 30.0, 4), ((510, 510), 2.5, 1)]
-
-# PCs as given (2 x 3 navigation shape, so the per-position path is exercised); the EMsoft row is in pixels and µm.
-PCS_FRACTION = np.array([[[0.4210, 0.7794, 0.5049], [0.4214844, 0.21500351, 0.50201974], [0.5, 0.5, 0.5]],
-                         [[0.42088203, 0.2165417, 0.50079336], [0.3, 0.8, 0.7], [0.62, 0.15, 0.48]]])
-PCS_EMSOFT = np.array([[[64.0, 144.0, 17049.6], [-12.5, 30.25, 15000.0], [0.0, 0.0, 12000.0]],
-                       [[3.75, -88.0, 21000.0], [120.0, 10.0, 9000.0], [-40.0, -40.0, 18000.0]]])
+DETECTORS = [(tuple(d["shape"]), d["px_size"], d["binning"]) for d in _C["detectors"]]
+# PCs as given (2 x 3 navigation shape, so the per-position path is exercised); the EMsoft set is in pixels and µm.
+PCS_FRACTION = np.asarray(_C["pcs_fraction"], dtype=np.float64)
+PCS_EMSOFT = np.asarray(_C["pcs_emsoft"], dtype=np.float64)
 
 
 def _det(kp, shape, px, b, pc, conv="bruker", **angles):
@@ -46,6 +49,7 @@ def case_m2_detector_pc_conventions(ctx):
     import kikuchipy as kp
 
     b = Bundle("m2/detector-pc-conventions", 2, "kikuchipy", "kikuchipy.detectors.EBSDDetector(pc, convention) / pc_tsl / pc_oxford / pc_emsoft", ctx.out)
+    b.input(CASES_FILE, CASES_LABEL)
     b.value("detectors", [{"shape": list(s), "px_size": px, "binning": bb} for s, px, bb in DETECTORS])
     b.value("conventions", CONVENTIONS)
     b.array("pcs_fraction", PCS_FRACTION, **F64)
@@ -73,6 +77,7 @@ def case_m2_detector_gnomonic(ctx):
     import kikuchipy as kp
 
     b = Bundle("m2/detector-gnomonic", 2, "kikuchipy", "kikuchipy.detectors.EBSDDetector gnomonic_bounds / x_scale / y_scale / r_max / to_gnomonic_coords / to_pixel_coords", ctx.out)
+    b.input(CASES_FILE, CASES_LABEL)
     b.value("detectors", [{"shape": list(s), "px_size": px, "binning": bb} for s, px, bb in DETECTORS])
     b.array("pcs_bruker", PCS_FRACTION, **F64)
     sizes, bounds, scales, rmax, ssd = [], [], [], [], []
@@ -90,9 +95,8 @@ def case_m2_detector_gnomonic(ctx):
     b.array("specimen_scintillator_distance", np.asarray(ssd), **F64)
 
     # kikuchipy's test_coordinate_conversions: a 60 x 60 detector with a 2 x 2 PC map, pixel (y, x) points.
-    pc = np.array([[[0.4214844, 0.21500351, 0.50201974], [0.42414583, 0.21014019, 0.50104439]],
-                   [[0.42088203, 0.2165417, 0.50079336], [0.42725023, 0.21450546, 0.49996293]]])
-    coords = np.array([[12.7, 36.2], [43.7, 2.5], [27.7, 8.2], [0.0, 0.0], [59.0, 59.0]])
+    pc = np.asarray(_C["coords_pc"], dtype=np.float64)
+    coords = np.asarray(_C["coords_pixel"], dtype=np.float64)
     d = kp.detectors.EBSDDetector(shape=(60, 60), pc=pc)
     gn = d.to_gnomonic_coords(coords)
     b.array("coords_pc", pc, **F64)
@@ -107,9 +111,8 @@ def case_m2_detector_gnomonic(ctx):
 
 # kikuchipy's test_sample_to_detector angles, a grid around a typical EBSD set-up, and TKD set-ups (the detector below
 # a sample that is flat or tilted a few degrees either way; kikuchipy takes TKD through the same four angles).
-ROTATION_ANGLES = [(0, 0, 0, 90.0), (0, 0, 0, 70.0), (8.3, 4.7, -1.02, 70.0), (0, 0, 0, 0.0), (40.0, 0, 0, 0.0),
-                   (40.0, 20.0, 0, 70.0), (40.0, -40.0, 0, 70.0), (-5.0, 2.0, 3.0, 65.0), (10.0, 0, 15.0, 75.0)]
-TKD_ANGLES = [(0, 0, 0, -20.0), (-10.0, 0, 0, -20.0), (0, 0, 0, 0.0), (5.0, 3.0, -2.0, -10.0), (-20.0, 0, 0, 10.0)]
+ROTATION_ANGLES = [tuple(a) for a in _C["rotation_angles"]]
+TKD_ANGLES = [tuple(a) for a in _C["tkd_angles"]]
 
 
 def case_m2_detector_sample_to_detector(ctx):
@@ -118,6 +121,7 @@ def case_m2_detector_sample_to_detector(ctx):
     from kikuchipy.detectors._ebsd_detector import _sample_to_detector_matrix
 
     b = Bundle("m2/detector-sample-to-detector", 2, "kikuchipy", "kikuchipy.detectors.EBSDDetector.sample_to_detector", ctx.out)
+    b.input(CASES_FILE, CASES_LABEL)
     ang = np.asarray(ROTATION_ANGLES, dtype=np.float64)
     b.array("angles_deg", ang, **F64, note="(tilt, azimuthal, twist, sample_tilt)")
     mats, quats = [], []
@@ -136,8 +140,9 @@ def case_m2_detector_tkd_geometry(ctx):
     from kikuchipy.detectors._ebsd_detector import _sample_to_detector_matrix
 
     b = Bundle("m2/detector-tkd-geometry", 2, "kikuchipy", "kikuchipy.detectors.EBSDDetector (TKD angles)", ctx.out)
+    b.input(CASES_FILE, CASES_LABEL)
     ang = np.asarray(TKD_ANGLES, dtype=np.float64)
-    pcs = np.array([[0.5, 0.35, 0.65], [0.48, 0.42, 0.55], [0.5, 0.5, 0.8], [0.52, 0.3, 0.6], [0.45, 0.6, 0.7]])
+    pcs = np.asarray(_C["tkd_pcs"], dtype=np.float64)
     b.array("angles_deg", ang, **F64, note="(tilt, azimuthal, twist, sample_tilt)")
     b.array("pcs_bruker", pcs, **F64)
     mats, bounds, rmax, emsoft = [], [], [], []
@@ -157,18 +162,9 @@ def case_m2_detector_tkd_geometry(ctx):
 
 
 # The moving-screen points: kikuchipy's tutorial (three zone axes, px 0.09 mm) and its tests (five points, px 46/508 mm).
-POINTS_IN = [(109, 131), (390, 139), (246, 232), (129, 228), (364, 237)]
-POINTS_OUT = [(77, 146), (424, 156), (246, 269), (104, 265), (392, 276)]
-MOVING_SCREEN = [  # (label, n points, px_size, binning, convention)
-    ("tutorial-3-tsl", 3, 90e-3, 1, "tsl"),
-    ("tutorial-3-mm", 3, None, 1, "tsl"),
-    ("tests-3-tsl", 3, 46 / 508, 1, "tsl"),
-    ("tests-4-tsl", 4, 46 / 508, 1, "tsl"),
-    ("tests-5-tsl", 5, 46 / 508, 1, "tsl"),
-    ("tests-5-bruker", 5, 46 / 508, 1, "bruker"),
-    ("tests-5-mm", 5, None, 1, "tsl"),
-    ("tests-5-binned", 5, 46 / 508 / 2, 2, "tsl"),
-]
+POINTS_IN = [tuple(p) for p in _C["moving_screen"]["points_in"]]
+POINTS_OUT = [tuple(p) for p in _C["moving_screen"]["points_out"]]
+MOVING_SCREEN = [(c["label"], c["n_points"], c["px_size_mm"], c["binning"], c["convention"]) for c in _C["moving_screen"]["cases"]]
 
 
 def case_m2_pc_moving_screen_si(ctx):
@@ -176,6 +172,7 @@ def case_m2_pc_moving_screen_si(ctx):
     import kikuchipy as kp
 
     b = Bundle("m2/pc-moving-screen-si", 2, "kikuchipy", "kikuchipy.detectors.PCCalibrationMovingScreen", ctx.out)
+    b.input(CASES_FILE, CASES_LABEL)
     b.value("shape", [480, 480])
     b.value("delta_z_mm", 5.0)
     b.value("cases", [{"label": l, "n_points": n, "px_size_mm": px, "binning": bb, "convention": c} for l, n, px, bb, c in MOVING_SCREEN])

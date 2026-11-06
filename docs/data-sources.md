@@ -33,6 +33,7 @@ test files are compatible, and each entry below says which it is. Demo data ship
 | Fixture | What | Source | Licence |
 | --- | --- | --- | --- |
 | `kikuchipy_h5ebsd_patterns.h5` | 3 x 3 patterns of 60 x 60 px cut from the Ni dataset above, kikuchipy h5ebsd with static background, PCs and crystal map (`kikuchipy.data.nickel_ebsd_small`) | kikuchipy 0.13.1 package data | CC BY 4.0 (data), GPL-3.0 (package) |
+| `detector_geometry_cases.json` | The inputs of the detector-geometry and moving-screen bundles (figure F5): detector shapes, projection centres, angles, and the zone-axis points kikuchipy's tutorial and tests mark on `si_ebsd_moving_screen` | kikuchipy 0.13.1 tests and tutorial (points); chosen for the SEM program (the rest) | GPL-3.0 |
 | `nordif/Pattern.dat`, `nordif/Setting.txt` | The same 3 x 3 scan as a NORDIF binary with its settings file | kikuchipy 0.13.1 package data | GPL-3.0 |
 | `oxford_binary_patterns.ebsp` | The same 3 x 3 scan as an Oxford Instruments binary (version 1 `.ebsp`) | kikuchipy 0.13.1 package data | GPL-3.0 |
 | `edax_binary.up1`, `edax_binary.up2` | EDAX TSL binaries: 9 patterns uint8 (up1, square grid) and 10 patterns uint16 (up2, hexagonal grid) | kikuchipy 0.13.1 package data | GPL-3.0 |

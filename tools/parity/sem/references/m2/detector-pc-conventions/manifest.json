@@ -56,7 +56,12 @@
     }
   },
   "case": "m2/detector-pc-conventions",
-  "inputs": [],
+  "inputs": [
+    {
+      "path": "fixtures/detector_geometry_cases.json",
+      "sha256": "575c1eb80bdd45c888ee9f972af39cd4d3d0c19be2007459ced1c038c57a0066"
+    }
+  ],
   "milestone": 2,
   "reference": {
     "function": "kikuchipy.detectors.EBSDDetector(pc, convention) / pc_tsl / pc_oxford / pc_emsoft",

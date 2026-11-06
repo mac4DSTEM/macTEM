@@ -144,7 +144,12 @@
     }
   },
   "case": "m2/detector-gnomonic",
-  "inputs": [],
+  "inputs": [
+    {
+      "path": "fixtures/detector_geometry_cases.json",
+      "sha256": "575c1eb80bdd45c888ee9f972af39cd4d3d0c19be2007459ced1c038c57a0066"
+    }
+  ],
   "milestone": 2,
   "reference": {
     "function": "kikuchipy.detectors.EBSDDetector gnomonic_bounds / x_scale / y_scale / r_max / to_gnomonic_coords / to_pixel_coords",
