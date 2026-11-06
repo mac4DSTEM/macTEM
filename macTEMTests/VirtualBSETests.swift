@@ -9,6 +9,7 @@
 import XCTest
 import FormatoCore
 import TEMCore
+import TEMSession
 
 nonisolated final class VirtualBSETests: XCTestCase {
 
@@ -68,14 +69,16 @@ nonisolated final class VirtualBSETests: XCTestCase {
         try compare("m1/vbse-kikuchipy-h5ebsd")
     }
 
+    /// The north-star scan is the shipped demo file (`DemoDocuments.Shipped.nickelEBSD`, the same bytes the bundle's input names).
     func testTheNorthStarScanMatchesItsBundle() throws {
-        try compare("m1/vbse-nickel-ebsd-large")
+        try compare("m1/vbse-nickel-ebsd-large", input: try XCTUnwrap(DemoDocuments.Shipped.nickelEBSD.url, "DemoData/ is not in the bundle"))
     }
 
-    /// The bundle's grid, mix tiles and rectangle on its input file through the Swift port, each array at the bundle's tolerance.
-    private func compare(_ caseName: String) throws {
+    /// The bundle's grid, mix tiles and rectangle on its input file (`input`, or the bundle's own) through the Swift port, each array at
+    /// the bundle's tolerance.
+    private func compare(_ caseName: String, input: URL? = nil) throws {
         let ref = try SEMParityReference.load(caseName)
-        guard let url = ref.inputURL(0), FileManager.default.fileExists(atPath: url.path) else {
+        guard let url = input ?? ref.inputURL(0), FileManager.default.fileExists(atPath: url.path) else {
             throw XCTSkip("\(caseName): its dataset is not on this machine (tools/parity/sem/fetch-data.sh)")
         }
         let dataset = try EBSDH5Reader.read(url: url)
