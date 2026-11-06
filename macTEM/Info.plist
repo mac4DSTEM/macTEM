@@ -42,6 +42,21 @@
 				<string>hspy</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>EBSD pattern dataset</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>h5</string>
+				<string>hdf5</string>
+				<string>h5oina</string>
+				<string>h5ebsd</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>
