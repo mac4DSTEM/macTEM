@@ -93,8 +93,8 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
 
     @MainActor func testTheLaunchArgumentsAreRead() {
         XCTAssertEqual(LaunchOptions(arguments: ["macTEM"]), LaunchOptions(arguments: []))
-        let all = LaunchOptions(arguments: ["macTEM", "--ui-testing", "--demo-fixture", "--demo-spectrum-fixture", "--demo-eels-fixture", "--export-dir", "/tmp/out"])
-        XCTAssertTrue(all.isUITesting && all.demoImage && all.demoSpectrum && all.demoEELS)
+        let all = LaunchOptions(arguments: ["macTEM", "--ui-testing", "--demo-fixture", "--demo-spectrum-fixture", "--demo-eels-fixture", "--demo-sem-eds", "--export-dir", "/tmp/out"])
+        XCTAssertTrue(all.isUITesting && all.demoImage && all.demoSpectrum && all.demoEELS && all.demoSEMSpectrum)
         XCTAssertEqual(all.exportDirectory, URL(fileURLWithPath: "/tmp/out", isDirectory: true))
         XCTAssertNil(LaunchOptions(arguments: ["--export-dir"]).exportDirectory, "no path after the flag")
         let relative = AppState(launch: LaunchOptions(arguments: ["--export-dir", "ui-export"]))

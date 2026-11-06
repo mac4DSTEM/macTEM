@@ -15,7 +15,7 @@
 //  outer product with itself, so the operator is the separable correlation with the 1D window under nearest-edge reads; the
 //  taps of output pixel i are i − (M − h − 1) ... i + h with h = (M − 1) / 2 (the window's `origin`), which is i − 15 ... i + 14
 //  for the default 30 px window and symmetric for an odd one. This file computes exactly that, in float64, instead of
-//  rebuilding the padded FFT (same numbers within float32 rounding, no padding bookkeeping; decision D-SEM-12).
+//  rebuilding the padded FFT (same numbers within float32 rounding, no padding bookkeeping; decision D-SEM-17).
 //  The spatial-domain background is SciPy's `gaussian_filter` (mode reflect), ImagoKit's `SeparableFilters.gaussianFilter`.
 //
 
