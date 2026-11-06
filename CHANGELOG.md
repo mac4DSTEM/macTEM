@@ -8,6 +8,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). App
 - **Runs on macOS 26** (was macOS 27) on Apple silicon. MacEMUI 0.3.2. CI builds and runs the unit tests, on Xcode 26.6.
 - Exports no longer carry internal milestone ids: the `validation` and `lineage` text in PNG metadata, FFT CSVs and the line profile and measurement CSVs names what each number is checked against (numpy, scikit-image, ImagoKit's parity tests), without "V1-…" or "until V1-2".
 
+## [1.3.0](https://github.com/mac4DSTEM/macTEM/compare/v1.2.0...v1.3.0) (2026-11-05)
+
+
+### Features
+
+* EELS Align signal range and crop are real controls ([#87](https://github.com/mac4DSTEM/macTEM/issues/87)) ([7a681d0](https://github.com/mac4DSTEM/macTEM/commit/7a681d0819743a2fb0e3d21c6ccb25fa310f76b4))
+* Help &gt; Open Demo Data opens the generated demo documents ([#108](https://github.com/mac4DSTEM/macTEM/issues/108)) ([f9d7dfb](https://github.com/mac4DSTEM/macTEM/commit/f9d7dfb991487e5a9c78e52a21f0aa02cb310f46))
+
+
+### Bug Fixes
+
+* EELS fit notes popover and fit-quality line read cleanly ([#96](https://github.com/mac4DSTEM/macTEM/issues/96)) ([8855eee](https://github.com/mac4DSTEM/macTEM/commit/8855eee05b531c97516a00f41542c4bdc8ab633a))
+* EELS spectrum legend no longer covers the low loss and core loss labels ([#93](https://github.com/mac4DSTEM/macTEM/issues/93)) ([4b68682](https://github.com/mac4DSTEM/macTEM/commit/4b6868258bbf0ad9159ca5b85a1fff15de6b3a24))
+* Particles Export CSV writes into --export-dir and reports its result ([#98](https://github.com/mac4DSTEM/macTEM/issues/98)) ([d3c5cb8](https://github.com/mac4DSTEM/macTEM/commit/d3c5cb8350db3b0fa1bed2587fb0fb07c3190d7e))
+* remember files the sandbox grants read-only ([#114](https://github.com/mac4DSTEM/macTEM/issues/114)) ([ec59da7](https://github.com/mac4DSTEM/macTEM/commit/ec59da7b1770bf0d09db9d92dc775998ebacf808))
+
 ## [1.2.0](https://github.com/mac4DSTEM/macTEM/compare/v1.1.1...v1.2.0) (2026-11-02)
 
 
