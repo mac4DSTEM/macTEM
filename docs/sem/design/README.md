@@ -150,6 +150,19 @@ The north-star figures, in milestone order (north-star.md owns the numbers and t
 | NS-6 | geometrical Kikuchi simulation over an experimental pattern | kikuchipy | Indexing |
 | NS-7 | SEM-EDS line intensities with background windows, and the quantification table | exspy | EDS |
 
+## Reference bundles
+
+The parity harness (`tools/parity/sem`, north-star.md) emits one reference bundle per figure; a room's acceptance
+test reads the bundle by name. The figures above map to the bundles so:
+
+| Figure | Bundle(s) | Holds |
+|---|---|---|
+| NS-1 | `m1/read-nickel-ebsd-large`, `m1/vbse-nickel-ebsd-large`, `m2/background-nickel-ebsd-large` | scan facts (55 × 75, 60 × 60 px, PC per pattern, static background, one-phase crystal map); the grid images, the RGB mix, the ROI, the mean-intensity map; pattern (0, 0) after static and dynamic background |
+| NS-2 | `m1/vbse-nickel-ebsd-large` | the mean-intensity map (image quality joins the m2 bundle) |
+| NS-3 to NS-6 | the m3 to m6 bundles north-star.md lists | indexing, refinement, grains, overlay |
+| NS-7 | `m7/eds-lines-tm002` | Al Kα, C Kα, Cu Lα, Mn Lα, Zr Lα intensities with background windows |
+| readers | one reader bundle per format (h5oina, Bruker h5, EDAX, Oxford, NORDIF, EMsoft, kikuchipy) | exact scan facts and the first pattern |
+
 ## Acceptance
 
 Each room's doc ends with its acceptance in terms of the north-star figures (`docs/sem/north-star.md`, written by the

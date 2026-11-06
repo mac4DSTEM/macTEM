@@ -47,7 +47,7 @@ The EDS room's sections (`Maps · Tools · Elements · Lines · Quantification �
   energy (no K lines above the overvoltage; the caption says `10 kV: lines above 8 keV excluded`).
 - **Lines** (the line-window section, whatever its name is in the EDS room today; the one word is kept): `Background
   windows` switch; `Window width` field (× FWHM, exspy's `line_width` default 2 and 2); per line the windows as a
-  value row (`Mn Kα · 5,78–6,02 · bg 5,48–5,60 · 6,14–6,26 keV`) with a `Reset` on the row's context menu.
+  value row (`Mn Lα · 0,58–0,68 · bg 0,50–0,56 · 0,70–0,76 keV`) with a `Reset` on the row's context menu.
 - **Quantification**: `Method` pop-up gains `Cliff-Lorimer (bulk, absorption)`; the existing `k-factors` sheet
   accepts exspy's k-factor list (typed or from a CSV) so NS-7's table is reproduced with the same k; `Take-off angle`
   value row with its source; `Thickness` field (thin films; the demo's 100 nm) and `Density`.
@@ -74,8 +74,9 @@ on.
 
 ## 7. Acceptance
 
-- NS-7: the line intensities of Al Kα, Mn Kα, Cu Kα, Zr Lα with exspy's default windows equal exspy's
-  `get_lines_intensity` within its tolerance; the Cliff-Lorimer composition with exspy's k-factors equals the exspy
+- NS-7: the line intensities of Al Kα, C Kα, Cu Lα, Mn Lα and Zr Lα with exspy's default windows equal the
+  `m7/eds-lines-tm002` bundle within its tolerance (at 10 kV the Cu and Mn K lines are not excited enough; exspy
+  uses the L lines); the Cliff-Lorimer composition with exspy's k-factors equals the exspy
   tutorial table within north-star.md's tolerance; the take-off angle equals exspy's `take_off_angle()` to 0,01°.
 - Readers exact: the `.hspy` metadata tree and the `.bcf` fixture's spectrum image, conditions and SE image equal
   rosettasciio's.
