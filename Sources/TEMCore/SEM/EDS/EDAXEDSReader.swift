@@ -28,7 +28,9 @@ package nonisolated enum EDAXEDSReader {
         do {
             let h = try FileHandle(forReadingFrom: url)
             defer { try? h.close() }
-            let d = try (limit.map { h.read(upToCount: $0) } ?? h.readToEnd()) ?? Data()
+            let read: Data?
+            if let limit { read = try h.read(upToCount: limit) } else { read = try h.readToEnd() }
+            let d = read ?? Data()
             return SEMEDSBytes([UInt8](d), name: url.lastPathComponent)
         } catch {
             throw SEMEDSReadError("\(url.lastPathComponent) could not be read.")
