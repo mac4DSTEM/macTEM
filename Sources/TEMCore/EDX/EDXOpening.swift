@@ -5,8 +5,8 @@ import SpectroCore
 import ShellEDXModel
 
 package enum EDXOpening {
-    /// File extensions the Open panel offers (a Velox EMD or a GMS DM4).
-    package static let readableExtensions = ["emd", "dm4", "msa"]
+    /// File extensions the Open panel offers (a Velox EMD or a GMS DM4; a single spectrum as `.msa` or HyperSpy's `.hspy`).
+    package static let readableExtensions = ["emd", "dm4", "msa", "hspy"]
 
     /// Header-only for a DM4, one HDF5 open for an EMD. Run off the main actor.
     package static func isSpectrumImage(at url: URL) -> Bool {
