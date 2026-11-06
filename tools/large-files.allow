@@ -1,1 +1,2 @@
 # Tracked files over 1 MiB, each with its reason: path<TAB>reason. tools/run-tests.sh inventory fails on any other.
+DemoData/nickel_ebsd_large/patterns_v2.h5	shipped demo data: kikuchipy's nickel_ebsd_large (CC BY 4.0), the SEM program's north-star EBSD set; NOTICE
