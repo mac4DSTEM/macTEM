@@ -96,8 +96,8 @@ package nonisolated enum PatternProcessing {
         _ pattern: [P], background: [P], operation: Operation, scaleBackground: Bool = false
     ) throws -> [Double] {
         guard !pattern.isEmpty, pattern.count == background.count else { throw Error.shape }
-        let p = pattern.map(Double.init)
-        var b = background.map(Double.init)
+        let p = pattern.map { Double($0) }
+        var b = background.map { Double($0) }
         if scaleBackground { b = try rescale(b, toMin: p.min()!, max: p.max()!) }
         let (omin, omax) = range(of: P.self)
         return try rescale(combine(p, b, operation), toMin: omin, max: omax)
@@ -145,7 +145,7 @@ package nonisolated enum PatternProcessing {
         _ pattern: [P], rows: Int, columns: Int, operation: Operation = .subtract, domain: FilterDomain = .frequency,
         std: Double? = nil, truncate: Double = 4
     ) throws -> [Double] {
-        let p = pattern.map(Double.init)
+        let p = pattern.map { Double($0) }
         let b = try dynamicBackground(p, rows: rows, columns: columns, domain: domain, std: std, truncate: truncate)
         let (omin, omax) = range(of: P.self)
         return try rescale(combine(p, b, operation), toMin: omin, max: omax)
