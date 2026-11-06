@@ -20,6 +20,19 @@ first lines. mac4DSTEM's own third-party notices
 (py4DSTEM, HyperSpy/eXSpy) apply to the parts it ported and are in its NOTICE.
 
 ================================================================================
+kikuchipy and orix (ported code and test data)
+================================================================================
+
+The EDAX binary pattern reader in Sources/TEMCore/SEM/EDAXBinaryReader.swift is a port of kikuchipy 0.13.1
+(https://github.com/pyxem/kikuchipy), Copyright (C) 2019-2026 the kikuchipy developers, GPL-3.0-or-later, taken under
+GPL-3.0; the .ang reader in Sources/TEMCore/SEM/ANGReader.swift is a port of orix 0.15.0 (https://github.com/pyxem/orix),
+Copyright (C) 2018-2026 the orix developers, GPL-3.0-or-later, taken under GPL-3.0. Each file says which module it ports in
+its first lines. The fixtures macTEMTests/Fixtures/ebsd-edax-binary.up1 and ebsd-edax-binary-hex.up2 are kikuchipy's
+in-package test files (nickel patterns, CC BY 4.0, Aanes et al.); ebsd-sdss-ferrite-austenite.ang is orix-data's
+sdss_ferrite_austenite.ang (EBSD data by Jarle Hjelen, NTNU, CC BY 4.0, indexed with EMsoft); the other ebsd-edax-* and
+ebsd-tsl* fixtures are written by tools/parity/sem-readers/make_edax_fixtures.py.
+
+================================================================================
 SpectroKit (a Swift package the app is built with)
 ================================================================================
 
