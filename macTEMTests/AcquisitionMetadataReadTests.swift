@@ -316,7 +316,7 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
     /// `testTheMetadataReadIsTheObjectOpenNowShowsAndNoOther`'s, not this test's.
     func testAppStateReadHandsOverTheMetadataOfTheFileItOpened() async throws {
         let path = try multiObjectDM4(named: "handed-over.dm4")
-        let (opened, _, metadata) = try await AppState.read(URL(fileURLWithPath: path))
+        let (opened, _, metadata, _) = try await AppState.read(URL(fileURLWithPath: path))
         XCTAssertEqual(opened.source, "ImageList.3 · STEM", "the image shown is object 3")
         XCTAssertFalse(metadata.isEmpty, "the file records its acquisition: it must arrive")
         XCTAssertEqual(metadata, AcquisitionMetadata.read(path: path), "what read(path:) gives for the file that was opened")
@@ -325,7 +325,7 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
         let other = DM4TestFile.file([Plant.withTags(DM4TestFile.object(name: "B", dims: [3, 2], axes: nil),
                                                      Plant.imageTags(voltage: 120_000, magnification: 25_000), format: nil)])
         let otherPath = try DM4TestFile.write(other, named: "handed-over-too.dm4", for: self)
-        let (_, _, second) = try await AppState.read(URL(fileURLWithPath: otherPath))
+        let (_, _, second, _) = try await AppState.read(URL(fileURLWithPath: otherPath))
         XCTAssertEqual(second.highTensionKV?.value, 120, "the second file's own metadata, not the first's")
         XCTAssertEqual(second, AcquisitionMetadata.read(path: otherPath))
         XCTAssertNotEqual(second, metadata)
