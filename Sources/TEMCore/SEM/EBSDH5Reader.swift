@@ -402,9 +402,11 @@ package nonisolated enum EBSDH5Reader {
         let source = try patternSource(file, data: data, name: name, scanRows: ny, scanColumns: nx, rows: sy, columns: sx)
         var detector = EBSDDetectorGeometry(rows: sy, columns: sx, pixelSize: 1, binning: 1, tilt: 0, azimuthal: 0, twist: 0, sampleTilt: 70,
                                             projectionCenters: [])
-        let degreesPerRadian = 180.0 / Double.pi
-        if let tiltAngle = try header.double("Tilt Angle") { detector.sampleTilt = tiltAngle * degreesPerRadian }
-        if let euler = try header.doubles("Detector Orientation Euler"), euler.count > 1 { detector.tilt = euler[1] * degreesPerRadian - 90 }
+        // H5OINA stores the angles as float32 and kikuchipy converts them with `np.rad2deg`, which for float32 is `x * 180 / pi` in
+        // float32; matched (docs/parity.md), so the degrees are the reference's to the last bit.
+        func degrees(_ radians: Double) -> Double { Double(Float(radians) * 180 / Float.pi) }
+        if let tiltAngle = try header.double("Tilt Angle") { detector.sampleTilt = degrees(tiltAngle) }
+        if let euler = try header.doubles("Detector Orientation Euler"), euler.count > 1 { detector.tilt = Double(Float(degrees(euler[1])) - 90) }
         if let binning = try oxfordBinning(header: header, version: version) { detector.binning = binning }
         let pcx = try data.doubles("Pattern Center X")
         let pcy = try data.doubles("Pattern Center Y")
