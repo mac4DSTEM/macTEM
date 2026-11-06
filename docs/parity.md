@@ -52,6 +52,12 @@ Upstream's own tests compare hand-written 3 x 3 uint8 answers exactly (`test_rem
 - Figure F2 (`docs/sem/north-star.md`): `tools/parity/sem/background_figure.py` draws the reference pattern beside the one the
   unit test `testFigureF2PatternZeroAfterStaticAndDynamicBackground` writes to `$TMPDIR/macTEM-F2-ours.u8` (and prints as base64).
 
+## Patterns room
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `EBSDBrowsing.meanIntensityMap` (the navigation map) | `EBSD.mean(axis=(2, 3))` (numpy's float64 mean over the two pattern axes) | `PatternsRoomTests` on a planted 2 x 3 scan of uint16 patterns and on the first and last pattern of `ebsd-kikuchipy-h5ebsd.h5` | float64 sum and division, exact to the map's `Float` rounding | read one scan row per slab; the demo dataset (`DemoDocuments.ebsd`) is generated, so it has no reference |
+
 ## Pattern quality
 
 References: `tools/parity/sem/emit.py` cases `m2/quality-kikuchipy-h5ebsd` and `m2/quality-nickel-ebsd-large` (kikuchipy

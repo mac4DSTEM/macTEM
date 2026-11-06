@@ -18,6 +18,8 @@ package nonisolated enum EBSDFileFormat: String, Sendable, Equatable {
     case brukerH5EBSD = "Bruker h5ebsd"
     case edaxH5EBSD = "EDAX h5ebsd"
     case oxfordH5OINA = "Oxford H5OINA"
+    /// The generated demo dataset (`DemoDocuments.ebsd`): not data, never read from a file.
+    case generated = "generated demo (not data)"
 }
 
 /// The detector as kikuchipy's `EBSDDetector` holds it after reading: shape, pixel size, binning, the three tilts and the sample
@@ -240,6 +242,19 @@ package nonisolated final class EBSDPatternReader: @unchecked Sendable {
             }
         }
         return try FormatoArray(dataType: whole.dataType, shape: shape, bytes: out)
+    }
+
+    /// One scan row as the file stores it (the file order is the map order: `row(_:)` checks that), as one slab read.
+    func rowSlab(row: Int) throws -> FormatoArray {
+        let shape = dataset.patterns.fileShape
+        let columns = dataset.scanColumns
+        let start: [Int], count: [Int]
+        if shape.count == 4 {
+            start = [row, 0, 0, 0]; count = [1, columns, shape[2], shape[3]]
+        } else {
+            start = [row * columns, 0, 0]; count = [columns, shape[1], shape[2]]
+        }
+        do { return try slabs.read(start: start, count: count) } catch { throw EBSDReadError.wrap(error, file: dataset.patterns.url) }
     }
 
     private func slab(fileIndex: Int) -> (start: [Int], count: [Int]) {

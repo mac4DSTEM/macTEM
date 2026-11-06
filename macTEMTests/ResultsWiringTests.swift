@@ -53,9 +53,9 @@ nonisolated final class ResultsWiringTests: XCTestCase {
     // MARK: The room is built
 
     /// The rooms 1.0 ships, every one built, in the order of the work; Prepare is not among them (the owner, 2026-10-23: "It shouldn't ship
-    /// in macTEM"). Red under: Prepare back in the list, a room listed but not built, Results not ⌘6.
+    /// in macTEM"). Red under: Prepare back in the list, a room listed but not built, Results not ⌘7 (⌘6 is Patterns since the SEM program, D-SEM-22).
     @MainActor func testTheResultsRoomIsBuiltAndCanBeEntered() {
-        XCTAssertEqual(WorkspaceArea.allCases, [.image, .fft, .edx, .eels, .diffraction, .results])
+        XCTAssertEqual(WorkspaceArea.allCases, [.image, .fft, .edx, .eels, .diffraction, .patterns, .results])
         XCTAssertNil(WorkspaceArea(rawValue: "prepare"), "a window that saved Prepare opens in the default room")
         XCTAssertTrue(WorkspaceArea.allCases.allSatisfy(\.isBuilt))
         let state = AppState()
@@ -64,7 +64,7 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         state.selectWorkspace(.diffraction)
         XCTAssertEqual(state.navigation.workspaceArea, .diffraction)
         XCTAssertEqual(WorkspaceArea.image.shortcutDigit, "1")
-        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "6", "Results is the last of the rooms, after EDS, EELS and Diffraction")
+        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "7", "Results is the last of the rooms, after EDS, EELS, Diffraction and Patterns")
         XCTAssertTrue(state.resultsRoom.selection.isEmpty)
     }
 
