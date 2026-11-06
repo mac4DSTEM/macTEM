@@ -26,3 +26,21 @@ Recording and Accessibility grants by path, and that path is what the Mac's own 
 
 **Reversal.** Set the jobs' `runs-on` back to the `vars.MACEM_MAC_RUNNER` expression (git history of ci.yml, before
 this entry) if the hosted macOS queue (free plan, few concurrent macOS jobs) becomes the slower path again.
+
+## 2026-11-06 — Oxford readers: own value types now, the headerless Ti table read as a map (D-SEM-12)
+
+**What.** `OxfordBinaryReader` (`.ebsp`, kikuchipy's `oxford_binary`) returns `EBSDPatternSet` and `CTFReader` (`.ctf`,
+orix's `ctf`) returns `CrystalMapData`, two value types of their own in `Sources/TEMCore/SEM/`, rather than waiting for
+P1-01's `EBSDDataset` (macTEM#125) to merge; a follow-up issue folds them into the h5ebsd types once both are on `main`.
+orix-data's `Ti_orientations.ctf` is not a Channel Text File: it is an MTEX export whose first line names thirteen
+columns (`phi1 Phi phi2 phase bands bc bs error mad x y grainId mis2mean`); orix reads only its three Euler columns with
+numpy and attaches the 622 point group by hand (`orix.data.ti_orientations`). `CTFReader` reads that form too, keeps
+every column under its name and leaves the phase to the caller; the parity test attaches 622 as orix does.
+
+**Why.** The brief (P1-03) allows parsing with own types and adopting `EBSDDataset` at closeout; the two PRs stay
+independent (the suite's rule) and the readers are ready for the pattern browser. The Ti file is the brief's named
+fixture and orix's reference reading of it has no phase list to compare; inventing a Channel Text File header for it
+would test numbers orix never produced.
+
+**Reversal.** Replace `EBSDPatternSet` with an `EBSDPatternSource` case for binary pattern files and `CrystalMapData`
+with `EBSDCrystalMapData` when the h5ebsd types settle; the parity tests keep their fixtures.
