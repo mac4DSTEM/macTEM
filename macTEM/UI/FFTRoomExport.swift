@@ -14,7 +14,6 @@
 
 import ShellInspector
 import SwiftUI
-import TEMCore
 import TEMSession
 
 /// The Export menu's words and states, as pure data: the view draws exactly these (pinned by FFTExportMenuTests).

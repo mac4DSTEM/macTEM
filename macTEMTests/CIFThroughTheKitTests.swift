@@ -1,7 +1,6 @@
 import XCTest
 import DiffractoCore
 import DiffractoScattering
-import TEMCore
 
 /// macTEM's own CIF plants through DiffractoKit's `CIFImport.read` (from DiffractoKit 0.0.3): the literals of the verbatim mac4DSTEM tests that left with the copies (`CIFImportTests`,
 /// `CIFSpaceGroupOrderTests`, `CIFSymmetryBijectionTests`), each asserted where its outcome MOVED (old -> new in the test's

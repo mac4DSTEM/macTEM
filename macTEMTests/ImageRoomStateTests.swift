@@ -9,7 +9,6 @@ import ImagoCore
 import XCTest
 import TEMCore
 import TEMSession
-@testable import macTEM
 
 nonisolated final class ImageRoomStateTests: XCTestCase {
 

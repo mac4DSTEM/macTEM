@@ -1,6 +1,5 @@
 import XCTest
 import DiffractoGeometry
-import TEMCore
 
 /// The Diffraction room's ring geometry (R1 and R4): a fitted ring in image coordinates (x = column, y = row), the polyline
 /// the room draws, the ring predicted for another family, and the point-to-ellipse distance. Hand values; the planted-ring

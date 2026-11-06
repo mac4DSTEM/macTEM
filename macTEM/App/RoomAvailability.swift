@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import TEMCore
 import TEMSession
 import ShellEDXModel
 

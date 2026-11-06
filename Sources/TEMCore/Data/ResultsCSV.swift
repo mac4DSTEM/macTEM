@@ -17,8 +17,6 @@ import Foundation
 import ImagoCore
 
 package nonisolated enum ResultsCSV {
-    package static let columns = TidyResultsCSV.columns
-
     /// The whole file (UTF-8, LF), or nil without a row. `session` is the sentence that says where the file's marks are kept
     /// ("Not saved…", "Saved at 14:03…"); `source` states the file and its calibration as the file does.
     package static func text(_ rows: [ResultRow], source: ExportSource, session: String) -> String? {

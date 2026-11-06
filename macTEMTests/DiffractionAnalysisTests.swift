@@ -12,7 +12,6 @@ import DiffractoScattering
 import DiffractoGeometry
 import TEMCore
 import TEMSession
-@testable import macTEM
 
 nonisolated final class DiffractionAnalysisTests: XCTestCase {
 
