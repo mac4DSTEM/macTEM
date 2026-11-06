@@ -174,7 +174,12 @@ def compare_bundles(committed: Path, fresh: Path) -> list[str]:
         if a.get(key) != b.get(key):
             out.append(f"{a['case']}: {key} differs:\n    committed {json.dumps(a.get(key), sort_keys=True)[:400]}\n    fresh     {json.dumps(b.get(key), sort_keys=True)[:400]}")
     for pkg in ("python", "numpy", a["reference"]["package"]):
-        if a["stack"].get(pkg) != b["stack"].get(pkg):
+        x, y = a["stack"].get(pkg), b["stack"].get(pkg)
+        if pkg == "python":
+            # The minor is the pin (setup.sh builds on 3.14); the patch level moves with the runner image and is
+            # recorded, not compared (3.14.6 on the Mac, 3.14.10 on GitHub's runner, every number equal: 2026-11-06).
+            x, y = ".".join(str(x).split(".")[:2]), ".".join(str(y).split(".")[:2])
+        if x != y:
             out.append(f"{a['case']}: stack {pkg} {a['stack'].get(pkg)} committed, {b['stack'].get(pkg)} fresh")
     for name, s in a["scalars"].items():
         t = b["scalars"].get(name)
