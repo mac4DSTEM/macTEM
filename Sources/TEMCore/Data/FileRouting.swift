@@ -1,5 +1,5 @@
 // Open reads a file by what it holds, not by the room the user happens to be in: `FileInventory` lists the datasets of a file (an image to
-// draw, an EDS spectrum image, an EELS spectrum image, a single spectrum) from FormatoKit's sniff and group names, and the app opens the
+// draw, an EDS spectrum image, an EELS spectrum image, a single spectrum, an EBSD pattern dataset) from FormatoKit's sniff and group names, and the app opens the
 // file into every room that has data in it and lands in the room of the richest one (a spectrum cube before an image). The sniff of an HDF5
 // file takes the HDF5 lock, so it runs off the main actor. A multi-page TIFF keeps the stack path (`ImageStackSource`).
 import Foundation
@@ -20,6 +20,8 @@ package nonisolated struct FileInventory: Equatable, Sendable {
     package var eelsSpectrumImage = false
     /// One spectrum (an `.msa`, a Velox file of spectra and nothing else), opened in the EDS room as a one-pixel spectrum image.
     package var singleSpectrum = false
+    /// An EBSD or TKD pattern dataset (an h5ebsd file of kikuchipy, Bruker, EDAX or Oxford): the Patterns room.
+    package var ebsdPatterns = false
     /// Set instead of the above when the file is not opened here: the sentence says what it is and where it goes.
     package var refusal: String?
     /// The scan of a DM4 spectrum image, from its header: the size the file's Open Files row shows. The image the Image room draws from the
@@ -40,20 +42,21 @@ package nonisolated struct FileInventory: Equatable, Sendable {
         }
     }
 
-    package init(image: Bool = false, edsSpectrumImage: Bool = false, eelsSpectrumImage: Bool = false, singleSpectrum: Bool = false, refusal: String? = nil,
-                 scan: Scan? = nil) {
+    package init(image: Bool = false, edsSpectrumImage: Bool = false, eelsSpectrumImage: Bool = false, singleSpectrum: Bool = false,
+                 ebsdPatterns: Bool = false, refusal: String? = nil, scan: Scan? = nil) {
         self.image = image; self.edsSpectrumImage = edsSpectrumImage; self.eelsSpectrumImage = eelsSpectrumImage
-        self.singleSpectrum = singleSpectrum; self.refusal = refusal; self.scan = scan
+        self.singleSpectrum = singleSpectrum; self.ebsdPatterns = ebsdPatterns; self.refusal = refusal; self.scan = scan
     }
 
     /// The room an Open lands in: the richest dataset the file holds (a spectrum cube before an image).
     package enum Landing: Equatable, Sendable {
-        case eds, eels, image
+        case patterns, eds, eels, image
         /// The richer dataset wins when several files are opened together.
-        package var richness: Int { switch self { case .eds: 3; case .eels: 2; case .image: 1 } }
+        package var richness: Int { switch self { case .patterns: 4; case .eds: 3; case .eels: 2; case .image: 1 } }
     }
 
     package var landing: Landing? {
+        if ebsdPatterns { return .patterns }
         if edsSpectrumImage || singleSpectrum { return .eds }
         if eelsSpectrumImage { return .eels }
         return image ? .image : nil
@@ -68,7 +71,7 @@ package nonisolated enum FileRouting {
     /// what the Open panel offers, a drop takes, and the app declares as document types for Finder's Open With.
     package static let openableExtensions: [String] = {
         var seen = Set<String>()
-        return (ImageOpening.readableExtensions + EDXOpening.readableExtensions + EELSOpening.readableExtensions)
+        return (ImageOpening.readableExtensions + EDXOpening.readableExtensions + EELSOpening.readableExtensions + EBSDOpening.readableExtensions)
             .filter { seen.insert($0).inserted }
     }()
 
@@ -88,7 +91,14 @@ package nonisolated enum FileRouting {
                 return FileInventory(refusal: (error as? LocalizedError)?.errorDescription ?? "\(name) is not a spectrum macTEM opens.")
             }
         }
-        switch FormatoLoader.sniff(path: path) {
+        let kind = FormatoLoader.sniff(path: path)
+        // An h5ebsd file (kikuchipy, Bruker, EDAX, Oxford H5OINA): FormatoKit's sniff knows `.h5` as HDF5 and `.h5oina` not at all, so the
+        // EBSD reader's own sniff decides for both (one HDF5 open). A `.h5` that is neither an EBSD scan nor a Velox file keeps its refusal.
+        if kind == .hdf5 || (kind == .unknown && EBSDOpening.readableExtensions.contains(URL(fileURLWithPath: path).pathExtension.lowercased())),
+           EBSDH5Reader.sniff(url: URL(fileURLWithPath: path)) != nil {
+            return FileInventory(ebsdPatterns: true)
+        }
+        switch kind {
         case .digitalMicrograph:
             var found = FileInventory(image: true)
             if path.lowercased().hasSuffix(".dm4"), let objects = try? DM4Experiment.list(path: path) {
@@ -113,7 +123,7 @@ package nonisolated enum FileRouting {
             if !found.image, !found.edsSpectrumImage, !found.eelsSpectrumImage, !found.singleSpectrum { found.image = true }
             return found
         case .empad, .merlinMIB, .hdf5:
-            return FileInventory(refusal: "\(name) is a 4D dataset or an HDF5 file that is not a Velox file: macTEM opens images and spectra; open it in mac4DSTEM.")
+            return FileInventory(refusal: "\(name) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: macTEM opens images, spectra and EBSD patterns; open it in mac4DSTEM.")
         case .unknown:
             return FileInventory(refusal: "\(name) is not a format macTEM opens (or its extension and its first bytes disagree).")
         }

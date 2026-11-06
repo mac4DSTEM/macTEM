@@ -37,6 +37,7 @@ struct ContentView: View {
         // The busy clock's start: each spectrum room's busy edge, whichever room is shown.
         .onChange(of: appState.edx.isBusy, initial: true) { appState.markBusy(.edx, appState.edx.isBusy) }
         .onChange(of: appState.eels.isBusy, initial: true) { appState.markBusy(.eels, appState.eels.isBusy) }
+        .onChange(of: appState.ebsd.isBusy, initial: true) { appState.markBusy(.patterns, appState.ebsd.isBusy) }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: imageTypes,
@@ -87,6 +88,14 @@ struct ContentView: View {
             }
             let detail = room == .edx ? EDXRoomFormat.capsuleDetail(appState.edx) : "spectrum image"
             return .idle(file: appState.windowTitle, room: room.title, detail: detail, help: nil)
+        case .patterns:
+            let session = appState.ebsd
+            guard let dataset = session.dataset else { return nil }
+            if session.isBusy {
+                return .busy(operation: session.isOpening ? "Opening the dataset…" : "Reading the scan for the map…", progress: RoomProgress.fraction(room: room, appState: appState),
+                             metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
+            }
+            return .idle(file: session.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
         default:
             guard !appState.imageSession.isLoading, let image = appState.imageSession.image else { return nil }
             return .idle(file: image.fileName, room: room.title, detail: "\(image.width) × \(image.height) px", help: nil)

@@ -1,4 +1,5 @@
 // macTEM's rooms, in the shape of mac4DSTEM's `WorkspaceArea`, conforming to the shell's `WorkspaceRoom`. Added (EDX room, owner 2026-10-21): a sixth room, `edx`, last so ⌘1…⌘5 keep their rooms. Added (EELS room, 2026-10-21): a seventh, `eels`, after it (⌘7).
+// Added (SEM program, 2026-11-06, design D1): `patterns` before Results, so Results moves to ⌘7 now and to ⌘9 once Indexing and Maps are built.
 import ShellLayout
 import SwiftUI
 
@@ -10,6 +11,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
     case edx
     case eels
     case diffraction
+    case patterns
     case results
 
     var id: String { rawValue }
@@ -22,6 +24,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .results: "Results"
         case .edx: "EDS"
         case .eels: "EELS"
+        case .patterns: "Patterns"
         }
     }
 
@@ -33,6 +36,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .results: "Review and export the numbers"
         case .edx: "Spectrum images: elements, maps, spectrum and composition"
         case .eels: "Low-loss spectrum images: thickness (t/λ) maps"
+        case .patterns: "EBSD and TKD patterns: the scan, its mean-intensity map and the live pattern"
         }
     }
 
@@ -44,6 +48,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .results: "square.grid.2x2"
         case .edx: "waveform.path.ecg"
         case .eels: "chart.xyaxis.line"
+        case .patterns: "square.grid.3x3.square"
         }
     }
 

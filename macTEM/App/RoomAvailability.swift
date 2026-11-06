@@ -3,7 +3,7 @@
 //  Role: which rooms the window's documents fill. The FILE decides, not the room the person is in (`FileInventory`): once anything is
 //        open, a room with data for it is enabled, and every other is disabled with a one-line reason; with nothing open every built room
 //        stays enterable (the welcome canvas and the rooms' own Open buttons). Switching rooms never reloads or drops data: the sessions
-//        (`OpenItems`, `edx`, `eels`) are the window's, not the room's.
+//        (`OpenItems`, `edx`, `eels`, `ebsd`) are the window's, not the room's.
 //
 
 import Foundation
@@ -18,10 +18,12 @@ nonisolated struct RoomHoldings: Equatable, Sendable {
     var eds = false
     /// A spectrum image, or one opening, in the EELS room.
     var eels = false
+    /// An EBSD or TKD pattern dataset, or one opening, in the Patterns room.
+    var ebsd = false
     /// Every open image is the HAADF (or another image) of a spectrum-image file: a scan image, never a diffraction pattern.
     var imagesAreSpectrumCompanions = false
 
-    var hasDocument: Bool { images || eds || eels }
+    var hasDocument: Bool { images || eds || eels || ebsd }
 }
 
 nonisolated enum RoomAvailability {
@@ -32,6 +34,7 @@ nonisolated enum RoomAvailability {
         switch area {
         case .edx: return holdings.eds ? nil : "No file open holds an EDS spectrum image"
         case .eels: return holdings.eels ? nil : "No file open holds an EELS spectrum image"
+        case .patterns: return holdings.ebsd ? nil : "No file open holds EBSD patterns"
         case .diffraction:
             guard holdings.images else { return "No file open holds an image" }
             return holdings.imagesAreSpectrumCompanions ? "The open images belong to a spectrum image, not a diffraction pattern" : nil
@@ -50,6 +53,7 @@ extension AppState {
         RoomHoldings(images: !openItems.items.isEmpty,
                      eds: edx.hasImage || edx.isOpening,
                      eels: eels.hasImage || eels.isOpening,
+                     ebsd: ebsd.hasDataset || ebsd.isOpening,
                      imagesAreSpectrumCompanions: !openItems.items.isEmpty && openItems.items.allSatisfy { spectrumCompanionImages.contains($0.url) })
     }
 
