@@ -7,7 +7,7 @@ four columns.
 
 Versions pinned for the parity environment (`tools/parity/sem`, PyPI on 2026-11-06): kikuchipy 0.13.1, orix 0.15.0,
 diffsims 0.7.0, pyebsdindex 0.3.10.1, hyperspy 2.5.0, exspy 0.3.2, rosettasciio 0.15.0, DefDAP 1.3.1, numpy 2.5.4,
-scipy 1.18.1, h5py 3.16.0, CPython 3.13.
+scipy 1.18.1, h5py 3.16.0, numba 0.68.1, CPython 3.14.
 
 ## Licences
 
