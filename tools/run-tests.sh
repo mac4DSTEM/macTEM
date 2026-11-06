@@ -157,6 +157,12 @@ unit_tests() (
   if [[ "$failed" != 0 ]]; then    # name them: the log of a parallel run carries no per-test failure line
     xcrun xcresulttool get test-results tests --path "$work/unit.xcresult" \
       | jq -r '.. | objects | select(.nodeType? == "Test Case" and .result? == "Failed") | "unit: FAILED " + .name' | sort -u | head -40
+    # and say why: each failed case's "Failure Message" nodes (file:line and the assertion's words), which the log of a parallel
+    # run carries nowhere else
+    xcrun xcresulttool get test-results tests --path "$work/unit.xcresult" \
+      | jq -r '.. | objects | select(.nodeType? == "Test Case" and .result? == "Failed")
+               | .name as $t | .. | objects | select(.nodeType? == "Failure Message") | "unit:   " + $t + ": " + .name' \
+      | sort -u | head -60
   fi
   if [[ -n "${MACTEM_ONLY_TESTING:-}" ]]; then
     echo "unit (filtered to ${MACTEM_ONLY_TESTING}): $failed failed of $total"
