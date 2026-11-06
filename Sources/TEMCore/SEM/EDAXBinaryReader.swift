@@ -89,7 +89,8 @@ package nonisolated enum EDAXBinaryReader {
         guard sx > 0, sy > 0 else { throw EDAXReadError(text: "\(name) states a \(sx) x \(sy) pattern.") }
         guard offset <= data.count else { throw EDAXReadError(text: "\(name) puts its patterns at byte \(offset), past the end of the file (\(data.count) bytes).") }
         let bytesPerPattern = sx * sy * dataType.byteSize
-        var nx: Int, ny: Int, count: Int, dx = 1.0, dy = 1.0, isHex = false
+        let count: Int
+        var nx: Int, ny: Int, dx = 1.0, dy = 1.0, isHex = false
         if version == 1 {
             count = (data.count - offset) / bytesPerPattern
             nx = count; ny = 1
