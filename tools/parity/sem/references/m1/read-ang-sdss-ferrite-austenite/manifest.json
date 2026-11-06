@@ -1,0 +1,134 @@
+{
+  "arrays": {
+    "euler_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "euler_head.bin",
+      "note": "Bunge Euler angles in radians, first 16 points",
+      "rtol": 1e-07,
+      "sha256": "2ef3fa048b80267499753d48b1f475486e9ddfb8dd1904a224472c364122b8ec",
+      "shape": [
+        16,
+        3
+      ]
+    },
+    "phase_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "phase_id.bin",
+      "rtol": 0.0,
+      "sha256": "c123daf5fedbbc792f35d99ccc8c62668422f701dd2136e62b2e9ac3fc7bb1d0",
+      "shape": [
+        11700
+      ]
+    },
+    "prop_dp_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "prop_dp_head.bin",
+      "rtol": 1e-07,
+      "sha256": "cd081c8b8e9a83065ff76bdde462ac7085f3fbc49208fccec92e090db765a7f7",
+      "shape": [
+        16
+      ]
+    },
+    "prop_iq_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "prop_iq_head.bin",
+      "rtol": 1e-07,
+      "sha256": "cf525c656ee37f8e9fd7b7caedaff5c1bcc3da18b7bb4b4a3091be4399551df1",
+      "shape": [
+        16
+      ]
+    },
+    "x_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "x_head.bin",
+      "rtol": 1e-07,
+      "sha256": "e8581069d962aded170656dd77f360ca6d0dee369748c846f5c678b2f4b8646b",
+      "shape": [
+        16
+      ]
+    },
+    "y_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "y_head.bin",
+      "rtol": 1e-07,
+      "sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+      "shape": [
+        16
+      ]
+    }
+  },
+  "case": "m1/read-ang-sdss-ferrite-austenite",
+  "inputs": [
+    {
+      "path": "sem-data/orix/sdss_ferrite_austenite.ang",
+      "sha256": "ac2fc2fc2b8c9c598703c96f9888677bccc9cd88cddd5e78735653fd5504e371"
+    }
+  ],
+  "milestone": 1,
+  "reference": {
+    "function": "orix.io.load",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "dx": 1.5,
+    "dy": 1.5,
+    "euler": {
+      "dtype": "float64",
+      "sha256": "4609be2d844033d60c10d23b0330d452628901308705d9d4dff2eb44e16c2f82",
+      "shape": [
+        11700,
+        3
+      ]
+    },
+    "phase_counts": {
+      "1": 5657,
+      "2": 6043
+    },
+    "phases": {
+      "1": {
+        "color": "tab:blue",
+        "name": "austenite/austenite",
+        "point_group": "432",
+        "space_group": null
+      },
+      "2": {
+        "color": "tab:orange",
+        "name": "ferrite/ferrite",
+        "point_group": "432",
+        "space_group": null
+      }
+    },
+    "properties": [
+      "dp",
+      "iq"
+    ],
+    "scan_unit": "um",
+    "shape": [
+      100,
+      117
+    ],
+    "size": 11700
+  }
+}

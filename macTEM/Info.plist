@@ -39,6 +39,7 @@
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>msa</string>
+				<string>hspy</string>
 			</array>
 		</dict>
 	</array>

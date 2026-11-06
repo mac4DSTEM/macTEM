@@ -140,7 +140,7 @@ struct WorkspaceView: View {
     }
 }
 
-/// The canvas before any image: the app's name and its one door.
+/// The canvas before any image: the app's name, its door, and the demo data beside it for someone with no file at hand.
 struct WelcomeWorkspace: View {
     @Environment(AppState.self) private var appState
 
@@ -160,12 +160,24 @@ struct WelcomeWorkspace: View {
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: LayoutPolicy.readableWidth)
                 }
-                Button("Open Image…") { appState.requestOpenImage() }
-                    .buttonStyle(.borderedProminent)
+                HStack(spacing: 12) {
+                    Button("Open Image…") { appState.requestOpenImage() }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .keyboardShortcut(.defaultAction)
+                        .help(OpenItemRowFormat.openPrompt)
+                        .accessibilityIdentifier("welcome.openImage")
+                    // The same documents as Help > Open Demo Data (DemoData.swift): generated ones and the shipped SEM data.
+                    Menu("Try Demo Data") {
+                        ForEach(DemoDocument.allCases) { demo in
+                            Button(demo.title) { appState.openDemo(demo) }
+                        }
+                    }
                     .controlSize(.large)
-                    .keyboardShortcut(.defaultAction)
-                    .help(OpenItemRowFormat.openPrompt)
-                    .accessibilityIdentifier("welcome.openImage")
+                    .fixedSize()
+                    .help("Open a demo document in its room")
+                    .accessibilityIdentifier("welcome.tryDemo")
+                }
             }
             .padding(.horizontal, 36)
             .padding(.vertical, 44)

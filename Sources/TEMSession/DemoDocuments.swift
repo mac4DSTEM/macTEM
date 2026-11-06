@@ -2,12 +2,14 @@
 //  DemoDocuments.swift
 //  Role: the demo documents the UI tests (and a person trying the app without data) open: a lattice image, an EDX spectrum image
 //        and an EELS spectrum image, generated in memory, deterministic, with PLANTED truth that `DemoDocuments.Truth` states.
-//        Nothing here is real data, nothing is read from a file, and no kit is involved in making them (the kits measure them).
+//        Nothing in the generators is real data, nothing is read from a file, and no kit is involved in making them (the kits measure them).
+//        `Shipped` is the other kind: real, public, licensed files the app bundle carries (the SEM program's north-star data), pinned by md5.
 //
 //  The generators change only with a test that pins their truth constants (`DemoDocumentsTests`); a changed planted number is a
 //  fixture move (its own commit, a CHANGELOG line). Noise comes from a fixed-seed generator, never from the clock.
 //
 
+import CryptoKit
 import Foundation
 import ImagoCore
 import SpectroCore
@@ -72,6 +74,62 @@ package nonisolated enum DemoDocuments {
     package static let latticeURL = URL(fileURLWithPath: "/macTEM-demo/Demo lattice")
     package static let patternURL = URL(fileURLWithPath: "/macTEM-demo/Demo Au pattern")
     package static func isDemo(_ url: URL) -> Bool { url.path.hasPrefix("/macTEM-demo/") }
+
+    // MARK: Shipped demo data
+
+    /// A real, public, licensed dataset the app bundle carries under `Contents/Resources/DemoData/` (the repository's `DemoData/` folder
+    /// reference; NOTICE names each with its source and licence). Bytes and md5 are pinned (`ShippedDemoDataTests`): a replaced file is a
+    /// fixture move, its own commit with the reason.
+    package struct ShippedFile: Equatable, Sendable {
+        /// Below `DemoData/`.
+        package let relativePath: String
+        package let bytes: Int
+        package let md5: String
+        /// What the file is, for a menu or a row.
+        package let title: String
+
+        package var fileName: String { (relativePath as NSString).lastPathComponent }
+
+        /// The file in the running app's bundle, or nil when the bundle carries no `DemoData/` (a bare library build).
+        package var url: URL? {
+            guard let resources = Bundle.main.resourceURL else { return nil }
+            let url = resources.appendingPathComponent("DemoData/" + relativePath)
+            return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        }
+    }
+
+    package enum Shipped {
+        /// kikuchipy's `nickel_ebsd_large`: 55 x 75 EBSD patterns of 60 x 60 uint8 from polycrystalline nickel (NORDIF UF-1100, 20 kV, 70°
+        /// tilt), the north-star EBSD set. Ånes, Hjelen, van Helvoort and Marthinsen, Zenodo 10.5281/zenodo.7498632, CC BY 4.0; the copy is
+        /// the one kikuchipy 0.13 fetches (`pyxem/kikuchipy-data` at bcab8f7a, `nickel_ebsd_large/patterns_v2.h5`).
+        package static let nickelEBSD = ShippedFile(relativePath: "nickel_ebsd_large/patterns_v2.h5", bytes: 15_368_325,
+                                                     md5: "51d6bc0f5ff23dcb0c1a8e1f4c52d4d4", title: "Ni EBSD Patterns (kikuchipy)")
+        /// The patterns dataset and its truth: kikuchipy's h5ebsd layout, scan rows x columns of pattern height x width.
+        package static let nickelEBSDPatternsPath = "/Scan 1/EBSD/Data/patterns"
+        package static let nickelEBSDRows = 55, nickelEBSDColumns = 75, nickelEBSDPatternHeight = 60, nickelEBSDPatternWidth = 60
+        /// The sum of every pattern pixel, and of the first pattern's (h5py, 2026-11-06).
+        package static let nickelEBSDPixelSum: UInt64 = 2_159_514_130
+        package static let nickelEBSDFirstPatternSum: UInt64 = 531_330
+
+        /// exspy's `EDS_SEM_TM002`: one SEM-EDS spectrum of BAM's EDS-TM002 standard (a 6 µm layer of C, Al, Mn, Cu and Zr on silicon),
+        /// Zeiss Nvision40, Oxford X-max 80, 10 kV, 1024 channels of 10 eV from -100 eV; the north-star SEM-EDS spectrum. From the exspy
+        /// package (`exspy/data/EDS_SEM_TM002.hspy`), GPL-3.0-or-later.
+        package static let semEDSSpectrum = ShippedFile(relativePath: "EDS_SEM_TM002.hspy", bytes: 31_008,
+                                                         md5: "1c3b8fddb2698741a0948d5a7c4eec51", title: "SEM-EDS Spectrum (BAM TM002)")
+        package static let semEDSChannels = 1024
+        package static let semEDSOffsetKeV = -0.1, semEDSScaleKeV = 0.01, semEDSBeamKeV = 10.0
+        /// The counts, exact (h5py, 2026-11-06): their total, the highest channel and its counts, the elements the file names.
+        package static let semEDSTotalCounts: UInt64 = 1_000_279
+        package static let semEDSPeakChannel = 37, semEDSPeakCounts: UInt32 = 13_726
+        package static let semEDSElements = ["Al", "C", "Cu", "Mn", "Zr"]
+
+        package static let all = [nickelEBSD, semEDSSpectrum]
+    }
+
+    /// The md5 of a file, as `md5sum` prints it: how a shipped file is pinned to the copy its source publishes.
+    package static func md5(of url: URL) throws -> String {
+        Insecure.MD5.hash(data: try Data(contentsOf: url)).map { String(format: "%02x", $0) }.joined()
+    }
 
     // MARK: A fixed-seed generator
 

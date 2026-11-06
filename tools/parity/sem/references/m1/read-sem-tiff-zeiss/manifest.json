@@ -1,0 +1,91 @@
+{
+  "arrays": {
+    "pixels": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "pixels.bin",
+      "rtol": 0.0,
+      "sha256": "3468f218e03dc5f01c084e63b0e55d293b6d817109289887490d7bcdbdc8d63d",
+      "shape": [
+        384,
+        512
+      ]
+    }
+  },
+  "case": "m1/read-sem-tiff-zeiss",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio_Zeiss_SEM_512pix.tif",
+      "sha256": "3ff2ed5eb9fc1e75cf2188bd4aa11bba1cc82496e1084303bc8685aa1de99431"
+    }
+  ],
+  "milestone": 1,
+  "reference": {
+    "function": "hyperspy.api.load (rsciio.tiff)",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "mean": {
+      "atol": 0.0,
+      "rtol": 1e-07,
+      "value": 149.5906524658203
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "axes": [
+      {
+        "name": "width",
+        "offset": 0.0,
+        "scale": 1.1649976e-08,
+        "size": 512,
+        "units": "m"
+      },
+      {
+        "name": "height",
+        "offset": 0.0,
+        "scale": 1.1649976e-08,
+        "size": 384,
+        "units": "m"
+      }
+    ],
+    "dtype": "uint8",
+    "general": {
+      "authors": "LIBERATO",
+      "date": "2018-09-25",
+      "original_filename": "rsciio_Zeiss_SEM_512pix.tif",
+      "time": "08:20:42"
+    },
+    "sem_metadata": {
+      "Stage": {
+        "rotation": 245.8,
+        "tilt": 0.0,
+        "x": 62.9961,
+        "y": 65.3168,
+        "z": 44.678
+      },
+      "beam_energy": 5.0,
+      "magnification": "50.00 K X",
+      "microscope": "ULTRA 55-36-06",
+      "working_distance": 3.9
+    },
+    "shape": [
+      384,
+      512
+    ]
+  }
+}

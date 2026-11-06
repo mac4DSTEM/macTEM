@@ -1,0 +1,92 @@
+{
+  "arrays": {
+    "pixels": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "pixels.bin",
+      "rtol": 0.0,
+      "sha256": "84a66f54d7c79a0ef6f8663f58aa876e9342a2915d8f8bd7c9b9250cd6f8baa1",
+      "shape": [
+        471,
+        512
+      ]
+    }
+  },
+  "case": "m1/read-sem-tiff-fei-helios",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio_FEI_Helios_Ebeam_8bits.tif",
+      "sha256": "de85e8d4ebb1cd039259953dae0b4c986d15e49ce521b94d2be98374baf9a9cd"
+    }
+  ],
+  "milestone": 1,
+  "reference": {
+    "function": "hyperspy.api.load (rsciio.tiff)",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "mean": {
+      "atol": 0.0,
+      "rtol": 1e-07,
+      "value": 3.0667379909766455
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "axes": [
+      {
+        "name": "width",
+        "offset": 0.0,
+        "scale": 3.3724e-06,
+        "size": 512,
+        "units": "m"
+      },
+      {
+        "name": "height",
+        "offset": 0.0,
+        "scale": 3.3724e-06,
+        "size": 471,
+        "units": "m"
+      }
+    ],
+    "dtype": "uint8",
+    "general": {
+      "authors": "supervisor",
+      "date": "2016-06-13",
+      "original_filename": "rsciio_FEI_Helios_Ebeam_8bits.tif",
+      "time": "17:06:40"
+    },
+    "sem_metadata": {
+      "Stage": {
+        "rotation": -2.3611,
+        "tilt": 6.54498e-06,
+        "x": 2.576e-05,
+        "y": -0.000194177,
+        "z": 0.007965
+      },
+      "beam_current": 0.00625,
+      "beam_energy": 5.0,
+      "dwell_time": 1e-05,
+      "microscope": "Helios NanoLab\" 660",
+      "working_distance": 4.03466
+    },
+    "shape": [
+      471,
+      512
+    ]
+  }
+}

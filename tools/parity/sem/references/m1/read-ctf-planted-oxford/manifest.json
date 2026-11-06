@@ -1,0 +1,174 @@
+{
+  "arrays": {
+    "euler_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "euler_head.bin",
+      "note": "Bunge Euler angles in radians, first 16 points",
+      "rtol": 1e-07,
+      "sha256": "98d112dc81781d00e0f46219444fc0179d13ac3ababe6c4f800304a74abad2cc",
+      "shape": [
+        16,
+        3
+      ]
+    },
+    "phase_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "phase_id.bin",
+      "rtol": 0.0,
+      "sha256": "c38b7285f3e5e475dafd6ad93466961676ecec557153025412bc6af42074fb9e",
+      "shape": [
+        20
+      ]
+    },
+    "prop_BC_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "prop_BC_head.bin",
+      "rtol": 1e-07,
+      "sha256": "76dd99c4ab7f94deaa8af3670b9901ea42c514a0615da02b9b9bc1ccf161061b",
+      "shape": [
+        16
+      ]
+    },
+    "prop_BS_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "prop_BS_head.bin",
+      "rtol": 1e-07,
+      "sha256": "5459e9dc83b7262a4ee85aaf3acc6e90f8eb5941acc6d025b01528ea7a82fb4b",
+      "shape": [
+        16
+      ]
+    },
+    "prop_MAD_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "prop_MAD_head.bin",
+      "rtol": 1e-07,
+      "sha256": "843529ed4016b686c7c44d6cec7774e0482082ecadbc63c4f587ebf18f9dcaa2",
+      "shape": [
+        16
+      ]
+    },
+    "prop_bands_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "prop_bands_head.bin",
+      "rtol": 1e-07,
+      "sha256": "1f31b5a28a7a9d3022a2127a37fdb1cf5645fa6e78599a08d0d7709445c1872d",
+      "shape": [
+        16
+      ]
+    },
+    "prop_error_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "prop_error_head.bin",
+      "rtol": 1e-07,
+      "sha256": "f3b27633ac55667e38e3e132efba54479ae1a123e6fc08caf22aa65f2093bfe5",
+      "shape": [
+        16
+      ]
+    },
+    "x_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "x_head.bin",
+      "rtol": 1e-07,
+      "sha256": "49923fc53ad684617c3011c710136817053f20c78945a70f0d5e0209e4e1bb53",
+      "shape": [
+        16
+      ]
+    },
+    "y_head": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "y_head.bin",
+      "rtol": 1e-07,
+      "sha256": "30005ec4cc6cdba813c61f10abc4f818e40a73a459a85ed234d991484ccfab77",
+      "shape": [
+        16
+      ]
+    }
+  },
+  "case": "m1/read-ctf-planted-oxford",
+  "inputs": [
+    {
+      "path": "fixtures/planted_oxford.ctf",
+      "sha256": "3a69378a51afcdd3b6121bd07597b5adadd0b014f190002a8fc6876ac0d95b2d"
+    }
+  ],
+  "milestone": 1,
+  "reference": {
+    "function": "orix.io.load",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "dx": 0.5,
+    "dy": 0.5,
+    "euler": {
+      "dtype": "float64",
+      "sha256": "05d36b8b178ace53178a14f7b95812a8ebb4c243540daa07e3547a7c626155e8",
+      "shape": [
+        20,
+        3
+      ]
+    },
+    "phase_counts": {
+      "-1": 1,
+      "1": 10,
+      "2": 9
+    },
+    "phases": {
+      "-1": {
+        "color": "white",
+        "name": "not_indexed",
+        "point_group": null,
+        "space_group": null
+      },
+      "1": {
+        "color": "tab:blue",
+        "name": "Iron fcc",
+        "point_group": "m-3m",
+        "space_group": 225
+      },
+      "2": {
+        "color": "tab:orange",
+        "name": "Iron bcc (old)",
+        "point_group": "m-3m",
+        "space_group": 229
+      }
+    },
+    "properties": [
+      "BC",
+      "BS",
+      "MAD",
+      "bands",
+      "error"
+    ],
+    "scan_unit": "um",
+    "shape": [
+      4,
+      5
+    ],
+    "size": 20
+  }
+}

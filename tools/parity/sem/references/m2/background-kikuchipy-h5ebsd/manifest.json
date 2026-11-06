@@ -1,0 +1,93 @@
+{
+  "arrays": {
+    "after_static": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "after_static.bin",
+      "rtol": 0.0,
+      "sha256": "698956985746cb49028e26d6dca40d1a1cefce73f967fe3bc1500f4d5840ff7e",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "after_static_and_dynamic": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "after_static_and_dynamic.bin",
+      "rtol": 0.0,
+      "sha256": "7532416df1b665d7e35b8cc874ee33de6d3135a65293a9684e6152b6d875cacd",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "after_static_and_dynamic_first": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "after_static_and_dynamic_first.bin",
+      "rtol": 0.0,
+      "sha256": "59a7de6da6cb80fb3f43e2d81637e46b2596a207be7a5a872de2fbc6d35b1b9e",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "after_static_first": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "after_static_first.bin",
+      "rtol": 0.0,
+      "sha256": "9acaef119b9dce9aa917df1bb73f95aea7f1011c27413e0a3ed2ee43ec99ad3f",
+      "shape": [
+        60,
+        60
+      ]
+    }
+  },
+  "case": "m2/background-kikuchipy-h5ebsd",
+  "inputs": [
+    {
+      "path": "fixtures/kikuchipy_h5ebsd_patterns.h5",
+      "sha256": "8f46638f5affa21c08db447b7b472b9a8d02e9e1e70fe11488dc5a50c2b8ee67"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.remove_static_background / remove_dynamic_background",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "dynamic_kwargs": {
+      "filter_domain": "frequency",
+      "operation": "subtract",
+      "std": null,
+      "truncate": 4.0
+    },
+    "static_kwargs": {
+      "operation": "subtract",
+      "scale_bg": false,
+      "static_bg": "from file"
+    }
+  }
+}
