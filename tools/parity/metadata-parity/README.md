@@ -1,10 +1,9 @@
 # metadata-parity
 
-macTEM's acquisition-metadata readers (`AcquisitionMetadata.tiff(data:)`, `.mrc(data:)`, `.dm(numbers:strings:)` — slice
-S-a — and `.read(path:)`, the entry point that describes a FILE — slice S-b; TEMCore, through Package.swift's `MetadataParity` target, built by `tools/lib/harness.sh`) against ncempy 1.16,
+macTEM's acquisition-metadata readers (`AcquisitionMetadata.tiff(data:)`, `.mrc(data:)`, `.dm(numbers:strings:)` and `.read(path:)`, the entry point that describes a FILE; TEMCore, through Package.swift's `MetadataParity` target, built by `tools/lib/harness.sh`) against ncempy 1.16,
 RosettaSciIO `049e7d70`, tifffile 2026.9.20 and mrcfile 1.5.4 (pinned: `tools/lib/references-lock.txt`,
 `tools/lib/fetch-rsciio.sh`). A `scientific` gate (`tools/run-tests.sh scientific`): P1, P2, and
-slice S-b (the DM wiring and tag 65027) for `read(path:)`. `make_fixture.py` writes the S-b DM4 plants with
+the DM wiring and tag 65027 for `read(path:)`. `make_fixture.py` writes the DM4 plants with
 `dm4_writer.py` beside it (mac4DSTEM's writer, kept as copied). Run
 `tools/parity/metadata-parity/run.sh`, redirect it to a log, and read the exit code on its own line.
 
@@ -33,7 +32,7 @@ a file the harness itself cannot read is a failure, never a refusal.
 real Velox data. Where they are absent each prints a `skip` line and the summary says `0 of 6`. That part of P1 is
 machine-local — a public reader cannot reproduce it — and must not be quoted as reproducible.
 
-## Slice S-b: `read(path:)` end to end
+## `read(path:)` end to end
 
 `manifest.json` gains `reads`; every check of a read case is named `read:<case> …`. `read(path:)` never throws: a container
 it cannot read for its metadata reads empty.
@@ -42,7 +41,7 @@ it cannot read for its metadata reads empty.
   `shown`, the ImageList number the reference expects, and so is the one in `ImageOpening.openNow(path:).source`; where the
   open shows none (the stack builder's 3-D object, a `[170, 1]` line scan) the first is nil and the open refuses
   (`C1 primary object`, `C1 openNow`, `C1 openNow refuses`). For the real files `shown` is reference.py's `n`; for the
-  plants it is hand-written, and reference.py restates the registered object rule on ncempy's tags
+  plants it is hand-written, and reference.py restates the object rule on ncempy's tags
   (`primary_object`) and requires it to agree. This is the only comparison of the object `read(path:)` describes with the one
   the open shows that the harness can make from outside: `read(path:)` is a black box, so the object it describes is
   observed through its reading (C3), the decoy plants being the files where a wrong object shows.
@@ -52,9 +51,7 @@ it cannot read for its metadata reads empty.
   reference.py first requires ncempy's parse of the same file to confirm). The tag stream of a DM-saved TIFF (`tagTree`) is
   checked the same way (`C2 tag stream`). Exact on purpose: a divergence on a new file must go red and be named, not absorbed.
   - Step (i), the labels: ncempy decodes a label byte by byte as Latin-1; the walker decodes it as UTF-8 when valid and as
-    Latin-1 otherwise (mac4DSTEM `5b696589`). Each ncempy key is re-decoded the same way. REGISTERED as "UTF-8 from the
-    Latin-1 bytes" (the walker of `be10cce0` made U+FFFD of the lone `0xB5` of "(µA)", on 10 of the 12 objects and the
-    tag-65027 block, and the registration predicted that mismatch); the re-sync brought the upstream fix, so the step
+    Latin-1 otherwise (mac4DSTEM `5b696589`). Each ncempy key is re-decoded the same way. The step
     **changes no key of any real file** (the run prints 0) and is gated on a planted UTF-8 label
     (`planted-dm4-utf8-label`) and by two walker mutations.
   - Step (ii), the array artifacts: ncempy adds `X.arraySize`, `X.arrayOffset`, `X.arrayType` numbers for every array of
@@ -73,10 +70,10 @@ it cannot read for its metadata reads empty.
   `planted-dm4-no-tags`, `planted-dm4-no-primary-object` (a thumbnail and a `[170, 1]` line scan stating 200 kV: nothing is
   described), `planted-dm4-utf8-label` (a UTF-8 µ in a label) and `planted-dm4-eleven-objects` (the shown object first,
   `ImageList.10` and `.11` carrying keys of their own, which makes `ImageList.1` against `.10.` catchable here). The writer
-  writes DM4 only, which amends the registration's "planted DM3": the 9 real `.dm3` files gate the DM3 branch.
+  writes DM4 only; the 9 real `.dm3` files gate the DM3 branch.
 - **C5, tag 65027**. `rsciio-dm-tiff-65027` (RosettaSciIO's `test_loading_image_saved_with_DM.tif`) and
   `rsciio-dm-tiff-65027-stack` (an empty tree, 0 tags in 512 bytes), replacing the `rsciio-dm-tiff-known-gap` tripwire. The
-  expectation is ncempy's reading of the block, `PREDICTED_65027` in reference.py holds the hand-written prediction registered
+  expectation is ncempy's reading of the block, `PREDICTED_65027` in reference.py holds the hand-written prediction made
   before the code (200 kV, 51×, no camera length, "BM-UltraScan", 0.5 s, 2015-07-20 18:48:25, "FEI Tecnai", "TEM · IMAGING")
   and the run requires the reference to agree (86 numbers and 46 strings in the block). Plants: `planted-tiff-65027-dm` (the
   STEM maps `planted-dm-actual-ne-indicated` also uses), `planted-tiff-velox-and-dm` and `planted-tiff-fei-and-dm` (a Velox /
@@ -91,13 +88,13 @@ it cannot read for its metadata reads empty.
   `reference.py` reads the entry back from the bytes (`entry_extent`; tifffile drops such an entry with a warning, so it cannot
   say the plant overruns) and requires the declared geometry. Policy, restated in `tiff_block`: none of 34680, 34682, 34683,
   type 1, and the block wholly inside the file.
-- **C6, the extension dispatch**. `read(path:)` on every TIFF and MRC case of slice S-a (75 on a machine with the owner's
+- **C6, the extension dispatch**. `read(path:)` on every TIFF and MRC case (75 on a machine with the owner's
   files), which must equal the S-a expectation (a case marked `nilOrThrows` must read empty), and four renamed copies
   (`planted-ext-tiff`, `-upper-TIF`, `-upper-MRC`, `-upper-DM4`).
 
 ## The expectations: where each comes from
 
-`reference.py` builds them from the pinned references and states each place the registered rules differ as a named
+`reference.py` builds them from the pinned references and states each place macTEM's rules differ as a named
 override or policy (module docstring). It never re-implements the Swift reader's code, but the policies (i)–(m) below are
 macTEM's own rules restated in Python, because no pinned reference reads those paths: they are checked against truth
 written by hand in the plants, not against an independent reader. Before any reading counts the reference has to
@@ -111,7 +108,7 @@ reproduce every PLANTED truth that `make_fixture.py` wrote; a disagreement exits
 | MRC | mrcfile 1.5.4 `indexed_extended_header` (its FEI1 / FEI2 dtype; the byte order follows the machine stamp) | record 0 and the four bitmasks; the date on the OLE epoch 1899-12-30 (override (h), executable evidence below) |
 | DM tag stream in a TIFF (tag 65027, S-b) | ncempy 1.16 `allTags` of the tag's bytes written to a temp file (`block_reading`), RosettaSciIO's mapping as for DM | the maps of the bare stream (keys without prefix) through the DM rules. macTEM's own policy, restated in `tiff_block`: none of 34680, 34682, 34683, and TIFF type 1; a stream ncempy cannot parse reads nothing |
 
-### Registered paths and rules as applied
+### Paths and rules as applied
 
 - **High tension**: DM `Microscope Info.Voltage` (V), FEI SEM `[Beam] HV` (V), Velox `Optics/AccelerationVoltage` (V), MRC
   `HT` (V) → kV.
@@ -173,26 +170,26 @@ of the writer" and not "local time".
 
 ## Overrides of RosettaSciIO and macTEM policies (each named in `reference.py`)
 
-- (b) a 0 or negative `Voltage`, `Indicated Magnification`, `Sample Time`, … RosettaSciIO would map; the registered value is nil.
+- (b) a 0 or negative `Voltage`, `Indicated Magnification`, `Sample Time`, … RosettaSciIO would map; macTEM's value is nil.
 - (c) RosettaSciIO maps `STEM Camera Length` in SEM and any other non-"TEM" mode (junk 0 / 1 in `test-MonarcCL_mono-image`);
-  and not in TEM imaging (the stale 255 of `test_dm_image_um_unit`: both agree here). The registered rule shows it only in
+  and not in TEM imaging (the stale 255 of `test_dm_image_um_unit`: both agree here). macTEM's rule shows it only in
   STEM. RosettaSciIO's Velox EMD mapping (`_emd_velox.py:942-945`) has no mode gate either; the Swift gate is a DEVIATION
   named in FormatoKit's `FormatoTIFF/AcquisitionMetadataTIFF.swift` (`.app`). An MRC camera length has no gate: it is shown as stored and says so.
 - **Instrument** (DM) is not an override: the expectation is RosettaSciIO's own `get_mapping` value (`_get_microscope_name`, `:820-837`;
   the mapping `:1004-1011`, inside `if "Microscope Info" in image_tags_dict.keys()` `:963`), and on every real object the harness
-  fails if the registered instrument differs from it. The one exception is (a): RosettaSciIO returns a whitespace-only text as
-  written (a truthy string), the registered rule treats it as empty and reads the next location, so the same mapping is applied
+  fails if macTEM's instrument differs from it. The one exception is (a): RosettaSciIO returns a whitespace-only text as
+  written (a truthy string), macTEM's rule treats it as empty and reads the next location, so the same mapping is applied
   to the tags with every string trimmed (`planted-dm-instrument-session-blank`; no real file has such a name, none is printed).
 - (a) FEI SEM `Dwelltime` is mapped by RosettaSciIO without a function, so a text like `notafloat` would pass through; it goes
   through `float()` here.
 - (e) the date and the time are RosettaSciIO's two isoformat strings joined; the order note comes from the date text. RosettaSciIO
-  maps the date alone when no time reads; the registered rule shows nothing (`planted-dm-date-no-time`,
+  maps the date alone when no time reads; macTEM's rule shows nothing (`planted-dm-date-no-time`,
   `planted-fei-sem-date-no-time`, `planted-fei-sem-time-no-date`).
-- (h) the MRC `Timestamp` is days since **1899-12-30** (OLE automation date): the registration's choice, which overrides mrcfile's
+- (h) the MRC `Timestamp` is days since **1899-12-30** (OLE automation date): macTEM's choice, which overrides mrcfile's
   comment "days after 1/1/1900" (`dtypes.py:108`; mrcfile never converts the field). Evidence above.
 - (i) a Velox exposure comes from the `Detectors/*` element that names the image's detector, never another's — no pinned reader
   reads the TIFF path (`planted-velox-exposure-decoy`, `planted-velox-exposure-named`).
-- (j) `ProjectorMode` / `OperatingMode` open the camera-length gate without regard to case; the registration states no case, no
+- (j) `ProjectorMode` / `OperatingMode` open the camera-length gate without regard to case; macTEM's rule states no case, no
   pinned reader reads `ProjectorMode` (`planted-velox-mode-case-*`).
 - (k) a second Velox start stamp from before 1990 is an unset field, not a copy: the Velox XML schema postdates 1990, and the
   sentinel form is inferred from same-schema EMD files (no Velox STEM TIFF exists here); a stamp from 1990 on is kept
@@ -209,7 +206,7 @@ of the writer" and not "local time".
   dask, which is not in the lock; `get_mapping` never calls it. The module `rsciio.utils.file` is replaced in `sys.modules` by
   an empty stand-in carrying `memmap_distributed = None` before `_api` is imported. `get_mapping` and the helpers it calls are
   RosettaSciIO's own, unmodified (the sha256 of `_api.py`, `tiff/_api.py` and `emd/_emd_velox.py` is pinned in
-  `reference.py`). The AST-extraction route the brief names was not needed.
+  `reference.py`).
 - **The join** RosettaSciIO leaves to HyperSpy (not in the lock): `apply_mapping` walks each mapping path through the tag
   tree with HyperSpy's key normalisation (spaces → `_`, other non-word characters dropped, applied to both sides, a collision
   fails) and calls the mapping's function. A function that raises yields no value.
@@ -229,7 +226,7 @@ of the writer" and not "local time".
   declaration, 2 MiB of text, a 5 MiB comment (no text, so only the size bound refuses it) — each beside real fields and each
   reading empty.
 - TIFFs with no acquisition tags: plain, ImageJ, Digital Micrograph calibration tags (a DM-saved TIFF's whole ImageTags tree is
-  in tag 65027: the `reads` cases of slice S-b); tag 34683 that is not XML (`nilOrThrows`).
+  in tag 65027: the `reads` cases of `read(path:)`); tag 34683 that is not XML (`nilOrThrows`).
 - FEI SEM INI: full (a different `[EBeam] HV` beside `[Beam] HV`, 25 µs, US date, 12-hour time), `HV=` empty (tag 34680),
   `HV=notafloat`, `HV=0` with `Dwelltime=0`, 12:05:09 AM, 12:30:00 PM, a garbage file; a repeated `HV` whose later copy is empty
   (not recorded: tifffile's last line wins) and one whose later copy is 6000; a repeated `[Beam]` section; the date `05/06/2022`
@@ -291,28 +288,28 @@ the defect), so it shows the checks are sensitive to it, and the source mutation
 | `mrc-big-endian` | input: twin with the 8 bytes of the HT double reversed (what a big-endian read of the little-endian record returns) | `planted-fei2-stem highTensionKV` |
 | `actual-for-indicated` | input: the Indicated Magnification tag holding the Actual value | `planted-dm-actual-ne-indicated magnification` |
 | `frametime-as-dwell` | output: `dwellUS` = stored FrameTime × 1e6 | `planted-velox-stem dwellUS` |
-| `dm-wrong-object` | wiring: the first object that is not the thumbnail, not the object rule's (registered M1) | `read:planted-dm4-two-objects C1 primary object` and `… highTensionKV` |
-| `dm-prefix-kept` | wiring: every map key keeps `ImageList.N.ImageTags.` (registered M2) | `read:dm-test_STEM_image-dm3-IL2 highTensionKV` and `… C2 numbers` |
+| `dm-wrong-object` | wiring: the first object that is not the thumbnail, not the object rule's (M1) | `read:planted-dm4-two-objects C1 primary object` and `… highTensionKV` |
+| `dm-prefix-kept` | wiring: every map key keeps `ImageList.N.ImageTags.` (M2) | `read:dm-test_STEM_image-dm3-IL2 highTensionKV` and `… C2 numbers` |
 | `dm-strings-lost` | wiring: the strings map is empty (M3) | `read:dm-test_STEM_image-dm3-IL2 mode`, `… acquired`, `… C2 strings` |
 | `dm-creation-dropped` | wiring: no key under `source.Tags at creation.` (M4) | `read:dm-test_stackbuilder_imagestack-dm3-IL2 highTensionKV` and `… C2 numbers` |
 | `tiff-65027-skipped` | input: `rsciio-dm-tiff-65027` with the tag renamed 65028 (M5) | `read:rsciio-dm-tiff-65027 highTensionKV` |
 | `tiff-dm-before-velox` | input: `planted-tiff-velox-and-dm` with its Velox tag removed, so the real reader meets only the 120 kV block (M6) | `read:planted-tiff-velox-and-dm highTensionKV` |
 
-**Source mutations of slice S-b** — built and run by `run.sh` itself, each against an edited COPY (the edit must apply exactly
-once, or the gate fails loudly and the mutation is re-aimed). They reproduce the registered M1 and M3 (in
+**Source mutations of `read(path:)`** — built and run by `run.sh` itself, each against an edited COPY (the edit must apply exactly
+once, or the gate fails loudly and the mutation is re-aimed). They reproduce M1 and M3 (in
 `AcquisitionMetadata+Read.swift`) and the mutations of the wiring itself. The walker's (M2, M4, M7, M8) and the TIFF reader's
 (M5, M6) source mutations were dropped here with the switch to SwiftPM: that code is FormatoKit's.
 
 | Edit | Check that must fail |
 |---|---|
 | `ImageOpening.swift`: `openNow` shows the first object that is not the thumbnail | `read:planted-dm4-two-objects C1 openNow` |
-| `AcquisitionMetadata+Read.swift`: the first object that is not the thumbnail (registered M1, in the code) | `read:planted-dm4-two-objects highTensionKV` and `read:planted-dm4-no-primary-object highTensionKV` |
+| `AcquisitionMetadata+Read.swift`: the first object that is not the thumbnail (M1, in the code) | `read:planted-dm4-two-objects highTensionKV` and `read:planted-dm4-no-primary-object highTensionKV` |
 | `AcquisitionMetadata+Read.swift`: `strings: [:]` handed to the DM rules | `read:dm-test_STEM_image-dm3-IL2 mode` and `… acquired` |
 | `AcquisitionMetadata+Read.swift`: `.mrc` not dispatched | `read:rsciio-4dstemscan highTensionKV` and `read:planted-fei2-stem highTensionKV` (C6) |
 | `AcquisitionMetadata+Read.swift`: the extension not lower-cased | `read:planted-ext-upper-TIF`, `-upper-MRC`, `-upper-DM4` `highTensionKV` (C6) |
 | `AcquisitionMetadata+Read.swift`: `.tiff` not dispatched | `read:planted-ext-tiff highTensionKV` (C6) |
 
-**Source mutations of slice S-a** — the controls above rewrite inputs and outputs; these edit the reader. Each was measured by hand on
+**Source mutations of the readers** — the controls above rewrite inputs and outputs; these edit the reader. Each was measured by hand on
 2026-10-12 against copies of the `metadata` sources (copy `Sources/TEMCore/Data`, make the edit, compile with `main.swift`, run
 the harness on the unchanged `reference.py` output). Every one exits 1 (or traps) and names the case that catches it:
 
