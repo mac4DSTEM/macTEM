@@ -12,7 +12,7 @@
 //        A second form, the headerless orientation table (first line the column names `phi1 Phi phi2 phase bands ...`,
 //        orix-data's Ti_orientations.ctf exported from MTEX): orix.data.ti_orientations reads its three Euler columns with
 //        numpy and attaches the 622 point group by hand; this reader keeps every column under its name and leaves the
-//        phase list to the caller (D-SEM-12).
+//        phase list to the caller (D-SEM-17).
 //
 //        The parity test reads the files orix's own tests write and the head of Ti_orientations.ctf at 1e-12
 //        (macTEMTests/Fixtures/sem/oxford, from tools/parity/sem-readers/make_oxford_fixtures.py).

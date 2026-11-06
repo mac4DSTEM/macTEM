@@ -111,7 +111,7 @@ nonisolated final class CTFReaderTests: XCTestCase {
 
     /// orix-data's Ti_orientations.ctf (Krakow et al. 2017, CC BY 4.0) is an MTEX export without the Channel Text File header:
     /// the first line names its columns. orix reads phi1, Phi, phi2 with numpy and attaches the 622 point group by hand; the
-    /// reader keeps every column under its name and the caller attaches the phase (D-SEM-12).
+    /// reader keeps every column under its name and the caller attaches the phase (D-SEM-17).
     func testTheTiOrientationTableReadsAsOrix() throws {
         let truth = try JSONDecoder().decode(TiTruth.self, from: Data(contentsOf: Self.folder.appendingPathComponent("ti_orientations.json")))
         let map = try CTFReader.read(path: Self.folder.appendingPathComponent("ti_orientations_head.ctf").path)

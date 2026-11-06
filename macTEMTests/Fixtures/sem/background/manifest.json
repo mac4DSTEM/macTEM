@@ -1,0 +1,349 @@
+{
+  "reference": "kikuchipy 0.13.1 (pattern._pattern, filters.fft_barnes), scipy.ndimage.gaussian_filter",
+  "pins": {
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1"
+  },
+  "dataset": "nickel_ebsd_large/patterns_v2.h5",
+  "pattern_shape": [
+    60,
+    60
+  ],
+  "map_shape": [
+    55,
+    75
+  ],
+  "std_default": 7.5,
+  "truncate_default": 4.0,
+  "odd_window": {
+    "std": 5.0,
+    "truncate": 3.0
+  },
+  "arrays": {
+    "static_background": {
+      "file": "static_background.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "50a57b1186a4d8f078dbf5df85df6e7e2df2568abd14a90d3b49f2f66ff9e43a"
+    },
+    "mean_background": {
+      "file": "mean_background.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "783082cc11165302fa993b1709a0d88cf49e46ceb4992758b8c4631423492f8e"
+    },
+    "p0_0_raw": {
+      "file": "p0_0_raw.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "0f79895ee889fa655291cf634f704612f588da8bc5ceda8bdc7238d3224d2f06"
+    },
+    "p0_0_static_subtract": {
+      "file": "p0_0_static_subtract.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "1ab3d04eaafc839d69446b9b512785c118356732df4fc0b94e2b58cb1003252d"
+    },
+    "p0_0_static_subtract_values": {
+      "file": "p0_0_static_subtract_values.f32",
+      "dtype": "f32",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "dfa72fc7406c3c1663b2ffa1279695f662c37cceed3a9875e9484107b8d90829"
+    },
+    "p0_0_static_divide": {
+      "file": "p0_0_static_divide.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "cb0c40476fbf9aacd321fe1ececf9f2c274f0df240556c15a736c9b06a5051e5"
+    },
+    "p0_0_static_subtract_scaled": {
+      "file": "p0_0_static_subtract_scaled.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "c112a7e5c0ca2350161967ccf05ca16403646bcf64b28c2737ffafea3823988f"
+    },
+    "p0_0_static_divide_scaled": {
+      "file": "p0_0_static_divide_scaled.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "e48bc5101d5bbd7586a5aedf545fdea49d06633b93dcf7875b9093f82eed6b4c"
+    },
+    "p0_0_mean_static_subtract": {
+      "file": "p0_0_mean_static_subtract.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "b810b1ef914062f0fac030e4a35994450db50fac2c6e6877ffaa5fb89470cd83"
+    },
+    "p0_0_dynamic_background_frequency": {
+      "file": "p0_0_dynamic_background_frequency.f32",
+      "dtype": "f32",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "d9e4722119cffa3f9fc6cb7d3c53d38b0094404da9646d616c46113e7d8ee196"
+    },
+    "p0_0_dynamic_background_spatial": {
+      "file": "p0_0_dynamic_background_spatial.f32",
+      "dtype": "f32",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "b7f2c5b96a3c03e07281030bd982cbd078963f7fcd9d5053ccec150a02185a61"
+    },
+    "p0_0_dynamic_frequency_subtract": {
+      "file": "p0_0_dynamic_frequency_subtract.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "78c1f56be4cd9d2b859ee3ffd8431f0b19502763e87aed74918185c8d3ba36f0"
+    },
+    "p0_0_dynamic_frequency_subtract_values": {
+      "file": "p0_0_dynamic_frequency_subtract_values.f32",
+      "dtype": "f32",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "b1f0b74fe9f7805de9c0d2a663420008db19ac6a56309c2b06d79fb94e3dbeb6"
+    },
+    "p0_0_dynamic_frequency_divide": {
+      "file": "p0_0_dynamic_frequency_divide.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "834bd54196432961b38b8cd42e7162c525414977713d047b42d3fd9871f15a15"
+    },
+    "p0_0_dynamic_spatial_subtract": {
+      "file": "p0_0_dynamic_spatial_subtract.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "92d25e9301547aee3ea5172a0c7043c67e978684b7d8f4c8449c2a3e251d26e0"
+    },
+    "p0_0_dynamic_spatial_divide": {
+      "file": "p0_0_dynamic_spatial_divide.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "390ffa8562af5168d2c41a2b953af2e9d2ef7345d1cf820f0cb3aaf5b27e0a83"
+    },
+    "p0_0_dynamic_frequency_subtract_std5_truncate3": {
+      "file": "p0_0_dynamic_frequency_subtract_std5_truncate3.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "a034a4288281aed4c7cce1a54838c6d63da68657291b61ad9f17ad09338ba44d"
+    },
+    "p0_0_dynamic_background_frequency_std5_truncate3": {
+      "file": "p0_0_dynamic_background_frequency_std5_truncate3.f32",
+      "dtype": "f32",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "65c829f84fcd29fcc5eb20c2f45846d0d3f7227a87b419ac6c3e23138f602c07"
+    },
+    "p0_0_dynamic_spatial_subtract_std5_truncate3": {
+      "file": "p0_0_dynamic_spatial_subtract_std5_truncate3.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "8cea0ad81aea0f20cf9173f16306b87d7eecf344c3435091b8cd050ceb1a1b12"
+    },
+    "p27_37_raw": {
+      "file": "p27_37_raw.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "d6a88f412726b4fe2e7774505d19259bde5ff66c5211e710243558b00ce0a474"
+    },
+    "p27_37_static_subtract": {
+      "file": "p27_37_static_subtract.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "2bcb3289aa1798a64f1bf3b998a2c3572dffb68a7c535fd3715568cb175699db"
+    },
+    "p27_37_static_subtract_values": {
+      "file": "p27_37_static_subtract_values.f32",
+      "dtype": "f32",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "d52d2e87e8da60ca3702a3d709430e584eb0cd8da97465f2ef95a0e875521451"
+    },
+    "p27_37_static_divide": {
+      "file": "p27_37_static_divide.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "976818a6a20afe75c970f262babd0336b04ba26c2b737ccef4c1f5c918992a51"
+    },
+    "p27_37_static_subtract_scaled": {
+      "file": "p27_37_static_subtract_scaled.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "0064b93f00bc0592a434275d64391b0676eac9681b6b8b1b269b17a72cf84751"
+    },
+    "p27_37_static_divide_scaled": {
+      "file": "p27_37_static_divide_scaled.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "60e490c984853181414e89b5e223f7ad595757688cc15719333d48d1e968413c"
+    },
+    "p27_37_mean_static_subtract": {
+      "file": "p27_37_mean_static_subtract.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "cabbbe92d6206837a67c9722c687b202def0ae4d7df4a9622a520e788ae4c7fd"
+    },
+    "p27_37_dynamic_background_frequency": {
+      "file": "p27_37_dynamic_background_frequency.f32",
+      "dtype": "f32",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "bd5f037b3a976ba2cea49329ce053fc6617af1f7871e48baf8dcb772b1afdf4a"
+    },
+    "p27_37_dynamic_background_spatial": {
+      "file": "p27_37_dynamic_background_spatial.f32",
+      "dtype": "f32",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "4631b3710dd4a3b56bfc480d9a610eaac9edc212f888f82359303cfb2c21ee32"
+    },
+    "p27_37_dynamic_frequency_subtract": {
+      "file": "p27_37_dynamic_frequency_subtract.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "777c4126d0d800efc55f9ebd12892bcf3a695be58edc4af0233a4491a8a427c7"
+    },
+    "p27_37_dynamic_frequency_subtract_values": {
+      "file": "p27_37_dynamic_frequency_subtract_values.f32",
+      "dtype": "f32",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "b322a7427322964c3f66c2c8a7fa9bbe8cc8f5567e2ee93fd969fcec40d5d3f2"
+    },
+    "p27_37_dynamic_frequency_divide": {
+      "file": "p27_37_dynamic_frequency_divide.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "b1dc20d2ca666e4e1c355c981ede468a386b59ab74ae3f759214aec48be6cb31"
+    },
+    "p27_37_dynamic_spatial_subtract": {
+      "file": "p27_37_dynamic_spatial_subtract.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "c48e45ea4b8602fd37435170b2e115257391ab7ad5c0777665dffb883b599569"
+    },
+    "p27_37_dynamic_spatial_divide": {
+      "file": "p27_37_dynamic_spatial_divide.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "199a74303b60a0b02459286dac876f2a7095b5eae669614eeb49ce4900913428"
+    },
+    "p27_37_dynamic_frequency_subtract_std5_truncate3": {
+      "file": "p27_37_dynamic_frequency_subtract_std5_truncate3.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "6d6c09676f612df78a715ab936de4d924d58537318bf6d8f0e41104824ce887d"
+    },
+    "p27_37_dynamic_background_frequency_std5_truncate3": {
+      "file": "p27_37_dynamic_background_frequency_std5_truncate3.f32",
+      "dtype": "f32",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "0732938c4678c35d894e87c96918e2082fd5390d3e9528aedd2e7f5f088749ac"
+    },
+    "p27_37_dynamic_spatial_subtract_std5_truncate3": {
+      "file": "p27_37_dynamic_spatial_subtract_std5_truncate3.u8",
+      "dtype": "u8",
+      "shape": [
+        60,
+        60
+      ],
+      "sha256": "8f0176fc94df164d810e7d1f0aa59cb24138d41d2ec4038d80a2046bc35588b6"
+    }
+  }
+}
