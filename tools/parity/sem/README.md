@@ -16,7 +16,7 @@ emit.py               the cases: one function per bundle, --out DIR
 check.py              the drift gate: emit afresh, compare with references/ within tolerance
 references/           the committed bundles, <milestone>/<case>/manifest.json + <array>.bin
 lib/refbundle.py      the bundle format (schema 1) and the comparison
-run.sh                setup, fetch, check
+drift-gate.sh         setup, fetch, check (not run.sh: that name is the Swift-harness entry point the inventory checks)
 ```
 
 ## A bundle
