@@ -57,3 +57,25 @@ Numbered so briefs and PRs can cite them; the room designs keep their own D1-D8 
 | D-SEM-22 | 2026-11-06 | Patterns takes ⌘6 at once and Results moves to ⌘7; Results moves again to ⌘9 as Indexing and Maps land (the room list is one row per built room, `WorkspaceArea.allCases`) | a key for a room that does not exist yet would open nothing; design D1's final order holds once the rooms do |
 | D-SEM-23 | 2026-11-06 | The Patterns room's demo entry (Help > Open Demo Data, Try Demo Data) opens the shipped nickel scan (`DemoDocuments.Shipped.nickelEBSD`, #127) through the app's own Open; the room's tests and journey use a generated dataset (`DemoDocuments.ebsd`, six grains of cosine bands, `--demo-ebsd-fixture`) answered from memory through `EBSDPatternAccess` | the menu shows real data as every other shipped entry does; the tests need planted numbers to assert against, and FormatoKit has no HDF5 writer, so the generated set is in memory, not a file |
 | D-SEM-24 | 2026-11-06 | P1-06's scan map is the mean intensity of every pattern; P1-07 replaces it with the virtual BSE and adds the tiles, the bottom pane, ⌘P's pinned list and the ROI tool | the design's first picture is the virtual BSE (§2); the mean is its one-tile case and lets the room land before `VirtualBSEImaging` exists, with no placeholder in the code |
+
+## 2026-11-06 — NORDIF: follow kikuchipy on the damaged settings files, read Setting.txt by section and key
+
+**What.** The NORDIF readers (`Sources/TEMCore/SEM/NORDIF`, brief P1-04) treat kikuchipy's three damaged settings
+files as kikuchipy 0.13.1 does, not as the brief guessed ("the three bad settings files refused each with its
+sentence"): `Setting_bad1.txt` and `Setting_bad2.txt` are refused for calibration patterns with one sentence (kikuchipy
+raises `ValueError`), while `Setting_bad3.txt` reads in both readers, its missing `Top` corner counting as 0 and its
+missing electron-image `Resolution` leaving the area shape unknown; all three still read the acquisition patterns.
+`Setting.txt` is read by section and key, not by kikuchipy's fixed line offsets, which gives the same values on every
+file of the parity set and refuses a file whose required line is missing by naming the section and the key.
+
+**Why.** The parity reference is the behaviour, and a reader that refuses what kikuchipy reads would fail the user on
+a file the Python stack accepts. The by-key lookup survives a reordered or extended settings file, where an offset
+reads the wrong line silently.
+
+**Also decided.** Until P1-01's `EBSDDataset` (macTEM#125) merges, the NORDIF scan is its own value type
+(`NORDIFScan`, a uint8 block in map order); adopting `EBSDDataset` is a follow-up issue filed at closeout. The
+bitmaps are decoded by a small reader of the 8-bit greyscale BMP NORDIF writes, not by ImageIO, so the parity stays
+bit-exact without colour management; a bitmap of any other kind is refused with a sentence.
+
+**Reversal.** Refuse `Setting_bad3.txt` once the Patterns room shows that an unknown area shape breaks a view; add
+the sentence to `reference.json` and the test.

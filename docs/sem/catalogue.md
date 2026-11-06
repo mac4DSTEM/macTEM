@@ -104,6 +104,9 @@ header, and `docs/parity.md` names the function, its reference and its tolerance
 | Pole figures, inverse pole figures, stereographic plots | `orix.plot.StereographicPlot`, `InversePoleFigurePlot`, `orix.vector.Vector3d.pole_density_function` | | orix tests | atol 1e-7 |
 | ODF (kernel density on SO(3)) | `orix.quaternion.Orientation.get_distance_matrix`; `pole_density_function` (de la Vallée Poussin kernel) | Hielscher & Schaeben 2008, J. Appl. Cryst. 41, 1024 | ti_orientations | rtol 1e-4 |
 | Schmid factors | DefDAP `calc_average_grain_schmid_factors` | | | atol 1e-6 |
+| Band contrast, MAD, CI, IQ and fit as property maps (the values the vendor stores in `.ctf`, `.ang`, h5oina, h5ebsd) | `orix.crystal_map.CrystalMap.prop`, `CrystalMapPlot` (property maps); DefDAP `Map.band_contrast` | Wright & Nowell 2006, Microsc. Microanal. 12, 72 (IQ, CI, fit) | Ti_orientations.ctf (BC, BS, MAD), sdss (IQ, CI, fit) | exact (stored columns); band contrast from patterns is kikuchipy's IQ, section 2 |
+| Slip-trace analysis (slip planes and traces per grain from the orientation and the crystal's slip systems, Schmid factor per system, trace angles in the map plane) | DefDAP `Grain.calc_slip_traces`, `Map.calc_average_grain_schmid_factors`, `defdap.crystal.SlipSystem` (slip-system files for fcc, bcc, hcp) | Schmid & Boas 1935; DefDAP docs (Atkinson, Orozco-Caballero, da Fonseca 2021, Materials & Design 211, 110140) | Ti_orientations.ctf (hcp), sdss (bcc, fcc) | trace angles within 1e-6 rad, Schmid factors atol 1e-6 |
+| Strain from SEM image pairs (HRDIC: a reference and a deformed image, displacement field, strain components, maps and grain statistics on an EBSD map) | DefDAP `hrdic.Map` (reads DaVis, DICe output; the DIC itself runs in those tools), `calc_grain_av_strain`; the correlation step would be ImagoKit's cross-correlation (not yet ported) | Atkinson et al. 2021; Lunt et al. 2015, Acta Mater. 97, 34 | DefDAP's example DIC data (CC BY 4.0) | atol 1e-6 on the strain maps from imported displacements; new, to add once Paul picks a phase (D-SEM, catalogue addition 2026-11-06) |
 
 ## 6. Simulation (phase 6)
 
@@ -137,6 +140,8 @@ user-supplied factors, and a stated `validation: none` on anything beyond. Logge
 | Open vendor TIFFs with pixel size, HV, WD, detector, dwell, databar | `rsciio.tiff` | RosettaSciIO tiff tests |
 | Databar crop (Thermo/FEI, Zeiss, Tescan put the bar in the image) | `rsciio.tiff` (`_api.py` reads the image height from metadata) | same |
 | Everything the Image room does today (marks, profiles, particles, FFT) | ImagoKit, already in the app | |
+| Segmentation of SEM images (threshold, watershed, particle statistics: the Particles tool the Image room already has, applied to SEM micrographs with the vendor pixel size) | ImagoKit particles (scikit-image `threshold_otsu`, `watershed`, `regionprops`), already in the app | Zeiss and Thermo test TIFFs |
+| ECCI images (channelling contrast micrographs: opened as SEM images with their metadata; the ECP master pattern reader of section 1 gives the channelling geometry; no ECCI simulation, see Out of scope) | `rsciio.tiff`; `kikuchipy.io.plugins.emsoft_ecp_master_pattern` | Zeiss test TIFF; EMsoft ECP master pattern |
 
 ## 9. Export and reports (phase 8)
 
@@ -160,6 +165,8 @@ user-supplied factors, and a stated `validation: none` on anything beyond. Logge
 
 ## Out of scope for the program
 
-3D EBSD and serial sectioning; ECCI simulation beyond the ECP master pattern reader; HR-EBSD cross-correlation strain
-(Wilkinson 2006; no GPL Python reference with tests); dynamical simulation of master patterns (EMsoft stays the source of
-master patterns); SEM-EDS ZAF beyond exspy. Each is an issue in the macTEM repo with this page as its reason.
+3D EBSD and serial sectioning (3D reconstruction of FIB stacks: no GPL reference with tests, and the apps draw 2D); ECCI
+simulation beyond the ECP master pattern reader; HR-EBSD cross-correlation strain (Wilkinson 2006; no GPL Python reference
+with tests; strain from SEM image pairs by DIC is the section 5 row instead); dynamical simulation of master patterns (EMsoft
+stays the source of master patterns); SEM-EDS ZAF beyond exspy. Each is an issue in the macTEM repo with this page as its
+reason.
