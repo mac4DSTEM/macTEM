@@ -17,6 +17,9 @@ Planted, deterministic, small, committed under fixtures/ with the hand-written t
   special rotations, Bunge angles, cubochoric points, vectors, seeded m-3m orientations, the point-group names orix
   defines, and the Bunge angles of the first 2000 rows of orix-data's `Ti_orientations.ctf` (CC BY 4.0, the head
   committed as macTEMTests/Fixtures/sem/oxford/ti_orientations_head.ctf). `--orientation-only` writes just this file.
+* `slip_inputs.json`: the inputs of the slip-analysis bundles (m5): a 90 x 120 corner of orix-data's
+  `Ti_orientations.ctf` (hcp titanium) and the whole `sdss_ferrite_austenite.ang` map (fcc and bcc), the files' own
+  numbers, read from the fetched datasets (fetch-data.sh first). `--slip-only` writes just this file.
 
 Run with `python -I -B`.
 """
@@ -137,18 +140,56 @@ def write_orientation_inputs() -> None:
     (FIXTURES / "orientation_inputs.json").write_text(json.dumps(out) + "\n", encoding="utf-8")
 
 
+# The slip-analysis inputs (m5): a 90 x 120 corner of orix-data's Ti_orientations.ctf (hcp) and the whole sdss map
+# (austenite fcc, ferrite bcc), the file's own numbers, so the Swift tests run without the downloaded datasets.
+TI_CROP = (0, 0, 90, 120)  # row, column, height, width of the 381 x 507 map
+
+
+def write_slip_inputs() -> None:
+    import numpy as np
+
+    data = HERE.parent.parent.parent / "References" / "sem-data" / "orix"
+    ti = np.loadtxt(data / "Ti_orientations.ctf", skiprows=1)
+    assert ti.shape == (381 * 507, 13), ti.shape
+    r0, c0, h, w = TI_CROP
+    ti_eu = ti[:, :3].reshape(381, 507, 3)[r0:r0 + h, c0:c0 + w].reshape(-1, 3)
+    ang = np.loadtxt(data / "sdss_ferrite_austenite.ang", comments="#")
+    assert ang.shape == (100 * 117, 8), ang.shape
+    out = {
+        "note": "Inputs of tools/parity/sem bundles m5/slip-*: rows 0-89, columns 0-119 of orix-data Ti_orientations.ctf "
+                "(CC BY 4.0; Bunge angles in degrees as written) and the whole orix-data sdss_ferrite_austenite.ang "
+                "(CC BY 4.0; Bunge angles in radians as written, the EDAX phase ids). Map order, rows first.",
+        "ti": {"shape": [h, w], "crop_row_column": [r0, c0], "step_um": 0.25, "phase": "Ti", "space_group": 194,
+               "lattice_angstrom_degrees": [2.951, 2.951, 4.684, 90.0, 90.0, 120.0],
+               "euler_degrees": ti_eu.tolist()},
+        "sdss": {"shape": [100, 117], "step_um": 1.5,
+                 "phases": [{"id": 1, "name": "austenite", "space_group": 225,
+                             "lattice_angstrom_degrees": [3.595, 3.595, 3.595, 90.0, 90.0, 90.0]},
+                            {"id": 2, "name": "ferrite", "space_group": 229,
+                             "lattice_angstrom_degrees": [2.867, 2.867, 2.867, 90.0, 90.0, 90.0]}],
+                 "euler_radians": ang[:, :3].tolist(), "phase_id": ang[:, 7].astype(int).tolist()},
+    }
+    (FIXTURES / "slip_inputs.json").write_text(json.dumps(out) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--orientation-only", action="store_true", help="write orientation_inputs.json only")
+    ap.add_argument("--slip-only", action="store_true", help="write slip_inputs.json only (needs fetch-data.sh)")
     args = ap.parse_args()
     FIXTURES.mkdir(exist_ok=True)
+    if args.slip_only:
+        write_slip_inputs()
+        print("make_fixtures.py: slip_inputs.json written")
+        return 0
     write_orientation_inputs()
     if args.orientation_only:
         print("make_fixtures.py: orientation_inputs.json written")
         return 0
     write_ctf()
     write_kikuchipy_dummies()
-    print("make_fixtures.py: planted_oxford.ctf, oxford_h5oina_patterns.h5oina, bruker_h5ebsd_patterns.h5, orientation_inputs.json written")
+    write_slip_inputs()
+    print("make_fixtures.py: planted_oxford.ctf, oxford_h5oina_patterns.h5oina, bruker_h5ebsd_patterns.h5, orientation_inputs.json, slip_inputs.json written")
     return 0
 
 
