@@ -7,6 +7,7 @@
 //
 
 import XCTest
+import SwiftUI
 import FormatoCore
 import TEMCore
 import TEMSession
