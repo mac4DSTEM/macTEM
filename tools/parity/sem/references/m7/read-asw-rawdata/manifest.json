@@ -1,0 +1,383 @@
+{
+  "arrays": {
+    "signal6_sum_spectrum": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal6_sum_spectrum.bin",
+      "rtol": 0.0,
+      "sha256": "6e4b1bbcbf82c8d7dba5a6b800a1d6acc9bed578812b188e6ef3651a147735e8",
+      "shape": [
+        4096
+      ]
+    }
+  },
+  "case": "m7/read-asw-rawdata",
+  "inputs": [
+    {
+      "path": "sem-data/rsciio/jeol/rawdata.ASW",
+      "sha256": "b69a4a479d8eb8c5ae735ca2ae9dfcd60119fedb52b0a08a76d815b19c01a3b0"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.jeol.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "signal0_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 137518.0
+    },
+    "signal1_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 62728.0
+    },
+    "signal2_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 15509.0
+    },
+    "signal3_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 45058.0
+    },
+    "signal4_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 45099.0
+    },
+    "signal5_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 24997.0
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signal0_pixels": {
+      "dtype": "uint8",
+      "sha256": "5b6aa03f144d4c1ff2729bfe09957663349abe28cbbdecac76c254322c112125",
+      "shape": [
+        512,
+        512
+      ]
+    },
+    "signal1_pixels": {
+      "dtype": "uint8",
+      "sha256": "7a1e9e245b971cf8b63e53f2ecffd7b2523a73a2374d6f897bf7db6bf79222de",
+      "shape": [
+        512,
+        512
+      ]
+    },
+    "signal2_pixels": {
+      "dtype": "uint8",
+      "sha256": "143ae072fca03df965451bcef98466239715d41733b29eddd4c855e4678537a9",
+      "shape": [
+        512,
+        512
+      ]
+    },
+    "signal3_pixels": {
+      "dtype": "uint8",
+      "sha256": "fd462b282b013792431d83b55ce182ecc5b76e0a8a07a5b4f02e46bc9c4957a2",
+      "shape": [
+        512,
+        512
+      ]
+    },
+    "signal4_pixels": {
+      "dtype": "uint8",
+      "sha256": "bfe02c53599ae844814c1026c26bfb82e85baf4284655d78f2349eb15ab7ae9a",
+      "shape": [
+        512,
+        512
+      ]
+    },
+    "signal5_pixels": {
+      "dtype": "uint8",
+      "sha256": "7191ddc676cab1026e3fb0fb5d82b333a434f526d28cf3642fa9b821ed43e040",
+      "shape": [
+        512,
+        512
+      ]
+    },
+    "signal6_nonzero": {
+      "count": 305179,
+      "index_sha256": "50a18cad08d991d86cb1b597ed7e427b427b52cc32fab70e693af038cab82966",
+      "value_sha256": "aea7687631e3aebc2c44d8b4f99345ca737b334cefb0c7ffe36327654f16186f"
+    },
+    "signal6_pixel_totals": {
+      "dtype": "int64",
+      "sha256": "db2d59d497d5e72d6f54b245dba238c403ed1ad25924e41663c669b1a0f9c8dd",
+      "shape": [
+        262144
+      ]
+    },
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint8",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 200.0,
+          "date": "2017-04-07",
+          "magnification": 40000.0,
+          "mode": "TEM",
+          "original_filename": "View000_0000000.img",
+          "time": "18:08:05",
+          "title": "IMG1"
+        },
+        "shape": [
+          512,
+          512
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint8",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 200.0,
+          "date": "2017-04-07",
+          "magnification": 40000.0,
+          "mode": "TEM",
+          "original_filename": "View000_0000001.map",
+          "time": "18:08:39",
+          "title": "C K"
+        },
+        "shape": [
+          512,
+          512
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint8",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 200.0,
+          "date": "2017-04-07",
+          "magnification": 40000.0,
+          "mode": "TEM",
+          "original_filename": "View000_0000002.map",
+          "time": "18:08:39",
+          "title": "O K"
+        },
+        "shape": [
+          512,
+          512
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint8",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 200.0,
+          "date": "2017-04-07",
+          "magnification": 40000.0,
+          "mode": "TEM",
+          "original_filename": "View000_0000003.map",
+          "time": "18:08:39",
+          "title": "S K"
+        },
+        "shape": [
+          512,
+          512
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint8",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 200.0,
+          "date": "2017-04-07",
+          "magnification": 40000.0,
+          "mode": "TEM",
+          "original_filename": "View000_0000004.map",
+          "time": "18:08:39",
+          "title": "Fe K"
+        },
+        "shape": [
+          512,
+          512
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint8",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 200.0,
+          "date": "2017-04-07",
+          "magnification": 40000.0,
+          "mode": "TEM",
+          "original_filename": "View000_0000005.map",
+          "time": "18:08:39",
+          "title": "Cu K"
+        },
+        "shape": [
+          512,
+          512
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          },
+          {
+            "name": "Energy",
+            "offset": -0.9606613249999999,
+            "scale": 0.00999866,
+            "size": 4096,
+            "units": "keV"
+          }
+        ],
+        "dtype": "uint32",
+        "kind": "spectrum_image",
+        "metadata": {
+          "azimuth_angle": 90.0,
+          "beam_energy": 200.0,
+          "date": "2017-04-07",
+          "detector_type": "EX24075JGT",
+          "elevation_angle": 22.299999237060547,
+          "energy_resolution_MnKa": 138.0,
+          "magnification": 40000.0,
+          "mode": "TEM",
+          "original_filename": "View000_0000006.pts",
+          "real_time": 366.90000000000003,
+          "signal_type": "EDS_TEM",
+          "time": "18:16:41",
+          "title": "EDS extracted from View000_0000006.pts"
+        },
+        "shape": [
+          512,
+          512,
+          4096
+        ]
+      }
+    ]
+  }
+}

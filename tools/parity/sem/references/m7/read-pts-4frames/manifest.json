@@ -1,0 +1,106 @@
+{
+  "arrays": {
+    "signal0_sum_spectrum": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal0_sum_spectrum.bin",
+      "rtol": 0.0,
+      "sha256": "fad4e71a8cda46fb9c5e2007c4319a8cf990726b20c450c66bc1fdfa007f3391",
+      "shape": [
+        4096
+      ]
+    }
+  },
+  "case": "m7/read-pts-4frames",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/jeol/View000_0000006_4frames.pts",
+      "sha256": "ce0170340a791440c75b1e126931e71b86694262988624b306f6c6bb718f614e"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.jeol.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signal0_nonzero": {
+      "count": 88059,
+      "index_sha256": "39e4bf22e87f410b876f4182031395f2f9187af88b3b37cd3fdeb3ee082724b7",
+      "value_sha256": "1fca31076db3453af1214f823808c64cdb6fe23c7c021bbd7fa875f5f7462cc1"
+    },
+    "signal0_pixel_totals": {
+      "dtype": "int64",
+      "sha256": "7e07dd4ed995f0d48a72cf6629521540f8d7206e9dac42f8f2fcec4b59c7c268",
+      "shape": [
+        262144
+      ]
+    },
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.00869140625,
+            "size": 512,
+            "units": "µm"
+          },
+          {
+            "name": "Energy",
+            "offset": -0.9606613249999999,
+            "scale": 0.00999866,
+            "size": 4096,
+            "units": "keV"
+          }
+        ],
+        "dtype": "uint32",
+        "kind": "spectrum_image",
+        "metadata": {
+          "azimuth_angle": 90.0,
+          "beam_energy": 200.0,
+          "date": "2017-04-07",
+          "detector_type": "EX24075JGT",
+          "elevation_angle": 22.299999237060547,
+          "energy_resolution_MnKa": 138.0,
+          "magnification": 40000.0,
+          "mode": "TEM",
+          "original_filename": "View000_0000006_4frames.pts",
+          "real_time": 366.90000000000003,
+          "signal_type": "EDS_TEM",
+          "time": "18:16:41",
+          "title": "EDS extracted from View000_0000006_4frames.pts"
+        },
+        "shape": [
+          512,
+          512,
+          4096
+        ]
+      }
+    ]
+  }
+}

@@ -42,9 +42,9 @@ header, and `docs/parity.md` names the function, its reference and its tolerance
 | EMsoft EBSD (`.h5`) | `kikuchipy.io.plugins.emsoft_ebsd`; `orix.io.plugins.emsoft_h5ebsd` | Callahan & De Graef 2013, Microsc. Microanal. 19, 1255 | `orix-data/sdss_austenite.h5` | dictionary-indexed maps from EMsoft |
 | EMsoft master pattern (`.h5`) | `kikuchipy.io.plugins.emsoft_ebsd_master_pattern`, `_tkd_`, `_ecp_` | Callahan & De Graef 2013 | `kikuchipy/data/emsoft_ebsd_master_pattern/ni_mc_mp_20kv_uint8_gzip_opts9.h5` (in package); Zenodo 7498645 (Ni 20 kV), 7498729 (Si), 7628365 (Al), steel phases | phase 6 |
 | SEM image TIFF with vendor metadata: Thermo/FEI, Zeiss, Tescan | `rsciio.tiff` (`_api.py` parses the FEI `[User]/[Beam]/[Scan]` block, Zeiss `CZ_SEM` tag 34118, Tescan tag 50431) | tifffile tag numbers; vendor manuals | RosettaSciIO test files (`rsciio/tests/data/tiff/`: FEI, Zeiss, Tescan samples, GPL) | pixel size, HV, WD, detector, magnification, dwell, databar crop |
-| Bruker Esprit `.bcf` (SEM-EDS map + image) | `rsciio.bruker` (`unbcf_fast`, SFS container) | RosettaSciIO's format notes | `rsciio/tests/data/bruker/` | phase 7 |
-| EDAX `.spd` / `.spc` / `.ipr` | `rsciio.edax` | EDAX Genesis layout | `rsciio/tests/data/edax/` | phase 7 |
-| JEOL `.asw` / `.pts` / `.eds` | `rsciio.jeol` | RosettaSciIO's format notes | `rsciio/tests/data/jeol/` | phase 7, after Bruker and EDAX |
+| Bruker Esprit `.bcf` (SEM-EDS map + image) | `rsciio.bruker` (`unbcf_fast`, SFS container) | RosettaSciIO's format notes | `rsciio/tests/data/bruker/` | ported (`BrukerEDSReader`, macTEM#153) |
+| EDAX `.spd` / `.spc` / `.ipr` | `rsciio.edax` | EDAX Genesis layout | `rsciio/tests/data/edax/` | ported (`EDAXEDSReader`, macTEM#153) |
+| JEOL `.asw` / `.pts` / `.eds` | `rsciio.jeol` | RosettaSciIO's format notes | `rsciio/tests/data/jeol/` | ported (`JEOLEDSReader`, macTEM#153) |
 | Ripple `.rpl`/`.raw`, `.msa` | `rsciio.ripple`, `rsciio.msa` (FormatoKit already reads `.msa`) | Lispix ripple spec; EMSA/MAS spec | RosettaSciIO tests | |
 | HyperSpy `.hspy` (EDS signals) | `rsciio.hspy` | HyperSpy HDF5 layout | `exspy/data/EDS_SEM_TM002.hspy` (in package) | the north-star SEM-EDS spectrum is this format |
 

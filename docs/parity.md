@@ -57,3 +57,13 @@ Upstream's own tests compare hand-written 3 x 3 uint8 answers exactly (`test_rem
 | Function | Reference | Test | Tolerance | Notes |
 |---|---|---|---|---|
 | `EBSDBrowsing.meanIntensityMap` (the navigation map) | `EBSD.mean(axis=(2, 3))` (numpy's float64 mean over the two pattern axes) | `PatternsRoomTests` on a planted 2 x 3 scan of uint16 patterns and on the first and last pattern of `ebsd-kikuchipy-h5ebsd.h5` | float64 sum and division, exact to the map's `Float` rounding | read one scan row per slab; the demo dataset (`DemoDocuments.ebsd`) is generated, so it has no reference |
+
+## SEM-EDS map readers (exact)
+
+| Function | Reference | Test | Tolerance | Notes |
+| --- | --- | --- | --- | --- |
+| `BrukerEDSReader.read` (`.bcf`: SFS container, header XML, images, hypermap; `.spx`) | `rsciio.bruker.file_reader` with `unbcf_fast` (RosettaSciIO 0.15.0) | `SEMEDSMapReaderTests` on every `m7/read-bcf-*` and `m7/read-spx-*` bundle | counts, axes, metadata, image pixels exact | the map's x axis takes the y resolution as upstream does (`DX` unused); counts held as UInt32 whatever dtype upstream reports (D-SEM-26); a file that is not SFS refused with a sentence where upstream raises |
+| `EDAXEDSReader.read` (`.spd` with `.spc` and `.ipr`, `.lsd` with `.csv`, `.spc`) | `rsciio.edax.file_reader` | `m7/read-spd-*`, `m7/read-lsd-line-scan-crop`, `m7/read-spc-single` | exact | elements sorted as upstream; an `.spd`/`.lsd` without its `.spc` refused at the EDS room's door (D-SEM-27) |
+| `JEOLEDSReader.read` (`.pts`, `.eds`, `.img`, `.map`, `.asw`) | `rsciio.jeol.file_reader` with `SI_dtype=uint32, read_em_image=True` | `m7/read-pts-*`, `m7/read-jeol-*`, `m7/read-asw-*` | exact | an incomplete last frame dropped as upstream; frames summed; an `.asw` whose view files are missing refused naming the file, where upstream raises `FileNotFoundError` |
+| `CSRSpectrumImage.sum`, `windowSums` | numpy sums over the dense cube | `testTheSparseStoreSumsExactly`, the summed spectrum of every map bundle | exact (UInt64) | the EDS room's spectrum image for these files (D-SEM-25) |
+

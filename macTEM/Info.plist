@@ -27,6 +27,8 @@
 				<string>tiff</string>
 				<string>mrc</string>
 				<string>emd</string>
+				<string>img</string>
+				<string>map</string>
 			</array>
 		</dict>
 		<dict>
@@ -55,6 +57,25 @@
 				<string>hdf5</string>
 				<string>h5oina</string>
 				<string>h5ebsd</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>SEM-EDS map</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>bcf</string>
+				<string>spd</string>
+				<string>lsd</string>
+				<string>pts</string>
+				<string>asw</string>
+				<string>spx</string>
+				<string>spc</string>
+				<string>eds</string>
 			</array>
 		</dict>
 	</array>

@@ -13,6 +13,14 @@ Planted, deterministic, small, committed under fixtures/ with the hand-written t
 * `oxford_h5oina_patterns.h5oina` and `bruker_h5ebsd_patterns.h5`: kikuchipy's own dummy writers
   (`kikuchipy.data._dummy_files`), which build a 3 x 3 file around the Ni small dataset. Regenerated here so a
   kikuchipy change in the writers is a visible diff, never a silent one.
+* `rsciio/edax/*_crop8.spd`, `rsciio/edax/line_scan_crop.lsd` and their `.spc`/`.ipr`/`.csv` companions: 8 x 8 pixel
+  windows of RosettaSciIO's EDAX test maps (`edax_files.zip`, 200-256 MB each, too large to commit; the window keeps
+  every byte of the pixels it holds and rewrites only nPoints/nLines/nSpectra of the 1068-byte header) and its line
+  scan with nPoints cut to its three spectra (rsciio reads nPoints x nLines spectra and keeps the first nSpectra, so
+  the result is the same three spectra). Needs `--data` (fetch-data.sh); skipped with a line without it.
+* `rsciio/jeol/View000_0000006_4frames.pts` and `View000_0000006_2.5frames.pts`: RosettaSciIO's JEOL map cut after
+  its fourth frame (sweep) and in the middle of its third, header untouched (it still says 14 sweeps): the first
+  reads four complete frames, the second two and drops the incomplete third, as `_readcube` does.
 
 Run with `python -I -B`.
 """
@@ -21,6 +29,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import struct
+import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -93,12 +104,80 @@ def write_kikuchipy_dummies() -> None:
     bruker.create_dummy_bruker_h5ebsd_file(FIXTURES / "bruker_h5ebsd_patterns.h5")
 
 
+SPD_HEADER = 1068
+SPD_WINDOW = {"spd_map": (96, 120), "spc0_61-ipr333_xrf": (96, 120)}  # (first row, first column) of the 8 x 8 window
+SPD_IPR = {"spd_map": "Live Map 2_Img.ipr", "spc0_61-ipr333_xrf": "Garnet1_Img.ipr"}
+
+
+def _crop_spd(raw: bytes, row0: int, col0: int, size: int = 8) -> bytes:
+    """An 8 x 8 window of an SPD map: the header with nSpectra, nPoints, nLines rewritten, then the window's spectra."""
+    n_spectra, n_points, n_lines, n_channels, count_bytes, data_offset = struct.unpack_from("<iiIIII", raw, 20)
+    assert raw[:15] == b"MAPSPECTRA_DATA" and data_offset == SPD_HEADER, "not an SPD map of the known layout"
+    head = bytearray(raw[:data_offset])
+    struct.pack_into("<iiI", head, 20, size * size, size, size)
+    per_pixel = n_channels * count_bytes
+    body = bytearray()
+    for r in range(row0, row0 + size):
+        start = data_offset + (r * n_points + col0) * per_pixel
+        body += raw[start:start + size * per_pixel]
+    return bytes(head) + bytes(body)
+
+
+def write_rsciio_derived(data: Path) -> list[str]:
+    """The windows of RosettaSciIO's EDAX and JEOL test files that are too large to commit (see the module text)."""
+    written = []
+    zip_path = data / "rsciio" / "edax" / "edax_files.zip"
+    if zip_path.exists():
+        out = FIXTURES / "rsciio" / "edax"
+        out.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(zip_path) as z:
+            for stem, (r0, c0) in SPD_WINDOW.items():
+                (out / f"{stem}_crop8.spd").write_bytes(_crop_spd(z.read(f"{stem}.spd"), r0, c0))
+                (out / f"{stem}_crop8.spc").write_bytes(z.read(f"{stem}.spc"))
+                (out / SPD_IPR[stem]).write_bytes(z.read(SPD_IPR[stem]))
+                written.append(f"rsciio/edax/{stem}_crop8.spd")
+            lsd = bytearray(z.read("line_scan.lsd"))
+            n_spectra, n_points, n_lines, n_channels, count_bytes, data_offset = struct.unpack_from("<iiIIII", lsd, 20)
+            struct.pack_into("<i", lsd, 24, n_spectra)
+            (out / "line_scan_crop.lsd").write_bytes(bytes(lsd[:data_offset + n_spectra * n_lines * n_channels * count_bytes]))
+            (out / "line_scan_crop.spc").write_bytes(z.read("line_scan.spc"))
+            (out / "line_scan_crop.csv").write_bytes(z.read("line_scan.csv"))
+            (out / "single_spect.spc").write_bytes(z.read("single_spect.spc"))
+            written += ["rsciio/edax/line_scan_crop.lsd", "rsciio/edax/single_spect.spc"]
+    else:
+        print(f"make_fixtures.py: skip the EDAX windows, {zip_path} not fetched (fetch-data.sh)")
+    pts = data / "rsciio" / "jeol" / "Sample" / "00_View000" / "View000_0000006.pts"
+    if pts.exists():
+        import numpy as np
+        from rsciio.jeol._api import _skip_frame
+
+        raw = pts.read_bytes()
+        data_pos = struct.unpack_from("<I", raw, 4 + 8 + 16)[0]
+        stream = np.frombuffer(raw[data_pos:], dtype="<u2")
+        starts = [0]
+        while len(starts) < 5:
+            starts.append(starts[-1] + int(_skip_frame(stream[starts[-1]:])))
+        out = FIXTURES / "rsciio" / "jeol"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "View000_0000006_4frames.pts").write_bytes(raw[:data_pos + 2 * starts[4]])
+        half = starts[2] + (starts[3] - starts[2]) // 2
+        (out / "View000_0000006_2.5frames.pts").write_bytes(raw[:data_pos + 2 * half])
+        written += ["rsciio/jeol/View000_0000006_4frames.pts", "rsciio/jeol/View000_0000006_2.5frames.pts"]
+    else:
+        print(f"make_fixtures.py: skip the JEOL frame cuts, {pts} not fetched (fetch-data.sh)")
+    return written
+
+
 def main() -> int:
-    argparse.ArgumentParser(description=__doc__.split("\n")[0]).parse_args()
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--data", type=Path, default=HERE.parent.parent.parent / "References" / "sem-data")
+    args = ap.parse_args()
     FIXTURES.mkdir(exist_ok=True)
     write_ctf()
     write_kikuchipy_dummies()
-    print("make_fixtures.py: planted_oxford.ctf, oxford_h5oina_patterns.h5oina, bruker_h5ebsd_patterns.h5 written")
+    derived = write_rsciio_derived(args.data.resolve())
+    print("make_fixtures.py: planted_oxford.ctf, oxford_h5oina_patterns.h5oina, bruker_h5ebsd_patterns.h5"
+          + "".join(", " + d for d in derived) + " written")
     return 0
 
 

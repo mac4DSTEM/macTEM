@@ -1,0 +1,153 @@
+{
+  "arrays": {
+    "signal0_sum_spectrum": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal0_sum_spectrum.bin",
+      "rtol": 0.0,
+      "sha256": "d713dcfdcf06751c6036640cc3b2bf8f05033fd67c2855e648e868db82ba0aa4",
+      "shape": [
+        4096
+      ]
+    }
+  },
+  "case": "m7/read-pts-interrupted-second-sweep",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/jeol/InvalidFrame/Dummy-Data_0000015.pts",
+      "sha256": "22563c92429fcb9b71bbb4d34a4a9d0653432e470989930e3685119c3dffa85a"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.jeol.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "signal1_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 356352.0
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signal0_nonzero": {
+      "count": 2229,
+      "index_sha256": "99cca9a8752a7920142404dfa7fd952fba1fafe5e80e1280a724a32e48e5f3e6",
+      "value_sha256": "50092e538a66c6a23c2618e1395b33d3a69d7509b41627f63eb78645f7501369"
+    },
+    "signal0_pixel_totals": {
+      "dtype": "int64",
+      "sha256": "08397307090d9927a2ec7efab4735ce0d20d41b97fcb40455cd602ac4ce817e8",
+      "shape": [
+        4096
+      ]
+    },
+    "signal1_pixels": {
+      "dtype": "uint16",
+      "sha256": "6b1646cfe9040bdd8716b073350d7fb22b2bb797f35cc372b19e96ad28151597",
+      "shape": [
+        64,
+        64
+      ]
+    },
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.007734375,
+            "size": 64,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.007734375,
+            "size": 64,
+            "units": "µm"
+          },
+          {
+            "name": "Energy",
+            "offset": -0.97144825,
+            "scale": 0.0100046,
+            "size": 4096,
+            "units": "keV"
+          }
+        ],
+        "dtype": "uint32",
+        "kind": "spectrum_image",
+        "metadata": {
+          "azimuth_angle": 90.0,
+          "beam_energy": 200.0,
+          "date": "2021-10-20",
+          "detector_type": "EX24221M1G5T",
+          "elevation_angle": 19.200000762939453,
+          "energy_resolution_MnKa": 133.0,
+          "magnification": 400000.0,
+          "mode": "TEM",
+          "original_filename": "Dummy-Data_0000015.pts",
+          "real_time": 27.38,
+          "signal_type": "EDS_TEM",
+          "time": "19:37:06",
+          "title": "EDS extracted from Dummy-Data_0000015.pts"
+        },
+        "shape": [
+          64,
+          64,
+          4096
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.007734375,
+            "size": 64,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.007734375,
+            "size": 64,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint16",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 200.0,
+          "date": "2021-10-20",
+          "magnification": 400000.0,
+          "mode": "TEM",
+          "original_filename": "Dummy-Data_0000015.pts",
+          "time": "19:37:06",
+          "title": "S(T)EM Image extracted from Dummy-Data_0000015.pts"
+        },
+        "shape": [
+          64,
+          64
+        ]
+      }
+    ]
+  }
+}
