@@ -48,7 +48,7 @@ nonisolated final class SEMQualityParityTests: XCTestCase {
         let ref = try SEMParityReference.load("m2/quality-kikuchipy-h5ebsd")
         SEMAssertParity(PatternQuality.frequencyVectors(rows: 60, columns: 60), try ref.array("frequency_vectors"), shape: [60, 60])
         // A small non-square shape by hand: kikuchipy's lines are [1, -1] (2 rows) and [1, -2, -1] (3 columns).
-        XCTAssertEqual(PatternQuality.frequencyVectors(rows: 2, columns: 3), [1 + 1 - 1, 1 + 4 - 1, 1 + 1 - 1, 1 + 1 - 1, 1 + 4 - 1, 1 + 1 - 1])
+        XCTAssertEqual(PatternQuality.frequencyVectors(rows: 2, columns: 3), [1.0, 4.0, 1.0, 1.0, 4.0, 1.0])
     }
 
     func testCircularWindowsAreKikuchipysMasks() throws {
