@@ -1019,8 +1019,6 @@ package final class EELSSession {
         if edited.length >= 1 { lines[i] = edited }
     }
 
-    package func setPinColor(_ id: EDXPin.ID, _ color: EDXPinColor) { if let i = pins.firstIndex(where: { $0.id == id }) { pins[i].color = color } }
-
     /// A line drawn on a map, in scan pixels (continuous; pixel i covers [i, i+1)); one shorter than a pixel is not kept.
     @discardableResult
     package func drawLine(from a: PixelPoint, to b: PixelPoint) -> EDXLine? {
@@ -1043,15 +1041,6 @@ package final class EELSSession {
         lines.removeAll { $0.id == id }
         if selectedLineID == id { selectedLineID = lines.last?.id }
     }
-
-    package func renameLine(_ id: EDXLine.ID, to name: String) {
-        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty, let i = lines.firstIndex(where: { $0.id == id }) else { return }
-        lines[i].name = clean
-    }
-
-    package func setLineVisible(_ id: EDXLine.ID, _ visible: Bool) { if let i = lines.firstIndex(where: { $0.id == id }) { lines[i].isVisible = visible } }
-    package func setLineColor(_ id: EDXLine.ID, _ color: EDXPinColor) { if let i = lines.firstIndex(where: { $0.id == id }) { lines[i].color = color } }
 
     /// The selected line's profile on each of `tiles` (every map the room holds when nil): (tile id, title, positions in scan pixels, samples).
     package func profiles(of tiles: [EELSMapTile]? = nil, width: Int = 1) -> [(id: String, title: String, positions: [Double], samples: [Double])] {
