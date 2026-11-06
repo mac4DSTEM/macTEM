@@ -24,6 +24,7 @@ package's own tests use, never stricter. References are pinned in `tools/parity/
 | `NORDIFScan.read` (`Pattern.dat`, `Background acquisition pattern.bmp`) | `kikuchipy.load("Pattern.dat")` | same | patterns bit-exact (SHA-256 of the uint8 block in map order), background bit-exact | a short file reads zero-padded with a note, as upstream pads with a warning; `Setting_bad1-3.txt` read the acquisition as upstream does |
 | `NORDIFCalibrationPatterns.read` (`Calibration (x,y).bmp`, positions, area, ROI, scaled to steps) | `kikuchipy.load("Setting.txt")` (`nordif_calibration_patterns`) | same | positions and shapes exact; patterns bit-exact | scaled values round half to even as NumPy; `Setting_bad1.txt` and `Setting_bad2.txt` refused with one sentence where upstream raises `ValueError`; `Setting_bad3.txt` reads with its missing `Top` as 0 and no area shape, as upstream |
 | `NORDIFBitmap.decode` (8-bit greyscale BMP) | `matplotlib.pyplot.imread` (Pillow mode L) | same | bit-exact | own decoder, not ImageIO; any other bitmap kind refused with a sentence |
+| `NORDIFOpening.open` (`Pattern.dat` as an `EBSDDataset`, read by record) | `kikuchipy.load("Pattern.dat")` through `NORDIFScan` | `NORDIFOpeningTests` | patterns bit-exact against `NORDIFScan` | a `.dat` routes only with a NORDIF `Setting.txt` beside it; a short file reads whole records and the rest as 0 with a note (upstream keeps the bytes of an incomplete last pattern; `NORDIFScan` keeps that for the parity) |
 
 ## Pattern processing
 
