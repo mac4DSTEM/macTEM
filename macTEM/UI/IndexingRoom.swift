@@ -108,7 +108,9 @@ struct IndexingRoom: View {
                       contentType: state.exporting?.contentType ?? .json,
                       defaultFilename: (session.patterns.fileName as NSString).deletingPathExtension + (state.exporting?.suffix(layer: state.exportLayer) ?? "")) { result in
             switch result {
-            case .success(let url): appState.statusText = "Exported \(url.lastPathComponent)"
+            case .success(let url):
+                appState.statusText = "Exported \(url.lastPathComponent)"
+                state.didWrite(to: url)
             case .failure(let error): appState.present(error)
             }
         }

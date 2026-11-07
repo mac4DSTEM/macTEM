@@ -6,7 +6,7 @@
 //
 //  Owners: `navigation` (rooms and panes, App/), `openItems` (the files open in the window, each with its own
 //  session, presentation, marks and viewport, TEMSession), `activityLog` (the Output pane, App/), `imageRoomTools`
-//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession). `imageSession`, `presentation` and `measurements` are the selected
+//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession), `semRecord` (the SEM rooms' exports and Output lines for the session report, App/). `imageSession`, `presentation` and `measurements` are the selected
 //  item's, forwarded, so the views that read them did not change with V1-13.
 //
 
@@ -38,6 +38,9 @@ final class AppState {
     /// The Maps room's orientation map, layer and pictures (TEMSession) and its view state (App/).
     let maps = OrientationMapSession()
     let mapsRoom = MapsRoomState()
+    /// What the SEM rooms did that none of them keeps: every file they wrote and their Output lines with times (App/), for the Results
+    /// room's session rows and the session report.
+    let semRecord = SEMSessionRecord()
 
     /// The window's title: the file of the room that is shown (the spectrum image in the EDX and EELS rooms, the image elsewhere).
     var windowTitle: String {
@@ -116,9 +119,9 @@ final class AppState {
         edx.onFailure = { [weak self] in self?.present($0) }
         eels.onEvent = { [weak self] in self?.statusText = $0 }
         eels.onFailure = { [weak self] in self?.present($0) }
-        ebsd.onEvent = { [weak self] in self?.statusText = $0 }
+        ebsd.onEvent = { [weak self] in self?.statusText = $0; self?.semRecord.note($0, in: .patterns) }
         ebsd.onFailure = { [weak self] in self?.present($0) }
-        maps.onEvent = { [weak self] in self?.statusText = $0 }
+        maps.onEvent = { [weak self] in self?.statusText = $0; self?.semRecord.note($0, in: .maps) }
         maps.onFailure = { [weak self] in self?.present($0) }
         // Every dataset the Patterns room binds: the Indexing room starts over on it, and the Maps room drops the old dataset's maps
         // (its own and an Indexing run on it) and shows the new one's crystal map with the patterns beside (a map opened on its own
@@ -133,7 +136,11 @@ final class AppState {
             self?.indexing.close()
             self?.maps.patternsClosed()
         }
-        indexing.onEvent = { [weak self] in self?.statusText = $0 }
+        indexing.onEvent = { [weak self] in self?.statusText = $0; self?.semRecord.note($0, in: .indexing) }
+        // Every file the SEM rooms write is kept for the Results room and the session report (D-SEM-104).
+        patternsRoom.onWritten = { [weak self] in self?.semRecord.wrote($0) }
+        indexingRoom.onWritten = { [weak self] in self?.semRecord.wrote($0) }
+        mapsRoom.onWritten = { [weak self] in self?.semRecord.wrote($0) }
         indexing.onFailure = { [weak self] in self?.present($0) }
         applyLaunchOptions(launch)
     }

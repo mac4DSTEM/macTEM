@@ -112,6 +112,55 @@ enum ExportPanels {
         Task.immediate { await presentResultsPanel(snapshot, on: window, appState: appState) }
     }
 
+    /// File > Export Session Report… and the Results inspector's Export Report…: the SEM session as one PDF or Markdown report
+    /// (D-SEM-103), with the Report section's choices. The rows and the context are taken when the panel opens; a Markdown report links
+    /// the figures from the folder it is written to, so it is set after OK.
+    static func exportSessionReport(appState: AppState) {
+        let rows = SEMSessionLedger.rows(of: appState)
+        guard !rows.isEmpty else { return }
+        let options = appState.resultsRoom.reportOptions(rows)
+        let context = SEMReportFile.context(namesAuthor: appState.resultsRoom.reportNamesAuthor)
+        let stem = SEMReportFile.stem(options.title)
+        // `--export-dir` (a UI journey): written without a panel, so no window is needed.
+        if let directory = appState.exportDirectory {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let url = directory.appendingPathComponent(stem).appendingPathExtension(options.format.fileExtension)
+            writeSessionReport(rows, options: options, context: context, to: url, appState: appState)
+            return
+        }
+        guard let window = hostWindowOrBeep() else { return }
+        Task.immediate { await presentSessionReportPanel(rows, options: options, context: context, stem: stem, on: window, appState: appState) }
+    }
+
+    /// The report's panel, in the folder of the first file the session read; the write after OK.
+    private static func presentSessionReportPanel(_ rows: [SEMSessionRow], options: SEMSessionReport.Options,
+                                                  context: SEMSessionReport.Context, stem: String, on window: NSWindow,
+                                                  appState: AppState) async {
+        let folder = rows.first { $0.kind != .export && $0.file != nil }?.file?.deletingLastPathComponent()
+        let panel = savePanel(type: SEMReportFile.contentType(options.format), name: stem, directory: folder,
+                              message: "Export the SEM session as one \(options.format.title) report")
+        guard await present(panel, on: window) == .OK, let url = panel.url else { return }
+        writeSessionReport(rows, options: options, context: context, to: url, appState: appState)
+    }
+
+    /// Sets the report and writes it to `url`; the status bar says what it holds, the alert why it could not be written.
+    private static func writeSessionReport(_ rows: [SEMSessionRow], options: SEMSessionReport.Options, context: SEMSessionReport.Context,
+                                           to url: URL, appState: AppState) {
+        writing += 1
+        defer { writing -= 1 }
+        let document = SEMSessionReport.document(rows, options: options, context: context)
+        guard let data = SEMReportFile.data(of: document, format: options.format, context: context, directory: url.deletingLastPathComponent()) else {
+            appState.present(ExportFile.Failure.encodeFailed)
+            return
+        }
+        do {
+            try ExportFile.write(data, to: url)
+            report(SEMReportFile.doneLine(name: url.lastPathComponent, document: document), in: appState)
+        } catch {
+            appState.present(error)
+        }
+    }
+
     /// The window the sheet is presented on: the main window, unless it has a sheet already.
     static func hostWindow() -> NSWindow? {
         guard let window = NSApp.mainWindow, window.attachedSheet == nil else { return nil }

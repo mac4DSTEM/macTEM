@@ -30,6 +30,36 @@ final class ResultsRoomState {
     /// The file the selection belongs to.
     @ObservationIgnored private(set) var fileID: UUID?
 
+    // MARK: The SEM session (D-SEM-103)
+
+    /// The selected SEM session rows' ids (`SEMSessionRow.id`).
+    var sessionSelection: Set<String> = []
+    /// The Report section's choices (design export-and-reports §4): the sections kept, the format, the title (empty: the default from
+    /// the first file read), and whether the report names the person (off: a report names no one unless asked).
+    var reportSections = Set(SEMSessionReport.Section.allCases)
+    var reportFormat = SEMSessionReport.Format.pdf
+    var reportTitle = ""
+    var reportNamesAuthor = false
+
+    func includes(_ section: SEMSessionReport.Section) -> Bool { reportSections.contains(section) }
+
+    func setIncludes(_ section: SEMSessionReport.Section, _ on: Bool) {
+        if on { reportSections.insert(section) } else { reportSections.remove(section) }
+    }
+
+    /// The report's options for `rows`: the typed title, or the default one.
+    func reportOptions(_ rows: [SEMSessionRow]) -> SEMSessionReport.Options {
+        let typed = reportTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        return SEMSessionReport.Options(title: typed.isEmpty ? SEMSessionReport.defaultTitle(rows) : typed, sections: reportSections,
+                                        format: reportFormat)
+    }
+
+    /// The SEM row the Info tab describes: the one selected, when exactly one is and it is still there.
+    func selectedSessionRow(in rows: [SEMSessionRow]) -> SEMSessionRow? {
+        guard sessionSelection.count == 1, let id = sessionSelection.first else { return nil }
+        return rows.first { $0.id == id }
+    }
+
     /// The room shows file `id`: a different file than before clears the selection.
     func attach(to id: UUID?) {
         guard id != fileID else { return }

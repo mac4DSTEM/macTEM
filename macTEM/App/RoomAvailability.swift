@@ -24,6 +24,9 @@ nonisolated struct RoomHoldings: Equatable, Sendable {
     var maps = false
     /// Every open image is the HAADF (or another image) of a spectrum-image file: a scan image, never a diffraction pattern.
     var imagesAreSpectrumCompanions = false
+    /// The SEM rooms hold something the Results room lists (a pattern dataset, an orientation map, an SEM spectrum's line table): the
+    /// Results room's session rows and report (D-SEM-103), with or without an image.
+    var semResults = false
 
     var hasDocument: Bool { images || eds || eels || ebsd || maps }
 }
@@ -41,7 +44,8 @@ nonisolated enum RoomAvailability {
         case .diffraction:
             guard holdings.images else { return "No file open holds an image" }
             return holdings.imagesAreSpectrumCompanions ? "The open images belong to a spectrum image, not a diffraction pattern" : nil
-        case .image, .fft, .results: return holdings.images ? nil : "No file open holds an image"
+        case .results: return holdings.images || holdings.semResults ? nil : "No file open holds an image or an SEM result"
+        case .image, .fft: return holdings.images ? nil : "No file open holds an image"
         }
     }
 
@@ -58,7 +62,8 @@ extension AppState {
                      eels: eels.hasImage || eels.isOpening,
                      ebsd: ebsd.hasDataset || ebsd.isOpening,
                      maps: maps.hasMap || maps.isOpening,
-                     imagesAreSpectrumCompanions: !openItems.items.isEmpty && openItems.items.allSatisfy { spectrumCompanionImages.contains($0.url) })
+                     imagesAreSpectrumCompanions: !openItems.items.isEmpty && openItems.items.allSatisfy { spectrumCompanionImages.contains($0.url) },
+                     semResults: SEMSessionLedger.hasRows(self))
     }
 
     func roomUnavailableReason(_ area: WorkspaceArea) -> String? {
