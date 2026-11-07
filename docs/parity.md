@@ -203,7 +203,7 @@ International Tables' X-ray parameters and the refraction-corrected wavelength w
 
 ### Known limits and decisions
 
-- D-SEM-71 (2026-11-07): the overlay draws the geometrical simulation in the Patterns room from the file's crystal map; see
+- D-SEM-83 (2026-11-07): the overlay draws the geometrical simulation in the Patterns room from the file's crystal map; see
   docs/decisions.md. Only kikuchipy's lines and zone axes are drawn (no band edges at ±θ, no Kikuchi line pairs); the
   kinematic master pattern is computed in TEMCore and not yet shown in a room.
 
