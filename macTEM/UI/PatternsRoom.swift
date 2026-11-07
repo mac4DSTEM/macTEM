@@ -336,7 +336,7 @@ struct LivePatternPane: View {
 
     private var title: String {
         guard let position = session.patternPosition else { return "Pattern" }
-        return EBSDBrowsing.patternTitle(position, hovering: session.hovered != nil)
+        return EBSDBrowsing.patternTitle(position, hovering: session.hovered != nil) + (session.patternIsProcessed ? " · processed" : "")
     }
 
     /// The tile on the map, outlined on the pattern.

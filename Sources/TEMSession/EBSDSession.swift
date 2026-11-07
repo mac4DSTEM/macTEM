@@ -10,9 +10,15 @@
 //  the hovered pattern in a task that is cancelled by the next hover, so a fast sweep over the map reads the pattern the pointer
 //  rests on, not every one it passed. Patterns read once stay in a bounded cache by map index.
 //
+//  Processing (docs/sem/design/pattern-processing.md): `pipeline` holds the stages' settings (`PatternPipeline`, TEMCore). The pattern pane
+//  shows the shown pattern raw or through the current pipeline (`patternDisplay`), computed on the fly from the raw pattern, so a change of
+//  a stage's row shows at once; `process()` (the room's verb) runs the pipeline over the whole scan into memory (`processed`), and each
+//  stage's state compares the pipeline with the one the scan was processed with (`EELSStageState`: not run, current, stale).
+//
 
 import Foundation
 import Observation
+import FormatoCore
 import TEMCore
 
 @Observable
@@ -70,6 +76,152 @@ package final class EBSDSession {
     /// The lower pane with every tile (the inspector's "Show the tiles").
     package var showsTiles = false
 
+    // MARK: Processing
+
+    /// What the pattern pane shows: the pattern as stored, or through the current pipeline.
+    package enum PatternDisplay: String, Sendable, CaseIterable, Identifiable {
+        case raw, processed
+        package var id: String { rawValue }
+        package var title: String { rawValue.capitalized }
+    }
+
+    /// The stages' settings; a change re-draws the shown pattern when it is processed and stales the scan's run from that stage on.
+    package private(set) var pipeline = PatternPipeline.roomDefault
+    package private(set) var patternDisplay = PatternDisplay.raw
+    /// The whole scan through `processedWith`, in memory, once `process()` has landed.
+    package private(set) var processed: EBSDMemoryPatterns?
+    package private(set) var processedWith: PatternPipeline?
+    package private(set) var isProcessing = false
+    package private(set) var processProgress = 0.0
+    /// The mean of every pattern (the static background "The scan's mean"), once its pass has landed.
+    package private(set) var scanMeanBackground: FormatoArray?
+    package private(set) var isComputingMean = false
+    /// Whether the pattern on screen went through the pipeline (the pane's title says so).
+    package private(set) var patternIsProcessed = false
+    /// Why the shown pattern could not be processed (a stage's sentence), shown under the Processing rows; nil when it could.
+    package private(set) var previewFailure: String?
+
+    /// The static background the pipeline uses: the file's or the scan's mean.
+    package var staticBackground: FormatoArray? {
+        pipeline.staticStage.source == .file ? document?.dataset.staticBackground : scanMeanBackground
+    }
+
+    /// The first reason the pipeline cannot run on this dataset, nil when it can.
+    package var processingRefusal: PatternPipeline.Refusal? {
+        guard let dataset = document?.dataset else { return nil }
+        if pipeline.staticStage.isOn, pipeline.staticStage.source == .mean, scanMeanBackground == nil {
+            return isComputingMean ? PatternPipeline.Refusal(.staticBackground, "Computing the scan's mean pattern…") : pipeline.refusal(for: dataset, background: nil)
+        }
+        return pipeline.refusal(for: dataset, background: staticBackground)
+    }
+
+    /// The stage's state for its section's title glyph: not run until the scan was processed; stale from the first stage whose settings
+    /// changed since; current for an active stage of the run; not run for one the pipeline leaves out.
+    package func stageState(_ stage: PatternPipeline.Stage) -> EELSStageState {
+        guard let processedWith, processed != nil else { return .notRun }
+        if let changed = pipeline.firstDifference(from: processedWith), stage >= changed { return .stale }
+        return pipeline.isActive(stage) ? .current : .notRun
+    }
+
+    /// The first stage that is not current, for the verb's help ("starting with Dynamic background"); nil when the run is current.
+    package var firstStaleStage: PatternPipeline.Stage? {
+        guard let processedWith, processed != nil else { return PatternPipeline.Stage.allCases.first { pipeline.isActive($0) } }
+        return pipeline.firstDifference(from: processedWith)
+    }
+
+    package var canProcess: Bool { document != nil && !isBusy && processingRefusal == nil }
+
+    /// Takes new stage settings: the shown pattern is re-drawn when processed; "The scan's mean" starts its pass when it has not run.
+    package func setPipeline(_ new: PatternPipeline) {
+        guard new != pipeline else { return }
+        pipeline = new
+        if new.staticStage.isOn, new.staticStage.source == .mean, scanMeanBackground == nil, !isComputingMean, let document { startMean(document) }
+        if patternDisplay == .processed { showPattern(at: shown) }
+    }
+
+    /// Edits the pipeline in place (one stage's row).
+    package func editPipeline(_ change: (inout PatternPipeline) -> Void) {
+        var p = pipeline
+        change(&p)
+        setPipeline(p)
+    }
+
+    package func setPatternDisplay(_ display: PatternDisplay) {
+        guard display != patternDisplay else { return }
+        patternDisplay = display
+        if document != nil { showPattern(at: shown) }
+    }
+
+    /// The room's verb: the whole scan through the pipeline, off the main actor, with progress; Stop (⌘.) ends it and keeps the last run.
+    /// The returned task ends when the run has landed (or was refused or stopped).
+    @discardableResult
+    package func process() -> Task<Void, Never> {
+        guard let document, !isBusy else { return Task {} }
+        if let refusal = processingRefusal {
+            onEvent?("Process: \(refusal.sentence)")
+            return Task {}
+        }
+        let gen = generation
+        let pipeline = self.pipeline
+        let background = staticBackground
+        let access = document.access
+        isProcessing = true
+        processProgress = 0
+        onEvent?("Processing \(document.dataset.patternCount) patterns…")
+        let started = Date()
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
+            do {
+                let result = try pipeline.process(access, background: background, progress: { f in
+                    Task { @MainActor in self?.landProcessProgress(f, generation: gen) }
+                }, isCancelled: { Task.isCancelled })
+                await self?.landProcessed(result, with: pipeline, failure: nil, seconds: Date().timeIntervalSince(started), generation: gen)
+            } catch {
+                let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                await self?.landProcessed(nil, with: pipeline, failure: words, seconds: 0, generation: gen)
+            }
+        }
+        processTask = task
+        return Task { await task.value }
+    }
+
+    private func landProcessProgress(_ f: Double, generation gen: Int) {
+        guard gen == generation, isProcessing else { return }
+        processProgress = f
+    }
+
+    private func landProcessed(_ result: EBSDMemoryPatterns?, with run: PatternPipeline, failure: String?, seconds: Double, generation gen: Int) {
+        guard gen == generation, isProcessing else { return }
+        isProcessing = false
+        if let result {
+            processed = result
+            processedWith = run
+            processProgress = 1
+            let mb = Double(result.bytes.count) / 1_000_000
+            onEvent?("Processed \(result.dataset.patternCount) patterns in \(String(format: "%.1f", seconds)) s · \(String(format: "%.1f", mb)) MB in memory")
+            setPatternDisplay(.processed)
+        } else if let failure {
+            onEvent?("Error: \(failure)")
+        }
+    }
+
+    private func startMean(_ document: Document) {
+        let gen = generation
+        isComputingMean = true
+        let access = document.access
+        meanTask = Task.detached(priority: .userInitiated) { [weak self] in
+            let mean = try? PatternPipeline.meanBackground(access, isCancelled: { Task.isCancelled })
+            await self?.landMean(mean, generation: gen)
+        }
+    }
+
+    private func landMean(_ mean: FormatoArray?, generation gen: Int) {
+        guard gen == generation else { return }
+        isComputingMean = false
+        scanMeanBackground = mean
+        if mean == nil { onEvent?("The scan's mean pattern could not be computed.") }
+        if patternDisplay == .processed { showPattern(at: shown) }
+    }
+
     // MARK: The position
 
     /// The pinned position: where the marker stands and what the pattern pane shows while the pointer is off the map.
@@ -94,9 +246,11 @@ package final class EBSDSession {
     @ObservationIgnored private var openTask: Task<Void, Never>?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
     @ObservationIgnored private var patternTask: Task<Void, Never>?
+    @ObservationIgnored private var processTask: Task<Void, Never>?
+    @ObservationIgnored private var meanTask: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
-    /// Patterns read so far, by map index; cleared when it grows past `cacheLimit` and with every new dataset.
-    @ObservationIgnored private var cache: [Int: CanvasPixels] = [:]
+    /// Raw patterns read so far, by map index; cleared when it grows past `cacheLimit` and with every new dataset.
+    @ObservationIgnored private var cache: [Int: FormatoArray] = [:]
     @ObservationIgnored private var cacheOrder: [Int] = []
     package static let cacheLimit = 512
 
@@ -104,7 +258,7 @@ package final class EBSDSession {
 
     package var fileName: String { document?.fileName ?? "" }
     package var hasDataset: Bool { document != nil }
-    package var isBusy: Bool { isOpening || isMapping }
+    package var isBusy: Bool { isOpening || isMapping || isProcessing }
     package var dataset: EBSDDataset? { document?.dataset }
 
     /// The mean intensity at `position`, once the map has landed.
@@ -244,15 +398,27 @@ package final class EBSDSession {
         pinned = .origin; hovered = nil
         patternPosition = nil; meanIntensities = nil; mapFailure = nil; mapProgress = 0
         virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
+        resetProcessing()
         onEvent?("Opened \(document.fileName) — \(EBSDBrowsing.capsuleDetail(document.dataset)), step \(UnitDisplay.number(document.dataset.stepX)) \(EBSDBrowsing.unitLabel(document.dataset.scanUnit))")
         startMap(document)
         return showPattern(at: .origin)
     }
 
-    /// Ends the open or the map's pass in flight; what has landed stays.
+    /// Ends the open, the map's pass or the processing run in flight; what has landed stays (a stopped run keeps the last complete one).
     package func stop() {
         if isOpening { openTask?.cancel(); isOpening = false; onEvent?("Stopped opening") }
         if isMapping { mapTask?.cancel(); isMapping = false; mapFailure = "The map's pass was stopped." }
+        if isProcessing { processTask?.cancel(); isProcessing = false; onEvent?("Stopped processing; the last complete run stays") }
+    }
+
+    private func resetProcessing() {
+        processTask?.cancel(); meanTask?.cancel()
+        processed = nil; processedWith = nil; isProcessing = false; processProgress = 0
+        scanMeanBackground = nil; isComputingMean = false; patternIsProcessed = false; previewFailure = nil
+        patternDisplay = .raw
+        pipeline = .roomDefault
+        if document?.dataset.staticBackground == nil { pipeline.staticStage.source = .mean }
+        if pipeline.staticStage.source == .mean, let document { startMean(document) }
     }
 
     /// Closes the dataset: the room goes back to its door.
@@ -263,6 +429,10 @@ package final class EBSDSession {
         document = nil; cache = [:]; cacheOrder = []
         meanIntensities = nil; mapFailure = nil; patternPosition = nil; hovered = nil; pinned = .origin
         virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean; showsTiles = false
+        processTask?.cancel(); meanTask?.cancel()
+        processed = nil; processedWith = nil; isProcessing = false; processProgress = 0
+        scanMeanBackground = nil; isComputingMean = false; patternIsProcessed = false; previewFailure = nil
+        patternDisplay = .raw; pipeline = .roomDefault
     }
 
     // MARK: The map
@@ -349,30 +519,44 @@ package final class EBSDSession {
 
     // MARK: The pattern
 
-    /// Shows the pattern at `position`: from the cache at once, else read in a task that the next request cancels. The returned task ends
-    /// when the pattern is on screen (at once from the cache).
+    /// Shows the pattern at `position`, raw or through the pipeline (`patternDisplay`): a cached raw pattern shown raw lands at once, else
+    /// the read and the processing run in a task that the next request cancels. The returned task ends when the pattern is on screen.
     @discardableResult
     private func showPattern(at position: EBSDPosition) -> Task<Void, Never> {
         patternTask?.cancel()
         guard let document else { return Task {} }
         let index = position.index(columns: document.dataset.scanColumns)
-        if let cached = cache[index] {
-            patternPresentation.show(cached)
+        let pipeline: PatternPipeline? = patternDisplay == .processed && processingRefusal == nil ? self.pipeline : nil
+        let background = staticBackground
+        if patternDisplay == .processed, let refusal = processingRefusal { previewFailure = refusal.sentence } else { previewFailure = nil }
+        let cached = cache[index]
+        if let cached, pipeline == nil {
+            patternPresentation.show(Self.canvas(cached))
             patternPosition = position
+            patternIsProcessed = false
             return Task {}
         }
         let gen = generation
         let access = document.access
         let task = Task { [weak self] in
             do {
-                let canvas = try await Self.readPattern(access, position: position)
+                let (raw, shown) = try await Self.readPattern(access, position: position, cached: cached, pipeline: pipeline, background: background)
                 guard let self, !Task.isCancelled, gen == self.generation else { return }
-                self.remember(canvas, at: index)
-                self.patternPresentation.show(canvas)
+                if cached == nil { self.remember(raw, at: index) }
+                self.patternPresentation.show(Self.canvas(shown))
                 self.patternPosition = position
+                self.patternIsProcessed = pipeline != nil
             } catch {
                 guard let self, !Task.isCancelled, gen == self.generation, !(error is CancellationError) else { return }
-                self.onFailure?(error)
+                if pipeline != nil {
+                    // The stage's sentence under the rows; the pane keeps the raw pattern.
+                    self.previewFailure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    if let cached = self.cache[index] ?? cached {
+                        self.patternPresentation.show(Self.canvas(cached)); self.patternPosition = position; self.patternIsProcessed = false
+                    }
+                } else {
+                    self.onFailure?(error)
+                }
             }
         }
         patternTask = task
@@ -380,19 +564,27 @@ package final class EBSDSession {
     }
 
     @concurrent
-    nonisolated private static func readPattern(_ access: any EBSDPatternAccess, position: EBSDPosition) async throws -> CanvasPixels {
-        let pattern = try access.pattern(row: position.row, column: position.column)
+    nonisolated private static func readPattern(_ access: any EBSDPatternAccess, position: EBSDPosition, cached: FormatoArray?,
+                                                pipeline: PatternPipeline?, background: FormatoArray?) async throws -> (raw: FormatoArray, shown: FormatoArray) {
+        let raw = try cached ?? access.pattern(row: position.row, column: position.column)
         try Task.checkCancellation()
+        guard let pipeline else { return (raw, raw) }
         let dataset = access.dataset
-        return CanvasPixels.make(width: dataset.patternColumns, height: dataset.patternRows, pixels: EBSDBrowsing.pixels(pattern))
+        return (raw, try pipeline.apply(raw, rows: dataset.patternRows, columns: dataset.patternColumns, background: background))
     }
 
-    private func remember(_ canvas: CanvasPixels, at index: Int) {
+    nonisolated private static func canvas(_ pattern: FormatoArray) -> CanvasPixels {
+        let rows = pattern.shape.count == 2 ? pattern.shape[0] : 1
+        let columns = pattern.shape.last ?? pattern.count
+        return CanvasPixels.make(width: columns, height: rows, pixels: EBSDBrowsing.pixels(pattern))
+    }
+
+    private func remember(_ pattern: FormatoArray, at index: Int) {
         if cache.count >= Self.cacheLimit, let oldest = cacheOrder.first {
             cache[oldest] = nil
             cacheOrder.removeFirst()
         }
-        cache[index] = canvas
+        cache[index] = pattern
         cacheOrder.append(index)
     }
 }

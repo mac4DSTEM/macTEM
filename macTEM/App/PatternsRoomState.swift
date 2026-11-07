@@ -15,19 +15,20 @@ import TEMSession
 
 /// What the Patterns room's Export section writes (design §4): the pattern on screen as a PNG, the header as JSON.
 nonisolated enum PatternsExportKind: String, CaseIterable, Identifiable {
-    case mapPNG, patternPNG, metadataJSON
+    case mapPNG, patternPNG, metadataJSON, methodJSON
     var id: String { rawValue }
     var title: String {
         switch self {
         case .mapPNG: "Map PNG…"
         case .patternPNG: "Pattern PNG…"
         case .metadataJSON: "Metadata JSON…"
+        case .methodJSON: "Method JSON…"
         }
     }
     var contentType: UTType {
         switch self {
         case .mapPNG, .patternPNG: .png
-        case .metadataJSON: .json
+        case .metadataJSON, .methodJSON: .json
         }
     }
     /// The file name's tail after the file's own name: "patterns_v2 pattern r12 c40", "patterns_v2 map mean".
@@ -36,6 +37,7 @@ nonisolated enum PatternsExportKind: String, CaseIterable, Identifiable {
         case .mapPNG: " map \(map)"
         case .patternPNG: " pattern r\(position.row) c\(position.column)"
         case .metadataJSON: " metadata"
+        case .methodJSON: " processing method"
         }
     }
 }
@@ -65,6 +67,8 @@ final class PatternsRoomState {
             switch kind {
             case .metadataJSON:
                 data = try EBSDBrowsing.metadataJSON(document.dataset, fileName: document.fileName)
+            case .methodJSON:
+                data = try session.pipeline.methodJSON(fileName: document.fileName, dataset: document.dataset)
             case .patternPNG:
                 guard let canvas = session.patternPresentation.canvas, let position = session.patternPosition else {
                     report("Nothing to export yet: no pattern is on screen."); return
