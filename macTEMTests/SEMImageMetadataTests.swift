@@ -40,7 +40,11 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
                 let scale = axisName == "width" ? got.pixelSizeX : got.pixelSizeY
                 if let units = axis["units"] as? String {
                     XCTAssertEqual(units, "m", name)
-                    assertClose(scale, axis["scale"] as? Double, "\(name) \(axisName) scale")
+                    // RosettaSciIO's own tolerance for the axes (test_tiff.py, `test_read_FEI_navcam_metadata`: rtol 1e-4). Its
+                    // `_order_axes_by_name` gives the height axis the x scale (HFW / ResolutionX) and the width axis the y scale; on
+                    // the navcam file (768 x 512 scan, non-square by 2.5e-6) that swap is inside this tolerance, and macTEM keeps
+                    // each scale on its own axis (docs/parity.md).
+                    assertClose(scale, axis["scale"] as? Double, "\(name) \(axisName) scale", rtol: 1e-4)
                 } else {
                     XCTAssertNil(scale, "\(name) \(axisName): RosettaSciIO leaves the file uncalibrated")
                 }
@@ -55,7 +59,8 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
             }
             let sem = "Acquisition_instrument.SEM."
             XCTAssertFalse(got.rawFields.isEmpty, "\(name): the Vendor fields disclosure lists every key of the tag")
-            XCTAssertNotNil(got.pixelSizeSource, "\(name): the Calibration Source row names the vendor field")
+            XCTAssertEqual(got.pixelSizeSource != nil, got.pixelSizeX != nil,
+                           "\(name): the Calibration Source row names the vendor field exactly when the file is calibrated")
             assertClose(got.beamEnergyKV, number(sem + "beam_energy"), "\(name) beam energy")
             assertClose(got.workingDistanceMM, number(sem + "working_distance"), "\(name) working distance")
             assertClose(got.dwellS, number(sem + "dwell_time"), "\(name) dwell")
@@ -337,12 +342,13 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
         }
     }
 
-    private func assertClose(_ got: Double?, _ want: Double?, _ what: String, file: StaticString = #filePath, line: UInt = #line) {
+    private func assertClose(_ got: Double?, _ want: Double?, _ what: String, rtol: Double = 1e-9,
+                             file: StaticString = #filePath, line: UInt = #line) {
         switch (got, want) {
         case (nil, nil): break
         case (let g?, let w?):
             if w == 0 { XCTAssertEqual(g, 0, what, file: file, line: line) }
-            else { XCTAssertLessThanOrEqual(abs(g - w) / abs(w), 1e-9, "\(what): got \(g), reference \(w)", file: file, line: line) }
+            else { XCTAssertLessThanOrEqual(abs(g - w) / abs(w), rtol, "\(what): got \(g), reference \(w)", file: file, line: line) }
         default: XCTFail("\(what): got \(String(describing: got)), reference \(String(describing: want))", file: file, line: line)
         }
     }
