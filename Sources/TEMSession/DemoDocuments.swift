@@ -281,6 +281,83 @@ package nonisolated enum DemoDocuments {
         try out.write(to: url)
     }
 
+    // MARK: The SEM image
+
+    /// The demo SEM image: a Thermo-style (xT) TIFF of `semWidth` x (`semScanRows` + `semDatabarRows`) 8-bit pixels: a tilted grating
+    /// with a bright disc in the scan, and a dark databar of light blocks under it, as the microscope would draw. Its FEI header
+    /// (tag 34682) states the pixel size, HV, WD, detector, dwell, spot, pressure, stage, date, user and the databar height, so the
+    /// Image room's SEM section and the databar crop are driven on it (SEMImageJourney).
+    package static let semWidth = 512
+    package static let semScanRows = 442
+    package static let semDatabarRows = 29
+    package static let semPixelSizeM = 2.0e-8
+    package static let semHVVolts = 15_000.0
+    package static let semWorkingDistanceM = 0.0100
+    package static let semDetector = "ETD"
+    package static let semDwellS = 1.0e-6
+    package static let semSpot = 3.0
+    package static let semChamberPressurePa = 1.2e-4
+    package static let semInstrument = "Demo xT SEM"
+    package static func semPixel(x: Int, y: Int) -> UInt8 {
+        if y >= semScanRows {
+            // The databar: dark, with four light blocks where the text and the micron bar would be.
+            let inBlock = (y - semScanRows) >= 8 && (y - semScanRows) < 20 && [40, 160, 280, 400].contains { x >= $0 && x < $0 + 72 }
+            return inBlock ? 230 : 20
+        }
+        let dx = Double(x) - 256, dy = Double(y) - 221
+        if dx * dx + dy * dy < 60 * 60 { return 240 }
+        let grating = sin((Double(x) * 0.8 + Double(y) * 0.6) / 6.0)
+        return UInt8(clamping: Int(120 + 60 * grating))
+    }
+
+    /// The header as an xT microscope writes it (CRLF lines, `[Section]` and `Key=Value`), the values above in metres, volts and seconds.
+    package static var semHeader: String {
+        let lines = [
+            "[User]", "Date=11/06/2026", "Time=12:00:00 PM", "User=demo",
+            "[System]", "Type=SEM", "SystemType=\(semInstrument)",
+            "[Beam]", "HV=\(Int(semHVVolts))", "Spot=\(Int(semSpot))", "Beam=EBeam", "Scan=EScan",
+            "[EBeam]", "HV=\(Int(semHVVolts))", "WD=\(semWorkingDistanceM)", "BeamCurrent=1e-10",
+            "[Scan]", "InternalScan=true", "Dwelltime=\(semDwellS)", "PixelWidth=\(semPixelSizeM)", "PixelHeight=\(semPixelSizeM)",
+            "[Stage]", "StageX=0.001", "StageY=-0.002", "StageZ=0.01", "StageR=0", "StageT=0", "WorkingDistance=\(semWorkingDistanceM)",
+            "[Image]", "ResolutionX=\(semWidth)", "ResolutionY=\(semScanRows)",
+            "[Vacuum]", "ChPressure=\(semChamberPressurePa)", "UserMode=High vacuum",
+            "[Detectors]", "Number=1", "Name=\(semDetector)", "Mode=SE",
+            "[PrivateFei]", "DataBarSelected=HV WD mag det MicronBar", "DatabarHeight=\(semDatabarRows)",
+        ]
+        return lines.joined(separator: "\r\n") + "\r\n"
+    }
+
+    /// Writes the demo SEM image and returns its URL in the temporary folder.
+    package static func semImageFile() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macTEM-demo-sem")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent("Demo SEM image.tif")
+        try semTIFF().write(to: url)
+        return url
+    }
+
+    /// The demo SEM image as a little-endian baseline TIFF: one strip of 8-bit grey, the FEI header in tag 34682 (ASCII, NUL-terminated).
+    package static func semTIFF() -> Data {
+        let width = semWidth, height = semScanRows + semDatabarRows
+        var out = Data()
+        func u16(_ v: Int) { var x = UInt16(v).littleEndian; withUnsafeBytes(of: &x) { out.append(contentsOf: $0) } }
+        func u32(_ v: Int) { var x = UInt32(v).littleEndian; withUnsafeBytes(of: &x) { out.append(contentsOf: $0) } }
+        var header = Array(semHeader.utf8); header.append(0)
+        if header.count % 2 == 1 { header.append(0) }
+        let entries = 10, ifdBytes = 2 + entries * 12 + 4
+        let headerAt = 8 + ifdBytes, dataAt = headerAt + header.count
+        out.append(contentsOf: [0x49, 0x49, 0x2A, 0x00]); u32(8)
+        u16(entries)
+        func entry(_ tag: Int, _ type: Int, _ count: Int, _ value: Int) { u16(tag); u16(type); u32(count); if type == 3 { u16(value); u16(0) } else { u32(value) } }
+        entry(256, 4, 1, width); entry(257, 4, 1, height); entry(258, 3, 1, 8); entry(259, 3, 1, 1); entry(262, 3, 1, 1)
+        entry(273, 4, 1, dataAt); entry(277, 3, 1, 1); entry(278, 4, 1, height); entry(279, 4, 1, width * height)
+        entry(34682, 2, header.count, headerAt)
+        u32(0)
+        out.append(contentsOf: header)
+        for y in 0..<height { for x in 0..<width { out.append(semPixel(x: x, y: y)) } }
+        return out
+    }
+
     // MARK: The EDX spectrum image
 
     /// 16 x 16 x 2048: an Al matrix with Mg and Si K lines on a bremsstrahlung continuum; per-pixel areas in `Truth.edxAreasPerPixel`.

@@ -1,0 +1,17 @@
+{
+  "note": "Inputs of the kinematic and geometrical Kikuchi simulation bundles (simulation_cases.py, figure F14): the phases (kikuchipy's tutorial nickel, orix's titanium), the band families, the min d-spacings, the beam energies, and a detector at every angle with three orientations of the titanium. Chosen for the SEM program; the nickel and titanium structures are kikuchipy's and orix's.",
+  "phases": {
+    "ni": {"space_group": 225, "lattice": [3.5236, 3.5236, 3.5236, 90.0, 90.0, 90.0], "atoms": [["Ni", 28, [0.0, 0.0, 0.0], 1.0]]},
+    "ti": {"space_group": 194, "lattice": [2.9508, 2.9508, 4.6855, 90.0, 90.0, 120.0], "atoms": [["Ti", 22, [0.3333333333333333, 0.6666666666666666, 0.25], 1.0]]},
+    "al2cu": {"space_group": 140, "lattice": [6.067, 6.067, 4.877, 90.0, 90.0, 90.0], "atoms": [["Al", 13, [0.1581, 0.6581, 0.0], 1.0], ["Cu", 29, [0.0, 0.0, 0.25], 1.0]]}
+  },
+  "lattices": [[3.5236, 3.5236, 3.5236, 90.0, 90.0, 90.0], [2.9508, 2.9508, 4.6855, 90.0, 90.0, 120.0], [3.0, 4.0, 5.0, 80.0, 95.0, 105.0], [5.43, 6.1, 7.2, 90.0, 101.3, 90.0], [4.1, 4.1, 4.1, 60.0, 60.0, 60.0]],
+  "lattice_hkl": [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 1], [1, -2, 3], [2, 0, -1], [-3, 1, 4]],
+  "families": {"ni": [[1, 1, 1], [2, 0, 0], [2, 2, 0], [3, 1, 1]], "ti": [[1, 0, 0], [0, 0, 2], [1, 0, 1], [1, 0, 2], [1, 1, 0]], "al2cu": [[1, 1, 0], [2, 0, 0], [2, 1, 1], [3, 1, 0]]},
+  "min_dspacing": {"ni": 1.0, "ti": 1.2, "al2cu": 1.4},
+  "voltages": [10000.0, 20000.0, 30000.0],
+  "nickel_points": [[0, 0], [20, 30], [54, 74], [27, 37]],
+  "tilted_detector": {"shape": [48, 64], "px_size": 70.0, "binning": 2, "sample_tilt": 68.0, "tilt": 10.0, "azimuthal": 2.5, "twist": 1.2, "pc": [[0.52, 0.31, 0.61], [0.47, 0.28, 0.55], [0.5, 0.35, 0.7]]},
+  "tilted_euler_deg": [[200.0, 30.0, 10.0], [15.0, 80.0, 300.0], [90.0, 54.7356, 45.0]],
+  "master_pattern": {"half_size": 100, "scalings": ["linear", "square", null], "voltage": 20000.0}
+}

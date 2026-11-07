@@ -84,6 +84,14 @@ Copyright (C) 2018-2026 the orix developers, GPL-3.0-or-later, taken under GPL-3
 Oxford Instruments Channel Text File layout as orix's ctf reader reads it; its reference, tools/parity/sem/ctf_writer.py,
 uses orix's CrystalMap API (GPL-3.0-or-later).
 
+The texture functions in Sources/TEMCore/SEM/Texture/ (EqualAreaGrid, PoleDensityFunction, PoleFigures) port orix 0.15.0's
+orix.measure.pole_density_function, orix.sampling.S2_sampling's equal-area coordinates and the pole symmetrisation of
+orix.vector.miller, Copyright (C) 2018-2026 the orix developers, GPL-3.0-or-later, taken under GPL-3.0; the smoothing is
+scipy.ndimage.gaussian_filter's kernel and boundary modes (SciPy, BSD-3-Clause, Copyright (c) 2001-2002 Enthought, Inc.
+and 2003-2026 SciPy Developers). OrientationDensity (the ODF) implements the kernel density estimate of Hielscher and
+Schaeben (2008), J. Appl. Cryst. 41, 1024, with the de la Vallee Poussin kernel as MTEX defines it (Schaeben 1997); no
+MTEX code is used. Figure F13 is computed on orix-data's Ti_orientations.ctf (CC BY 4.0).
+
 The grain analysis in Sources/TEMCore/SEM/Grains/ (GrainMap, DefDAPSymmetry, GrainBoundaries, GrainSegmentation,
 KernelAverageMisorientation, GrainOrientationStatistics) is a port of DefDAP 1.3.1 (https://github.com/MechMicroMan/DefDAP):
 defdap.ebsd (find_boundaries, find_grains, build_neighbour_network, calc_kam, Grain.calc_average_ori,
@@ -104,6 +112,15 @@ The detector geometry in Sources/TEMCore/SEM/EBSDDetectorProjection.swift and th
 calibration in Sources/TEMCore/SEM/PCCalibrationMovingScreen.swift are ports of kikuchipy 0.13.1
 (detectors/_ebsd_detector.py, detectors/_convert_detector_coordinates.py, detectors/_calibration.py), Copyright (C)
 2019-2026 the kikuchipy developers, GPL-3.0-or-later, taken under GPL-3.0.
+
+The dictionary indexing in Sources/TEMCore/SEM/Indexing/ (DictionaryIndexing.swift, DictionaryIndexingMetal.swift) is a port
+of kikuchipy 0.13.1 (indexing/_dictionary_indexing.py, indexing/similarity_metrics/), Copyright (C) 2019-2026 the kikuchipy
+developers, GPL-3.0-or-later, taken under GPL-3.0; the method is Chen et al. (2015), Microsc. Microanal. 21, 739.
+
+The orientation similarity map and the merge of dictionary-indexed maps in Sources/TEMCore/SEM/Indexing/
+(OrientationSimilarityMap.swift, DictionaryMapMerge.swift) are ports of kikuchipy 0.13.1
+(indexing/_orientation_similarity_map.py, indexing/_merge_crystal_maps.py), same copyright and licence; the OSM is
+Marquardt et al. (2017), Microsc. Microanal. 23, 1144.
 
 ================================================================================
 PyEBSDIndex (NLPAR, derived and modified)
@@ -142,6 +159,21 @@ derivative works. The US Naval Research Laboratory is acknowledged as the origin
 licence asks: this is a modified derivative work, translated to Swift for macTEM in November 2026, computing in float64
 where PyEBSDIndex uses float32, with the CPU path only, the "KIKUCHIPY" vendor convention only and stable tie-breaking;
 each file's first lines say which functions it derives from and what changed.
+
+================================================================================
+DefDAP (ported code and data)
+================================================================================
+
+The slip analysis in Sources/TEMCore/SEM/Deformation/ (DefDAPQuat, DefDAPCrystalStructure, SlipSystem, SlipSystemSet,
+SlipPhase, SlipTraceAnalysis, NyeTensor) is a port of DefDAP 1.3.1 (https://github.com/MechMicroMan/DefDAP): defdap.quat,
+defdap.crystal, defdap.crystal_utils and defdap.ebsd (calc_nye, calc_average_ori, calc_average_schmid_factors,
+calc_slip_traces), and SlipSystems.swift carries DefDAP's slip-system files (defdap/slip_systems/*.txt) verbatim.
+Copyright 2025 Mechanics of Microstructures Group at The University of Manchester. Licensed under the Apache License,
+Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0), which is compatible with GPL-3.0; DefDAP ships no NOTICE file.
+Changes: DefDAP's Python is rewritten in Swift; NyeTensor keeps the x and y derivatives apart by default where DefDAP 1.3.1
+aliases them (its numbers remain available); SlipPhase.analysisSlipSystems drops twelve rows of cubic_bcc whose slip
+direction is not in its plane. The parity inputs tools/parity/sem/fixtures/slip_inputs.json hold rows 0-89, columns
+0-119 of orix-data's Ti_orientations.ctf and the whole sdss_ferrite_austenite.ang (both CC BY 4.0).
 
 ================================================================================
 SpectroKit (a Swift package the app is built with)
@@ -340,3 +372,38 @@ carries and this repository carries on:
 The fixtures tools/parity/sem/fixtures/emsoft_ebsd_master_pattern_*.h5 are kikuchipy's in-package master pattern files
 (the Ni one CC BY 4.0 as above); planted_emsoft_{tkd,ecp}_master_pattern.h5 are written by tools/parity/sem/make_fixtures.py
 as kikuchipy's test fixtures write them.
+
+The Kikuchi simulation (Sources/TEMCore/SEM/Simulation) is ported from kikuchipy 0.13.1
+(`kikuchipy/simulations/kikuchi_pattern_simulator.py`, `_kikuchi_pattern_features.py`,
+`kikuchipy/signals/util/_master_pattern.py`), Copyright 2019-2026 the kikuchipy developers, GPL-3.0-or-later; from diffsims
+0.7.0 (https://github.com/pyxem/diffsims: `crystallography/reciprocal_lattice_vector.py`,
+`structure_factor/structure_factor.py`, `structure_factor/atomic_scattering_parameters.py`,
+`utils/atomic_scattering_params.py`, `utils/sim_utils.py`), Copyright 2017-2026 the diffsims developers, GPL-3.0-or-later; and from orix 0.15.0
+(`orix/vector/miller.py`, `orix/crystal_map/phase_list.py`), Copyright 2018-2026 the orix developers, GPL-3.0-or-later; all
+taken under GPL-3.0. KikuchiScatteringTables.swift is generated by tools/parity/sem/simulation_tables.py from diffsims'
+tables (the International Tables vol. C X-ray parameters and Doyle and Turner 1968, Acta Cryst. A24, 390). The lattice bases
+in KikuchiLattice.swift follow diffpy.structure 3.5.0 (`diffpy/structure/lattice.py`: `cosd`, `sind`, `setLatPar`), which
+carries this notice:
+
+    Copyright 2006-2007, Board of Trustees of Michigan State University,
+    Copyright 2008-2012, The Trustees of Columbia University in the City of New York.
+    (Copyright holder indicated in each source file.)
+
+    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+    following conditions are met:
+    - Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+      disclaimer.
+    - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided with the distribution.
+    - Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
+      products derived from this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY COPYRIGHT HOLDER "AS IS". COPYRIGHT HOLDER EXPRESSLY DISCLAIMS ANY AND ALL WARRANTIES AND
+    CONDITIONS, EITHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, TITLE,
+    FITNESS, ADEQUACY OR SUITABILITY FOR A PARTICULAR PURPOSE, AND ANY WARRANTIES OF FREEDOM FROM INFRINGEMENT OF ANY
+    DOMESTIC OR FOREIGN PATENT, COPYRIGHTS, TRADE SECRETS OR OTHER PROPRIETARY RIGHTS OF ANY PARTY. IN NO EVENT SHALL
+    COPYRIGHT HOLDER BE LIABLE TO ANY PARTY FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+    BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE OR RELATING TO THIS AGREEMENT,
+    EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

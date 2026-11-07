@@ -12,6 +12,7 @@
 //          --demo-regions          with the EDX fixture: two rectangles (4 x 4 and 8 x 8 pixels) and a line across the maps, as if drawn
 //          --demo-stack-fixture    open the generated "Demo stack" (24 frames, a multi-page TIFF written to the temporary folder)
 //          --demo-msa-fixture      open the demo EDX spectrum as an .msa file through the app's Open (routed by content to the EDX room)
+//          --demo-sem-tiff-fixture open the generated "Demo SEM image" (a Thermo-style SEM TIFF with a databar, written to the temporary folder)
 //          --demo-sem-eds          open the shipped SEM-EDS spectrum (DemoData/EDS_SEM_TM002.hspy) through the app's Open, into the EDX room
 //          --demo-ang              open the shipped orientation map (DemoData/sdss_ferrite_austenite.ang) through the app's Open, into the Maps room
 //          --appearance light|dark force the window's colour scheme (the system's otherwise)
@@ -29,6 +30,7 @@ struct LaunchOptions: Equatable {
     var demoEELS = false
     var demoEBSD = false
     var demoStack = false
+    var demoSEMImage = false
     var demoSpectrumFile = false
     var demoSEMSpectrum = false
     var demoOrientationMap = false
@@ -51,6 +53,7 @@ struct LaunchOptions: Equatable {
         demoEBSD = arguments.contains("--demo-ebsd-fixture")
         demoRegions = arguments.contains("--demo-regions")
         demoStack = arguments.contains("--demo-stack-fixture")
+        demoSEMImage = arguments.contains("--demo-sem-tiff-fixture")
         demoSpectrumFile = arguments.contains("--demo-msa-fixture")
         demoSEMSpectrum = arguments.contains("--demo-sem-eds")
         demoOrientationMap = arguments.contains("--demo-ang")

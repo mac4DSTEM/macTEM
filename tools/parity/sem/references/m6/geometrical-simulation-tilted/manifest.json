@@ -1,0 +1,350 @@
+{
+  "arrays": {
+    "o0_lines_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "o0_lines_gnomonic.bin",
+      "note": "x1, y1, x2, y2 on the r_max circle",
+      "rtol": 1e-07,
+      "sha256": "7899ad360387f5e5a9ab5c299c437b2b1a91fb1bc6e78f6e8ba680b85d30113b",
+      "shape": [
+        15,
+        4
+      ]
+    },
+    "o0_lines_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "o0_lines_hkl.bin",
+      "note": "the visible reflectors whose line meets the r_max circle, in reflector order",
+      "rtol": 0.0,
+      "sha256": "b0ba20011ce259754df5f4339f52f1d1edeef3f5086cbeffcded3dbffc459cc8",
+      "shape": [
+        15,
+        3
+      ]
+    },
+    "o0_lines_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "o0_lines_px.bin",
+      "note": "x1, y1, x2, y2 in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "f683e53bb1d6ec332322a6b9a815a518cfdb2c9359973461eb72fcf1652c0f4a",
+      "shape": [
+        15,
+        4
+      ]
+    },
+    "o0_zone_axes_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "o0_zone_axes_gnomonic.bin",
+      "rtol": 1e-07,
+      "sha256": "fd4ebb8e561fc4e31c6f55bba9fc7894a401c4023652e845af0ee1bc562c5e8e",
+      "shape": [
+        17,
+        2
+      ]
+    },
+    "o0_zone_axes_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "o0_zone_axes_px.bin",
+      "note": "x, y in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "d52e715a27edd2fce643c2029559ddbd11f88cc3d2dc2bb4668a3a6beacdf5e2",
+      "shape": [
+        17,
+        2
+      ]
+    },
+    "o0_zone_axes_uvw": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "o0_zone_axes_uvw.bin",
+      "note": "sorted by u, then v, then w",
+      "rtol": 0.0,
+      "sha256": "df6e3e15d0344128742ea721d46f7e8708292cdda070c55867b719e5f1a3fad3",
+      "shape": [
+        17,
+        3
+      ]
+    },
+    "o1_lines_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "o1_lines_gnomonic.bin",
+      "note": "x1, y1, x2, y2 on the r_max circle",
+      "rtol": 1e-07,
+      "sha256": "86a2c9d30eb8d4cdbdaa67793bde4c0ad50730f85d075a9eb9b345a81e2d112a",
+      "shape": [
+        17,
+        4
+      ]
+    },
+    "o1_lines_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "o1_lines_hkl.bin",
+      "note": "the visible reflectors whose line meets the r_max circle, in reflector order",
+      "rtol": 0.0,
+      "sha256": "64589b0ec9f1598e31a37527e180abc556507c911e1753d463f615418ac11929",
+      "shape": [
+        17,
+        3
+      ]
+    },
+    "o1_lines_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "o1_lines_px.bin",
+      "note": "x1, y1, x2, y2 in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "ea86b1c5672d2ff005823f324454f8e31fc25448f4ec6f151e71da03898e52e1",
+      "shape": [
+        17,
+        4
+      ]
+    },
+    "o1_zone_axes_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "o1_zone_axes_gnomonic.bin",
+      "rtol": 1e-07,
+      "sha256": "e9b0b9f3d14a768abbbddc9299cf95e19bd5c3e6ce8809507959226b1a08f584",
+      "shape": [
+        17,
+        2
+      ]
+    },
+    "o1_zone_axes_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "o1_zone_axes_px.bin",
+      "note": "x, y in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "985b60e23d2bbf07b3f6abad53d34300634871fc0ccac1dab7c6a6ef7f64ddd7",
+      "shape": [
+        17,
+        2
+      ]
+    },
+    "o1_zone_axes_uvw": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "o1_zone_axes_uvw.bin",
+      "note": "sorted by u, then v, then w",
+      "rtol": 0.0,
+      "sha256": "516c2cc75046471c0d5b6915e213a4140d56d1055e94d5c20a03408862e0404e",
+      "shape": [
+        17,
+        3
+      ]
+    },
+    "o2_lines_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "o2_lines_gnomonic.bin",
+      "note": "x1, y1, x2, y2 on the r_max circle",
+      "rtol": 1e-07,
+      "sha256": "00fd40ab2f91975fd440d9c22748fc2aa0b5bda850980a8b0f37177cf5bf9265",
+      "shape": [
+        16,
+        4
+      ]
+    },
+    "o2_lines_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "o2_lines_hkl.bin",
+      "note": "the visible reflectors whose line meets the r_max circle, in reflector order",
+      "rtol": 0.0,
+      "sha256": "5deadb13294cbd80c45cf06e1460aeef4686e23d6ecd4ee1f72b85973983fd71",
+      "shape": [
+        16,
+        3
+      ]
+    },
+    "o2_lines_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "o2_lines_px.bin",
+      "note": "x1, y1, x2, y2 in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "a64836c83a4232ce24a0ba792176a55c4bfb27f76ad5013235ed18af99c9be07",
+      "shape": [
+        16,
+        4
+      ]
+    },
+    "o2_zone_axes_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "o2_zone_axes_gnomonic.bin",
+      "rtol": 1e-07,
+      "sha256": "b7f454ff57aae1d7dbff0aac9eee1f8355bdcd5c86d66c45b11a0b4ff19fa568",
+      "shape": [
+        13,
+        2
+      ]
+    },
+    "o2_zone_axes_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "o2_zone_axes_px.bin",
+      "note": "x, y in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "ccf08b70f20602c716a4c327c6f08fca77675b2fc41b05fdc4c694f4fde144ea",
+      "shape": [
+        13,
+        2
+      ]
+    },
+    "o2_zone_axes_uvw": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "o2_zone_axes_uvw.bin",
+      "note": "sorted by u, then v, then w",
+      "rtol": 0.0,
+      "sha256": "127c91bf5e9db79f2929dcec19d0e8a51f98ad7d5a95763bd2bedacbed53049a",
+      "shape": [
+        13,
+        3
+      ]
+    },
+    "reflectors_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "reflectors_hkl.bin",
+      "rtol": 0.0,
+      "sha256": "32e9f5ac2e7e766f6af93ef0e4aa53b641464ea047c77f575c42853c83447153",
+      "shape": [
+        38,
+        3
+      ]
+    },
+    "reflectors_hkl_float": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "reflectors_hkl_float.bin",
+      "rtol": 1e-07,
+      "sha256": "c952253560d955ad97907f29890427282678c522e9f4299dcb47caaef5f17140",
+      "shape": [
+        38,
+        3
+      ]
+    },
+    "rotations": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "rotations.bin",
+      "rtol": 1e-07,
+      "sha256": "a9b3448057e0cd83f85cf97cf2dc4a33adea98a2404ec8538463dd14fffb4f06",
+      "shape": [
+        3,
+        4
+      ]
+    }
+  },
+  "case": "m6/geometrical-simulation-tilted",
+  "inputs": [
+    {
+      "path": "fixtures/simulation_cases.json",
+      "sha256": "53ac4cc181b31ba459c94fc5ee11e78f387778d1e297fc3b86110759dc02b0dd"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "kikuchipy.simulations.KikuchiPatternSimulator.on_detector",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "euler_deg": [
+      [
+        200.0,
+        30.0,
+        10.0
+      ],
+      [
+        15.0,
+        80.0,
+        300.0
+      ],
+      [
+        90.0,
+        54.7356,
+        45.0
+      ]
+    ],
+    "o0_zone_axes_labels": [
+      "-201",
+      "-211",
+      "-221",
+      "-101",
+      "-110",
+      "-111",
+      "-112",
+      "-121",
+      "010",
+      "011",
+      "021",
+      "120",
+      "121",
+      "122",
+      "131",
+      "231",
+      "241"
+    ],
+    "o1_zone_axes_labels": [
+      "-221",
+      "-111",
+      "-112",
+      "-121",
+      "010",
+      "011",
+      "021",
+      "111",
+      "120",
+      "121",
+      "122",
+      "13-1",
+      "131",
+      "221",
+      "231",
+      "24-1",
+      "241"
+    ],
+    "o2_zone_axes_labels": [
+      "-112",
+      "0-11",
+      "001",
+      "011",
+      "1-12",
+      "101",
+      "111",
+      "121",
+      "122",
+      "201",
+      "211",
+      "212",
+      "221"
+    ]
+  }
+}
