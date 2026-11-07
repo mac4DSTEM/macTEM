@@ -1,0 +1,35 @@
+{
+  "arrays": {},
+  "case": "m7/read-asw-shift-jis-missing-views",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/jeol/181019-BN.ASW",
+      "sha256": "b2ba34d45334fdfce8cb6359f4504a94ae3504a01ee4d72d503ceadcc7fa8873"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.jeol.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": "FileNotFoundError",
+    "signals": []
+  }
+}
