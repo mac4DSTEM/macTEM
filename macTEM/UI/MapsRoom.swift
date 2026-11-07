@@ -27,16 +27,17 @@ struct MapsRoom: View {
 
     private var importTypes: [UTType] { EBSDOpening.readableExtensions.compactMap { UTType(filenameExtension: $0) } }
 
-    /// Whether the map is the open EBSD dataset's: then the live pattern pane shows its patterns at the same point.
+    /// Whether the map is on the open EBSD dataset's scan (its own map, or an Indexing run on it): then the live pattern pane shows its
+    /// patterns at the same point.
     private var patternsDataset: EBSDDataset? {
-        guard appState.maps.document?.source == .patterns, let dataset = appState.ebsd.dataset else { return nil }
-        let shape = appState.maps.gridShape
-        return shape.rows == dataset.scanRows && shape.columns == dataset.scanColumns ? dataset : nil
+        guard let dataset = appState.ebsd.dataset, appState.maps.isOnScan(of: dataset) else { return nil }
+        return dataset
     }
 
     private func upper(_ document: OrientationMapSession.Document) -> some View {
         PaneSplit(storageKey: "maps.split", resizeLabel: "Resize the map and the pattern", leadingName: "Map") {
-            MapPane(session: appState.maps, state: appState.mapsRoom, patterns: patternsDataset.map { _ in appState.ebsd }, map: document.map)
+            MapPane(session: appState.maps, state: appState.mapsRoom, patterns: patternsDataset.map { _ in appState.ebsd }, map: document.map,
+                    staleness: appState.mapsStaleness)
         } trailing: {
             if let dataset = patternsDataset {
                 LivePatternPane(session: appState.ebsd, state: appState.patternsRoom, dataset: dataset)
@@ -67,7 +68,7 @@ struct MapsRoom: View {
                 } bottom: {
                     MapsKeyPane(session: session)
                 }
-                .id(document.fileName)
+                .id(document.id)
                 .modifier(MapsKeyedRoom(session: session, patterns: patternsDataset.map { _ in appState.ebsd }))
             } else {
                 ContentUnavailableView {
@@ -139,6 +140,8 @@ struct MapPane: View {
     /// The Patterns room's session when the map came with its patterns: hover and pin follow there too.
     let patterns: EBSDSession?
     let map: CrystalMap
+    /// Why the map is stale, when it is an Indexing run the room has moved on from (D-SEM-99).
+    var staleness: String? = nil
     @State var zoomModel = PaneZoomModel()
     private var zp: ZoomPan { zoomModel.state }
 
@@ -157,8 +160,9 @@ struct MapPane: View {
     private var header: some View {
         let shape = session.gridShape
         return HStack(spacing: 8) {
-            Text(MapsRoomFormat.mapTitle(session.layer))
+            Text(MapsRoomFormat.mapTitle(session.layer, stale: staleness != nil))
                 .font(.headline).lineLimit(1)
+                .help(staleness ?? "")
                 .accessibilityIdentifier("maps.map.title")
             Spacer(minLength: 8)
             if session.isDrawing {

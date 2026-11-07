@@ -2,8 +2,8 @@
 //  KikuchiOverlayExport.swift
 //  Role: `Pattern with overlay…` (docs/sem/design/simulation-overlay.md §4): the pattern as the pane shows it (its colormap, window and
 //        gamma, through the Image room's exporter) enlarged by whole pixels so the drawing is legible, with the Kikuchi overlay drawn as
-//        the pane draws it: the band centre lines, the band edges when `Band width` is on, the zone axes as rings, the {hkl} and [uvw]
-//        labels. The numbers are `KikuchiOverlay`'s (TEMCore); this only draws them. AppKit draws the text (`NSString.draw` in an
+//        the pane draws it: the kinematical simulation at the Blend opacity when it is on, the band centre lines, the band edges when
+//        `Band width` is on, the zone axes as rings, the {hkl} and [uvw] labels. The numbers are `KikuchiOverlay`'s (TEMCore); this only draws them. AppKit draws the text (`NSString.draw` in an
 //        `NSGraphicsContext` on the bitmap), as SwiftUI has no off-screen text renderer that writes into a CGContext.
 //
 
@@ -35,6 +35,12 @@ nonisolated enum KikuchiOverlayExport {
                                       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         context.interpolationQuality = .none
         context.draw(pattern, in: CGRect(x: 0, y: 0, width: width, height: height))
+        if settings.kinematical, let simulated = KikuchiOverlayLayer.simulatedImage(overlay) {
+            // The kinematical simulation at the Blend opacity, as the pane draws it.
+            context.setAlpha(CGFloat(settings.blend))
+            context.draw(simulated, in: CGRect(x: 0, y: 0, width: width, height: height))
+            context.setAlpha(1)
+        }
         // Flip to the image's frame (y down) so detector pixels map as the pane maps them: centre of pixel i at (i + 0.5) · s.
         context.translateBy(x: 0, y: CGFloat(height))
         context.scaleBy(x: 1, y: -1)

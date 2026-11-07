@@ -1,0 +1,158 @@
+{
+  "arrays": {
+    "navigation_mask": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "navigation_mask.bin",
+      "note": "1 = point left out of the indexing",
+      "rtol": 0.0,
+      "sha256": "daa6bdae210778947dcb8619291ec6c4790c12c1cdde8ceb2430862154fb2b98",
+      "shape": [
+        6,
+        6
+      ]
+    },
+    "patterns": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "patterns.bin",
+      "note": "kikuchipy's corrected uint8 patterns, rows 20..25, cols 30..35",
+      "rtol": 0.0,
+      "sha256": "e21f4b08c8259f30d7677610e722c0d5089e3296572ba980eea6dfd7edb52373",
+      "shape": [
+        6,
+        6,
+        60,
+        60
+      ]
+    },
+    "refined_euler": {
+      "atol": 0.002,
+      "dtype": "float64",
+      "file": "refined_euler.bin",
+      "note": "Bunge radians of the points in the data; the test holds the symmetry-reduced angle under 0.1 degree",
+      "rtol": 0.0,
+      "sha256": "338eadf54f37df1f5d9bb4b269c76a73855689c93161d15e53ac7fade17c4baa",
+      "shape": [
+        34,
+        3
+      ]
+    },
+    "refined_is_in_data": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "refined_is_in_data.bin",
+      "rtol": 0.0,
+      "sha256": "c6cd61fdc61b9a7cb11e4a0e5e3855a8fecae5622c69917c69cc52130dc587d6",
+      "shape": [
+        36
+      ]
+    },
+    "refined_phase_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "refined_phase_id.bin",
+      "rtol": 0.0,
+      "sha256": "b707241545a346265aab1ffb32ff64b55bf8f8dc1b56a46ef33ce3d15db11d33",
+      "shape": [
+        34
+      ]
+    },
+    "refined_scores": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "refined_scores.bin",
+      "rtol": 0.0001,
+      "sha256": "11803fae0f5ea62c8143c2fc881aa6182c56e0d5dc3260adf144d7f33340a5f4",
+      "shape": [
+        34
+      ]
+    },
+    "start_quaternions": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "start_quaternions.bin",
+      "note": "the best dictionary match of each point in the data (orix quaternions): the refinement's start",
+      "rtol": 0.0,
+      "sha256": "8faa3761827f6ab9896aa109e799de856d7a9499de7a2e959e1fa10095378b56",
+      "shape": [
+        34,
+        4
+      ]
+    },
+    "start_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "start_simulation_indices.bin",
+      "rtol": 0.0,
+      "sha256": "d07449ba3f0e80319f217f0e8198df1481f57f0e7570ca132fc228600a9dfb6a",
+      "shape": [
+        34
+      ]
+    }
+  },
+  "case": "m4/refine-dictionary-nickel-block",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    },
+    {
+      "path": "fixtures/emsoft_ebsd_master_pattern_ni_mc_mp_20kv_uint8_gzip_opts9.h5",
+      "sha256": "8a7c1fb471d9ce750f0332a154e87cf41eed7529be508548e0c0f51ec6f92bc2"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.dictionary_indexing then refine_orientation",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "block": {
+      "cols": [
+        30,
+        36
+      ],
+      "rows": [
+        20,
+        26
+      ]
+    },
+    "detector": {
+      "binning": 8,
+      "pc": [
+        0.4214,
+        0.2142,
+        0.5013
+      ],
+      "sample_tilt": 70.0,
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "energy": 20.0,
+    "keep_n": 5,
+    "trust_region": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  }
+}

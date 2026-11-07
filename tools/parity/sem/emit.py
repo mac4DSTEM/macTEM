@@ -52,11 +52,13 @@ from detector_cases import (  # noqa: E402,F401  (milestone 2 detector geometry 
 from hough_cases import (  # noqa: E402,F401  (milestone 4 Hough indexing and figure F8)
     case_m4_hough_indexing_nickel_large, case_m4_hough_library, case_m4_hough_nickel_block)
 from refinement_cases import (  # noqa: E402,F401  (milestone 4 refinement and figure F10)
-    case_m4_nelder_mead, case_m4_refine_nickel_block)
+    case_m4_nelder_mead, case_m4_refine_dictionary_nickel_block, case_m4_refine_nickel_block)
 from dictionary_cases import (  # noqa: E402,F401  (milestone 4 dictionary indexing, figure F9)
     case_m4_dictionary_indexing_nickel_large, case_m4_dictionary_indexing_small)
 from similarity_cases import (  # noqa: E402,F401  (milestone 4 orientation similarity map and merge of dictionary maps)
     case_m4_merge_crystal_maps, case_m4_orientation_similarity_map)
+from compare_cases import (  # noqa: E402,F401 (milestone 4, Indexing room Compare, #230)
+    case_m4_indexing_compare_nickel_large, case_m4_indexing_compare_planted)
 from writer_cases import (  # noqa: E402,F401  (milestone 8 .ang and .ctf writers and figure F18)
     case_m8_write_ang_sdss, case_m8_write_ang_sdss_ferrite, case_m8_write_ang_sdss_window, case_m8_write_ang_ti,
     case_m8_write_ctf_sdss, case_m8_write_ctf_sdss_ferrite, case_m8_write_ctf_sdss_window, case_m8_write_ctf_ti)
@@ -65,7 +67,7 @@ from simulation_cases import (  # noqa: E402,F401  (milestone 6 Kikuchi simulati
     case_m6_geometrical_band_edges_nickel, case_m6_geometrical_simulation_nickel, case_m6_geometrical_simulation_tilted,
     case_m6_kikuchi_lattice,
     case_m6_kikuchi_reflectors_al2cu, case_m6_kikuchi_reflectors_ni, case_m6_kikuchi_reflectors_ti,
-    case_m6_kikuchi_scattering_tables, case_m6_kinematic_master_pattern_ni)
+    case_m6_kikuchi_scattering_tables, case_m6_kinematic_master_pattern_ni, case_m6_kinematic_overlay_nickel)
 from texture_cases import case_m5_texture_cubic, case_m5_texture_ti, case_m5_texture_ti_full  # noqa: E402,F401  (m5, F13)
 from maps_cases import case_m3_maps_room_sdss  # noqa: E402,F401  (m3, the Maps room's map images, F6 on screen)
 

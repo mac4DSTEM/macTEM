@@ -5,7 +5,9 @@
 //  indexed points), hovering it puts the three Euler angles and the CI in the status line (figure F8 on screen), a Results row pins its
 //  pattern and the detected bands are drawn over it; then Method · Dictionary with the shipped Ni master pattern: the dictionary's size
 //  at 4°, Index, the map fills again, the status line carries the NCC score and the Best match pane the pinned point's simulated
-//  pattern (figure F9 on screen). A screenshot at every step. The design's Compare histogram is not in the room yet (D-SEM-92).
+//  pattern (figure F9 on screen); then Display › Compare (§9 step 4, D-SEM-97): Hough against the file's own indexing side by side,
+//  the disorientation histogram's median under 1°, hovering a compared map puts both solutions and their disorientation in the status
+//  line; B · Dictionary compares the two runs (the 4° dictionary's grid reads above 1°). A screenshot at every step.
 //
 
 import XCTest
@@ -31,6 +33,13 @@ nonisolated final class IndexingJourney: Journey {
     @MainActor private func words(_ id: String) -> String {
         let e = waitFor(id, timeout: 30)
         return "\(e.label) \((e.value as? String) ?? "")"
+    }
+
+    /// The median in Compare's footer ("… · median 0.44° · …", either decimal mark); nil without one.
+    private static func median(_ footer: String) -> Double? {
+        guard let range = footer.range(of: "median ") else { return nil }
+        let number = footer[range.upperBound...].prefix { $0 != "°" }
+        return Double(number.replacingOccurrences(of: ",", with: "."))
     }
 
     @MainActor private func waitWords(_ id: String, timeout: TimeInterval, _ check: @escaping (String) -> Bool) {
@@ -99,6 +108,31 @@ nonisolated final class IndexingJourney: Journey {
             let line = waitStatus(containing: ["φ₁", "Φ", "φ₂", "NCC"], timeout: 30)
             XCTAssertTrue(line.contains("ni"), line)
             waitWords("indexing.bestMatch.title", timeout: 60) { $0.contains("NCC") && $0.contains("simulation") }
+        }
+        try step("Display › Compare: Hough against the file's indexing on one zoom, the median under 1°") {
+            showInspector(waitingFor: "indexing.showCompare")
+            let compare = waitFor("indexing.showCompare", timeout: 10)
+            try requireFrontmost()
+            compare.click()
+            waitFor("indexing.compare", timeout: 30)
+            waitWords("indexing.compareA", timeout: 10) { $0.contains("Hough") }
+            waitWords("indexing.compareB", timeout: 10) { $0.contains("File") }
+            waitWords("indexing.compare.footer", timeout: 120) { Self.median($0) != nil }
+            let footer = words("indexing.compare.footer")
+            XCTAssertLessThan(try XCTUnwrap(Self.median(footer), footer), 1, footer)
+            waitFor("indexing.compare.mapA", timeout: 10).coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).hover()
+            let line = waitStatus(containing: ["Hough", "File", "disorientation"], timeout: 30)
+            XCTAssertTrue(line.contains("°"), line)
+        }
+        try step("B · Dictionary compares the two runs; the median reads the dictionary's grid") {
+            let b = waitFor("indexing.compareB", timeout: 10)
+            try requireFrontmost()
+            b.click()
+            let item = app.menuItems["Dictionary"].firstMatch
+            XCTAssertTrue(item.waitForExistence(timeout: 10), "no Dictionary in B")
+            item.click()
+            waitWords("indexing.compare.histogram.title", timeout: 30) { $0.contains("Hough against Dictionary") }
+            waitWords("indexing.compare.footer", timeout: 120) { (Self.median($0) ?? 0) > 1 }
         }
     }
 }

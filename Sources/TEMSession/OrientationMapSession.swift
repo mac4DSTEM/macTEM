@@ -1,8 +1,9 @@
 //
 //  OrientationMapSession.swift
 //  Role: the one owner of the Maps room's state (docs/sem/design/orientation-maps-room.md, brief P3-04): the orientation map shown (a
-//        `CrystalMap` from an `.ang` or `.ctf` opened on its own, or the crystal map of the EBSD dataset the Patterns room holds), which
-//        layer the map pane draws (IPF-Z, IPF-X, IPF-Y, Phase or a property) and its picture, the colour keys of the map's phases, and the
+//        `CrystalMap` from an `.ang` or `.ctf` opened on its own, the crystal map of the EBSD dataset the Patterns room holds, or a run
+//        of the Indexing room on that dataset, handed over by its `Open in Maps`, D-SEM-99) and the others held for `Source`, which layer
+//        the map pane draws (IPF-Z, IPF-X, IPF-Y, Phase or a property) and its picture, the colour keys of the map's phases, and the
 //        pinned and hovered scan points. The room's views read it; they hold none of it.
 //
 //        Nothing here makes a number: the pictures, the hover's words and the unit cell are `OrientationMaps` (TEMCore), the keys
@@ -20,11 +21,37 @@ package final class OrientationMapSession {
 
     /// The map shown and where it came from.
     package nonisolated struct Document: Sendable {
-        package enum Source: Sendable, Equatable {
+        package enum Source: Sendable, Hashable {
             /// An `.ang` or `.ctf` opened on its own: the map without patterns.
             case mapFile
             /// The crystal map of the EBSD dataset open in the Patterns room: the patterns are there for the live pane.
             case patterns
+            /// Run `run` of the Indexing room on that dataset (`IndexingSession.runGeneration`), by `method`: the crystal map the room's
+            /// .ang and .ctf exports are written from (D-SEM-99). The patterns are there too.
+            case indexing(run: Int, method: IndexingMethod)
+
+            /// Whether the map belongs to the Patterns room's dataset: it goes when the dataset goes, and its patterns show beside it.
+            package var followsPatterns: Bool {
+                switch self {
+                case .mapFile: false
+                case .patterns, .indexing: true
+                }
+            }
+
+            /// The room holds one map of each kind, in this order: the map file, the dataset's own map, the Indexing room's run.
+            fileprivate var kind: Int {
+                switch self {
+                case .mapFile: 0
+                case .patterns: 1
+                case .indexing: 2
+                }
+            }
+        }
+
+        /// What the room's views are rebuilt on: a new map, or the same file's map from another source.
+        package struct ID: Hashable, Sendable {
+            package var fileName: String
+            package var source: Source
         }
 
         package var fileName: String
@@ -37,6 +64,8 @@ package final class OrientationMapSession {
         package init(fileName: String, url: URL?, map: CrystalMap, source: Source, format: String) {
             self.fileName = fileName; self.url = url; self.map = map; self.source = source; self.format = format
         }
+
+        package var id: ID { ID(fileName: fileName, source: source) }
     }
 
     /// One phase's colour key: the TSL key image of its Laue group, with the labelled corners of the sector where they are known.
@@ -52,6 +81,10 @@ package final class OrientationMapSession {
     // MARK: State
 
     package private(set) var document: Document?
+    /// The maps the room holds, the shown one among them, one of each kind (D-SEM-99): the last map file opened, the crystal map of the
+    /// Patterns room's dataset, the Indexing room's run on it handed over by `Open in Maps`. `Source` picks among them; the dataset's
+    /// two go with the dataset.
+    package private(set) var sources: [Document] = []
     package private(set) var isOpening = false
     /// What the map pane draws.
     package private(set) var layer = OrientationMapLayer.ipf(.z)
@@ -166,37 +199,68 @@ package final class OrientationMapSession {
         return Document(fileName: fileName, url: url, map: map, source: .patterns, format: dataset.format.rawValue)
     }
 
-    /// Starts the room over on `document`: IPF-Z, the pinned point at the origin, the picture and the keys made.
+    /// Starts the room over on `document` (and holds it as its kind's map): `layer` where the map has it, else IPF-Z; `pinned` where
+    /// the map reaches it, else the origin; the picture and the keys made.
     @discardableResult
-    package func bind(_ document: Document) -> Task<Void, Never> {
+    package func bind(_ document: Document, layer: OrientationMapLayer = .ipf(.z), pinned: EBSDPosition = .origin) -> Task<Void, Never> {
         generation += 1
         mapGeneration += 1
         openTask?.cancel()
         isOpening = false
         self.document = document
-        pinned = .origin; hovered = nil
-        layer = .ipf(.z)
+        sources.removeAll { $0.source.kind == document.source.kind }
+        sources.append(document)
+        sources.sort { $0.source.kind < $1.source.kind }
+        let (rows, columns) = OrientationMaps.gridShape(document.map)
+        self.pinned = pinned.isInside(rows: rows, columns: columns) ? pinned : .origin
+        hovered = nil
+        self.layer = OrientationMaps.layers(of: document.map).contains(layer) ? layer : .ipf(.z)
         raster = nil; rasterRGBA = nil; keys = []
         grid = OrientationMaps.pointIndexGrid(document.map)
-        let (rows, columns) = OrientationMaps.gridShape(document.map)
         onEvent?("Opened \(document.fileName) — orientation map \(rows) × \(columns), \(document.map.phasesInData.names.filter { $0 != PhaseList.notIndexedName }.count) phases")
         startKeys(document)
         return draw()
     }
 
-    /// Closes the map: the room goes back to its door.
+    /// Closes the map and every map held: the room goes back to its door.
     package func close() {
         generation += 1
         mapGeneration += 1
         openTask?.cancel(); drawTask?.cancel(); keyTask?.cancel()
-        document = nil; isOpening = false; isDrawing = false
+        document = nil; sources = []; isOpening = false; isDrawing = false
         raster = nil; rasterRGBA = nil; grid = []; keys = []
         pinned = .origin; hovered = nil; layer = .ipf(.z)
     }
 
-    /// The Patterns room's dataset went away: a map that came with it goes too; a map opened on its own stays.
-    package func patternsClosed() {
-        if document?.source == .patterns { close() }
+    /// The Patterns room bound another dataset, `map` its crystal map when it carries one (`patternsDocument`), or closed it (`map`
+    /// nil): the old dataset's maps go, its own and the Indexing room's run on it. `map` is shown (a map file shown gives way to it and
+    /// stays held); without one, a map of the old dataset shown gives way to the map file held, or the room goes back to its door.
+    package func patternsChanged(to map: Document?) {
+        sources.removeAll { $0.source.followsPatterns }
+        if let map {
+            bind(map)
+        } else if document?.source.followsPatterns == true {
+            if let file = sources.first { bind(file) } else { close() }
+        }
+    }
+
+    /// The Patterns room's dataset went away: `patternsChanged(to: nil)`.
+    package func patternsClosed() { patternsChanged(to: nil) }
+
+    /// `Source`: shows the map held as `id`, at the same point and on the same layer where the map has them, so the two results read
+    /// side by side in time.
+    @discardableResult
+    package func showSource(_ id: Document.ID) -> Task<Void, Never>? {
+        guard id != document?.id, let held = sources.first(where: { $0.id == id }) else { return nil }
+        return bind(held, layer: layer, pinned: pinned)
+    }
+
+    /// Whether the map shown is on `dataset`'s scan, point for point: the dataset's own map, or an Indexing run on it (a stopped run's
+    /// map holds the first rows of the scan). Its patterns can then show beside it.
+    package func isOnScan(of dataset: EBSDDataset) -> Bool {
+        guard document?.source.followsPatterns == true else { return false }
+        let shape = gridShape
+        return shape.rows > 0 && shape.rows <= dataset.scanRows && shape.columns == dataset.scanColumns
     }
 
     package func stop() {

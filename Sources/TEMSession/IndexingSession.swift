@@ -1,11 +1,12 @@
 //
 //  IndexingSession.swift
 //  Role: the one owner of the Indexing room's state (docs/sem/design/indexing-room.md): the phases indexed against, the method (Hough
-//        or Dictionary, D-SEM-91) and its settings, the master patterns opened for a dictionary, the run (its result, filled row by
-//        row or block by block, and what it was made of, so a later change to Processing, the phases or the method's settings stales
-//        it), the map on screen as RGBA, the pattern pane's pattern with its detected bands, and a dictionary run's best match at that
-//        point. The dataset, its processing and the pinned position are the Patterns room's (`EBSDSession`): the two rooms share one
-//        scan and one marker.
+//        or Dictionary, D-SEM-91) and its settings, the master patterns opened for a dictionary, the last run of each method
+//        (`IndexingRun`, D-SEM-97: its result, filled row by row or block by block, and what it was made of, so a later change to
+//        Processing, the phases or the method's settings stales it) and which one is on screen (the run in flight, else the picked
+//        method's), the map on screen as RGBA, the pattern pane's pattern with its detected bands, a dictionary run's best match at
+//        that point, and Compare's two results (IndexingSession+Compare.swift). The dataset, its processing and the pinned position are
+//        the Patterns room's (`EBSDSession`): the two rooms share one scan and one marker.
 //
 //  Nothing here makes a number: the indexing is `HoughIndexer`'s (pyEBSDindex's port) or `DictionaryIndexing`'s (kikuchipy's), the
 //  colours `IndexingRaster`'s (orix's keys), the patterns `IndexingSource`'s. This owner decides WHEN: a run in one detached task that
@@ -17,6 +18,7 @@
 
 import Foundation
 import Observation
+import ShellMetal
 import TEMCore
 
 @Observable
@@ -46,33 +48,77 @@ package final class IndexingSession {
     package private(set) var layer = IndexingLayer.ipfZ
     /// Whether the pattern pane draws the detected bands.
     package var showsDetectedBands = true
+    /// Whether the pattern pane draws the Kikuchi simulation of the point's solution (`simulationOverlay`, #201).
+    package var showsSimulation = false
 
-    // MARK: The run
+    // MARK: The runs
 
-    /// The last run, filled row by row while it runs; nil before the first.
-    package private(set) var result: IndexingResult?
-    /// What the last run was made of (stales it when the current inputs differ) and where it read its patterns.
-    package private(set) var resultInputs: IndexingInputs?
-    package private(set) var resultSource: IndexingSource.Kind?
-    package private(set) var resultProjectionCenter: SIMD3<Double>?
+    /// The last run of each method (D-SEM-97): a run replaces only its own method's, so a Dictionary run leaves the Hough one as it was.
+    package private(set) var runs: [IndexingMethod: IndexingRun] = [:]
     package private(set) var isIndexing = false
+    /// The method of the run in flight; nil when none runs.
+    package private(set) var runningMethod: IndexingMethod?
     /// The run's fraction of rows done (0...1).
     package private(set) var progress = 0.0
-    /// The last complete run's time; nil while running or after a stop.
-    package private(set) var lastRunSeconds: Double?
-    /// The last run was stopped: its indexed rows stay, the rest of the map shows the navigator.
-    package private(set) var wasStopped = false
     /// A dictionary run's chunks done and in all (every block runs the whole dictionary in chunks).
     package private(set) var chunksDone = 0
     package private(set) var chunksTotal = 0
-    /// The last dictionary run's plan: its master pattern, orientations, detector and energy (Info, the method record, Best match).
-    package private(set) var dictionaryPlan: DictionaryIndexingPlan?
+    /// The dataset's own crystal map when it lies on the scan's grid (the Maps room's guard): Compare's `File`.
+    package private(set) var fileIndexing: CrystalMap?
+
+    // MARK: Compare (IndexingSession+Compare.swift)
+
+    /// Whether the bottom pane shows Compare in place of the Results and Bands tables (`Display › Compare`).
+    package internal(set) var showsCompare = false
+    package internal(set) var compareA = IndexingCompareSource.hough
+    package internal(set) var compareB = IndexingCompareSource.file
+    /// The comparison of A and B and their pictures on the compare layer, once made; nil while it is made or cannot be.
+    package internal(set) var comparison: IndexingComparison?
+    package internal(set) var comparePictures: IndexingComparePictures?
+    package internal(set) var compareVersion = 0
+    @ObservationIgnored var compareTask: Task<Void, Never>?
+    @ObservationIgnored var compareKey: IndexingCompareKey?
+
+    /// The run on screen: the run in flight, else the picked method's last run, else the latest run held; nil before a run.
+    package var shownRun: IndexingRun? {
+        if isIndexing, let runningMethod { return runs[runningMethod] }
+        return runs[method] ?? runs.values.max { $0.id < $1.id }
+    }
+    /// The other method's run, when it reached a point (Info's `Also held`).
+    package var otherRun: IndexingRun? {
+        guard let shown = shownRun else { return nil }
+        return runs.values.first { $0.id != shown.id && $0.result.reachedCount > 0 }
+    }
+    /// The run on screen's result, filled row by row while it runs; nil before the first run.
+    package var result: IndexingResult? { shownRun?.result }
+    /// What the run on screen was made of (it is stale when the current inputs of its method differ) and where it read its patterns.
+    package var resultInputs: IndexingInputs? { shownRun?.inputs }
+    package var resultSource: IndexingSource.Kind? { shownRun?.source }
+    package var resultProjectionCenter: SIMD3<Double>? { shownRun?.projectionCenter }
+    /// The run on screen's time once complete; nil while it runs or after a stop.
+    package var lastRunSeconds: Double? { shownRun?.seconds }
+    /// The run on screen was stopped: its indexed rows stay, the rest of the map shows the navigator.
+    package var wasStopped: Bool { shownRun?.wasStopped ?? false }
+    /// The run on screen's dictionary plan: its master pattern, orientations, detector and energy (Info, the method record, Best match).
+    package var dictionaryPlan: DictionaryIndexingPlan? { shownRun?.dictionaryPlan }
+    /// The run on screen's Hough libraries, for the Bands table's families, the .ang and the method record.
+    private var runPlan: IndexingPlan? { shownRun?.houghPlan }
 
     // MARK: The pictures
 
-    /// The map as RGBA, one pixel per scan point, and its version for the Metal view.
+    /// The map as RGBA, one pixel per scan point, and its version for the Metal view: a pointwise layer (IPF, Euler, Phase) or the
+    /// navigator before a run; nil while the map shows a scalar layer.
     package private(set) var mapRGBA: [UInt8]?
     package private(set) var mapVersion = 0
+    /// A scalar layer's values (CI, Fit, Bands, PQ, Score, OSM) as the image rooms draw a picture (D-SEM-96): its colormap, window,
+    /// gamma and scale bar are the inspector's Map Display; a point without a value is masked. Viridis first (matplotlib's default,
+    /// which orix's `CrystalMap.plot` draws a property with): its masked grey is no value's colour, where on Gray it reads as a value
+    /// a third of the way up.
+    package let mapPresentation: ImagePresentation = {
+        let presentation = ImagePresentation()
+        presentation.colormap = .viridis
+        return presentation
+    }()
     /// The pattern as it is indexed (through the pipeline), drawn with its own contrast.
     package let patternPresentation = ImagePresentation()
     /// The position under the pointer while it hovers the map, else nil (the pinned position is the Patterns room's).
@@ -132,12 +178,12 @@ package final class IndexingSession {
     /// Bumped by every dataset bound or closed (a pattern or a key that lands for another dataset is dropped) and by every run (a row
     /// that lands for an earlier run is dropped).
     @ObservationIgnored private var generation = 0
-    @ObservationIgnored private var runGeneration = 0
+    /// The number of the last run started: bumped by every run and every dataset (a row that lands for an earlier run is dropped). A
+    /// run keeps it as its id (`IndexingRun.id`): the Maps room names a run it shows by it (D-SEM-99), Compare the runs it compares.
+    package private(set) var runGeneration = 0
     @ObservationIgnored private var palette: IndexingPalette?
     /// The band detector of the current settings, kept between hovers and handed to the run.
     @ObservationIgnored private var probe: (key: ProbeKey, probe: IndexingProbe)?
-    /// The libraries of the last run, for the Bands table's families.
-    @ObservationIgnored private var runPlan: IndexingPlan?
     @ObservationIgnored private var shownKey: ShownKey?
     @ObservationIgnored private var shownRaw: [HoughBandDetector.Band] = []
     /// The dictionary's orientations last sampled, kept for the next run at the same resolution and point group.
@@ -146,6 +192,11 @@ package final class IndexingSession {
     @ObservationIgnored private var masterTasks: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var bestMatchTask: Task<Void, Never>?
     @ObservationIgnored private var bestMatchKey: BestMatchKey?
+    /// The simulation overlay's bands and kinematical master patterns per phase and spacing, and the last overlay made
+    /// (IndexingSession+Overlay.swift).
+    @ObservationIgnored var overlayBands: [IndexingOverlayKey: KikuchiOverlay.Bands?] = [:]
+    @ObservationIgnored var overlayMasters: [IndexingOverlayKey: EBSDMasterPattern] = [:]
+    @ObservationIgnored var overlayMemo: (key: IndexingOverlayMemo, value: Result<KikuchiOverlay.Pattern, KikuchiOverlay.Absence>)?
 
     package init(patterns: EBSDSession) {
         self.patterns = patterns
@@ -163,12 +214,14 @@ package final class IndexingSession {
     }
     /// The inputs a run would take now.
     package var currentInputs: IndexingInputs { inputs(for: method) }
-    /// The result was made of other inputs than its method's current ones (design §6: a Processing, Phases or method settings change
-    /// stales it; picking the other method does not, the result on screen is still its method's).
-    package var isStale: Bool {
-        guard let result else { return false }
-        return resultInputs != inputs(for: result.method)
+    /// `method`'s last run was made of other inputs than that method's current ones (design §6: a Processing, Phases or method
+    /// settings change stales it; picking the other method does not, each run is its method's); false without one.
+    package func isStale(of method: IndexingMethod) -> Bool {
+        guard let run = runs[method] else { return false }
+        return run.inputs != inputs(for: method)
     }
+    /// The run on screen is stale (`isStale(of:)` of its method).
+    package var isStale: Bool { shownRun.map { isStale(of: $0.method) } ?? false }
     /// The master pattern a dictionary is projected from.
     package var currentMaster: IndexingMasterPattern? { masterPatterns.first { $0.id == masterID } }
     /// The map layers on offer: the result's method's, or the method picked before a run.
@@ -182,6 +235,9 @@ package final class IndexingSession {
         let fromFile = document.dataset.crystalMap.map { IndexingPhase.fromCrystalMap($0.phases) } ?? (phases: [], skipped: [])
         phases = fromFile.phases
         skippedPhases = fromFile.skipped
+        fileIndexing = OrientationMapSession.patternsDocument(fileName: document.fileName, url: document.url, dataset: document.dataset)?.map
+        compareA = .hough
+        compareB = fileIndexing == nil ? .dictionary : .file
         refreshMap()
         loadKeys()
         openShippedMasterPattern()
@@ -196,12 +252,15 @@ package final class IndexingSession {
     private func reset() {
         generation += 1
         runGeneration += 1
-        runTask?.cancel(); patternTask?.cancel(); samplingTask?.cancel(); bestMatchTask?.cancel()
-        result = nil; resultInputs = nil; resultSource = nil; resultProjectionCenter = nil
-        isIndexing = false; progress = 0; lastRunSeconds = nil; wasStopped = false; chunksDone = 0; chunksTotal = 0
-        mapRGBA = nil; palette = nil; probe = nil; runPlan = nil; dictionaryPlan = nil; shownKey = nil; shownRaw = []
+        runTask?.cancel(); patternTask?.cancel(); samplingTask?.cancel(); bestMatchTask?.cancel(); compareTask?.cancel()
+        runs = [:]; runningMethod = nil; fileIndexing = nil
+        isIndexing = false; progress = 0; chunksDone = 0; chunksTotal = 0
+        showsCompare = false; comparison = nil; comparePictures = nil; compareTask = nil; compareKey = nil
+        mapRGBA = nil; palette = nil; probe = nil; shownKey = nil; shownRaw = []
+        mapPresentation.resetWindow()
         hovered = nil; patternPosition = nil; detectedBands = []; patternFailure = nil; patternShape = (rows: 0, columns: 0)
         bestMatchPosition = nil; bestMatchFailure = nil; bestMatchKey = nil
+        overlayBands = [:]; overlayMasters = [:]; overlayMemo = nil
         phases = []; skippedPhases = []; settings = .roomDefault; layer = .ipfZ
         method = .hough; dictionarySettings = .roomDefault; dictionarySize = nil
     }
@@ -259,11 +318,17 @@ package final class IndexingSession {
 
     // MARK: - The method and the dictionary
 
-    /// Picks how Index indexes; the result on screen stays (it is its method's), the map's layer follows the method before a run.
+    /// Picks how Index indexes, and so which run the room shows (D-SEM-97): that method's last run when the room holds one, else the
+    /// run on screen stays; the map's layer follows the method before a run.
     package func setMethod(_ new: IndexingMethod) {
         guard new != method else { return }
+        let before = shownRun?.id
         method = new
-        if result == nil, !IndexingLayer.layers(for: new).contains(layer) { setLayer(.ipfZ) }
+        if shownRun?.id != before {
+            shownResultChanged()
+        } else if result == nil, !IndexingLayer.layers(for: new).contains(layer) {
+            setLayer(.ipfZ)
+        }
         refreshDictionarySize()
     }
 
@@ -390,12 +455,32 @@ package final class IndexingSession {
                                               detector: document.dataset.detector, beamEnergy: document.dataset.sem.beamEnergyKeV)
     }
 
+    /// Shows layer `new` of the result. A scalar layer's window goes back to its full range (each layer has its own units); the
+    /// colormap and the gamma stay, as the Patterns room's map keeps them from map to map.
     package func setLayer(_ new: IndexingLayer) {
         guard new != layer, availableLayers.contains(new) else { return }
         layer = new
         palette = result.map { IndexingPalette(layer: new, phases: $0.phases) }
+        if !new.isPointwise { mapPresentation.resetWindow() }
         refreshMap()
+        refreshComparison()
     }
+
+    /// Another run came on screen (a Method pick, or the run in flight ended under another method): its layers, map, Bands families,
+    /// best match and Compare.
+    private func shownResultChanged() {
+        if !availableLayers.contains(layer) { layer = .ipfZ }
+        if !layer.isPointwise { mapPresentation.resetWindow() }
+        palette = nil
+        clearBestMatch()
+        refreshMap()
+        refreshBandRows()
+        showBestMatch()
+        refreshComparison()
+    }
+
+    /// Whether the map shows a scalar layer through `mapPresentation` (a result is on screen and its layer is not pointwise).
+    package var showsScalarMap: Bool { result != nil && !layer.isPointwise }
 
     // MARK: - Whether Index can run
 
@@ -470,16 +555,15 @@ package final class IndexingSession {
         runTask?.cancel()
         runGeneration += 1
         let run = runGeneration
-        result = IndexingResult(scanRows: rows, scanColumns: columns, phases: inputs.phases)
-        resultInputs = inputs
-        resultSource = source.kind
-        resultProjectionCenter = IndexingPlan.meanProjectionCenter(detector)
+        runs[.hough] = IndexingRun(id: run, result: IndexingResult(scanRows: rows, scanColumns: columns, phases: inputs.phases), inputs: inputs,
+                                   source: source.kind, projectionCenter: IndexingPlan.meanProjectionCenter(detector))
+        isIndexing = true; runningMethod = .hough; progress = 0; chunksDone = 0; chunksTotal = 0
         if !IndexingLayer.layers(for: .hough).contains(layer) { layer = .ipfZ }
         palette = IndexingPalette(layer: layer, phases: inputs.phases)
-        runPlan = nil; dictionaryPlan = nil
-        isIndexing = true; progress = 0; wasStopped = false; lastRunSeconds = nil; chunksDone = 0; chunksTotal = 0
         clearBestMatch()
         refreshMap()
+        refreshBandRows()
+        refreshComparison()
         onEvent?("Indexing \(rows * columns) patterns with Hough (\(inputs.phases.map(\.name).joined(separator: ", ")))…")
         let started = Date()
         let task = Task.detached(priority: .userInitiated) { [weak self] in
@@ -516,17 +600,16 @@ package final class IndexingSession {
         runTask?.cancel()
         runGeneration += 1
         let run = runGeneration
-        result = IndexingResult(scanRows: rows, scanColumns: columns, phases: inputs.phases, metric: settings.metric)
-        resultInputs = inputs
-        resultSource = source.kind
-        resultProjectionCenter = IndexingPlan.meanProjectionCenter(detector)
+        runs[.dictionary] = IndexingRun(id: run, result: IndexingResult(scanRows: rows, scanColumns: columns, phases: inputs.phases,
+                                                                        metric: settings.metric),
+                                        inputs: inputs, source: source.kind, projectionCenter: IndexingPlan.meanProjectionCenter(detector))
+        isIndexing = true; runningMethod = .dictionary; progress = 0; chunksDone = 0; chunksTotal = 0
         if !IndexingLayer.layers(for: .dictionary).contains(layer) { layer = .ipfZ }
         palette = IndexingPalette(layer: layer, phases: inputs.phases)
-        runPlan = nil; dictionaryPlan = nil
-        isIndexing = true; progress = 0; wasStopped = false; lastRunSeconds = nil; chunksDone = 0; chunksTotal = 0
         clearBestMatch()
         refreshMap()
         refreshBandRows()
+        refreshComparison()
         let resolution = settings.resolution.formatted(.number.precision(.significantDigits(1...3)))
         onEvent?("Indexing \(rows * columns) patterns against the \(phase.name) dictionary at \(resolution)° (\(settings.metric.title))…")
         // The chunks merged, in order, to the main actor (the newest only: the count only grows).
@@ -575,35 +658,45 @@ package final class IndexingSession {
     package func stop() {
         guard isIndexing else { return }
         runTask?.cancel()
+        let before = shownRun?.id
+        let stopped = runningMethod
         isIndexing = false
-        wasStopped = true
-        if let result {
-            if result.method == .dictionary {
-                onEvent?("Stopped dictionary indexing after \(chunksDone) of \(chunksTotal) chunks; \(result.rowsDone) of \(result.scanRows) rows were indexed and stay")
-            } else {
-                onEvent?("Stopped indexing after \(result.rowsDone) of \(result.scanRows) rows; the indexed rows stay")
+        runningMethod = nil
+        if let stopped {
+            runs[stopped]?.wasStopped = true
+            if let result = runs[stopped]?.result {
+                if result.method == .dictionary {
+                    onEvent?("Stopped dictionary indexing after \(chunksDone) of \(chunksTotal) chunks; \(result.rowsDone) of \(result.scanRows) rows were indexed and stay")
+                } else {
+                    onEvent?("Stopped indexing after \(result.rowsDone) of \(result.scanRows) rows; the indexed rows stay")
+                }
             }
         }
-        refreshBandRows()
+        if shownRun?.id != before {
+            shownResultChanged()
+        } else {
+            refreshBandRows()
+            refreshComparison()
+        }
     }
 
     private func landPlan(_ plan: IndexingPlan, probe built: IndexingProbe, key: ProbeKey, run: Int) {
         guard run == runGeneration else { return }
-        runPlan = plan
+        runs[.hough]?.houghPlan = plan
         probe = (key: key, probe: built)
     }
 
     private func landRow(_ solutions: [HoughIndexer.Solution], row: Int, run: Int) {
         guard run == runGeneration, isIndexing else { return }
-        result?.land(solutions, at: row)
-        progress = Double(row + 1) / Double(max(result?.scanRows ?? 1, 1))
+        runs[.hough]?.result.land(solutions, at: row)
+        progress = Double(row + 1) / Double(max(runs[.hough]?.result.scanRows ?? 1, 1))
         repaint(rows: row..<(row + 1))
         if patternPosition?.row == row { refreshBandRows() }
     }
 
     private func landDictionaryPlan(_ plan: DictionaryIndexingPlan, key: SamplingKey, chunks: Int, run: Int) {
         guard run == runGeneration else { return }
-        dictionaryPlan = plan
+        runs[.dictionary]?.dictionaryPlan = plan
         sampled = (key: key, rotations: plan.rotations)
         if samplingKey == key { dictionarySize = plan.rotations.count }
         chunksTotal = chunks
@@ -617,37 +710,54 @@ package final class IndexingSession {
 
     private func landBlock(_ matched: DictionaryIndexing.Result, rows: Range<Int>, run: Int) {
         guard run == runGeneration, isIndexing else { return }
-        result?.land(matched, rows: rows)
+        runs[.dictionary]?.result.land(matched, rows: rows)
         repaint(rows: rows)
         if let row = patternPosition?.row, rows.contains(row) { showBestMatch() }
     }
 
     private func finish(seconds: Double, failure: String?, run: Int) {
         guard run == runGeneration, isIndexing else { return }
+        let before = shownRun?.id
+        let finished = runningMethod
         isIndexing = false
+        runningMethod = nil
+        let shownChanged = shownRun?.id != before
         if let failure {
             onEvent?("Error: \(failure)")
+            if shownChanged { shownResultChanged() } else { refreshComparison() }
             return
         }
         progress = 1
         if chunksTotal > 0 { chunksDone = chunksTotal }
-        lastRunSeconds = seconds
-        if let result {
-            onEvent?("Indexed \(result.indexedCount) of \(result.pointCount) patterns with \(result.method.title) in \(String(format: "%.1f", seconds)) s")
+        if let finished {
+            runs[finished]?.seconds = seconds
+            if let result = runs[finished]?.result {
+                onEvent?("Indexed \(result.indexedCount) of \(result.pointCount) patterns with \(result.method.title) in \(String(format: "%.1f", seconds)) s")
+            }
         }
-        refreshBandRows()
-        showBestMatch()
+        if shownChanged {
+            shownResultChanged()
+        } else {
+            refreshBandRows()
+            showBestMatch()
+            refreshComparison()
+        }
     }
 
     // MARK: - The map
 
-    /// Repaints the whole map: the result on its layer over the dimmed navigator, or the navigator alone before a run.
+    /// Repaints the whole map: the result on its layer (a pointwise one over the dimmed navigator, a scalar one as its values through
+    /// `mapPresentation`), or the navigator alone before a run.
     package func refreshMap() {
         guard let dataset = patterns.dataset else {
             mapRGBA = nil
             return
         }
-        if let result {
+        if let result, !layer.isPointwise {
+            mapRGBA = nil
+            mapPresentation.show(CanvasPixels.make(width: result.scanColumns, height: result.scanRows,
+                                                   pixels: IndexingRaster.scalarPixels(result, layer: layer)))
+        } else if let result {
             let palette = self.palette.flatMap { $0.layer == layer ? $0 : nil } ?? IndexingPalette(layer: layer, phases: result.phases)
             self.palette = palette
             mapRGBA = IndexingRaster.rgba(result, palette: palette, backdrop: patterns.meanIntensities)
@@ -657,7 +767,7 @@ package final class IndexingSession {
         mapVersion &+= 1
     }
 
-    /// Landed rows: a pointwise layer repaints those rows, a scalar layer (its grey range moves) the whole map.
+    /// Landed rows: a pointwise layer repaints those rows, a scalar layer (its range moves) the whole map.
     private func repaint(rows: Range<Int>) {
         guard let result, let palette, palette.layer == layer, layer.isPointwise, var rgba = mapRGBA, rgba.count == result.pointCount * 4 else {
             refreshMap()
@@ -774,9 +884,11 @@ package final class IndexingSession {
 
     // MARK: - The colour keys
 
-    /// Makes the IPF colour key of every point group in the phases that has none yet, off the main actor.
+    /// Makes the IPF colour key of every point group in the phases and in the file's indexing (Compare's `File`) that has none yet, off
+    /// the main actor.
     private func loadKeys() {
-        let wanted = Set(phases.compactMap(\.pointGroupName)).subtracting(keyImages.keys)
+        let fileGroups = fileIndexing?.phases.entries.compactMap(\.phase.pointGroupName) ?? []
+        let wanted = Set(phases.compactMap(\.pointGroupName) + fileGroups).subtracting(keyImages.keys)
         guard !wanted.isEmpty else { return }
         let names = Array(wanted).sorted()
         Task { [weak self] in
@@ -799,12 +911,13 @@ package final class IndexingSession {
     /// The Best match pane: a dictionary run's best orientation at the pattern pane's point, simulated on the run's detector from its
     /// master pattern (`MasterPatternProjection`, kikuchipy's `get_patterns`), off the main actor; nothing where the point has none.
     private func showBestMatch() {
-        guard let result, result.method == .dictionary, let plan = dictionaryPlan, let position = patternPosition,
-              let solution = result.solution(at: position), solution.phase >= 0, let simulation = result.simulationIndex(at: position) else {
+        guard let run = shownRun, run.method == .dictionary, let plan = run.dictionaryPlan, let position = patternPosition,
+              let solution = run.result.solution(at: position), solution.phase >= 0,
+              let simulation = run.result.simulationIndex(at: position) else {
             clearBestMatch()
             return
         }
-        let key = BestMatchKey(position: position, run: runGeneration, simulation: simulation)
+        let key = BestMatchKey(position: position, run: run.id, simulation: simulation)
         guard key != bestMatchKey else { return }
         bestMatchKey = key
         bestMatchTask?.cancel()
@@ -831,10 +944,48 @@ package final class IndexingSession {
         bestMatchFailure = nil
     }
 
+    // MARK: - The Maps room
+
+    /// Why `Open in Maps` cannot hand the result over now (D-SEM-99): nothing indexed yet, or a run still going (Maps shows a result
+    /// as it stands, and a run's map grows row by row). nil when it can.
+    package var openInMapsRefusal: String? {
+        if isIndexing { return "Stop the run or let it finish first" }
+        guard let result, result.reachedCount > 0 else { return "Index first" }
+        return nil
+    }
+
+    /// The run on screen as the Maps room shows it (D-SEM-99): its crystal map (`crystalMap()`, the one the .ang and .ctf exports are
+    /// written from: the rows reached, the room's phase colours, the scan's steps and unit, the run's values) under the pattern file's
+    /// name, its source this run of its method. nil while `openInMapsRefusal` holds.
+    package func mapsDocument() throws -> OrientationMapSession.Document? {
+        guard openInMapsRefusal == nil, let run = shownRun, let document = patterns.document, let map = try crystalMap() else { return nil }
+        return OrientationMapSession.Document(fileName: document.fileName, url: document.url, map: map,
+                                              source: .indexing(run: run.id, method: run.method),
+                                              format: "Indexing room · \(run.method.title)")
+    }
+
+    /// What the Maps room says of run `run` of `method` it shows: nil while it is that method's last run and its inputs stand; else that
+    /// a later run of the method replaced it (started, or ended having reached a point; and to Open in Maps again when that newer run
+    /// is the one on screen and can be handed), or which inputs changed since (`isStale(of:)`): the Patterns room's processing, or this
+    /// room's phases or method settings. A run of the other method leaves it current (D-SEM-97).
+    package func staleness(ofRun run: Int, method: IndexingMethod) -> String? {
+        guard let held = runs[method], held.id == run else {
+            guard let newer = runs[method], newer.result.reachedCount > 0, runningMethod != method else {
+                return "Stale: the Indexing room has started another \(method.title) run since."
+            }
+            // Open in Maps hands the run on screen: the note offers it only while that is the newer run and it can be handed.
+            let handable = shownRun?.id == newer.id && openInMapsRefusal == nil
+            return "Stale: the Indexing room has run \(method.title) again since." + (handable ? " Open in Maps again to show the new run." : "")
+        }
+        guard isStale(of: method) else { return nil }
+        if held.inputs.pipeline != patterns.pipeline { return "Stale: the Patterns room's processing changed since this run." }
+        return "Stale: the Indexing room's phases or settings changed since this run."
+    }
+
     // MARK: - Export
 
-    /// The last run as orix's crystal map (`IndexingResult.crystalMap`, the rows it reached on the scan's steps): what the .ang and
-    /// .ctf exports write. nil before a row has landed.
+    /// The run on screen as orix's crystal map (`IndexingResult.crystalMap`, the rows it reached on the scan's steps): what the .ang
+    /// and .ctf exports write. nil before a row has landed.
     package func crystalMap() throws -> CrystalMap? {
         guard let result, let dataset = patterns.document?.dataset else { return nil }
         let steps = (dy: dataset.stepY, dx: dataset.stepX)
@@ -847,7 +998,7 @@ package final class IndexingSession {
         }
     }
 
-    /// The method record of the last run (every input, in pyEBSDindex's, kikuchipy's and orix's names); nil before a run has its plan.
+    /// The method record of the run on screen (every input, in pyEBSDindex's, kikuchipy's and orix's names); nil before a run has its plan.
     package func methodJSON() throws -> Data? {
         guard let result, let document = patterns.document else { return nil }
         switch result.method {
