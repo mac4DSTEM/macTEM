@@ -209,9 +209,10 @@ nonisolated final class MapsRoomTests: XCTestCase {
 
     // MARK: - The room key
 
-    /// Maps sits after Patterns, where Indexing will come before it: ⌘7 now, Results ⌘8 (one key per built room, in the design's order).
-    func testTheMapsRoomIsSeventh() {
-        XCTAssertEqual(WorkspaceArea.maps.shortcutDigit, "7")
+    /// Maps sits after Patterns with the plan's fixed key: ⌘8, leaving ⌘7 to Indexing, Results ⌘9 (D-SEM-70).
+    func testTheMapsRoomIsOnCommandEight() {
+        XCTAssertEqual(WorkspaceArea.maps.shortcutDigit, "8")
+        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "9")
         XCTAssertEqual(WorkspaceArea.maps.title, "Maps")
         XCTAssertEqual(WorkspaceArea.maps.systemImage, "map")
         XCTAssertTrue(LaunchOptions(arguments: ["--demo-ang"]).demoOrientationMap)
