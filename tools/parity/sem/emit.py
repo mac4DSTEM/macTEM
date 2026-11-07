@@ -462,6 +462,44 @@ def _nlpar_bundle(ctx, case: str, path: Path, label: str, searchradius: int, blo
     b.array("denoised_mean", out.astype(np.float64).mean(axis=(-2, -1)), **F32)
     for name, (r0, r1, c0, c1) in blocks.items():
         b.array(name, out[r0:r1, c0:c1], rtol=1e-5, atol=1e-4, note=f"scan rows {r0}..{r1 - 1}, cols {c0}..{c1 - 1}")
+
+
+def _intensity_bundle(ctx, case: str, path: Path, label: str) -> None:
+    """kikuchipy's intensity and size stages on background-corrected patterns (static then dynamic, as the background
+    bundle): `rescale_intensity` to the dtype range with and without `percentiles`, `normalize_intensity` on float32,
+    `downsample` by 2 and 3. The input of every stage is kikuchipy's own corrected uint8 patterns (`corrected`), so a port
+    checks each stage alone; `chain` is the Patterns room's default run (static, dynamic, rescale 2 to 98 %, bin 2).
+    A whole scan keeps a 3 x 3 corner; the fixture keeps all nine patterns."""
+    import kikuchipy as kp
+
+    s = kp.load(str(path))
+    b = Bundle(case, 2, "kikuchipy", "kikuchipy.signals.EBSD.rescale_intensity / normalize_intensity / downsample", ctx.out)
+    b.input(path, label)
+    s.remove_static_background(operation="subtract")
+    s.remove_dynamic_background(operation="subtract", filter_domain="frequency", truncate=4.0)
+    if s.data.shape[0] * s.data.shape[1] > 9:
+        s = s.inav[:3, :3]
+        b.value("positions", "scan rows 0..2, cols 0..2")
+    else:
+        b.value("positions", "the whole scan")
+    corrected = np.asarray(s.data)
+    b.array("corrected", corrected, **EXACT, note="kikuchipy's static then dynamic subtract: every stage's input")
+    b.value("rescale_percentiles", [2.0, 98.0])
+    r = s.rescale_intensity(inplace=False)
+    b.array("rescaled", np.asarray(r.data), **U8, note="rescale_intensity() to uint8's range: a corrected pattern already spans it")
+    rp = s.rescale_intensity(percentiles=(2.0, 98.0), inplace=False)
+    b.array("rescaled_percentiles", np.asarray(rp.data), **U8, note="np.nanpercentile per pattern, clipped, rescaled, cast by truncation")
+    f = s.deepcopy()
+    f.change_dtype("float32")
+    n = f.normalize_intensity(num_std=1, inplace=False)
+    b.array("normalized", np.asarray(n.data), rtol=1e-5, atol=1e-6, note="float32 input, mean 0, population std 1 (fastmath)")
+    n2 = f.normalize_intensity(num_std=2, divide_by_square_root=True, inplace=False)
+    b.array("normalized_std2_sqrt", np.asarray(n2.data), rtol=1e-5, atol=1e-8)
+    for k in (2, 3):
+        d = s.downsample(k, inplace=False)
+        b.array(f"downsampled_{k}", np.asarray(d.data), **U8, note=f"_bin2d sums in float32, rescaled to uint8's range, truncated")
+    c = rp.downsample(2, inplace=False)
+    b.array("chain", np.asarray(c.data), **U8, note="static, dynamic, rescale 2 to 98 %, bin 2")
     b.write()
     ctx.done(case)
 
@@ -477,6 +515,16 @@ def case_m2_nlpar_nickel_large(ctx):
         # the corner (window shifted at two edges) and a block across the seam of pyebsdindex's two column tiles
         _nlpar_bundle(ctx, "m2/nlpar-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5", searchradius=3,
                       blocks={"denoised_corner": (0, 3, 0, 3), "denoised_seam": (26, 29, 33, 40)})
+
+
+def case_m2_intensity_small(ctx):
+    _intensity_bundle(ctx, "m2/intensity-kikuchipy-h5ebsd", FIXTURES / "kikuchipy_h5ebsd_patterns.h5", "fixtures/kikuchipy_h5ebsd_patterns.h5")
+
+
+def case_m2_intensity_nickel_large(ctx):
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    if ctx.have(p, "m2/intensity-nickel-ebsd-large"):
+        _intensity_bundle(ctx, "m2/intensity-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5")
 
 
 # ------------------------------------------------------------------------------------------- orientation maths (m3)
