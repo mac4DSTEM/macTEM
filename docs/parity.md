@@ -26,6 +26,20 @@ package's own tests use, never stricter. References are pinned in `tools/parity/
 | `NORDIFBitmap.decode` (8-bit greyscale BMP) | `matplotlib.pyplot.imread` (Pillow mode L) | same | bit-exact | own decoder, not ImageIO; any other bitmap kind refused with a sentence |
 | `NORDIFOpening.open` (`Pattern.dat` as an `EBSDDataset`, read by record) | `kikuchipy.load("Pattern.dat")` through `NORDIFScan` | `NORDIFOpeningTests` | patterns bit-exact against `NORDIFScan` | a `.dat` routes only with a NORDIF `Setting.txt` beside it; a short file reads whole records and the rest as 0 with a note (upstream keeps the bytes of an incomplete last pattern; `NORDIFScan` keeps that for the parity) |
 
+
+## SEM images (TIFF)
+
+| Function | Reference | Test | Tolerance | State |
+|---|---|---|---|---|
+| `SEMImageMetadata.read` (Thermo/FEI tags 34680/34682) | RosettaSciIO 0.15.0 `_axes_fei`, `mapping_fei`; tifffile 2026.9.20 `read_fei_metadata` | `SEMImageMetadataTests` on the five Helios test files' tags | axes rtol 1e-4 (RosettaSciIO's `test_read_FEI_navcam_metadata`); metadata numbers 1e-9 relative, texts exact (its tests: 7 places) | live; matched upstream except one quirk: RosettaSciIO's `_order_axes_by_name` puts the x scale (HFW / ResolutionX) on the height axis and the y scale on the width axis. macTEM keeps each on its own axis; on the one non-square test file (navcam, 2.5e-6 apart) the difference is inside upstream's tolerance |
+| `SEMImageMetadata.read` (Zeiss tag 34118) | RosettaSciIO `_axes_zeiss`, `mapping_cz_sem`; tifffile `read_cz_sem` | the same, on the three Zeiss test files' tags | the same | live |
+| `SEMImageMetadata.read` (Tescan tag 50431) | NexusLIMS `tescan_tif` (keys and units); no RosettaSciIO branch | planted header | exact | live, marked unvalidated in the room |
+| Databar rows (Thermo `DatabarHeight`, Tescan `ImageStripSize`) | tifffile's parse of the same bytes; no reader maps it | the five Helios files (29 and 39 rows) and a plant | exact | live; Zeiss never cropped (D-SEM-63) |
+| Spot, chamber pressure, Thermo detector | tifffile's parse; RosettaSciIO does not map them | the same files | exact | live, noted in the room |
+
+The two files #130 commits are also held to its bundles `m1/read-sem-tiff-fei-helios` and `m1/read-sem-tiff-zeiss` (`SEMImageMetadataTests.testTheHarnessBundlesReadAsTheirReference`). Other references: `macTEMTests/Fixtures/sem-tiff/sem-tiff-reference.json`, written by `tools/parity/sem/sem-image/reference.py`
+from RosettaSciIO's `tiff_FEI_Helios.zip` and `tiff_Zeiss_SEM.zip` (commit 049e7d70's test data, GPL-3.0-or-later).
+
 ## Pattern processing
 
 References: `tools/parity/sem/background_reference.py` (kikuchipy 0.13.1, numpy 2.5.4, scipy 1.18.1) on `nickel_ebsd_large`

@@ -111,12 +111,23 @@ final class AppState {
         applyLaunchOptions(launch)
     }
 
+    /// Whether a Thermo or Tescan SEM TIFF opens without its databar (`SEMImageSettings`, on by default). Setting it stores the
+    /// choice and reads the selected file again, so the image follows at once; the other open files follow at their next read.
+    var cropsDatabar = SEMImageSettings.cropDatabar() {
+        didSet {
+            guard cropsDatabar != oldValue else { return }
+            SEMImageSettings.setCropDatabar(cropsDatabar)
+            if let selected = openItems.selected, selected.session.sem?.databarRows != nil { openItems.reread(selected) }
+        }
+    }
+
     /// The UI tests' and the demo's starting state (`LaunchOptions`): saved geometry cleared, the generated documents opened.
     private func applyLaunchOptions(_ launch: LaunchOptions) {
         if launch.isUITesting { LaunchOptions.resetSavedState(); UITestingPlacement.installIfTesting() }
         if launch.demoImage { open(urls: [DemoDocuments.latticeURL]) }
         if launch.demoPattern { openDemo(.diffraction) }
         if launch.demoStack, let url = try? DemoDocuments.stackFile() { open(urls: [url]) }
+        if launch.demoSEMImage, let url = try? DemoDocuments.semImageFile() { open(urls: [url]) }
         if launch.demoSpectrumFile, let url = try? DemoDocuments.spectrumFile() { open(urls: [url]) }
         if launch.demoSEMSpectrum { openDemo(.semSpectrum) }
         if launch.demoSpectrum {
