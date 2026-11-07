@@ -34,6 +34,16 @@ final class MapsRoomState {
     var bottomTab = MapsBottomTab.key
     /// What the Histogram tab counts.
     var histogramKind = MapAnalysis.HistogramKind.kam
+    /// The export the save panel is writing, as the session record keeps it once the panel says where (`didWrite`).
+    @ObservationIgnored private(set) var pendingRecord: SEMExportedFile?
+    /// Told of every file the room writes (`AppState` keeps it in the session record for the Results room and the report).
+    @ObservationIgnored var onWritten: ((SEMExportedFile) -> Void)?
+
+    /// The save panel wrote the export to `url`.
+    func didWrite(to url: URL) {
+        if let pendingRecord { onWritten?(pendingRecord.written(to: url, at: Date())) }
+        pendingRecord = nil
+    }
 
     func requestImport() { importRequest &+= 1 }
 
@@ -53,7 +63,10 @@ final class MapsRoomState {
         } catch {
             report("Export failed: \(error.localizedDescription)"); return
         }
-        write(data, name: name, type: .png, directory: directory, report: report)
+        let record = SEMExportedFile(room: "Maps", what: "Map PNG", source: document.fileName,
+                                     fields: MapsRoomFormat.recordFields(of: session.layer, session: session),
+                                     methods: MapsRoomFormat.methods(of: session.layer), png: data)
+        write(data, name: name, type: .png, record: record, directory: directory, report: report)
     }
 
     /// The grain table as CSV (`MapsRoomFormat.grainsCSV`), to the save panel or the journeys' folder.
@@ -63,7 +76,11 @@ final class MapsRoomState {
         }
         let name = (document.fileName as NSString).deletingPathExtension + " grains"
         let csv = MapsRoomFormat.grainsCSV(analysis, slip: session.slip, loadDirection: session.loadDirection)
-        write(Data(csv.utf8), name: name, type: .commaSeparatedText, directory: directory, report: report)
+        var fields = MapsRoomFormat.analysisFields(analysis.settings) + [SEMSessionField("Grains", "\(analysis.table.count)")]
+        if !session.slip.isEmpty { fields.append(SEMSessionField("Load", "Sample \(session.loadDirection.rawValue.uppercased())")) }
+        let record = SEMExportedFile(room: "Maps", what: "Grains CSV", source: document.fileName, fields: fields,
+                                     methods: [.orientationMap, .grains, .gos] + (session.slip.isEmpty ? [] : [.schmid]))
+        write(Data(csv.utf8), name: name, type: .commaSeparatedText, record: record, directory: directory, report: report)
     }
 
     /// The Histogram tab's distribution as CSV.
@@ -75,7 +92,15 @@ final class MapsRoomState {
         let unit = kind == .grainSize ? analysis.scanUnit : "deg"
         let name = (document.fileName as NSString).deletingPathExtension + " histogram " + kind.rawValue
         let csv = MapsRoomFormat.histogramCSV(kind, histogram: analysis.histogram(kind), unit: unit)
-        write(Data(csv.utf8), name: name, type: .commaSeparatedText, directory: directory, report: report)
+        let methods: [SEMMethod] = switch kind {
+        case .kam: [.orientationMap, .kam]
+        case .gos: [.orientationMap, .grains, .gos]
+        case .grainSize: [.orientationMap, .grains]
+        }
+        let record = SEMExportedFile(room: "Maps", what: "Histogram CSV", source: document.fileName,
+                                     fields: [SEMSessionField("Histogram", kind.rawValue)] + MapsRoomFormat.analysisFields(analysis.settings),
+                                     methods: methods)
+        write(Data(csv.utf8), name: name, type: .commaSeparatedText, record: record, directory: directory, report: report)
     }
 
     /// The pole figures, the IPF density and the ODF sections of the texture shown, as one PNG.
@@ -86,24 +111,33 @@ final class MapsRoomState {
         let name = (document.fileName as NSString).deletingPathExtension + " texture " + texture.phaseName.replacingOccurrences(of: "/", with: "-")
         do {
             let data = try MapsFigure.texturePNG(texture, fileName: document.fileName)
-            write(data, name: name, type: .png, directory: directory, report: report)
+            let figures = texture.poleFigures.map(\.title) + (texture.inversePoleFigure.map { [$0.title] } ?? []) + texture.odfSections.map(\.title)
+            let record = SEMExportedFile(room: "Maps", what: "Texture PNG", source: document.fileName,
+                                         fields: [SEMSessionField("Phase", texture.phaseName), SEMSessionField("Points", "\(texture.points)"),
+                                                  SEMSessionField("ODF points", "\(texture.odfPoints)"),
+                                                  SEMSessionField("Figures", figures.joined(separator: ", "))],
+                                         methods: [.orientationMap, .texture], png: data)
+            write(data, name: name, type: .png, record: record, directory: directory, report: report)
         } catch {
             report("Export failed: \(error.localizedDescription)")
         }
     }
 
-    @MainActor private func write(_ data: Data, name: String, type: UTType, directory: URL?, report: (String) -> Void) {
+    /// Writes to the journeys' folder (the record kept at once) or opens the save panel (the record kept once it has written).
+    @MainActor private func write(_ data: Data, name: String, type: UTType, record: SEMExportedFile, directory: URL?, report: (String) -> Void) {
         if let directory {
             let url = directory.appendingPathComponent(name).appendingPathExtension(type.preferredFilenameExtension ?? "png")
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 try data.write(to: url)
+                onWritten?(record.written(to: url, at: Date()))
                 report("Exported \(url.lastPathComponent)")
             } catch {
                 report("Export failed: \(error.localizedDescription)")
             }
             return
         }
+        pendingRecord = record
         exportData = data
         exportName = name
         exportType = type
@@ -114,6 +148,36 @@ final class MapsRoomState {
 // MARK: - Words
 
 nonisolated enum MapsRoomFormat {
+    /// The methods a map figure of `layer` rests on, for the session report (D-SEM-104).
+    static func methods(of layer: OrientationMapLayer) -> [SEMMethod] {
+        switch layer {
+        case .ipf: [.orientationMap, .ipfColours]
+        case .phase, .property: [.orientationMap]
+        case .derived(.kam): [.orientationMap, .kam]
+        case .derived(.gos): [.orientationMap, .grains, .gos]
+        case .derived(.gnd): [.orientationMap, .gnd]
+        case .derived(.grains): [.orientationMap, .grains]
+        case .derived(.schmid): [.orientationMap, .grains, .schmid]
+        }
+    }
+
+    /// The Grains and Misorientation sections' settings an analysis ran with, in their words.
+    static func analysisFields(_ settings: MapAnalysisSettings) -> [SEMSessionField] {
+        [SEMSessionField("Boundary", "\(UnitDisplay.number(settings.boundaryDegrees))°"),
+         SEMSessionField("Smallest", "\(settings.minimumSize) points"),
+         SEMSessionField("KAM maximum", "\(UnitDisplay.number(settings.kamMaxDegrees))°")]
+    }
+
+    /// A map figure's settings for the session report: the layer, and for a layer the analysis makes, the settings it ran with (and the
+    /// load axis of the Schmid factors).
+    @MainActor static func recordFields(of layer: OrientationMapLayer, session: OrientationMapSession) -> [SEMSessionField] {
+        var fields = [SEMSessionField("Layer", layer.title)]
+        guard case .derived(let derived) = layer, let analysis = session.analysis else { return fields }
+        fields += analysisFields(analysis.settings)
+        if derived == .schmid { fields.append(SEMSessionField("Load", "Sample \(session.loadDirection.rawValue.uppercased())")) }
+        return fields
+    }
+
     /// The toolbar's detail: "100 × 117 · 2 phases".
     static func capsuleDetail(_ map: CrystalMap) -> String {
         let (rows, columns) = OrientationMaps.gridShape(map)

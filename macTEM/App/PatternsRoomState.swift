@@ -62,6 +62,16 @@ final class PatternsRoomState {
     private(set) var exportMap = ""
     /// The bytes of the export in flight (made before the panel opens, as the EELS room's).
     private(set) var exportData = Data()
+    /// The export the save panel is writing, as the session record keeps it once the panel says where (`didWrite`).
+    @ObservationIgnored private(set) var pendingRecord: SEMExportedFile?
+    /// Told of every file the room writes (`AppState` keeps it in the session record for the Results room and the report).
+    @ObservationIgnored var onWritten: ((SEMExportedFile) -> Void)?
+
+    /// The save panel wrote the export to `url`.
+    func didWrite(to url: URL) {
+        if let pendingRecord { onWritten?(pendingRecord.written(to: url, at: Date())) }
+        pendingRecord = nil
+    }
 
     func requestImport() { importRequest &+= 1 }
 
@@ -120,20 +130,61 @@ final class PatternsRoomState {
         } catch {
             report("Export failed: \(error.localizedDescription)"); return
         }
+        let record = exportRecord(kind, data: data, session: session, fileName: document.fileName)
         if let directory {
             let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(position: exportPosition, map: exportMap)
             let url = directory.appendingPathComponent(name).appendingPathExtension(kind.contentType.preferredFilenameExtension ?? "txt")
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 try data.write(to: url)
+                onWritten?(record.written(to: url, at: Date()))
                 report("Exported \(url.lastPathComponent)")
             } catch {
                 report("Export failed: \(error.localizedDescription)")
             }
             return
         }
+        pendingRecord = record
         exportData = data
         exporting = kind
+    }
+
+    /// The export as the session record keeps it: what it is, the map or the position it is of, the methods that made it, the PNG's
+    /// bytes.
+    @MainActor private func exportRecord(_ kind: PatternsExportKind, data: Data, session: EBSDSession, fileName: String) -> SEMExportedFile {
+        let position = SEMSessionField("Position", "row \(exportPosition.row) · col \(exportPosition.column)")
+        let processing = SEMSessionLedger.processingMethods(session.pipeline)
+        var fields: [SEMSessionField] = []
+        var methods: [SEMMethod] = []
+        switch kind {
+        case .mapPNG:
+            fields = [SEMSessionField("Map", exportMap)]
+            switch session.mapChoice {
+            case .mean: methods = [.patternReading]
+            case .bse, .tile, .mix: methods = [.virtualBSE]
+            case .imageQuality: methods = [.imageQuality]
+            case .dotProduct: methods = [.averageDotProduct]
+            }
+        case .patternPNG:
+            fields = [position, SEMSessionField("Pattern", session.patternDisplay.title)]
+            methods = [.patternReading] + (session.patternDisplay == .raw ? [] : processing)
+        case .overlayPNG, .overlayCSV:
+            let overlay = session.overlaySettings
+            let drawsSimulation = kind == .overlayPNG && overlay.kinematical && session.canDrawBandWidth
+            // The Simulation section's words: Overlay, Blend, Min d, Band width.
+            fields = [position, SEMSessionField("Overlay", drawsSimulation ? "Kinematical" : "Geometrical")]
+            if drawsSimulation { fields.append(SEMSessionField("Blend", String(format: "%.2f", overlay.blend))) }
+            fields.append(SEMSessionField("Min d", "\(UnitDisplay.number(overlay.minDSpacing)) Å"))
+            fields.append(SEMSessionField("Band width", overlay.bandWidth && session.canDrawBandWidth ? "On" : "Off"))
+            methods = [.kikuchiOverlay] + (drawsSimulation ? [.kinematicalSimulation] : [])
+        case .metadataJSON:
+            methods = [.patternReading]
+        case .methodJSON:
+            methods = processing
+        }
+        let isPicture = kind == .mapPNG || kind == .patternPNG || kind == .overlayPNG
+        return SEMExportedFile(room: "Patterns", what: SEMExportedFile.what(kind.title), source: fileName, fields: fields, methods: methods,
+                               png: isPicture ? data : nil)
     }
 
     /// The colour mix's RGBA bytes as a PNG (ImageIO), one pixel per scan point.

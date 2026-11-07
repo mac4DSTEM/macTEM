@@ -584,40 +584,38 @@ struct IndexingRoomInfo: View {
             }
             InspectorSection("Indexing") {
                 let method = session.result?.method ?? session.method
-                InspectorValueRow("Method", method == .hough ? "Hough (pyEBSDindex 0.3.10.1)" : "Dictionary (kikuchipy 0.13.1)")
+                InspectorValueRow("Method", IndexingInfoFormat.method(method))
                     .accessibilityIdentifier("indexing.info.method")
                 if let result = session.result {
                     InspectorValueRow("Phases", result.phases.map(\.name).joined(separator: ", "))
-                    InspectorValueRow("Indexed", "\(result.indexedCount.formatted()) of \(result.pointCount.formatted())")
+                    InspectorValueRow("Indexed", IndexingInfoFormat.indexed(result))
                         .accessibilityIdentifier("indexing.info.indexed")
                     let counts = result.countsByPhase
                     ForEach(result.phases.indices, id: \.self) { i in
-                        InspectorValueRow(result.phases[i].name, "\((counts.indices.contains(i) ? counts[i] : 0).formatted()) points")
+                        InspectorValueRow(result.phases[i].name, IndexingInfoFormat.points(counts.indices.contains(i) ? counts[i] : 0))
                     }
                     if let source = session.resultSource { InspectorValueRow("Patterns", source.title) }
                     if let pc = session.resultProjectionCenter {
-                        InspectorValueRow("PC", "(\(UnitDisplay.number(pc.x, digits: 4)), \(UnitDisplay.number(pc.y, digits: 4)), \(UnitDisplay.number(pc.z, digits: 4))) · mean of the file's")
+                        InspectorValueRow("PC", IndexingInfoFormat.projectionCentre(pc))
                     }
                     let plans = result.method == .dictionary ? session.dictionaryPlans : []
                     if plans.count == 1, let plan = plans.first {
-                        InspectorValueRow("Master", "\(plan.master.fileName) · \(plan.master.summary)")
+                        InspectorValueRow("Master", IndexingInfoFormat.master(plan))
                         InspectorValueRow("Energy", plan.energyWords)
-                        InspectorValueRow("Dictionary", "\(plan.rotations.count.formatted()) patterns at \(UnitDisplay.number(plan.settings.resolution))° · \(plan.settings.metric.title) · keep \(min(plan.settings.keep, plan.rotations.count))")
+                        InspectorValueRow("Dictionary", IndexingInfoFormat.dictionary(plan))
                             .accessibilityIdentifier("indexing.info.dictionary")
-                    } else if let first = plans.first {
+                    } else if !plans.isEmpty {
                         // A run against several phases (D-SEM-98): each phase's master pattern and energy, then the dictionaries.
                         ForEach(plans.indices, id: \.self) { i in
-                            InspectorValueRow("\(plans[i].phase.name) master", "\(plans[i].master.fileName) · \(plans[i].energyWords)")
+                            InspectorValueRow("\(plans[i].phase.name) master", IndexingInfoFormat.phaseMaster(plans[i]))
                                 .help(plans[i].master.summary)
                                 .accessibilityIdentifier("indexing.info.master.\(plans[i].phase.name)")
                         }
-                        let sizes = plans.map { $0.rotations.count.formatted() }.joined(separator: " + ")
-                        let keep = plans.map { min(first.settings.keep, $0.rotations.count) }.min() ?? first.settings.keep
-                        InspectorValueRow("Dictionary", "\(sizes) patterns at \(UnitDisplay.number(first.settings.resolution))° · \(first.settings.metric.title) · keep \(keep)")
+                        InspectorValueRow("Dictionary", IndexingInfoFormat.dictionaries(plans))
                             .accessibilityIdentifier("indexing.info.dictionary")
                     }
-                    InspectorValueRow("State", state(result))
-                    if let seconds = session.lastRunSeconds { InspectorValueRow("Time", "\(UnitDisplay.number(seconds, digits: 3)) s") }
+                    InspectorValueRow("State", IndexingInfoFormat.state(result, session: session))
+                    if let seconds = session.lastRunSeconds { InspectorValueRow("Time", IndexingInfoFormat.time(seconds)) }
                     if let other = session.otherRun {
                         InspectorValueRow("Also held", "\(other.method.title) · \(other.result.indexedCount.formatted()) of \(other.result.pointCount.formatted()) indexed"
                                           + (session.isStale(of: other.method) ? " · stale" : ""))
@@ -640,16 +638,6 @@ struct IndexingRoomInfo: View {
         }
     }
 
-    private func state(_ result: IndexingResult) -> String {
-        let session = appState.indexing
-        if session.isIndexing, result.method == .dictionary {
-            let phase = session.chunkPhase.map { " · \($0)" } ?? ""
-            return "Indexing, chunk \(session.chunksDone) of \(session.chunksTotal)\(phase) · row \(result.rowsDone) of \(result.scanRows)"
-        }
-        if appState.indexing.isIndexing { return "Indexing, row \(result.rowsDone) of \(result.scanRows)" }
-        if appState.indexing.wasStopped { return "Stopped at row \(result.rowsDone) of \(result.scanRows)" }
-        return appState.indexing.isStale ? "Stale: the patterns, phases or settings changed" : "Current"
-    }
 }
 
 /// The whole-number fields (Keep, Bands, ρ bins, θ bins, Early exit).

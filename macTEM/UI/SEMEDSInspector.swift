@@ -28,7 +28,7 @@ struct SEMEDSSettings: View {
     }
 }
 
-private enum SEMEDSFormat {
+nonisolated enum SEMEDSFormat {
     static func keV(_ v: Double) -> String { v.formatted(.number.precision(.fractionLength(3))) }
     static func counts(_ v: Double) -> String { v.formatted(.number.precision(.fractionLength(0))) }
     static func percent(_ v: Double) -> String { v.formatted(.number.precision(.fractionLength(2))) }

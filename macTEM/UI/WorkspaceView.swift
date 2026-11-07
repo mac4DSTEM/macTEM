@@ -123,6 +123,9 @@ struct WorkspaceView: View {
                 // First read, or a cold item about to be read again once the selection rests.
                 loadingState
             }
+        } else if appState.navigation.workspaceArea == .results, SEMSessionLedger.hasRows(appState) {
+            // The Results room with no image open: the SEM session's rows alone (D-SEM-103); with nothing open, the welcome door.
+            ResultsSessionRoom()
         } else {
             WelcomeWorkspace()
         }

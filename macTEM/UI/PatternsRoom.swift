@@ -90,7 +90,9 @@ struct PatternsRoom: View {
                       contentType: state.exporting?.contentType ?? .json,
                       defaultFilename: (session.fileName as NSString).deletingPathExtension + (state.exporting?.suffix(position: state.exportPosition, map: state.exportMap) ?? "")) { result in
             switch result {
-            case .success(let url): appState.statusText = "Exported \(url.lastPathComponent)"
+            case .success(let url):
+                appState.statusText = "Exported \(url.lastPathComponent)"
+                state.didWrite(to: url)
             case .failure(let error): appState.present(error)
             }
         }
