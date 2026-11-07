@@ -473,6 +473,10 @@ struct IndexedPatternPane: View {
                 } else {
                     Rectangle().fill(.quaternary)
                 }
+                // The Kikuchi simulation of the run's solution here, under the detected bands (IndexingSimulationOverlay.swift).
+                if case .success(let overlay)? = session.simulationOverlay {
+                    KikuchiOverlayLayer(pattern: overlay, settings: session.patterns.overlaySettings, geometry: geometry, size: box, ids: .indexing)
+                }
                 if session.showsDetectedBands, !session.detectedBands.isEmpty {
                     DetectedBandsOverlay(bands: session.detectedBands, geometry: geometry)
                         .allowsHitTesting(false)

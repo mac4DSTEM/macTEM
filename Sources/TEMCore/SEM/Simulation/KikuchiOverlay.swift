@@ -195,22 +195,31 @@ package nonisolated enum KikuchiOverlay {
         let id = map.allPhaseIDs[index]
         guard id != PhaseList.notIndexedID, let phase = map.phases[id: id] else { return .failure(.notIndexed) }
         guard let b = bands(id, phase) else { return .failure(.noLattice(phase: phase.name)) }
+        return .success(pattern(phase: phase.name, rotation: map.rotations[index], bands: b, detector: dataset.detector, pc: pc, maxR: maxR,
+                                beamEnergyKeV: beamEnergyKeV, master: master?(id, phase, b)))
+    }
+
+    /// The overlay of one orientation: `bands` of the phase named `phase` at `rotation` (orix's, crystal to sample) on `detector` with
+    /// projection centre `pc`, the lines ending on the circle of `maxR`. With `beamEnergyKeV` each line carries its band's two edges;
+    /// with `master` the pattern carries its kinematical simulation on `detector`'s rows and columns. The Patterns room's overlay (a
+    /// file's orientation) and the Indexing room's (a run's solution) both come through here.
+    package static func pattern(phase: String, rotation: SIMD4<Double>, bands b: Bands, detector: EBSDDetectorGeometry, pc: SIMD3<Double>,
+                                maxR: Double, beamEnergyKeV: Double? = nil, master: EBSDMasterPattern? = nil) -> Pattern {
         let theta = beamEnergyKeV.flatMap { $0 > 0 ? braggAngles(b, beamEnergyKeV: $0) : nil }
-        let simulation = GeometricalKikuchiSimulation.simulate(reflectors: b.reflectors, rotation: map.rotations[index],
-                                                               detector: dataset.detector, pc: pc, maxRGnomonic: maxR, braggAngles: theta)
+        let simulation = GeometricalKikuchiSimulation.simulate(reflectors: b.reflectors, rotation: rotation, detector: detector, pc: pc,
+                                                               maxRGnomonic: maxR, braggAngles: theta)
         let labels = simulation.lines.map { b.labels[b.reflectors.family[$0.reflector]] }
         let families = simulation.lines.map { b.families[b.reflectors.family[$0.reflector]] }
         var simulated: [Float]?
-        if let mp = master?(id, phase, b) {
-            var detector = dataset.detector
-            detector.projectionCenters = [pc]
-            simulated = (try? MasterPatternProjection.project(master: mp, rotations: [map.rotations[index]], detector: detector, output: .float32))
+        if let master {
+            var one = detector
+            one.projectionCenters = [pc]
+            simulated = (try? MasterPatternProjection.project(master: master, rotations: [rotation], detector: one, output: .float32))
                 .map { $0.values.map { Float($0) } }
         }
-        return .success(Pattern(phase: phase.name, simulation: simulation, lineLabels: labels, lineFamilies: families,
-                                lineTheta: theta.map { t in simulation.lines.map { t[$0.reflector] } }, simulated: simulated,
-                                simulatedRows: simulated == nil ? 0 : dataset.detector.rows,
-                                simulatedColumns: simulated == nil ? 0 : dataset.detector.columns))
+        return Pattern(phase: phase, simulation: simulation, lineLabels: labels, lineFamilies: families,
+                       lineTheta: theta.map { t in simulation.lines.map { t[$0.reflector] } }, simulated: simulated,
+                       simulatedRows: simulated == nil ? 0 : detector.rows, simulatedColumns: simulated == nil ? 0 : detector.columns)
     }
 
     // MARK: Export

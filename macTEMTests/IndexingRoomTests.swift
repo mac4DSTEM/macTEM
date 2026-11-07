@@ -30,6 +30,17 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         return (patterns, indexing)
     }
 
+    /// Whether the detected band from `start` to `end` (pattern pixels) lies on the simulated `line`: parallel within 3° and its midpoint
+    /// within 3 px of the line.
+    private static func lies(from start: SIMD2<Double>, to end: SIMD2<Double>, on line: GeometricalKikuchiSimulation.Line) -> Bool {
+        func unit(_ v: SIMD2<Double>) -> SIMD2<Double> { v / (v.x * v.x + v.y * v.y).squareRoot() }
+        let a = SIMD2(line.pixel[0], line.pixel[1]), b = SIMD2(line.pixel[2], line.pixel[3])
+        let u = unit(b - a), d = unit(end - start), mid = (start + end) / 2 - a
+        let sine = abs(u.x * d.y - u.y * d.x)
+        let distance = abs(mid.x * u.y - mid.y * u.x)
+        return sine < sin(3 * Double.pi / 180) && distance < 3
+    }
+
     private func quaternions(_ values: [Double]) -> [SIMD4<Double>] {
         stride(from: 0, to: values.count, by: 4).map { SIMD4(values[$0], values[$0 + 1], values[$0 + 2], values[$0 + 3]) }
     }
@@ -131,6 +142,38 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(matched.count, solutions[first].matchedBands, "the overlay names the bands the solution counts, no more")
         XCTAssertLessThanOrEqual(matched.filter { $0.fitDegrees != nil }.count, 6, "QUEST weighs at most six bands")
         XCTAssertTrue(indexing.detectedBands.filter(\.isValid).allSatisfy { $0.start != nil && $0.end != nil }, "a valid band crosses its pattern")
+
+        // The simulation overlay (#201): off by default; on, the run's solution here drawn on the pattern as indexed (kikuchipy's
+        // geometrical simulation at the run's mean PC), every band the solution matched lying on a simulated line, within 3° and 3 px.
+        // Red before: no overlay in the room; red with the conjugate rotation, or with the detector's y mirrored.
+        XCTAssertNil(indexing.simulationOverlay, "off by default")
+        indexing.showsSimulation = true
+        guard case .success(let overlay)? = indexing.simulationOverlay else {
+            return XCTFail("no overlay: \(String(describing: indexing.simulationOverlay))")
+        }
+        XCTAssertEqual(overlay.phase, "ni")
+        XCTAssertGreaterThanOrEqual(overlay.simulation.lines.count, 4)
+        XCTAssertTrue(Set(overlay.lineLabels).isSubset(of: ["{111}", "{200}", "{220}", "{311}"]), "\(overlay.lineLabels)")
+        for band in matched {
+            let s = try XCTUnwrap(band.start), e = try XCTUnwrap(band.end)
+            XCTAssertTrue(overlay.simulation.lines.contains { Self.lies(from: s, to: e, on: $0) },
+                          "the matched band \(band.family ?? "") has no simulated line on it")
+        }
+        var shared = patterns.overlaySettings
+        shared.kinematical = true
+        patterns.setOverlaySettings(shared)
+        guard case .success(let blended)? = indexing.simulationOverlay else { return XCTFail("no kinematical overlay") }
+        XCTAssertEqual(blended.simulated?.count, indexing.patternShape.rows * indexing.patternShape.columns,
+                       "the kinematical simulation on the indexed pattern's detector")
+        shared.kinematical = false
+        patterns.setOverlaySettings(shared)
+        if let missed = (0..<solutions.count).first(where: { solutions[$0].phase < 0 }) {
+            patterns.pin(EBSDPosition(row: missed / result.scanColumns, column: missed % result.scanColumns))
+            await indexing.showPattern().value
+            XCTAssertEqual(indexing.simulationOverlay, .failure(.notIndexed))
+        }
+        indexing.showsSimulation = false
+        XCTAssertNil(indexing.simulationOverlay)
 
         // The exports, written where a journey writes them.
         let state = IndexingRoomState()
