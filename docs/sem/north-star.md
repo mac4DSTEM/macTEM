@@ -61,6 +61,18 @@ Kikuchipy *Pattern processing*: the static and dynamic background figures above 
 the FFT filters, and the moving-screen projection-centre estimate on `si_in.h5` (bundles to be emitted with the
 phase, same stack).
 
+Intensity and size stages of the Patterns room's Processing sections (P2-01), each on kikuchipy's own corrected
+patterns (static then dynamic subtract) so a stage is checked alone:
+
+| Part | Reference | Bundle | Arrays and tolerance |
+| --- | --- | --- | --- |
+| Rescale to the dtype range, without and with percentiles (2, 98) | `EBSD.rescale_intensity` | `m2/intensity-nickel-ebsd-large` | `rescaled`, `rescaled_percentiles` uint8 [3, 3, 60, 60], atol 1; input `corrected` exact |
+| Normalise to zero mean (`num_std` 1; 2 with `divide_by_square_root`) on float32 | `EBSD.normalize_intensity` | same | `normalized`, `normalized_std2_sqrt` float32, rtol 1e-5 |
+| Downsample by 2 and 3 (bin sums rescaled to uint8) | `EBSD.downsample` | same | `downsampled_2` [3, 3, 30, 30], `downsampled_3` [3, 3, 20, 20] uint8, atol 1 |
+| The room's default run: static, dynamic, rescale 2 to 98 %, bin 2 | the chain above | same | `chain` uint8 [3, 3, 30, 30], atol 1 |
+
+The fixture's nine patterns carry the same arrays in `m2/intensity-kikuchipy-h5ebsd`.
+
 Plan figure F3, the image quality and average neighbour dot product maps of the corrected scan (kikuchipy *Feature maps*):
 
 | Part | Reference | Bundle | Arrays and tolerance |
