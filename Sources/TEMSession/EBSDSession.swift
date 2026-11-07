@@ -149,6 +149,7 @@ package final class EBSDSession {
     package func setVirtualGrid(_ grid: VirtualBSEGrid) {
         guard grid != virtualGrid, let document else { virtualGrid = grid; return }
         virtualGrid = grid
+        virtualImages = nil
         mixTiles = [nil, nil, nil]
         mixRGBA = nil
         if case .tile = mapChoice { mapChoice = .mean }
