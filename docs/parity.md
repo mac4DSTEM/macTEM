@@ -446,6 +446,7 @@ al. 2020 (pattern matching refinement), the NCC as kikuchipy computes it.
 | `EBSDRefinement.refineProjectionCenters` | `EBSD.refine_projection_center` | `testProjectionCentreRefinement…` | scores rtol 1e-4; PCs rtol 1e-4 on 95 % of values, all within 1e-3 | replica: median 0, largest 5e-4 |
 | `EBSDRefinement.refineOrientationsAndProjectionCenters` | `EBSD.refine_orientation_projection_center` | `testOrientationAndProjectionCentreRefinement…` | 90 % of points within 0.1°, all within 1°; 90 % of scores rtol 1e-4, all 1e-2, mean 1e-4; 90 % of PC values rtol 2e-3, all 5e-2 | D-SEM-87 |
 | `EBSDRefinement.refineOrientations(map:)` and the PC twin | `compute_refine_*_results` | `testCrystalMapInAndOut` | grid, unit, phase list, −1 and identity at points not indexed, `scores` and `num_evals` | the master pattern's phase at the refined id |
+| `refineOrientations(map:)` on a dictionary-indexed map (`DictionaryIndexing.Result.crystalMap`) | `dictionary_indexing` then `refine_orientation` (from `rotations[:, 0]`, the best match) | `testRefiningADictionaryIndexedMapMatchesKikuchipy` (`m4/refine-dictionary-nickel-block`) | under 0.1° (m-3m), scores rtol 1e-4; `is_in_data` and phase ids exact | F9's 6 x 6 corrected block, keep_n 5, two points masked out, F15 detector, trust region 1° (macTEM#213) |
 
 ### Known limits and decisions
 

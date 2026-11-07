@@ -196,3 +196,50 @@ def case_m4_refine_nickel_block(ctx):
     b.array("ori_pc_pc", np.asarray(det_o.pc, dtype=np.float64).reshape(*nav, 3), **JOINT_PC)
     b.write()
     ctx.done("m4/refine-nickel-block")
+
+
+def case_m4_refine_dictionary_nickel_block(ctx):
+    """The refinement of a dictionary-indexed map (macTEM#213): the 6 x 6 block of figure F9's corrected scan (the block
+    of `m4/dictionary-indexing-nickel-ebsd-large`) indexed against the Ni dictionary (keep_n 5, two points left out by a
+    navigation mask), then its orientations refined from the best match (kikuchipy takes `rotations[:, 0]`) on the F15
+    detector of the dictionary, trust region 1 degree."""
+    import kikuchipy as kp
+    from dictionary_cases import BLOCK, DETECTOR, _corrected, _dictionary
+
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    case = "m4/refine-dictionary-nickel-block"
+    if not ctx.have(p, case):
+        return
+    mp, _, sim = _dictionary()
+    s = _corrected(kp.load(str(p)))
+    r, k = BLOCK
+    blk = s.inav[k, r].deepcopy()
+    nav = list(blk.axes_manager.navigation_shape[::-1])
+    nav_mask = np.zeros(nav, dtype=bool)
+    nav_mask[0, 0] = True
+    nav_mask[2, 3] = True
+    xmap = blk.dictionary_indexing(sim, metric="ncc", keep_n=5, navigation_mask=nav_mask)
+    det = kp.detectors.EBSDDetector(**DETECTOR)
+    kw = {"show_progressbar": False} if "show_progressbar" in blk.refine_orientation.__code__.co_varnames else {}
+    xr = blk.refine_orientation(xmap, det, mp, energy=ENERGY, trust_region=TRUST_ORI, **kw)
+
+    b = Bundle(case, 4, "kikuchipy", "kikuchipy.signals.EBSD.dictionary_indexing then refine_orientation", ctx.out)
+    b.input(p, SCAN_LABEL)
+    b.input(Path(__file__).resolve().parent / MASTER_LABEL, MASTER_LABEL)
+    b.value("block", {"rows": [r.start, r.stop], "cols": [k.start, k.stop]})
+    b.value("detector", {kk: (list(v) if isinstance(v, (tuple, list)) else v) for kk, v in DETECTOR.items()})
+    b.value("energy", ENERGY)
+    b.value("trust_region", TRUST_ORI)
+    b.value("keep_n", 5)
+    b.array("patterns", np.asarray(blk.data), **EXACT, note="kikuchipy's corrected uint8 patterns, rows 20..25, cols 30..35")
+    b.array("navigation_mask", nav_mask.astype(np.uint8), **EXACT, note="1 = point left out of the indexing")
+    b.array("start_quaternions", np.asarray(xmap.rotations[:, 0].data, dtype=np.float64), **START,
+            note="the best dictionary match of each point in the data (orix quaternions): the refinement's start")
+    b.array("start_simulation_indices", np.asarray(xmap.simulation_indices[:, 0], dtype=np.int32), **EXACT)
+    b.array("refined_is_in_data", np.asarray(xr.is_in_data, dtype=np.uint8), **EXACT)
+    b.array("refined_euler", np.asarray(xr.rotations.to_euler(), dtype=np.float64), **EULER,
+            note="Bunge radians of the points in the data; the test holds the symmetry-reduced angle under 0.1 degree")
+    b.array("refined_scores", np.asarray(xr.scores, dtype=np.float64), **SCORE)
+    b.array("refined_phase_id", np.asarray(xr.phase_id, dtype=np.int32), **EXACT)
+    b.write()
+    ctx.done(case)

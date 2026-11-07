@@ -52,7 +52,7 @@ from detector_cases import (  # noqa: E402,F401  (milestone 2 detector geometry 
 from hough_cases import (  # noqa: E402,F401  (milestone 4 Hough indexing and figure F8)
     case_m4_hough_indexing_nickel_large, case_m4_hough_library, case_m4_hough_nickel_block)
 from refinement_cases import (  # noqa: E402,F401  (milestone 4 refinement and figure F10)
-    case_m4_nelder_mead, case_m4_refine_nickel_block)
+    case_m4_nelder_mead, case_m4_refine_dictionary_nickel_block, case_m4_refine_nickel_block)
 from dictionary_cases import (  # noqa: E402,F401  (milestone 4 dictionary indexing, figure F9)
     case_m4_dictionary_indexing_nickel_large, case_m4_dictionary_indexing_small)
 from similarity_cases import (  # noqa: E402,F401  (milestone 4 orientation similarity map and merge of dictionary maps)
