@@ -167,6 +167,7 @@ rotations); experimental patterns after kikuchipy's static then dynamic backgrou
 | --- | --- | --- |
 | The 3 x 3 nickel cut on kikuchipy's corrected patterns: NCC (float32, keep_n 20), NCC in float64, NDP, NCC with a circular signal mask and two points masked out, NCC in chunks of 1000 | `m4/dictionary-indexing-kikuchipy-h5ebsd` | scores rtol 1e-4 (float32 runs), 1e-5 (float64); simulation indices exact except ranks whose scores tie within the tolerance; the crystal map's best rotations atol 1e-7 and Euler angles 1e-6 (orix's sample against the port's) |
 | F9: the whole 55 x 75 scan through the app's own background chain, keep_n 5; a 6 x 6 block of kikuchipy's corrected patterns | `m4/dictionary-indexing-nickel-ebsd-large` | whole scan: best match equal at 99.5 % of points or more, best scores rtol 1e-2 (D-SEM-18's one-grey-level background differences, the first CI run measured 6.1e-3 at worst on a point scoring 0.099; a random 0.2 % perturbation had moved them 1.04e-3 and 2 of 4125 best matches); block: as the cut |
+| The orientation similarity map of the F9 scan and of a synthetic map in five settings; the merge of three synthetic dictionary maps (two phases, an equal and a renamed repeat, mean of best 3, lowest 2, navigation masks) | `m4/orientation-similarity-map`, `m4/merge-crystal-maps` | exact |
 
 ### Figure 5 (milestone 5): maps and grains
 
@@ -182,6 +183,17 @@ defaults: boundaries at 10°, grains of at least 10 points; the symmetric KAM at
 | Boundaries, grains, network, KAM (DefDAP's and symmetric), grain average orientation, GROD, GOS on a committed 90 × 120 corner of the Ti map (`fixtures/grain_inputs.json`) | `ebsd.Map.find_boundaries`, `find_grains`, `build_neighbour_network`, `calc_kam`; `Grain.calc_average_ori`, `calc_grod` | `m5/grains-ti` | images, grains, sizes, network exact; KAM, GROD, GOS atol 1e-6 rad; average orientation 1e-10 |
 | The same on the two-phase steel (austenite and ferrite, phase boundaries) | as above | `m5/grains-sdss` | as above |
 | **F11** grain map with sizes of the whole 381 × 507 Ti map (62 grains, the largest 78 515 points) and **F12** KAM and GOS maps (GOS up to 4.95°, mean 0.90°; mean KAM 4.14° DefDAP's, 2.39° symmetric, 0.81° at 5°) | as above | `m5/grains-ti-full` | grain map exact (sha256), sizes exact; KAM and GROD every 37th value atol 1e-6; GOS atol 1e-6 |
+
+Pole figures and the ODF (P5-02) are orix 0.15.0's `pole_density_function` and the kernel density estimate of
+Hielscher and Schaeben (2008), first on orix-data's Ti map like F11 and F12. The brief's {100}, {110}, {111} are the cubic
+families (the m-3m case); for hcp Ti the families are {0001}, {10-10}, {11-20}, and the ODF sections are φ2 = 0°, 30°
+(hexagonal's usual sections) and the brief's 45°. The reference figure is drawn by `texture_figure.py`.
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| Pole figures {0001}, {10-10}, {11-20}, IPF-Z density (6/mmm), ODF φ2 = 0°, 30°, 45° of the 2000 committed Ti orientations | `orix.measure.pole_density_function`; the de la Vallee Poussin kernel density | `m5/texture-ti` | counts exact up to edge vectors; densities atol 1e-7; ODF rtol 1e-4 |
+| Pole figures {100}, {110}, {111}, IPF-Z density (m-3m), ODF φ2 = 45° of the 100 seeded cubic orientations; the ODF's mean over SO(3) and its peak | as above | `m5/texture-cubic` | as above |
+| **F13** pole figures of the whole Ti map ({0001} max 108.0 mrd, {10-10} 44.9, {11-20} 33.2), IPF-Z density (max 24.0 mrd) and the ODF φ2 = 30° section of every tenth point (max 2.29 mrd; φ2 = 0° peaks at 51.5 mrd at φ1 30°, Φ 85°) | as above | `m5/texture-ti-full` | as above |
 
 Slip analysis and dislocation content (P5-03), DefDAP 1.3.1 on inputs that need no download
 (`fixtures/slip_inputs.json`: a 90 x 120 corner of orix-data's Ti map and the whole sdss map):

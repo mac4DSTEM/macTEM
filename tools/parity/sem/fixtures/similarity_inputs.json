@@ -1,0 +1,38 @@
+{
+ "about": "Inputs of tools/parity/sem/similarity_cases.py (milestone 4): the synthetic maps on which kikuchipy 0.13.1's orientation_similarity_map and merge_crystal_maps run. Each map is drawn from numpy's default_rng with the seed given; the drawn arrays are stored in the bundles, so the Swift tests read them from there. The OSM of figure F9 runs on the committed simulation indices of m4/dictionary-indexing-nickel-ebsd-large.",
+ "orientation_similarity_map": {
+  "seed": 213,
+  "shape": [7, 9],
+  "keep_n": 6,
+  "pool": 16,
+  "runs": {
+   "default": {},
+   "range": {"n_best": 5, "from_n_best": 2, "normalize": true},
+   "square": {"footprint": [[1, 1, 1], [1, 1, 1], [1, 1, 1]], "center_index": 4},
+   "even": {"n_best": 3, "footprint": [[1, 1], [1, 1]], "center_index": 3},
+   "corner": {"footprint": [[1, 1, 0], [0, 1, 0], [0, 0, 1]], "center_index": 0}
+  },
+  "f9": "references/m4/dictionary-indexing-nickel-ebsd-large/ncc_simulation_indices.bin"
+ },
+ "merge_crystal_maps": {
+  "seed": 2131,
+  "shape": [6, 7],
+  "keep_n": 5,
+  "maps": 3,
+  "score_levels": 40,
+  "index_pool": 300,
+  "phases": {
+   "ni": {"name": "ni", "space_group": 225, "lattice": [3.52, 3.52, 3.52, 90, 90, 90]},
+   "al": {"name": "al", "space_group": 225, "lattice": [4.05, 4.05, 4.05, 90, 90, 90]},
+   "ni_other": {"name": "ni", "space_group": 225, "lattice": [3.6, 3.6, 3.6, 90, 90, 90]}
+  },
+  "runs": {
+   "two": {"maps": ["ni", "al"], "options": {}},
+   "equal": {"maps": ["ni", "al", "ni"], "options": {"mean_n_best": 3}},
+   "renamed": {"maps": ["ni", "al", "ni_other"], "options": {}},
+   "lowest": {"maps": ["ni", "al"], "options": {"mean_n_best": -2}},
+   "masked": {"maps": ["ni", "al", "ni_other"], "options": {"greater_is_better": true},
+              "masked_points": [[[0, 0], [0, 1], [0, 2], [0, 3], [3, 2]], null, [[5, 0], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [0, 1]]]}
+  }
+ }
+}

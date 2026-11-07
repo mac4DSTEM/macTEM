@@ -1,0 +1,118 @@
+{
+  "arrays": {
+    "corner_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "corner_osm.bin",
+      "note": "float32 as kikuchipy returns it, n_best..from_n_best on the last axis; -1 for NaN",
+      "rtol": 0.0,
+      "sha256": "5c675464e45c8bfc041cee6534fa137014060c86d99b1f73959694874f420244",
+      "shape": [
+        7,
+        9
+      ]
+    },
+    "default_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "default_osm.bin",
+      "note": "float32 as kikuchipy returns it, n_best..from_n_best on the last axis; -1 for NaN",
+      "rtol": 0.0,
+      "sha256": "a0a2e6bdb489d8b5257f49bc106b802dc442c9bab31c81ac60ee6789fbd6784d",
+      "shape": [
+        7,
+        9
+      ]
+    },
+    "even_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "even_osm.bin",
+      "note": "float32 as kikuchipy returns it, n_best..from_n_best on the last axis; -1 for NaN",
+      "rtol": 0.0,
+      "sha256": "5dea56798f2d4eea9f2f00c8432b905bcc9b6da2fdaff2ab25003071152c5044",
+      "shape": [
+        7,
+        9
+      ]
+    },
+    "f9_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "f9_osm.bin",
+      "note": "float32 as kikuchipy returns it, n_best..from_n_best on the last axis; -1 for NaN",
+      "rtol": 0.0,
+      "sha256": "e4f77132aa725c829c610ff43865e91a423e7a78ab1c20263b304d89926e758d",
+      "shape": [
+        55,
+        75
+      ]
+    },
+    "range_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "range_osm.bin",
+      "note": "float32 as kikuchipy returns it, n_best..from_n_best on the last axis; -1 for NaN",
+      "rtol": 0.0,
+      "sha256": "cf243e292343171647c73ba91feb8a463495fac9e0a2e5a3c74d267fcbb6b7ea",
+      "shape": [
+        7,
+        9,
+        4
+      ]
+    },
+    "simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "simulation_indices.bin",
+      "note": "synthetic: keep_n distinct of the pool per point, row-major",
+      "rtol": 0.0,
+      "sha256": "999d6db6ec828f4b8c9c520f9a63000b0eba4348a7bb4f27f9bcba21f20abd77",
+      "shape": [
+        63,
+        6
+      ]
+    },
+    "square_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "square_osm.bin",
+      "note": "float32 as kikuchipy returns it, n_best..from_n_best on the last axis; -1 for NaN",
+      "rtol": 0.0,
+      "sha256": "46b6ed6c41c21f7595e24f0dcd0c997385a02d2b20eadf95b6972e927612dfb4",
+      "shape": [
+        7,
+        9
+      ]
+    }
+  },
+  "case": "m4/orientation-similarity-map",
+  "inputs": [
+    {
+      "path": "fixtures/similarity_inputs.json",
+      "sha256": "0b47d7c048391615cf301cb94fe7160fe6f46f3662586c3d25646fac5f12327e"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "kikuchipy.indexing.orientation_similarity_map",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {}
+}
