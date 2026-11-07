@@ -254,3 +254,28 @@ Lorimer 1975 for the k-factor ratio); SpectroKit's model-fit quantification is u
 | `intensities` | `get_lines_intensity` | `testFigureF16…`, `testExspyDocstringIntensities` | rtol 1e-7 (measured bit-equal) | a window off the axis or narrower than one channel is refused where HyperSpy raises |
 | `cliffLorimer`, `weightToAtomic`, `quantify` | `quantification_cliff_lorimer` (× 100), `material.weight_to_atomic` | `testFigureF17…`, `testCliffLorimerFloor…` | rtol 1e-7 | no absorption correction; k-factors typed (D-SEM-7, D-SEM-59) |
 | `Conditions.takeOffAngleDeg` | `get_take_off_angle` / `take_off_angle` | `testTM002Conditions…` | rtol 1e-7 | exspy's defaults (130 eV, 35°, 0°, 0°) for what a file leaves out |
+
+## Pattern filters (FFT filter, CLAHE, neighbour averaging)
+
+References: the `m2/fft-filter-*`, `m2/clahe-*` and `m2/average-neighbours-*` bundles of `tools/parity/sem/emit.py` (kikuchipy
+0.13.1, scikit-image 0.26.0, scipy 1.18.1) on the committed 3 x 3 cut and on `nickel_ebsd_large` (pattern (0, 0) for the
+per-pattern filters, the scan's 4 x 4 corner for averaging); each bundle carries its input patterns. Tests in
+`SEMPatternFilterParityTests`. kikuchipy's FFTs run in float32 and its rescaling in float32 numba fastmath, so the float64 port agrees within one grey level where an upstream value
+lands on the other side of an integer, and exactly where upstream's arithmetic is reproduced (CLAHE).
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `PatternWindow.lowpass`, `.highpass`, `*` | `filters.window.lowpass_fft_filter`, `highpass_fft_filter`, `Window * Window` | `testWindowsMatchKikuchipy` | rtol 1e-12 | `cutoffWidth` defaults to `cutoff / 2`; distances from `shape // 2` |
+| `PatternWindow.gaussian`, `.modifiedHann`, `.rectangular`, `.circular`, custom | `scipy.signal.windows.gaussian` / `boxcar` (symmetric, `fftbins=False`), `filters.window.modified_hann`, `Window.make_circular` | `testWindowsMatchKikuchipy`, averaging tests | rtol 1e-12; circular exact | a 2D window is the outer product of the axes' 1D windows, as upstream; the other SciPy window names are not ported |
+| `PatternFilters.fftFilter` / `...Values`, frequency (`shift` on and off) | `EBSD.fft_filter(function_domain="frequency")`, `pattern._pattern.fft_filter` | `testFFTFilter…`, `testFigureF4…` | values 1e-5 relative or 1e-3 grey levels (measured 7.4e-6 relative); uint8 within one grey level on at most 1 % of the pixels, D-SEM-18's rule (measured 0.005 % of all 4125 patterns with the guide's filter, pattern (0, 0) exact; at most 0.22 % with the asymmetric spatial kernel) | full complex FFT on ImagoKit's `FFT2DDouble`; with `shift` the transfer function's centre multiplies the zero frequency |
+| `PatternFilters.fftFilter` / `...Values`, spatial | `EBSD.fft_filter(function_domain="spatial")`, `filters.fft_barnes._fft_filter` (Barnes et al. 2016) | `testFFTFilter…` | as frequency (measured 0.004 % of all patterns with the 5 x 5 Gaussian) | padded to pattern + kernel − 1 per axis, not SciPy's `next_fast_len` (the crop never reads the extra zeros); a 3 x 4 asymmetric kernel pins the flip and the even-size offsets |
+| `AdaptiveHistogramEqualization.equalize` / `equalizedUnit` | `EBSD.adaptive_histogram_equalization`, `skimage.exposure.equalize_adapthist` (Zuiderveld 1994) | `testCLAHE…` | exact (uint8) | 2¹⁴-level quantisation rounded half to even, reflect padding, clip-limit redistribution, mappings interpolated in float32 in scikit-image's order; default kernel `(columns / 4, rows / 4)` as (rows, columns), upstream's order |
+| `NeighbourAveraging.average` / `averageValues`, `windowSums` | `EBSD.average_neighbour_patterns`, `pattern.chunk._average_neighbour_patterns` (Wright et al. 2015) | `testNeighbourAveraging…` | window sums exact; values 1e-5 relative or 1e-4 grey levels; uint8 within one grey level on at most 0.2 % (Gaussian) or 2 % (integer-weight windows) of the pixels (measured on all patterns: 0.002 %, 0.14 %) | map borders read zeros; each sum divided by the in-map window weights truncated to an integer (SciPy's integer correlate); a 1 x 1 window changes nothing |
+
+### Known limits and decisions
+
+- D-SEM-67 (2026-11-06): the ports' choices — F4's input is the raw pattern; CLAHE keeps scikit-image's float32 accumulation; the
+  spatial FFT filter pads to the exact size; windows are 2D (`n x 1` for upstream's 1D shape); the averaging bound for integer
+  windows is 2 % of a pattern set. Full text in docs/decisions.md.
+- Figure F4 (plan.md): `tools/parity/sem/filter_figure.py` draws kikuchipy's filtered pattern (0, 0) beside the one the unit test
+  `testFigureF4PatternZeroAfterFFTFilter` writes to `$TMPDIR/macTEM-F4-ours.u8` (and prints as base64).
