@@ -75,6 +75,9 @@ final class PatternsRoomState {
                                            fileName: document.fileName, position: position)
             case .mapPNG:
                 guard let canvas = session.mapPresentation.canvas else { report("Nothing to export yet: the map has not landed."); return }
+                if session.mapChoice == .imageQuality || session.mapChoice == .dotProduct, session.chosenImage == nil {
+                    report("Nothing to export yet: the quality maps have not landed."); return
+                }
                 exportMap = Self.mapName(session.mapChoice)
                 if session.mapChoice == .mix, let rgba = session.mixRGBA {
                     guard let png = Self.mixPNG(rgba: rgba, width: canvas.width, height: canvas.height) else {
@@ -120,6 +123,8 @@ final class PatternsRoomState {
         case .bse: "bse"
         case .tile(let tile): tile.label
         case .mix: "mix"
+        case .imageQuality: "image quality"
+        case .dotProduct: "average dot product"
         }
     }
 
@@ -128,7 +133,7 @@ final class PatternsRoomState {
         let unit = dataset.scanUnit
         let image = CalibratedImage(width: canvas.width, height: canvas.height, pixels: canvas.normalized,
                                     x: AxisCalibration(scale: dataset.stepX, unit: unit), y: AxisCalibration(scale: dataset.stepY, unit: unit),
-                                    fileName: fileName, source: "virtual image \(map)", voltage: dataset.sem.beamEnergyKeV.map { $0 * 1000 },
+                                    fileName: fileName, source: "scan map \(map)", voltage: dataset.sem.beamEnergyKeV.map { $0 * 1000 },
                                     notes: ["\(dataset.format.rawValue)"])
         let display = ExportSnapshot.display(canvas: canvas, presentation: presentation)
         return try ImageExport.render(source: ExportSource(image: image, software: "macTEM"), display: display, marks: [],

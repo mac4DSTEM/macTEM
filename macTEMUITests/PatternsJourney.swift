@@ -3,7 +3,7 @@
 //  The Patterns room on the generated demo dataset (docs/sem/design/ebsd-patterns-room.md §9): launch with `--demo-ebsd-fixture`, see the
 //  scan map and the live pattern pane, hover the map and read the position in the status line, pin with Space, step with the arrow keys and
 //  read the pinned position in the pattern pane's header, change the map's colormap in the Display section, then the Virtual images section: a
-//  tile on the map, the colour mix of three tiles and the tiles pane (north star F1 on the demo dataset). A screenshot at every step.
+//  tile on the map, the colour mix of three tiles and the tiles pane (north star F1 on the demo dataset), then the image quality and average dot product maps (F3). A screenshot at every step.
 //
 
 import XCTest
@@ -81,6 +81,18 @@ nonisolated final class PatternsJourney: Journey {
             waitFor("patterns.tiles", timeout: 10).click()
             waitFor("patterns.tiles.pane", timeout: 20)
             waitFor("patterns.tile.r0-c0", timeout: 20)
+        }
+        try step("Quality maps: image quality, then the average dot product, on the scan map (north star F3)") {
+            for (item, words) in [("Image quality", "image quality"), ("Average dot product", "average dot product")] {
+                try requireFrontmost()
+                waitFor("patterns.map.choice", timeout: 10).click()
+                let entry = app.menuItems[item].firstMatch
+                XCTAssertTrue(entry.waitForExistence(timeout: 10), "no \(item) in the Map menu")
+                entry.click()
+                let title = waitFor("patterns.map.title", timeout: 10)
+                XCTAssertTrue((title.label + (title.value as? String ?? "")).contains(words), title.label)
+                waitFor("patterns.map", timeout: 60)
+            }
         }
     }
 }

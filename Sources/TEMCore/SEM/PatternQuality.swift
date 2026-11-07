@@ -22,6 +22,7 @@
 //
 
 import Foundation
+import FormatoCore
 import ImagoCore
 
 package nonisolated enum PatternQuality {
@@ -239,5 +240,53 @@ package nonisolated enum PatternQuality {
             progress?(Double(r + 1) / Double(scanRows))
         }
         return out
+    }
+}
+
+// MARK: - Both maps of a dataset
+
+extension PatternQuality {
+    /// The two maps of one dataset as the Patterns room asks for them: the image quality (normalised) and the average dot product with the
+    /// four nearest neighbours (kikuchipy's defaults), of the patterns as stored, read through `access` one scan row at a time (each map
+    /// reads every row once; a row is kept only while the dot-product band needs it). `progress` runs 0 ... 0.5 over the image quality
+    /// and 0.5 ... 1 over the dot products; the task's cancellation stops between rows.
+    @concurrent package static func maps(of access: any EBSDPatternAccess, progress: (@Sendable (Double) -> Void)? = nil) async throws
+        -> (imageQuality: [Double], dotProduct: [Double]) {
+        let dataset = access.dataset
+        let rows = dataset.scanRows, columns = dataset.scanColumns
+        let iqSource = RowPatterns(access)
+        let iq = try await imageQualityMap(scanRows: rows, scanColumns: columns, patternRows: dataset.patternRows,
+                                           patternColumns: dataset.patternColumns, progress: { progress?($0 / 2) },
+                                           pattern: { r, c in try iqSource.pattern(row: r, column: c) })
+        let adpSource = RowPatterns(access)
+        let adp = try await averageNeighbourDotProductMap(scanRows: rows, scanColumns: columns, patternPixels: dataset.patternPixels,
+                                                          progress: { progress?(0.5 + $0 / 2) },
+                                                          pattern: { r, c in try adpSource.pattern(row: r, column: c) })
+        return (iq, adp)
+    }
+}
+
+/// One scan row of patterns at a time from an `EBSDPatternAccess` (one slab read per row), as doubles; the map functions ask in row
+/// order, so the last few rows are all that is kept.
+private nonisolated final class RowPatterns: @unchecked Sendable {
+    private let access: any EBSDPatternAccess
+    private let pixels: Int
+    private let lock = NSLock()
+    private var rows: [Int: [Double]] = [:]
+
+    init(_ access: any EBSDPatternAccess) {
+        self.access = access
+        pixels = access.dataset.patternPixels
+    }
+
+    func pattern(row: Int, column: Int) throws -> [Double] {
+        try lock.withLock {
+            if rows[row] == nil {
+                rows[row] = try access.row(row).doubles()
+                for key in rows.keys where key < row - 2 { rows[key] = nil }
+            }
+            let values = rows[row]!
+            return Array(values[(column * pixels)..<((column + 1) * pixels)])
+        }
     }
 }
