@@ -36,6 +36,10 @@ package nonisolated enum EDAXOpening {
             throw EDAXReadError(text: "\(url.lastPathComponent) is not an EDAX pattern file (.up1, .up2) or orientation map (.ang).")
         }
         guard let patterns = companion(of: url, extensions: EDAXBinaryReader.readableExtensions) else {
+            // A hexagonal map is refused for its grid first, the sentence it gets with its patterns too (D-SEM-9).
+            if let map = try? ANGReader.read(url: url), map.header.isHexagonal {
+                throw EDAXReadError(text: "\(url.lastPathComponent) is a hexagonal grid (\(map.header.grid ?? "HexGrid")); only square-grid EBSD maps are read.")
+            }
             throw EDAXReadError(text: "\(url.lastPathComponent) is an orientation map without its patterns: open the .up1 or .up2 of the same name next to it, which reads the map with it.")
         }
         return patterns
