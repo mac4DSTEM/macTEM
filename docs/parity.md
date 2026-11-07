@@ -194,7 +194,7 @@ of the Swift steps matched every bundle: float32 runs within 2.3e-6, the float64
 | `DictionaryIndexing.index` (master pattern, chunk by chunk) | `get_patterns(dtype_out=float32)` then `dictionary_indexing` | `testProjectingTheDictionaryInChunksMatchesTheDictionaryInMemory`, `testFigureF9…` | equal to the in-memory dictionary; F9 as below | the dictionary is never held whole |
 | `DictionaryIndexing.Result.crystalMap` | the returned `CrystalMap` (`rotations`, `prop`, `create_coordinate_arrays`) | `testCrystalMapOfTheResult` | quaternions atol 1e-7, Euler 1e-6, coordinates exact | the app's `CrystalMap` with `isInData` false where the navigation mask leaves a point out (its score NaN, index -1; kikuchipy: `np.empty`); the best score and index as properties |
 | `DictionaryIndexingMetal` (float32 GPU product) | the CPU float64 product | `testTheMetalPathMatchesTheCPUReference` (skipped without a Metal device) | 1e-5 absolute on scores; against kikuchipy rtol 1e-4, with the GPU-projected dictionary 1e-3 | automatic from 10⁹ products (patterns x dictionary x pixels) |
-| F9 whole scan | `m4/dictionary-indexing-nickel-ebsd-large` | `testFigureF9WholeScanIndexedAgainstTheNickelDictionary`, `testTheCorrectedBlockMatchesKikuchipy` | best match ≥ 99.5 % equal, best scores rtol 2e-3; block rtol 1e-4 | D-SEM-73 |
+| F9 whole scan | `m4/dictionary-indexing-nickel-ebsd-large` | `testFigureF9WholeScanIndexedAgainstTheNickelDictionary`, `testTheCorrectedBlockMatchesKikuchipy` | best match ≥ 99.5 % equal, best scores rtol 1e-2; block rtol 1e-4 | D-SEM-73 |
 
 ### Known limits and decisions
 

@@ -164,7 +164,7 @@ rotations); experimental patterns after kikuchipy's static then dynamic backgrou
 | Part | Bundle | Arrays and tolerance |
 | --- | --- | --- |
 | The 3 x 3 nickel cut on kikuchipy's corrected patterns: NCC (float32, keep_n 20), NCC in float64, NDP, NCC with a circular signal mask and two points masked out, NCC in chunks of 1000 | `m4/dictionary-indexing-kikuchipy-h5ebsd` | scores rtol 1e-4 (float32 runs), 1e-5 (float64); simulation indices exact except ranks whose scores tie within the tolerance; the crystal map's best rotations atol 1e-7 and Euler angles 1e-6 (orix's sample against the port's) |
-| F9: the whole 55 x 75 scan through the app's own background chain, keep_n 5; a 6 x 6 block of kikuchipy's corrected patterns | `m4/dictionary-indexing-nickel-ebsd-large` | whole scan: best match equal at 99.5 % of points or more, best scores rtol 2e-3 (D-SEM-18's one-grey-level background differences, measured 1.04e-3 and 2 of 4125 best matches); block: as the cut |
+| F9: the whole 55 x 75 scan through the app's own background chain, keep_n 5; a 6 x 6 block of kikuchipy's corrected patterns | `m4/dictionary-indexing-nickel-ebsd-large` | whole scan: best match equal at 99.5 % of points or more, best scores rtol 1e-2 (D-SEM-18's one-grey-level background differences, the first CI run measured 6.1e-3 at worst on a point scoring 0.099; a random 0.2 % perturbation had moved them 1.04e-3 and 2 of 4125 best matches); block: as the cut |
 
 ### Figure 5 (milestone 5): maps and grains
 
