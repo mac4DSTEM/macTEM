@@ -64,6 +64,8 @@ enum BusyOperation {
             let session = appState.indexing
             guard session.isIndexing else { return nil }
             return session.result?.method == .dictionary ? "Indexing with the dictionary…" : "Indexing with Hough…"
+        case .maps:
+            return appState.maps.isSegmenting ? "Segmenting grains…" : nil
         default:
             return nil
         }

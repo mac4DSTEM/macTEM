@@ -1,0 +1,268 @@
+//
+//  MapsAnalysisTests.swift
+//  The Maps room's grain analysis and texture (brief P5-04, `MapAnalysis`, `MapTexture`, `OrientationMapSession.segment`) on orix-data's
+//  two-phase steel (Fixtures/ebsd-sdss-ferrite-austenite.ang). The room's Segment at DefDAP's settings of bundle `m5/grains-sdss`
+//  (boundaries above 10°, grains of 10 points or more, KAM to 5°) is DefDAP 1.3.1's grain map, KAM and GOS at the bundle's tolerances
+//  (exact grain map and sizes, atol 1e-6 on angles); the table, the boundary edges, the outline, the slip and the texture are the ported
+//  functions laid out as the room draws them. Red before P5-04: none of these types or the Segment verb exists.
+//
+
+import Foundation
+import TEMCore
+import TEMSession
+import XCTest
+@testable import macTEM
+
+nonisolated final class MapsAnalysisTests: XCTestCase {
+
+    private static let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures")
+    private static var sdss: URL { fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang") }
+    private static let defdap = MapAnalysisSettings(boundaryDegrees: 10, minimumSize: 10, kamMaxDegrees: 5)
+
+    private func minusOneForNaN(_ a: [Double]) -> [Double] { a.map { $0.isNaN ? -1 : $0 } }
+
+    // MARK: - Against DefDAP
+
+    func testSegmentIsDefDAPsGrainsKAMAndGOSOfTheTwoPhaseSteel() throws {
+        let ref = try SEMParityReference.load("m5/grains-sdss")
+        XCTAssertEqual(ref.values["boundary_degrees"] as? Double, Self.defdap.boundaryDegrees)
+        XCTAssertEqual(ref.values["min_grain_size"] as? Int, Self.defdap.minimumSize)
+        XCTAssertEqual(ref.values["kam_threshold_degrees"] as? Double, Self.defdap.kamMaxDegrees)
+        let map = try ANGReader.read(url: Self.sdss).map
+        let analysis = try MapAnalysis.run(map, settings: Self.defdap)
+
+        XCTAssertEqual(analysis.table.count, ref.values["grain_count"] as? Int)
+        SEMAssertParity(analysis.grains.segmentation.grainMap.map(Double.init), try ref.array("grains"))
+        SEMAssertParity(analysis.table.map { Double($0.points) }, try ref.array("grain_sizes"))
+        SEMAssertParity(minusOneForNaN(analysis.grains.kam), try ref.array("kam_threshold"))
+        SEMAssertParity(analysis.table.map { $0.gosDegrees * .pi / 180 }, try ref.array("gos"))
+
+        // The KAM and GOS layers are those numbers in degrees, per grid cell.
+        let kam = try XCTUnwrap(analysis.values(.kam))
+        XCTAssertEqual(minusOneForNaN(kam.map { $0 * .pi / 180 }).count, analysis.rows * analysis.columns)
+        let gosMap = try XCTUnwrap(analysis.values(.gos))
+        for (k, row) in analysis.table.enumerated() {
+            let p = analysis.grains.segmentation.grains[k].points[0]
+            XCTAssertEqual(gosMap[p], row.gosDegrees, accuracy: 1e-12)
+        }
+    }
+
+    // MARK: - The table
+
+    func testTheGrainTableIsTheSegmentationsGrains() throws {
+        let map = try ANGReader.read(url: Self.sdss).map
+        let analysis = try MapAnalysis.run(map, settings: Self.defdap)
+        let seg = analysis.grains.segmentation
+        XCTAssertEqual(analysis.table.map(\.id), Array(1...seg.grains.count))
+        XCTAssertEqual(analysis.scanUnit, map.scanUnit)
+        for (k, row) in analysis.table.enumerated() {
+            let grain = seg.grains[k]
+            XCTAssertEqual(row.points, grain.size)
+            XCTAssertEqual(row.area, Double(grain.size) * map.dx * map.dx, accuracy: 1e-9)
+            XCTAssertEqual(row.diameter, 2 * (row.area / .pi).squareRoot(), accuracy: 1e-9)
+            // Every point of the grain is on the grain map under the row's number.
+            XCTAssertTrue(grain.points.allSatisfy { seg.grainMap[$0] == row.id })
+            // The mean orientation reads back: Bunge degrees of DefDAP's average quaternion.
+            let back = RotationConversions.eu2qu(row.euler * (.pi / 180))
+            let dot = abs((back * row.orientation).sum())
+            XCTAssertEqual(dot, 1, accuracy: 1e-9)
+            XCTAssertEqual(row.phaseName, grain.phaseIndex.map { map.phases[id: analysis.phaseIDs[$0]]?.name ?? "" } ?? "mixed")
+        }
+        let neighbours = analysis.table.reduce(0) { $0 + $1.neighbours }
+        XCTAssertEqual(neighbours, 2 * analysis.grains.neighbours.count, "each pair counted on both sides")
+        XCTAssertNotNil(analysis.meanLinealIntercept)
+        let astm = try XCTUnwrap(analysis.astmGrainSizeNumber)
+        XCTAssertEqual(astm, GrainSegmentation.astmGrainSizeNumber(meanLinealInterceptMillimetres: try XCTUnwrap(analysis.meanLinealIntercept) / 1000),
+                       accuracy: 1e-12)
+    }
+
+    // MARK: - Boundaries and outline
+
+    func testTheBoundaryEdgesAreDefDAPsBoundaryPixelsAtTheirPixelEdges() throws {
+        let map = try ANGReader.read(url: Self.sdss).map
+        let analysis = try MapAnalysis.run(map, settings: Self.defdap)
+        let b = analysis.grains.boundaries
+        let edges = analysis.boundaryEdges()
+        let c = analysis.columns
+        func inside(_ i: Int, right: Bool) -> Bool { right ? i % c + 1 < c : i / c + 1 < analysis.rows }
+        let expectedPhase = b.phaseX.indices.filter { b.phaseX[$0] && inside($0, right: true) }.count
+            + b.phaseY.indices.filter { b.phaseY[$0] && inside($0, right: false) }.count
+        let expectedGrain = b.grainX.indices.filter { b.grainX[$0] && !b.phaseX[$0] && inside($0, right: true) }.count
+            + b.grainY.indices.filter { b.grainY[$0] && !b.phaseY[$0] && inside($0, right: false) }.count
+        XCTAssertEqual(edges.phase.count, expectedPhase)
+        XCTAssertEqual(edges.grain.count, expectedGrain)
+        XCTAssertGreaterThan(edges.phase.count, 0, "a two-phase map has phase boundaries")
+        // Every edge lies on a half-integer line between two pixel centres.
+        for (a, e) in edges.grain + edges.phase {
+            XCTAssertTrue(a.x == e.x || a.y == e.y)
+            XCTAssertEqual(abs((a - e).sum()), 1, accuracy: 1e-12)
+        }
+    }
+
+    func testAGrainsOutlineIsClosed() throws {
+        let map = try ANGReader.read(url: Self.sdss).map
+        let analysis = try MapAnalysis.run(map, settings: Self.defdap)
+        let largest = try XCTUnwrap(analysis.table.max { $0.points < $1.points })
+        let outline = analysis.outline(of: largest.id)
+        XCTAssertFalse(outline.isEmpty)
+        // A closed boundary meets every corner an even number of times.
+        var degree: [SIMD2<Double>: Int] = [:]
+        for (a, b) in outline { degree[a, default: 0] += 1; degree[b, default: 0] += 1 }
+        XCTAssertTrue(degree.values.allSatisfy { $0 % 2 == 0 })
+        XCTAssertEqual(analysis.grain(atRow: Int(largest.centroid.y.rounded()), column: Int(largest.centroid.x.rounded())) != nil, true)
+    }
+
+    // MARK: - Slip and GND
+
+    func testTheSlipOfEachGrainIsDefDAPsForItsMeanOrientation() throws {
+        let map = try ANGReader.read(url: Self.sdss).map
+        let analysis = try MapAnalysis.run(map, settings: Self.defdap)
+        let files = OrientationMapSession.defaultSlipFiles(map)
+        let names = Dictionary(uniqueKeysWithValues: map.phases.entries.map { ($0.id, $0.phase.name.lowercased()) })
+        XCTAssertEqual(files.count, 2, "austenite and ferrite get their slip systems by name: \(names)")
+        for (id, file) in files {
+            XCTAssertEqual(file, names[id]!.contains("austenite") ? .cubicFCC : .cubicBCC)
+        }
+        let slip = analysis.slip(load: SampleDirection.x.vector, files: files, phases: map.phases)
+        XCTAssertEqual(slip.count, analysis.table.filter { $0.phaseID != nil }.count)
+        let first = try XCTUnwrap(slip.first)
+        let row = try XCTUnwrap(analysis.table.first { $0.id == first.grain })
+        let set = try XCTUnwrap(MapAnalysis.slipSystems(try XCTUnwrap(files[try XCTUnwrap(row.phaseID)]), phase: try XCTUnwrap(map.phases[id: row.phaseID!])))
+        XCTAssertEqual(first.maximumSchmid, SlipTraceAnalysis.maximumSchmidFactor(orientation: row.orientation, load: Vector3.x, systems: set), accuracy: 1e-12)
+        let traces = SlipTraceAnalysis.traces(orientation: row.orientation, systems: set)
+        XCTAssertEqual(first.planes.map(\.traceAngle), traces.map(\.angle))
+        XCTAssertTrue(slip.allSatisfy { $0.maximumSchmid > 0 && $0.maximumSchmid <= 0.5 + 1e-12 })
+
+        // The Schmid layer: each grain's points carry its largest factor.
+        let values = try XCTUnwrap(analysis.values(.schmid, slip: slip))
+        let p = analysis.grains.segmentation.grains[first.grain - 1].points[0]
+        XCTAssertEqual(values[p], first.maximumSchmid)
+    }
+
+    func testGNDIsTheNyeTensorOfTheMapsQuaternions() throws {
+        let map = try ANGReader.read(url: Self.sdss).map
+        let analysis = try MapAnalysis.run(map, settings: Self.defdap)
+        let gnd = try XCTUnwrap(analysis.gnd)
+        let expected = NyeTensor.compute(quaternions: analysis.grainMap.quaternions, rows: analysis.rows, columns: analysis.columns,
+                                         stepMicrons: analysis.grainMap.step, structure: .cubic).gnd
+        XCTAssertEqual(minusOneForNaN(gnd), minusOneForNaN(expected))
+        let layer = try XCTUnwrap(analysis.values(.gnd))
+        for i in stride(from: 0, to: gnd.count, by: 97) where gnd[i] > 0 {
+            XCTAssertEqual(layer[i], log10(gnd[i]), accuracy: 1e-12)
+        }
+    }
+
+    // MARK: - Texture
+
+    func testTheTextureIsOrixsPoleDensityOfThePhase() throws {
+        let map = try ANGReader.read(url: Self.sdss).map
+        let phase = try XCTUnwrap(map.phases.entries.first { $0.id != PhaseList.notIndexedID })
+        let texture = try MapTexture.compute(map, phaseID: phase.id, size: 61)
+        let orientations = try map.points(ofPhases: [phase.phase.name]).orientations()
+        XCTAssertEqual(texture.points, orientations.count)
+        XCTAssertEqual(texture.poleFigures.map(\.title), ["{100}", "{110}", "{111}"])
+        let group = try XCTUnwrap(phase.phase.pointGroup)
+        let l = try XCTUnwrap(phase.phase.lattice)
+        let lattice = CrystalLattice(a: l[0], b: l[1], c: l[2], alpha: l[3], beta: l[4], gamma: l[5])
+        let poles = try PoleFigures.poles(family: [1, 1, 1], lattice: lattice, group: group)
+        let density = PoleFigures.poleFigure(orientations, poles: poles)
+        XCTAssertEqual(texture.poleFigures[2].raster, TextureRaster.stereographic(density, size: 61))
+        XCTAssertEqual(texture.poleFigures[2].maximum, density.maximum)
+        XCTAssertEqual(texture.odfSections.map(\.title), ["φ₂ = 0°", "φ₂ = 45°", "φ₂ = 65°"])
+        XCTAssertLessThanOrEqual(texture.odfPoints, MapTexture.odfPointLimit)
+        XCTAssertNotNil(texture.inversePoleFigure)
+        XCTAssertNotNil(MapsFigure.textureImage(texture.poleFigures[0].raster))
+        let png = try MapsFigure.texturePNG(texture, fileName: "sdss.ang", side: 80)
+        XCTAssertEqual(Array(png.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
+    }
+
+    // MARK: - The session and the room
+
+    @MainActor func testSegmentLandsTheAnalysisAndItsLayers() async throws {
+        let session = OrientationMapSession()
+        await session.open(url: Self.sdss).value
+        XCTAssertNil(session.analysis)
+        XCTAssertTrue(session.derivedLayers.isEmpty)
+        XCTAssertTrue(session.canSegment)
+        session.setAnalysisSettings(Self.defdap)
+        await session.segment().value
+        let analysis = try XCTUnwrap(session.analysis)
+        XCTAssertFalse(session.isSegmenting)
+        XCTAssertFalse(session.analysisIsStale)
+        XCTAssertEqual(session.derivedLayers, [.grains, .kam, .gos, .gnd, .schmid])
+        XCTAssertTrue(session.layers.contains(.derived(.kam)))
+        XCTAssertFalse(session.grainBoundaryEdges.isEmpty)
+
+        // The pinned point's grain is selected and outlined; the status line names it.
+        session.pin(EBSDPosition(row: 50, column: 50))
+        let grain = analysis.grain(atRow: 50, column: 50)
+        XCTAssertEqual(session.selectedGrain, grain)
+        if grain != nil { XCTAssertFalse(session.selectedOutline.isEmpty) }
+        XCTAssertTrue(session.readout(at: EBSDPosition(row: 50, column: 50))?.contains("KAM") ?? false)
+
+        // Picking a row pins its grain.
+        let row = try XCTUnwrap(analysis.table.max { $0.points < $1.points })
+        session.selectGrain(row.id)
+        XCTAssertEqual(session.selectedGrain, row.id)
+        XCTAssertEqual(analysis.grain(atRow: session.pinned.row, column: session.pinned.column), row.id)
+
+        // A derived layer draws the analysis' own picture.
+        await session.setLayer(.derived(.kam)).value
+        XCTAssertEqual(session.raster, analysis.raster(.kam))
+        XCTAssertNotNil(session.propertyPresentation.canvas)
+
+        // Changed settings read as stale until Segment runs again.
+        var changed = Self.defdap
+        changed.boundaryDegrees = 15
+        session.setAnalysisSettings(changed)
+        XCTAssertTrue(session.analysisIsStale)
+        session.setAnalysisSettings(MapAnalysisSettings(boundaryDegrees: -3, minimumSize: 0, kamMaxDegrees: .nan))
+        XCTAssertEqual(session.analysisSettings, MapAnalysisSettings(boundaryDegrees: 0.1, minimumSize: 1, kamMaxDegrees: 5))
+
+        // Without slip systems there is no Schmid layer.
+        for id in session.slipFiles.keys { session.setSlipFile(nil, phaseID: id) }
+        XCTAssertTrue(session.slip.isEmpty)
+        XCTAssertFalse(session.derivedLayers.contains(.schmid))
+
+        session.close()
+        XCTAssertNil(session.analysis)
+        XCTAssertTrue(session.grainBoundaryEdges.isEmpty)
+    }
+
+    @MainActor func testSegmentIsTheMapsRoomsVerb() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        state.navigation.workspaceArea = .maps
+        XCTAssertNil(RoomPrimaryAction.current(state), "no verb before a map")
+        await state.maps.open(url: Self.sdss).value
+        let action = try XCTUnwrap(RoomPrimaryAction.current(state))
+        XCTAssertEqual(action.title, "Segment")
+        XCTAssertTrue(action.isEnabled)
+    }
+
+    @MainActor func testTheGrainsAndTextureExportsAreWritten() async throws {
+        let session = OrientationMapSession()
+        await session.open(url: Self.sdss).value
+        session.setAnalysisSettings(Self.defdap)
+        await session.segment().value
+        await session.showTexture().value
+        let state = MapsRoomState()
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("maps-analysis-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var reports: [String] = []
+        state.exportGrains(from: session, directory: dir) { reports.append($0) }
+        state.exportTexture(from: session, directory: dir) { reports.append($0) }
+        XCTAssertEqual(reports.count, 2)
+        XCTAssertEqual(reports.first, "Exported ebsd-sdss-ferrite-austenite grains.csv")
+        let csv = try String(contentsOf: dir.appendingPathComponent("ebsd-sdss-ferrite-austenite grains.csv"), encoding: .utf8)
+        let lines = csv.split(separator: "\n")
+        XCTAssertEqual(lines.count, 1 + (session.analysis?.table.count ?? 0))
+        XCTAssertTrue(lines[0].hasPrefix("grain,phase,points,area_"))
+        XCTAssertTrue(reports[1].hasPrefix("Exported ebsd-sdss-ferrite-austenite texture "))
+
+        // The map figure of a derived layer carries the boundaries and its range.
+        await session.setLayer(.derived(.grains)).value
+        reports = []
+        state.exportMap(from: session, directory: dir) { reports.append($0) }
+        XCTAssertEqual(reports, ["Exported ebsd-sdss-ferrite-austenite map Grains.png"])
+    }
+}

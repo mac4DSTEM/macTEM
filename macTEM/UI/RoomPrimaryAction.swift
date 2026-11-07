@@ -1,7 +1,7 @@
 //
 //  RoomPrimaryAction.swift
 //  Role: the toolbar's one verb for the room that has one (design 2026-10-22, §2.2): EDS has Quantify, EELS has Run (the stages that are not current,
-//        in order), Patterns has Process, Indexing has Index; the Image, FFT, Diffraction and Results rooms have none yet. The button and its glass styles are ShellLayout's
+//        in order), Patterns has Process, Indexing has Index, Maps has Segment; the Image, FFT, Diffraction and Results rooms have none yet. The button and its glass styles are ShellLayout's
 //        `PrimaryActionButton`; what the verb is, when it is enabled and what it says while blocked is this file's.
 //
 
@@ -92,6 +92,21 @@ enum RoomPrimaryAction {
                 operationName: BusyOperation.name(room: .indexing, appState: appState),
                 stop: { session.stop() },
                 run: { session.index() })
+        case .maps:
+            // Segment (orientation-maps-room design §2): the grain analysis of the whole map with the Grains and Misorientation
+            // sections' settings: grains, boundaries, KAM, GOS, GND, the grain table and each grain's slip.
+            let session = appState.maps
+            guard session.hasMap, !session.isOpening else { return nil }
+            return PrimaryAction(
+                title: "Segment",
+                isEnabled: session.canSegment,
+                help: session.segmentBlocker
+                    ?? (session.analysisIsStale ? "Segment again with the changed settings" : "Find the grains, their boundaries, KAM, GOS and GND"),
+                hint: "Finds the grains of the map and computes KAM, GOS, GND and each grain's Schmid factors",
+                isRunning: session.isSegmenting,
+                operationName: BusyOperation.name(room: .maps, appState: appState),
+                stop: { session.stop() },
+                run: { session.segment() })
         default:
             return nil
         }
@@ -118,7 +133,7 @@ enum RoomPrimaryAction {
         case .eels: appState.eels.isBusy
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy
-        case .maps: appState.maps.isOpening
+        case .maps: appState.maps.isOpening || appState.maps.isSegmenting
         case .diffraction: appState.openItems.selected?.diffraction.isFitting ?? false
         default: false
         }

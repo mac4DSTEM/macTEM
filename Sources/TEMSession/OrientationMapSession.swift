@@ -5,6 +5,10 @@
 //        layer the map pane draws (IPF-Z, IPF-X, IPF-Y, Phase or a property) and its picture, the colour keys of the map's phases, and the
 //        pinned and hovered scan points. The room's views read it; they hold none of it.
 //
+//        P5-04 completes it: `segment()` runs the grain analysis (`MapAnalysis`: grains, boundaries, KAM, GOS, GND, the grain table) off the
+//        main actor with the inspector's settings, the slip of each grain under the load direction follows from it, and the texture of one
+//        phase (pole figures, IPF density, ODF sections) is made when the bottom pane asks for it.
+//
 //        Nothing here makes a number: the pictures, the hover's words and the unit cell are `OrientationMaps` (TEMCore), the keys
 //        `DirectionColorKeyTSL`, the maps the readers'. This owner decides WHEN: a layer's picture is made off the main actor and lands
 //        only if no newer map or layer was asked for meanwhile (`generation`); the keys once per Laue group.
@@ -69,6 +73,35 @@ package final class OrientationMapSession {
     /// The keys of the map's indexed phases with a point group, in phase id order, once made.
     package private(set) var keys: [PhaseKey] = []
 
+    // MARK: Analysis (P5-04)
+
+    /// The grain analysis once Segment has run on this map; nil before.
+    package private(set) var analysis: MapAnalysis?
+    package private(set) var isSegmenting = false
+    /// The settings the next Segment uses.
+    package private(set) var analysisSettings = MapAnalysisSettings()
+    /// Whether the settings changed since the analysis shown was made.
+    package var analysisIsStale: Bool { analysis.map { $0.settings != analysisSettings } ?? false }
+    /// The slip-system file of each indexed phase (`MapAnalysis.defaultSlipFile`, or the inspector's pick); a phase without one has none.
+    package private(set) var slipFiles: [Int: SlipSystemFile] = [:]
+    /// The sample axis of the uniaxial load the Schmid factors are for.
+    package private(set) var loadDirection = SampleDirection.x
+    /// Every grain's slip under the load, once segmented.
+    package private(set) var slip: [GrainSlip] = []
+    /// The grain the table and the map's outline show (its number on the grain map).
+    package private(set) var selectedGrain: Int?
+    /// The boundary edges the map draws (`MapAnalysis.boundaryEdges`), made once per analysis, and the selected grain's outline.
+    package private(set) var grainBoundaryEdges: [(SIMD2<Double>, SIMD2<Double>)] = []
+    package private(set) var phaseBoundaryEdges: [(SIMD2<Double>, SIMD2<Double>)] = []
+    package private(set) var selectedOutline: [(SIMD2<Double>, SIMD2<Double>)] = []
+    /// Whether the map draws the grain and phase boundaries, and the selected grain's slip traces.
+    package var showsBoundaries = true
+    package var showsSlipTraces = true
+    /// The texture of `texturePhaseID` once made.
+    package private(set) var texture: MapTexture?
+    package private(set) var texturePhaseID: Int?
+    package private(set) var isTexturing = false
+
     package private(set) var pinned = EBSDPosition.origin
     package private(set) var hovered: EBSDPosition?
     package var shown: EBSDPosition { hovered ?? pinned }
@@ -82,6 +115,10 @@ package final class OrientationMapSession {
     @ObservationIgnored private var openTask: Task<Void, Never>?
     @ObservationIgnored private var drawTask: Task<Void, Never>?
     @ObservationIgnored private var keyTask: Task<Void, Never>?
+    @ObservationIgnored private var segmentTask: Task<Void, Never>?
+    @ObservationIgnored private var textureTask: Task<Void, Never>?
+    /// Bumped by every Segment and stop: an analysis lands only if it is the newest asked for on this map.
+    @ObservationIgnored private var segmentGeneration = 0
     /// Key images already made, by Laue group name: the same group's key serves every phase and every map.
     @ObservationIgnored private var keyCache: [String: (IPFKeyImage, [OrientationMaps.KeyLabel])] = [:]
 
@@ -90,10 +127,22 @@ package final class OrientationMapSession {
     package var hasMap: Bool { document != nil }
     package var fileName: String { document?.fileName ?? "" }
     package var map: CrystalMap? { document?.map }
-    package var isBusy: Bool { isOpening || isDrawing }
+    package var isBusy: Bool { isOpening || isDrawing || isSegmenting || isTexturing }
     package var gridShape: (rows: Int, columns: Int) { document.map { OrientationMaps.gridShape($0.map) } ?? (0, 0) }
     /// The layers the map offers (`OrientationMaps.layers`).
-    package var layers: [OrientationMapLayer] { document.map { OrientationMaps.layers(of: $0.map) } ?? [] }
+    package var layers: [OrientationMapLayer] {
+        guard let document else { return [] }
+        return OrientationMaps.layers(of: document.map) + derivedLayers.map { .derived($0) }
+    }
+
+    /// The analysis layers on offer: none before Segment; GND only with a crystal structure DefDAP knows, Schmid only with slip systems.
+    package var derivedLayers: [DerivedMapLayer] {
+        guard let analysis else { return [] }
+        var out: [DerivedMapLayer] = [.grains, .kam, .gos]
+        if analysis.gnd != nil { out.append(.gnd) }
+        if !slip.isEmpty { out.append(.schmid) }
+        return out
+    }
 
     // MARK: Opening
 
@@ -177,6 +226,8 @@ package final class OrientationMapSession {
         pinned = .origin; hovered = nil
         layer = .ipf(.z)
         raster = nil; rasterRGBA = nil; keys = []
+        resetAnalysis()
+        slipFiles = Self.defaultSlipFiles(document.map)
         grid = OrientationMaps.pointIndexGrid(document.map)
         let (rows, columns) = OrientationMaps.gridShape(document.map)
         onEvent?("Opened \(document.fileName) — orientation map \(rows) × \(columns), \(document.map.phasesInData.names.filter { $0 != PhaseList.notIndexedName }.count) phases")
@@ -189,6 +240,8 @@ package final class OrientationMapSession {
         generation += 1
         mapGeneration += 1
         openTask?.cancel(); drawTask?.cancel(); keyTask?.cancel()
+        resetAnalysis()
+        slipFiles = [:]
         document = nil; isOpening = false; isDrawing = false
         raster = nil; rasterRGBA = nil; grid = []; keys = []
         pinned = .origin; hovered = nil; layer = .ipf(.z)
@@ -201,6 +254,11 @@ package final class OrientationMapSession {
 
     package func stop() {
         if isOpening { openTask?.cancel(); isOpening = false; onEvent?("Stopped opening") }
+        if isSegmenting {
+            segmentGeneration += 1
+            segmentTask?.cancel(); isSegmenting = false
+            onEvent?("Stopped segmenting")
+        }
     }
 
     // MARK: The layer
@@ -221,10 +279,17 @@ package final class OrientationMapSession {
         let gen = generation
         let layer = self.layer
         let map = document.map
+        let analysis = self.analysis
+        let slip = self.slip
         drawTask?.cancel()
         isDrawing = true
         let task = Task.detached(priority: .userInitiated) { [weak self] in
-            let raster = OrientationMaps.raster(layer, of: map)
+            let raster: OrientationMapRaster
+            if case .derived(let derived) = layer, let analysis {
+                raster = analysis.raster(derived, slip: slip)
+            } else {
+                raster = OrientationMaps.raster(layer, of: map)
+            }
             let canvas = raster.values.map { values in
                 CanvasPixels.make(width: raster.columns, height: raster.rows, pixels: values.map(Float.init))
             }
@@ -285,21 +350,35 @@ package final class OrientationMapSession {
         let (rows, columns) = gridShape
         guard position.isInside(rows: rows, columns: columns) else { return }
         pinned = position
+        followPinnedGrain()
     }
 
-    package func pinHovered() { if let hovered { pinned = hovered } }
+    package func pinHovered() { if let hovered { pinned = hovered; followPinnedGrain() } }
 
     package func step(_ direction: EBSDPosition.Direction, by count: Int = 1) {
         let (rows, columns) = gridShape
         guard rows > 0, columns > 0 else { return }
         pinned = pinned.stepped(direction, by: count, rows: rows, columns: columns)
         hovered = nil
+        followPinnedGrain()
     }
 
     /// The status line's words for the point at `position` (`OrientationMaps.readout`).
     package func readout(at position: EBSDPosition) -> String? {
         guard let map else { return nil }
-        return OrientationMaps.readout(map, grid: grid, row: position.row, column: position.column)
+        guard let base = OrientationMaps.readout(map, grid: grid, row: position.row, column: position.column) else { return nil }
+        guard let analysis else { return base }
+        return base + Self.analysisReadout(analysis, row: position.row, column: position.column)
+    }
+
+    /// The analysis words the status line adds at a grid cell: " · grain 12 · KAM 0.84°" (the KAM where the point has one).
+    nonisolated package static func analysisReadout(_ analysis: MapAnalysis, row: Int, column: Int) -> String {
+        guard row >= 0, row < analysis.rows, column >= 0, column < analysis.columns else { return "" }
+        var out = ""
+        if let grain = analysis.grain(atRow: row, column: column) { out += " · grain \(grain)" }
+        let kam = analysis.grains.kam[row * analysis.columns + column]
+        if kam.isFinite { out += " · KAM " + (kam * 180 / Double.pi).formatted(.number.grouping(.never).precision(.fractionLength(2))) + "°" }
+        return out
     }
 
     /// What the orientation pane draws for the point at `position`: its phase, Bunge angles (radians) and rotation, and its colour on the
@@ -322,6 +401,178 @@ package final class OrientationMapSession {
             rgb = phase.pointGroup.map { IPFColorKeyTSL($0, direction: direction.vector).color(of: [map.rotations[i]])[0] } ?? .zero
         }
         return (phase, map.euler[i], map.rotations[i], rgb, direction)
+    }
+
+    // MARK: Segment
+
+    /// Whether Segment can run: a map whose points fill its grid, and no Segment running.
+    package var canSegment: Bool {
+        guard let document, !isSegmenting else { return false }
+        return document.map.size == gridShape.rows * gridShape.columns
+    }
+
+    /// Why Segment is off, in one sentence; nil when it can run.
+    package var segmentBlocker: String? {
+        guard let document else { return "Open a map first" }
+        if isSegmenting { return "Segmenting" }
+        if document.map.size != gridShape.rows * gridShape.columns { return MapAnalysis.Refusal.notAGrid.errorDescription }
+        return nil
+    }
+
+    /// Changes the settings the next Segment uses (the analysis shown stays until then and reads as stale).
+    package func setAnalysisSettings(_ settings: MapAnalysisSettings) {
+        analysisSettings = Self.clamped(settings)
+    }
+
+    /// The settings held to what the analysis takes: boundary and KAM angles 0.1° to 90°, at least one point per grain.
+    nonisolated package static func clamped(_ settings: MapAnalysisSettings) -> MapAnalysisSettings {
+        func angle(_ v: Double, _ fallback: Double) -> Double { v.isFinite ? min(max(v, 0.1), 90) : fallback }
+        return MapAnalysisSettings(boundaryDegrees: angle(settings.boundaryDegrees, 5), minimumSize: max(1, settings.minimumSize),
+                                   kamMaxDegrees: angle(settings.kamMaxDegrees, 5))
+    }
+
+    /// Runs the grain analysis with the current settings off the main actor; the returned task ends when it has landed.
+    @discardableResult
+    package func segment() -> Task<Void, Never> {
+        guard let document, canSegment else { return Task {} }
+        segmentGeneration += 1
+        let gen = segmentGeneration
+        let settings = analysisSettings
+        let map = document.map
+        isSegmenting = true
+        onEvent?("Segmenting grains…")
+        let task = Task { [weak self] in
+            do {
+                let result = try await MapAnalysis.runAsync(map, settings: settings)
+                guard let self, gen == self.segmentGeneration else { return }
+                self.landAnalysis(result)
+            } catch {
+                guard let self, gen == self.segmentGeneration else { return }
+                self.isSegmenting = false
+                if !(error is CancellationError) { self.onFailure?(error) }
+            }
+        }
+        segmentTask = task
+        return task
+    }
+
+    private func landAnalysis(_ result: MapAnalysis) {
+        analysis = result
+        isSegmenting = false
+        let edges = result.boundaryEdges()
+        grainBoundaryEdges = edges.grain
+        phaseBoundaryEdges = edges.phase
+        updateSlip()
+        followPinnedGrain()
+        let s = result.settings
+        onEvent?("Segmented \(result.table.count) grains (boundaries above \(Self.degrees(s.boundaryDegrees))°, at least \(s.minimumSize) points)")
+        if case .derived(let d) = layer, !derivedLayers.contains(d) { layer = .derived(.grains) }
+        if case .derived = layer { draw() }
+    }
+
+    private func resetAnalysis() {
+        segmentGeneration += 1
+        segmentTask?.cancel(); textureTask?.cancel()
+        analysis = nil; isSegmenting = false; slip = []; setSelectedGrain(nil)
+        grainBoundaryEdges = []; phaseBoundaryEdges = []
+        texture = nil; texturePhaseID = nil; isTexturing = false
+    }
+
+    nonisolated private static func degrees(_ v: Double) -> String { v.formatted(.number.grouping(.never).precision(.fractionLength(0...2))) }
+
+    // MARK: Grains
+
+    /// Selects grain `number` (the table's row): its outline shows on the map and the pinned point moves to its point nearest its centroid.
+    package func selectGrain(_ number: Int?) {
+        guard let number, let analysis, let row = analysis.table.first(where: { $0.id == number }) else { setSelectedGrain(nil); return }
+        setSelectedGrain(number)
+        let seg = analysis.grains.segmentation.grains[number - 1]
+        let c = row.centroid
+        let nearest = seg.points.min { a, b in
+            let da = SIMD2(Double(a % analysis.columns), Double(a / analysis.columns)) - c
+            let db = SIMD2(Double(b % analysis.columns), Double(b / analysis.columns)) - c
+            return (da * da).sum() < (db * db).sum()
+        }
+        if let p = nearest {
+            let position = EBSDPosition(row: p / analysis.columns, column: p % analysis.columns)
+            if position != pinned { pinned = position }
+        }
+    }
+
+    private func followPinnedGrain() {
+        guard let analysis else { return }
+        setSelectedGrain(analysis.grain(atRow: pinned.row, column: pinned.column))
+    }
+
+    private func setSelectedGrain(_ number: Int?) {
+        guard number != selectedGrain || (number != nil && selectedOutline.isEmpty) else { return }
+        selectedGrain = number
+        selectedOutline = number.flatMap { n in analysis?.outline(of: n) } ?? []
+    }
+
+    /// The selected grain's row and slip.
+    package var selectedRow: GrainRow? { selectedGrain.flatMap { g in analysis?.table.first { $0.id == g } } }
+    package var selectedSlip: GrainSlip? { selectedGrain.flatMap { g in slip.first { $0.grain == g } } }
+
+    // MARK: Slip
+
+    /// Each indexed phase's default slip-system file.
+    nonisolated package static func defaultSlipFiles(_ map: CrystalMap) -> [Int: SlipSystemFile] {
+        var out: [Int: SlipSystemFile] = [:]
+        for (id, phase) in map.phases.entries where id != PhaseList.notIndexedID {
+            if let file = MapAnalysis.defaultSlipFile(for: phase) { out[id] = file }
+        }
+        return out
+    }
+
+    /// Sets (or, with nil, clears) phase `phaseID`'s slip systems.
+    package func setSlipFile(_ file: SlipSystemFile?, phaseID: Int) {
+        slipFiles[phaseID] = file
+        updateSlip()
+    }
+
+    /// Sets the load axis of the Schmid factors.
+    package func setLoadDirection(_ direction: SampleDirection) {
+        guard direction != loadDirection else { return }
+        loadDirection = direction
+        updateSlip()
+    }
+
+    private func updateSlip() {
+        guard let analysis, let map else { slip = []; return }
+        slip = analysis.slip(load: loadDirection.vector, files: slipFiles, phases: map.phases)
+        if case .derived(.schmid) = layer {
+            if slip.isEmpty { layer = .derived(.grains) }
+            draw()
+        }
+    }
+
+    // MARK: Texture
+
+    /// The phases the texture tab offers: indexed, with a point group.
+    package var texturePhases: [(id: Int, phase: CrystalPhase)] {
+        map?.phasesInData.entries.filter { $0.id != PhaseList.notIndexedID && $0.phase.pointGroup != nil } ?? []
+    }
+
+    /// Makes the texture of phase `phaseID` (the first textured phase when nil) off the main actor, unless it is the one shown or being made.
+    @discardableResult
+    package func showTexture(phaseID: Int? = nil) -> Task<Void, Never> {
+        guard let document, let id = phaseID ?? texturePhaseID ?? texturePhases.first?.id else { return Task {} }
+        if id == texturePhaseID, texture != nil || isTexturing { return Task {} }
+        texturePhaseID = id
+        texture = nil
+        isTexturing = true
+        textureTask?.cancel()
+        let map = document.map
+        let task = Task { [weak self] in
+            let made = try? await MapTexture.computeAsync(map, phaseID: id)
+            guard let self, !Task.isCancelled, self.texturePhaseID == id, self.document?.fileName == document.fileName else { return }
+            self.texture = made
+            self.isTexturing = false
+            if made == nil { self.onEvent?("No texture for this phase") }
+        }
+        textureTask = task
+        return task
     }
 
     /// How many points of the map are not indexed.
