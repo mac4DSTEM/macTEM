@@ -188,7 +188,12 @@
     }
   },
   "case": "m4/nelder-mead",
-  "inputs": [],
+  "inputs": [
+    {
+      "path": "fixtures/nelder_mead_inputs.json",
+      "sha256": "284e8b763fdef95abdc740cb750c462cf2ae69a002e5364f4d00589da3f4c5ae"
+    }
+  ],
   "milestone": 4,
   "reference": {
     "function": "scipy.optimize.minimize(method='Nelder-Mead')",

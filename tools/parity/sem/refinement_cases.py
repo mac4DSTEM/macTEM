@@ -21,11 +21,14 @@ follow the path and are stored for the record, not compared.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
 
 from refbundle import Bundle
+
+HERE = Path(__file__).resolve().parent
 
 EXACT = {"rtol": 0.0, "atol": 0.0}
 NM = {"rtol": 1e-12, "atol": 1e-14}
@@ -76,14 +79,8 @@ def _abs_sum(x):
 
 
 # name, function, x0, bounds, options
-NM_CASES = [
-    ("rosen2", _rosen, [-1.2, 1.0], None, {}),
-    ("rosen3_bounded", _rosen, [1.3, 0.7, 0.8], [(0.0, 2.0)] * 3, {}),
-    ("sphere_zero_start", _sphere_shift, [0.0, 0.5, 0.0], None, {}),
-    ("near_upper_bound", _sphere_shift, [0.99, 0.5], [(0.0, 1.0), (0.0, 1.0)], {}),
-    ("rosen3_maxfev", _rosen, [1.3, 0.7, 0.8], None, {"maxfev": 30}),
-    ("abs_sum4_maxiter", _abs_sum, [1.0, -1.0, 0.5, 2.0], None, {"maxiter": 25}),
-]
+NM_INPUTS = HERE / "fixtures" / "nelder_mead_inputs.json"
+NM_FUNCTIONS = {"rosen": _rosen, "sphere_shift": _sphere_shift, "abs_sum": _abs_sum}
 
 
 def case_m4_nelder_mead(ctx):
@@ -92,8 +89,11 @@ def case_m4_nelder_mead(ctx):
     from scipy.optimize import minimize
 
     b = Bundle("m4/nelder-mead", 4, "scipy", "scipy.optimize.minimize(method='Nelder-Mead')", ctx.out)
+    b.input(NM_INPUTS, "fixtures/nelder_mead_inputs.json")
     names = []
-    for name, f, x0, bounds, opts in NM_CASES:
+    for c in json.loads(NM_INPUTS.read_text())["cases"]:
+        name, f, x0, opts = c["name"], NM_FUNCTIONS[c["function"]], c["x0"], c["options"]
+        bounds = [tuple(x) for x in c["bounds"]] if c["bounds"] is not None else None
         res = minimize(f, np.asarray(x0, dtype=np.float64), method="Nelder-Mead", bounds=bounds, options=opts or None)
         names.append(name)
         b.value(f"{name}_case", {"x0": list(map(float, x0)), "bounds": bounds, "options": opts,

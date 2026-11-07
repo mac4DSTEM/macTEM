@@ -1,0 +1,96 @@
+{
+ "about": "Inputs of tools/parity/sem/refinement_cases.py's m4/nelder-mead (milestone 4): SciPy 1.18.1's Nelder-Mead on closed-form functions (rosen: scipy.optimize.rosen; sphere_shift and abs_sum: refinement_cases.py), the start, the bounds and the options of each case.",
+ "cases": [
+  {
+   "name": "rosen2",
+   "function": "rosen",
+   "x0": [
+    -1.2,
+    1.0
+   ],
+   "bounds": null,
+   "options": {}
+  },
+  {
+   "name": "rosen3_bounded",
+   "function": "rosen",
+   "x0": [
+    1.3,
+    0.7,
+    0.8
+   ],
+   "bounds": [
+    [
+     0.0,
+     2.0
+    ],
+    [
+     0.0,
+     2.0
+    ],
+    [
+     0.0,
+     2.0
+    ]
+   ],
+   "options": {}
+  },
+  {
+   "name": "sphere_zero_start",
+   "function": "sphere_shift",
+   "x0": [
+    0.0,
+    0.5,
+    0.0
+   ],
+   "bounds": null,
+   "options": {}
+  },
+  {
+   "name": "near_upper_bound",
+   "function": "sphere_shift",
+   "x0": [
+    0.99,
+    0.5
+   ],
+   "bounds": [
+    [
+     0.0,
+     1.0
+    ],
+    [
+     0.0,
+     1.0
+    ]
+   ],
+   "options": {}
+  },
+  {
+   "name": "rosen3_maxfev",
+   "function": "rosen",
+   "x0": [
+    1.3,
+    0.7,
+    0.8
+   ],
+   "bounds": null,
+   "options": {
+    "maxfev": 30
+   }
+  },
+  {
+   "name": "abs_sum4_maxiter",
+   "function": "abs_sum",
+   "x0": [
+    1.0,
+    -1.0,
+    0.5,
+    2.0
+   ],
+   "bounds": null,
+   "options": {
+    "maxiter": 25
+   }
+  }
+ ]
+}
