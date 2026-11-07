@@ -1,0 +1,20 @@
+{
+  "about": "Inputs of the m3/orientation-sampling bundle (emit.py): orix.sampling.get_sample_fundamental and get_sample_local with the cubochoric method. Resolutions in degrees; point groups by orix name; local centres as Bunge Euler angles in degrees (lab to crystal). rows_per_case bounds the rows a bundle keeps of a large sample: every stride-th rotation in orix's order, stride = ceil(count / rows_per_case), and the last one.",
+  "semi_edge_resolutions": [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5, 10.0, 15.0],
+  "full_grid_semi_edge_steps": 3,
+  "fundamental": [
+    {"point_group": "m-3m", "resolution": 4.0},
+    {"point_group": "m-3m", "resolution": 2.0},
+    {"point_group": "m-3m", "resolution": 1.5},
+    {"point_group": "6/mmm", "resolution": 4.0},
+    {"point_group": "432", "resolution": 5.0},
+    {"point_group": "mmm", "resolution": 7.5},
+    {"point_group": "1", "resolution": 15.0}
+  ],
+  "local": [
+    {"resolution": 2.0, "grid_width": 10.0, "center_euler_degrees": null},
+    {"resolution": 1.0, "grid_width": 5.0, "center_euler_degrees": [12.5, 40.0, 77.0]},
+    {"resolution": 3.0, "grid_width": 20.0, "center_euler_degrees": [200.0, 15.0, 330.0]}
+  ],
+  "rows_per_case": 1500
+}
