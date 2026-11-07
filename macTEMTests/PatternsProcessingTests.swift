@@ -106,7 +106,7 @@ nonisolated final class PatternsProcessingTests: XCTestCase {
         XCTAssertEqual(canvas.rawRange?.upperBound, expected.max())
         session.editPipeline { $0.nlpar.searchRadius = 2 }
         XCTAssertEqual(session.stageState(.nlpar), .stale)
-        XCTAssertEqual(session.stageState(.size), .current)
+        XCTAssertEqual(session.stageState(.dynamicBackground), .current)
     }
 
     @MainActor func testTheMethodJSONExportWritesTheStages() async throws {
