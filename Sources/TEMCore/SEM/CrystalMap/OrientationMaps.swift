@@ -34,12 +34,15 @@ package nonisolated enum OrientationMapLayer: Hashable, Sendable, Identifiable {
     case phase
     /// A per-point property of the file (image quality, confidence index, fit, MAD, band contrast, ...), as a scalar map.
     case property(String)
+    /// A map the grain analysis makes (`MapAnalysis`): KAM, GOS, GND, the grains or the Schmid factor.
+    case derived(DerivedMapLayer)
 
     package var id: String {
         switch self {
         case .ipf(let d): "ipf-\(d.rawValue)"
         case .phase: "phase"
         case .property(let name): "property-\(name)"
+        case .derived(let d): "derived-\(d.rawValue)"
         }
     }
 
@@ -49,13 +52,16 @@ package nonisolated enum OrientationMapLayer: Hashable, Sendable, Identifiable {
         case .ipf(let d): "IPF-\(d.rawValue.uppercased())"
         case .phase: "Phase"
         case .property(let name): name
+        case .derived(let d): d.title
         }
     }
 
     /// Whether the layer is colours (a key or a legend explains it) rather than values (a colour bar).
     package var isColour: Bool {
-        if case .property = self { return false }
-        return true
+        switch self {
+        case .ipf, .phase, .derived(.grains): true
+        case .property, .derived: false
+        }
     }
 }
 
@@ -161,6 +167,10 @@ package nonisolated enum OrientationMaps {
         case .property(let name):
             let values = map.mapData(named: name, fill: .nan) ?? [Double](repeating: .nan, count: rows * columns)
             return OrientationMapRaster(rows: rows, columns: columns, rgb: nil, values: values, inData: inData)
+        case .derived(let d):
+            // The analysis at its default settings; the Maps room draws its own run's (`MapAnalysis.raster`).
+            if let analysis = try? MapAnalysis.run(map) { return analysis.raster(d) }
+            return OrientationMapRaster(rows: rows, columns: columns, rgb: nil, values: [Double](repeating: .nan, count: rows * columns), inData: inData)
         }
     }
 

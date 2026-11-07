@@ -1,10 +1,11 @@
 //
 //  MapsRoomInspector.swift
 //  Role: the Maps room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the design's map-room order
-//        (orientation-maps-room.md §4, the first slice's sections): Maps (which result the map is, a Source pop-up when the room holds
-//        several, D-SEM-99, and which layer it draws), Phases (the phases with their colours and point groups), Display (a property
-//        layer's colormap, window and gamma) and Export (the map with its key as PNG). Info: what the map is and how its colours are made
-//        (§5). Presentation only: the rows are `MapsRoomFormat`'s, the state `OrientationMapSession`'s.
+//        (orientation-maps-room.md §4): Maps (which result the map is, a Source pop-up when the room holds several, D-SEM-99, and which
+//        layer it draws), Phases (the phases with their colours and point groups), Display (a scalar layer's colormap, window and gamma),
+//        Misorientation, Grains, Slip and Texture (`MapsRoomAnalysis.swift`), and Export (the map with its key, the grain table, the
+//        texture figure). Info: what the map is and how its colours are made (§5). Presentation only: the rows are `MapsRoomFormat`'s,
+//        the state `OrientationMapSession`'s.
 //
 
 import ShellControls
@@ -62,9 +63,13 @@ struct MapsRoomSettings: View {
                     InspectorNote("A phase without a known point group has no IPF colours: its points are black.")
                 }
             }
-            if case .property = session.layer {
+            if !session.layer.isColour {
                 ImageRoomDisplaySection(presentation: session.propertyPresentation, colormapID: "maps.colormap")
             }
+            MapsMisorientationSection(session: session)
+            MapsGrainsSection(session: session)
+            MapsSlipSection(session: session)
+            MapsTextureSection(session: session)
             MapsExportSection(session: session, state: appState.mapsRoom)
         } else {
             ContentUnavailableView("No orientation map open", systemImage: "map",
@@ -78,6 +83,7 @@ struct MapsRoomSettings: View {
             "The crystal direction along the sample's \(d.rawValue), coloured by the TSL key of each phase's Laue group (orix). Not indexed points are black."
         case .phase: "Each point in its phase's colour, as orix's phase list gives it; not indexed points are white."
         case .property(let name): "The file's \(name) at every point, through the Display section's colormap."
+        case .derived(let d): MapsRoomFormat.derivedNote(d, load: appState.maps.loadDirection)
         }
     }
 }
@@ -97,6 +103,22 @@ struct MapsExportSection: View {
                 .disabled(session.raster == nil)
                 .help("The map on screen as a PNG figure: whole pixels per point, a scale bar, and the colour key or phase legend beside it")
                 .accessibilityIdentifier("maps.export.map")
+            }
+            InspectorActionRow {
+                Button("Grains CSV…") {
+                    state.exportGrains(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 })
+                }
+                .disabled(session.analysis == nil)
+                .help("The grain table as CSV: size, equivalent diameter, mean orientation, GOS, neighbours and the largest Schmid factor of each grain")
+                .accessibilityIdentifier("maps.export.grains")
+            }
+            InspectorActionRow {
+                Button("Texture PNG…") {
+                    state.exportTexture(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 })
+                }
+                .disabled(session.texture == nil)
+                .help("The pole figures, the IPF-Z density and the ODF sections of the texture phase as one figure, each with its colour bar")
+                .accessibilityIdentifier("maps.export.texture")
             }
         }
     }
