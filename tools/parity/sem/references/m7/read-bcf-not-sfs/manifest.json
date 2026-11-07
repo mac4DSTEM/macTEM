@@ -1,0 +1,35 @@
+{
+  "arrays": {},
+  "case": "m7/read-bcf-not-sfs",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/bruker/Nope.bcf",
+      "sha256": "5c783dc35f2804dacfcff3953665e802067cb119d9e7f20bd24ef9e465aaaa97"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.bruker.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": "TypeError",
+    "signals": []
+  }
+}

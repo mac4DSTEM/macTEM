@@ -1,0 +1,78 @@
+{
+  "arrays": {
+    "signal0_counts": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal0_counts.bin",
+      "rtol": 0.0,
+      "sha256": "0734f14a3627a67dd612cf5cafb1dc54ca1fea642e963b34e19eb851ec457a2a",
+      "shape": [
+        1548
+      ]
+    }
+  },
+  "case": "m7/read-spx-extracted",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/bruker/extracted_from_bcf.spx",
+      "sha256": "85015e241feca7afbbcf3a50eaf423d2dd8fd4a2eab1a42cdf1f8de695d7f0f1"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.bruker.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "Energy",
+            "offset": -0.47225,
+            "scale": 0.01,
+            "size": 1548,
+            "units": "keV"
+          }
+        ],
+        "dtype": "uint64",
+        "kind": "spectrum",
+        "metadata": {
+          "azimuth_angle": 45.0,
+          "beam_energy": 15.0,
+          "date": "2018-03-04",
+          "detector_type": "XFlash 6|30",
+          "elevation_angle": 35.0,
+          "live_time": 0.025,
+          "mode": "SEM",
+          "original_filename": "extracted_from_bcf.spx",
+          "real_time": 0.04,
+          "sample_name": "60k_pixel",
+          "signal_type": "EDS_SEM",
+          "time": "10:06:04",
+          "title": "EDX"
+        },
+        "shape": [
+          1548
+        ]
+      }
+    ]
+  }
+}

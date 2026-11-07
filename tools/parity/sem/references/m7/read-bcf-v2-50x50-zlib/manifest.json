@@ -1,0 +1,211 @@
+{
+  "arrays": {
+    "signal2_sum_spectrum": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal2_sum_spectrum.bin",
+      "rtol": 0.0,
+      "sha256": "e68721835468ecf2156998f7eec3cfe1dc9d74cac7f8e14edb9ce50d68e3c3cf",
+      "shape": [
+        2048
+      ]
+    }
+  },
+  "case": "m7/read-bcf-v2-50x50-zlib",
+  "inputs": [
+    {
+      "path": "sem-data/rsciio/bruker/bcf_v2_50x50px.bcf",
+      "sha256": "b3200c747c96f50dd3d58cd5cd7effedc1bf2c0304f69332335d84db78adc1ba"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.bruker.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "signal0_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 42715050.0
+    },
+    "signal1_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 14795784992.0
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signal0_pixels": {
+      "dtype": "uint16",
+      "sha256": "0cacd20dc46d9000648a3a4170e41ad4e931a48b63da8262610acc684658fb63",
+      "shape": [
+        50,
+        50
+      ]
+    },
+    "signal1_pixels": {
+      "dtype": "uint16",
+      "sha256": "e86329e4579f96b6dc543c32fd4ead2793ea043f63d884e5bd1570748578f610",
+      "shape": [
+        825,
+        1100
+      ]
+    },
+    "signal2_nonzero": {
+      "count": 347071,
+      "index_sha256": "c1865eea11fd1e433bad18661c1a41145210d692e3c319378705353ef17a32fa",
+      "value_sha256": "29e459230cfefb833c19d1bf2c9293b661c0eda95f732690c29e4a84d8f962e6"
+    },
+    "signal2_pixel_totals": {
+      "dtype": "int64",
+      "sha256": "16ca9c1a1f1343f38784070f6990cd16e7aa7582a51048cead02395ee9d977c6",
+      "shape": [
+        2500
+      ]
+    },
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "height",
+            "offset": 0.0,
+            "scale": 0.01180808099,
+            "size": 50,
+            "units": "µm"
+          },
+          {
+            "name": "width",
+            "offset": 0.0,
+            "scale": 0.01273058731,
+            "size": 50,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint16",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 20.0,
+          "magnification": 9321.985174,
+          "mode": "SEM",
+          "original_filename": "bcf_v2_50x50px.bcf",
+          "sample_name": " 42",
+          "title": "Ch 1"
+        },
+        "shape": [
+          50,
+          50
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "height",
+            "offset": 0.0,
+            "scale": 0.01180808099,
+            "size": 825,
+            "units": "µm"
+          },
+          {
+            "name": "width",
+            "offset": 0.0,
+            "scale": 0.01273058731,
+            "size": 1100,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint16",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 20.0,
+          "magnification": 9321.985174,
+          "mode": "SEM",
+          "original_filename": "bcf_v2_50x50px.bcf",
+          "sample_name": " 42",
+          "title": "Ch 1"
+        },
+        "shape": [
+          825,
+          1100
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "height",
+            "offset": 0.0,
+            "scale": 0.01180808099,
+            "size": 50,
+            "units": "µm"
+          },
+          {
+            "name": "width",
+            "offset": 0.0,
+            "scale": 0.01180808099,
+            "size": 50,
+            "units": "µm"
+          },
+          {
+            "name": "Energy",
+            "offset": -0.47316066,
+            "scale": 0.009996,
+            "size": 2048,
+            "units": "keV"
+          }
+        ],
+        "dtype": "uint8",
+        "kind": "spectrum_image",
+        "metadata": {
+          "azimuth_angle": 45.0,
+          "beam_energy": 20.0,
+          "date": "2017-03-14",
+          "detector_type": "XFlash 6|100",
+          "elements": [
+            "Ag",
+            "Al",
+            "C",
+            "Cu",
+            "O"
+          ],
+          "elevation_angle": 35.0,
+          "magnification": 9321.985174,
+          "mode": "SEM",
+          "original_filename": "bcf_v2_50x50px.bcf",
+          "real_time": 19.2,
+          "sample_name": " 42",
+          "signal_type": "EDS_SEM",
+          "time": "19:04:11",
+          "title": "EDX",
+          "xray_lines": [
+            "Ag_La",
+            "Al_Ka",
+            "C_Ka",
+            "Cu_Ka",
+            "O_Ka"
+          ]
+        },
+        "shape": [
+          50,
+          50,
+          2048
+        ]
+      }
+    ]
+  }
+}
