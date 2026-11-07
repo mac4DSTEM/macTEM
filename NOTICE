@@ -38,8 +38,9 @@ ports in its first lines. The h5ebsd fixtures in macTEMTests/Fixtures/ebsd-* are
 the files its dummy writers produce (the nickel patterns are CC BY 4.0, Aanes et al.), see docs/data-sources.md.
 
 The orientation core in Sources/TEMCore/SEM/Orientation/ (RotationConversions, Rotation, PointGroup, OrientationRegion,
-Orientations, Misorientations) is a port of orix 0.15.0's orix.quaternion package (_conversions, quaternion, rotation,
-symmetry, orientation_region, misorientation, orientation, _numba), Copyright (C) 2018-2026 the orix developers,
+Orientations, Misorientations, OrientationSampling) is a port of orix 0.15.0's orix.quaternion package (_conversions,
+quaternion, rotation, symmetry, orientation_region, misorientation, orientation, _numba) and of orix.sampling
+(sample_generators, _cubochoric_sampling), Copyright (C) 2018-2026 the orix developers,
 GPL-3.0-or-later, taken under GPL-3.0; the conversions follow Rowenhorst et al. (2015), Modelling Simul. Mater. Sci. Eng.
 23 083501. Its parity inputs, tools/parity/sem/fixtures/orientation_inputs.json, hold seeded rotations and the Bunge
 angles of the first 2000 rows of orix-data's Ti_orientations.ctf (CC BY 4.0).
