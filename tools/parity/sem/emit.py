@@ -32,6 +32,11 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
 from refbundle import Bundle  # noqa: E402
 
+sys.path.append(str(HERE))
+from detector_cases import (  # noqa: E402,F401  (milestone 2 detector geometry and figure F5; emit collects case_ names)
+    case_m2_detector_gnomonic, case_m2_detector_pc_conventions, case_m2_detector_sample_to_detector,
+    case_m2_detector_tkd_geometry, case_m2_pc_moving_screen_si)
+
 warnings.filterwarnings("ignore")
 
 FIXTURES = HERE / "fixtures"
