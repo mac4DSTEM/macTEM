@@ -462,6 +462,8 @@ def _nlpar_bundle(ctx, case: str, path: Path, label: str, searchradius: int, blo
     b.array("denoised_mean", out.astype(np.float64).mean(axis=(-2, -1)), **F32)
     for name, (r0, r1, c0, c1) in blocks.items():
         b.array(name, out[r0:r1, c0:c1], rtol=1e-5, atol=1e-4, note=f"scan rows {r0}..{r1 - 1}, cols {c0}..{c1 - 1}")
+    b.write()
+    ctx.done(case)
 
 
 def _intensity_bundle(ctx, case: str, path: Path, label: str) -> None:
