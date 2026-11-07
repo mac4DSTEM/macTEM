@@ -172,6 +172,35 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         XCTAssertEqual(session.meanIntensities?.count, 9)
     }
 
+    /// The quality maps (P2-03, north star F3) through the room's own path: picking Image quality on the kikuchipy fixture runs the quality
+    /// pass over the file and the map is kikuchipy's IQ and ADP of the raw patterns (the bundle `m2/quality-kikuchipy-h5ebsd`, rtol 1e-5);
+    /// the readout names the map and the Map PNG export writes it. Red under: the choice not starting the pass, the maps swapped.
+    @MainActor func testTheQualityMapsLandOnTheScanMapAsKikuchipysNumbers() async throws {
+        let session = EBSDSession()
+        await session.open(url: try fixture("ebsd-kikuchipy-h5ebsd", "h5")).value
+        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        session.showMap(.imageQuality)
+        XCTAssertTrue(session.isQualityMapping || session.imageQualityMap != nil)
+        for _ in 0..<4000 where session.isQualityMapping { try await Task.sleep(for: .milliseconds(5)) }
+        let ref = try SEMParityReference.load("m2/quality-kikuchipy-h5ebsd")
+        let iq = try XCTUnwrap(session.chosenImage).map(Double.init)
+        SEMAssertParity(iq, try ref.array("raw_iq"))
+        XCTAssertEqual(session.mapValue(at: EBSDPosition(row: 1, column: 2))?.label, "IQ")
+        session.showMap(.dotProduct)
+        XCTAssertFalse(session.isQualityMapping)   // one pass made both maps
+        SEMAssertParity(try XCTUnwrap(session.chosenImage).map(Double.init), try ref.array("raw_adp"))
+        XCTAssertEqual(session.mapValue(at: .origin)?.label, "ADP")
+        let canvas = try XCTUnwrap(session.mapPresentation.canvas)
+        XCTAssertEqual(canvas.width * canvas.height, 9)
+        let state = PatternsRoomState()
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("patterns-quality-\(UUID().uuidString)")
+        var reports: [String] = []
+        state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
+        XCTAssertEqual(reports, ["Exported ebsd-kikuchipy-h5ebsd map average dot product.png"])
+        session.close()
+        XCTAssertNil(session.imageQualityMap); XCTAssertNil(session.dotProductMap)
+    }
+
     // MARK: The demo dataset
 
     /// The generated dataset is deterministic, the planted shape, and its grains read in the mean map: a grain with a higher level has a higher

@@ -60,11 +60,17 @@ struct PatternsVirtualImagesSection: View {
                         ForEach(session.virtualGrid.tiles) { tile in Text("Tile \(tile.label)").tag(EBSDSession.MapChoice.tile(tile)) }
                     }
                     if session.hasMix { Text("Colour mix").tag(EBSDSession.MapChoice.mix) }
+                    Divider()
+                    Text("Image quality").tag(EBSDSession.MapChoice.imageQuality)
+                    Text("Average dot product").tag(EBSDSession.MapChoice.dotProduct)
                 }
                 .labelsHidden()
                 .disabled(!landed)
                 .help(landed ? "The image the scan map draws" : "Waiting for the pass over the scan")
                 .accessibilityIdentifier("patterns.map.choice")
+            }
+            if session.mapChoice == .imageQuality || session.mapChoice == .dotProduct {
+                InspectorNote("Of the patterns as stored, before any background is removed. Image quality: the FFT spectrum's inertia (Krieger Lassen); average dot product: with the four nearest neighbours (kikuchipy's defaults).")
             }
             if session.virtualGrid.tileCount > 1 {
                 ForEach(Array(["Red", "Green", "Blue"].enumerated()), id: \.offset) { channel, name in
