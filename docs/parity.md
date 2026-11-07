@@ -304,6 +304,7 @@ Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST),
 | `HoughBandDetector.detect`, `normals` | `find_bands`, `rdn_local_max`, `band_label_numba`, `Radon.radon2pole` ("KIKUCHIPY") | `testBandsOfTheBlock…` | peak cells exact; sub-pixel peaks and rho 1e-3 px; theta and normals 1e-4; peak values rtol 1e-5; the bands of a pattern with a flipped plan pixel within 1 px and 1° | brief bound 1 px / 1° |
 | `HoughIndexer.tripletVote` | `BandIndexer._tripvote_numba` | `testTripletVote…` | counts and families exact; weighted votes and ranks rtol 1e-5 (atol 1e-3) | fed the reference normals |
 | `HoughIndexer.index` (`assignBands`, `quest`, confidence) | `bandindex`, `_assign_bands_nb2`, `_calc_quest_weights`, `_orientation_quest_nb`, `_calc_cm`, `EBSDIndexer._indexbandsphase` | `testBlockIsIndexed…` | matched bands, phase, total votes exact; fit atol 2e-3° (float32 arccos near 1), CM, PQ rtol 1e-5, IQ 1e-4 (one flipped-pixel pattern within 0.01 / 1 / 0.01); orientation < 0.01° (m-3m) | the matched variant compared by family, D-SEM-70 |
+| `HoughIndexer.crystalMap` | kikuchipy `_hough_indexing.xmap_from_hough_indexing_data` | `testCrystalMapOfTheIndexedScan…` | grid, steps, unit, phase list, property names exact; rotations and properties at the bundle's tolerances | D-SEM-81 |
 | F8 end to end: `HoughIndexer.indexMap` on the app's corrected demo scan | `EBSD.hough_indexing` on kikuchipy's corrected scan | `testFigureF8…` | indexed count within 1; 99 % of points under 1°; matched-band count equal on 95 % | a float64 replica on kikuchipy's exact patterns: 4124 of 4124 within 1.3e-5°, every matched-band count equal |
 
 ### Known limits and decisions
@@ -318,8 +319,8 @@ Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST),
   Apple's differ in the last ulp, so a line whose pixel rounding sits on a half takes the neighbouring pixel (2 of 16200
   lines of the first block pattern on the CI Mac; counts stay exact). The tests allow these lines and what follows from
   them within the brief's 1 px and 1°.
-- D-SEM-71 (2026-11-07): the result of a scan is `HoughIndexer.Map` (rotations as orix takes them, fit, CM, PQ, matched
-  bands per point) until the orix `CrystalMap` port (P3-03) is on main; carrying it into a `CrystalMap` is its own issue.
+- D-SEM-81 (2026-11-07): `HoughIndexer.crystalMap(_:steps:scanUnit:)` turns the scan's `HoughIndexer.Map` (which keeps
+  the per-band detail) into the `CrystalMap` kikuchipy's `hough_indexing` returns; supersedes D-SEM-71's interim.
 - Speed: the CPU path indexes in parallel over a scan row; the F8 test prints the time of the 4125 patterns. The brief's
   Metal path for the Radon transform is due only if a release build takes over 5 s on the 55 x 75 scan.
 - Figure F8: `tools/parity/sem/hough_figure.py` draws the reference IPF-Z map beside the one

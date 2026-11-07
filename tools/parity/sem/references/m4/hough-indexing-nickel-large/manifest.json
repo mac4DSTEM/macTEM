@@ -125,6 +125,43 @@
       0.2136332544638906,
       0.5020740783903906
     ],
-    "points": 4125
+    "points": 4125,
+    "xmap": {
+      "colors": [
+        "white",
+        "tab:blue"
+      ],
+      "dx": 1.5,
+      "dy": 1.5,
+      "phase_ids": [
+        -1,
+        0
+      ],
+      "phase_names": [
+        "not_indexed",
+        "ni"
+      ],
+      "point_groups": [
+        null,
+        "m-3m"
+      ],
+      "properties": [
+        "cm",
+        "fit",
+        "nmatch",
+        "pq"
+      ],
+      "scan_unit": "um",
+      "shape": [
+        55,
+        75
+      ],
+      "space_groups": [
+        null,
+        225
+      ],
+      "x_last": 111.0,
+      "y_last": 81.0
+    }
   }
 }

@@ -284,6 +284,9 @@ nonisolated final class SEMHoughIndexingParityTests: XCTestCase {
         XCTAssertLessThanOrEqual(abs(indexed - refIndexed), 1)
         XCTAssertGreaterThanOrEqual(Double(within), 0.99 * Double(both.count))
         XCTAssertGreaterThanOrEqual(Double(sameN), 0.95 * Double(refN.count))
+        let xmap = try indexer.crystalMap(map, steps: (dataset.stepY, dataset.stepX), scanUnit: dataset.scanUnit)
+        XCTAssertEqual(xmap.isIndexed.filter { $0 }.count, indexed)
+        XCTAssertEqual(xmap.shape, [rows, columns])
         var bytes = Data(capacity: map.solutions.count * 12)
         for r in map.rotations {
             let e = r.euler
@@ -291,6 +294,50 @@ nonisolated final class SEMHoughIndexingParityTests: XCTestCase {
         }
         try bytes.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("macTEM-F8-euler-ours.f32"))
         print("F8 ours euler float32 base64: \(bytes.base64EncodedString())")
+    }
+
+    /// kikuchipy's `xmap_from_hough_indexing_data` on the F8 reference solutions: the same grid, steps, unit, phase list
+    /// (`not_indexed` white, the Ni phase with its space and point group in tab:blue), rotations and properties.
+    func testCrystalMapOfTheIndexedScanAsKikuchipyBuildsIt() throws {
+        let ref = try SEMParityReference.load("m4/hough-indexing-nickel-large")
+        let input = try inputs()
+        let indexer = try HoughIndexer(phases: [library(input.phases[0])], detector: HoughBandDetector(rows: 60, columns: 60),
+                                       projectionCenter: SIMD3(0.42, 0.21, 0.5))
+        let x = try XCTUnwrap(ref.values["xmap"] as? [String: Any])
+        let shape = try XCTUnwrap(x["shape"] as? [Int])
+        let phase = try ref.array("phase").values, q = quaternions(try ref.array("quaternion").values)
+        let fit = try ref.array("fit").values, cm = try ref.array("cm").values, pq = try ref.array("pq").values
+        let nmatch = try ref.array("nmatch").values
+        var solutions: [HoughIndexer.Solution] = []
+        for i in phase.indices {
+            var s = HoughIndexer.Solution()
+            s.phase = Int(phase[i])
+            s.quaternion = s.phase < 0 ? SIMD4(0, 0, 0, 0) : q[i]
+            s.fit = fit[i]; s.confidence = cm[i]; s.patternQuality = pq[i]; s.matchedBands = Int(nmatch[i])
+            solutions.append(s)
+        }
+        let map = HoughIndexer.Map(scanRows: shape[0], scanColumns: shape[1], solutions: solutions)
+        let dy = try XCTUnwrap(x["dy"] as? Double), dx = try XCTUnwrap(x["dx"] as? Double)
+        let xmap = try indexer.crystalMap(map, steps: (dy, dx), scanUnit: try XCTUnwrap(x["scan_unit"] as? String))
+        XCTAssertEqual(xmap.shape, shape)
+        XCTAssertEqual(xmap.dy, dy)
+        XCTAssertEqual(xmap.dx, dx)
+        XCTAssertEqual(xmap.scanUnit, x["scan_unit"] as? String)
+        XCTAssertEqual(xmap.x?.last, x["x_last"] as? Double)
+        XCTAssertEqual(xmap.y?.last, x["y_last"] as? Double)
+        XCTAssertEqual(xmap.phases.ids, x["phase_ids"] as? [Int])
+        XCTAssertEqual(xmap.phases.names, x["phase_names"] as? [String])
+        XCTAssertEqual(xmap.phases.colors, x["colors"] as? [String])
+        XCTAssertEqual(xmap.phases.pointGroupNames.map { $0 ?? "-" }, (x["point_groups"] as? [Any])?.map { $0 as? String ?? "-" })
+        XCTAssertEqual(xmap.phases.phases.map { $0.spaceGroup ?? -1 }, (x["space_groups"] as? [Any])?.map { $0 as? Int ?? -1 })
+        XCTAssertEqual(xmap.propertyNames, x["properties"] as? [String])
+        XCTAssertEqual(xmap.isIndexed.filter { $0 }.count, ref.values["indexed"] as? Int)
+        SEMAssertParity(xmap.rotations.flatMap { [$0.x, $0.y, $0.z, $0.w] }, try ref.array("quaternion"))
+        SEMAssertParity(xmap.euler.flatMap { [$0.x, $0.y, $0.z] }, try ref.array("euler"))
+        SEMAssertParity(xmap.allPhaseIDs.map(Double.init), try ref.array("phase"))
+        for name in ["fit", "cm", "pq", "nmatch"] {
+            SEMAssertParity(try XCTUnwrap(xmap.properties[name]), try ref.array(name))
+        }
     }
 
     func testMapPlumbingReportsProgressAndStopsOnCancel() async throws {
