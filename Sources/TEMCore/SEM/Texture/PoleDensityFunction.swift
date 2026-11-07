@@ -9,7 +9,7 @@
 //  given in multiples of a random distribution (the mean unmasked bin is 1).
 //
 //  A vector within about 1e-12 rad of a bin edge goes to either neighbour depending on the last bit of atan2 and arccos,
-//  which differ between libms; the parity bundles count those vectors and the tests allow each one bin (D-SEM-64).
+//  which differ between libms; the parity bundles count those vectors and the tests allow each one bin (D-SEM-68).
 //
 //  Parity: `tools/parity/sem` bundles `m5/texture-ti`, `m5/texture-cubic`, `m5/texture-ti-full` (figure F13): counts exact up
 //  to those edge vectors, densities atol 1e-7 (docs/parity.md).

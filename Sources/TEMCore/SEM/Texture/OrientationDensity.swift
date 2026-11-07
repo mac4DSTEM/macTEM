@@ -9,7 +9,7 @@
 //
 //  over the N orientations and the |G| proper elements of their symmetry, h the kernel's half-width; the kernel integrates
 //  to 1 over SO(3), so a uniform texture is 1 mrd. orix 0.15.0 has no ODF: the reference is this closed form written on
-//  orix's rotations in `tools/parity/sem/texture_cases.py` (D-SEM-64 in docs/decisions.md), with two checks that do not
+//  orix's rotations in `tools/parity/sem/texture_cases.py` (D-SEM-68 in docs/decisions.md), with two checks that do not
 //  rest on it (the mean over orix's uniform sample of SO(3) is 1, the identity's ODF at the identity is C(κ) / |G|, the
 //  other elements' terms being below 1e-27). Sections are φ2 = const in Bunge angles, φ1 across and Φ down, as orix's `from_euler` builds
 //  the grid rotations.

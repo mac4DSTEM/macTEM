@@ -5,7 +5,7 @@
 //  pole turned into the sample frame by the inverse orientation (`(~O).outer(m)`, orix's pole figure), the sample direction
 //  turned into the crystal frame by the orientation (`O * v`, the inverse pole figure), and the densities of
 //  `PoleDensityFunction`. The rasters are what the Maps room's Texture tab draws: values on a square stereographic canvas,
-//  NaN outside the hemisphere or the sector, coloured by the shared colormap in the view (D-SEM-64 in
+//  NaN outside the hemisphere or the sector, coloured by the shared colormap in the view (D-SEM-68 in
 //  docs/decisions.md).
 //
 //  Parity: `tools/parity/sem` bundles `m5/texture-ti`, `m5/texture-cubic`, `m5/texture-ti-full` (figure F13).
