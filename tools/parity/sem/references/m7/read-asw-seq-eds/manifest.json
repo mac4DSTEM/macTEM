@@ -1,0 +1,176 @@
+{
+  "arrays": {
+    "signal1_counts": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal1_counts.bin",
+      "rtol": 0.0,
+      "sha256": "9560c3fcb845f3d4da1678c9b483dfd0d0b29244ea978f97fcea8ba8d14fdf30",
+      "shape": [
+        4096
+      ]
+    },
+    "signal2_counts": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal2_counts.bin",
+      "rtol": 0.0,
+      "sha256": "9a20a106479a9a8030363d0821a5213d1ed4913ba23f833e6c7ee4b3758e2538",
+      "shape": [
+        4096
+      ]
+    }
+  },
+  "case": "m7/read-asw-seq-eds",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/jeol/seq/1.ASW",
+      "sha256": "6c95412105a6179f69f8f4bf4517d881081af8319d05848f3dec50a03aef8ac2"
+    },
+    {
+      "path": "fixtures/rsciio/jeol/seq/Sample/00_View002/View002_0000000.img",
+      "sha256": "a3a18679c5a6895f99b9e268b1592a56b510bf31d4326c2bf93abe0625701845"
+    },
+    {
+      "path": "fixtures/rsciio/jeol/seq/Sample/00_View002/View002_0000001.eds",
+      "sha256": "9603f28e379b8ac143576adc5e471d8fda839b5889499a0b372dca4e7783edd3"
+    },
+    {
+      "path": "fixtures/rsciio/jeol/seq/Sample/00_View002/View002_0000002.eds",
+      "sha256": "11dc0aacd3d10265080cd5447a88f8623623b0b362f48a8cf0b0c155066d2540"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.jeol.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "signal0_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 14700.0
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signal0_pixels": {
+      "dtype": "uint8",
+      "sha256": "3c95852348f36f720a7126d54529e5921410d2b3e83cfcec7166a099c3bb5d7a",
+      "shape": [
+        512,
+        512
+      ]
+    },
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.0002578125,
+            "size": 512,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.0002578125,
+            "size": 512,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint8",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 200.0,
+          "date": "2020-07-06",
+          "magnification": 1500000.0,
+          "mode": "TEM",
+          "original_filename": "View002_0000000.img",
+          "time": "14:56:47",
+          "title": "BF"
+        },
+        "shape": [
+          512,
+          512
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "Energy",
+            "offset": 0.0007915992794391669,
+            "scale": 0.010001844576316303,
+            "size": 4096,
+            "units": "keV"
+          }
+        ],
+        "dtype": "int32",
+        "kind": "spectrum",
+        "metadata": {
+          "azimuth_angle": 90.0,
+          "beam_energy": 200.0,
+          "date": "2020-07-06",
+          "detector_type": "EX24221M1G5T",
+          "elevation_angle": 19.200000762939453,
+          "energy_resolution_MnKa": 133.0,
+          "live_time": 60.0,
+          "mode": "TEM",
+          "original_filename": "View002_0000001.eds",
+          "signal_type": "EDS_TEM",
+          "time": "14:59:57",
+          "title": "EDX"
+        },
+        "shape": [
+          4096
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "Energy",
+            "offset": 0.0007915992794391669,
+            "scale": 0.010001844576316303,
+            "size": 4096,
+            "units": "keV"
+          }
+        ],
+        "dtype": "int32",
+        "kind": "spectrum",
+        "metadata": {
+          "azimuth_angle": 90.0,
+          "beam_energy": 200.0,
+          "date": "2020-07-06",
+          "detector_type": "EX24221M1G5T",
+          "elevation_angle": 19.200000762939453,
+          "energy_resolution_MnKa": 133.0,
+          "live_time": 60.0,
+          "mode": "TEM",
+          "original_filename": "View002_0000002.eds",
+          "signal_type": "EDS_TEM",
+          "time": "15:01:18",
+          "title": "EDX"
+        },
+        "shape": [
+          4096
+        ]
+      }
+    ]
+  }
+}

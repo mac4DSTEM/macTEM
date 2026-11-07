@@ -52,6 +52,13 @@ nonisolated extension AcquisitionMetadata {
             // The open's own object rule, so the acquisition described is the image shown.
             guard let entry = VeloxImageReader.openedEntry(path: path) else { return AcquisitionMetadata() }
             return velox(entry)   // `.rosettaSciIO`: magnification, camera length, exposure and mode are read, not "not read from .emd files yet"
+        case "img", "map":
+            // A JEOL image or element map: the beam energy and magnification its own tag tree records (`JEOLEDSReader`).
+            guard case .image(let image)? = try? JEOLEDSReader.signals(url: URL(fileURLWithPath: path)).first else { return AcquisitionMetadata() }
+            var found = AcquisitionMetadata()
+            found.highTensionKV = image.metadata.beamEnergy.map { MetadataReading($0) }
+            found.magnification = image.metadata.magnification.map { MetadataReading($0) }
+            return found
         default:
             return AcquisitionMetadata()
         }
