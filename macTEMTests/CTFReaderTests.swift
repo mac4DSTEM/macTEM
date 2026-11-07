@@ -66,11 +66,11 @@ nonisolated final class CTFReaderTests: XCTestCase {
         let map = read.map
         XCTAssertEqual(read.vendor, vendor, name, file: file, line: line)
         XCTAssertEqual(map.pointCount, truth.size, "\(name): points", file: file, line: line)
-        XCTAssertEqual(map.coordinateShape, truth.shape, "\(name): shape", file: file, line: line)
+        XCTAssertEqual(map.shape, truth.shape, "\(name): shape", file: file, line: line)
         XCTAssertEqual(read.scanUnit, truth.scanUnit, name, file: file, line: line)
-        assertClose(map.coordinateSteps, truth.stepSizes, "\(name): steps", file: file, line: line)
-        assertClose(map.x ?? [], truth.x, "\(name): x", file: file, line: line)
-        assertClose(map.y ?? [], truth.y, "\(name): y", file: file, line: line)
+        assertClose([map.dy, map.dx], truth.stepSizes, "\(name): steps", file: file, line: line)
+        assertClose(map.allX ?? [], truth.x, "\(name): x", file: file, line: line)
+        assertClose(map.allY ?? [], truth.y, "\(name): y", file: file, line: line)
         XCTAssertEqual(map.phaseIDs, truth.phaseID, "\(name): phase ids", file: file, line: line)
         assertClose(Self.flat(map.euler), Self.radians(truth.eulerDegrees), "\(name): Euler angles", file: file, line: line)
         XCTAssertEqual(read.propertyNames, truth.propNames, "\(name): property names", file: file, line: line)
@@ -78,12 +78,12 @@ nonisolated final class CTFReaderTests: XCTestCase {
         for property in truth.propNames {
             assertClose(map.properties[property] ?? [], truth.props[property] ?? [], "\(name): \(property)", file: file, line: line)
         }
-        // orix lists the not-indexed phase (-1) first; the file's phases follow with their ids.
+        // orix's phase list: the not-indexed phase (-1) first when a point has it, the file's phases after it with their ids.
+        XCTAssertEqual(map.phases.ids, truth.phases.map(\.id), "\(name): phase ids", file: file, line: line)
         let indexed = truth.phases.filter { $0.id > 0 }
-        XCTAssertEqual(map.phases.map(\.id), indexed.map(\.id), "\(name): phase ids in the header", file: file, line: line)
-        for (ours, theirs) in zip(map.phases, indexed) {
+        for (ours, theirs) in zip(map.phases.entries.filter { $0.id > 0 }.map(\.phase), indexed) {
             XCTAssertEqual(ours.name, theirs.name, name, file: file, line: line)
-            XCTAssertEqual(ours.pointGroup, theirs.pointGroup, "\(name): point group of \(theirs.name)", file: file, line: line)
+            XCTAssertEqual(ours.pointGroupName, theirs.pointGroup, "\(name): point group of \(theirs.name)", file: file, line: line)
             XCTAssertEqual(ours.spaceGroup, theirs.spaceGroup, "\(name): space group of \(theirs.name)", file: file, line: line)
             assertClose(ours.lattice ?? [], theirs.lattice ?? [], "\(name): lattice of \(theirs.name)", file: file, line: line)
         }
@@ -108,12 +108,13 @@ nonisolated final class CTFReaderTests: XCTestCase {
         let read = try CTFReader.read(path: Self.folder.appendingPathComponent("oxford.ctf").path)
         let map = read.map
         XCTAssertEqual(read.header.first, "Channel Text File")
-        XCTAssertEqual(map.phases.map(\.name), ["Iron fcc", "Iron bcc"])
-        XCTAssertEqual(map.phases.map(\.pointGroup), ["m-3m", "m-3m"], "Laue group 11 as orix names it")
+        XCTAssertEqual(map.phases.names, ["not_indexed", "Iron fcc", "Iron bcc"])
+        XCTAssertEqual(map.phases.pointGroupNames, [nil, "m-3m", "m-3m"], "Laue group 11 as orix names it")
         XCTAssertEqual(CTFReader.laueGroups[11], "m-3m")
-        XCTAssertEqual(map.phases.map(\.spaceGroup), [225, 229])
-        XCTAssertEqual(map.phases[0].lattice, [3.66, 3.66, 3.66, 90, 90, 90])
-        XCTAssertEqual(map.coordinateShape, [5, 3])
+        XCTAssertEqual(map.phases.phases.map(\.spaceGroup), [nil, 225, 229])
+        XCTAssertEqual(map.phases[id: 1]?.lattice, [3.66, 3.66, 3.66, 90, 90, 90])
+        XCTAssertEqual(map.phases.colors, ["white", "tab:blue", "tab:orange"])
+        XCTAssertEqual(map.shape, [5, 3])
         XCTAssertEqual(map.euler[0].y, 54.5696 * (Double.pi / 180))
     }
 
@@ -138,17 +139,19 @@ nonisolated final class CTFReaderTests: XCTestCase {
             case "Phi": ours = map.euler.map { $0.y * (180 / Double.pi) }
             case "phi2": ours = map.euler.map { $0.z * (180 / Double.pi) }
             case "phase": ours = map.phaseIDs.map(Double.init)
-            case "x": ours = map.x ?? []
-            case "y": ours = map.y ?? []
+            case "x": ours = map.allX ?? []
+            case "y": ours = map.allY ?? []
             default: ours = map.properties[name] ?? []
             }
             assertClose(ours, theirs, name)
         }
-        XCTAssertEqual(map.coordinateSteps, [0.25, 0.25])
+        XCTAssertEqual([map.dy, map.dx], [0.25, 0.25])
+        XCTAssertEqual(map.phases.ids, [1], "no phase list in the file: one unnamed phase for id 1, as orix's CrystalMap makes it")
         XCTAssertEqual(truth.pointGroup, "622")
         var withPhase = map
-        withPhase.phases = [EBSDPhase(id: 1, name: "Ti", spaceGroup: 194, pointGroup: "622", lattice: [2.95, 2.95, 4.68, 90, 90, 120])]
-        XCTAssertEqual(withPhase.phases[0].pointGroup, truth.pointGroup)
+        withPhase.phases = PhaseList([(1, CrystalPhase(name: "Ti", spaceGroup: 194, pointGroup: "622", lattice: [2.95, 2.95, 4.68, 90, 90, 120]))])
+        XCTAssertEqual(withPhase.phases[id: 1]?.pointGroupName, truth.pointGroup)
+        XCTAssertEqual(try withPhase.orientations().symmetry.name, "622")
     }
 
     /// The whole 193167-row file against orix, every 997th row: opt-in on a Mac with the file under $MACEM_DATA/sem/.
@@ -165,7 +168,7 @@ nonisolated final class CTFReaderTests: XCTestCase {
         for (row, euler) in zip(truth.full.sampleRows, truth.full.sampleEulerDegrees) {
             assertClose(Self.flat([map.euler[row]]), Self.radians([euler]), "row \(row)")
         }
-        XCTAssertEqual(map.coordinateShape, [381, 507])
+        XCTAssertEqual(map.shape, [381, 507])
     }
 
     func testAFileWithoutColumnsIsRefusedByName() throws {

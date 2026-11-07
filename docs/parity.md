@@ -91,7 +91,9 @@ P = -1, Bunge Euler angles lab to crystal). Bundles from `tools/parity/sem/emit.
 ## Crystal map
 
 orix 0.15.0's `orix.crystal_map` ported into `Sources/TEMCore/SEM/CrystalMap/` (P3-03): one `CrystalMap` for every reader and
-every later indexing result. Tests in `CrystalMapParityTests`; bundles from `tools/parity/sem/emit.py`.
+every later indexing result. The `.ctf`, `.ang` and h5ebsd readers hand their maps over as `CrystalMap` (their own reader tests
+stay the truth; `testTheCTFReaderHandsTheF7MapThrough` takes the F7 head map through `CTFReader`). Tests in
+`CrystalMapParityTests`; bundles from `tools/parity/sem/emit.py`.
 
 | Function | Reference | Test | Tolerance | Notes |
 | --- | --- | --- | --- | --- |
