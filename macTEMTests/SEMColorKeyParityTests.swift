@@ -133,7 +133,9 @@ nonisolated final class SEMColorKeyParityTests: XCTestCase {
             SEMAssertParity(flat(sector.center.map { [$0] } ?? []), try ref.array("center_\(tag)"))
             let projected = g.projectToFundamentalSector(d)
             SEMAssertParity(flat(projected), try ref.array("in_sector_\(tag)"))
-            if sector.center != nil {
+            // orix leaves some vectors outside the sector of a few non-Laue groups (-4, 1m1, -6m2), and the port keeps
+            // that; the Laue groups the colour keys use always land inside (independent of orix's numbers).
+            if sector.center != nil, PointGroup.laueName(g.name) == g.name {
                 for v in projected { XCTAssertTrue(sector.contains(v), "\(g.name ?? "?"): \(v) is outside its sector") }
             }
         }
@@ -163,10 +165,11 @@ nonisolated final class SEMColorKeyParityTests: XCTestCase {
             XCTAssertEqual(key.symmetry.name, name)
             SEMAssertParity(flat(key.color(of: d)), try ref.array("tsl_rgb_\(name.replacingOccurrences(of: "/", with: "_"))"))
         }
-        // The m-3m corners as every IPF key draws them (independent of orix): [001] red, [101] green, [111] blue.
+        // The m-3m corners as every IPF key draws them (independent of orix): [001] red, [101] green, [111] blue, within the
+        // hue shift of MTEX's azimuth correction (under 0.01).
         let cubic = DirectionColorKeyTSL(PointGroup.oh).color(of: [SIMD3(0, 0, 1), SIMD3(1, 0, 1), SIMD3(1, 1, 1)])
         for (c, expected) in zip(cubic, [SIMD3<Double>(1, 0, 0), SIMD3(0, 1, 0), SIMD3(0, 0, 1)]) {
-            for k in 0..<3 { XCTAssertEqual(c[k], expected[k], accuracy: 1e-6) }
+            for k in 0..<3 { XCTAssertEqual(c[k], expected[k], accuracy: 0.01) }
         }
     }
 
