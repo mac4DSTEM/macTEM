@@ -24,6 +24,8 @@ struct ImageRoomDisplaySection: View {
     var logID = "diffraction.log"
     /// The pattern's log display, a switch row where the scale bar's would be; nil in a room that draws a scale bar.
     var log: Binding<Bool>?
+    /// The SEM record of the file shown; a file with a databar gets the `Databar · Hide · Show` row (ImageRoomSEM.swift, design §4).
+    var sem: SEMImageMetadata? = nil
 
     /// Gray first: the TEM convention.
     private static let colormaps: [ColormapKind] = [.gray, .inferno, .viridis, .rdbu]
@@ -64,6 +66,7 @@ struct ImageRoomDisplaySection: View {
                         .toggleStyle(.switch)
                 }
             }
+            if let sem, sem.databarRows != nil { SEMDatabarPicker(sem: sem) }
         }
     }
 
