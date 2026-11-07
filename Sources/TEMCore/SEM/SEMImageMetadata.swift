@@ -377,7 +377,8 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
             let semKeys = ["AcceleratorVoltage=", "ApertureDiameter=", "ApertureOptimization=", "ChamberPressure=", "CrossFree=", "HV="]
             let at = semKeys.compactMap { text.range(of: $0)?.lowerBound }.min()
             if let at {
-                let lineStart = text[..<at].lastIndex(of: "\n").map { text.index(after: $0) } ?? text.startIndex
+                // Python's `rfind("\n")` looks for the code point: in Swift "\r\n" is one Character, so search the UTF-8 bytes.
+                let lineStart = text.utf8[..<at].lastIndex(of: UInt8(ascii: "\n")).map { text.utf8.index(after: $0) } ?? text.startIndex
                 text = "[MAIN]\n" + text[..<lineStart] + "[SEM]\n" + text[lineStart...]
             } else {
                 text = "[MAIN]\n" + text
