@@ -90,6 +90,10 @@ P = -1, Bunge Euler angles lab to crystal). Bundles from `tools/parity/sem/emit.
 | `PointGroup` (the 38 groups and 2, m, 32; `fromGenerators`, `subgroups`, `properSubgroup`, `laue`, `laueProperSubgroup`, `system`, `eulerFundamentalRegion`, `fundamentalSectorNormals`, `fundamentalZoneNormals`) | `orix.quaternion.symmetry` | `testPointGroupsMatchOrixElementForElement` | elements and normals 1e-10, in orix's order; names exact | rotation axes grouped by their 10-decimal rounding in `axisOrders` where orix compares exactly (D-SEM-35); orix's `fundamental_sector` spells "6m2" for the rotated case, so "-6m2" is not rotated, kept |
 | `OrientationRegion.fromSymmetry`, `contains`, `vertices` | `orix.quaternion.OrientationRegion` | `testOrientationRegionsMatchOrix` | normals 1e-10 | a pair of improper groups without inversion throws as orix raises |
 | `Orientations` (`reduced`, `angles(with:)`, `misorientations(from:)`, `anglesOuter`, `distanceMatrix`), `Misorientations` (`reduced`, `angles`, `distanceMatrix`) | `Orientation.reduce`, `angle_with`, `__sub__`, `angle_with_outer`/`get_distance_matrix` (numba kernels), `Misorientation.reduce`, `get_distance_matrix(lazy=False)` | `testTiOrientationsReduceAndDisorientationsMatchOrix`, `testCubicOrientationsReduceAndDisorientationsMatchOrix` | atol 1e-7 | `reduce` keeps orix's loop (first `end · M · start` inside the zone of (start, end)); for two different groups that is not always the smallest angle (DiffractoKit's pins document the case), the same as orix; float64 loops, not Accelerate (D-SEM-35) |
+| `Vector3.azimuth`, `polar`, `circle(about:)`; `StereographicProjection` (`vectorToXY`, `vectorToXYSplit`, `xyToVector`) | `Vector3d.azimuth`/`polar`/`get_circle`, `orix.projections.StereographicProjection`, `InverseStereographicProjection` | `testSphericalCoordinatesAndStereographicProjectionMatchOrix` | atol 1e-7 | the hemisphere's vectors only, as orix drops the others |
+| `CrystalLattice`, `Miller` (hkl, uvw, hkil, UVTW, `length`, `rounded`, `roundIndices`) | `orix.crystal_map.Phase` structure alignment (x ∥ a, z ∥ c*), `orix.vector.Miller`, `_round_indices` (MTEX) | `testLatticesAndMillerIndicesMatchOrix` | bases 1e-10; vectors 1e-7; rounded indices exact | the base from the six parameters with diffpy's exact `cosd`, rounded to 12 decimals as orix rounds it |
+| `FundamentalSector` (`vertices`, `center`, `edges`, `stereographicExtent`), `PointGroup.projectToFundamentalSector` | `orix.vector.FundamentalSector`, `Vector3d.in_fundamental_sector` (MTEX `project2FundamentalRegion`) | `testFundamentalSectorsAndProjectionIntoThemMatchOrix`, `testSectorEdgesMatchOrix` | vertices and centres 1e-10; edges 1e-9; projections 1e-7 | orix's sampled centre (four or more vertices, none stated) is reached by no group of its table, so it is not ported |
+| `DirectionColorKeyTSL` (`color(of:)`, `keyImage`), `IPFColorKeyTSL`, `EulerColorKey` | `DirectionColorKeyTSL.direction2color` (Nolze & Hielscher 2016 via MTEX), `IPFColorKeyTSL.orientation2color`, `EulerColorKey.orientation2color`, `Orientation.in_euler_fundamental_region` | `testTSLDirectionColoursMatchOrixForEveryLaueGroup`, `testKeyImagesAreTheExactColoursOnOrixsGrid`, `testEulerColourKeyMatchesOrixForEveryGroup`, `testIPFZColoursOf…` (F6) | RGB 1e-6 | the key image holds the exact colour per pixel where orix interpolates a 2° sampling (up to 0.048 apart, D-SEM-40) |
 | `OrientationSampling` (`semiEdgeSteps`, `cubochoricGrid`, `fundamental`, `local`) | `orix.sampling.get_sample_fundamental`, `get_sample_local`, `_cubochoric_sampling` (cubochoric grid: Roşca, Morawiec and De Graef 2014; resolution to N: Singh and De Graef 2016, eq. 9) | `SEMOrientationSamplingParityTests` (bundle `m3/orientation-sampling`) | counts and N exact; rotations atol 1e-7 in orix's order | orix states no tolerance for sampling, so counts are exact and rows take the orientation core's 1e-7; the bundle keeps every stride-th row of a large sample (D-SEM-48); m-3m 4°/2°/1.5° = 11 935 / 100 347 / 243 129, 6/mmm 4° = 23 809 |
 
 ## Crystal map
@@ -217,6 +221,24 @@ PC) and `np.allclose` defaults (coordinates).
   points, the out → in lines and the PC, kikuchipy's beside the one `testMovingScreenPCOfSiliconAsKikuchipy` prints
   (`F5 ours …` in the test log, passed with `--ours`).
 
+## SEM-EDS (exspy's window path)
+
+References: the bundles `m7/eds-lines-tm002` (F16) and `m7/eds-quant-tm002` (F17, with the X-ray line table as its `db_` arrays) in
+`tools/parity/sem` (exspy 0.3.2, HyperSpy 2.5.0) on the BAM TM002 spectrum (`fixtures/exspy_EDS_SEM_TM002.hspy`); tests in
+`SEMEDSParityTests`. Port: `Sources/TEMCore/EDX/SEMEDSLines.swift` (Fiori and Newbury 1978 for the line width; Cliff and
+Lorimer 1975 for the k-factor ratio); SpectroKit's model-fit quantification is unchanged and stays the EDS room's own path.
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `XrayLineDatabase` | `exspy._misc.elements.elements` | `testXrayLineDatabaseIsExspys` | exact | generated by `make_xray_database.py` (D-SEM-61) |
+| `SEMEDSLines.lines(forElements:)` | `EDSSpectrum._get_lines_from_elements` (`add_lines()`) | `testFigureF16…`, `testLinesFollowTheBeamEnergy…` | exact | Kα/Lα/Mα in range, the first below half the beam energy; an element exspy lists without lines adds none (exspy raises) |
+| `fwhm(atKeV:)` | `get_FWHM_at_Energy` | `testFigureF17…` | rtol 1e-7 | keV axis only: an eV file is converted on reading |
+| `integrationWindows`, `backgroundWindows` | `estimate_integration_windows`, `estimate_background_windows` | `testFigureF16…`, `testDefaultBackgroundWindows…` | rtol 1e-7 | exspy's in-place merge of overlapping windows kept as it is: with (5, 2) on TM002 every line takes C Kα's left window |
+| `index(of:)`, `channels(from:to:)` | HyperSpy `UniformDataAxis.value2index`, `_get_array_slices` | `testChannelRoundingIsHyperSpys` | exact | half a channel towards zero (non-negative energy), away from zero (negative) |
+| `intensities` | `get_lines_intensity` | `testFigureF16…`, `testExspyDocstringIntensities` | rtol 1e-7 (measured bit-equal) | a window off the axis or narrower than one channel is refused where HyperSpy raises |
+| `cliffLorimer`, `weightToAtomic`, `quantify` | `quantification_cliff_lorimer` (× 100), `material.weight_to_atomic` | `testFigureF17…`, `testCliffLorimerFloor…` | rtol 1e-7 | no absorption correction; k-factors typed (D-SEM-7, D-SEM-59) |
+| `Conditions.takeOffAngleDeg` | `get_take_off_angle` / `take_off_angle` | `testTM002Conditions…` | rtol 1e-7 | exspy's defaults (130 eV, 35°, 0°, 0°) for what a file leaves out |
+
 ## Hough indexing (figure F8)
 
 References: `tools/parity/sem/hough_cases.py` (pyEBSDindex 0.3.10.1 through kikuchipy 0.13.1, CPU path: pyopencl is not
@@ -229,16 +251,16 @@ Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST),
 
 | Function | Reference | Test | Tolerance | Notes |
 |---|---|---|---|---|
-| `HoughReflectorLibrary` (pole families, variants, Cartesian normals, angle table, family pairs, triplet table; Laue codes and rotations) | `tripletvote.addphase`, `BandIndexer.build_trip_lib`, `crystal_sym`, `crystallometry.Crystal` | `testReflectorLibraries…`, `testLaueCodes…` | indices exact; poles and normals rtol 1e-7 (poles atol 1e-12); angles atol 1e-5° | triplet table ordered by (family key, angles), D-SEM-59 |
-| `HoughBandDetector` plan, mask, kernel, `radon`, `convolve` | `radon_fast.Radon.radon_plan_setup`, `radon_faster`; `band_detect.BandDetect.band_detect_setup`, `rdn_conv` | `testRadonPlanKernelAndTransform…` | counts, bins, mask exact; Radon rtol 1e-5 (atol 1e-4), convolution rtol 1e-5 (atol 2e-3); a flipped plan pixel (below) may move up to 6 lines and 1 % of the convolution, each within 5 grey levels | the stats window keeps pyEBSDindex's row bound (`shprdn[1]`), D-SEM-59 |
+| `HoughReflectorLibrary` (pole families, variants, Cartesian normals, angle table, family pairs, triplet table; Laue codes and rotations) | `tripletvote.addphase`, `BandIndexer.build_trip_lib`, `crystal_sym`, `crystallometry.Crystal` | `testReflectorLibraries…`, `testLaueCodes…` | indices exact; poles and normals rtol 1e-7 (poles atol 1e-12); angles atol 1e-5° | triplet table ordered by (family key, angles), D-SEM-70 |
+| `HoughBandDetector` plan, mask, kernel, `radon`, `convolve` | `radon_fast.Radon.radon_plan_setup`, `radon_faster`; `band_detect.BandDetect.band_detect_setup`, `rdn_conv` | `testRadonPlanKernelAndTransform…` | counts, bins, mask exact; Radon rtol 1e-5 (atol 1e-4), convolution rtol 1e-5 (atol 2e-3); a flipped plan pixel (below) may move up to 6 lines and 1 % of the convolution, each within 5 grey levels | the stats window keeps pyEBSDindex's row bound (`shprdn[1]`), D-SEM-70 |
 | `HoughBandDetector.detect`, `normals` | `find_bands`, `rdn_local_max`, `band_label_numba`, `Radon.radon2pole` ("KIKUCHIPY") | `testBandsOfTheBlock…` | peak cells exact; sub-pixel peaks and rho 1e-3 px; theta and normals 1e-4; peak values rtol 1e-5; the bands of a pattern with a flipped plan pixel within 1 px and 1° | brief bound 1 px / 1° |
 | `HoughIndexer.tripletVote` | `BandIndexer._tripvote_numba` | `testTripletVote…` | counts and families exact; weighted votes and ranks rtol 1e-5 (atol 1e-3) | fed the reference normals |
-| `HoughIndexer.index` (`assignBands`, `quest`, confidence) | `bandindex`, `_assign_bands_nb2`, `_calc_quest_weights`, `_orientation_quest_nb`, `_calc_cm`, `EBSDIndexer._indexbandsphase` | `testBlockIsIndexed…` | matched bands, phase, total votes exact; fit atol 2e-3° (float32 arccos near 1), CM, PQ rtol 1e-5, IQ 1e-4 (one flipped-pixel pattern within 0.01 / 1 / 0.01); orientation < 0.01° (m-3m) | the matched variant compared by family, D-SEM-59 |
+| `HoughIndexer.index` (`assignBands`, `quest`, confidence) | `bandindex`, `_assign_bands_nb2`, `_calc_quest_weights`, `_orientation_quest_nb`, `_calc_cm`, `EBSDIndexer._indexbandsphase` | `testBlockIsIndexed…` | matched bands, phase, total votes exact; fit atol 2e-3° (float32 arccos near 1), CM, PQ rtol 1e-5, IQ 1e-4 (one flipped-pixel pattern within 0.01 / 1 / 0.01); orientation < 0.01° (m-3m) | the matched variant compared by family, D-SEM-70 |
 | F8 end to end: `HoughIndexer.indexMap` on the app's corrected demo scan | `EBSD.hough_indexing` on kikuchipy's corrected scan | `testFigureF8…` | indexed count within 1; 99 % of points under 1°; matched-band count equal on 95 % | a float64 replica on kikuchipy's exact patterns: 4124 of 4124 within 1.3e-5°, every matched-band count equal |
 
 ### Known limits and decisions
 
-- D-SEM-59 (2026-11-07): the port is float64 and orders ties stably where pyEBSDindex's float32 or quicksort order is
+- D-SEM-70 (2026-11-07): the port is float64 and orders ties stably where pyEBSDindex's float32 or quicksort order is
   arbitrary; symmetry-equivalent trial rotations score equally, so the matched library variant may be another member of
   the same family and the orientation another symmetry-equivalent quaternion: the tests hold families and
   symmetry-reduced misorientations, not variant indices or raw quaternions. The vendor is fixed to "KIKUCHIPY" (Bruker
@@ -248,7 +270,7 @@ Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST),
   Apple's differ in the last ulp, so a line whose pixel rounding sits on a half takes the neighbouring pixel (2 of 16200
   lines of the first block pattern on the CI Mac; counts stay exact). The tests allow these lines and what follows from
   them within the brief's 1 px and 1°.
-- D-SEM-60 (2026-11-07): the result of a scan is `HoughIndexer.Map` (rotations as orix takes them, fit, CM, PQ, matched
+- D-SEM-71 (2026-11-07): the result of a scan is `HoughIndexer.Map` (rotations as orix takes them, fit, CM, PQ, matched
   bands per point) until the orix `CrystalMap` port (P3-03) is on main; carrying it into a `CrystalMap` is its own issue.
 - Speed: the CPU path indexes in parallel over a scan row; the F8 test prints the time of the 4125 patterns. The brief's
   Metal path for the Radon transform is due only if a release build takes over 5 s on the 55 x 75 scan.

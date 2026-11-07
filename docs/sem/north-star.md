@@ -117,6 +117,8 @@ The orientation core underneath it (P3-01), on inputs that need no download (`fi
 | The 38 point-group objects (32 groups with their axis settings) and the aliases 2, m, 32: elements in orix's order, improper flags, proper subgroup, Laue group and its proper subgroup, system, Euler region, subgroups, inverse-pole-figure sector, fundamental zone | `orix.quaternion.symmetry` | `m3/point-groups` | elements and normals 1e-10; names and flags exact |
 | The orientation fundamental zone of each group and the misorientation zone of each pair (G, G) | `OrientationRegion.from_symmetry` | `m3/orientation-regions` | normals 1e-10 |
 | The first 2000 Ti orientations of orix-data (622) and 100 seeded m-3m orientations (the Ni symmetry): reduced orientations, neighbour angles, disorientations of neighbours, orientation and misorientation distance matrices | `Orientation.reduce`, `angle_with`, `-`, `get_distance_matrix` | `m3/ti-disorientations` | atol 1e-7 |
+| Vectors (azimuth, polar), the stereographic projection (pole −1 and 1, split, inverse), four lattices aligned as orix's `Phase` with Miller (hkl), [uvw], (hkil), [UVTW], lengths and MTEX rounding, the inverse-pole-figure sector of every group (vertices, centre, projection into it), the edges of the 11 Laue sectors, the TSL colours of 400 directions per Laue group, the m-3m and 6/mmm key images, the Euler colour key of every group (P3-02, inputs `fixtures/ipf_inputs.json`) | `orix.vector`, `orix.projections`, `orix.plot.DirectionColorKeyTSL`, `EulerColorKey` | `m3/ipf-color-keys` | colours 1e-6; coordinates 1e-7; sector geometry 1e-10, edges 1e-9; rounded indices exact; orix's interpolated key image within 0.05 on 99 % of pixels (D-SEM-40) |
+| F6: the IPF-Z colours of orix-data's `sdss_ferrite_austenite.ang` (11 700 points, two 432 phases) and of the nickel scan's crystal map (4125 points, m-3m) | `IPFColorKeyTSL.orientation2color` per phase | `m3/ipf-sdss-ferrite-austenite`, `m3/ipf-nickel-ebsd-large` | 1e-6 |
 | Cubochoric orientation sampling for dictionary indexing: N from the resolution, the grid S000(3), the fundamental-zone sample of m-3m at 4°, 2° and 1.5°, 6/mmm at 4°, 432 at 5°, mmm at 7.5°, 1 at 15°, and local samples around the identity and two centres (`fixtures/sampling_inputs.json`) | `orix.sampling.get_sample_fundamental`, `get_sample_local` | `m3/orientation-sampling` | counts exact; rotations atol 1e-7 in orix's order |
 
 The crystal map model (P3-03) and figure F7, the misorientation angle distribution of the Ti orientations: on the map's grid,
@@ -201,8 +203,27 @@ background windows `estimate_background_windows(line_width=[5.0, 2.0])`:
 | Mn Lα | 0.6332 | 0.5720 to 0.6943 | 96700 | 85734.00 |
 | Zr Lα | 2.0423 | 1.9571 to 2.1275 | 99075 | 82215.86 |
 
-Tolerance rtol 1e-7 on the intensities and the window edges. Quantification (Cliff-Lorimer with k-factors, as the
-tutorial does it) follows in the same milestone once the k-factors it uses are recorded with their source.
+Tolerance rtol 1e-7 on the intensities and the window edges. The line table exspy reads is held exact by
+the `db_` arrays of `m7/eds-quant-tm002` (every element's atomic weight, every line's energy and weight).
+
+### Figure 7b (milestone 7, F17): quantification
+
+Bundle `m7/eds-quant-tm002`: exspy's Cliff-Lorimer (`quantification_cliff_lorimer`, as `quantification(method="CL")`
+calls it, no absorption correction, times 100) on the background-subtracted intensities above, then
+`exspy.material.weight_to_atomic`. exspy publishes no SEM k-factors and TM002 has no certified layer composition, so the
+k-factors are stated (D-SEM-59): unit factors and a planted set (Al Kα 1.0, C Kα 2.5, Cu Lα 1.5, Mn Lα 1.25, Zr Lα 2.0).
+
+| Line | wt% (unit k) | at% (unit k) | wt% (planted k) | at% (planted k) |
+| --- | --- | --- | --- | --- |
+| Al Kα | 17.37 | 20.03 | 10.48 | 10.49 |
+| C Kα | 19.48 | 50.46 | 29.38 | 66.08 |
+| Cu Lα | 21.03 | 10.30 | 19.04 | 8.09 |
+| Mn Lα | 21.50 | 12.18 | 16.21 | 7.97 |
+| Zr Lα | 20.62 | 7.03 | 24.88 | 7.37 |
+
+The same bundle holds the take-off angle (37.0°, `get_take_off_angle`), each line's FWHM at 130 eV Mn Kα, the default
+background windows (`line_width` [2, 2]) with their intensities, the raw intensities of 2.1-FWHM windows and the lines
+exspy picks at 5, 20 and 30 kV. Tolerance rtol 1e-7 throughout.
 
 ### Figure 8 (milestone 8): export
 
