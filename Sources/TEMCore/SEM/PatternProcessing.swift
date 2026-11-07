@@ -24,14 +24,14 @@ import ImagoFilters
 
 package nonisolated enum PatternProcessing {
     /// kikuchipy's `operation`: the background is subtracted from or divided into the pattern.
-    package enum Operation: String, Sendable, CaseIterable, Identifiable {
+    package enum Operation: String, Sendable, Codable, CaseIterable, Identifiable {
         case subtract, divide
         package var id: String { rawValue }
         package var title: String { rawValue.capitalized }
     }
 
     /// kikuchipy's `filter_domain`: the dynamic background by the FFT Gaussian filter or by `scipy.ndimage.gaussian_filter`.
-    package enum FilterDomain: String, Sendable, CaseIterable, Identifiable {
+    package enum FilterDomain: String, Sendable, Codable, CaseIterable, Identifiable {
         case frequency, spatial
         package var id: String { rawValue }
         package var title: String { rawValue.capitalized }
@@ -246,6 +246,17 @@ package nonisolated enum PatternProcessing {
         let reciprocal = Float(1 / Double(imax - imin))
         let top = Float(P.max)
         return binned.map { P(min(max(($0 - imin) * reciprocal * top, 0), top)) }
+    }
+
+    /// `_downsample2d` on a float32 pattern (a normalised one): binned, then rescaled to float32's `dtype_range`, [-1, 1].
+    package static func downsampleFloat(_ pattern: [Float], rows: Int, columns: Int, factor: Int) throws -> [Float] {
+        guard rows >= 1, columns >= 1, pattern.count == rows * columns else { throw Error.shape }
+        guard factor >= 1, rows % factor == 0, columns % factor == 0 else { throw Error.parameter("factor") }
+        if factor == 1 { return pattern }
+        let binned = bin(pattern, rows: rows, columns: columns, factor: factor)
+        guard let imin = binned.min(), let imax = binned.max(), imax > imin, imin.isFinite, imax.isFinite else { throw Error.nonFinite }
+        let reciprocal = Float(1 / Double(imax - imin))
+        return binned.map { ($0 - imin) * reciprocal * 2 - 1 }
     }
 
     /// `_bin2d`: the sum of each `factor` × `factor` block, row-major, `rows / factor` × `columns / factor` values.
