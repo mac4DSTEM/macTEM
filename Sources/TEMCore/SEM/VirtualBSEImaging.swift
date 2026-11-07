@@ -11,6 +11,7 @@
 //
 
 import Foundation
+import FormatoCore
 
 /// A rectangle on the detector in pixels, half-open on the right and bottom (`hs.roi.RectangularROI` as the signal is sliced).
 package nonisolated struct DetectorRect: Sendable, Hashable {
