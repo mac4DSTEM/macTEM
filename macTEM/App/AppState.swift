@@ -191,12 +191,29 @@ final class AppState {
         do {
             guard let run = try indexing.mapsDocument() else { statusText = "Index first"; return nil }
             let drawn = maps.bind(run, pinned: ebsd.pinned)
+            followMapsPin()
             selectWorkspace(.maps)
             return drawn
         } catch {
             present(error)
             return nil
         }
+    }
+
+    /// The Maps room's `Source` pop-up: the map held as `id`, at the same point where it has it (`OrientationMapSession.showSource`),
+    /// the pattern pane beside it on the same point.
+    @discardableResult
+    func showMapsSource(_ id: OrientationMapSession.Document.ID) -> Task<Void, Never>? {
+        let drawn = maps.showSource(id)
+        followMapsPin()
+        return drawn
+    }
+
+    /// A map on the Patterns room's scan takes the pattern pinned there, or the origin when it does not reach it (a stopped run's
+    /// rows): the Patterns room follows, so the crosshair and the live pattern pane beside it show the same point.
+    private func followMapsPin() {
+        guard let dataset = ebsd.dataset, maps.isOnScan(of: dataset), ebsd.pinned != maps.pinned else { return }
+        ebsd.pin(maps.pinned)
     }
 
     /// What the Maps room says of the map it shows when that is an Indexing run (`IndexingSession.staleness(ofRun:)`), nil otherwise.

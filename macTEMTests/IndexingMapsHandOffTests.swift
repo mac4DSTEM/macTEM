@@ -3,8 +3,9 @@
 //  The Indexing room's run in the Maps room without a file (D-SEM-99): `Open in Maps` shows exactly `IndexingSession.crystalMap()` (what
 //  the .ang and .ctf exports write: the room's phase colours, the scan's steps and unit, the run's properties) beside the patterns, at
 //  the pinned point, with the Maps room in front; the room holds one map of each source (a map file, the dataset's own map, the run)
-//  and `Source` moves between them keeping the point and the layer; a run the Indexing room has moved on from is marked stale; the
-//  dataset's maps go with the dataset. Run on the generated demo scan (30 × 40), so the run is short.
+//  and `Source` moves between them keeping the point and the layer, the pattern pane beside on the same point; a run the Indexing room
+//  has moved on from is marked stale, with the cause; the dataset's maps go with the dataset. Run on the generated demo scan (30 × 40),
+//  so the run is short.
 //  Red before the change: no `Open in Maps`, no `.indexing` source, the Maps room holding only the map shown.
 //
 
@@ -36,8 +37,9 @@ nonisolated final class IndexingMapsHandOffTests: XCTestCase {
     // MARK: - Open in Maps through the window
 
     /// The demo scan opened as the window opens it, indexed with Hough, the run handed to Maps: the map Maps shows is the run's crystal
-    /// map, its source the run, the pattern pane on the scan, the point the one pinned in Patterns; staleness by a setting and by a
-    /// later run; the dataset's maps go when it closes.
+    /// map, its source the run, the pattern pane on the scan, the point the one pinned in Patterns; staleness by a setting, by the
+    /// Patterns room's processing and by a later run; a source switch onto a stopped run's rows keeps the crosshair and the pattern
+    /// pane together; the dataset's maps go when it closes.
     @MainActor func testOpenInMapsShowsTheRunsCrystalMap() async throws {
         let state = AppState(launch: LaunchOptions(arguments: []))
         let demo = try DemoDocuments.ebsd()
@@ -83,17 +85,39 @@ nonisolated final class IndexingMapsHandOffTests: XCTestCase {
         XCTAssertNil(state.mapsStaleness)
         XCTAssertEqual(MapsRoomFormat.sourceWords(.indexing(run: run, method: .hough)), "The Indexing room's Hough run")
 
-        // A setting changed since the run stales it; a later run (here stopped at once) too.
+        // A setting or the Patterns room's processing changed since the run stales it, each named; a later run too, and Open in Maps
+        // is offered again only once that run has rows to hand over (this one is stopped at once).
         state.indexing.editSettings { $0.bands = 9 }
-        XCTAssertEqual(state.mapsStaleness, "Stale: the Indexing room's settings changed since this run.")
+        XCTAssertEqual(state.mapsStaleness, "Stale: the Indexing room's phases or settings changed since this run.")
         state.indexing.editSettings { $0.bands = 10 }
+        XCTAssertNil(state.mapsStaleness)
+        let truncate = ebsd.pipeline.dynamicStage.truncate
+        ebsd.editPipeline { $0.dynamicStage.truncate = truncate + 1 }
+        XCTAssertEqual(state.mapsStaleness, "Stale: the Patterns room's processing changed since this run.")
+        ebsd.editPipeline { $0.dynamicStage.truncate = truncate }
         XCTAssertNil(state.mapsStaleness)
         let again = state.indexing.index()
         XCTAssertEqual(state.indexing.openInMapsRefusal, "Stop the run or let it finish first")
         state.indexing.stop()
         await again.value
-        XCTAssertEqual(state.mapsStaleness, "Stale: the Indexing room has run again since. Open in Maps again to show the new run.")
+        XCTAssertEqual(state.indexing.openInMapsRefusal, "Index first")
+        XCTAssertEqual(state.mapsStaleness, "Stale: the Indexing room has started another run since.")
         XCTAssertEqual(state.maps.map, shown, "Maps keeps the run it was handed")
+
+        // A stopped run's 12 rows in the run's place: switching onto it from a point past them puts the crosshair and the pattern
+        // pane beside it at the origin together.
+        let partial = OrientationMapSession.Document(fileName: "Demo EBSD", url: nil, map: try Self.map(rows: 12, columns: 40),
+                                                     source: .indexing(run: run, method: .hough), format: "Indexing room · Hough")
+        await state.maps.bind(partial).value
+        let own = try XCTUnwrap(state.maps.sources.first { $0.source == .patterns })
+        await state.showMapsSource(own.id)?.value
+        XCTAssertEqual(state.maps.document?.source, .patterns)
+        state.maps.pin(EBSDPosition(row: 20, column: 3))
+        ebsd.pin(EBSDPosition(row: 20, column: 3))
+        await state.showMapsSource(partial.id)?.value
+        XCTAssertTrue(state.maps.isOnScan(of: dataset))
+        XCTAssertEqual(state.maps.pinned, .origin, "row 20 is past the run's rows")
+        XCTAssertEqual(ebsd.pinned, .origin, "the pattern pane follows the crosshair")
 
         ebsd.close()
         XCTAssertFalse(state.maps.hasMap)
@@ -153,13 +177,20 @@ nonisolated final class IndexingMapsHandOffTests: XCTestCase {
     }
 
     /// The words: the stale title, the Source row and Info for each source.
-    func testTheSourcesAreNamed() {
+    func testTheSourcesAreNamed() throws {
         XCTAssertEqual(MapsRoomFormat.mapTitle(.ipf(.z)), "Map · IPF-Z")
         XCTAssertEqual(MapsRoomFormat.mapTitle(.ipf(.z), stale: true), "Map · IPF-Z · stale")
         XCTAssertEqual(MapsRoomFormat.sourceWords(.mapFile), "The map file")
         XCTAssertEqual(MapsRoomFormat.sourceWords(.patterns), "The pattern file's map")
         XCTAssertEqual(MapsRoomFormat.sourceWords(.indexing(run: 1, method: .dictionary)), "The Indexing room's Dictionary run")
         XCTAssertTrue(MapsRoomFormat.sourceNote(.indexing(run: 1, method: .hough)).contains("without a file"))
+        let run = OrientationMapSession.Document(fileName: "Demo EBSD", url: nil, map: try Self.map(rows: 2, columns: 3),
+                                                 source: .indexing(run: 1, method: .hough), format: "Indexing room · Hough")
+        let info = Dictionary(MapsRoomFormat.infoRows(run).map { ($0.label, $0.value) }, uniquingKeysWith: { first, _ in first })
+        XCTAssertEqual(info["Source"], "The Indexing room's Hough run on the pattern file")
+        XCTAssertEqual(info["Format"], "Indexing room · Hough")
+        XCTAssertEqual(info["Phase colours"], "The Indexing room's phase colours (orix's names)")
+        XCTAssertEqual(info["Euler angles"], "Bunge (φ₁, Φ, φ₂), lab to crystal, from the run's rotations as orix converts them")
     }
 
     /// The Export section offers `Open in Maps` through the window's hand-off; the Maps inspector's Source pop-up moves between the
@@ -170,7 +201,7 @@ nonisolated final class IndexingMapsHandOffTests: XCTestCase {
         XCTAssertTrue(indexing.contains(".disabled(session.openInMapsRefusal != nil)"))
         XCTAssertTrue(indexing.contains(".accessibilityIdentifier(\"indexing.openInMaps\")"))
         let inspector = squeezed(try source("macTEM/UI/MapsRoomInspector.swift"))
-        XCTAssertTrue(inspector.contains("set: { session.showSource($0) }"))
+        XCTAssertTrue(inspector.contains("set: { appState.showMapsSource($0) }"))
         XCTAssertTrue(inspector.contains("if let stale = appState.mapsStaleness"))
         let room = squeezed(try source("macTEM/UI/MapsRoom.swift"))
         XCTAssertTrue(room.contains("appState.maps.isOnScan(of: dataset)"))

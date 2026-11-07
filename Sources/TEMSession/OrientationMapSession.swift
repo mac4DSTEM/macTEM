@@ -26,8 +26,8 @@ package final class OrientationMapSession {
             case mapFile
             /// The crystal map of the EBSD dataset open in the Patterns room: the patterns are there for the live pane.
             case patterns
-            /// Run `run` of the Indexing room on that dataset (`IndexingSession.runGeneration`), by `method`: its crystal map as the room's
-            /// .ang and .ctf exports write it (D-SEM-99). The patterns are there too.
+            /// Run `run` of the Indexing room on that dataset (`IndexingSession.runGeneration`), by `method`: the crystal map the room's
+            /// .ang and .ctf exports are written from (D-SEM-99). The patterns are there too.
             case indexing(run: Int, method: IndexingMethod)
 
             /// Whether the map belongs to the Patterns room's dataset: it goes when the dataset goes, and its patterns show beside it.

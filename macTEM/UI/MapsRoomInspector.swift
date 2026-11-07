@@ -23,7 +23,7 @@ struct MapsRoomSettings: View {
             InspectorSection("Maps") {
                 if session.sources.count > 1 {
                     InspectorRow("Source") {
-                        Picker("Source", selection: Binding(get: { document.id }, set: { session.showSource($0) })) {
+                        Picker("Source", selection: Binding(get: { document.id }, set: { appState.showMapsSource($0) })) {
                             ForEach(session.sources, id: \.id) { held in
                                 Text(MapsRoomFormat.sourceTitle(held)).tag(held.id)
                             }

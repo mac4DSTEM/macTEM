@@ -866,9 +866,9 @@ package final class IndexingSession {
         return nil
     }
 
-    /// The last run as the Maps room shows it (D-SEM-99): its crystal map (`crystalMap()`, what the .ang and .ctf exports write: the
-    /// rows reached, the room's phase colours, the scan's steps and unit) under the pattern file's name, its source this run of its
-    /// method. nil while `openInMapsRefusal` holds.
+    /// The last run as the Maps room shows it (D-SEM-99): its crystal map (`crystalMap()`, the one the .ang and .ctf exports are
+    /// written from: the rows reached, the room's phase colours, the scan's steps and unit, the run's values) under the pattern file's
+    /// name, its source this run of its method. nil while `openInMapsRefusal` holds.
     package func mapsDocument() throws -> OrientationMapSession.Document? {
         guard openInMapsRefusal == nil, let result, let document = patterns.document, let map = try crystalMap() else { return nil }
         return OrientationMapSession.Document(fileName: document.fileName, url: document.url, map: map,
@@ -877,11 +877,16 @@ package final class IndexingSession {
     }
 
     /// What the Maps room says of run `run` of this room it shows: nil while it is the last run and its inputs stand; else that a later
-    /// run replaced it, or that the inputs changed since (`isStale`: a Processing, Phases or method setting).
+    /// run replaced it (and to hand that one over when it can be), or which inputs changed since (`isStale`): the Patterns room's
+    /// processing, or this room's phases or method settings.
     package func staleness(ofRun run: Int) -> String? {
-        if run != runGeneration { return "Stale: the Indexing room has run again since. Open in Maps again to show the new run." }
-        if isStale { return "Stale: the Indexing room's settings changed since this run." }
-        return nil
+        if run != runGeneration {
+            return openInMapsRefusal == nil ? "Stale: the Indexing room has run again since. Open in Maps again to show the new run."
+                : "Stale: the Indexing room has started another run since."
+        }
+        guard isStale else { return nil }
+        if resultInputs?.pipeline != patterns.pipeline { return "Stale: the Patterns room's processing changed since this run." }
+        return "Stale: the Indexing room's phases or settings changed since this run."
     }
 
     // MARK: - Export

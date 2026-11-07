@@ -105,7 +105,7 @@ nonisolated enum MapsRoomFormat {
         case .patterns:
             "The vendor's or kikuchipy's indexing as the file stores it; the patterns are the Patterns room's."
         case .indexing:
-            "The Indexing room's run as its .ang and .ctf exports write it (the rows it reached), handed over without a file; the patterns are the Patterns room's."
+            "The Indexing room's run (the rows it reached), handed over without a file: the crystal map its .ang and .ctf exports are written from; the patterns are the Patterns room's."
         }
     }
 
@@ -132,9 +132,9 @@ nonisolated enum MapsRoomFormat {
             let count = ids.filter { $0 == id }.count
             out.append(EBSDBrowsing.Row("Phase", "\(phaseName(phase, id: id)) · \(phase.pointGroupName ?? "no point group") · \(count) points"))
         }
-        out.append(EBSDBrowsing.Row("Euler angles", "Bunge (φ₁, Φ, φ₂), lab to crystal, as orix reads the file"))
+        out.append(EBSDBrowsing.Row("Euler angles", Self.infoEuler(document.source)))
         out.append(EBSDBrowsing.Row("IPF colours", "TSL key of each phase's Laue group (Nolze and Hielscher 2016), as orix 0.15.0"))
-        out.append(EBSDBrowsing.Row("Phase colours", "orix's phase list (matplotlib Tableau colours)"))
+        out.append(EBSDBrowsing.Row("Phase colours", Self.infoPhaseColours(document.source)))
         return out
     }
 
@@ -143,6 +143,20 @@ nonisolated enum MapsRoomFormat {
         case .mapFile: "The map file alone (no patterns)"
         case .patterns: "The pattern file's crystal map"
         case .indexing(_, let method): "The Indexing room's \(method.title) run on the pattern file"
+        }
+    }
+
+    private static func infoEuler(_ source: OrientationMapSession.Document.Source) -> String {
+        switch source {
+        case .mapFile, .patterns: "Bunge (φ₁, Φ, φ₂), lab to crystal, as orix reads the file"
+        case .indexing: "Bunge (φ₁, Φ, φ₂), lab to crystal, from the run's rotations as orix converts them"
+        }
+    }
+
+    private static func infoPhaseColours(_ source: OrientationMapSession.Document.Source) -> String {
+        switch source {
+        case .mapFile, .patterns: "orix's phase list (matplotlib Tableau colours)"
+        case .indexing: "The Indexing room's phase colours (orix's names)"
         }
     }
 }
