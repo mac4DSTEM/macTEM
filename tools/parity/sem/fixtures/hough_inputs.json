@@ -1,0 +1,10 @@
+{
+ "about": "Inputs of tools/parity/sem/hough_cases.py (milestone 4, Hough indexing, figure F8): the phases whose reflector (triplet) libraries pyEBSDindex 0.3.10.1 builds, the indexer settings of kikuchipy 0.13.1's Hough indexing tutorial (nBands 10, tSigma 2, rSigma 2, the rest pyEBSDindex's EBSDIndexer defaults), and the block of nickel_ebsd_large whose bands and votes are kept. The Ni phase is built as kikuchipy's get_indexer builds it (addphase with the space group and lattice, default FCC reflectors, nband_earlyexit 10); the BCC and HCP phases exercise the library builder on the other lattices pyEBSDindex ships defaults for.",
+ "phases": [
+  {"name": "ni", "spacegroup": 225, "lattice": [3.52, 3.52, 3.52, 90.0, 90.0, 90.0], "polefamilies": null, "nband_earlyexit": 10},
+  {"name": "bcc", "spacegroup": 229, "lattice": [2.87, 2.87, 2.87, 90.0, 90.0, 90.0], "polefamilies": [[0, 1, 1], [0, 0, 2], [1, 1, 2], [0, 1, 3]], "nband_earlyexit": 8},
+  {"name": "hcp", "spacegroup": 194, "lattice": [2.95, 2.95, 4.68, 90.0, 90.0, 120.0], "polefamilies": [[1, 0, -1, 0], [0, 0, 0, 2], [1, 0, -1, 1], [1, 0, -1, 2], [1, 1, -2, 0], [1, 0, -1, 3], [1, 1, -2, 2], [2, 0, -2, 1]], "nband_earlyexit": 10}
+ ],
+ "indexer": {"nBands": 10, "tSigma": 2.0, "rSigma": 2.0, "nRho": 90, "nTheta": 180, "rhoMaskFrac": 0.15, "angTol": 2.0, "vendor": "KIKUCHIPY"},
+ "block": {"rows": [20, 26], "cols": [30, 36]}
+}
