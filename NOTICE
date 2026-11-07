@@ -50,6 +50,11 @@ is a port of orix 0.15.0's orix.crystal_map package (crystal_map, _phase_list, _
 developers, GPL-3.0-or-later, taken under GPL-3.0. Figure F7 is computed on orix-data's Ti_orientations.ctf (CC BY 4.0,
 Krakow et al. 2017), fetched by tools/parity/sem/fetch-data.sh, not committed.
 
+The .ang writer in Sources/TEMCore/SEM/Export/ANGWriter.swift is a port of orix 0.15.0's orix.io.plugins.ang file_writer,
+Copyright (C) 2018-2026 the orix developers, GPL-3.0-or-later, taken under GPL-3.0. The .ctf writer beside it follows the
+Oxford Instruments Channel Text File layout as orix's ctf reader reads it; its reference, tools/parity/sem/ctf_writer.py,
+uses orix's CrystalMap API (GPL-3.0-or-later).
+
 The pattern quality maps in Sources/TEMCore/SEM/PatternQuality.swift (image quality, average neighbour dot product) are a
 port of kikuchipy 0.13.1, Copyright (C) 2019-2026 the kikuchipy developers, GPL-3.0-or-later, taken under GPL-3.0; the
 file names the functions it ports in its first lines.

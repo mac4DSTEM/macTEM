@@ -1,0 +1,99 @@
+{
+  "arrays": {},
+  "case": "m8/write-ctf-sdss-window",
+  "inputs": [
+    {
+      "path": "sem-data/orix/sdss_ferrite_austenite.ang",
+      "sha256": "ac2fc2fc2b8c9c598703c96f9888677bccc9cd88cddd5e78735653fd5504e371"
+    }
+  ],
+  "milestone": 8,
+  "reference": {
+    "function": "tools/parity/sem/ctf_writer.py (Oxford layout), read back by orix.io.plugins.ctf.file_reader",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "round_trip_max_rotation_angle_rad": {
+      "atol": 1e-12,
+      "rtol": 0.0,
+      "value": 1.64669630331312e-06
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "byte_count": 6145,
+    "data_line_sample": {
+      "115": "2\t13.5000\t13.5000\t0\t0\t172.8705\t46.6582\t221.2603\t0.0000\t0\t0",
+      "16": "2\t0.0000\t0.0000\t0\t0\t202.1246\t38.2575\t171.5470\t0.0000\t0\t0",
+      "66": "1\t0.0000\t7.5000\t0\t0\t54.9392\t44.8024\t341.8461\t0.0000\t0\t0"
+    },
+    "file_bytes": {
+      "dtype": "uint8",
+      "sha256": "03223aebed6b01fb4869cc290eadd2975fab172eb1f847566f6e1ce8064d85e2",
+      "shape": [
+        6145
+      ]
+    },
+    "header_lines": [
+      "Channel Text File",
+      "Prj\tsdss-window",
+      "Author\tmacTEM",
+      "JobMode\tGrid",
+      "XCells\t10",
+      "YCells\t10",
+      "XStep\t1.5000",
+      "YStep\t1.5000",
+      "AcqE1\t0.0000",
+      "AcqE2\t0.0000",
+      "AcqE3\t0.0000",
+      "Euler angles refer to Sample Coordinate system (CS0)!\tMag\t0\tCoverage\t100\tDevice\t0\tKV\t0\tTiltAngle\t0\tTiltAxis\t0",
+      "Phases\t2",
+      "3.5950;3.5950;3.5950\t90.000;90.000;90.000\taustenite/austenite\t11\t0",
+      "2.8670;2.8670;2.8670\t90.000;90.000;90.000\tferrite/ferrite\t11\t0",
+      "Phase\tX\tY\tBands\tError\tEuler1\tEuler2\tEuler3\tMAD\tBC\tBS"
+    ],
+    "line_count": 116,
+    "read_back": {
+      "dx": 1.5,
+      "dy": 1.5,
+      "indexed": 100,
+      "phase_ids": [
+        1,
+        2
+      ],
+      "phase_names": [
+        "austenite/austenite",
+        "ferrite/ferrite"
+      ],
+      "point_groups": [
+        "m-3m",
+        "m-3m"
+      ],
+      "properties": [
+        "bands",
+        "error",
+        "MAD",
+        "BC",
+        "BS"
+      ],
+      "shape": [
+        10,
+        10
+      ]
+    }
+  }
+}
