@@ -239,11 +239,14 @@ of the Swift steps matched every bundle: float32 runs within 2.3e-6, the float64
 | `DictionaryIndexing.Result.crystalMap` | the returned `CrystalMap` (`rotations`, `prop`, `create_coordinate_arrays`) | `testCrystalMapOfTheResult` | quaternions atol 1e-7, Euler 1e-6, coordinates exact | the app's `CrystalMap` with `isInData` false where the navigation mask leaves a point out (its score NaN, index -1; kikuchipy: `np.empty`); the best score and index as properties |
 | `DictionaryIndexingMetal` (float32 GPU product) | the CPU float64 product | `testTheMetalPathMatchesTheCPUReference` (skipped without a Metal device) | 1e-5 absolute on scores; against kikuchipy rtol 1e-4, with the GPU-projected dictionary 1e-3 | automatic from 10⁹ products (patterns x dictionary x pixels) |
 | F9 whole scan | `m4/dictionary-indexing-nickel-ebsd-large` | `testFigureF9WholeScanIndexedAgainstTheNickelDictionary`, `testTheCorrectedBlockMatchesKikuchipy` | best match ≥ 99.5 % equal, best scores rtol 1e-2; block rtol 1e-4 | D-SEM-73 |
+| `OrientationSimilarityMap.compute`, `DictionaryIndexing.Result.orientationSimilarityMap` (Marquardt et al. 2017, Microsc. Microanal. 23, 1144) | `kikuchipy.indexing.orientation_similarity_map` (scipy `generic_filter`, origin at size // 2, outside −1) | `testOrientationSimilarityMapMatchesKikuchipy`, `testOrientationSimilarityMapOfFigureF9` (`m4/orientation-similarity-map`) | exact (float32) | defaults, n_best 5 to 2 normalised, 3 x 3, even 2 x 2 and corner-centred footprints; F9's whole scan; D-SEM-88 |
+| `DictionaryMapMerge.merge`, `Merged.crystalMap` | `kikuchipy.indexing.merge_crystal_maps` (with `simulation_indices_prop`) | `testMergeMatchesKikuchipy` (`m4/merge-crystal-maps`) | exact; rotations atol 1e-15 (orix normalises them again) | float32 means of the best n, first map on a tie, stable merge sort over n-major map-minor order, shifted indices, equal phases kept once, different ones renamed, navigation masks; D-SEM-88 |
 
 ### Known limits and decisions
 
 - D-SEM-72 (2026-11-07): ties ranked by the lower simulation index; masked points carry NaN and -1.
 - D-SEM-73 (2026-11-07): F9's dictionary and its chain tolerance.
+- D-SEM-88 (2026-11-07): the OSM and the merge work on the dictionary result's keep_n matches; refusals and phase equality without atoms. A Python mirror of the Swift steps matched both bundles exactly (2026-11-07).
 - Figure F9 (`docs/sem/north-star.md`): `tools/parity/sem/dictionary_figure.py` draws kikuchipy's IPF-Z map beside the one from
   the indices `testFigureF9WholeScanIndexedAgainstTheNickelDictionary` writes to `$TMPDIR/macTEM-F9-ours.i32` (and prints as
   base64), the score map and the points whose best match differs.
