@@ -113,6 +113,14 @@ struct MapsExportSection: View {
                 .accessibilityIdentifier("maps.export.grains")
             }
             InspectorActionRow {
+                Button("Histogram CSV…") {
+                    state.exportHistogram(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 })
+                }
+                .disabled(session.analysis == nil)
+                .help("The Histogram tab's distribution (KAM, GOS or grain size) as CSV: each bin's edges and count")
+                .accessibilityIdentifier("maps.export.histogram")
+            }
+            InspectorActionRow {
                 Button("Texture PNG…") {
                     state.exportTexture(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 })
                 }

@@ -123,6 +123,9 @@ package final class OrientationMapSession {
     package private(set) var slip: [GrainSlip] = []
     /// The grain the table and the map's outline show (its number on the grain map).
     package private(set) var selectedGrain: Int?
+    /// Every grain selected (⌘-click on the map, several rows of the Grains table): their outlines show on the map and their mean
+    /// orientations on the pole figures. `selectedGrain` is the one whose slip the Slip section shows (macTEM#239).
+    package private(set) var selectedGrains: Set<Int> = []
     /// The boundary edges the map draws (`MapAnalysis.boundaryEdges`), made once per analysis, and the selected grain's outline.
     package private(set) var grainBoundaryEdges: [(SIMD2<Double>, SIMD2<Double>)] = []
     package private(set) var phaseBoundaryEdges: [(SIMD2<Double>, SIMD2<Double>)] = []
@@ -569,10 +572,43 @@ package final class OrientationMapSession {
     }
 
     private func setSelectedGrain(_ number: Int?) {
-        guard number != selectedGrain || (number != nil && selectedOutline.isEmpty) else { return }
-        selectedGrain = number
-        selectedOutline = number.flatMap { n in analysis?.outline(of: n) } ?? []
+        setSelection(number.map { [$0] } ?? [], primary: number)
     }
+
+    private func setSelection(_ grains: Set<Int>, primary: Int?) {
+        let primary = primary.flatMap { grains.contains($0) ? $0 : nil } ?? grains.min()
+        guard grains != selectedGrains || primary != selectedGrain || (!grains.isEmpty && selectedOutline.isEmpty) else { return }
+        selectedGrains = grains
+        selectedGrain = primary
+        selectedOutline = analysis?.outline(of: grains) ?? []
+    }
+
+    /// ⌘-click: adds the grain under the point to the selection, or takes it out when it is in it; the point is pinned.
+    package func toggleGrain(at position: EBSDPosition) {
+        let (rows, columns) = gridShape
+        guard position.isInside(rows: rows, columns: columns) else { return }
+        pinned = position
+        guard let analysis, let number = analysis.grain(atRow: position.row, column: position.column) else { return }
+        var grains = selectedGrains
+        if grains.contains(number) {
+            grains.remove(number)
+            setSelection(grains, primary: selectedGrain == number ? nil : selectedGrain)
+        } else {
+            grains.insert(number)
+            setSelection(grains, primary: number)
+        }
+    }
+
+    /// The Grains table's selection: one row selects and pins its grain (`selectGrain`), several select them all.
+    package func selectGrains(_ numbers: Set<Int>) {
+        let known = Set(analysis?.table.map(\.id) ?? [])
+        let grains = numbers.intersection(known)
+        if grains.count <= 1 { selectGrain(grains.first); return }
+        setSelection(grains, primary: selectedGrain)
+    }
+
+    /// The selected grains' rows, in grain order.
+    package var selectedRows: [GrainRow] { analysis?.table.filter { selectedGrains.contains($0.id) } ?? [] }
 
     /// The selected grain's row and slip.
     package var selectedRow: GrainRow? { selectedGrain.flatMap { g in analysis?.table.first { $0.id == g } } }
