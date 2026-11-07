@@ -547,7 +547,7 @@ struct IndexingRoomInfo: View {
                 if method == .hough {
                     InspectorNote("Krieger Lassen 1994 (Radon), Wright and Adams 1992 (triplet voting), Shuster and Oh 1981 (QUEST), Rowenhorst et al. 2024 (pyEBSDindex 0.3.10.1, as kikuchipy 0.13.1 drives it); orientations and colours as orix 0.15.0.")
                 } else {
-                    InspectorNote("Chen et al. 2015 and Jackson et al. 2019 (dictionary indexing), Callahan and De Graef 2013 (EMsoft's master patterns), Roşca, Morawiec and De Graef 2014 and Singh and De Graef 2016 (cubochoric sampling); as kikuchipy 0.13.1 and orix 0.15.0 do it.")
+                    InspectorNote("Chen et al. 2015 and Jackson et al. 2019 (dictionary indexing), Callahan and De Graef 2013 (EMsoft's master patterns), Roşca, Morawiec and De Graef 2014 and Singh and De Graef 2016 (cubochoric sampling), Marquardt et al. 2017 (the orientation similarity map); as kikuchipy 0.13.1 and orix 0.15.0 do it.")
                 }
             }
         } else {

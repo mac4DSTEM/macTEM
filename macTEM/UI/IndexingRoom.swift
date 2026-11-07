@@ -548,7 +548,8 @@ struct IndexingResultsTable: View {
         }
     }
 
-    /// A Hough result's columns (CI, fit, matched bands, pattern quality) or a dictionary result's (the score, the simulation index).
+    /// A Hough result's columns (CI, fit, matched bands, pattern quality) or a dictionary result's (the score, the simulation index, the
+    /// orientation similarity).
     @ViewBuilder private var table: some View {
         if let result = session.result, result.method == .dictionary {
             Table(rows, selection: $selection, sortOrder: $sortOrder) {
@@ -562,6 +563,7 @@ struct IndexingResultsTable: View {
                 TableColumn("Simulation", value: \.simulationIndex) {
                     Text(verbatim: $0.simulationIndex >= 0 ? "\($0.simulationIndex)" : "–").monospacedDigit()
                 }
+                TableColumn("OSM", value: \.similarityKey) { Text(Self.angle($0.similarity, digits: 2)).monospacedDigit() }
             }
         } else {
             Table(rows, selection: $selection, sortOrder: $sortOrder) {

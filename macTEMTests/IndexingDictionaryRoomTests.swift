@@ -5,7 +5,8 @@
 //  opens it, orix's 4° sampling of the file phase's point group, the detector built from the file's) held to the bundle
 //  `m4/dictionary-indexing-nickel-ebsd-large` at the thresholds of `SEMDictionaryIndexingParityTests`; then the room's path at a coarse
 //  10° (fast): Method · Dictionary, the dictionary's size and chunking, Stop, the run in chunks, the map and its layers, the status line,
-//  the Results rows, the best match, the exports read back, staleness per method; the refusals of the plan; the master pattern's loader.
+//  the Results rows, the best match, the exports read back, staleness per method; the orientation similarity map against kikuchipy's
+//  as blocks land; the refusals of the plan; the master pattern's loader.
 //  Red before the wiring: no `DictionaryIndexingPlan`, no Method; red under a detector with the file's 4125 centres (the projection
 //  refuses them) or the unbinned shape, a sampling of the wrong point group, the master pattern in the stereographic projection, a Stop
 //  that keeps landing blocks, a Hough edit that stales a dictionary result.
@@ -97,7 +98,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertNil(indexing.refusal)
         XCTAssertTrue(indexing.canIndex)
         XCTAssertTrue(indexing.verbHelp.hasSuffix("patterns with Dictionary (ni)"), indexing.verbHelp)
-        XCTAssertEqual(indexing.availableLayers, [.ipfZ, .ipfX, .ipfY, .phase, .score])
+        XCTAssertEqual(indexing.availableLayers, [.ipfZ, .ipfX, .ipfY, .phase, .score, .osm])
 
         indexing.editDictionarySettings { $0.resolution = 10 }
         for _ in 0..<4000 where indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
@@ -159,18 +160,29 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(range.lowerBound, dictionary.bestScores.min() ?? .nan)
         XCTAssertEqual(range.upperBound, dictionary.bestScores.max() ?? .nan)
 
+        // The orientation similarity map: kikuchipy's of the run's matches (every kept match, the four nearest neighbours), as a layer.
+        let osm = try dictionary.orientationSimilarityMap().maps[0]
+        XCTAssertEqual(result.similarity, osm)
+        indexing.setLayer(.osm)
+        XCTAssertEqual(indexing.layer, .osm)
+        let osmRange = try XCTUnwrap(IndexingRaster.scalarRange(result, layer: .osm))
+        XCTAssertEqual(osmRange.lowerBound, Double(osm.min() ?? .nan))
+        XCTAssertEqual(osmRange.upperBound, Double(osm.max() ?? .nan))
+
         // The status line, the rows and the CSV carry the score and the simulation index.
         let position = EBSDPosition(row: 10, column: 20)
         let line = try XCTUnwrap(indexing.readout(at: position))
         XCTAssertTrue(line.hasPrefix("row 10 · col 20 · ni · φ₁"), line)
         XCTAssertTrue(line.contains("NCC"), line)
+        XCTAssertTrue(line.contains("OSM"), line)
         let i = position.index(columns: 75)
         let row = try XCTUnwrap(result.rows.first { $0.id == i })
         XCTAssertEqual(row.confidence, dictionary.bestScores[i])
         XCTAssertEqual(row.simulationIndex, dictionary.simulationIndices[i * 5])
         XCTAssertTrue(row.fit.isNaN)
+        XCTAssertEqual(row.similarity, Double(osm[i]))
         let csv = result.csv(stepX: 1.5, stepY: 1.5).split(separator: "\n")
-        XCTAssertEqual(csv.first, "row,column,x,y,phase,phi1_deg,Phi_deg,phi2_deg,ncc,simulation_index")
+        XCTAssertEqual(csv.first, "row,column,x,y,phase,phi1_deg,Phi_deg,phi2_deg,ncc,simulation_index,osm")
         XCTAssertEqual(csv.count, 4126)
 
         // The best match: the pinned point's best orientation simulated on the run's detector.
@@ -187,7 +199,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         var reports: [String] = []
         for kind in IndexingExportKind.allCases { state.export(kind, from: indexing, directory: directory) { reports.append($0) } }
-        XCTAssertEqual(reports, ["Exported patterns_v2 indexed Score.png", "Exported patterns_v2 indexing results.csv",
+        XCTAssertEqual(reports, ["Exported patterns_v2 indexed OSM.png", "Exported patterns_v2 indexing results.csv",
                                  "Exported patterns_v2 indexed.ang", "Exported patterns_v2 indexed.ctf", "Exported patterns_v2 indexing method.json"])
         let xmap = try XCTUnwrap(try indexing.crystalMap())
         XCTAssertEqual(xmap.pointCount, 4125)
@@ -217,13 +229,53 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertFalse(indexing.isStale)
         indexing.setMethod(.hough)
         XCTAssertFalse(indexing.isStale)
-        XCTAssertEqual(indexing.availableLayers, [.ipfZ, .ipfX, .ipfY, .phase, .score], "the result on screen keeps its layers")
+        XCTAssertEqual(indexing.availableLayers, [.ipfZ, .ipfX, .ipfY, .phase, .score, .osm], "the result on screen keeps its layers")
 
         patterns.close()
         XCTAssertNil(indexing.result)
         XCTAssertNil(indexing.dictionaryPlan)
         XCTAssertEqual(indexing.method, .hough)
         XCTAssertNotNil(indexing.currentMaster, "a master pattern is not the dataset's: it stays open")
+    }
+
+    // MARK: - The orientation similarity map as blocks land
+
+    /// The room's OSM layer is kikuchipy's `orientation_similarity_map` (its defaults) of the rows landed: F9's matches landed in uneven
+    /// blocks give `m4/orientation-similarity-map`'s F9 map exactly; a run stopped after 20 rows has kikuchipy's map of those 20 rows; a
+    /// point not indexed shows none, while its matches still count for its neighbours, as in kikuchipy. Red when the row above a block
+    /// keeps its border value, or when a block's first row is computed without the row above it.
+    func testTheRoomsSimilarityMapIsKikuchipysAsBlocksLand() throws {
+        let f9 = try SEMParityReference.load("m4/dictionary-indexing-nickel-ebsd-large")
+        let indices = try f9.array("ncc_simulation_indices").values.map { Int($0) }
+        let scores = try f9.array("ncc_scores").values
+        let nickel = try XCTUnwrap(IndexingPhase.presets.first { $0.name == "Ni" })
+        func block(_ rows: Range<Int>) -> DictionaryIndexing.Result {
+            let a = rows.lowerBound * 75 * 5, b = rows.upperBound * 75 * 5
+            return DictionaryIndexing.Result(navigationShape: [rows.count, 75], keepN: 5, isInData: Array(repeating: true, count: rows.count * 75),
+                                             scores: Array(scores[a..<b]), simulationIndices: Array(indices[a..<b]),
+                                             rotations: Array(repeating: SIMD4(1, 0, 0, 0), count: b - a))
+        }
+
+        var result = IndexingResult(scanRows: 55, scanColumns: 75, phases: [nickel], metric: .ncc)
+        for rows in [0..<1, 1..<20] { result.land(block(rows), rows: rows) }
+        let partial = try OrientationSimilarityMap.compute(simulationIndices: Array(indices[0..<(20 * 75 * 5)]), keepN: 5, rows: 20, columns: 75)
+        XCTAssertEqual(Array(result.similarity[0..<(20 * 75)]), partial.maps[0], "stopped after 20 rows: kikuchipy's map of those rows")
+        XCTAssertTrue(result.similarity[(20 * 75)...].allSatisfy(\.isNaN), "rows not landed have no OSM")
+        XCTAssertNil(result.value(.osm, at: 20 * 75))
+
+        for rows in [20..<21, 21..<55] { result.land(block(rows), rows: rows) }
+        let ref = try SEMParityReference.load("m4/orientation-similarity-map")
+        SEMAssertParity(result.similarity.map { $0.isNaN ? -1 : Double($0) }, try ref.array("f9_osm"))
+        XCTAssertEqual(result.value(.osm, at: 0), Double(result.similarity[0]))
+        XCTAssertEqual(result.rows[0].similarity, Double(result.similarity[0]))
+
+        var unscored = block(0..<55)
+        for k in 0..<5 { unscored.scores[k] = .nan }
+        var masked = IndexingResult(scanRows: 55, scanColumns: 75, phases: [nickel], metric: .ncc)
+        masked.land(unscored, rows: 0..<55)
+        XCTAssertNil(masked.value(.osm, at: 0), "a point not indexed shows no OSM")
+        XCTAssertTrue(masked.rows[0].similarity.isNaN)
+        XCTAssertEqual(masked.similarity, result.similarity, "its matches still count for its neighbours")
     }
 
     // MARK: - Refusals
