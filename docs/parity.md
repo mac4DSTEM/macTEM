@@ -221,6 +221,15 @@ PC) and `np.allclose` defaults (coordinates).
   points, the out → in lines and the PC, kikuchipy's beside the one `testMovingScreenPCOfSiliconAsKikuchipy` prints
   (`F5 ours …` in the test log, passed with `--ours`).
 
+## SEM-EDS map readers (exact)
+
+| Function | Reference | Test | Tolerance | Notes |
+| --- | --- | --- | --- | --- |
+| `BrukerEDSReader.read` (`.bcf`: SFS container, header XML, images, hypermap; `.spx`) | `rsciio.bruker.file_reader` with `unbcf_fast` (RosettaSciIO 0.15.0) | `SEMEDSMapReaderTests` on every `m7/read-bcf-*` and `m7/read-spx-*` bundle | counts, axes, metadata, image pixels exact | the map's x axis takes the y resolution as upstream does (`DX` unused); counts held as UInt32 whatever dtype upstream reports (D-SEM-77); a file that is not SFS refused with a sentence where upstream raises |
+| `EDAXEDSReader.read` (`.spd` with `.spc` and `.ipr`, `.lsd` with `.csv`, `.spc`) | `rsciio.edax.file_reader` | `m7/read-spd-*`, `m7/read-lsd-line-scan-crop`, `m7/read-spc-single` | exact | elements sorted as upstream; an `.spd`/`.lsd` without its `.spc` refused at the EDS room's door (D-SEM-78) |
+| `JEOLEDSReader.read` (`.pts`, `.eds`, `.img`, `.map`, `.asw`) | `rsciio.jeol.file_reader` with `SI_dtype=uint32, read_em_image=True` | `m7/read-pts-*`, `m7/read-jeol-*`, `m7/read-asw-*` | exact | an incomplete last frame dropped as upstream; frames summed; an `.asw` whose view files are missing refused naming the file, where upstream raises `FileNotFoundError` |
+| `CSRSpectrumImage.sum`, `windowSums` | numpy sums over the dense cube | `testTheSparseStoreSumsExactly`, the summed spectrum of every map bundle | exact (UInt64) | the EDS room's spectrum image for these files (D-SEM-76) |
+
 ## SEM-EDS (exspy's window path)
 
 References: the bundles `m7/eds-lines-tm002` (F16) and `m7/eds-quant-tm002` (F17, with the X-ray line table as its `db_` arrays) in
@@ -263,3 +272,42 @@ lands on the other side of an integer, and exactly where upstream's arithmetic i
   windows is 2 % of a pattern set. Full text in docs/decisions.md.
 - Figure F4 (plan.md): `tools/parity/sem/filter_figure.py` draws kikuchipy's filtered pattern (0, 0) beside the one the unit test
   `testFigureF4PatternZeroAfterFFTFilter` writes to `$TMPDIR/macTEM-F4-ours.u8` (and prints as base64).
+
+## Hough indexing (figure F8)
+
+References: `tools/parity/sem/hough_cases.py` (pyEBSDindex 0.3.10.1 through kikuchipy 0.13.1, CPU path: pyopencl is not
+in the lock), bundles `m4/hough-library`, `m4/hough-nickel-block` and `m4/hough-indexing-nickel-large`, tests in
+`SEMHoughIndexingParityTests`. pyEBSDindex has no stated tolerance (its tests check that patterns index); it computes the
+Radon transform, the convolution, the votes and the trial rotations in float32 under numba fastmath, the reflector library
+and the QUEST fit in float64. TEMCore computes everything in float64 (D16); the line plan uses pyEBSDindex's float32
+angles so every Radon line holds the same pixels (exact counts). Methods: Krieger Lassen 1994 (Radon, band normals),
+Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST), Rowenhorst et al. 2024 (pyEBSDindex).
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `HoughReflectorLibrary` (pole families, variants, Cartesian normals, angle table, family pairs, triplet table; Laue codes and rotations) | `tripletvote.addphase`, `BandIndexer.build_trip_lib`, `crystal_sym`, `crystallometry.Crystal` | `testReflectorLibraries…`, `testLaueCodes…` | indices exact; poles and normals rtol 1e-7 (poles atol 1e-12); angles atol 1e-5° | triplet table ordered by (family key, angles), D-SEM-70 |
+| `HoughBandDetector` plan, mask, kernel, `radon`, `convolve` | `radon_fast.Radon.radon_plan_setup`, `radon_faster`; `band_detect.BandDetect.band_detect_setup`, `rdn_conv` | `testRadonPlanKernelAndTransform…` | counts, bins, mask exact; Radon rtol 1e-5 (atol 1e-4), convolution rtol 1e-5 (atol 2e-3); a flipped plan pixel (below) may move up to 6 lines and 1 % of the convolution, each within 5 grey levels | the stats window keeps pyEBSDindex's row bound (`shprdn[1]`), D-SEM-70 |
+| `HoughBandDetector.detect`, `normals` | `find_bands`, `rdn_local_max`, `band_label_numba`, `Radon.radon2pole` ("KIKUCHIPY") | `testBandsOfTheBlock…` | peak cells exact; sub-pixel peaks and rho 1e-3 px; theta and normals 1e-4; peak values rtol 1e-5; the bands of a pattern with a flipped plan pixel within 1 px and 1° | brief bound 1 px / 1° |
+| `HoughIndexer.tripletVote` | `BandIndexer._tripvote_numba` | `testTripletVote…` | counts and families exact; weighted votes and ranks rtol 1e-5 (atol 1e-3) | fed the reference normals |
+| `HoughIndexer.index` (`assignBands`, `quest`, confidence) | `bandindex`, `_assign_bands_nb2`, `_calc_quest_weights`, `_orientation_quest_nb`, `_calc_cm`, `EBSDIndexer._indexbandsphase` | `testBlockIsIndexed…` | matched bands, phase, total votes exact; fit atol 2e-3° (float32 arccos near 1), CM, PQ rtol 1e-5, IQ 1e-4 (one flipped-pixel pattern within 0.01 / 1 / 0.01); orientation < 0.01° (m-3m) | the matched variant compared by family, D-SEM-70 |
+| F8 end to end: `HoughIndexer.indexMap` on the app's corrected demo scan | `EBSD.hough_indexing` on kikuchipy's corrected scan | `testFigureF8…` | indexed count within 1; 99 % of points under 1°; matched-band count equal on 95 % | a float64 replica on kikuchipy's exact patterns: 4124 of 4124 within 1.3e-5°, every matched-band count equal |
+
+### Known limits and decisions
+
+- D-SEM-70 (2026-11-07): the port is float64 and orders ties stably where pyEBSDindex's float32 or quicksort order is
+  arbitrary; symmetry-equivalent trial rotations score equally, so the matched library variant may be another member of
+  the same family and the orientation another symmetry-equivalent quaternion: the tests hold families and
+  symmetry-reduced misorientations, not variant indices or raw quaternions. The vendor is fixed to "KIKUCHIPY" (Bruker
+  PCs in, the orix frame out), the one kikuchipy's `hough_indexing` uses; the rho mask fraction is limited to [0, 1)
+  (pyEBSDindex's erosion and circle modes above 1 and below 0 are refused, not ported).
+- The line plan rounds float32 sin and cos of the angle grid as pyEBSDindex does, but numpy's SIMD float32 sin/cos and
+  Apple's differ in the last ulp, so a line whose pixel rounding sits on a half takes the neighbouring pixel (2 of 16200
+  lines of the first block pattern on the CI Mac; counts stay exact). The tests allow these lines and what follows from
+  them within the brief's 1 px and 1°.
+- D-SEM-71 (2026-11-07): the result of a scan is `HoughIndexer.Map` (rotations as orix takes them, fit, CM, PQ, matched
+  bands per point) until the orix `CrystalMap` port (P3-03) is on main; carrying it into a `CrystalMap` is its own issue.
+- Speed: the CPU path indexes in parallel over a scan row; the F8 test prints the time of the 4125 patterns. The brief's
+  Metal path for the Radon transform is due only if a release build takes over 5 s on the 55 x 75 scan.
+- Figure F8: `tools/parity/sem/hough_figure.py` draws the reference IPF-Z map beside the one
+  `testFigureF8HoughIndexedMapOfTheDemoScan` prints (`F8 ours euler …` in the test log, passed with `--ours`) and their
+  misorientation.

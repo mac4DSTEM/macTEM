@@ -1,0 +1,83 @@
+{
+  "arrays": {},
+  "case": "m7/read-jeol-img",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/jeol/InvalidFrame/Dummy-Data_0000000.img",
+      "sha256": "b9107df0d1ed38b123e9b500527406130e2d26f113e8a43882c5f13a5e4863ff"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.jeol.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "signal0_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 4253953.0
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signal0_pixels": {
+      "dtype": "uint8",
+      "sha256": "40a3898414b8eff783d6a5cb0c052dcde9a3cb5717ff2b3ac67b4d61f8f40e89",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.00193359375,
+            "size": 256,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.00193359375,
+            "size": 256,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint8",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 200.0,
+          "date": "2021-10-20",
+          "magnification": 400000.0,
+          "mode": "TEM",
+          "original_filename": "Dummy-Data_0000000.img",
+          "time": "19:35:26",
+          "title": "BF"
+        },
+        "shape": [
+          256,
+          256
+        ]
+      }
+    ]
+  }
+}
