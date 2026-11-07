@@ -1,6 +1,6 @@
 //
 //  SEMGrainParityTests.swift
-//  TEMCore's grain analysis (Sources/TEMCore/SEM/Grains: `GrainMap`, `DefDAPSymmetry`, `GrainBoundaries`,
+//  TEMCore's grain analysis (Sources/TEMCore/SEM/Grains: `GrainMap`, `DefDAPQuat`, `DefDAPCrystalStructure`, `GrainBoundaries`,
 //  `GrainSegmentation`, `KernelAverageMisorientation`, `GrainOrientationStatistics`) against DefDAP 1.3.1 through the
 //  bundles `m5/grains-ti` (a committed 90 x 120 corner of orix-data's Ti map), `m5/grains-sdss` (the two-phase steel,
 //  committed as Fixtures/ebsd-sdss-ferrite-austenite.ang) and `m5/grains-ti-full` (figures F11 and F12: the whole
@@ -100,14 +100,14 @@ nonisolated final class SEMGrainParityTests: XCTestCase {
     func testGrainsOfTheTiCornerMatchDefDAP() throws {
         let ref = try SEMParityReference.load("m5/grains-ti")
         let map = try tiCorner(ref)
-        XCTAssertEqual(map.symmetries, [DefDAPSymmetry.hexagonal])
+        XCTAssertEqual(map.symmetries, [DefDAPCrystalStructure.hexagonal.symmetries])
         try assertEveryArray(map, ref)
     }
 
     func testGrainsOfTheTwoPhaseSteelMatchDefDAP() throws {
         let ref = try SEMParityReference.load("m5/grains-sdss")
         let map = try sdss()
-        XCTAssertEqual(map.symmetries, [DefDAPSymmetry.cubic, DefDAPSymmetry.cubic])
+        XCTAssertEqual(map.symmetries, [DefDAPCrystalStructure.cubic.symmetries, DefDAPCrystalStructure.cubic.symmetries])
         XCTAssertEqual(map.phase.filter { $0 == 0 }.count, 0)
         try assertEveryArray(map, ref)
     }
@@ -176,7 +176,7 @@ nonisolated final class SEMGrainParityTests: XCTestCase {
     func testMeanLinealInterceptAndASTMGrainSizeNumber() throws {
         let a = SIMD3<Double>(0, 0, 0), b = SIMD3<Double>(0.5, 0, 0)  // 0.5 rad = 28.6 degrees about z
         let map = try GrainMap(rows: 2, columns: 4, euler: [a, a, b, b, a, a, b, b], phase: Array(repeating: 1, count: 8),
-                               symmetries: [DefDAPSymmetry.cubic], step: 2)
+                               symmetries: [DefDAPCrystalStructure.cubic.symmetries], step: 2)
         let boundaries = GrainBoundaries.find(in: map)
         XCTAssertEqual(boundaries.grainX, [false, true, false, false, false, true, false, false])
         XCTAssertEqual(boundaries.grainY, Array(repeating: false, count: 8))
@@ -200,7 +200,7 @@ nonisolated final class SEMGrainParityTests: XCTestCase {
     /// reads the 90° between the stored quaternions, and no grain boundary separates them.
     func testSymmetricKAMSeesThroughEquivalentQuaternions() throws {
         let a = SIMD3<Double>(0, 0, 0), b = SIMD3<Double>(.pi / 2, 0, 0)
-        let map = try GrainMap(rows: 2, columns: 2, euler: [a, b, a, b], phase: [1, 1, 1, 1], symmetries: [DefDAPSymmetry.cubic], step: 1)
+        let map = try GrainMap(rows: 2, columns: 2, euler: [a, b, a, b], phase: [1, 1, 1, 1], symmetries: [DefDAPCrystalStructure.cubic.symmetries], step: 1)
         let symmetric = try KernelAverageMisorientation.map(map, method: .symmetric(thresholdDegrees: nil))
         for v in symmetric { XCTAssertEqual(v, 0, accuracy: 1e-7) }
         let defdap = try KernelAverageMisorientation.map(map, method: .defdap)
@@ -210,31 +210,36 @@ nonisolated final class SEMGrainParityTests: XCTestCase {
 
         // A point of another phase is no neighbour; a point that is not indexed has no KAM.
         let mixed = try GrainMap(rows: 2, columns: 2, euler: [a, b, a, b], phase: [1, 2, 0, 1],
-                                 symmetries: [DefDAPSymmetry.cubic, DefDAPSymmetry.cubic], step: 1)
+                                 symmetries: [DefDAPCrystalStructure.cubic.symmetries, DefDAPCrystalStructure.cubic.symmetries], step: 1)
         let k = try KernelAverageMisorientation.map(mixed, method: .symmetric(thresholdDegrees: 5))
         XCTAssertTrue(k[0].isNaN)   // its neighbours are phase 2 and not indexed
         XCTAssertTrue(k[1].isNaN)   // the only phase-2 point
         XCTAssertTrue(k[2].isNaN)   // not indexed
         XCTAssertTrue(k[3].isNaN)   // neighbours of phase 2 and not indexed
         XCTAssertThrowsError(try KernelAverageMisorientation.map(try GrainMap(rows: 1, columns: 3, euler: [a, a, a], phase: [1, 1, 1],
-                                                                                symmetries: [DefDAPSymmetry.cubic], step: 1)))
+                                                                                symmetries: [DefDAPCrystalStructure.cubic.symmetries], step: 1)))
     }
 
     /// DefDAP's two tables for m-3m and 6/mmm; any other Laue group its proper rotations (northern, identity first).
     func testSymmetryOperatorsByPointGroup() throws {
-        XCTAssertEqual(DefDAPSymmetry.operators(for: PointGroup.named("m-3m")), DefDAPSymmetry.cubic)
-        XCTAssertEqual(DefDAPSymmetry.operators(for: PointGroup.named("432")), DefDAPSymmetry.cubic)
-        XCTAssertEqual(DefDAPSymmetry.operators(for: PointGroup.named("6/mmm")), DefDAPSymmetry.hexagonal)
-        XCTAssertEqual(DefDAPSymmetry.operators(for: nil), [SIMD4(1, 0, 0, 0)])
-        let mmm = DefDAPSymmetry.operators(for: PointGroup.named("mmm"))
+        XCTAssertEqual(DefDAPCrystalStructure.operators(for: PointGroup.named("m-3m")), DefDAPCrystalStructure.cubic.symmetries)
+        XCTAssertEqual(DefDAPCrystalStructure.operators(for: PointGroup.named("432")), DefDAPCrystalStructure.cubic.symmetries)
+        XCTAssertEqual(DefDAPCrystalStructure.operators(for: PointGroup.named("6/mmm")), DefDAPCrystalStructure.hexagonal.symmetries)
+        XCTAssertEqual(DefDAPCrystalStructure.operators(for: nil), [SIMD4(1, 0, 0, 0)])
+        let mmm = DefDAPCrystalStructure.operators(for: PointGroup.named("mmm"))
         XCTAssertEqual(mmm.count, 4)
         XCTAssertEqual(mmm.first, SIMD4(1, 0, 0, 0))
         XCTAssertTrue(mmm.allSatisfy { $0[0] >= 0 })
-        XCTAssertEqual(DefDAPSymmetry.operators(for: PointGroup.named("-3m")).count, 6)
-        XCTAssertEqual(DefDAPSymmetry.operators(for: PointGroup.named("m-3")).count, 12)
-        XCTAssertEqual(DefDAPSymmetry.cubic.count, 24)
-        XCTAssertEqual(DefDAPSymmetry.hexagonal.count, 12)
-        XCTAssertThrowsError(try GrainMap(rows: 2, columns: 2, quaternions: [SIMD4(1, 0, 0, 0)], phase: [1], symmetries: [DefDAPSymmetry.cubic], step: 1))
-        XCTAssertThrowsError(try GrainMap(rows: 1, columns: 1, quaternions: [SIMD4(1, 0, 0, 0)], phase: [2], symmetries: [DefDAPSymmetry.cubic], step: 1))
+        XCTAssertEqual(DefDAPCrystalStructure.operators(for: PointGroup.named("-3m")).count, 6)
+        XCTAssertEqual(DefDAPCrystalStructure.operators(for: PointGroup.named("m-3")).count, 12)
+        // One structure for the grain and slip code: a phase's Laue group names the same DefDAP structure both use.
+        XCTAssertEqual(PointGroup.named("m-3m").flatMap(DefDAPCrystalStructure.init(pointGroup:)), .cubic)
+        XCTAssertEqual(PointGroup.named("432").flatMap(DefDAPCrystalStructure.init(pointGroup:)), .cubic)
+        XCTAssertEqual(PointGroup.named("6/mmm").flatMap(DefDAPCrystalStructure.init(pointGroup:)), .hexagonal)
+        XCTAssertNil(PointGroup.named("mmm").flatMap(DefDAPCrystalStructure.init(pointGroup:)))
+        XCTAssertEqual(DefDAPCrystalStructure.cubic.symmetries.count, 24)
+        XCTAssertEqual(DefDAPCrystalStructure.hexagonal.symmetries.count, 12)
+        XCTAssertThrowsError(try GrainMap(rows: 2, columns: 2, quaternions: [SIMD4(1, 0, 0, 0)], phase: [1], symmetries: [DefDAPCrystalStructure.cubic.symmetries], step: 1))
+        XCTAssertThrowsError(try GrainMap(rows: 1, columns: 1, quaternions: [SIMD4(1, 0, 0, 0)], phase: [2], symmetries: [DefDAPCrystalStructure.cubic.symmetries], step: 1))
     }
 }
