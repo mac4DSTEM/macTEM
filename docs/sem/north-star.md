@@ -107,6 +107,16 @@ The orientation core underneath it (P3-01), on inputs that need no download (`fi
 | The first 2000 Ti orientations of orix-data (622) and 100 seeded m-3m orientations (the Ni symmetry): reduced orientations, neighbour angles, disorientations of neighbours, orientation and misorientation distance matrices | `Orientation.reduce`, `angle_with`, `-`, `get_distance_matrix` | `m3/ti-disorientations` | atol 1e-7 |
 | Cubochoric orientation sampling for dictionary indexing: N from the resolution, the grid S000(3), the fundamental-zone sample of m-3m at 4°, 2° and 1.5°, 6/mmm at 4°, 432 at 5°, mmm at 7.5°, 1 at 15°, and local samples around the identity and two centres (`fixtures/sampling_inputs.json`) | `orix.sampling.get_sample_fundamental`, `get_sample_local` | `m3/orientation-sampling` | counts exact; rotations atol 1e-7 in orix's order |
 
+The crystal map model (P3-03) and figure F7, the misorientation angle distribution of the Ti orientations: on the map's grid,
+every horizontal and every vertical pair of neighbours, `O[:, 1:] - O[:, :-1]` and `O[1:, :] - O[:-1, :]` (622, reduced),
+their disorientation angles binned at 1° from 0° to 94° with `numpy.histogram` (622's largest disorientation is 93.84°).
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| F7 on a committed map: the first three rows (3 × 507) of the Ti orientations, the 1518 horizontal and 1014 vertical neighbour misorientations, their angles and the histogram | `Orientation.__sub__`, `Misorientation.angle`, `numpy.histogram` | `m3/ti-neighbour-misorientations` | misorientations and angles atol 1e-7; counts and edges exact |
+| **F7**: the whole 381 × 507 Ti map (`Ti_orientations.ctf`, fetched): 385 446 neighbour angles, the histogram (25 104 zero angles, 11 050 above 7°), every 997th angle | `orix.data.ti_orientations`, `Orientation.__sub__`, `numpy.histogram` | `m3/ti-neighbour-misorientations-full` | counts and edges exact (closest angle to a bin edge 6.5e-7°); sampled angles atol 1e-7 |
+| orix's `CrystalMap` on the two-phase `sdss_ferrite_austenite.ang` (100 × 117): phase list, slices by phase, by "indexed" and by rows and columns, `row`, `col`, `id`, `get_map_data` with NaN outside a slice, one phase's orientations | `orix.crystal_map.CrystalMap` | `m3/crystal-map-sdss` | exact; orientations atol 1e-7 |
+
 ### Figure 4 (milestone 4): the indexed map
 
 The paper's Figure 3 and the kikuchipy *Hough indexing* and *Dictionary indexing* tutorials: the IPF-Z map of the

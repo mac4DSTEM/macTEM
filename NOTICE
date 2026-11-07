@@ -45,6 +45,11 @@ GPL-3.0-or-later, taken under GPL-3.0; the conversions follow Rowenhorst et al. 
 23 083501. Its parity inputs, tools/parity/sem/fixtures/orientation_inputs.json, hold seeded rotations and the Bunge
 angles of the first 2000 rows of orix-data's Ti_orientations.ctf (CC BY 4.0).
 
+The crystal map model in Sources/TEMCore/SEM/CrystalMap/ (CrystalMap, PhaseList, CrystalPhase, NeighbourMisorientation)
+is a port of orix 0.15.0's orix.crystal_map package (crystal_map, _phase_list, _phase), Copyright (C) 2018-2026 the orix
+developers, GPL-3.0-or-later, taken under GPL-3.0. Figure F7 is computed on orix-data's Ti_orientations.ctf (CC BY 4.0,
+Krakow et al. 2017), fetched by tools/parity/sem/fetch-data.sh, not committed.
+
 The pattern quality maps in Sources/TEMCore/SEM/PatternQuality.swift (image quality, average neighbour dot product) are a
 port of kikuchipy 0.13.1, Copyright (C) 2019-2026 the kikuchipy developers, GPL-3.0-or-later, taken under GPL-3.0; the
 file names the functions it ports in its first lines.
