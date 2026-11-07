@@ -277,7 +277,8 @@ package final class EBSDSession {
     /// The infobar's line for an event ("Opening…", "Opened…") and the alert for a failure (the window's `AppState` wires them).
     package var onEvent: ((String) -> Void)?
     package var onFailure: ((any Error) -> Void)?
-    /// A dataset was bound, and one was closed: the Indexing room starts over on the dataset (`IndexingSession`).
+    /// A dataset was bound, and one was closed: the Indexing room starts over on the dataset (`IndexingSession`), and the Maps room
+    /// shows the dataset's crystal map beside its patterns (`OrientationMapSession`).
     package var onBind: ((Document) -> Void)?
     package var onClose: (() -> Void)?
 

@@ -105,6 +105,7 @@ enum RoomPrimaryAction {
         case .eels: appState.eels.stop()
         case .patterns: appState.ebsd.stop()
         case .indexing: appState.indexing.stop()
+        case .maps: appState.maps.stop()
         case .diffraction: appState.openItems.selected?.diffraction.stop()
         default: break
         }
@@ -117,6 +118,7 @@ enum RoomPrimaryAction {
         case .eels: appState.eels.isBusy
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy
+        case .maps: appState.maps.isOpening
         case .diffraction: appState.openItems.selected?.diffraction.isFitting ?? false
         default: false
         }

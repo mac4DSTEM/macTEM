@@ -35,6 +35,9 @@ final class AppState {
     /// The Indexing room's phases, settings and run on the Patterns room's dataset (TEMSession) and its view state (App/).
     let indexing: IndexingSession
     let indexingRoom = IndexingRoomState()
+    /// The Maps room's orientation map, layer and pictures (TEMSession) and its view state (App/).
+    let maps = OrientationMapSession()
+    let mapsRoom = MapsRoomState()
 
     /// The window's title: the file of the room that is shown (the spectrum image in the EDX and EELS rooms, the image elsewhere).
     var windowTitle: String {
@@ -42,6 +45,7 @@ final class AppState {
         case .edx: edx.fileName
         case .eels: eels.fileName
         case .patterns, .indexing: ebsd.fileName
+        case .maps: maps.fileName
         default: imageSession.image?.fileName
         }
         if let name, !name.isEmpty { return name }
@@ -114,9 +118,23 @@ final class AppState {
         eels.onFailure = { [weak self] in self?.present($0) }
         ebsd.onEvent = { [weak self] in self?.statusText = $0 }
         ebsd.onFailure = { [weak self] in self?.present($0) }
-        // The Indexing room starts over on every dataset the Patterns room binds, and goes back to its door when it closes.
-        ebsd.onBind = { [weak self] in self?.indexing.bind($0) }
-        ebsd.onClose = { [weak self] in self?.indexing.close() }
+        maps.onEvent = { [weak self] in self?.statusText = $0 }
+        maps.onFailure = { [weak self] in self?.present($0) }
+        // Every dataset the Patterns room binds: the Indexing room starts over on it, and the Maps room shows its crystal map with the
+        // patterns beside (a map opened on its own gives way to it); both go back when the dataset closes, a map opened on its own stays.
+        ebsd.onBind = { [weak self] document in
+            guard let self else { return }
+            self.indexing.bind(document)
+            if let mapDocument = OrientationMapSession.patternsDocument(fileName: document.fileName, url: document.url, dataset: document.dataset) {
+                self.maps.bind(mapDocument)
+            } else {
+                self.maps.patternsClosed()
+            }
+        }
+        ebsd.onClose = { [weak self] in
+            self?.indexing.close()
+            self?.maps.patternsClosed()
+        }
         indexing.onEvent = { [weak self] in self?.statusText = $0 }
         indexing.onFailure = { [weak self] in self?.present($0) }
         applyLaunchOptions(launch)
@@ -140,6 +158,7 @@ final class AppState {
         if launch.demoSEMImage, let url = try? DemoDocuments.semImageFile() { open(urls: [url]) }
         if launch.demoSpectrumFile, let url = try? DemoDocuments.spectrumFile() { open(urls: [url]) }
         if launch.demoSEMSpectrum { openDemo(.semSpectrum) }
+        if launch.demoOrientationMap { openDemo(.orientationMap) }
         if launch.demoSpectrum {
             edx.bind(DemoDocuments.edx())
             if launch.demoRegions { DemoDocuments.drawRegions(on: edx) }

@@ -19,9 +19,10 @@ nonisolated final class DemoDataTests: XCTestCase {
         }
     }
 
-    /// The four generated documents, one per room, then the shipped SEM-EDS spectrum (the EDS room again, as a real file) and the shipped nickel EBSD scan (Patterns).
+    /// The four generated documents, one per room, then the shipped SEM-EDS spectrum (the EDS room again, as a real file), the shipped nickel
+    /// EBSD scan (Patterns) and the shipped two-phase orientation map (Maps).
     func testTheMenuOffersOneEntryPerRoomWithData() {
-        XCTAssertEqual(DemoDocument.allCases.map(\.room), [.image, .diffraction, .edx, .eels, .edx, .patterns])
+        XCTAssertEqual(DemoDocument.allCases.map(\.room), [.image, .diffraction, .edx, .eels, .edx, .patterns, .maps])
         XCTAssertEqual(Set(DemoDocument.allCases.map(\.title)).count, DemoDocument.allCases.count)
     }
 }

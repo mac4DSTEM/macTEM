@@ -3,7 +3,8 @@
 //  Role: what the Patterns room opens: the file extensions the Open panel offers, a drop takes and the app declares, and one call that
 //        reads a dataset with its pattern reader. The h5ebsd family is `EBSDH5Reader`'s; the vendors' binary pattern files go through
 //        their doors (`EDAXOpening` for `.up1`/`.up2` with the `.ang` beside them, `OxfordOpening` for `.ebsp` with the `.ctf`,
-//        `NORDIFOpening` for `Pattern.dat` with its `Setting.txt`), which pair the map or settings next to the patterns by name. A map file opened on its own opens the patterns of the same name next to it, or is refused.
+//        `NORDIFOpening` for `Pattern.dat` with its `Setting.txt`), which pair the map or settings next to the patterns by name. A map file opened on its own opens the patterns of the same name next to it; without them it is the
+//        Maps room's (`isLoneMap`, FileRouting).
 //
 
 import Foundation
@@ -22,6 +23,18 @@ package nonisolated enum EBSDOpening {
         let ext = url.pathExtension.lowercased()
         if NORDIFOpening.readableExtensions.contains(ext) { return NORDIFOpening.isNORDIFFile(url) }
         return vendorExtensions.contains(ext)
+    }
+
+    /// The orientation maps the Maps room opens on their own (P3-04): EDAX `.ang` and Oxford `.ctf`.
+    package static let mapExtensions = ANGReader.readableExtensions + OxfordOpening.mapExtensions
+
+    /// Whether `url` is an `.ang` or `.ctf` without the pattern file of its name next to it: an orientation map alone, which opens in the
+    /// Maps room (the pattern doors refuse it, D-SEM-25; FileRouting sends it to the Maps room instead).
+    package static func isLoneMap(_ url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        if ANGReader.readableExtensions.contains(ext) { return EDAXOpening.companion(of: url, extensions: EDAXBinaryReader.readableExtensions) == nil }
+        if OxfordOpening.mapExtensions.contains(ext) { return EDAXOpening.companion(of: url, extensions: OxfordOpening.patternExtensions) == nil }
+        return false
     }
 
     /// What a vendor file at `url` is, from its header alone (the pattern file's first bytes; for a map file, whether its patterns are next
