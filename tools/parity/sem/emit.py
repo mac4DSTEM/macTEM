@@ -998,6 +998,177 @@ def case_m3_crystal_map_sdss(ctx):
     ctx.done("m3/crystal-map-sdss")
 
 
+IPF_INPUTS = FIXTURES / "ipf_inputs.json"
+LAUE = ["-1", "2/m", "mmm", "4/m", "4/mmm", "-3", "-3m", "6/m", "6/mmm", "m-3", "m-3m"]
+# Colours: the brief's 1e-6 on RGB in [0, 1]; geometry of the sectors as the symmetry normals (1e-10), edges 1e-9 (they are
+# rotated 1000 times and rounded to 10 decimals by `unique`).
+RGB = {"rtol": 0.0, "atol": 1e-6}
+EDGE = {"rtol": 0.0, "atol": 1e-9}
+KEY_STRIDE = 5
+SECTOR_ROWS = 100
+
+
+def _ipf_inputs() -> dict:
+    import json
+
+    return json.loads(IPF_INPUTS.read_text(encoding="utf-8"))
+
+
+def case_m3_ipf_color_keys(ctx):
+    """orix's vectors, Miller indices, stereographic projection, fundamental sectors (vertices, centre, edges, projection
+    into the sector) and colour keys: the TSL inverse-pole-figure key (Nolze & Hielscher 2016 as orix ports MTEX) on seeded
+    directions for the 11 Laue groups, its key image for m-3m and 6/mmm, and the Euler colour key of every group."""
+    from diffpy.structure import Lattice, Structure
+    from orix.crystal_map import Phase
+    from orix.plot import DirectionColorKeyTSL, EulerColorKey
+    from orix.projections import InverseStereographicProjection, StereographicProjection
+    from orix.quaternion import Orientation
+    from orix.vector import Miller, Vector3d
+    from orix.vector.miller import _round_indices
+
+    inp = _ipf_inputs()
+    groups = _point_groups(_orientation_inputs()["point_groups"])
+    by_name = {g.name: g for g in groups}
+    b = Bundle("m3/ipf-color-keys", 3, "orix", "orix.vector (Vector3d, Miller, FundamentalSector), orix.projections, orix.plot (DirectionColorKeyTSL, IPFColorKeyTSL, EulerColorKey)", ctx.out)
+    b.input(IPF_INPUTS, "fixtures/ipf_inputs.json")
+    b.input(ORIENTATION_INPUTS, "fixtures/orientation_inputs.json")
+
+    # Vectors and the stereographic projection (upper hemisphere pole -1, lower pole 1, split, inverse).
+    d = np.asarray(inp["directions"], dtype=np.float64)
+    v = Vector3d(d)
+    b.array("directions", d, **EXACT)
+    b.array("azimuth", v.azimuth, **ORI)
+    b.array("polar", v.polar, **ORI)
+    upper, lower = StereographicProjection(pole=-1), StereographicProjection(pole=1)
+    b.array("upper_xy", np.column_stack(upper.vector2xy(v)), **ORI)
+    b.array("lower_xy", np.column_stack(lower.vector2xy(v)), **ORI)
+    xu, yu, xl, yl = StereographicProjection.vector2xy_split(v)
+    b.value("split_counts", [int(xu.size), int(xl.size)])
+    b.array("split_upper_xy", np.column_stack((xu, yu)), **ORI)
+    b.array("split_lower_xy", np.column_stack((xl, yl)), **ORI)
+    xy = np.asarray(inp["stereographic_xy"], dtype=np.float64)
+    b.array("stereographic_xy", xy, **EXACT)
+    b.array("inverse_upper", InverseStereographicProjection(pole=-1).xy2vector(xy[:, 0], xy[:, 1]).data, **ORI)
+    b.array("inverse_lower", InverseStereographicProjection(pole=1).xy2vector(xy[:, 0], xy[:, 1]).data, **ORI)
+
+    # Lattices and Miller indices.
+    b.value("lattices", inp["lattices"])
+    for i, lat in enumerate(inp["lattices"]):
+        phase = Phase(point_group=lat["point_group"], structure=Structure(lattice=Lattice(*lat["abc"], *lat["angles"])))
+        L = phase.structure.lattice
+        tag = f"{i:02d}"
+        b.array(f"lattice_base_{tag}", np.asarray(L.base, dtype=np.float64), **SYM)
+        b.array(f"lattice_recbase_{tag}", np.asarray(L.recbase, dtype=np.float64), **SYM)
+        hkl = Miller(hkl=inp["hkl"], phase=phase)
+        b.array(f"hkl_xyz_{tag}", hkl.data, **ORI)
+        b.array(f"hkl_uvw_{tag}", hkl.uvw, **ORI)
+        b.array(f"hkl_length_{tag}", hkl.length, **ORI)
+        uvw = Miller(uvw=inp["uvw"], phase=phase)
+        b.array(f"uvw_xyz_{tag}", uvw.data, **ORI)
+        b.array(f"uvw_hkl_{tag}", uvw.hkl, **ORI)
+        b.array(f"uvw_length_{tag}", uvw.length, **ORI)
+        b.array(f"uvw_UVTW_{tag}", uvw.UVTW, **ORI)
+        b.array(f"hkl_hkil_{tag}", hkl.hkil, **ORI)
+        rnd = Miller(xyz=inp["round_xyz"], phase=phase)
+        b.array(f"round_hkl_{tag}", _round_indices(rnd.hkl, 20).astype(np.float64), **EXACT,
+                note="Miller.round's indices (MTEX's rounding, max index 20) of the vectors read as (hkl)")
+        b.array(f"round_uvw_{tag}", _round_indices(rnd.uvw, 20).astype(np.float64), **EXACT)
+        if lat["point_group"] == "6/mmm":
+            b.array(f"hkil_xyz_{tag}", Miller(hkil=inp["hkil"], phase=phase).data, **ORI)
+            b.array(f"UVTW_xyz_{tag}", Miller(UVTW=inp["UVTW"], phase=phase).data, **ORI)
+
+    # Fundamental sectors of every group: vertices, centre, projection of the directions into the sector.
+    for i, g in enumerate(groups):
+        tag = f"{i:02d}"
+        fs = g.fundamental_sector
+        b.array(f"vertices_{tag}", fs.vertices.data.reshape(-1, 3), **SYM)
+        b.array(f"center_{tag}", fs.center.data.reshape(-1, 3), **SYM)
+        b.array(f"in_sector_{tag}", v[:SECTOR_ROWS].in_fundamental_sector(g).data, **ORI)
+
+    # The TSL key: colours of the directions per Laue group, and the edges and key image of m-3m and 6/mmm.
+    b.value("laue_groups", LAUE)
+    for name in LAUE:
+        k = DirectionColorKeyTSL(by_name[name])
+        tag = name.replace("/", "_")
+        b.array(f"tsl_rgb_{tag}", k.direction2color(v), **RGB)
+        edges = k.symmetry.fundamental_sector.edges
+        b.value(f"edges_count_{tag}", int(edges.size))
+        if name in ("m-3m", "6/mmm"):
+            b.array(f"edges_{tag}", edges.data, **EDGE)
+            grid, (xr, yr) = k._create_rgba_grid(return_extent=True)
+            b.value(f"key_extent_{tag}", [float(xr[0]), float(xr[1]), float(yr[0]), float(yr[1])])
+            b.value(f"key_shape_{tag}", list(grid.shape[:2]))
+            gy, gx = np.mgrid[yr[0]:yr[1]:0.001, xr[0]:xr[1]:0.001]
+            gy, gx = gy[::-1][::KEY_STRIDE, ::KEY_STRIDE], gx[::-1][::KEY_STRIDE, ::KEY_STRIDE]
+            pv = InverseStereographicProjection().xy2vector(gx.ravel(), gy.ravel())
+            inside = (pv <= k.symmetry.fundamental_sector).reshape(gx.shape)
+            rgb = k.direction2color(pv).reshape(gx.shape + (3,))
+            rgb[~inside] = 0
+            b.value("key_stride", KEY_STRIDE)
+            b.array(f"key_rgb_{tag}", rgb.astype(np.float32), **RGB,
+                    note="orix's direction2color at every KEY_STRIDE-th pixel of _create_rgba_grid's grid, 0 outside the sector")
+            b.array(f"key_alpha_{tag}", inside.astype(np.uint8), **EXACT)
+            sub = grid[::2 * KEY_STRIDE, ::2 * KEY_STRIDE, :3]
+            b.array(f"key_orix_interpolated_{tag}", sub.astype(np.float32), rtol=0.0, atol=0.05,
+                    note="orix's own key image at every 2*KEY_STRIDE-th pixel, RGB (scipy griddata cubic over 2-degree samples); the port draws the exact colours, "
+                         "which differ from this interpolation by up to 0.048 (decision in docs/decisions.md)")
+
+    # The Euler colour key of every group on seeded rotations.
+    q = np.asarray(inp["quaternions"], dtype=np.float64)[:100]
+    b.array("euler_key_quaternions", q, **EXACT)
+    for i, g in enumerate(groups):
+        tag = f"{i:02d}"
+        O = Orientation(q, symmetry=g)
+        b.array(f"euler_region_{tag}", O.in_euler_fundamental_region(), **ORI)
+        b.array(f"euler_rgb_{tag}", EulerColorKey(g).orientation2color(O), **RGB)
+    b.write()
+    ctx.done("m3/ipf-color-keys")
+
+
+def _ipf_map_bundle(ctx, case: str, xm, label: str, path: Path) -> None:
+    """The IPF-Z colours of a crystal map, each phase with `IPFColorKeyTSL` of its point group, as
+    `CrystalMap.plot` draws them (figure F6)."""
+    from orix.plot import IPFColorKeyTSL
+    from orix.vector import Vector3d
+
+    b = Bundle(case, 3, "orix", "orix.plot.IPFColorKeyTSL.orientation2color per phase", ctx.out)
+    b.input(path, label)
+    b.value("shape", list(xm.shape))
+    b.value("phases", {int(k): {"name": p.name, "point_group": p.point_group.name if p.point_group else None}
+                       for k, p in xm.phases if k != -1})
+    eu = xm.rotations.to_euler().astype(np.float64)
+    b.array("euler", eu, **EXACT, note="Bunge angles in radians as orix read them, the input of the colours")
+    b.array("phase_id", xm.phase_id.astype(np.int32), **EXACT)
+    for axis, vec in (("z", (0, 0, 1)),):
+        rgb = np.zeros((xm.size, 3))
+        for k, p in xm.phases:
+            if k == -1 or p.point_group is None:
+                continue
+            mask = xm.phase_id == k
+            key = IPFColorKeyTSL(p.point_group, direction=Vector3d(vec))
+            rgb[mask] = key.orientation2color(xm[mask].orientations)
+        b.array(f"ipf_{axis}_rgb", rgb, **RGB)
+    b.write()
+    ctx.done(case)
+
+
+def case_m3_ipf_sdss_ferrite_austenite(ctx):
+    p = ctx.data / "orix" / "sdss_ferrite_austenite.ang"
+    if ctx.have(p, "m3/ipf-sdss-ferrite-austenite"):
+        from orix import io
+
+        _ipf_map_bundle(ctx, "m3/ipf-sdss-ferrite-austenite", io.load(str(p)), "sem-data/orix/sdss_ferrite_austenite.ang", p)
+
+
+def case_m3_ipf_nickel_ebsd_large(ctx):
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    if ctx.have(p, "m3/ipf-nickel-ebsd-large"):
+        import kikuchipy as kp
+
+        xm = kp.load(str(p), lazy=True).xmap
+        _ipf_map_bundle(ctx, "m3/ipf-nickel-ebsd-large", xm, "sem-data/nickel_ebsd_large/patterns_v2.h5", p)
+
+
 # --------------------------------------------------------------------------------------------- SEM-EDS (m1 read, m7)
 
 

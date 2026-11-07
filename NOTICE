@@ -45,6 +45,12 @@ GPL-3.0-or-later, taken under GPL-3.0; the conversions follow Rowenhorst et al. 
 23 083501. Its parity inputs, tools/parity/sem/fixtures/orientation_inputs.json, hold seeded rotations and the Bunge
 angles of the first 2000 rows of orix-data's Ti_orientations.ctf (CC BY 4.0).
 
+The vectors, projections and colour keys beside it (SphericalVectors, Miller, FundamentalSector, ColorKeys) port orix
+0.15.0's orix.vector (vector3d, miller, fundamental_sector, spherical_region), orix.projections.stereographic,
+orix.plot.direction_color_keys and orix.plot.orientation_color_keys, and the lattice alignment of
+orix.crystal_map._phase, same copyright and licence; the TSL key follows MTEX (GPL-2.0-or-later, as orix states) and
+Nolze & Hielscher (2016), J. Appl. Cryst. 49, 1786. The HSV conversion is matplotlib's hsv_to_rgb (PSF-style licence).
+
 The crystal map model in Sources/TEMCore/SEM/CrystalMap/ (CrystalMap, PhaseList, CrystalPhase, NeighbourMisorientation)
 is a port of orix 0.15.0's orix.crystal_map package (crystal_map, _phase_list, _phase), Copyright (C) 2018-2026 the orix
 developers, GPL-3.0-or-later, taken under GPL-3.0. Figure F7 is computed on orix-data's Ti_orientations.ctf (CC BY 4.0,
