@@ -12,10 +12,13 @@
 //  and the selected grain's outline and slip traces over the map, and the bottom pane's Grains, Pole figures and ODF tabs beside the key
 //  (`MapsRoomAnalysis.swift`).
 //
+//  ⌘-click on the map adds the grain under the pointer to the selection, or takes it out (macTEM#239).
+//
 //  KEYS: the room's root is the one focusable container (as the Patterns room's): ← → ↑ ↓ step the pinned point by one (⇧ by ten), Space
 //  pins the hovered one. A click on the map at 1× pins the point under it.
 //
 
+import AppKit
 import ShellControls
 import ShellLayout
 import ShellMetal
@@ -231,7 +234,12 @@ struct MapPane: View {
             .onTapGesture { location in
                 let q = geometry.imagePoint(atPanePoint: location)
                 let point = EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded()))
-                session.pin(point)
+                // ⌘-click adds the grain under the point to the selection (macTEM#239). AppKit: SwiftUI's tap gives no modifiers.
+                if session.analysis != nil, NSEvent.modifierFlags.contains(.command) {
+                    session.toggleGrain(at: point)
+                } else {
+                    session.pin(point)
+                }
                 patterns?.pin(session.pinned)
             }
             .border(Color.white.opacity(0.08))
