@@ -14,7 +14,7 @@ Milestones (docs/sem/north-star.md): m1 data in and seen (readers, pattern brows
 processing (static and dynamic background, emitted now so phase-2 ports can start from a committed reference), m3
 orientation maths (orix's rotations, point groups, fundamental zones, orientations and misorientations), m5 maps and
 grains (DefDAP's slip systems, Schmid factors, slip traces and GND density), m7 SEM-EDS line
-intensities on the TM002 spectrum (the numbers behind the EDS figure), m6 master patterns (EMsoft EBSD, TKD and ECP
+intensities, background windows and Cliff-Lorimer on the TM002 spectrum (figures F16, F17), m6 master patterns (EMsoft EBSD, TKD and ECP
 master pattern files read, the Ni 20 kV pattern projected onto a detector: figure F15).
 
 Run with `python -I -B` from outside this folder: a fixture is data, never code.
@@ -999,6 +999,177 @@ def case_m3_crystal_map_sdss(ctx):
     ctx.done("m3/crystal-map-sdss")
 
 
+IPF_INPUTS = FIXTURES / "ipf_inputs.json"
+LAUE = ["-1", "2/m", "mmm", "4/m", "4/mmm", "-3", "-3m", "6/m", "6/mmm", "m-3", "m-3m"]
+# Colours: the brief's 1e-6 on RGB in [0, 1]; geometry of the sectors as the symmetry normals (1e-10), edges 1e-9 (they are
+# rotated 1000 times and rounded to 10 decimals by `unique`).
+RGB = {"rtol": 0.0, "atol": 1e-6}
+EDGE = {"rtol": 0.0, "atol": 1e-9}
+KEY_STRIDE = 5
+SECTOR_ROWS = 100
+
+
+def _ipf_inputs() -> dict:
+    import json
+
+    return json.loads(IPF_INPUTS.read_text(encoding="utf-8"))
+
+
+def case_m3_ipf_color_keys(ctx):
+    """orix's vectors, Miller indices, stereographic projection, fundamental sectors (vertices, centre, edges, projection
+    into the sector) and colour keys: the TSL inverse-pole-figure key (Nolze & Hielscher 2016 as orix ports MTEX) on seeded
+    directions for the 11 Laue groups, its key image for m-3m and 6/mmm, and the Euler colour key of every group."""
+    from diffpy.structure import Lattice, Structure
+    from orix.crystal_map import Phase
+    from orix.plot import DirectionColorKeyTSL, EulerColorKey
+    from orix.projections import InverseStereographicProjection, StereographicProjection
+    from orix.quaternion import Orientation
+    from orix.vector import Miller, Vector3d
+    from orix.vector.miller import _round_indices
+
+    inp = _ipf_inputs()
+    groups = _point_groups(_orientation_inputs()["point_groups"])
+    by_name = {g.name: g for g in groups}
+    b = Bundle("m3/ipf-color-keys", 3, "orix", "orix.vector (Vector3d, Miller, FundamentalSector), orix.projections, orix.plot (DirectionColorKeyTSL, IPFColorKeyTSL, EulerColorKey)", ctx.out)
+    b.input(IPF_INPUTS, "fixtures/ipf_inputs.json")
+    b.input(ORIENTATION_INPUTS, "fixtures/orientation_inputs.json")
+
+    # Vectors and the stereographic projection (upper hemisphere pole -1, lower pole 1, split, inverse).
+    d = np.asarray(inp["directions"], dtype=np.float64)
+    v = Vector3d(d)
+    b.array("directions", d, **EXACT)
+    b.array("azimuth", v.azimuth, **ORI)
+    b.array("polar", v.polar, **ORI)
+    upper, lower = StereographicProjection(pole=-1), StereographicProjection(pole=1)
+    b.array("upper_xy", np.column_stack(upper.vector2xy(v)), **ORI)
+    b.array("lower_xy", np.column_stack(lower.vector2xy(v)), **ORI)
+    xu, yu, xl, yl = StereographicProjection.vector2xy_split(v)
+    b.value("split_counts", [int(xu.size), int(xl.size)])
+    b.array("split_upper_xy", np.column_stack((xu, yu)), **ORI)
+    b.array("split_lower_xy", np.column_stack((xl, yl)), **ORI)
+    xy = np.asarray(inp["stereographic_xy"], dtype=np.float64)
+    b.array("stereographic_xy", xy, **EXACT)
+    b.array("inverse_upper", InverseStereographicProjection(pole=-1).xy2vector(xy[:, 0], xy[:, 1]).data, **ORI)
+    b.array("inverse_lower", InverseStereographicProjection(pole=1).xy2vector(xy[:, 0], xy[:, 1]).data, **ORI)
+
+    # Lattices and Miller indices.
+    b.value("lattices", inp["lattices"])
+    for i, lat in enumerate(inp["lattices"]):
+        phase = Phase(point_group=lat["point_group"], structure=Structure(lattice=Lattice(*lat["abc"], *lat["angles"])))
+        L = phase.structure.lattice
+        tag = f"{i:02d}"
+        b.array(f"lattice_base_{tag}", np.asarray(L.base, dtype=np.float64), **SYM)
+        b.array(f"lattice_recbase_{tag}", np.asarray(L.recbase, dtype=np.float64), **SYM)
+        hkl = Miller(hkl=inp["hkl"], phase=phase)
+        b.array(f"hkl_xyz_{tag}", hkl.data, **ORI)
+        b.array(f"hkl_uvw_{tag}", hkl.uvw, **ORI)
+        b.array(f"hkl_length_{tag}", hkl.length, **ORI)
+        uvw = Miller(uvw=inp["uvw"], phase=phase)
+        b.array(f"uvw_xyz_{tag}", uvw.data, **ORI)
+        b.array(f"uvw_hkl_{tag}", uvw.hkl, **ORI)
+        b.array(f"uvw_length_{tag}", uvw.length, **ORI)
+        b.array(f"uvw_UVTW_{tag}", uvw.UVTW, **ORI)
+        b.array(f"hkl_hkil_{tag}", hkl.hkil, **ORI)
+        rnd = Miller(xyz=inp["round_xyz"], phase=phase)
+        b.array(f"round_hkl_{tag}", _round_indices(rnd.hkl, 20).astype(np.float64), **EXACT,
+                note="Miller.round's indices (MTEX's rounding, max index 20) of the vectors read as (hkl)")
+        b.array(f"round_uvw_{tag}", _round_indices(rnd.uvw, 20).astype(np.float64), **EXACT)
+        if lat["point_group"] == "6/mmm":
+            b.array(f"hkil_xyz_{tag}", Miller(hkil=inp["hkil"], phase=phase).data, **ORI)
+            b.array(f"UVTW_xyz_{tag}", Miller(UVTW=inp["UVTW"], phase=phase).data, **ORI)
+
+    # Fundamental sectors of every group: vertices, centre, projection of the directions into the sector.
+    for i, g in enumerate(groups):
+        tag = f"{i:02d}"
+        fs = g.fundamental_sector
+        b.array(f"vertices_{tag}", fs.vertices.data.reshape(-1, 3), **SYM)
+        b.array(f"center_{tag}", fs.center.data.reshape(-1, 3), **SYM)
+        b.array(f"in_sector_{tag}", v[:SECTOR_ROWS].in_fundamental_sector(g).data, **ORI)
+
+    # The TSL key: colours of the directions per Laue group, and the edges and key image of m-3m and 6/mmm.
+    b.value("laue_groups", LAUE)
+    for name in LAUE:
+        k = DirectionColorKeyTSL(by_name[name])
+        tag = name.replace("/", "_")
+        b.array(f"tsl_rgb_{tag}", k.direction2color(v), **RGB)
+        edges = k.symmetry.fundamental_sector.edges
+        b.value(f"edges_count_{tag}", int(edges.size))
+        if name in ("m-3m", "6/mmm"):
+            b.array(f"edges_{tag}", edges.data, **EDGE)
+            grid, (xr, yr) = k._create_rgba_grid(return_extent=True)
+            b.value(f"key_extent_{tag}", [float(xr[0]), float(xr[1]), float(yr[0]), float(yr[1])])
+            b.value(f"key_shape_{tag}", list(grid.shape[:2]))
+            gy, gx = np.mgrid[yr[0]:yr[1]:0.001, xr[0]:xr[1]:0.001]
+            gy, gx = gy[::-1][::KEY_STRIDE, ::KEY_STRIDE], gx[::-1][::KEY_STRIDE, ::KEY_STRIDE]
+            pv = InverseStereographicProjection().xy2vector(gx.ravel(), gy.ravel())
+            inside = (pv <= k.symmetry.fundamental_sector).reshape(gx.shape)
+            rgb = k.direction2color(pv).reshape(gx.shape + (3,))
+            rgb[~inside] = 0
+            b.value("key_stride", KEY_STRIDE)
+            b.array(f"key_rgb_{tag}", rgb.astype(np.float32), **RGB,
+                    note="orix's direction2color at every KEY_STRIDE-th pixel of _create_rgba_grid's grid, 0 outside the sector")
+            b.array(f"key_alpha_{tag}", inside.astype(np.uint8), **EXACT)
+            sub = grid[::2 * KEY_STRIDE, ::2 * KEY_STRIDE, :3]
+            b.array(f"key_orix_interpolated_{tag}", sub.astype(np.float32), rtol=0.0, atol=0.05,
+                    note="orix's own key image at every 2*KEY_STRIDE-th pixel, RGB (scipy griddata cubic over 2-degree samples); the port draws the exact colours, "
+                         "which differ from this interpolation by up to 0.048 (decision in docs/decisions.md)")
+
+    # The Euler colour key of every group on seeded rotations.
+    q = np.asarray(inp["quaternions"], dtype=np.float64)[:100]
+    b.array("euler_key_quaternions", q, **EXACT)
+    for i, g in enumerate(groups):
+        tag = f"{i:02d}"
+        O = Orientation(q, symmetry=g)
+        b.array(f"euler_region_{tag}", O.in_euler_fundamental_region(), **ORI)
+        b.array(f"euler_rgb_{tag}", EulerColorKey(g).orientation2color(O), **RGB)
+    b.write()
+    ctx.done("m3/ipf-color-keys")
+
+
+def _ipf_map_bundle(ctx, case: str, xm, label: str, path: Path) -> None:
+    """The IPF-Z colours of a crystal map, each phase with `IPFColorKeyTSL` of its point group, as
+    `CrystalMap.plot` draws them (figure F6)."""
+    from orix.plot import IPFColorKeyTSL
+    from orix.vector import Vector3d
+
+    b = Bundle(case, 3, "orix", "orix.plot.IPFColorKeyTSL.orientation2color per phase", ctx.out)
+    b.input(path, label)
+    b.value("shape", list(xm.shape))
+    b.value("phases", {int(k): {"name": p.name, "point_group": p.point_group.name if p.point_group else None}
+                       for k, p in xm.phases if k != -1})
+    eu = xm.rotations.to_euler().astype(np.float64)
+    b.array("euler", eu, **EXACT, note="Bunge angles in radians as orix read them, the input of the colours")
+    b.array("phase_id", xm.phase_id.astype(np.int32), **EXACT)
+    for axis, vec in (("z", (0, 0, 1)),):
+        rgb = np.zeros((xm.size, 3))
+        for k, p in xm.phases:
+            if k == -1 or p.point_group is None:
+                continue
+            mask = xm.phase_id == k
+            key = IPFColorKeyTSL(p.point_group, direction=Vector3d(vec))
+            rgb[mask] = key.orientation2color(xm[mask].orientations)
+        b.array(f"ipf_{axis}_rgb", rgb, **RGB)
+    b.write()
+    ctx.done(case)
+
+
+def case_m3_ipf_sdss_ferrite_austenite(ctx):
+    p = ctx.data / "orix" / "sdss_ferrite_austenite.ang"
+    if ctx.have(p, "m3/ipf-sdss-ferrite-austenite"):
+        from orix import io
+
+        _ipf_map_bundle(ctx, "m3/ipf-sdss-ferrite-austenite", io.load(str(p)), "sem-data/orix/sdss_ferrite_austenite.ang", p)
+
+
+def case_m3_ipf_nickel_ebsd_large(ctx):
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    if ctx.have(p, "m3/ipf-nickel-ebsd-large"):
+        import kikuchipy as kp
+
+        xm = kp.load(str(p), lazy=True).xmap
+        _ipf_map_bundle(ctx, "m3/ipf-nickel-ebsd-large", xm, "sem-data/nickel_ebsd_large/patterns_v2.h5", p)
+
+
 # --------------------------------------------------------------------------------------------- SEM-EDS (m1 read, m7)
 
 
@@ -1058,6 +1229,94 @@ def case_m7_eds_lines_tm002(ctx):
     b.array("intensity_background_subtracted", np.asarray([float(np.asarray(i.data).ravel()[0]) for i in sub], dtype=np.float64), **F64)
     b.write()
     ctx.done("m7/eds-lines-tm002")
+
+
+# k-factors for F17. exspy ships no SEM k-factors and the TM002 layer has no certified composition, so the
+# quantification parity runs on two stated sets (D-SEM-59): unit factors (composition = intensity fractions) and a
+# planted set with distinct values, so every ratio of the Cliff-Lorimer chain is exercised. Neither is a measurement.
+TM002_KFACTORS_PLANTED = {"Al_Ka": 1.0, "C_Ka": 2.5, "Cu_La": 1.5, "Mn_La": 1.25, "Zr_La": 2.0}
+
+
+def _tm002(beam_energy=None):
+    import hyperspy.api as hs
+
+    s = hs.load(str(FIXTURES / "exspy_EDS_SEM_TM002.hspy"), file_format="hspy")
+    s.set_signal_type("EDS_SEM")
+    if beam_energy is not None:
+        s.set_microscope_parameters(beam_energy=beam_energy)
+    return s
+
+
+def case_m7_eds_quant_tm002(ctx):
+    """F17: exspy's Cliff-Lorimer (`quantification_cliff_lorimer`, as `EDSTEMSpectrum.quantification(method="CL")`
+    calls it, times 100, no absorption correction) on F16's background-subtracted intensities, weight and atomic
+    percent (`exspy.material.weight_to_atomic`), with the unit and the planted k-factors; the take-off angle; each
+    line's FWHM; the default background windows (line_width [2, 2]) and their intensities; the lines exspy picks at
+    5, 20 and 30 kV."""
+    from exspy._misc.eds import utils as utils_eds
+    from exspy.material import weight_to_atomic
+
+    p = FIXTURES / "exspy_EDS_SEM_TM002.hspy"
+    s = _tm002()
+    b = Bundle("m7/eds-quant-tm002", 7, "exspy", "exspy._misc.eds.utils.quantification_cliff_lorimer", ctx.out)
+    b.input(p, "fixtures/exspy_EDS_SEM_TM002.hspy")
+    s.add_lines()
+    lines = list(s.metadata.Sample.xray_lines)
+    elements = [ln.split("_")[0] for ln in lines]
+    b.value("xray_lines", lines)
+    b.value("kfactors_planted", [TM002_KFACTORS_PLANTED[ln] for ln in lines])
+    b.scalar("take_off_angle_deg", s.get_take_off_angle(), **F64)
+    fwhm = [s._get_line_energy(ln, FWHM_MnKa="auto")[1] for ln in lines]
+    b.array("line_fwhm_keV", np.asarray(fwhm, dtype=np.float64), **F64)
+    iw = s.estimate_integration_windows(windows_width=2.0)
+    bw = s.estimate_background_windows(line_width=[5.0, 2.0])
+    sub = s.get_lines_intensity(xray_lines=lines, integration_windows=iw, background_windows=bw)
+    for name, k in (("unit", [1.0] * len(lines)), ("planted", [TM002_KFACTORS_PLANTED[ln] for ln in lines])):
+        stack = np.asarray([np.asarray(i.data, dtype=np.float64).reshape(1) for i in sub])
+        wt = utils_eds.quantification_cliff_lorimer(stack, k) * 100.0
+        at = weight_to_atomic(wt, elements)
+        b.array(f"weight_percent_{name}", wt.reshape(-1).astype(np.float64), **F64)
+        b.array(f"atomic_percent_{name}", np.asarray(at, dtype=np.float64).reshape(-1), **F64)
+    bw22 = s.estimate_background_windows()
+    b.array("background_windows_default_keV", np.asarray(bw22, dtype=np.float64), **F64)
+    sub22 = s.get_lines_intensity(xray_lines=lines, integration_windows=iw, background_windows=bw22)
+    b.array("intensity_background_default", np.asarray([float(np.asarray(i.data).ravel()[0]) for i in sub22]), **F64)
+    iw21 = s.estimate_integration_windows(windows_width=2.1)
+    raw21 = s.get_lines_intensity(xray_lines=lines, integration_windows=iw21)
+    b.array("intensity_raw_width_2_1", np.asarray([float(np.asarray(i.data).ravel()[0]) for i in raw21]), **F64)
+    b.value("xray_lines_by_beam_energy", {str(kv): list(_lines_at(kv)) for kv in (5.0, 20.0, 30.0)})
+    _xray_database(b)
+    b.write()
+    ctx.done("m7/eds-quant-tm002")
+
+
+def _xray_database(b):
+    """exspy's element database as the quantification above reads it: every element's Z and atomic weight and every X-ray
+    line's energy and weight, in the database's own order, exact (Sources/TEMCore/EDX/XrayLineDatabase.swift is generated
+    from the same dict by make_xray_database.py and must equal these arrays)."""
+    from exspy._misc.elements import elements as db
+
+    symbols, names, energies, weights, z, aw = [], [], [], [], [], []
+    for el in db:
+        symbols.append(el)
+        z.append(int(db[el]["General_properties"]["Z"]))
+        aw.append(float(db[el]["General_properties"]["atomic_weight"]))
+        for ln, d in db[el]["Atomic_properties"].get("Xray_lines", {}).items():
+            names.append(f"{el}_{ln}")
+            energies.append(float(d["energy (keV)"]))
+            weights.append(float(d["weight"]))
+    b.value("db_elements", symbols)
+    b.value("db_xray_lines", names)
+    b.array("db_z", np.asarray(z, dtype=np.int64), **EXACT)
+    b.array("db_atomic_weight", np.asarray(aw, dtype=np.float64), **EXACT)
+    b.array("db_line_energy_keV", np.asarray(energies, dtype=np.float64), **EXACT)
+    b.array("db_line_weight", np.asarray(weights, dtype=np.float64), **EXACT)
+
+
+def _lines_at(kv):
+    t = _tm002(beam_energy=kv)
+    t.add_lines()
+    return t.metadata.Sample.xray_lines
 
 
 # ------------------------------------------------------------------------------- master patterns and projection (m6)
