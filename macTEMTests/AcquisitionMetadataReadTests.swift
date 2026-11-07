@@ -135,6 +135,9 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
                 let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "velox-haadf-last", withExtension: "emd"),
                                         "velox-haadf-last.emd is not in the test bundle")
                 plant = try Data(contentsOf: url)
+            case "img", "map":
+                // RosettaSciIO's JEOL test image (200 kV), under .map too: the element map is the same format.
+                plant = try Data(contentsOf: SEMParityReference.fixturesRoot.appendingPathComponent("rsciio/jeol/InvalidFrame/Dummy-Data_0000000.img"))
             default:
                 XCTFail("ImageOpening reads .\(ext) but this test has no plant for it: decide its metadata reader in AcquisitionMetadata.read(path:) and plant it here")
                 continue

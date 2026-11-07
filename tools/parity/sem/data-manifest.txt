@@ -8,3 +8,17 @@ orix/sdss_ferrite_austenite.ang	ac2fc2fc2b8c9c598703c96f9888677bccc9cd88cddd5e78
 orix/Ti_orientations.ctf	d8228c58af45ed70f3617b8865c13878bb1fc40b3d60163042be4b761105dcde	https://raw.githubusercontent.com/pyxem/orix-data/main/ti_orientations/Ti_orientations.ctf
 # Phase 4 (dictionary indexing) and later; Zenodo, so manual from the cloud. md5 from kikuchipy's registry: 8b69c071a036ad3488d465093b67fe4d.
 ebsd_master_pattern/ni_mc_mp_20kv.h5	-	manual:https://zenodo.org/record/7498645/files/ni_mc_mp_20kv.h5
+# RosettaSciIO 0.15.0's own test files (GPL-3.0-or-later, github.com/hyperspy/rosettasciio tag v0.15.0, sha256 from its
+# tests/registry.txt): the SEM-EDS map readers' inputs too large to commit (P7-02). make_fixtures.py cuts the committed
+# EDAX windows and JEOL frame cuts from them.
+rsciio/edax/edax_files.zip	fdf845254df324cf421b75d319e8050f7904cf6ec9bbe81adad17ae5345cb580	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/edax/edax_files.zip
+rsciio/bruker/Hitachi_TM3030Plus.bcf	984e0c4eef0d10704fabd865fd9e1286005aade95e57018e5914bfe54726248c	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/bruker/Hitachi_TM3030Plus.bcf
+rsciio/bruker/bcf_v2_50x50px.bcf	b3200c747c96f50dd3d58cd5cd7effedc1bf2c0304f69332335d84db78adc1ba	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/bruker/bcf_v2_50x50px.bcf
+rsciio/jeol/rawdata.ASW	b69a4a479d8eb8c5ae735ca2ae9dfcd60119fedb52b0a08a76d815b19c01a3b0	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/jeol/rawdata.ASW
+rsciio/jeol/Sample/00_View000/View000_0000000.img	6181542c7058739228f8f4a2d224938b0ff7ee2c01d942078591bb81fc9e6777	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/jeol/Sample/00_View000/View000_0000000.img
+rsciio/jeol/Sample/00_View000/View000_0000001.map	ea245fb16b11d75793e884ce74bb1fc8ad9e49c531ba17f196d311c066ec0d90	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/jeol/Sample/00_View000/View000_0000001.map
+rsciio/jeol/Sample/00_View000/View000_0000002.map	9e130a73824707fd49267dee1a778549ea470d63c78ac725a7aa66bb3ccd1e71	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/jeol/Sample/00_View000/View000_0000002.map
+rsciio/jeol/Sample/00_View000/View000_0000003.map	d581c24433a8cebfd7a9840d072bd1e34f5432ef08a9fbcf7c7f195268358f01	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/jeol/Sample/00_View000/View000_0000003.map
+rsciio/jeol/Sample/00_View000/View000_0000004.map	9413be064e40ad08bae3618a50768f2f9607baee710a51034fbb291df0eb0324	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/jeol/Sample/00_View000/View000_0000004.map
+rsciio/jeol/Sample/00_View000/View000_0000005.map	6f7416ddbb627f4e64df745cdf28be0477fb77811c323095b4c06757df8b477a	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/jeol/Sample/00_View000/View000_0000005.map
+rsciio/jeol/Sample/00_View000/View000_0000006.pts	b4e0d56248f334274106a93ada7f61ca5347bb4932e5fa34b9f3fabab00dec92	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/jeol/Sample/00_View000/View000_0000006.pts

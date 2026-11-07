@@ -1,0 +1,18 @@
+﻿LScanVer, 2101
+Time, 11:3
+ImageRes, 1024x800
+FieldSize (nm), 2199.962x2125.000
+Elements, 5
+Points, 3
+HV, 300
+Mag, 40000
+Dwell, 0.02
+Detector, Det 1
+DetectorType, DET_OCTANE_PLUS
+Data Type, Roi
+Amp Time, 7.68
+NumOfFrames, 1
+Point, Distance (nm), C  K, Fe K, Co K, Cu K, Ga K, Image, Frame
+1, 0.0, 0.000, 0.000, 0.000, 0.000, 0.000, 1735, 1, , 
+2, 212.0, 0.000, 0.000, 0.000, 0.000, 0.000, 1694, 1, , 
+3, 424.0, 0.000, 0.000, 0.000, 0.000, 0.000, 1709, 1, , 

@@ -1,0 +1,77 @@
+{
+  "arrays": {
+    "signal0_counts": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal0_counts.bin",
+      "rtol": 0.0,
+      "sha256": "311b49d248b307a938813524f60ad18e80b1f9f89c24e9fceea1fab69ea06957",
+      "shape": [
+        2048
+      ]
+    }
+  },
+  "case": "m7/read-jeol-eds-met03",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/jeol/met03.EDS",
+      "sha256": "fc09acfdac6cacd233cba7053c524d21651d550730359833bdc06569bd3b4b7d"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.jeol.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "Energy",
+            "offset": -0.00176612,
+            "scale": 0.0100004,
+            "size": 2048,
+            "units": "keV"
+          }
+        ],
+        "dtype": "int32",
+        "kind": "spectrum",
+        "metadata": {
+          "azimuth_angle": 90.0,
+          "beam_energy": 200.0,
+          "date": "2018-06-25",
+          "detector_type": "EX24075JGT",
+          "elevation_angle": 22.299999237060547,
+          "energy_resolution_MnKa": 138.0,
+          "live_time": 30.0,
+          "mode": "TEM",
+          "original_filename": "met03.EDS",
+          "signal_type": "EDS_TEM",
+          "time": "14:14:51",
+          "title": "EDX"
+        },
+        "shape": [
+          2048
+        ]
+      }
+    ]
+  }
+}

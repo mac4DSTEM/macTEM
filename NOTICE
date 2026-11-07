@@ -267,6 +267,17 @@ ni_mc_mp_20kv_uint8_gzip_opts9.h5 (908,492 bytes, md5 807c8306a0d02b46effbcb12bd
     (`EMsoftMasterPatternReader`).
 
 ================================================================================
+RosettaSciIO (the SEM-EDS map readers are ported from it; its test files are fixtures)
+================================================================================
+
+The SEM-EDS map readers in Sources/TEMCore/SEM/EDS (BrukerEDSReader, BrukerSFS, EDAXEDSReader, JEOLEDSReader) are ports
+of RosettaSciIO 0.15.0 (https://github.com/hyperspy/rosettasciio, tag v0.15.0: `rsciio/bruker` with its `unbcf_fast`
+unpacker, `rsciio/edax`, `rsciio/jeol`), Copyright 2007-2026 The HyperSpy developers, GPL-3.0-or-later, taken under
+GPL-3.0; each file names the module it ports in its first lines. tools/parity/sem/fixtures/rsciio holds RosettaSciIO's
+own test files of these formats unchanged (GPL-3.0-or-later), and EDAX and JEOL files cut from them by
+tools/parity/sem/make_fixtures.py (the cut is named in docs/data-sources.md).
+
+================================================================================
 Validation references (used by the test harnesses; not part of the app)
 ================================================================================
 
