@@ -234,6 +234,21 @@ The same bundle holds the take-off angle (37.0°, `get_take_off_angle`), each li
 background windows (`line_width` [2, 2]) with their intensities, the raw intensities of 2.1-FWHM windows and the lines
 exspy picks at 5, 20 and 30 kV. Tolerance rtol 1e-7 throughout.
 
+### Milestone 7 readers: SEM-EDS maps from Bruker, EDAX and JEOL
+
+Every RosettaSciIO 0.15.0 test file of `rsciio.bruker`, `rsciio.edax` and `rsciio.jeol` reads as rsciio reads it
+(`hs.load(..., signal_type="EDS_SEM")` defaults; JEOL with `SI_dtype=uint32, read_em_image=True`, the app's reading).
+Per signal: kind, shape, dtype, axes and the mapped metadata exact; a spectrum's counts exact; a spectrum image's
+nonzero flat indices and counts by sha256, its summed spectrum exact, its per-pixel totals by sha256; an image's
+pixels by sha256 and their sum. A file rsciio refuses is refused here in a sentence.
+
+| Format | Bundles | What it covers |
+| --- | --- | --- |
+| Bruker `.bcf` (SFS container, hypermap) | `m7/read-bcf-16x16-12bit`, `m7/read-bcf-30x30-zlib`, `m7/read-bcf-p45-bse-se`, `m7/read-bcf-tem`, `m7/read-bcf-over16bit`, `m7/read-bcf-v2-edx-ebsd`, `m7/read-bcf-not-sfs`, `m7/read-bcf-hitachi`, `m7/read-bcf-v2-50x50-zlib` | 12-bit, 16-bit and instructed packing, zlib blocks, version 1 and 2, BSE and SE images, a TEM file, counts over 16 bits, a file that is not SFS (refused); P45: 75 x 100 x 2048, 165 941 counts, 20 kV, XFlash 6\|10 |
+| Bruker `.spx` | `m7/read-spx-m6-jetstream`, `m7/read-spx-nano`, `m7/read-spx-extracted` | one spectrum, its energy axis, elements, times, angles |
+| EDAX `.spd` + `.spc` + `.ipr`, `.lsd`, `.spc` | `m7/read-spd-map-crop8`, `m7/read-spd-xrf-crop8`, `m7/read-lsd-line-scan-crop`, `m7/read-spc-single` | 8 x 8 crops of rsciio's maps (planted by `make_fixtures.py`), a line scan with its `.csv` distances, a single spectrum; 22 kV, 5 eV per channel |
+| JEOL `.pts`, `.eds`, `.img`, `.asw` | `m7/read-pts-4frames`, `m7/read-pts-incomplete-frame`, `m7/read-pts-interrupted-first-sweep`, `m7/read-pts-interrupted-second-sweep`, `m7/read-pts-stopped-after-sweep`, `m7/read-pts-full`, `m7/read-jeol-img`, `m7/read-jeol-eds-met03`, `m7/read-asw-seq-eds`, `m7/read-asw-shift-jis-missing-views`, `m7/read-asw-rawdata` | 512 x 512 x 4096 event streams cut to 4 and 2.5 frames, the dropped incomplete frame, the S(T)EM image of a stream, a single spectrum, projects naming their views (one with missing views, refused) |
+
 ### Figure 8 (milestone 8): export
 
 The `.ang` and `.ctf` writers round-trip the indexed map through orix (exact after the writers' decimal places),
