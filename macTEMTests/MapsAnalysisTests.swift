@@ -167,7 +167,10 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         let lattice = CrystalLattice(a: l[0], b: l[1], c: l[2], alpha: l[3], beta: l[4], gamma: l[5])
         let poles = try PoleFigures.poles(family: [1, 1, 1], lattice: lattice, group: group)
         let density = PoleFigures.poleFigure(orientations, poles: poles)
-        XCTAssertEqual(texture.poleFigures[2].raster, TextureRaster.stereographic(density, size: 61))
+        // NaN outside the disk never equals itself: compare the bit patterns.
+        let expected = TextureRaster.stereographic(density, size: 61)
+        XCTAssertEqual(texture.poleFigures[2].raster.values.map(\.bitPattern), expected.values.map(\.bitPattern))
+        XCTAssertEqual([texture.poleFigures[2].raster.width, texture.poleFigures[2].raster.height], [expected.width, expected.height])
         XCTAssertEqual(texture.poleFigures[2].maximum, density.maximum)
         XCTAssertEqual(texture.odfSections.map(\.title), ["φ₂ = 0°", "φ₂ = 45°", "φ₂ = 65°"])
         XCTAssertLessThanOrEqual(texture.odfPoints, MapTexture.odfPointLimit)
@@ -209,7 +212,9 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
 
         // A derived layer draws the analysis' own picture.
         await session.setLayer(.derived(.kam)).value
-        XCTAssertEqual(session.raster, analysis.raster(.kam))
+        let drawn = try XCTUnwrap(session.raster), made = analysis.raster(.kam)
+        XCTAssertEqual(try XCTUnwrap(drawn.values).map(\.bitPattern), try XCTUnwrap(made.values).map(\.bitPattern))
+        XCTAssertEqual(drawn.inData, made.inData)
         XCTAssertNotNil(session.propertyPresentation.canvas)
 
         // Changed settings read as stale until Segment runs again.
