@@ -326,3 +326,36 @@ Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST),
 - Figure F8: `tools/parity/sem/hough_figure.py` draws the reference IPF-Z map beside the one
   `testFigureF8HoughIndexedMapOfTheDemoScan` prints (`F8 ours euler …` in the test log, passed with `--ours`) and their
   misorientation.
+
+## Refinement of orientations and projection centres (figure F10)
+
+References: `tools/parity/sem/refinement_cases.py` (kikuchipy 0.13.1's `EBSD.refine_orientation`,
+`refine_projection_center` and `refine_orientation_projection_center` with their default solver, SciPy 1.18.1's
+`minimize(method="Nelder-Mead")`), bundles `m4/nelder-mead` and `m4/refine-nickel-block` (a 10 x 10 block of the
+corrected Ni scan, rows 20 to 29 and columns 30 to 39, from kikuchipy's Hough orientations against the Ni 20 kV master
+pattern at 20 kV), tests in `SEMRefinementParityTests`. kikuchipy states no tolerance; the brief's bounds are 0.1° for
+orientations and rtol 1e-4 for PCs and scores. Methods: Nelder & Mead 1965 (simplex), Winkelmann et al. 2020 and Ånes et
+al. 2020 (pattern matching refinement), the NCC as kikuchipy computes it.
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `NelderMead.minimize` | `scipy.optimize._optimize._minimize_neldermead` | `testNelderMeadFollowsSciPyStepForStep` | x, fun, final simplex rtol 1e-12; nfev, nit, status exact | unbounded, bounded, zero start, start at a bound, maxfev, maxiter |
+| `EBSDRefinement.refineOrientations` (trust region, none, signal mask, pseudo-symmetry operators) | `EBSD.refine_orientation` | `testOrientationRefinement…`, `testPseudoSymmetry…` | every point within 0.1° (m-3m); scores rtol 1e-4; operator index exact; operator starts atol 1e-10 | a float64-NCC replica of kikuchipy: 0.005° and 4e-6 |
+| `EBSDRefinement.refineProjectionCenters` | `EBSD.refine_projection_center` | `testProjectionCentreRefinement…` | scores rtol 1e-4; PCs rtol 1e-4 on 95 % of values, all within 1e-3 | replica: median 0, largest 5e-4 |
+| `EBSDRefinement.refineOrientationsAndProjectionCenters` | `EBSD.refine_orientation_projection_center` | `testOrientationAndProjectionCentreRefinement…` | 90 % of points within 0.1°, all within 1°; 90 % of scores rtol 1e-4, all 1e-2, mean 1e-4; 90 % of PC values rtol 2e-3, all 5e-2 | D-SEM-87 |
+| `EBSDRefinement.refineOrientations(map:)` and the PC twin | `compute_refine_*_results` | `testCrystalMapInAndOut` | grid, unit, phase list, −1 and identity at points not indexed, `scores` and `num_evals` | the master pattern's phase at the refined id |
+
+### Known limits and decisions
+
+- D-SEM-86 (2026-11-07): only kikuchipy's default solver is ported, SciPy's local Nelder-Mead with its default options;
+  NLopt's `LN_NELDERMEAD` and SciPy's global optimisers (basin hopping, differential evolution, dual annealing, SHGO)
+  are not. The refinement runs on the CPU, one pattern per core: each evaluation projects one pattern (3600 pixels for
+  the 60 x 60 detector), below the size at which the Metal projection pays (D16).
+- D-SEM-87 (2026-11-07): the NCC takes kikuchipy's float32 patterns and sums in float64 where kikuchipy sums in float32
+  under numba fastmath, so the simplex walks a slightly different path. Three-variable runs stay within the brief's
+  bounds on every point. The six-variable joint run is ill-conditioned (a PC shift mimics a small rotation): a few
+  points settle in a neighbouring optimum in either implementation, so it is held by the spread in the table, with the
+  north star's 1° on every point. The evaluation counts are stored for the record, not compared.
+- The orientation similarity map and the merging of crystal maps (kikuchipy's `_orientation_similarity_map`,
+  `_merge_crystal_maps`) need dictionary indexing's best matches per point; they follow when dictionary indexing (P4-02)
+  is on main, in its own PR (macTEM#213).
