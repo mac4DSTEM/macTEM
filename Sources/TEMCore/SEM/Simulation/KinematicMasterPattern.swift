@@ -51,7 +51,7 @@ package nonisolated enum KinematicMasterPattern {
         case .none: intensity = Array(repeating: 1, count: reflectors.count)
         }
         precondition(intensity.count == reflectors.count, "one structure factor per reflector")
-        let normals = reflectors.hkl.map { Vector3.unit(reflectors.lattice.reciprocal($0)) }
+        let normals = reflectors.hkl.map { Vector3.unit(reflectors.lattice.cartesian(hkl: $0)) }
         let size = 2 * halfSize + 1
         // numpy's linspace(-1, 1, size): start + i * step, the last point exactly the stop.
         let step = 2 / Double(size - 1)
