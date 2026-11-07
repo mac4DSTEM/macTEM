@@ -72,6 +72,17 @@ On the 3 x 3 cut, `m2/quality-kikuchipy-h5ebsd` holds every option: the frequenc
 normalisation, ADP under the default, rectangular 3 x 3, circular 5 x 5 and 1 x 3 windows, without zero mean and without
 normalisation.
 
+Figure F5 and the detector geometry under it (`tools/parity/sem/detector_cases.py`, no download needed: the
+calibration reads only the marked points and the 480 x 480 shape):
+
+| Claim | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| F5: moving-screen PC of `si_in` / `si_out5mm` (Δz 5 mm), the tutorial's three zone axes (0.5123, 0.8606, DD 21.65 mm; PCz 0.5012 at 90 µm px) and the tests' five points (0.5054, 0.8624, 0.5036), every estimate, its spread | `PCCalibrationMovingScreen` | `m2/pc-moving-screen-si` | rtol 1e-5 |
+| Every PC convention name read to Bruker and written back (TSL, Oxford, EMsoft 4 and 5), seven detector shapes, 2 x 3 PC maps | `EBSDDetector(pc, convention)`, `pc_tsl`, `pc_oxford`, `pc_emsoft` | `m2/detector-pc-conventions` | rtol 1e-7 (round trip 1e-12 in the Swift test) |
+| Sizes, gnomonic bounds, pixel scales, r_max, specimen-scintillator distance; pixel <-> gnomonic coordinates | `gnomonic_bounds`, `x_scale`, `y_scale`, `r_max`, `to_gnomonic_coords`, `to_pixel_coords` | `m2/detector-gnomonic` | rtol 1e-7 |
+| Sample-to-detector rotation, kikuchipy's test angles and a grid | `sample_to_detector` | `m2/detector-sample-to-detector` | rtol 1e-7, atol 1e-12 |
+| TKD set-ups (sample tilt −20° to 10°, detector tilt −20° to 5°) | `EBSDDetector` with TKD angles | `m2/detector-tkd-geometry` | rtol 1e-7, atol 1e-12 |
+
 NLPAR denoising (PyEBSDIndex 0.3.10.1, `opt_lambda` then `calcnlpar`, search radius 3, automask, saturation protection):
 
 | Part | Reference | Bundle | Arrays and tolerance |
@@ -114,6 +125,22 @@ on the same map, rtol 1e-7 for angles, exact for grain ids after relabelling by 
 
 Kikuchipy *Geometrical EBSD simulations*: Kikuchi bands and zone axes of the indexed orientation drawn on the
 experimental pattern (0, 0); band and zone-axis detector coordinates rtol 1e-7.
+
+Figure F15 (milestone 6): the Ni 20 kV master pattern projected onto a detector, kikuchipy's
+`EBSDMasterPattern.get_patterns`. The master pattern is kikuchipy's in-package uint8 copy of the EMsoft Ni pattern
+(401 x 401 px, both hemispheres, `kikuchipy.data.nickel_ebsd_master_pattern_small`); figure script
+`tools/parity/sem/master_pattern_figure.py`.
+
+| Part | Bundle | Arrays and tolerance |
+| --- | --- | --- |
+| The reader: the Ni pattern in Lambert and stereographic, upper, lower, both (phase `ni`, space group 225, m-3m, a = 0.35236 nm; 20 kV) | `m6/read-master-pattern-ni` | the whole array by sha256, every 50th row and the hemisphere sums exact; orix's point group for all 230 space groups exact |
+| The reader on float32 files of 11 energies (EBSD, TKD, ECP): every energy, the nearest to 15.4 and to 25 kV, 12 to 16 kV | `m6/read-master-pattern-dummy`, `m6/read-master-pattern-tkd`, `m6/read-master-pattern-ecp` | every value exact, the energy axis exact |
+| The docstring example: four identity rotations on a 60 x 60 detector, PCs (0.4 or 0.6, 0.5, 0.4 or 0.6) | `m6/project-master-pattern-docs` | direction cosines rtol 1e-7; `patterns_float32` rtol 1e-5 and atol 1e-8 (`np.allclose`'s defaults, kikuchipy's own tests); `patterns_uint8` within 1 count |
+| F15: the north-star detector (60 x 60, PC (0.4214, 0.2142, 0.5013), sample tilt 70°) for Bunge (0, 0, 0), (120, 45, 60) and (263.7, 32.1, 151.4)° | `m6/project-master-pattern-ni` | the same, and `patterns_float64` at rtol 1e-5 |
+| A non-square 48 x 64 detector at sample tilt 68°, tilt 10°, azimuthal 2.5°, twist 1.2°, one PC per rotation, a multi-energy pattern at its highest energy and at 12.4 kV | `m6/project-master-pattern-tilted` | the sample-to-detector matrix and gnomonic bounds rtol 1e-7; patterns as above |
+
+Measured on 2026-11-06 with a numpy port of the Swift steps: every float32 and uint8 pattern equal to kikuchipy's,
+bit for bit. The GPU (float32) path is held to the CPU path within 1e-3 on the -1 to 1 scale.
 
 ## Study 2, SEM-EDS: the BAM EDS-TM002 standard in exspy
 

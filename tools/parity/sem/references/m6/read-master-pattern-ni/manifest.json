@@ -1,0 +1,1340 @@
+{
+  "arrays": {
+    "rows_lambert_both": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "rows_lambert_both.bin",
+      "note": "every 50th row of both hemispheres (rows 0, 50, ..., 400)",
+      "rtol": 0.0,
+      "sha256": "0297bb3014eaf32a95baaa73a7d18fa0871c14125fef62827fa73f70ee7f640d",
+      "shape": [
+        2,
+        9,
+        401
+      ]
+    },
+    "rows_stereographic_both": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "rows_stereographic_both.bin",
+      "note": "every 50th row of both hemispheres (rows 0, 50, ..., 400)",
+      "rtol": 0.0,
+      "sha256": "fc8c1286fb3a420d8be298754330c2f006c1b66f09d3ce49b706a06b4c92f73f",
+      "shape": [
+        2,
+        9,
+        401
+      ]
+    },
+    "sum_lambert_both": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "sum_lambert_both.bin",
+      "rtol": 0.0,
+      "sha256": "ed3b211bc84a09e2715fed1103676edaf1899dc85159818375a0345b7eae908c",
+      "shape": [
+        2
+      ]
+    },
+    "sum_stereographic_both": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "sum_stereographic_both.bin",
+      "rtol": 0.0,
+      "sha256": "443b7d46f858b70387f2da398ae2413fff4f4785b6cacbcd1f3283e85efc588a",
+      "shape": [
+        2
+      ]
+    }
+  },
+  "case": "m6/read-master-pattern-ni",
+  "inputs": [
+    {
+      "path": "fixtures/emsoft_ebsd_master_pattern_ni_mc_mp_20kv_uint8_gzip_opts9.h5",
+      "sha256": "8a7c1fb471d9ce750f0332a154e87cf41eed7529be508548e0c0f51ec6f92bc2"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "kikuchipy.io.plugins.emsoft_ebsd_master_pattern.file_reader",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "data_lambert_both": {
+      "dtype": "uint8",
+      "sha256": "9e9cfb9972276b97e42e6f4e77878ff11e975d8a80d58663dd6ee222bc6f4a30",
+      "shape": [
+        2,
+        401,
+        401
+      ]
+    },
+    "data_lambert_lower": {
+      "dtype": "uint8",
+      "sha256": "b1c5fb50f5120538cced3cd3c69911cf82c881bf1c02b9d96480a22387054723",
+      "shape": [
+        401,
+        401
+      ]
+    },
+    "data_lambert_upper": {
+      "dtype": "uint8",
+      "sha256": "b1c5fb50f5120538cced3cd3c69911cf82c881bf1c02b9d96480a22387054723",
+      "shape": [
+        401,
+        401
+      ]
+    },
+    "data_stereographic_both": {
+      "dtype": "uint8",
+      "sha256": "bd82452814718c26c69f768fef697760556fc3c95104bc88e5c7c30dd043148c",
+      "shape": [
+        2,
+        401,
+        401
+      ]
+    },
+    "data_stereographic_lower": {
+      "dtype": "uint8",
+      "sha256": "bce9b3fa8e4e7200b756b3c730530c7e4b9956f48a6fba526ac24b44418dd8db",
+      "shape": [
+        401,
+        401
+      ]
+    },
+    "data_stereographic_upper": {
+      "dtype": "uint8",
+      "sha256": "bce9b3fa8e4e7200b756b3c730530c7e4b9956f48a6fba526ac24b44418dd8db",
+      "shape": [
+        401,
+        401
+      ]
+    },
+    "point_groups": {
+      "1": {
+        "inversion": false,
+        "name": "1"
+      },
+      "10": {
+        "inversion": true,
+        "name": "2/m"
+      },
+      "100": {
+        "inversion": false,
+        "name": "4mm"
+      },
+      "101": {
+        "inversion": false,
+        "name": "4mm"
+      },
+      "102": {
+        "inversion": false,
+        "name": "4mm"
+      },
+      "103": {
+        "inversion": false,
+        "name": "4mm"
+      },
+      "104": {
+        "inversion": false,
+        "name": "4mm"
+      },
+      "105": {
+        "inversion": false,
+        "name": "4mm"
+      },
+      "106": {
+        "inversion": false,
+        "name": "4mm"
+      },
+      "107": {
+        "inversion": false,
+        "name": "4mm"
+      },
+      "108": {
+        "inversion": false,
+        "name": "4mm"
+      },
+      "109": {
+        "inversion": false,
+        "name": "4mm"
+      },
+      "11": {
+        "inversion": true,
+        "name": "2/m"
+      },
+      "110": {
+        "inversion": false,
+        "name": "4mm"
+      },
+      "111": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "112": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "113": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "114": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "115": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "116": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "117": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "118": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "119": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "12": {
+        "inversion": true,
+        "name": "2/m"
+      },
+      "120": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "121": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "122": {
+        "inversion": false,
+        "name": "-42m"
+      },
+      "123": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "124": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "125": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "126": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "127": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "128": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "129": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "13": {
+        "inversion": true,
+        "name": "2/m"
+      },
+      "130": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "131": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "132": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "133": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "134": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "135": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "136": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "137": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "138": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "139": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "14": {
+        "inversion": true,
+        "name": "2/m"
+      },
+      "140": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "141": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "142": {
+        "inversion": true,
+        "name": "4/mmm"
+      },
+      "143": {
+        "inversion": false,
+        "name": "3"
+      },
+      "144": {
+        "inversion": false,
+        "name": "3"
+      },
+      "145": {
+        "inversion": false,
+        "name": "3"
+      },
+      "146": {
+        "inversion": false,
+        "name": "3"
+      },
+      "147": {
+        "inversion": true,
+        "name": "-3"
+      },
+      "148": {
+        "inversion": true,
+        "name": "-3"
+      },
+      "149": {
+        "inversion": false,
+        "name": "32"
+      },
+      "15": {
+        "inversion": true,
+        "name": "2/m"
+      },
+      "150": {
+        "inversion": false,
+        "name": "32"
+      },
+      "151": {
+        "inversion": false,
+        "name": "32"
+      },
+      "152": {
+        "inversion": false,
+        "name": "32"
+      },
+      "153": {
+        "inversion": false,
+        "name": "32"
+      },
+      "154": {
+        "inversion": false,
+        "name": "32"
+      },
+      "155": {
+        "inversion": false,
+        "name": "32"
+      },
+      "156": {
+        "inversion": false,
+        "name": "3m"
+      },
+      "157": {
+        "inversion": false,
+        "name": "3m"
+      },
+      "158": {
+        "inversion": false,
+        "name": "3m"
+      },
+      "159": {
+        "inversion": false,
+        "name": "3m"
+      },
+      "16": {
+        "inversion": false,
+        "name": "222"
+      },
+      "160": {
+        "inversion": false,
+        "name": "3m"
+      },
+      "161": {
+        "inversion": false,
+        "name": "3m"
+      },
+      "162": {
+        "inversion": true,
+        "name": "-3m"
+      },
+      "163": {
+        "inversion": true,
+        "name": "-3m"
+      },
+      "164": {
+        "inversion": true,
+        "name": "-3m"
+      },
+      "165": {
+        "inversion": true,
+        "name": "-3m"
+      },
+      "166": {
+        "inversion": true,
+        "name": "-3m"
+      },
+      "167": {
+        "inversion": true,
+        "name": "-3m"
+      },
+      "168": {
+        "inversion": false,
+        "name": "6"
+      },
+      "169": {
+        "inversion": false,
+        "name": "6"
+      },
+      "17": {
+        "inversion": false,
+        "name": "222"
+      },
+      "170": {
+        "inversion": false,
+        "name": "6"
+      },
+      "171": {
+        "inversion": false,
+        "name": "6"
+      },
+      "172": {
+        "inversion": false,
+        "name": "6"
+      },
+      "173": {
+        "inversion": false,
+        "name": "6"
+      },
+      "174": {
+        "inversion": false,
+        "name": "-6"
+      },
+      "175": {
+        "inversion": true,
+        "name": "6/m"
+      },
+      "176": {
+        "inversion": true,
+        "name": "6/m"
+      },
+      "177": {
+        "inversion": false,
+        "name": "622"
+      },
+      "178": {
+        "inversion": false,
+        "name": "622"
+      },
+      "179": {
+        "inversion": false,
+        "name": "622"
+      },
+      "18": {
+        "inversion": false,
+        "name": "222"
+      },
+      "180": {
+        "inversion": false,
+        "name": "622"
+      },
+      "181": {
+        "inversion": false,
+        "name": "622"
+      },
+      "182": {
+        "inversion": false,
+        "name": "622"
+      },
+      "183": {
+        "inversion": false,
+        "name": "6mm"
+      },
+      "184": {
+        "inversion": false,
+        "name": "6mm"
+      },
+      "185": {
+        "inversion": false,
+        "name": "6mm"
+      },
+      "186": {
+        "inversion": false,
+        "name": "6mm"
+      },
+      "187": {
+        "inversion": false,
+        "name": "-6m2"
+      },
+      "188": {
+        "inversion": false,
+        "name": "-6m2"
+      },
+      "189": {
+        "inversion": false,
+        "name": "-6m2"
+      },
+      "19": {
+        "inversion": false,
+        "name": "222"
+      },
+      "190": {
+        "inversion": false,
+        "name": "-6m2"
+      },
+      "191": {
+        "inversion": true,
+        "name": "6/mmm"
+      },
+      "192": {
+        "inversion": true,
+        "name": "6/mmm"
+      },
+      "193": {
+        "inversion": true,
+        "name": "6/mmm"
+      },
+      "194": {
+        "inversion": true,
+        "name": "6/mmm"
+      },
+      "195": {
+        "inversion": false,
+        "name": "23"
+      },
+      "196": {
+        "inversion": false,
+        "name": "23"
+      },
+      "197": {
+        "inversion": false,
+        "name": "23"
+      },
+      "198": {
+        "inversion": false,
+        "name": "23"
+      },
+      "199": {
+        "inversion": false,
+        "name": "23"
+      },
+      "2": {
+        "inversion": true,
+        "name": "-1"
+      },
+      "20": {
+        "inversion": false,
+        "name": "222"
+      },
+      "200": {
+        "inversion": true,
+        "name": "m-3"
+      },
+      "201": {
+        "inversion": true,
+        "name": "m-3"
+      },
+      "202": {
+        "inversion": true,
+        "name": "m-3"
+      },
+      "203": {
+        "inversion": true,
+        "name": "m-3"
+      },
+      "204": {
+        "inversion": true,
+        "name": "m-3"
+      },
+      "205": {
+        "inversion": true,
+        "name": "m-3"
+      },
+      "206": {
+        "inversion": true,
+        "name": "m-3"
+      },
+      "207": {
+        "inversion": false,
+        "name": "432"
+      },
+      "208": {
+        "inversion": false,
+        "name": "432"
+      },
+      "209": {
+        "inversion": false,
+        "name": "432"
+      },
+      "21": {
+        "inversion": false,
+        "name": "222"
+      },
+      "210": {
+        "inversion": false,
+        "name": "432"
+      },
+      "211": {
+        "inversion": false,
+        "name": "432"
+      },
+      "212": {
+        "inversion": false,
+        "name": "432"
+      },
+      "213": {
+        "inversion": false,
+        "name": "432"
+      },
+      "214": {
+        "inversion": false,
+        "name": "432"
+      },
+      "215": {
+        "inversion": false,
+        "name": "-43m"
+      },
+      "216": {
+        "inversion": false,
+        "name": "-43m"
+      },
+      "217": {
+        "inversion": false,
+        "name": "-43m"
+      },
+      "218": {
+        "inversion": false,
+        "name": "-43m"
+      },
+      "219": {
+        "inversion": false,
+        "name": "-43m"
+      },
+      "22": {
+        "inversion": false,
+        "name": "222"
+      },
+      "220": {
+        "inversion": false,
+        "name": "-43m"
+      },
+      "221": {
+        "inversion": true,
+        "name": "m-3m"
+      },
+      "222": {
+        "inversion": true,
+        "name": "m-3m"
+      },
+      "223": {
+        "inversion": true,
+        "name": "m-3m"
+      },
+      "224": {
+        "inversion": true,
+        "name": "m-3m"
+      },
+      "225": {
+        "inversion": true,
+        "name": "m-3m"
+      },
+      "226": {
+        "inversion": true,
+        "name": "m-3m"
+      },
+      "227": {
+        "inversion": true,
+        "name": "m-3m"
+      },
+      "228": {
+        "inversion": true,
+        "name": "m-3m"
+      },
+      "229": {
+        "inversion": true,
+        "name": "m-3m"
+      },
+      "23": {
+        "inversion": false,
+        "name": "222"
+      },
+      "230": {
+        "inversion": true,
+        "name": "m-3m"
+      },
+      "24": {
+        "inversion": false,
+        "name": "222"
+      },
+      "25": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "26": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "27": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "28": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "29": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "3": {
+        "inversion": false,
+        "name": "2"
+      },
+      "30": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "31": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "32": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "33": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "34": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "35": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "36": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "37": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "38": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "39": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "4": {
+        "inversion": false,
+        "name": "2"
+      },
+      "40": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "41": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "42": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "43": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "44": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "45": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "46": {
+        "inversion": false,
+        "name": "mm2"
+      },
+      "47": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "48": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "49": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "5": {
+        "inversion": false,
+        "name": "2"
+      },
+      "50": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "51": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "52": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "53": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "54": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "55": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "56": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "57": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "58": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "59": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "6": {
+        "inversion": false,
+        "name": "m"
+      },
+      "60": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "61": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "62": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "63": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "64": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "65": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "66": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "67": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "68": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "69": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "7": {
+        "inversion": false,
+        "name": "m"
+      },
+      "70": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "71": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "72": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "73": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "74": {
+        "inversion": true,
+        "name": "mmm"
+      },
+      "75": {
+        "inversion": false,
+        "name": "4"
+      },
+      "76": {
+        "inversion": false,
+        "name": "4"
+      },
+      "77": {
+        "inversion": false,
+        "name": "4"
+      },
+      "78": {
+        "inversion": false,
+        "name": "4"
+      },
+      "79": {
+        "inversion": false,
+        "name": "4"
+      },
+      "8": {
+        "inversion": false,
+        "name": "m"
+      },
+      "80": {
+        "inversion": false,
+        "name": "4"
+      },
+      "81": {
+        "inversion": false,
+        "name": "-4"
+      },
+      "82": {
+        "inversion": false,
+        "name": "-4"
+      },
+      "83": {
+        "inversion": true,
+        "name": "4/m"
+      },
+      "84": {
+        "inversion": true,
+        "name": "4/m"
+      },
+      "85": {
+        "inversion": true,
+        "name": "4/m"
+      },
+      "86": {
+        "inversion": true,
+        "name": "4/m"
+      },
+      "87": {
+        "inversion": true,
+        "name": "4/m"
+      },
+      "88": {
+        "inversion": true,
+        "name": "4/m"
+      },
+      "89": {
+        "inversion": false,
+        "name": "422"
+      },
+      "9": {
+        "inversion": false,
+        "name": "m"
+      },
+      "90": {
+        "inversion": false,
+        "name": "422"
+      },
+      "91": {
+        "inversion": false,
+        "name": "422"
+      },
+      "92": {
+        "inversion": false,
+        "name": "422"
+      },
+      "93": {
+        "inversion": false,
+        "name": "422"
+      },
+      "94": {
+        "inversion": false,
+        "name": "422"
+      },
+      "95": {
+        "inversion": false,
+        "name": "422"
+      },
+      "96": {
+        "inversion": false,
+        "name": "422"
+      },
+      "97": {
+        "inversion": false,
+        "name": "422"
+      },
+      "98": {
+        "inversion": false,
+        "name": "422"
+      },
+      "99": {
+        "inversion": false,
+        "name": "4mm"
+      }
+    },
+    "readings": {
+      "lambert_both": {
+        "axes": [
+          {
+            "name": "hemisphere",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 2,
+            "units": ""
+          },
+          {
+            "name": "height",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          }
+        ],
+        "dtype": "uint8",
+        "hemisphere": "both",
+        "kwargs": {
+          "hemisphere": "both",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 1,
+          "inversion": true,
+          "lattice": [
+            0.35236,
+            0.35236,
+            0.35236,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "ni",
+          "point_group": "m-3m",
+          "space_group": 225
+        },
+        "projection": "lambert",
+        "shape": [
+          2,
+          401,
+          401
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_lower": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          }
+        ],
+        "dtype": "uint8",
+        "hemisphere": "lower",
+        "kwargs": {
+          "hemisphere": "lower",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 1,
+          "inversion": true,
+          "lattice": [
+            0.35236,
+            0.35236,
+            0.35236,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "ni",
+          "point_group": "m-3m",
+          "space_group": 225
+        },
+        "projection": "lambert",
+        "shape": [
+          401,
+          401
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_upper": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          }
+        ],
+        "dtype": "uint8",
+        "hemisphere": "upper",
+        "kwargs": {
+          "hemisphere": "upper",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 1,
+          "inversion": true,
+          "lattice": [
+            0.35236,
+            0.35236,
+            0.35236,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "ni",
+          "point_group": "m-3m",
+          "space_group": 225
+        },
+        "projection": "lambert",
+        "shape": [
+          401,
+          401
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_both": {
+        "axes": [
+          {
+            "name": "hemisphere",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 2,
+            "units": ""
+          },
+          {
+            "name": "height",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          }
+        ],
+        "dtype": "uint8",
+        "hemisphere": "both",
+        "kwargs": {
+          "hemisphere": "both",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 1,
+          "inversion": true,
+          "lattice": [
+            0.35236,
+            0.35236,
+            0.35236,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "ni",
+          "point_group": "m-3m",
+          "space_group": 225
+        },
+        "projection": "stereographic",
+        "shape": [
+          2,
+          401,
+          401
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_lower": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          }
+        ],
+        "dtype": "uint8",
+        "hemisphere": "lower",
+        "kwargs": {
+          "hemisphere": "lower",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 1,
+          "inversion": true,
+          "lattice": [
+            0.35236,
+            0.35236,
+            0.35236,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "ni",
+          "point_group": "m-3m",
+          "space_group": 225
+        },
+        "projection": "stereographic",
+        "shape": [
+          401,
+          401
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_upper": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -201.0,
+            "scale": 1.0,
+            "size": 401,
+            "units": "px"
+          }
+        ],
+        "dtype": "uint8",
+        "hemisphere": "upper",
+        "kwargs": {
+          "hemisphere": "upper",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 1,
+          "inversion": true,
+          "lattice": [
+            0.35236,
+            0.35236,
+            0.35236,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "ni",
+          "point_group": "m-3m",
+          "space_group": 225
+        },
+        "projection": "stereographic",
+        "shape": [
+          401,
+          401
+        ],
+        "signal_type": "EBSDMasterPattern"
+      }
+    }
+  }
+}
