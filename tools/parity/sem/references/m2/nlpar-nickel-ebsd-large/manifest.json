@@ -1,0 +1,187 @@
+{
+  "arrays": {
+    "automask": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "automask.bin",
+      "rtol": 0.0,
+      "sha256": "003437d0286cf84c40894e545d62ce3edb9f4f431ed9c5256f06534c5cf8f3ac",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "denoised_corner": {
+      "atol": 0.0001,
+      "dtype": "float32",
+      "file": "denoised_corner.bin",
+      "note": "scan rows 0..2, cols 0..2",
+      "rtol": 1e-05,
+      "sha256": "b80e044499e93a0d2103e6487a80b5cb809311a5ac7db529d8f6a9b98e4bd08d",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "denoised_mean": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "denoised_mean.bin",
+      "rtol": 1e-05,
+      "sha256": "959a7b2d1a13d17acc265cf4c9e08256eb0fea06af43bfaf77add9d7538d30dc",
+      "shape": [
+        55,
+        75
+      ]
+    },
+    "denoised_seam": {
+      "atol": 0.0001,
+      "dtype": "float32",
+      "file": "denoised_seam.bin",
+      "note": "scan rows 26..28, cols 33..39",
+      "rtol": 1e-05,
+      "sha256": "f8427a758ff2721b6359e396da1c6da6fa42a108089bd0e314b113ea560536ba",
+      "shape": [
+        3,
+        7,
+        60,
+        60
+      ]
+    },
+    "distances": {
+      "atol": 1e-05,
+      "dtype": "float32",
+      "file": "distances.bin",
+      "note": "normalised squared distances to the 3 x 3 neighbours, the lambda optimisation's input",
+      "rtol": 1e-05,
+      "sha256": "f93e1700262b4329eafc49446eed352139bb4fa99581586b9a7e7d9c2d9c8eb1",
+      "shape": [
+        55,
+        75,
+        9
+      ]
+    },
+    "lambdas": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "lambdas.bin",
+      "note": "target weights 0.5, 0.34, 0.25",
+      "rtol": 0.0001,
+      "sha256": "bf636ba4783738fd0db9aa0e6fe8ce76d58de56cf0037362996fe4dd40041466",
+      "shape": [
+        3
+      ]
+    },
+    "sigma": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "sigma.bin",
+      "rtol": 1e-05,
+      "sha256": "6806b97db50851db46ee5ca429538248f2815969646316bc9686fbedf35cad6c",
+      "shape": [
+        55,
+        75
+      ]
+    }
+  },
+  "case": "m2/nlpar-nickel-ebsd-large",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "pyebsdindex.nlpar_cpu.NLPAR.opt_lambda / calcsigma / calcnlpar",
+    "package": "pyebsdindex",
+    "version": "0.3.10.1"
+  },
+  "scalars": {
+    "lambda": {
+      "atol": 0.0,
+      "rtol": 0.0001,
+      "value": 1.0984375000000002
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "denoised": {
+      "dtype": "float32",
+      "sha256": "3aeeb0265854f76b5368f8626847b4a4146e4f27f57d7d02d89b47028b5b6150",
+      "shape": [
+        55,
+        75,
+        60,
+        60
+      ]
+    },
+    "dthresh": 0.0,
+    "nlpar_tiles": {
+      "columns": [
+        [
+          0,
+          41
+        ],
+        [
+          34,
+          75
+        ]
+      ],
+      "rows": [
+        [
+          0,
+          55
+        ]
+      ]
+    },
+    "pattern_shape": [
+      60,
+      60
+    ],
+    "scan_shape_rc": [
+      55,
+      75
+    ],
+    "search_radius": 3,
+    "sigma_tiles": {
+      "columns": [
+        [
+          0,
+          39
+        ],
+        [
+          36,
+          75
+        ]
+      ],
+      "rows": [
+        [
+          0,
+          55
+        ]
+      ]
+    },
+    "target_weights": [
+      0.5,
+      0.34,
+      0.25
+    ],
+    "tile_bytes": 32000000000.0
+  }
+}
