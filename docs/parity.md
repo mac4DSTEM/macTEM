@@ -258,7 +258,7 @@ lands on the other side of an integer, and exactly where upstream's arithmetic i
 
 ### Known limits and decisions
 
-- D-SEM-64 (2026-11-06): the ports' choices — F4's input is the raw pattern; CLAHE keeps scikit-image's float32 accumulation; the
+- D-SEM-67 (2026-11-06): the ports' choices — F4's input is the raw pattern; CLAHE keeps scikit-image's float32 accumulation; the
   spatial FFT filter pads to the exact size; windows are 2D (`n x 1` for upstream's 1D shape); the averaging bound for integer
   windows is 2 % of a pattern set. Full text in docs/decisions.md.
 - Figure F4 (plan.md): `tools/parity/sem/filter_figure.py` draws kikuchipy's filtered pattern (0, 0) beside the one the unit test
