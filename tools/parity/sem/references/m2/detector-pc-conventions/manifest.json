@@ -1,0 +1,157 @@
+{
+  "arrays": {
+    "from_bruker": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "from_bruker.bin",
+      "note": "detector, (tsl, oxford, emsoft4, emsoft5), scan row, scan column, (x, y, z); input pcs_fraction as Bruker",
+      "rtol": 1e-07,
+      "sha256": "6ef4fd11e0553a23ecd7094deb8e3961c208003daae02aa2d753fef990cde9a3",
+      "shape": [
+        7,
+        4,
+        2,
+        3,
+        3
+      ]
+    },
+    "pcs_emsoft": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pcs_emsoft.bin",
+      "rtol": 1e-07,
+      "sha256": "ed47217ccad26f9f8504e2f9d4e90abb27e616500bf3bd58d24504063e6831bc",
+      "shape": [
+        2,
+        3,
+        3
+      ]
+    },
+    "pcs_fraction": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pcs_fraction.bin",
+      "rtol": 1e-07,
+      "sha256": "28009032df989cd5d8b695f13bce502642d12401590157da71bbe5664025ab64",
+      "shape": [
+        2,
+        3,
+        3
+      ]
+    },
+    "to_bruker": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "to_bruker.bin",
+      "note": "detector, convention (as `conventions`), scan row, scan column, (x, y, z) in Bruker's convention",
+      "rtol": 1e-07,
+      "sha256": "142d123721196cf330c524e1d162256d7a6095fe35ae5852ce09a8bdfe22331c",
+      "shape": [
+        7,
+        9,
+        2,
+        3,
+        3
+      ]
+    }
+  },
+  "case": "m2/detector-pc-conventions",
+  "inputs": [
+    {
+      "path": "fixtures/detector_geometry_cases.json",
+      "sha256": "575c1eb80bdd45c888ee9f972af39cd4d3d0c19be2007459ced1c038c57a0066"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.detectors.EBSDDetector(pc, convention) / pc_tsl / pc_oxford / pc_emsoft",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "conventions": [
+      "bruker",
+      "tsl",
+      "edax",
+      "amatek",
+      "oxford",
+      "aztec",
+      "emsoft",
+      "emsoft4",
+      "emsoft5"
+    ],
+    "detectors": [
+      {
+        "binning": 1,
+        "px_size": 1.0,
+        "shape": [
+          60,
+          60
+        ]
+      },
+      {
+        "binning": 8,
+        "px_size": 59.2,
+        "shape": [
+          60,
+          80
+        ]
+      },
+      {
+        "binning": 2,
+        "px_size": 70.0,
+        "shape": [
+          480,
+          640
+        ]
+      },
+      {
+        "binning": 1,
+        "px_size": 1.0,
+        "shape": [
+          1,
+          1
+        ]
+      },
+      {
+        "binning": 1,
+        "px_size": 6.5,
+        "shape": [
+          1024,
+          1244
+        ]
+      },
+      {
+        "binning": 4,
+        "px_size": 30.0,
+        "shape": [
+          240,
+          200
+        ]
+      },
+      {
+        "binning": 1,
+        "px_size": 2.5,
+        "shape": [
+          510,
+          510
+        ]
+      }
+    ]
+  }
+}

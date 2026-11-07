@@ -1,8 +1,8 @@
 //
 //  PatternProcessing.swift
-//  Static and dynamic background removal of EBSD patterns: kikuchipy 0.13.1's `pattern._pattern` (`_remove_static_background_subtract`
+//  Background removal, intensity and binning of EBSD patterns: kikuchipy 0.13.1's `pattern._pattern` (`_remove_static_background_subtract`
 //  / `_divide`, `_remove_background_subtract` / `_divide`, `_rescale_with_min_max`, `get_dynamic_background`,
-//  `_dynamic_background_frequency_space_setup`) and `filters.fft_barnes._fft_filter`, ported function by function; the parity
+//  `_dynamic_background_frequency_space_setup`, `rescale_intensity`, `_normalize_intensity`, `_downsample2d`, `_bin2d`) and `filters.fft_barnes._fft_filter`, ported function by function; the parity
 //  references are `tools/parity/sem/background_reference.py` and the rows are in docs/parity.md.
 //
 //  Numbers: kikuchipy works in float32 (numba, fastmath) and casts the rescaled pattern back to the input dtype by truncation.
@@ -24,14 +24,14 @@ import ImagoFilters
 
 package nonisolated enum PatternProcessing {
     /// kikuchipy's `operation`: the background is subtracted from or divided into the pattern.
-    package enum Operation: String, Sendable, CaseIterable, Identifiable {
+    package enum Operation: String, Sendable, Codable, CaseIterable, Identifiable {
         case subtract, divide
         package var id: String { rawValue }
         package var title: String { rawValue.capitalized }
     }
 
     /// kikuchipy's `filter_domain`: the dynamic background by the FFT Gaussian filter or by `scipy.ndimage.gaussian_filter`.
-    package enum FilterDomain: String, Sendable, CaseIterable, Identifiable {
+    package enum FilterDomain: String, Sendable, Codable, CaseIterable, Identifiable {
         case frequency, spatial
         package var id: String { rawValue }
         package var title: String { rawValue.capitalized }
@@ -158,6 +158,116 @@ package nonisolated enum PatternProcessing {
     ) throws -> [P] {
         try cast(removeDynamicBackgroundValues(pattern, rows: rows, columns: columns, operation: operation, domain: domain,
                                                std: std, truncate: truncate), to: P.self)
+    }
+
+    // MARK: - Intensity (`rescale_intensity`, `normalize_intensity`)
+
+    /// numpy's `nanpercentile(x, q)` with the default `linear` method (no NaN can occur in an integer pattern): the virtual
+    /// index `n·q + (1 − q) − 1` on the sorted values (`_compute_virtual_index` with alpha = beta = 1) and numpy's `_lerp`,
+    /// which interpolates from the upper neighbour when the fraction is at least one half. `q` is a percentage, 0 to 100.
+    package static func percentile(_ values: [Double], _ q: Double) throws -> Double {
+        guard !values.isEmpty else { throw Error.shape }
+        guard q.isFinite, q >= 0, q <= 100 else { throw Error.parameter("percentile") }
+        let sorted = values.sorted()
+        let n = sorted.count
+        let quantile = q / 100
+        let virtual = Double(n) * quantile + (1 + quantile * (1 - 1 - 1)) - 1
+        let lower = min(max(Int(virtual.rounded(.down)), 0), n - 1)
+        let upper = min(lower + 1, n - 1)
+        let gamma = min(max(virtual - Double(lower), 0), 1)
+        let a = sorted[lower], b = sorted[upper]
+        let diff = b - a
+        return gamma >= 0.5 ? b - diff * (1 - gamma) : a + diff * gamma
+    }
+
+    /// `kikuchipy.pattern.rescale_intensity(pattern, percentiles=…)` before the cast: the input range is the pattern's own
+    /// minimum and maximum, or its `percentiles` (low, high) with the pattern clipped to them; that range is stretched onto
+    /// the pattern type's range. A flat pattern (or a flat percentile range) divides by zero as kikuchipy does and throws.
+    package static func rescaleIntensityValues<P: FixedWidthInteger & UnsignedInteger>(
+        _ pattern: [P], percentiles: (low: Double, high: Double)? = nil
+    ) throws -> [Double] {
+        guard !pattern.isEmpty else { throw Error.shape }
+        var p = pattern.map { Double($0) }
+        let imin: Double, imax: Double
+        if let percentiles {
+            imin = try percentile(p, percentiles.low)
+            imax = try percentile(p, percentiles.high)
+            p = p.map { Swift.min(Swift.max($0, imin), imax) }
+        } else {
+            imin = p.min()!
+            imax = p.max()!
+        }
+        let (omin, omax) = range(of: P.self)
+        let span = imax - imin
+        guard span != 0, span.isFinite else { throw Error.nonFinite }
+        // `_rescale_with_min_max` is compiled with fastmath, which turns the division into a product with the reciprocal:
+        // 98 · (1/255) · 255 is 97.99…, truncated to 97, where 98 / 255 · 255 is 98. The reciprocal makes the cast exact.
+        let reciprocal = 1 / span
+        return p.map { ($0 - imin) * reciprocal * (omax - omin) + omin }
+    }
+
+    /// `rescale_intensity`: `rescaleIntensityValues` cast back to the pattern type by truncation.
+    package static func rescaleIntensity<P: FixedWidthInteger & UnsignedInteger>(
+        _ pattern: [P], percentiles: (low: Double, high: Double)? = nil
+    ) throws -> [P] {
+        try cast(rescaleIntensityValues(pattern, percentiles: percentiles), to: P.self)
+    }
+
+    /// `_normalize_intensity`: zero mean and `numStd` population standard deviations, optionally also divided by the square
+    /// root of the pixel count. kikuchipy keeps the input dtype, so the room converts a pattern to float32 first and the result
+    /// is float32 (computed in float64 here; within 1e-5 relative of kikuchipy's fastmath float32 numbers).
+    package static func normalizeIntensity(_ pattern: [Double], numStd: Double = 1, divideBySquareRoot: Bool = false) throws -> [Float] {
+        guard !pattern.isEmpty else { throw Error.shape }
+        guard numStd.isFinite, numStd > 0 else { throw Error.parameter("num_std") }
+        let n = Double(pattern.count)
+        let mean = pattern.reduce(0, +) / n
+        let variance = pattern.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / n
+        var scale = numStd * variance.squareRoot()
+        if divideBySquareRoot { scale *= n.squareRoot() }
+        guard scale > 0, scale.isFinite else { throw Error.nonFinite }
+        return pattern.map { Float(($0 - mean) / scale) }
+    }
+
+    // MARK: - Size (`EBSD.downsample`)
+
+    /// `_downsample2d`: the pattern binned by `factor` (`_bin2d`: each `factor` × `factor` block summed), rescaled to the
+    /// pattern type's range from its own minimum and maximum and cast by truncation. `rows` and `columns` must be multiples of
+    /// `factor` (kikuchipy refuses the rest and points at `crop`). kikuchipy's kernel casts to float32 first and works in
+    /// float32 under fastmath (the division a product with the reciprocal); this does the same, so the cast agrees exactly
+    /// (both reference bundles, factors 2 and 3). The sums are exact in float32 for 8 and 16 bit patterns up to a factor of 8.
+    package static func downsample<P: FixedWidthInteger & UnsignedInteger>(
+        _ pattern: [P], rows: Int, columns: Int, factor: Int
+    ) throws -> [P] {
+        guard rows >= 1, columns >= 1, pattern.count == rows * columns else { throw Error.shape }
+        guard factor >= 1, rows % factor == 0, columns % factor == 0 else { throw Error.parameter("factor") }
+        if factor == 1 { return pattern }
+        let binned = bin(pattern.map { Float($0) }, rows: rows, columns: columns, factor: factor)
+        guard let imin = binned.min(), let imax = binned.max(), imax > imin else { throw Error.nonFinite }
+        let reciprocal = Float(1 / Double(imax - imin))
+        let top = Float(P.max)
+        return binned.map { P(min(max(($0 - imin) * reciprocal * top, 0), top)) }
+    }
+
+    /// `_downsample2d` on a float32 pattern (a normalised one): binned, then rescaled to float32's `dtype_range`, [-1, 1].
+    package static func downsampleFloat(_ pattern: [Float], rows: Int, columns: Int, factor: Int) throws -> [Float] {
+        guard rows >= 1, columns >= 1, pattern.count == rows * columns else { throw Error.shape }
+        guard factor >= 1, rows % factor == 0, columns % factor == 0 else { throw Error.parameter("factor") }
+        if factor == 1 { return pattern }
+        let binned = bin(pattern, rows: rows, columns: columns, factor: factor)
+        guard let imin = binned.min(), let imax = binned.max(), imax > imin, imin.isFinite, imax.isFinite else { throw Error.nonFinite }
+        let reciprocal = Float(1 / Double(imax - imin))
+        return binned.map { ($0 - imin) * reciprocal * 2 - 1 }
+    }
+
+    /// `_bin2d`: the sum of each `factor` × `factor` block, row-major, `rows / factor` × `columns / factor` values.
+    package static func bin<T: BinaryFloatingPoint>(_ pattern: [T], rows: Int, columns: Int, factor: Int) -> [T] {
+        let r = rows / factor, c = columns / factor
+        var out = [T](repeating: 0, count: r * c)
+        for i in 0..<(r * factor) {
+            let base = i * columns, target = (i / factor) * c
+            for j in 0..<(c * factor) { out[target + j / factor] += pattern[base + j] }
+        }
+        return out
     }
 
     // MARK: - Pieces

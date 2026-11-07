@@ -167,7 +167,7 @@ nonisolated final class EBSDH5ReaderTests: XCTestCase {
             XCTAssertEqual(dataset.sem.microscope, expected.sem["microscope"], "\(fileName) microscope")
             if expected.xmapHasRotations {
                 let map = try XCTUnwrap(dataset.crystalMap, "\(fileName): no crystal map read")
-                XCTAssertEqual(map.phases.map(\.name), expected.xmapPhaseNames, "\(fileName) phases")
+                XCTAssertEqual(map.phases.names, expected.xmapPhaseNames, "\(fileName) phases")
                 XCTAssertEqual(map.euler.count, dataset.patternCount, "\(fileName) one orientation per point")
                 let firstEuler = try XCTUnwrap(expected.xmapEulerFirst)
                 let lastEuler = try XCTUnwrap(expected.xmapEulerLast)

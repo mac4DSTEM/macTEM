@@ -3,7 +3,8 @@
 //  Role: what an EBSD or TKD pattern file holds, the one value every pattern reader fills and the Patterns room reads: the scan
 //        grid and its step, the pattern shape and element type, the detector geometry with its projection centres in the Bruker
 //        convention (kikuchipy's internal one), the static background the file carries, the SEM header, the file's own crystal map
-//        when it has one, and where the patterns are (`EBSDPatternSource`) so they are read by map position on demand.
+//        when it has one, and where the patterns are (`EBSDPatternSource`: an HDF5 dataset or fixed-size records of a vendor's binary
+//        file) so they are read by map position on demand.
 //        Ported from kikuchipy 0.13.1 (`kikuchipy/io/plugins/_h5ebsd.py`, `detectors/_ebsd_detector.py`; GPL-3.0-or-later); the
 //        SEM program's parity rows are in docs/parity.md.
 //
@@ -18,6 +19,14 @@ package nonisolated enum EBSDFileFormat: String, Sendable, Equatable {
     case brukerH5EBSD = "Bruker h5ebsd"
     case edaxH5EBSD = "EDAX h5ebsd"
     case oxfordH5OINA = "Oxford H5OINA"
+    /// Oxford Instruments' binary pattern file (`.ebsp`), with the `.ctf` map next to it when there is one.
+    case oxfordBinary = "Oxford ebsp"
+    /// EDAX TSL's binary pattern file (`.up1`, `.up2`), with the `.ang` map next to it when there is one.
+    case edaxBinary = "EDAX up1/up2"
+    /// NORDIF `Pattern.dat` with `Setting.txt` beside it (`NORDIFOpening`).
+    case nordif = "NORDIF"
+    /// The generated demo dataset (`DemoDocuments.ebsd`): not data, never read from a file.
+    case generated = "generated demo (not data)"
 }
 
 /// The detector as kikuchipy's `EBSDDetector` holds it after reading: shape, pixel size, binning, the three tilts and the sample
@@ -78,33 +87,6 @@ package nonisolated struct EBSDDetectorGeometry: Sendable, Equatable {
     }
 }
 
-/// A phase of the file's crystal map.
-package nonisolated struct EBSDPhase: Sendable, Equatable {
-    package var name: String
-    package var spaceGroup: Int?
-    package var pointGroup: String?
-    /// a, b, c (the file's unit), alpha, beta, gamma (degrees).
-    package var lattice: [Double]?
-
-    package init(name: String, spaceGroup: Int? = nil, pointGroup: String? = nil, lattice: [Double]? = nil) {
-        self.name = name; self.spaceGroup = spaceGroup; self.pointGroup = pointGroup; self.lattice = lattice
-    }
-}
-
-/// The indexing results a file carries, one entry per map position in row-major scan order (orix's `CrystalMap` fields).
-package nonisolated struct EBSDCrystalMapData: Sendable, Equatable {
-    /// Bunge Euler angles (phi1, Phi, phi2) in radians.
-    package var euler: [SIMD3<Double>]
-    package var phaseIDs: [Int]
-    package var phases: [EBSDPhase]
-    /// Every other per-point column (scores, fit, confidence, ...), by its name in the file.
-    package var properties: [String: [Double]]
-
-    package init(euler: [SIMD3<Double>], phaseIDs: [Int], phases: [EBSDPhase], properties: [String: [Double]] = [:]) {
-        self.euler = euler; self.phaseIDs = phaseIDs; self.phases = phases; self.properties = properties
-    }
-}
-
 /// The SEM header the file carries beside the patterns.
 package nonisolated struct EBSDSEMHeader: Sendable, Equatable {
     package var beamEnergyKeV: Double?
@@ -121,15 +103,35 @@ package nonisolated struct EBSDSEMHeader: Sendable, Equatable {
 /// the pattern at map position k (row-major), nil for a missing pattern (a file shorter than its scan is zero-padded, as
 /// kikuchipy pads it); nil as a whole means the file order is the map order.
 package nonisolated struct EBSDPatternSource: Sendable, Equatable {
+    /// How the file lays its patterns out.
+    package enum Layout: Sendable, Equatable {
+        /// An HDF5 dataset of shape `fileShape`.
+        case hdf5(datasetPath: String)
+        /// Fixed-size records from byte `offset`, `recordBytes` each, the pattern's pixels (little-endian, row-major) `patternOffset`
+        /// bytes into its record: EDAX `.up1`/`.up2` (records are bare patterns) and Oxford `.ebsp` (a header and a footer around each).
+        case records(offset: Int, recordBytes: Int, patternOffset: Int)
+    }
+
     package var url: URL
-    package var datasetPath: String
+    package var layout: Layout
     /// The dataset's shape as stored: (n, rows, columns) or (scanRows, scanColumns, rows, columns).
     package var fileShape: [Int]
     package var dataType: FormatoDataType
     package var fileIndexByPosition: [Int?]?
 
+    package init(url: URL, layout: Layout, fileShape: [Int], dataType: FormatoDataType, fileIndexByPosition: [Int?]? = nil) {
+        self.url = url; self.layout = layout; self.fileShape = fileShape; self.dataType = dataType; self.fileIndexByPosition = fileIndexByPosition
+    }
+
+    /// An HDF5 dataset at `datasetPath`.
     package init(url: URL, datasetPath: String, fileShape: [Int], dataType: FormatoDataType, fileIndexByPosition: [Int?]? = nil) {
-        self.url = url; self.datasetPath = datasetPath; self.fileShape = fileShape; self.dataType = dataType; self.fileIndexByPosition = fileIndexByPosition
+        self.init(url: url, layout: .hdf5(datasetPath: datasetPath), fileShape: fileShape, dataType: dataType, fileIndexByPosition: fileIndexByPosition)
+    }
+
+    /// The HDF5 dataset's path; empty for a record file.
+    package var datasetPath: String {
+        if case .hdf5(let path) = layout { return path }
+        return ""
     }
 
     /// Patterns the dataset holds.
@@ -158,17 +160,19 @@ package nonisolated struct EBSDDataset: Sendable, Equatable {
     /// The static background pattern, as stored (uint8 or uint16, `patternRows` x `patternColumns`), when the file carries one.
     package var staticBackground: FormatoArray?
     package var sem: EBSDSEMHeader
-    package var crystalMap: EBSDCrystalMapData?
+    package var crystalMap: CrystalMap?
     package var patterns: EBSDPatternSource
+    /// What the reader left out and why (a companion map that did not fit, a vendor warning), one sentence each, for the Open Files row.
+    package var notes: [String]
 
     package init(format: EBSDFileFormat, manufacturer: String, version: String, scanGroup: String, scanGroups: [String], scanRows: Int, scanColumns: Int,
                  patternRows: Int, patternColumns: Int, dataType: FormatoDataType, stepY: Double, stepX: Double, scanUnit: String = "um",
                  detector: EBSDDetectorGeometry, staticBackground: FormatoArray? = nil, sem: EBSDSEMHeader = EBSDSEMHeader(),
-                 crystalMap: EBSDCrystalMapData? = nil, patterns: EBSDPatternSource) {
+                 crystalMap: CrystalMap? = nil, patterns: EBSDPatternSource, notes: [String] = []) {
         self.format = format; self.manufacturer = manufacturer; self.version = version; self.scanGroup = scanGroup; self.scanGroups = scanGroups
         self.scanRows = scanRows; self.scanColumns = scanColumns; self.patternRows = patternRows; self.patternColumns = patternColumns
         self.dataType = dataType; self.stepY = stepY; self.stepX = stepX; self.scanUnit = scanUnit; self.detector = detector
-        self.staticBackground = staticBackground; self.sem = sem; self.crystalMap = crystalMap; self.patterns = patterns
+        self.staticBackground = staticBackground; self.sem = sem; self.crystalMap = crystalMap; self.patterns = patterns; self.notes = notes
     }
 
     package var patternCount: Int { scanRows * scanColumns }
@@ -182,16 +186,34 @@ package nonisolated struct EBSDDataset: Sendable, Equatable {
     }
 }
 
-/// Reads patterns of one dataset by map position; holds the HDF5 dataset open between calls (the live pattern pane asks per cursor move).
+/// Reads patterns of one dataset by map position; holds the HDF5 dataset open (or the record file mapped) between calls (the live
+/// pattern pane asks per cursor move).
 package nonisolated final class EBSDPatternReader: @unchecked Sendable {
     package let dataset: EBSDDataset
-    private let slabs: HDF5SlabReader
+
+    private enum Store {
+        case hdf5(HDF5SlabReader)
+        case records(Data, offset: Int, recordBytes: Int, patternOffset: Int)
+    }
+    private let store: Store
 
     package init(_ dataset: EBSDDataset) throws {
         self.dataset = dataset
-        do {
-            slabs = try HDF5SlabReader(url: dataset.patterns.url, path: dataset.patterns.datasetPath)
-        } catch { throw EBSDReadError.wrap(error, file: dataset.patterns.url) }
+        let source = dataset.patterns
+        switch source.layout {
+        case .hdf5(let path):
+            do { store = .hdf5(try HDF5SlabReader(url: source.url, path: path)) } catch { throw EBSDReadError.wrap(error, file: source.url) }
+        case .records(let offset, let recordBytes, let patternOffset):
+            let data: Data
+            do { data = try Data(contentsOf: source.url, options: .alwaysMapped) } catch {
+                throw EBSDReadError(text: "\(source.url.lastPathComponent) could not be read: \((error as NSError).localizedDescription)")
+            }
+            let bytesPerPattern = dataset.patternPixels * dataset.dataType.byteSize
+            guard recordBytes >= patternOffset + bytesPerPattern, offset + source.fileCount * recordBytes <= data.count else {
+                throw EBSDReadError(text: "\(source.url.lastPathComponent) is shorter than its \(source.fileCount) patterns need (\(data.count) bytes).")
+            }
+            store = .records(data, offset: offset, recordBytes: recordBytes, patternOffset: patternOffset)
+        }
     }
 
     /// The pattern at map position (row, column), shape (patternRows, patternColumns), as stored; zero where the file has none.
@@ -207,27 +229,40 @@ package nonisolated final class EBSDPatternReader: @unchecked Sendable {
         guard let index else {
             return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: Data(count: dataset.patternPixels * dataset.dataType.byteSize))
         }
-        let (start, count) = slab(fileIndex: index)
-        let read: FormatoArray
-        do { read = try slabs.read(start: start, count: count) } catch { throw EBSDReadError.wrap(error, file: dataset.patterns.url) }
-        return try FormatoArray(dataType: read.dataType, shape: shape, bytes: read.bytes)
+        return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: bytes(fileIndex: index))
     }
 
     /// See `EBSDDataset.allPatterns`.
     package func allPatterns() throws -> FormatoArray {
         let source = dataset.patterns
-        let whole: FormatoArray
-        do { whole = try slabs.read(start: [Int](repeating: 0, count: source.fileShape.count), count: source.fileShape) }
-        catch { throw EBSDReadError.wrap(error, file: source.url) }
         let bytesPerPattern = dataset.patternPixels * dataset.dataType.byteSize
         let total = dataset.patternCount
         let shape = [dataset.scanRows, dataset.scanColumns, dataset.patternRows, dataset.patternColumns]
         let fileCount = source.fileCount
+        let whole: Data
+        switch store {
+        case .hdf5(let slabs):
+            do { whole = try slabs.read(start: [Int](repeating: 0, count: source.fileShape.count), count: source.fileShape).bytes }
+            catch { throw EBSDReadError.wrap(error, file: source.url) }
+        case .records(_, _, let recordBytes, _):
+            if recordBytes == bytesPerPattern, source.fileIndexByPosition == nil, fileCount == total {
+                return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: bytes(fileIndex: 0, count: total))
+            }
+            var out = Data(count: total * bytesPerPattern)
+            for position in 0..<total {
+                let index: Int?
+                if let order = source.fileIndexByPosition { index = position < order.count ? order[position] : nil }
+                else { index = position < fileCount ? position : nil }
+                guard let index, index < fileCount else { continue }
+                out.replaceSubrange((position * bytesPerPattern)..<((position + 1) * bytesPerPattern), with: try bytes(fileIndex: index))
+            }
+            return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: out)
+        }
         if source.fileIndexByPosition == nil, fileCount == total {
-            return try FormatoArray(dataType: whole.dataType, shape: shape, bytes: whole.bytes)
+            return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: whole)
         }
         var out = Data(count: total * bytesPerPattern)
-        whole.bytes.withUnsafeBytes { src in
+        whole.withUnsafeBytes { src in
             out.withUnsafeMutableBytes { dst in
                 for position in 0..<total {
                     let index: Int?
@@ -239,15 +274,56 @@ package nonisolated final class EBSDPatternReader: @unchecked Sendable {
                 }
             }
         }
-        return try FormatoArray(dataType: whole.dataType, shape: shape, bytes: out)
+        return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: out)
     }
 
-    private func slab(fileIndex: Int) -> (start: [Int], count: [Int]) {
-        let shape = dataset.patterns.fileShape
-        if shape.count == 4 {
-            return ([fileIndex / shape[1], fileIndex % shape[1], 0, 0], [1, 1, shape[2], shape[3]])
+    /// One scan row as the file stores it (the file order is the map order: `row(_:)` checks that), as one slab read (one slice of the
+    /// mapped file for bare-pattern records, record by record otherwise).
+    func rowSlab(row: Int) throws -> FormatoArray {
+        let columns = dataset.scanColumns
+        let shape = [columns, dataset.patternRows, dataset.patternColumns]
+        switch store {
+        case .hdf5(let slabs):
+            let fileShape = dataset.patterns.fileShape
+            let start: [Int], count: [Int]
+            if fileShape.count == 4 {
+                start = [row, 0, 0, 0]; count = [1, columns, fileShape[2], fileShape[3]]
+            } else {
+                start = [row * columns, 0, 0]; count = [columns, fileShape[1], fileShape[2]]
+            }
+            do { return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: try slabs.read(start: start, count: count).bytes) }
+            catch { throw EBSDReadError.wrap(error, file: dataset.patterns.url) }
+        case .records(_, _, let recordBytes, _):
+            let bytesPerPattern = dataset.patternPixels * dataset.dataType.byteSize
+            if recordBytes == bytesPerPattern {
+                return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: bytes(fileIndex: row * columns, count: columns))
+            }
+            var out = Data()
+            out.reserveCapacity(columns * bytesPerPattern)
+            for column in 0..<columns { out.append(try bytes(fileIndex: row * columns + column)) }
+            return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: out)
         }
-        return ([fileIndex, 0, 0], [1, shape[1], shape[2]])
+    }
+
+    /// The stored bytes of `count` patterns from file index `fileIndex` on: one slab for HDF5, the record's pixels for a record file
+    /// (`count` records in one slice when the records are bare patterns).
+    private func bytes(fileIndex: Int, count: Int = 1) throws -> Data {
+        let bytesPerPattern = dataset.patternPixels * dataset.dataType.byteSize
+        switch store {
+        case .hdf5(let slabs):
+            let fileShape = dataset.patterns.fileShape
+            let start: [Int], extent: [Int]
+            if fileShape.count == 4 {
+                start = [fileIndex / fileShape[1], fileIndex % fileShape[1], 0, 0]; extent = [1, count, fileShape[2], fileShape[3]]
+            } else {
+                start = [fileIndex, 0, 0]; extent = [count, fileShape[1], fileShape[2]]
+            }
+            do { return try slabs.read(start: start, count: extent).bytes } catch { throw EBSDReadError.wrap(error, file: dataset.patterns.url) }
+        case .records(let data, let offset, let recordBytes, let patternOffset):
+            let first = data.startIndex + offset + fileIndex * recordBytes + patternOffset
+            let length = recordBytes == bytesPerPattern ? count * bytesPerPattern : bytesPerPattern
+            return data.subdata(in: first..<(first + length))
+        }
     }
 }
 

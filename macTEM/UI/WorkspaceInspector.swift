@@ -44,6 +44,12 @@ private struct InspectorSettingsTab: View {
                     .environment(\.inspectorScope, "settings.eels")
             }
             .environment(\.inspectorScope, "settings")
+        } else if appState.navigation.workspaceArea == .patterns {
+            InspectorScrollColumn {
+                PatternsRoomSettings()
+                    .environment(\.inspectorScope, "settings.patterns")
+            }
+            .environment(\.inspectorScope, "settings")
         } else if let image = appState.imageSession.image {
             InspectorScrollColumn {
                     switch appState.navigation.workspaceArea {
@@ -65,8 +71,8 @@ private struct InspectorSettingsTab: View {
                             DiffractionRoomSettings(image: image, item: item)
                                 .environment(\.inspectorScope, "settings.diffraction")
                         }
-                    case .edx, .eels:
-                        // Unbuilt rooms cannot be selected (`AppState.selectWorkspace`).
+                    case .edx, .eels, .patterns:
+                        // The document rooms are answered above.
                         EmptyView()
                     }
             }
@@ -97,6 +103,11 @@ private struct InspectorInfoTab: View {
         } else if appState.navigation.workspaceArea == .eels {
             InspectorScrollColumn {
                 EELSRoomInfo()
+            }
+            .environment(\.inspectorScope, "info")
+        } else if appState.navigation.workspaceArea == .patterns {
+            InspectorScrollColumn {
+                PatternsRoomInfo()
             }
             .environment(\.inspectorScope, "info")
         } else if let image = appState.imageSession.image {
