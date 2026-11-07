@@ -137,16 +137,33 @@ package nonisolated struct IndexingSource: Sendable {
 }
 
 /// The inputs a run is made of, compared to stale a result (design §6: a Processing or a Phases change stales Indexing; Display never).
+/// The method's own settings count, the other method's do not (a Hough edit leaves a dictionary result current, D-SEM-91).
 package nonisolated struct IndexingInputs: Sendable, Equatable {
     package var pipeline: PatternPipeline
     /// The phases that are on, in the indexer's order.
     package var phases: [IndexingPhase]
+    package var method: IndexingMethod
+    /// The Hough settings (the room's defaults for a dictionary run).
     package var settings: HoughIndexingSettings
+    /// The dictionary settings and the master pattern's file (the defaults and nil for a Hough run).
+    package var dictionary: DictionaryIndexingSettings
+    package var masterID: String?
 
-    package init(pipeline: PatternPipeline, phases: [IndexingPhase], settings: HoughIndexingSettings) {
+    package init(pipeline: PatternPipeline, phases: [IndexingPhase], settings: HoughIndexingSettings, method: IndexingMethod = .hough,
+                 dictionary: DictionaryIndexingSettings = .roomDefault, masterID: String? = nil) {
         self.pipeline = pipeline
         self.phases = phases.filter(\.isOn)
-        self.settings = settings
+        self.method = method
+        switch method {
+        case .hough:
+            self.settings = settings
+            self.dictionary = .roomDefault
+            self.masterID = nil
+        case .dictionary:
+            self.settings = .roomDefault
+            self.dictionary = dictionary
+            self.masterID = masterID
+        }
     }
 }
 

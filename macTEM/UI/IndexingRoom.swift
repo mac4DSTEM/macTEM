@@ -5,10 +5,11 @@
 //        crosshair; the IPF colour key in the footer beside the scale bar) and the pattern pane on the right (the pattern under the
 //        pointer while it hovers the map, the pinned one otherwise, as the indexer sees it, with its detected bands: the ones the solution
 //        matched solid green and labelled with their family, the others dashed orange). Under them the Results table (one row per
-//        point reached; a selected row pins the pattern) beside the Bands table of the pattern on screen (pyEBSDindex's band list:
-//        ρ, θ, peak, width, the family and the fit). The phases, the Hough settings and the exports are the inspector's
-//        (`IndexingRoomInspector.swift`). Presentation only: every number is `HoughIndexer`'s (TEMCore) through `IndexingSession`
-//        (TEMSession).
+//        point reached; a selected row pins the pattern) beside, for a Hough result, the Bands table of the pattern on screen
+//        (pyEBSDindex's band list: ρ, θ, peak, width, the family and the fit) or, for a dictionary result, the Best match pane (the
+//        point's best orientation simulated from the master pattern, its score). The phases, the method's settings and the exports are
+//        the inspector's (`IndexingRoomInspector.swift`). Presentation only: every number is `HoughIndexer`'s or `DictionaryIndexing`'s
+//        (TEMCore) through `IndexingSession` (TEMSession).
 //
 //  KEYS: as the Patterns room (`PatternsKeys`): ← → ↑ ↓ step the pinned position by one (⇧ by ten), Space pins the hovered position; a
 //  click on the map pins the point under it. The pinned position is the Patterns room's: the two rooms share one marker.
@@ -56,7 +57,11 @@ struct IndexingRoom: View {
                     PaneSplit(storageKey: "indexing.tablesSplit", resizeLabel: "Resize the results and the bands", leadingName: "Results") {
                         IndexingResultsTable(session: session, dataset: document.dataset)
                     } trailing: {
-                        IndexingBandsTable(session: session)
+                        if (session.result?.method ?? session.method) == .dictionary {
+                            IndexingBestMatchPane(session: session)
+                        } else {
+                            IndexingBandsTable(session: session)
+                        }
                     }
                 }
                 .id(document.fileName)
@@ -161,9 +166,12 @@ struct IndexingMapPane: View {
         return "Indexed map · \(session.layer.title)" + (session.isStale ? " · stale" : "")
     }
 
-    /// "4 120 of 4 125 indexed", "1 875 of 4 125 reached" while it runs, "stopped at row 12 of 55".
+    /// "4 120 of 4 125 indexed", "1 875 of 4 125 reached" while it runs (a dictionary run's chunk first), "stopped at row 12 of 55".
     private var count: String? {
         guard let result = session.result else { return nil }
+        if session.isIndexing, result.method == .dictionary {
+            return "chunk \(session.chunksDone) of \(session.chunksTotal) · \(result.reachedCount.formatted()) of \(result.pointCount.formatted()) reached"
+        }
         if session.isIndexing { return "\(result.reachedCount.formatted()) of \(result.pointCount.formatted()) reached" }
         if session.wasStopped { return "stopped at row \(result.rowsDone) of \(result.scanRows) · \(result.indexedCount.formatted()) indexed" }
         return "\(result.indexedCount.formatted()) of \(result.pointCount.formatted()) indexed"
@@ -493,19 +501,20 @@ struct IndexingResultsTable: View {
         var points: Int
         var running: Bool
         var phases: [String]
+        var method: IndexingMethod
     }
 
     private var key: Key? {
         guard let result = session.result else { return nil }
         let stride = max(result.scanRows / 20, 1)
         let landed = session.isIndexing ? result.rowsDone - result.rowsDone % stride : result.rowsDone
-        return Key(rowsDone: landed, points: result.pointCount, running: session.isIndexing, phases: result.phases.map(\.name))
+        return Key(rowsDone: landed, points: result.pointCount, running: session.isIndexing, phases: result.phases.map(\.name), method: result.method)
     }
 
     private var header: String {
         guard let result = session.result else { return "Results" }
         let phases = result.phases.map(\.name).joined(separator: ", ")
-        var words = "Results · Hough · \(phases) · \(result.indexedCount.formatted()) of \(result.reachedCount.formatted()) indexed"
+        var words = "Results · \(result.method.title) · \(phases) · \(result.indexedCount.formatted()) of \(result.reachedCount.formatted()) indexed"
         if let pc = session.resultProjectionCenter {
             words += " · PC (\(UnitDisplay.number(pc.x, digits: 4)), \(UnitDisplay.number(pc.y, digits: 4)), \(UnitDisplay.number(pc.z, digits: 4)))"
         }
@@ -518,18 +527,7 @@ struct IndexingResultsTable: View {
                 .font(.headline).lineLimit(1)
                 .frame(height: LayoutPolicy.paneHeaderHeight)
                 .accessibilityIdentifier("indexing.results.title")
-            Table(rows, selection: $selection, sortOrder: $sortOrder) {
-                TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
-                TableColumn("Col", value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
-                TableColumn("Phase", value: \.phase)
-                TableColumn("φ₁ °", value: \.phi1Key) { Text(Self.angle($0.phi1)).monospacedDigit() }
-                TableColumn("Φ °", value: \.capitalPhiKey) { Text(Self.angle($0.capitalPhi)).monospacedDigit() }
-                TableColumn("φ₂ °", value: \.phi2Key) { Text(Self.angle($0.phi2)).monospacedDigit() }
-                TableColumn("CI", value: \.confidence) { Text(Self.fraction($0.confidence)).monospacedDigit() }
-                TableColumn("Fit °", value: \.fitKey) { Text(Self.angle($0.fit, digits: 2)).monospacedDigit() }
-                TableColumn("Bands", value: \.bands) { Text(verbatim: "\($0.bands)").monospacedDigit() }
-                TableColumn("PQ", value: \.patternQualityKey) { Text(Self.number($0.patternQuality)).monospacedDigit() }
-            }
+            table
             .overlay {
                 if session.result == nil {
                     Text("Index fills this table, one row per scan point").foregroundStyle(.secondary).allowsHitTesting(false)
@@ -550,6 +548,37 @@ struct IndexingResultsTable: View {
         }
     }
 
+    /// A Hough result's columns (CI, fit, matched bands, pattern quality) or a dictionary result's (the score, the simulation index).
+    @ViewBuilder private var table: some View {
+        if let result = session.result, result.method == .dictionary {
+            Table(rows, selection: $selection, sortOrder: $sortOrder) {
+                TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
+                TableColumn("Col", value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
+                TableColumn("Phase", value: \.phase)
+                TableColumn("φ₁ °", value: \.phi1Key) { Text(Self.angle($0.phi1)).monospacedDigit() }
+                TableColumn("Φ °", value: \.capitalPhiKey) { Text(Self.angle($0.capitalPhi)).monospacedDigit() }
+                TableColumn("φ₂ °", value: \.phi2Key) { Text(Self.angle($0.phi2)).monospacedDigit() }
+                TableColumn(result.scoreTitle, value: \.confidence) { Text(Self.fraction($0.confidence)).monospacedDigit() }
+                TableColumn("Simulation", value: \.simulationIndex) {
+                    Text(verbatim: $0.simulationIndex >= 0 ? "\($0.simulationIndex)" : "–").monospacedDigit()
+                }
+            }
+        } else {
+            Table(rows, selection: $selection, sortOrder: $sortOrder) {
+                TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
+                TableColumn("Col", value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
+                TableColumn("Phase", value: \.phase)
+                TableColumn("φ₁ °", value: \.phi1Key) { Text(Self.angle($0.phi1)).monospacedDigit() }
+                TableColumn("Φ °", value: \.capitalPhiKey) { Text(Self.angle($0.capitalPhi)).monospacedDigit() }
+                TableColumn("φ₂ °", value: \.phi2Key) { Text(Self.angle($0.phi2)).monospacedDigit() }
+                TableColumn("CI", value: \.confidence) { Text(Self.fraction($0.confidence)).monospacedDigit() }
+                TableColumn("Fit °", value: \.fitKey) { Text(Self.angle($0.fit, digits: 2)).monospacedDigit() }
+                TableColumn("Bands", value: \.bands) { Text(verbatim: "\($0.bands)").monospacedDigit() }
+                TableColumn("PQ", value: \.patternQualityKey) { Text(Self.number($0.patternQuality)).monospacedDigit() }
+            }
+        }
+    }
+
     private func refresh() {
         rows = (session.result?.rows ?? []).sorted(using: sortOrder)
     }
@@ -561,6 +590,86 @@ struct IndexingResultsTable: View {
     static func fraction(_ v: Double) -> String { v.isFinite ? v.formatted(.number.precision(.fractionLength(3))) : "–" }
 
     static func number(_ v: Double) -> String { v.isFinite ? v.formatted(.number.precision(.significantDigits(1...4))) : "–" }
+}
+
+/// A dictionary run's best match at the pattern pane's point (design §3, the Dictionary tab): the simulated pattern of the point's best
+/// orientation on the run's detector, from its master pattern, to set beside the experimental pattern; the score and the simulation index
+/// in the header. The bottom pane holds no controls: the pattern follows the hovered or pinned point.
+struct IndexingBestMatchPane: View {
+    let session: IndexingSession
+    @State var zoomModel = PaneZoomModel()
+    private var zp: ZoomPan { zoomModel.state }
+
+    private var header: String {
+        guard let position = session.bestMatchPosition, let result = session.result, let solution = result.solution(at: position) else {
+            return "Best match"
+        }
+        var words = "Best match · row \(position.row) · col \(position.column) · \(result.scoreTitle) \(IndexingResultsTable.fraction(solution.confidence))"
+        if let index = result.simulationIndex(at: position) {
+            words += " · simulation \(index)"
+            if let size = session.dictionaryPlan?.rotations.count { words += " of \(size.formatted())" }
+        }
+        return words
+    }
+
+    /// What the pane says while it has no pattern to show.
+    private var emptyWords: String {
+        if let why = session.bestMatchFailure { return why }
+        guard let result = session.result, result.method == .dictionary else { return "Index with Dictionary to see each point's best match" }
+        if session.isIndexing, result.rowsDone == 0 { return "The best matches land when the dictionary has run" }
+        return "This point has no match"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(header)
+                .font(.headline).lineLimit(1)
+                .frame(height: LayoutPolicy.paneHeaderHeight)
+                .accessibilityIdentifier("indexing.bestMatch.title")
+            GeometryReader { geometry in
+                content(in: geometry.size)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .padding(8)
+        .clipped()
+    }
+
+    private func content(in size: CGSize) -> some View {
+        let presentation = session.bestMatchPresentation
+        let canvas = session.bestMatchPosition == nil ? nil : presentation.canvas
+        let aspect = canvas.map { CGFloat($0.width) / CGFloat(max($0.height, 1)) } ?? 1
+        let box = LayoutPolicy.fitted(in: size, aspect: aspect)
+        let transform = MetalDisplayTransform(paneSize: box, imageBox: box, zoom: zp.drawZoom, offset: zp.effectiveOffset)
+        return ZStack {
+            Group {
+                if let canvas {
+                    MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                                   colormap: presentation.colormap, displayLo: presentation.displayFractions.low,
+                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma))
+                        .displayTransform(transform)
+                        .allowsHitTesting(false)
+                } else {
+                    Rectangle().fill(.quaternary)
+                    Text(emptyWords).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(8)
+                        .allowsHitTesting(false)
+                }
+            }
+            .frame(width: box.width, height: box.height)
+            .clipped()
+            .contentShape(Rectangle())
+            .border(Color.white.opacity(0.08))
+            .zoomPan(zoomModel, box: box)
+            .zoomPanWheel(zoomModel, box: box)
+        }
+        .frame(width: box.width, height: box.height)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("indexing.bestMatch")
+        .accessibilityLabel("Best match")
+        .accessibilityValue(canvas == nil ? emptyWords : header)
+        .accessibilityHint(ZoomPan.accessibilityHint)
+    }
 }
 
 /// The detected bands of the pattern on screen (design §3, the Log tab: pyEBSDindex's band list), strongest first, with the family the

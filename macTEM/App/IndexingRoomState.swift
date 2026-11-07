@@ -12,7 +12,7 @@ import TEMCore
 import TEMSession
 
 /// What the Indexing room's Export section writes (design §4): the map on screen as a PNG, the results as CSV, the orientations as EDAX
-/// .ang and Oxford .ctf (the run's crystal map, D-SEM-81), the run's method as JSON.
+/// .ang and Oxford .ctf (the run's crystal map: Hough's, D-SEM-81, or the dictionary's, D-SEM-92), the run's method as JSON.
 nonisolated enum IndexingExportKind: String, CaseIterable, Identifiable {
     case mapPNG, resultsCSV, ang, ctf, methodJSON
     var id: String { rawValue }
@@ -80,7 +80,8 @@ final class IndexingRoomState {
                 data = Data(result.csv(stepX: document.dataset.stepX, stepY: document.dataset.stepY).utf8)
             case .ang:
                 guard let map = try session.crystalMap() else { report("Nothing to export yet: the run has not started."); return }
-                data = Data(try ANGWriter.text(of: map, options: IndexingResult.angOptions).utf8)
+                let options = result.method == .dictionary ? IndexingResult.dictionaryAngOptions : IndexingResult.angOptions
+                data = Data(try ANGWriter.text(of: map, options: options).utf8)
             case .ctf:
                 guard let map = try session.crystalMap() else { report("Nothing to export yet: the run has not started."); return }
                 let project = (document.fileName as NSString).deletingPathExtension

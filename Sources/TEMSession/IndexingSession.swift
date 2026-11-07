@@ -1,15 +1,18 @@
 //
 //  IndexingSession.swift
-//  Role: the one owner of the Indexing room's state (docs/sem/design/indexing-room.md): the phases indexed against, the Hough settings,
-//        the run (its result, filled row by row, and what it was made of, so a later change to Processing, the phases or the settings
-//        stales it), the map on screen as RGBA and the pattern pane's pattern with its detected bands. The dataset, its processing and
-//        the pinned position are the Patterns room's (`EBSDSession`): the two rooms share one scan and one marker.
+//  Role: the one owner of the Indexing room's state (docs/sem/design/indexing-room.md): the phases indexed against, the method (Hough
+//        or Dictionary, D-SEM-91) and its settings, the master patterns opened for a dictionary, the run (its result, filled row by
+//        row or block by block, and what it was made of, so a later change to Processing, the phases or the method's settings stales
+//        it), the map on screen as RGBA, the pattern pane's pattern with its detected bands, and a dictionary run's best match at that
+//        point. The dataset, its processing and the pinned position are the Patterns room's (`EBSDSession`): the two rooms share one
+//        scan and one marker.
 //
-//  Nothing here makes a number: the indexing is `HoughIndexer`'s (TEMCore, pyEBSDindex's port), the colours `IndexingRaster`'s (orix's
-//  keys), the patterns `IndexingSource`'s. This owner decides WHEN: a run in one detached task that indexes the scan row by row and
-//  lands each row only if no newer run or dataset started meanwhile (`generation`), so the map grows in place and Stop keeps the
-//  indexed rows; the pattern under the pointer in a task the next hover cancels; the band detector (the Radon line plan) built once
-//  per settings off the main actor and kept (`probe`).
+//  Nothing here makes a number: the indexing is `HoughIndexer`'s (pyEBSDindex's port) or `DictionaryIndexing`'s (kikuchipy's), the
+//  colours `IndexingRaster`'s (orix's keys), the patterns `IndexingSource`'s. This owner decides WHEN: a run in one detached task that
+//  indexes the scan row by row (Hough) or block of rows by block (dictionary, its chunks counted for the toolbar) and lands each only if
+//  no newer run or dataset started meanwhile (`generation`), so the map grows in place and Stop keeps the indexed rows; the pattern
+//  under the pointer in a task the next hover cancels; the band detector (the Radon line plan) built once per settings off the main
+//  actor and kept (`probe`); the dictionary's orientations sampled once per resolution and point group and kept (`sampled`).
 //
 
 import Foundation
@@ -28,6 +31,17 @@ package final class IndexingSession {
     /// The file's phases left out for want of a space group or a lattice (Info names them).
     package private(set) var skippedPhases: [String] = []
     package private(set) var settings = HoughIndexingSettings.roomDefault
+    /// How Index indexes (D-SEM-91).
+    package private(set) var method = IndexingMethod.hough
+    package private(set) var dictionarySettings = DictionaryIndexingSettings.roomDefault
+    /// The master patterns opened, in the order opened (the shipped Ni 20 kV one first); kept across datasets.
+    package private(set) var masterPatterns: [IndexingMasterPattern] = []
+    /// The one a dictionary is projected from (`IndexingMasterPattern.id`).
+    package private(set) var masterID: String?
+    package private(set) var isLoadingMaster = false
+    /// The dictionary's orientations at the current resolution for the phase on; nil while they are counted or when there is no one
+    /// phase on.
+    package private(set) var dictionarySize: Int?
     /// What the map shows.
     package private(set) var layer = IndexingLayer.ipfZ
     /// Whether the pattern pane draws the detected bands.
@@ -48,6 +62,11 @@ package final class IndexingSession {
     package private(set) var lastRunSeconds: Double?
     /// The last run was stopped: its indexed rows stay, the rest of the map shows the navigator.
     package private(set) var wasStopped = false
+    /// A dictionary run's chunks done and in all (every block runs the whole dictionary in chunks).
+    package private(set) var chunksDone = 0
+    package private(set) var chunksTotal = 0
+    /// The last dictionary run's plan: its master pattern, orientations, detector and energy (Info, the method record, Best match).
+    package private(set) var dictionaryPlan: DictionaryIndexingPlan?
 
     // MARK: The pictures
 
@@ -68,6 +87,11 @@ package final class IndexingSession {
     package private(set) var patternFailure: String?
     /// The IPF colour key of each point group in the phases, by orix name, once made.
     package private(set) var keyImages: [String: IPFKeyImage] = [:]
+    /// A dictionary run's best match at the pattern pane's point: the simulated pattern of its orientation on the run's detector.
+    package let bestMatchPresentation = ImagePresentation()
+    /// The point the best match on screen is of; nil when there is none (no dictionary result there).
+    package private(set) var bestMatchPosition: EBSDPosition?
+    package private(set) var bestMatchFailure: String?
 
     /// The infobar's line for an event and the alert for a failure (the window's `AppState` wires them).
     package var onEvent: ((String) -> Void)?
@@ -91,6 +115,18 @@ package final class IndexingSession {
         var bands: [HoughBandDetector.Band]
     }
 
+    /// The dictionary's orientations are those of a resolution in a point group's fundamental zone.
+    nonisolated private struct SamplingKey: Equatable, Sendable {
+        var resolution: Double
+        var pointGroup: String
+    }
+
+    nonisolated private struct BestMatchKey: Equatable, Sendable {
+        var position: EBSDPosition
+        var run: Int
+        var simulation: Int
+    }
+
     @ObservationIgnored private var runTask: Task<Void, Never>?
     @ObservationIgnored private var patternTask: Task<Void, Never>?
     /// Bumped by every dataset bound or closed (a pattern or a key that lands for another dataset is dropped) and by every run (a row
@@ -104,6 +140,12 @@ package final class IndexingSession {
     @ObservationIgnored private var runPlan: IndexingPlan?
     @ObservationIgnored private var shownKey: ShownKey?
     @ObservationIgnored private var shownRaw: [HoughBandDetector.Band] = []
+    /// The dictionary's orientations last sampled, kept for the next run at the same resolution and point group.
+    @ObservationIgnored private var sampled: (key: SamplingKey, rotations: [SIMD4<Double>])?
+    @ObservationIgnored private var samplingTask: Task<Void, Never>?
+    @ObservationIgnored private var masterTasks: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored private var bestMatchTask: Task<Void, Never>?
+    @ObservationIgnored private var bestMatchKey: BestMatchKey?
 
     package init(patterns: EBSDSession) {
         self.patterns = patterns
@@ -114,10 +156,23 @@ package final class IndexingSession {
     /// What the pattern pane shows: the hovered position while there is one, else the pinned.
     package var shown: EBSDPosition { hovered ?? patterns.pinned }
     package var phasesOn: [IndexingPhase] { phases.filter(\.isOn) }
+    /// The inputs a run of `method` would take now.
+    package func inputs(for method: IndexingMethod) -> IndexingInputs {
+        IndexingInputs(pipeline: patterns.pipeline, phases: phases, settings: settings, method: method, dictionary: dictionarySettings,
+                       masterID: masterID)
+    }
     /// The inputs a run would take now.
-    package var currentInputs: IndexingInputs { IndexingInputs(pipeline: patterns.pipeline, phases: phases, settings: settings) }
-    /// The result was made of other inputs than the current ones (design §6: a Processing, Phases or Hough change stales it).
-    package var isStale: Bool { result != nil && resultInputs != currentInputs }
+    package var currentInputs: IndexingInputs { inputs(for: method) }
+    /// The result was made of other inputs than its method's current ones (design §6: a Processing, Phases or method settings change
+    /// stales it; picking the other method does not, the result on screen is still its method's).
+    package var isStale: Bool {
+        guard let result else { return false }
+        return resultInputs != inputs(for: result.method)
+    }
+    /// The master pattern a dictionary is projected from.
+    package var currentMaster: IndexingMasterPattern? { masterPatterns.first { $0.id == masterID } }
+    /// The map layers on offer: the result's method's, or the method picked before a run.
+    package var availableLayers: [IndexingLayer] { result?.layers ?? IndexingLayer.layers(for: method) }
 
     // MARK: - The dataset
 
@@ -129,6 +184,7 @@ package final class IndexingSession {
         skippedPhases = fromFile.skipped
         refreshMap()
         loadKeys()
+        openShippedMasterPattern()
     }
 
     /// The dataset was closed: the room goes back to its door.
@@ -136,15 +192,18 @@ package final class IndexingSession {
         reset()
     }
 
+    /// Everything of the dataset goes; the master patterns opened and the orientations sampled stay (they are not the dataset's).
     private func reset() {
         generation += 1
         runGeneration += 1
-        runTask?.cancel(); patternTask?.cancel()
+        runTask?.cancel(); patternTask?.cancel(); samplingTask?.cancel(); bestMatchTask?.cancel()
         result = nil; resultInputs = nil; resultSource = nil; resultProjectionCenter = nil
-        isIndexing = false; progress = 0; lastRunSeconds = nil; wasStopped = false
-        mapRGBA = nil; palette = nil; probe = nil; runPlan = nil; shownKey = nil; shownRaw = []
+        isIndexing = false; progress = 0; lastRunSeconds = nil; wasStopped = false; chunksDone = 0; chunksTotal = 0
+        mapRGBA = nil; palette = nil; probe = nil; runPlan = nil; dictionaryPlan = nil; shownKey = nil; shownRaw = []
         hovered = nil; patternPosition = nil; detectedBands = []; patternFailure = nil; patternShape = (rows: 0, columns: 0)
+        bestMatchPosition = nil; bestMatchFailure = nil; bestMatchKey = nil
         phases = []; skippedPhases = []; settings = .roomDefault; layer = .ipfZ
+        method = .hough; dictionarySettings = .roomDefault; dictionarySize = nil
     }
 
     // MARK: - Phases and settings
@@ -180,6 +239,7 @@ package final class IndexingSession {
     private func phasesChanged() {
         loadKeys()
         refreshBandRows()
+        refreshDictionarySize()
     }
 
     /// Edits the Hough settings in place (one field); the pattern pane re-detects its bands with them.
@@ -197,8 +257,141 @@ package final class IndexingSession {
         showPattern()
     }
 
+    // MARK: - The method and the dictionary
+
+    /// Picks how Index indexes; the result on screen stays (it is its method's), the map's layer follows the method before a run.
+    package func setMethod(_ new: IndexingMethod) {
+        guard new != method else { return }
+        method = new
+        if result == nil, !IndexingLayer.layers(for: new).contains(layer) { setLayer(.ipfZ) }
+        refreshDictionarySize()
+    }
+
+    /// Edits the dictionary settings in place (one field).
+    package func editDictionarySettings(_ change: (inout DictionaryIndexingSettings) -> Void) {
+        var edited = dictionarySettings
+        change(&edited)
+        guard edited != dictionarySettings else { return }
+        dictionarySettings = edited
+        refreshDictionarySize()
+    }
+
+    package func resetDictionarySettings() {
+        guard dictionarySettings != .roomDefault else { return }
+        dictionarySettings = .roomDefault
+        refreshDictionarySize()
+    }
+
+    /// Picks the master pattern a dictionary is projected from, by its id.
+    package func selectMasterPattern(_ id: String) {
+        guard id != masterID, masterPatterns.contains(where: { $0.id == id }) else { return }
+        masterID = id
+    }
+
+    /// Opens the master pattern at `url` off the main actor and picks it (an open one is picked again). A file that is not an EMsoft
+    /// EBSD or TKD master pattern is refused with the reason. The returned task ends when it is open (or refused).
+    @discardableResult
+    package func openMasterPattern(url: URL) -> Task<Void, Never> {
+        openMasterPattern(url: url, quietly: false)
+    }
+
+    /// The shipped Ni 20 kV master pattern (kikuchipy's), opened once when the first dataset binds, so Dictionary runs on the demo
+    /// scan without a file to find (D-SEM-91). Outside the app bundle there is none.
+    private func openShippedMasterPattern() {
+        guard masterPatterns.isEmpty, let url = DemoDocuments.Shipped.nickelMasterPattern.url else { return }
+        openMasterPattern(url: url, quietly: true)
+    }
+
+    @discardableResult
+    private func openMasterPattern(url: URL, quietly: Bool) -> Task<Void, Never> {
+        let id = url.standardizedFileURL.path
+        if masterPatterns.contains(where: { $0.id == id }) {
+            masterID = id
+            return Task {}
+        }
+        if let loading = masterTasks[id] { return loading }
+        isLoadingMaster = true
+        let task = Task { [weak self] in
+            do {
+                let opened = try await Self.loadMaster(url)
+                guard let self else { return }
+                self.masterTasks[id] = nil
+                self.isLoadingMaster = !self.masterTasks.isEmpty
+                if !self.masterPatterns.contains(where: { $0.id == opened.id }) { self.masterPatterns.append(opened) }
+                if !quietly || self.masterID == nil { self.masterID = opened.id }
+                if !quietly { self.onEvent?("Opened the master pattern \(opened.fileName): \(opened.summary)") }
+            } catch {
+                guard let self else { return }
+                self.masterTasks[id] = nil
+                self.isLoadingMaster = !self.masterTasks.isEmpty
+                guard !quietly else { return }
+                self.onEvent?("Master pattern: " + ((error as? LocalizedError)?.errorDescription ?? error.localizedDescription))
+                self.onFailure?(error)
+            }
+        }
+        masterTasks[id] = task
+        return task
+    }
+
+    @concurrent
+    nonisolated private static func loadMaster(_ url: URL) async throws -> IndexingMasterPattern {
+        try IndexingMasterPattern.load(url)
+    }
+
+    /// Counts the dictionary's orientations for the current resolution and the one phase on, off the main actor, and keeps them for
+    /// the run (only while Dictionary is picked: sampling 1° takes seconds).
+    private func refreshDictionarySize() {
+        guard method == .dictionary, phasesOn.count == 1, let phase = phasesOn.first, let name = phase.pointGroupName,
+              dictionarySettings.refusal == nil else {
+            samplingTask?.cancel()
+            dictionarySize = nil
+            return
+        }
+        let key = SamplingKey(resolution: dictionarySettings.resolution, pointGroup: name)
+        if let sampled, sampled.key == key {
+            dictionarySize = sampled.rotations.count
+            return
+        }
+        dictionarySize = nil
+        samplingTask?.cancel()
+        samplingTask = Task { [weak self] in
+            guard let group = PointGroup.named(name),
+                  let rotations = try? await DictionaryIndexingPlan.sample(resolution: key.resolution, pointGroup: group),
+                  !Task.isCancelled, let self else { return }
+            self.sampled = (key: key, rotations: rotations)
+            if self.samplingKey == key { self.dictionarySize = rotations.count }
+        }
+    }
+
+    /// The sampling the current settings ask for; nil without one phase on.
+    private var samplingKey: SamplingKey? {
+        guard phasesOn.count == 1, let name = phasesOn.first?.pointGroupName else { return nil }
+        return SamplingKey(resolution: dictionarySettings.resolution, pointGroup: name)
+    }
+
+    /// The Dictionary section's Chunk row: patterns per chunk, chunks per block and blocks, as the run would cut them now; nil before
+    /// the dictionary is counted.
+    package var dictionaryChunking: (size: Int, chunks: Int, blocks: Int)? {
+        guard let size = dictionarySize, case .success(let source) = self.source() else { return nil }
+        let pixels = source.patternRows * source.patternColumns
+        let mask = (try? dictionarySettings.signalMask(rows: source.patternRows, columns: source.patternColumns)) ?? nil
+        let kept = mask.map { $0.filter { !$0 }.count } ?? pixels
+        let perBlock = DictionaryIndexingPlan.rowsPerBlock(scanRows: source.scanRows, scanColumns: source.scanColumns, pixels: pixels)
+        let options = DictionaryIndexing.Options(metric: dictionarySettings.metric, keepN: dictionarySettings.keep, signalMask: mask)
+        let cut = DictionaryIndexingPlan.chunking(points: perBlock * source.scanColumns, keptPixels: kept, dictionary: size, options: options)
+        return (cut.size, cut.chunks, (source.scanRows + perBlock - 1) / max(perBlock, 1))
+    }
+
+    /// Why a dictionary cannot run now (the Dictionary section's warning); nil when it can.
+    package var dictionaryRefusal: String? {
+        guard let document = patterns.document else { return "No EBSD dataset is open." }
+        if currentMaster == nil, isLoadingMaster { return "The master pattern is being read." }
+        return DictionaryIndexingPlan.refusal(phases: phases, master: currentMaster, settings: dictionarySettings,
+                                              detector: document.dataset.detector, beamEnergy: document.dataset.sem.beamEnergyKeV)
+    }
+
     package func setLayer(_ new: IndexingLayer) {
-        guard new != layer else { return }
+        guard new != layer, availableLayers.contains(new) else { return }
         layer = new
         palette = result.map { IndexingPalette(layer: new, phases: $0.phases) }
         refreshMap()
@@ -225,28 +418,35 @@ package final class IndexingSession {
         return .success(IndexingSource(stored: document.access, pipeline: pipeline, background: patterns.staticBackground))
     }
 
-    /// Why Index cannot run now; nil when it can.
+    /// Why Index cannot run now with the method picked; nil when it can.
     package var refusal: String? {
         guard let document = patterns.document else { return "No EBSD dataset is open." }
-        if let why = IndexingPlan.refusal(phases: phases, settings: settings, detector: document.dataset.detector) { return why }
+        switch method {
+        case .hough:
+            if let why = IndexingPlan.refusal(phases: phases, settings: settings, detector: document.dataset.detector) { return why }
+        case .dictionary:
+            if let why = dictionaryRefusal { return why }
+        }
         if case .failure(let refusal) = self.source() { return refusal.sentence }
         return nil
     }
 
     package var canIndex: Bool { patterns.document != nil && !isIndexing && !patterns.isOpening && !patterns.isProcessing && refusal == nil }
 
-    /// The verb's help: "Index 4,125 patterns with Hough (ni)", or why it cannot run.
+    /// The verb's help: "Index 4,125 patterns with Hough (ni)", "Index 4,125 patterns with Dictionary (ni)", or why it cannot run.
     package var verbHelp: String {
         if let refusal { return refusal }
         guard let dataset = patterns.dataset else { return "" }
-        let what = "Index \(dataset.patternCount.formatted()) patterns with Hough (\(phasesOn.map(\.name).joined(separator: ", ")))"
-        return isStale ? what + "; the inputs changed since the last run" : what
+        let what = "Index \(dataset.patternCount.formatted()) patterns with \(method.title) (\(phasesOn.map(\.name).joined(separator: ", ")))"
+        if let result, result.method == method, isStale { return what + "; the inputs changed since the last run" }
+        return what
     }
 
     // MARK: - The run
 
-    /// The room's verb: the scan indexed row by row off the main actor; each row lands on the map as it is done. Stop (⌘.) ends it and
-    /// keeps the rows indexed. The returned task ends when the run has landed (or was refused, stopped or failed).
+    /// The room's verb: the scan indexed off the main actor with the method picked, row by row (Hough) or block of rows by block
+    /// (dictionary); each lands on the map as it is done. Stop (⌘.) ends it and keeps the rows indexed. The returned task ends when the
+    /// run has landed (or was refused, stopped or failed).
     @discardableResult
     package func index() -> Task<Void, Never> {
         guard let document = patterns.document, !isIndexing else { return Task {} }
@@ -255,6 +455,13 @@ package final class IndexingSession {
             return Task {}
         }
         guard case .success(let source) = self.source() else { return Task {} }
+        switch method {
+        case .hough: return indexWithHough(document, source: source)
+        case .dictionary: return indexWithDictionary(document, source: source)
+        }
+    }
+
+    private func indexWithHough(_ document: EBSDSession.Document, source: IndexingSource) -> Task<Void, Never> {
         let inputs = currentInputs
         let key = ProbeKey(pipeline: inputs.pipeline, settings: inputs.settings, kind: source.kind, generation: generation)
         let cached = probe?.key == key ? probe?.probe : nil
@@ -267,9 +474,11 @@ package final class IndexingSession {
         resultInputs = inputs
         resultSource = source.kind
         resultProjectionCenter = IndexingPlan.meanProjectionCenter(detector)
+        if !IndexingLayer.layers(for: .hough).contains(layer) { layer = .ipfZ }
         palette = IndexingPalette(layer: layer, phases: inputs.phases)
-        runPlan = nil
-        isIndexing = true; progress = 0; wasStopped = false; lastRunSeconds = nil
+        runPlan = nil; dictionaryPlan = nil
+        isIndexing = true; progress = 0; wasStopped = false; lastRunSeconds = nil; chunksDone = 0; chunksTotal = 0
+        clearBestMatch()
         refreshMap()
         onEvent?("Indexing \(rows * columns) patterns with Hough (\(inputs.phases.map(\.name).joined(separator: ", ")))…")
         let started = Date()
@@ -295,13 +504,86 @@ package final class IndexingSession {
         return Task { await task.value }
     }
 
-    /// Ends the run in flight; the rows indexed stay on the map and in the results.
+    /// A dictionary run (D-SEM-92): the orientations sampled (or the ones kept for this resolution and point group), the plan built, then
+    /// each block of rows read and matched against the whole dictionary, chunk by chunk, its rows landing when it is done.
+    private func indexWithDictionary(_ document: EBSDSession.Document, source: IndexingSource) -> Task<Void, Never> {
+        let inputs = currentInputs
+        guard let master = currentMaster, let phase = inputs.phases.first, let key = samplingKey else { return Task {} }
+        let cached = sampled?.key == key ? sampled?.rotations : nil
+        let phases = self.phases, settings = dictionarySettings, detector = document.dataset.detector
+        let beam = document.dataset.sem.beamEnergyKeV
+        let rows = document.dataset.scanRows, columns = document.dataset.scanColumns
+        runTask?.cancel()
+        runGeneration += 1
+        let run = runGeneration
+        result = IndexingResult(scanRows: rows, scanColumns: columns, phases: inputs.phases, metric: settings.metric)
+        resultInputs = inputs
+        resultSource = source.kind
+        resultProjectionCenter = IndexingPlan.meanProjectionCenter(detector)
+        if !IndexingLayer.layers(for: .dictionary).contains(layer) { layer = .ipfZ }
+        palette = IndexingPalette(layer: layer, phases: inputs.phases)
+        runPlan = nil; dictionaryPlan = nil
+        isIndexing = true; progress = 0; wasStopped = false; lastRunSeconds = nil; chunksDone = 0; chunksTotal = 0
+        clearBestMatch()
+        refreshMap()
+        refreshBandRows()
+        let resolution = settings.resolution.formatted(.number.precision(.significantDigits(1...3)))
+        onEvent?("Indexing \(rows * columns) patterns against the \(phase.name) dictionary at \(resolution)° (\(settings.metric.title))…")
+        // The chunks merged, in order, to the main actor (the newest only: the count only grows).
+        let (chunks, chunkSink) = AsyncStream.makeStream(of: Int.self, bufferingPolicy: .bufferingNewest(1))
+        Task { [weak self] in
+            for await done in chunks { self?.chunkMerged(done, run: run) }
+        }
+        let started = Date()
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
+            defer { chunkSink.finish() }
+            do {
+                let rotations: [SIMD4<Double>]
+                if let cached {
+                    rotations = cached
+                } else {
+                    guard let group = phase.pointGroup else { throw IndexingRefusal("\(phase.name): no point group is known for space group \(phase.spaceGroup).") }
+                    rotations = try await DictionaryIndexingPlan.sample(resolution: settings.resolution, pointGroup: group)
+                }
+                try Task.checkCancellation()
+                let plan = try DictionaryIndexingPlan(source: source, phases: phases, master: master, settings: settings,
+                                                      fileDetector: detector, beamEnergy: beam, rotations: rotations)
+                let perBlock = plan.chunksPerBlock
+                await self?.landDictionaryPlan(plan, key: key, chunks: perBlock.reduce(0, +), run: run)
+                var before = 0
+                for (k, block) in plan.blocks.enumerated() {
+                    try Task.checkCancellation()
+                    let offset = before
+                    let matched = try await plan.indexBlock(block) { done, _ in _ = chunkSink.yield(offset + done) }
+                    before += perBlock[k]
+                    await self?.landBlock(matched, rows: block, run: run)
+                }
+                await self?.finish(seconds: Date().timeIntervalSince(started), failure: nil, run: run)
+            } catch is CancellationError {
+                return
+            } catch {
+                let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                await self?.finish(seconds: 0, failure: words, run: run)
+            }
+        }
+        runTask = task
+        return Task { await task.value }
+    }
+
+    /// Ends the run in flight; the rows indexed stay on the map and in the results (a dictionary block stopped between its chunks
+    /// keeps nothing of it: its points have not met the whole dictionary).
     package func stop() {
         guard isIndexing else { return }
         runTask?.cancel()
         isIndexing = false
         wasStopped = true
-        if let result { onEvent?("Stopped indexing after \(result.rowsDone) of \(result.scanRows) rows; the indexed rows stay") }
+        if let result {
+            if result.method == .dictionary {
+                onEvent?("Stopped dictionary indexing after \(chunksDone) of \(chunksTotal) chunks; \(result.rowsDone) of \(result.scanRows) rows were indexed and stay")
+            } else {
+                onEvent?("Stopped indexing after \(result.rowsDone) of \(result.scanRows) rows; the indexed rows stay")
+            }
+        }
         refreshBandRows()
     }
 
@@ -315,8 +597,29 @@ package final class IndexingSession {
         guard run == runGeneration, isIndexing else { return }
         result?.land(solutions, at: row)
         progress = Double(row + 1) / Double(max(result?.scanRows ?? 1, 1))
-        repaint(row: row)
+        repaint(rows: row..<(row + 1))
         if patternPosition?.row == row { refreshBandRows() }
+    }
+
+    private func landDictionaryPlan(_ plan: DictionaryIndexingPlan, key: SamplingKey, chunks: Int, run: Int) {
+        guard run == runGeneration else { return }
+        dictionaryPlan = plan
+        sampled = (key: key, rotations: plan.rotations)
+        if samplingKey == key { dictionarySize = plan.rotations.count }
+        chunksTotal = chunks
+    }
+
+    private func chunkMerged(_ done: Int, run: Int) {
+        guard run == runGeneration, isIndexing, chunksTotal > 0 else { return }
+        chunksDone = min(max(chunksDone, done), chunksTotal)
+        progress = Double(chunksDone) / Double(chunksTotal)
+    }
+
+    private func landBlock(_ matched: DictionaryIndexing.Result, rows: Range<Int>, run: Int) {
+        guard run == runGeneration, isIndexing else { return }
+        result?.land(matched, rows: rows)
+        repaint(rows: rows)
+        if let row = patternPosition?.row, rows.contains(row) { showBestMatch() }
     }
 
     private func finish(seconds: Double, failure: String?, run: Int) {
@@ -327,11 +630,13 @@ package final class IndexingSession {
             return
         }
         progress = 1
+        if chunksTotal > 0 { chunksDone = chunksTotal }
         lastRunSeconds = seconds
         if let result {
-            onEvent?("Indexed \(result.indexedCount) of \(result.pointCount) patterns with Hough in \(String(format: "%.1f", seconds)) s")
+            onEvent?("Indexed \(result.indexedCount) of \(result.pointCount) patterns with \(result.method.title) in \(String(format: "%.1f", seconds)) s")
         }
         refreshBandRows()
+        showBestMatch()
     }
 
     // MARK: - The map
@@ -352,14 +657,14 @@ package final class IndexingSession {
         mapVersion &+= 1
     }
 
-    /// One landed row: a pointwise layer repaints that row, a scalar layer (its grey range moves) the whole map.
-    private func repaint(row: Int) {
+    /// Landed rows: a pointwise layer repaints those rows, a scalar layer (its grey range moves) the whole map.
+    private func repaint(rows: Range<Int>) {
         guard let result, let palette, palette.layer == layer, layer.isPointwise, var rgba = mapRGBA, rgba.count == result.pointCount * 4 else {
             refreshMap()
             return
         }
         mapRGBA = nil
-        IndexingRaster.paint(&rgba, result: result, palette: palette, backdrop: patterns.meanIntensities, rows: row..<(row + 1))
+        IndexingRaster.paint(&rgba, result: result, palette: palette, backdrop: patterns.meanIntensities, rows: rows)
         mapRGBA = rgba
         mapVersion &+= 1
     }
@@ -434,6 +739,7 @@ package final class IndexingSession {
                 self.shownRaw = inspected.bands
                 self.patternFailure = nil
                 self.refreshBandRows()
+                self.showBestMatch()
             } catch {
                 guard let self, !Task.isCancelled, gen == self.generation, !(error is CancellationError) else { return }
                 self.shownKey = nil
@@ -454,13 +760,14 @@ package final class IndexingSession {
         return Inspected(probe: probe, canvas: canvas, bands: shown.bands)
     }
 
-    /// The Bands table of the pattern on screen: the detected bands, with the run's families and fits while the result is current.
+    /// The Bands table of the pattern on screen: the detected bands, with a Hough run's families and fits while the result is current
+    /// (a dictionary run matches no band).
     private func refreshBandRows() {
         guard let position = patternPosition, patternShape.rows > 0 else {
             detectedBands = []
             return
         }
-        let solution = isStale ? nil : result?.solution(at: position)
+        let solution = isStale || result?.method != .hough ? nil : result?.solution(at: position)
         detectedBands = IndexedBand.bands(shownRaw, solution: solution, libraries: runPlan?.indexer.phases ?? [],
                                           rows: patternShape.rows, columns: patternShape.columns)
     }
@@ -487,18 +794,69 @@ package final class IndexingSession {
         return out
     }
 
+    // MARK: - The best match
+
+    /// The Best match pane: a dictionary run's best orientation at the pattern pane's point, simulated on the run's detector from its
+    /// master pattern (`MasterPatternProjection`, kikuchipy's `get_patterns`), off the main actor; nothing where the point has none.
+    private func showBestMatch() {
+        guard let result, result.method == .dictionary, let plan = dictionaryPlan, let position = patternPosition,
+              let solution = result.solution(at: position), solution.phase >= 0, let simulation = result.simulationIndex(at: position) else {
+            clearBestMatch()
+            return
+        }
+        let key = BestMatchKey(position: position, run: runGeneration, simulation: simulation)
+        guard key != bestMatchKey else { return }
+        bestMatchKey = key
+        bestMatchTask?.cancel()
+        let rotation = solution.quaternion
+        bestMatchTask = Task { [weak self] in
+            do {
+                let pixels = try await plan.simulated(rotation)
+                guard let self, !Task.isCancelled, self.bestMatchKey == key else { return }
+                self.bestMatchPresentation.show(CanvasPixels.make(width: plan.detector.columns, height: plan.detector.rows, pixels: pixels))
+                self.bestMatchPosition = position
+                self.bestMatchFailure = nil
+            } catch {
+                guard let self, !Task.isCancelled, self.bestMatchKey == key else { return }
+                self.bestMatchPosition = nil
+                self.bestMatchFailure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            }
+        }
+    }
+
+    private func clearBestMatch() {
+        bestMatchTask?.cancel()
+        bestMatchKey = nil
+        bestMatchPosition = nil
+        bestMatchFailure = nil
+    }
+
     // MARK: - Export
 
     /// The last run as orix's crystal map (`IndexingResult.crystalMap`, the rows it reached on the scan's steps): what the .ang and
     /// .ctf exports write. nil before a row has landed.
     package func crystalMap() throws -> CrystalMap? {
-        guard let runPlan, let result, let dataset = patterns.document?.dataset else { return nil }
-        return try result.crystalMap(indexer: runPlan.indexer, steps: (dy: dataset.stepY, dx: dataset.stepX), scanUnit: dataset.scanUnit)
+        guard let result, let dataset = patterns.document?.dataset else { return nil }
+        let steps = (dy: dataset.stepY, dx: dataset.stepX)
+        switch result.method {
+        case .hough:
+            guard let runPlan else { return nil }
+            return try result.crystalMap(indexer: runPlan.indexer, steps: steps, scanUnit: dataset.scanUnit)
+        case .dictionary:
+            return try result.crystalMap(steps: steps, scanUnit: dataset.scanUnit)
+        }
     }
 
-    /// The method record of the last run (every input, in pyEBSDindex's and kikuchipy's names); nil before a run has its plan.
+    /// The method record of the last run (every input, in pyEBSDindex's, kikuchipy's and orix's names); nil before a run has its plan.
     package func methodJSON() throws -> Data? {
-        guard let runPlan, let result, let document = patterns.document else { return nil }
-        return try runPlan.methodJSON(fileName: document.fileName, points: result.pointCount, indexed: result.indexedCount)
+        guard let result, let document = patterns.document else { return nil }
+        switch result.method {
+        case .hough:
+            guard let runPlan else { return nil }
+            return try runPlan.methodJSON(fileName: document.fileName, points: result.pointCount, indexed: result.indexedCount)
+        case .dictionary:
+            guard let dictionaryPlan else { return nil }
+            return try dictionaryPlan.methodJSON(fileName: document.fileName, points: result.pointCount, indexed: result.indexedCount)
+        }
     }
 }

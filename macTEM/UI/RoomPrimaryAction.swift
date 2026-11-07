@@ -78,14 +78,16 @@ enum RoomPrimaryAction {
                 stop: { session.stop() },
                 run: { session.process() })
         case .indexing:
-            // Index (indexing-room design §3): Hough over the whole scan, row by row onto the map; Stop keeps the indexed rows.
+            // Index (indexing-room design §3): the method picked over the whole scan, row by row (Hough) or block by block (dictionary)
+            // onto the map; Stop keeps the indexed rows.
             let session = appState.indexing
             guard session.hasDataset, !session.patterns.isOpening else { return nil }
             return PrimaryAction(
                 title: "Index",
                 isEnabled: session.canIndex,
                 help: session.verbHelp,
-                hint: "Detects the bands of every pattern and indexes them against the phases (Hough)",
+                hint: session.method == .hough ? "Detects the bands of every pattern and indexes them against the phases (Hough)"
+                    : "Matches every pattern against patterns simulated from the master pattern (Dictionary)",
                 isRunning: session.isBusy,
                 operationName: BusyOperation.name(room: .indexing, appState: appState),
                 stop: { session.stop() },
