@@ -1,0 +1,417 @@
+{
+  "arrays": {
+    "ori_euler": {
+      "atol": 0.002,
+      "dtype": "float64",
+      "file": "ori_euler.bin",
+      "note": "Bunge radians; the test holds the symmetry-reduced angle under 0.1 degree (D-SEM-87 for the joint run)",
+      "rtol": 0.0,
+      "sha256": "0a025fb6322aaca500367c17d77005b63c080adecc0cb1f73591815488e8d40a",
+      "shape": [
+        10,
+        10,
+        3
+      ]
+    },
+    "ori_free_euler": {
+      "atol": 0.002,
+      "dtype": "float64",
+      "file": "ori_free_euler.bin",
+      "note": "Bunge radians; the test holds the symmetry-reduced angle under 0.1 degree (D-SEM-87 for the joint run)",
+      "rtol": 0.0,
+      "sha256": "9cd4b0c553823b3ced0ce6c070a6abfa3d82b7fb8db30fe700cf83fcfba4a4b0",
+      "shape": [
+        10,
+        10,
+        3
+      ]
+    },
+    "ori_free_num_evals": {
+      "atol": 1000000000.0,
+      "dtype": "int32",
+      "file": "ori_free_num_evals.bin",
+      "note": "for the record: the path follows the float32 objective",
+      "rtol": 1.0,
+      "sha256": "6d4acf066ce7122d00a2ceafd4465ca430903b7fd96aebd33801c8392e056258",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "ori_free_scores": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ori_free_scores.bin",
+      "rtol": 0.0001,
+      "sha256": "c3f08925fd347e6adc51168e6a0c211984d2acaddb6afdaf5f4a97acce888053",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "ori_masked_euler": {
+      "atol": 0.002,
+      "dtype": "float64",
+      "file": "ori_masked_euler.bin",
+      "note": "Bunge radians; the test holds the symmetry-reduced angle under 0.1 degree (D-SEM-87 for the joint run)",
+      "rtol": 0.0,
+      "sha256": "fab411652bc95e9e2b211e8c8418ed080d2b44e68132d85f8e0b0d62d918eb9e",
+      "shape": [
+        10,
+        10,
+        3
+      ]
+    },
+    "ori_masked_num_evals": {
+      "atol": 1000000000.0,
+      "dtype": "int32",
+      "file": "ori_masked_num_evals.bin",
+      "note": "for the record: the path follows the float32 objective",
+      "rtol": 1.0,
+      "sha256": "3f4f44c0e9bac82fa4572f0e1076844dd37f26a0db838b6935c26d2a70a979aa",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "ori_masked_scores": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ori_masked_scores.bin",
+      "rtol": 0.0001,
+      "sha256": "17a0d54dc691be5bc5d38b2b1c220cfefcf98203b2c28b6a26839097dac1e95e",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "ori_num_evals": {
+      "atol": 1000000000.0,
+      "dtype": "int32",
+      "file": "ori_num_evals.bin",
+      "note": "for the record: the path follows the float32 objective",
+      "rtol": 1.0,
+      "sha256": "a68069445192d16b91084072ab7ef5c59ca3b54ea9c045c0657724b0dc4ce4ce",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "ori_pc_euler": {
+      "atol": 0.02,
+      "dtype": "float64",
+      "file": "ori_pc_euler.bin",
+      "note": "Bunge radians; the test holds the symmetry-reduced angle under 0.1 degree (D-SEM-87 for the joint run)",
+      "rtol": 0.0,
+      "sha256": "e1a766f9aa4279fffd9bbd06088992105e964496994e145c7ef2faca9708f330",
+      "shape": [
+        10,
+        10,
+        3
+      ]
+    },
+    "ori_pc_num_evals": {
+      "atol": 1000000000.0,
+      "dtype": "int32",
+      "file": "ori_pc_num_evals.bin",
+      "note": "for the record: the path follows the float32 objective",
+      "rtol": 1.0,
+      "sha256": "3eef24e8dc0b21ac6ccd1e0acb9f94252d4206aed06ac8f6b0f16b87d6268fb4",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "ori_pc_pc": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ori_pc_pc.bin",
+      "rtol": 0.05,
+      "sha256": "a5376890d29ff7dd1f615ca1af8cd6f756ff9e280a373dff65faa864d8b8de4c",
+      "shape": [
+        10,
+        10,
+        3
+      ]
+    },
+    "ori_pc_scores": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ori_pc_scores.bin",
+      "rtol": 0.01,
+      "sha256": "54b8988c0386e4d0ffba16114b2fdeba42d70c61e34ea2785f19581991b0fc36",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "ori_ps_euler": {
+      "atol": 0.002,
+      "dtype": "float64",
+      "file": "ori_ps_euler.bin",
+      "note": "Bunge radians; the test holds the symmetry-reduced angle under 0.1 degree (D-SEM-87 for the joint run)",
+      "rtol": 0.0,
+      "sha256": "54dcd6ec443eabed66adaf5fb2aca9884ff1bc91e60b7afc86806048390f5078",
+      "shape": [
+        10,
+        10,
+        3
+      ]
+    },
+    "ori_ps_num_evals": {
+      "atol": 1000000000.0,
+      "dtype": "int32",
+      "file": "ori_ps_num_evals.bin",
+      "note": "for the record: the path follows the float32 objective",
+      "rtol": 1.0,
+      "sha256": "a68069445192d16b91084072ab7ef5c59ca3b54ea9c045c0657724b0dc4ce4ce",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "ori_ps_pseudo_symmetry_index": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "ori_ps_pseudo_symmetry_index.bin",
+      "rtol": 0.0,
+      "sha256": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "ori_ps_scores": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ori_ps_scores.bin",
+      "rtol": 0.0001,
+      "sha256": "2339bec3afdb9f0d70d64eb9ddd5abc4106884d894da4e0675a76b6347bda330",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "ori_ps_start_euler": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "ori_ps_start_euler.bin",
+      "note": "each operator times each start rotation (orix outer), Bunge radians",
+      "rtol": 0.0,
+      "sha256": "94f62c929e3ad604517104065687b857cae24d8d99135a17fcbc7e0bfeb7208d",
+      "shape": [
+        10,
+        10,
+        2,
+        3
+      ]
+    },
+    "ori_scores": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ori_scores.bin",
+      "rtol": 0.0001,
+      "sha256": "2339bec3afdb9f0d70d64eb9ddd5abc4106884d894da4e0675a76b6347bda330",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "patterns": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "patterns.bin",
+      "note": "kikuchipy's corrected uint8 patterns of the block",
+      "rtol": 0.0,
+      "sha256": "50b6b84a280d74c841cf443bd38127b2cb4f2f7b89fe86eb51d632e96fa02d63",
+      "shape": [
+        10,
+        10,
+        60,
+        60
+      ]
+    },
+    "pc_num_evals": {
+      "atol": 1000000000.0,
+      "dtype": "int32",
+      "file": "pc_num_evals.bin",
+      "rtol": 1.0,
+      "sha256": "ebc4447446b34a8cc67e06575064df728432a8f69cf9f8f5316c43e19081a95e",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "pc_pc": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pc_pc.bin",
+      "note": "Bruker PCx, PCy, PCz; the test holds rtol 1e-4 on 95 % of values",
+      "rtol": 0.001,
+      "sha256": "d5fee4363aade11fac3067f7a333b1ed7420bc00ee969f8b37015e21bb5c3659",
+      "shape": [
+        10,
+        10,
+        3
+      ]
+    },
+    "pc_scores": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pc_scores.bin",
+      "rtol": 0.0001,
+      "sha256": "bd7294c951324e87dc6309e4d53b95f26325cbeb5397befa9537958290706cb2",
+      "shape": [
+        10,
+        10
+      ]
+    },
+    "pc_start_quaternion": {
+      "atol": 0.002,
+      "dtype": "float64",
+      "file": "pc_start_quaternion.bin",
+      "note": "the orientation run's result as orix quaternions, the PC refinement's fixed rotations",
+      "rtol": 0.0,
+      "sha256": "daf9fe37bb680aa05e4724af66ae4d9e6a5a6d3c172436a5594b8e9ce1649c31",
+      "shape": [
+        10,
+        10,
+        4
+      ]
+    },
+    "pseudo_symmetry_quaternions": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pseudo_symmetry_quaternions.bin",
+      "rtol": 0.0,
+      "sha256": "be11bf9c1bb36c8358dfe8c75c604e8ac9de51fd1f34961698e63290e7349a31",
+      "shape": [
+        2,
+        4
+      ]
+    },
+    "start_euler": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "start_euler.bin",
+      "note": "Bunge radians, orix's to_euler of the Hough rotations: the refinement's x0 (the tests start from these)",
+      "rtol": 0.0,
+      "sha256": "be337ee4d99f0b5d0dd9f1f3a68b85ba5ef763b532206b0196580f46b2c6eba4",
+      "shape": [
+        10,
+        10,
+        3
+      ]
+    },
+    "start_phase": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "start_phase.bin",
+      "rtol": 0.0,
+      "sha256": "7a12e561363385e9dfeeab326368731c030ed4b374e7f5897ac819159d2884c5",
+      "shape": [
+        10,
+        10
+      ]
+    }
+  },
+  "case": "m4/refine-nickel-block",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    },
+    {
+      "path": "fixtures/emsoft_ebsd_master_pattern_ni_mc_mp_20kv_uint8_gzip_opts9.h5",
+      "sha256": "8a7c1fb471d9ce750f0332a154e87cf41eed7529be508548e0c0f51ec6f92bc2"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.refine_orientation / refine_projection_center / refine_orientation_projection_center (SciPy Nelder-Mead)",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "block_cols": [
+      30,
+      40
+    ],
+    "block_rows": [
+      20,
+      30
+    ],
+    "detector": {
+      "azimuthal": 0.0,
+      "binning": 8,
+      "pc": [
+        0.4232600661596353,
+        0.2136332544638906,
+        0.5020740783903906
+      ],
+      "px_size": 1.0,
+      "sample_tilt": 70.0,
+      "shape": [
+        60,
+        60
+      ],
+      "tilt": 0.0,
+      "twist": 0.0
+    },
+    "energy": 20.0,
+    "mask_border": 6,
+    "pseudo_symmetry_ops": [
+      {
+        "axis": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "degrees": 30.0
+      },
+      {
+        "axis": [
+          1.0,
+          1.0,
+          0.0
+        ],
+        "degrees": 45.0
+      }
+    ],
+    "trust_region": {
+      "ori": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "ori_pc": [
+        1.0,
+        1.0,
+        1.0,
+        0.05,
+        0.05,
+        0.05
+      ],
+      "pc": [
+        0.05,
+        0.05,
+        0.05
+      ]
+    }
+  }
+}

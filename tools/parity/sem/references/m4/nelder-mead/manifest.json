@@ -1,0 +1,325 @@
+{
+  "arrays": {
+    "abs_sum4_maxiter_final_simplex": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "abs_sum4_maxiter_final_simplex.bin",
+      "rtol": 1e-12,
+      "sha256": "140b494f86f6785d90273f66f4f0df377c03cc21bc123c3f7ac153e3d7639c9f",
+      "shape": [
+        5,
+        4
+      ]
+    },
+    "abs_sum4_maxiter_fun": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "abs_sum4_maxiter_fun.bin",
+      "rtol": 1e-12,
+      "sha256": "772b035998caba4034170218e56189c5fef9640546d742bbb9940cc255e44637",
+      "shape": [
+        1
+      ]
+    },
+    "abs_sum4_maxiter_x": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "abs_sum4_maxiter_x.bin",
+      "rtol": 1e-12,
+      "sha256": "26d405e499061e16bd41536cf6fec3bfb6d54c0339b5523df8f8a8d8b372dfd5",
+      "shape": [
+        4
+      ]
+    },
+    "near_upper_bound_final_simplex": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "near_upper_bound_final_simplex.bin",
+      "rtol": 1e-12,
+      "sha256": "d07da8a16dff1197f78135794c49acb8797827dabe4e14d4a0ab7328ad8725a3",
+      "shape": [
+        3,
+        2
+      ]
+    },
+    "near_upper_bound_fun": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "near_upper_bound_fun.bin",
+      "rtol": 1e-12,
+      "sha256": "1ee509cb4de378187b17b4ac13356f88bc68a2f83256f318cdc91963fa7f0e57",
+      "shape": [
+        1
+      ]
+    },
+    "near_upper_bound_x": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "near_upper_bound_x.bin",
+      "rtol": 1e-12,
+      "sha256": "8fad1d3046aada697dc230eea8bae130bfa4b8bb0ea0a5a5ae8953646d329465",
+      "shape": [
+        2
+      ]
+    },
+    "rosen2_final_simplex": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "rosen2_final_simplex.bin",
+      "rtol": 1e-12,
+      "sha256": "690b129b851806f56d41e2854d35973caf331b79a6585f2658d63750cf36bda1",
+      "shape": [
+        3,
+        2
+      ]
+    },
+    "rosen2_fun": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "rosen2_fun.bin",
+      "rtol": 1e-12,
+      "sha256": "ec4959de81f3bb77aa3b5d237ab7281b87055e3473e34c5cb3326df95572087a",
+      "shape": [
+        1
+      ]
+    },
+    "rosen2_x": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "rosen2_x.bin",
+      "rtol": 1e-12,
+      "sha256": "d040faa33a9278e1be765ee203a34b0abd82fd73091decc024da136feb945547",
+      "shape": [
+        2
+      ]
+    },
+    "rosen3_bounded_final_simplex": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "rosen3_bounded_final_simplex.bin",
+      "rtol": 1e-12,
+      "sha256": "9d1aabe2282eef9f5eaff876513cdc71e1462aa8d52e4ffd6ef2e7c5844c8f41",
+      "shape": [
+        4,
+        3
+      ]
+    },
+    "rosen3_bounded_fun": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "rosen3_bounded_fun.bin",
+      "rtol": 1e-12,
+      "sha256": "22d05e16431965cc1b2b877aa85040da03dad679e6ef6cbece05b3a1db97c5f5",
+      "shape": [
+        1
+      ]
+    },
+    "rosen3_bounded_x": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "rosen3_bounded_x.bin",
+      "rtol": 1e-12,
+      "sha256": "12eea55b548ebfa02d2eb6cff8a07440fc8d6540f799458dbfa8b4133d4e8a96",
+      "shape": [
+        3
+      ]
+    },
+    "rosen3_maxfev_final_simplex": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "rosen3_maxfev_final_simplex.bin",
+      "rtol": 1e-12,
+      "sha256": "4afac92ca97780e8ee42820654d696fe8d83dc05d629edbcdaf11306d962a765",
+      "shape": [
+        4,
+        3
+      ]
+    },
+    "rosen3_maxfev_fun": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "rosen3_maxfev_fun.bin",
+      "rtol": 1e-12,
+      "sha256": "851934105c0ee22bda3fb7f7a05ad35ce49eb7ffd7fe25350f3f988e4c34585a",
+      "shape": [
+        1
+      ]
+    },
+    "rosen3_maxfev_x": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "rosen3_maxfev_x.bin",
+      "rtol": 1e-12,
+      "sha256": "97921238ad2d8d56d78f5fcb16deba5dcca1fe739d358b334094ca1d80334395",
+      "shape": [
+        3
+      ]
+    },
+    "sphere_zero_start_final_simplex": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "sphere_zero_start_final_simplex.bin",
+      "rtol": 1e-12,
+      "sha256": "11a2093945f9f53eeacf1b59e4c3df4f99dfb5a63f168ce7ea3059b83444904e",
+      "shape": [
+        4,
+        3
+      ]
+    },
+    "sphere_zero_start_fun": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "sphere_zero_start_fun.bin",
+      "rtol": 1e-12,
+      "sha256": "902a4f3b8dc7308c75404c41f979a2ddec07fb3c4910b09ee45fc4d58b5fe675",
+      "shape": [
+        1
+      ]
+    },
+    "sphere_zero_start_x": {
+      "atol": 1e-14,
+      "dtype": "float64",
+      "file": "sphere_zero_start_x.bin",
+      "rtol": 1e-12,
+      "sha256": "cc69da7f3b9f2514bf7eef7a1fb88ecc8b985e25a5f881902b8ea2d7a9ad35d5",
+      "shape": [
+        3
+      ]
+    }
+  },
+  "case": "m4/nelder-mead",
+  "inputs": [
+    {
+      "path": "fixtures/nelder_mead_inputs.json",
+      "sha256": "284e8b763fdef95abdc740cb750c462cf2ae69a002e5364f4d00589da3f4c5ae"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "scipy.optimize.minimize(method='Nelder-Mead')",
+    "package": "scipy",
+    "version": "1.18.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "abs_sum4_maxiter_case": {
+      "bounds": null,
+      "nfev": 47,
+      "nit": 25,
+      "options": {
+        "maxiter": 25
+      },
+      "status": 2,
+      "x0": [
+        1.0,
+        -1.0,
+        0.5,
+        2.0
+      ]
+    },
+    "cases": [
+      "rosen2",
+      "rosen3_bounded",
+      "sphere_zero_start",
+      "near_upper_bound",
+      "rosen3_maxfev",
+      "abs_sum4_maxiter"
+    ],
+    "near_upper_bound_case": {
+      "bounds": [
+        [
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          1.0
+        ]
+      ],
+      "nfev": 48,
+      "nit": 26,
+      "options": {},
+      "status": 0,
+      "x0": [
+        0.99,
+        0.5
+      ]
+    },
+    "rosen2_case": {
+      "bounds": null,
+      "nfev": 159,
+      "nit": 85,
+      "options": {},
+      "status": 0,
+      "x0": [
+        -1.2,
+        1.0
+      ]
+    },
+    "rosen3_bounded_case": {
+      "bounds": [
+        [
+          0.0,
+          2.0
+        ],
+        [
+          0.0,
+          2.0
+        ],
+        [
+          0.0,
+          2.0
+        ]
+      ],
+      "nfev": 178,
+      "nit": 100,
+      "options": {},
+      "status": 0,
+      "x0": [
+        1.3,
+        0.7,
+        0.8
+      ]
+    },
+    "rosen3_maxfev_case": {
+      "bounds": null,
+      "nfev": 30,
+      "nit": 15,
+      "options": {
+        "maxfev": 30
+      },
+      "status": 1,
+      "x0": [
+        1.3,
+        0.7,
+        0.8
+      ]
+    },
+    "sphere_zero_start_case": {
+      "bounds": null,
+      "nfev": 283,
+      "nit": 155,
+      "options": {},
+      "status": 0,
+      "x0": [
+        0.0,
+        0.5,
+        0.0
+      ]
+    }
+  }
+}
