@@ -26,11 +26,11 @@ nonisolated final class ImageSessionTests: XCTestCase {
         let first = session.beginOpen()
         let second = session.beginOpen()
         XCTAssertNotEqual(first, second)
-        XCTAssertFalse(session.finishOpen(first, image: Self.a, url: Self.urlA, metadata: AcquisitionMetadata()), "the earlier open was superseded")
+        XCTAssertFalse(session.finishOpen(first, image: Self.a, url: Self.urlA, metadata: AcquisitionMetadata(), sem: nil), "the earlier open was superseded")
         XCTAssertNil(session.image)
         XCTAssertNil(session.url)
         XCTAssertTrue(session.isLoading, "the newer open is still running")
-        XCTAssertTrue(session.finishOpen(second, image: Self.b, url: Self.urlB, metadata: AcquisitionMetadata()))
+        XCTAssertTrue(session.finishOpen(second, image: Self.b, url: Self.urlB, metadata: AcquisitionMetadata(), sem: nil))
         XCTAssertEqual(session.image, Self.b)
         XCTAssertEqual(session.url, Self.urlB)
         XCTAssertFalse(session.isLoading)
@@ -40,8 +40,8 @@ nonisolated final class ImageSessionTests: XCTestCase {
         let session = ImageSession()
         let first = session.beginOpen()
         let second = session.beginOpen()
-        XCTAssertTrue(session.finishOpen(second, image: Self.b, url: Self.urlB, metadata: AcquisitionMetadata()))
-        XCTAssertFalse(session.finishOpen(first, image: Self.a, url: Self.urlA, metadata: AcquisitionMetadata()), "a slower, earlier read is dropped")
+        XCTAssertTrue(session.finishOpen(second, image: Self.b, url: Self.urlB, metadata: AcquisitionMetadata(), sem: nil))
+        XCTAssertFalse(session.finishOpen(first, image: Self.a, url: Self.urlA, metadata: AcquisitionMetadata(), sem: nil), "a slower, earlier read is dropped")
         XCTAssertEqual(session.image, Self.b)
         XCTAssertEqual(session.url, Self.urlB)
         XCTAssertFalse(session.isLoading)
@@ -61,7 +61,7 @@ nonisolated final class ImageSessionTests: XCTestCase {
     @MainActor func testAFailedOpenKeepsTheImageAlreadyShown() {
         let session = ImageSession()
         let shown = session.beginOpen()
-        XCTAssertTrue(session.finishOpen(shown, image: Self.a, url: Self.urlA, metadata: AcquisitionMetadata()))
+        XCTAssertTrue(session.finishOpen(shown, image: Self.a, url: Self.urlA, metadata: AcquisitionMetadata(), sem: nil))
         let next = session.beginOpen()
         XCTAssertTrue(session.isLoading)
         XCTAssertEqual(session.image, Self.a, "the shown image stays while the next one is read")
@@ -70,7 +70,7 @@ nonisolated final class ImageSessionTests: XCTestCase {
         XCTAssertEqual(session.image, Self.a)
         XCTAssertEqual(session.url, Self.urlA)
         // The token the shown image came from is spent: it cannot publish again over a later open.
-        XCTAssertFalse(session.finishOpen(shown, image: Self.b, url: Self.urlB, metadata: AcquisitionMetadata()))
+        XCTAssertFalse(session.finishOpen(shown, image: Self.b, url: Self.urlB, metadata: AcquisitionMetadata(), sem: nil))
         XCTAssertEqual(session.image, Self.a)
     }
 }

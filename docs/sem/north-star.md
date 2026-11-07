@@ -157,6 +157,17 @@ points, and the score arrays within rtol 1e-5 (the pattern matching runs in floa
 | SciPy's Nelder-Mead on closed-form functions (Rosenbrock unbounded and in a box, a zero start coordinate, a start at an upper bound, stops by maxfev and maxiter) | `scipy.optimize.minimize(method="Nelder-Mead")` | `m4/nelder-mead` | x, fun, final simplex rtol 1e-12; nfev, nit, status exact |
 | F10 on a 10 x 10 block of the corrected scan (rows 20 to 29, columns 30 to 39) from kikuchipy's Hough orientations, Ni 20 kV master pattern at 20 kV: orientations (trust region 1°, none, a 6 px border mask, two pseudo-symmetry operators), PCs (trust region 0.05) from the refined orientations, both together (1° and 0.05) | `EBSD.refine_orientation`, `refine_projection_center`, `refine_orientation_projection_center` | `m4/refine-nickel-block` | orientations within 0.1°, scores and PCs rtol 1e-4; the joint run by its spread (D-SEM-87) |
 
+Figure F9 (milestone 4): the dictionary-indexed map, kikuchipy's `EBSD.dictionary_indexing` (Chen et al. 2015; Jackson
+et al. 2019). Dictionary: kikuchipy's in-package uint8 Ni 20 kV master pattern (D-SEM-32) projected onto the F15 detector
+(60 x 60, PC (0.4214, 0.2142, 0.5013) Bruker, sample tilt 70°) for orix's cubochoric sample of m-3m at 4° (11 935
+rotations); experimental patterns after kikuchipy's static then dynamic background; figure script
+`tools/parity/sem/dictionary_figure.py` (IPF-Z by orix's `IPFColorKeyTSL`).
+
+| Part | Bundle | Arrays and tolerance |
+| --- | --- | --- |
+| The 3 x 3 nickel cut on kikuchipy's corrected patterns: NCC (float32, keep_n 20), NCC in float64, NDP, NCC with a circular signal mask and two points masked out, NCC in chunks of 1000 | `m4/dictionary-indexing-kikuchipy-h5ebsd` | scores rtol 1e-4 (float32 runs), 1e-5 (float64); simulation indices exact except ranks whose scores tie within the tolerance; the crystal map's best rotations atol 1e-7 and Euler angles 1e-6 (orix's sample against the port's) |
+| F9: the whole 55 x 75 scan through the app's own background chain, keep_n 5; a 6 x 6 block of kikuchipy's corrected patterns | `m4/dictionary-indexing-nickel-ebsd-large` | whole scan: best match equal at 99.5 % of points or more, best scores rtol 1e-2 (D-SEM-18's one-grey-level background differences, the first CI run measured 6.1e-3 at worst on a point scoring 0.099; a random 0.2 % perturbation had moved them 1.04e-3 and 2 of 4125 best matches); block: as the cut |
+
 ### Figure 5 (milestone 5): maps and grains
 
 orix on the indexed map: KAM, GOS, grain segmentation at 5°, grain size statistics, ODF. Reference arrays from orix

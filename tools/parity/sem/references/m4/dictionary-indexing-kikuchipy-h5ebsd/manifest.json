@@ -1,0 +1,297 @@
+{
+  "arrays": {
+    "experimental": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "experimental.bin",
+      "note": "kikuchipy's corrected uint8 patterns, the indexing input",
+      "rtol": 0.0,
+      "sha256": "7532416df1b665d7e35b8cc874ee33de6d3135a65293a9684e6152b6d875cacd",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "navigation_mask": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "navigation_mask.bin",
+      "note": "1 = point left out",
+      "rtol": 0.0,
+      "sha256": "528ff1c46ab37b477ab22af7af9a7b645d6836c1e5718b89a80575c88db5a3b9",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "ncc_best_euler": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ncc_best_euler.bin",
+      "rtol": 1e-07,
+      "sha256": "b01fb37bc98e8165755a503e49865947465602709da371d6d641cc51b961cc9e",
+      "shape": [
+        9,
+        3
+      ]
+    },
+    "ncc_best_quaternions": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ncc_best_quaternions.bin",
+      "note": "the dictionary's rotation at the best simulation index",
+      "rtol": 0.0,
+      "sha256": "54d00813f6987b1aa18ab1c56363e74840ae81403ccf35bc8c0e5c6826fd40d9",
+      "shape": [
+        9,
+        4
+      ]
+    },
+    "ncc_chunked_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "ncc_chunked_scores.bin",
+      "note": "dictionary_indexing(metric='ncc', keep_n=20, n_per_iteration=1000)",
+      "rtol": 0.0001,
+      "sha256": "f327494e322bfe5ff670d5058e23d63b58fb51f11b658474b990bfff8804134f",
+      "shape": [
+        9,
+        20
+      ]
+    },
+    "ncc_chunked_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "ncc_chunked_simulation_indices.bin",
+      "note": "dictionary_indexing(metric='ncc', keep_n=20, n_per_iteration=1000)",
+      "rtol": 0.0,
+      "sha256": "cf296412887b982c24a8da7db0f19cff81d2a32b15194988e8477aac5b11a18a",
+      "shape": [
+        9,
+        20
+      ]
+    },
+    "ncc_float64_scores": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ncc_float64_scores.bin",
+      "note": "dictionary_indexing(metric='ncc', keep_n=20, dtype='float64')",
+      "rtol": 1e-05,
+      "sha256": "210dc45b213a0a77894324fda29c97c8e1cbadb8a378131ac8a3dd75260af478",
+      "shape": [
+        9,
+        20
+      ]
+    },
+    "ncc_float64_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "ncc_float64_simulation_indices.bin",
+      "note": "dictionary_indexing(metric='ncc', keep_n=20, dtype='float64')",
+      "rtol": 0.0,
+      "sha256": "cf296412887b982c24a8da7db0f19cff81d2a32b15194988e8477aac5b11a18a",
+      "shape": [
+        9,
+        20
+      ]
+    },
+    "ncc_masked_is_in_data": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "ncc_masked_is_in_data.bin",
+      "rtol": 0.0,
+      "sha256": "6565c59a20d786ba47d1cd75cd931ac002e76160c434c554de8350ce706b2773",
+      "shape": [
+        9
+      ]
+    },
+    "ncc_masked_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "ncc_masked_scores.bin",
+      "note": "dictionary_indexing(metric='ncc', keep_n=20)",
+      "rtol": 0.0001,
+      "sha256": "1ef4c5d5153441e1da60fd4afcb3cd416905e9e483341f9cea900874b6196ee4",
+      "shape": [
+        7,
+        20
+      ]
+    },
+    "ncc_masked_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "ncc_masked_simulation_indices.bin",
+      "note": "dictionary_indexing(metric='ncc', keep_n=20)",
+      "rtol": 0.0,
+      "sha256": "a9c6c07a74e41e57a1638949101d0e9e71c21a9384a064f5d4e0cce6bf4ef460",
+      "shape": [
+        7,
+        20
+      ]
+    },
+    "ncc_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "ncc_scores.bin",
+      "note": "dictionary_indexing(metric='ncc', keep_n=20)",
+      "rtol": 0.0001,
+      "sha256": "f327494e322bfe5ff670d5058e23d63b58fb51f11b658474b990bfff8804134f",
+      "shape": [
+        9,
+        20
+      ]
+    },
+    "ncc_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "ncc_simulation_indices.bin",
+      "note": "dictionary_indexing(metric='ncc', keep_n=20)",
+      "rtol": 0.0,
+      "sha256": "cf296412887b982c24a8da7db0f19cff81d2a32b15194988e8477aac5b11a18a",
+      "shape": [
+        9,
+        20
+      ]
+    },
+    "ncc_x": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ncc_x.bin",
+      "rtol": 0.0,
+      "sha256": "b8968803a8284a18d7460abf73bf8bc3be46ba82e01515865ba556766aaffe98",
+      "shape": [
+        9
+      ]
+    },
+    "ncc_y": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ncc_y.bin",
+      "rtol": 0.0,
+      "sha256": "6d14839d9eaeb207b321aee5af68206b4a39917422bc8be1841869214cbbac98",
+      "shape": [
+        9
+      ]
+    },
+    "ndp_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "ndp_scores.bin",
+      "note": "dictionary_indexing(metric='ndp', keep_n=20)",
+      "rtol": 0.0001,
+      "sha256": "121506259e0a429fd83c147c4c3830e3d9e2019b176b1b784ac159421be3ef86",
+      "shape": [
+        9,
+        20
+      ]
+    },
+    "ndp_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "ndp_simulation_indices.bin",
+      "note": "dictionary_indexing(metric='ndp', keep_n=20)",
+      "rtol": 0.0,
+      "sha256": "2cd86f98d1a520f6f971648af663c9280c620e0e80145d667b401d202e4870d9",
+      "shape": [
+        9,
+        20
+      ]
+    },
+    "signal_mask": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "signal_mask.bin",
+      "note": "1 = pixel left out (kikuchipy's circular window, negated)",
+      "rtol": 0.0,
+      "sha256": "14b21c00fbcd1aae6dcb0211c028f08ec930a9895475be4af83157e8049767ff",
+      "shape": [
+        60,
+        60
+      ]
+    }
+  },
+  "case": "m4/dictionary-indexing-kikuchipy-h5ebsd",
+  "inputs": [
+    {
+      "path": "fixtures/kikuchipy_h5ebsd_patterns.h5",
+      "sha256": "8f46638f5affa21c08db447b7b472b9a8d02e9e1e70fe11488dc5a50c2b8ee67"
+    },
+    {
+      "path": "fixtures/emsoft_ebsd_master_pattern_ni_mc_mp_20kv_uint8_gzip_opts9.h5",
+      "sha256": "8a7c1fb471d9ce750f0332a154e87cf41eed7529be508548e0c0f51ec6f92bc2"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.dictionary_indexing",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "background": "remove_static_background(operation='subtract') then remove_dynamic_background(operation='subtract', filter_domain='frequency', truncate=4.0)",
+    "detector": {
+      "binning": 8,
+      "pc": [
+        0.4214,
+        0.2142,
+        0.5013
+      ],
+      "sample_tilt": 70.0,
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "dictionary_size": 11935,
+    "keep_n": 20,
+    "point_group": "m-3m",
+    "resolution": 4.0,
+    "runs": {
+      "ncc": {
+        "keep_n": 20,
+        "metric": "ncc"
+      },
+      "ncc_chunked": {
+        "keep_n": 20,
+        "metric": "ncc",
+        "n_per_iteration": 1000
+      },
+      "ncc_float64": {
+        "dtype": "float64",
+        "keep_n": 20,
+        "metric": "ncc"
+      },
+      "ncc_masked": {
+        "keep_n": 20,
+        "metric": "ncc",
+        "navigation_mask": true,
+        "signal_mask": true
+      },
+      "ndp": {
+        "keep_n": 20,
+        "metric": "ndp"
+      }
+    },
+    "step_sizes": [
+      1.5,
+      1.5
+    ]
+  }
+}
