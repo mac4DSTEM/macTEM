@@ -191,6 +191,18 @@ tutorial does it) follows in the same milestone once the k-factors it uses are r
 The `.ang` and `.ctf` writers round-trip the indexed map through orix (exact after the writers' decimal places),
 and the exported figures carry scale bars.
 
+F18, the writers (P8-01): each map is written by the reference, compared byte for byte with ours, and read back by
+orix (`emit.py` asserts the round trip: same shape, steps, phases and indexed points, rotations within the written
+precision). orix 0.15.0 writes `.ang`; nothing in the pinned stack writes `.ctf`, so `tools/parity/sem/ctf_writer.py`
+states AZtec's layout once on orix's `CrystalMap` and orix's `.ctf` reader is the judge. Maps: orix-data's
+`sdss_ferrite_austenite.ang` (100 × 117, two phases), its ferrite points alone (austenite written as not indexed), its
+rows 10-19 × columns 5-14, and the first three rows of the Ti orientations (3 × 507, 622).
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| `.ang` of the sdss map, its ferrite points, its window and the Ti head | `orix.io.plugins.ang.file_writer`, read back by `orix.io.load` | `m8/write-ang-sdss`, `m8/write-ang-sdss-ferrite`, `m8/write-ang-sdss-window`, `m8/write-ang-ti` | bytes exact (sha256 of the file); read back: rotations within 2e-5 rad (three angles at 5 decimals; 9.4e-6 rad on the Ti head, 0 on the sdss map, which the file already holds at 5 decimals) |
+| `.ctf` of the same four maps | `tools/parity/sem/ctf_writer.py`, read back by `orix.io.plugins.ctf.file_reader` | `m8/write-ctf-sdss`, `m8/write-ctf-sdss-ferrite`, `m8/write-ctf-sdss-window`, `m8/write-ctf-ti` | bytes exact; read back: rotations within 3e-6 rad in the Swift round trip (three angles at 4 decimals of degrees; 1.9e-6 rad at most) |
+
 ## Tolerances, the rule
 
 Readers, indices and metadata are exact. A reduction in float64 matches at rtol 1e-7 (numpy's `assert_allclose`

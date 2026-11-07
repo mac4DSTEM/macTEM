@@ -50,6 +50,11 @@ is a port of orix 0.15.0's orix.crystal_map package (crystal_map, _phase_list, _
 developers, GPL-3.0-or-later, taken under GPL-3.0. Figure F7 is computed on orix-data's Ti_orientations.ctf (CC BY 4.0,
 Krakow et al. 2017), fetched by tools/parity/sem/fetch-data.sh, not committed.
 
+The .ang writer in Sources/TEMCore/SEM/Export/ANGWriter.swift is a port of orix 0.15.0's orix.io.plugins.ang file_writer,
+Copyright (C) 2018-2026 the orix developers, GPL-3.0-or-later, taken under GPL-3.0. The .ctf writer beside it follows the
+Oxford Instruments Channel Text File layout as orix's ctf reader reads it; its reference, tools/parity/sem/ctf_writer.py,
+uses orix's CrystalMap API (GPL-3.0-or-later).
+
 The grain analysis in Sources/TEMCore/SEM/Grains/ (GrainMap, DefDAPSymmetry, GrainBoundaries, GrainSegmentation,
 KernelAverageMisorientation, GrainOrientationStatistics) is a port of DefDAP 1.3.1 (https://github.com/MechMicroMan/DefDAP):
 defdap.ebsd (find_boundaries, find_grains, build_neighbour_network, calc_kam, Grain.calc_average_ori,
