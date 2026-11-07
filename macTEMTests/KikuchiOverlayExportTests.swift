@@ -2,7 +2,8 @@
 //  KikuchiOverlayExportTests.swift
 //  The Kikuchi overlay's exports (#201): `Overlay CSV…` and `Pattern with Overlay…` from the Patterns room on the shipped nickel scan,
 //  written to the journeys' folder without a panel; refused while the overlay is off; the band-width switch reaches the session's
-//  overlay. Red before: neither export kind exists, and the session's overlay has no band edges.
+//  overlay; Kinematical carries the point's simulated pattern and the master pattern picture. Red before: neither export kind exists,
+//  and the session's overlay has neither band edges nor a simulation.
 //
 
 import XCTest
@@ -87,6 +88,34 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         let lowRed: Bool = r < 80
         let midGreen: Bool = g > 90 && g < 170
         return blueEnough && lowRed && midGreen
+    }
+
+    /// Kinematical (#201): the overlay carries the point's kinematical simulation in the detector's shape, the inspector's master
+    /// pattern picture exists for the point's phase, and the picture with the overlay is written with the simulation blended in.
+    @MainActor func testKinematicalOverlayThroughTheSession() async throws {
+        let session = try await openNickel()
+        session.setOverlayOn(true)
+        var settings = session.overlaySettings
+        XCTAssertNil(session.overlayMasterPicture, "no master pattern picture while Kinematical is off")
+        settings.kinematical = true
+        settings.blend = 0.7
+        session.setOverlaySettings(settings)
+        guard case .success(let overlay)? = session.overlay else { return XCTFail("no overlay: \(String(describing: session.overlay))") }
+        let simulated = try XCTUnwrap(overlay.simulated, "Kinematical carries the simulated pattern")
+        XCTAssertEqual(simulated.count, 60 * 60)
+        XCTAssertGreaterThan(simulated.max() ?? 0, simulated.min() ?? 0, "bands cross the pattern")
+        XCTAssertNotNil(KikuchiOverlayLayer.simulatedImage(overlay))
+        let picture = try XCTUnwrap(session.overlayMasterPicture)
+        XCTAssertEqual(picture.side, 201)
+        XCTAssertEqual(picture.phase, "ni")
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("overlay-kinematical-\(UUID().uuidString)")
+        var reports: [String] = []
+        PatternsRoomState().export(.overlayPNG, from: session, directory: dir) { reports.append($0) }
+        XCTAssertTrue(reports.last?.hasPrefix("Exported ") == true, reports.last ?? "")
+        settings.kinematical = false
+        session.setOverlaySettings(settings)
+        guard case .success(let plain)? = session.overlay else { return XCTFail("no overlay") }
+        XCTAssertNil(plain.simulated, "Geometrical draws no simulated pattern")
     }
 
     /// The pixels of a PNG as sRGB RGBA bytes.

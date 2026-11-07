@@ -65,7 +65,7 @@ from simulation_cases import (  # noqa: E402,F401  (milestone 6 Kikuchi simulati
     case_m6_geometrical_band_edges_nickel, case_m6_geometrical_simulation_nickel, case_m6_geometrical_simulation_tilted,
     case_m6_kikuchi_lattice,
     case_m6_kikuchi_reflectors_al2cu, case_m6_kikuchi_reflectors_ni, case_m6_kikuchi_reflectors_ti,
-    case_m6_kikuchi_scattering_tables, case_m6_kinematic_master_pattern_ni)
+    case_m6_kikuchi_scattering_tables, case_m6_kinematic_master_pattern_ni, case_m6_kinematic_overlay_nickel)
 from texture_cases import case_m5_texture_cubic, case_m5_texture_ti, case_m5_texture_ti_full  # noqa: E402,F401  (m5, F13)
 from maps_cases import case_m3_maps_room_sdss  # noqa: E402,F401  (m3, the Maps room's map images, F6 on screen)
 

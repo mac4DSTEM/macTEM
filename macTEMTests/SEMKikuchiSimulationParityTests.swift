@@ -3,9 +3,9 @@
 //  TEMCore's Kikuchi simulation (`CrystalLattice`, `KikuchiReflectors`, `KikuchiWavelength`, `GeometricalKikuchiSimulation`,
 //  `KinematicMasterPattern`, `KikuchiOverlay`) against diffpy.structure, diffsims 0.7.0 and kikuchipy 0.13.1: the bundles
 //  `m6/kikuchi-lattice`, `m6/kikuchi-scattering-tables`, `m6/kikuchi-reflectors-{ni,ti,al2cu}`, `m6/geometrical-simulation-nickel`
-//  (figure F14), `m6/geometrical-band-edges-nickel`, `m6/geometrical-simulation-tilted` and `m6/kinematic-master-pattern-ni` from tools/parity/sem/simulation_cases.py, at each
-//  bundle's tolerance (docs/parity.md). Red before the port: none of the types exists. Red after the lattice left in diffpy's frame
-//  (the hexagonal zone axes move), a reflector counted with z ≤ 0 (every band twice), the sample-to-detector matrix not transposed
+//  (figure F14), `m6/geometrical-band-edges-nickel`, `m6/geometrical-simulation-tilted`, `m6/kinematic-master-pattern-ni` and
+//  `m6/kinematic-overlay-nickel` from tools/parity/sem/simulation_cases.py, at each bundle's tolerance (docs/parity.md). Red before
+//  the port: none of the types exists. Red after the lattice left in diffpy's frame (the hexagonal zone axes move), a reflector counted with z ≤ 0 (every band twice), the sample-to-detector matrix not transposed
 //  (the lines turn), zone axes not reduced by orix's rounding (labels and positions change), or a band edge at π/2 + θ: each moves
 //  coordinates far beyond 1e-6 px or the master pattern beyond rtol 1e-5.
 //
@@ -312,6 +312,72 @@ nonisolated final class SEMKikuchiSimulationParityTests: XCTestCase {
             XCTAssertEqual(row[7], "")
         }
         XCTAssertEqual(KikuchiOverlay.plainMiller(SIMD3(-1, -2, 1), brackets: "[]"), "[-1-21]")
+    }
+
+    /// The Kinematical overlay (#201, D-SEM-95): kikuchipy's band rule on the square Lambert grid's directions, both hemispheres, then
+    /// `get_patterns` of that master pattern for two points of the nickel scan. Red before: there is no Lambert kinematical master
+    /// pattern; red with the lower hemisphere's z not negated (the lower half equals the upper), rows and columns swapped (X along
+    /// rows), or the Lambert vectors left unnormalised (the band rule's arccos reads the wrong angles).
+    func testKinematicOverlayOfTheNickelAsKikuchipy() throws {
+        let ref = try SEMParityReference.load("m6/kinematic-overlay-nickel")
+        let nickel = try SEMParityReference.load("m6/geometrical-simulation-nickel")
+        var p = try XCTUnwrap(nickel.values["lattice"] as? [Double])
+        p[0] *= 10; p[1] *= 10; p[2] *= 10
+        let reflectors = KikuchiReflectors(lattice: try XCTUnwrap(CrystalLattice(parameters: p)), hkl: triples(try ref.array("reflectors_hkl").values))
+        let half = try XCTUnwrap(ref.values["half_size"] as? Int)
+        let kv = try XCTUnwrap(ref.values["voltage_kv"] as? Double)
+        let phase = CrystalPhase(name: "ni", spaceGroup: 225, pointGroup: "m-3m", lattice: p)
+        XCTAssertEqual(KinematicMasterPattern.lambertVector(x: 0, y: 0), SIMD3(0, 0, 1))
+        let master = KinematicMasterPattern.lambert(reflectors: reflectors, theta: try ref.array("theta").values, halfSize: half, scaling: .none,
+                                                    energyKeV: kv, phase: phase)
+        XCTAssertEqual(master.side, 2 * half + 1)
+        XCTAssertEqual(master.projection, .lambert)
+        XCTAssertEqual(master.hemisphere, .both)
+        SEMAssertParity(master.values.map(Double.init), try ref.array("lambert"))
+        let d = try XCTUnwrap(ref.values["detector"] as? [String: Any])
+        let shape = try XCTUnwrap(d["shape"] as? [Int])
+        let rotations = quads(try ref.array("rotations").values), pcs = triples(try ref.array("pcs").values)
+        var patterns: [Double] = []
+        for (q, pc) in zip(rotations, pcs) {
+            let detector = EBSDDetectorGeometry(rows: shape[0], columns: shape[1], pixelSize: try XCTUnwrap(d["px_size"] as? Double),
+                                                binning: try XCTUnwrap(d["binning"] as? Int), tilt: try XCTUnwrap(d["tilt"] as? Double),
+                                                azimuthal: try XCTUnwrap(d["azimuthal"] as? Double), twist: try XCTUnwrap(d["twist"] as? Double),
+                                                sampleTilt: try XCTUnwrap(d["sample_tilt"] as? Double), projectionCenters: [pc])
+            patterns += try MasterPatternProjection.project(master: master, rotations: [q], detector: detector, output: .float32).values
+        }
+        SEMAssertParity(patterns, try ref.array("patterns"))
+    }
+
+    /// The overlay's own path on the demo nickel: the point's phase, the overlay's bands at 1 Å, its θ at the file's 20 kV (no inner
+    /// potential), the scan's orientation and PC: the simulated pattern correlates with kikuchipy's above 0.95 (θ differs by 0.07 %,
+    /// which moves a few band-edge pixels of the Lambert grid), and Kinematical off leaves it out.
+    func testKinematicalOverlayOnTheDemoNickel() throws {
+        let ref = try SEMParityReference.load("m6/kinematic-overlay-nickel")
+        let (dataset, _) = try EBSDOpening.open(url: Self.demoScan)
+        let map = try XCTUnwrap(dataset.crystalMap)
+        let phase = try XCTUnwrap(map.phases[id: map.allPhaseIDs[0]])
+        let bands = try XCTUnwrap(KikuchiOverlay.bands(for: phase, minDSpacing: 1.0))
+        SEMAssertParity(ints(bands.reflectors.hkl), try ref.array("reflectors_hkl"))
+        let kv = try XCTUnwrap(dataset.sem.beamEnergyKeV)
+        let half = try XCTUnwrap(ref.values["half_size"] as? Int)
+        let maxR = KikuchiOverlay.scanMaxR(dataset)
+        let result = KikuchiOverlay.pattern(dataset, at: .origin, maxR: maxR, master: { _, phase, b in
+            KikuchiOverlay.masterPattern(b, phase: phase, beamEnergyKeV: kv, halfSize: half)
+        }) { _, _ in bands }
+        guard case .success(let overlay) = result else { return XCTFail("no overlay: \(result)") }
+        let simulated = try XCTUnwrap(overlay.simulated).map(Double.init)
+        XCTAssertEqual(overlay.simulatedRows, dataset.detector.rows)
+        XCTAssertEqual(overlay.simulatedColumns, dataset.detector.columns)
+        let reference = Array(try ref.array("patterns").values.prefix(simulated.count))
+        func centred(_ v: [Double]) -> [Double] { let m = v.reduce(0, +) / Double(v.count); return v.map { $0 - m } }
+        let a = centred(simulated), b = centred(reference)
+        let ncc = zip(a, b).map { $0 * $1 }.reduce(0, +) / (a.map { $0 * $0 }.reduce(0, +) * b.map { $0 * $0 }.reduce(0, +)).squareRoot()
+        XCTAssertGreaterThan(ncc, 0.95, "the overlay's kinematical pattern is kikuchipy's up to the inner potential")
+        XCTAssertEqual(KikuchiOverlay.masterPatternPicture(bands, beamEnergyKeV: kv, halfSize: 20).count, 41 * 41)
+        guard case .success(let plain) = KikuchiOverlay.pattern(dataset, at: .origin, maxR: maxR, bands: { _, _ in bands }) else {
+            return XCTFail("no overlay")
+        }
+        XCTAssertNil(plain.simulated)
     }
 
     func testTiltedTitaniumDetectorAsKikuchipy() throws {

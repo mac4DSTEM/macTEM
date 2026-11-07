@@ -1,0 +1,133 @@
+{
+  "arrays": {
+    "lambert": {
+      "atol": 1e-08,
+      "dtype": "float64",
+      "file": "lambert.bin",
+      "note": "hemisphere (upper, lower), row (Y), column (X); band counts",
+      "rtol": 1e-05,
+      "sha256": "99807648a495218d177bcc786fac48f47debeb8fbf7ae7feb2eb9168392d7d25",
+      "shape": [
+        2,
+        121,
+        121
+      ]
+    },
+    "patterns": {
+      "atol": 1e-05,
+      "dtype": "float64",
+      "file": "patterns.bin",
+      "note": "point, row, column; get_patterns in float32 (no rescale: the master pattern is float32)",
+      "rtol": 1e-06,
+      "sha256": "196c5b1474fbc0d41497b3ab8f038dfc2ac76c3223579a3c91183b41b5c4c474",
+      "shape": [
+        2,
+        60,
+        60
+      ]
+    },
+    "pcs": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pcs.bin",
+      "note": "point, (PCx, PCy, PCz) Bruker",
+      "rtol": 0.0,
+      "sha256": "0744c8c7841678cb0fb6fd11042aee7beda061765eddcce276d5de29a7a53d1a",
+      "shape": [
+        2,
+        3
+      ]
+    },
+    "reflectors_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "reflectors_hkl.bin",
+      "rtol": 0.0,
+      "sha256": "5988c6fb69722afd558877d57d4b5fce5946b639a47767be7c0f55acb7d5ac3c",
+      "shape": [
+        50,
+        3
+      ]
+    },
+    "rotations": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "rotations.bin",
+      "note": "point, (a, b, c, d)",
+      "rtol": 0.0,
+      "sha256": "4b9aa23c57932dadfccaaf39aa92baec515fc6f2eb78b195c8aa169ee2dfbe00",
+      "shape": [
+        2,
+        4
+      ]
+    },
+    "theta": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "theta.bin",
+      "rtol": 1e-07,
+      "sha256": "7afa37efb820176384d6529c9ee6f72e62c4b49b9d394f2598eedf4cee562e24",
+      "shape": [
+        50
+      ]
+    }
+  },
+  "case": "m6/kinematic-overlay-nickel",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    },
+    {
+      "path": "fixtures/simulation_cases.json",
+      "sha256": "53ac4cc181b31ba459c94fc5ee11e78f387778d1e297fc3b86110759dc02b0dd"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "kikuchipy get_pattern on _lambert2vector directions, then EBSDMasterPattern.get_patterns",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "detector": {
+      "azimuthal": 0.0,
+      "binning": 8,
+      "px_size": 1.0,
+      "sample_tilt": 70.0,
+      "shape": [
+        60,
+        60
+      ],
+      "tilt": 0.0,
+      "twist": 0.0
+    },
+    "half_size": 60,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        20,
+        30
+      ]
+    ],
+    "voltage_kv": 20.0
+  }
+}

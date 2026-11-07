@@ -3,7 +3,8 @@
 //  The geometrical Kikuchi overlay (docs/sem/design/simulation-overlay.md, figure F14) on the shipped demo nickel scan, whose file carries
 //  its crystal map: launch with `--open DemoData/nickel_ebsd_large/patterns_v2.h5`, open the inspector's Simulation section, turn the
 //  overlay to Geometrical and see the layer over the pattern with its {111}, {200}, {220} and {311} bands and zone axes; Min d at 1.5 Å
-//  drops the {311} bands; Band width draws each band's two edges; Off removes the layer. A screenshot at every step. The demo file is in the repo, so the journey always runs.
+//  drops the {311} bands; Band width draws each band's two edges; Kinematical
+//  blends in the simulated pattern and shows the master pattern; Off removes the layer. A screenshot at every step. The demo file is in the repo, so the journey always runs.
 //
 
 import XCTest
@@ -70,6 +71,13 @@ nonisolated final class KikuchiOverlayJourney: Journey {
                 self.element("patterns.pattern.overlay").descendants(matching: .any).matching(identifier: "patterns.overlay.edge").count > 0
             }, object: nil)
             XCTAssertEqual(XCTWaiter().wait(for: [edges], timeout: 30), .completed, "no band edges drawn")
+        }
+        try step("Kinematical blends the simulated pattern in and shows the master pattern") {
+            try requireFrontmost()
+            segment("patterns.overlay", "Kinematical")
+            waitFor("patterns.overlay.blend", timeout: 30)
+            waitFor("patterns.overlay.master", timeout: 60)
+            waitFor("patterns.pattern.overlay", timeout: 30)
         }
         try step("Off removes the layer") {
             try requireFrontmost()
