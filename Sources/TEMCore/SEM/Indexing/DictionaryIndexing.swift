@@ -249,7 +249,7 @@ package nonisolated enum DictionaryIndexing {
 
     /// The patterns per chunk: `patternsPerIteration`, or as many as the memory budget holds for the chunk's prepared dictionary
     /// and its score matrix (at least one).
-    static func chunkSize(_ options: Options, experimental: Int, length: Int, dictionary: Int) throws -> Int {
+    package static func chunkSize(_ options: Options, experimental: Int, length: Int, dictionary: Int) throws -> Int {
         if let n = options.patternsPerIteration {
             guard n >= 1 else { throw Error.patternsPerIteration(n) }
             return min(n, dictionary)
