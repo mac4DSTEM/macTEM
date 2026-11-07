@@ -1,0 +1,418 @@
+{
+  "arrays": {
+    "bcc_ang_table": {
+      "atol": 1e-05,
+      "dtype": "float64",
+      "file": "bcc_ang_table.bin",
+      "note": "degrees",
+      "rtol": 1e-07,
+      "sha256": "31fcf54c2457508ab8730495ffbd19ab20511c5633ac506b92667cb473b431a9",
+      "shape": [
+        66,
+        66
+      ]
+    },
+    "bcc_fam_index": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "bcc_fam_index.bin",
+      "rtol": 0.0,
+      "sha256": "a32250e0a478f426e73d2cffc720d285d2a7e2c78b8ac9f07d576f0391a628bf",
+      "shape": [
+        4
+      ]
+    },
+    "bcc_family_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "bcc_family_id.bin",
+      "rtol": 0.0,
+      "sha256": "6e1389baf09756cfda16e250c48433f0aedc7ea0313801aa663c0cf2a96cf333",
+      "shape": [
+        66
+      ]
+    },
+    "bcc_n_family": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "bcc_n_family.bin",
+      "rtol": 0.0,
+      "sha256": "86065782377d92856c10fe2d39dd3a9e47ee18f12bc05b982a52f4123662583e",
+      "shape": [
+        4
+      ]
+    },
+    "bcc_pair_angles": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "bcc_pair_angles.bin",
+      "note": "degrees, 0.01 steps",
+      "rtol": 1e-07,
+      "sha256": "1c04dbe2abb7a463f712d310fe2a4f26710261525d424221f18027d4cf587b2f",
+      "shape": [
+        34
+      ]
+    },
+    "bcc_pair_family_id": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "bcc_pair_family_id.bin",
+      "rtol": 0.0,
+      "sha256": "409ecf1ab4b6551b51af6a6359d5aad45028e275a19f24bc6f8f5ffcf2a79fad",
+      "shape": [
+        34,
+        2
+      ]
+    },
+    "bcc_polefamilies": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "bcc_polefamilies.bin",
+      "rtol": 0.0,
+      "sha256": "32cf7a5c7a0d945120704e6efa23523dbcc646c4ddfde3673778ac1cbeb14a86",
+      "shape": [
+        4,
+        3
+      ]
+    },
+    "bcc_poles": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "bcc_poles.bin",
+      "note": "every variant, hkl (3-index)",
+      "rtol": 0.0,
+      "sha256": "a04ee698f87746d7da48e2512f42abc468c867d2ab12d163a50f6deb6147612f",
+      "shape": [
+        66,
+        3
+      ]
+    },
+    "bcc_poles_cart": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "bcc_poles_cart.bin",
+      "rtol": 1e-07,
+      "sha256": "b2671b70b3f868c7201565a25fdbb48a8b3ee7e1d37def3e08ff83e7c64795f5",
+      "shape": [
+        66,
+        3
+      ]
+    },
+    "bcc_triplet_angles": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "bcc_triplet_angles.bin",
+      "note": "degrees, rows sorted ascending, table sorted by (family key, angles)",
+      "rtol": 1e-07,
+      "sha256": "e9553b46ff2a9166d975f433bc3b4565ec60e13889b6e4eaee33e5b4ad522ddd",
+      "shape": [
+        629,
+        3
+      ]
+    },
+    "bcc_triplet_family_id": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "bcc_triplet_family_id.bin",
+      "rtol": 0.0,
+      "sha256": "1918eed7e76957525c5f5b9bf3b5589a94a2b310caac759d1c977af52fbd70fb",
+      "shape": [
+        629,
+        3
+      ]
+    },
+    "hcp_ang_table": {
+      "atol": 1e-05,
+      "dtype": "float64",
+      "file": "hcp_ang_table.bin",
+      "note": "degrees",
+      "rtol": 1e-07,
+      "sha256": "38e58ea50e8abe25221b9a3f7f898fc5297fa1f857885f5ec6d6a04ad685d850",
+      "shape": [
+        74,
+        74
+      ]
+    },
+    "hcp_fam_index": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "hcp_fam_index.bin",
+      "rtol": 0.0,
+      "sha256": "5a94815519670f7d40211cac7d993e9ced137f61e891f65e24824ccf14efaaba",
+      "shape": [
+        8
+      ]
+    },
+    "hcp_family_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "hcp_family_id.bin",
+      "rtol": 0.0,
+      "sha256": "99bfd183e1be5b694ac3357f4e1e941aac3d53b80d569aefefcc80ab0a7da253",
+      "shape": [
+        74
+      ]
+    },
+    "hcp_n_family": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "hcp_n_family.bin",
+      "rtol": 0.0,
+      "sha256": "d98418e16ab0dd4a523b809c7f3490b502173ad5391bdf5e35cfb8935c916e5d",
+      "shape": [
+        8
+      ]
+    },
+    "hcp_pair_angles": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "hcp_pair_angles.bin",
+      "note": "degrees, 0.01 steps",
+      "rtol": 1e-07,
+      "sha256": "a7570221a961d661baf6b4019243e8b4a6ffa74dec53f2f3344c5ce24e381993",
+      "shape": [
+        82
+      ]
+    },
+    "hcp_pair_family_id": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "hcp_pair_family_id.bin",
+      "rtol": 0.0,
+      "sha256": "531643e092d32e38fb047825f4c58883c0f417b793cd160c23a25e6a822383de",
+      "shape": [
+        82,
+        2
+      ]
+    },
+    "hcp_polefamilies": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "hcp_polefamilies.bin",
+      "rtol": 0.0,
+      "sha256": "1c95b22faa13fbae797634b5b1348c4695089f0a6a49351adcd17c5146f17d58",
+      "shape": [
+        8,
+        4
+      ]
+    },
+    "hcp_poles": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "hcp_poles.bin",
+      "note": "every variant, hkl (3-index)",
+      "rtol": 0.0,
+      "sha256": "b45e47902ab9002e8049613f9e449f90d44f7ccfcda95bb7cedf7b60e5082b50",
+      "shape": [
+        74,
+        3
+      ]
+    },
+    "hcp_poles_cart": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "hcp_poles_cart.bin",
+      "rtol": 1e-07,
+      "sha256": "43f342d1aa449b5dad15ffab0a33039e7e9210f327f9265036448c28c3535599",
+      "shape": [
+        74,
+        3
+      ]
+    },
+    "hcp_triplet_angles": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "hcp_triplet_angles.bin",
+      "note": "degrees, rows sorted ascending, table sorted by (family key, angles)",
+      "rtol": 1e-07,
+      "sha256": "37bea3d6ea888b9168cc75d6e0c2fa42c8c9be8df2a5aaef7fcbc42304ef544a",
+      "shape": [
+        1557,
+        3
+      ]
+    },
+    "hcp_triplet_family_id": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "hcp_triplet_family_id.bin",
+      "rtol": 0.0,
+      "sha256": "efaf86ddbd9cfdc8fac48f3f131cad99e60b4ce756bb1b88b20c2c89c49b0d5f",
+      "shape": [
+        1557,
+        3
+      ]
+    },
+    "ni_ang_table": {
+      "atol": 1e-05,
+      "dtype": "float64",
+      "file": "ni_ang_table.bin",
+      "note": "degrees",
+      "rtol": 1e-07,
+      "sha256": "37c4f814f1b9861420182da53c896dcc071684171c75375db3e41a609ee55ac6",
+      "shape": [
+        50,
+        50
+      ]
+    },
+    "ni_fam_index": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "ni_fam_index.bin",
+      "rtol": 0.0,
+      "sha256": "5d65d384b5dd855adb06f43df22dc2c271b48c059f5755a077c0c2da9671221e",
+      "shape": [
+        4
+      ]
+    },
+    "ni_family_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "ni_family_id.bin",
+      "rtol": 0.0,
+      "sha256": "40de45353c7d95a095eaee77d550dc19df9c62dd6737d50f6630261b0aad4fa8",
+      "shape": [
+        50
+      ]
+    },
+    "ni_n_family": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "ni_n_family.bin",
+      "rtol": 0.0,
+      "sha256": "424d98352ee7583d001f0b3b948776d0d93ac6e15d3ea86684a5a078be581f74",
+      "shape": [
+        4
+      ]
+    },
+    "ni_pair_angles": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ni_pair_angles.bin",
+      "note": "degrees, 0.01 steps",
+      "rtol": 1e-07,
+      "sha256": "3167e8ed7267a6170276a38a8c5135b32a68145562bb05ce6a02c6fb9ae567a2",
+      "shape": [
+        21
+      ]
+    },
+    "ni_pair_family_id": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "ni_pair_family_id.bin",
+      "rtol": 0.0,
+      "sha256": "3a2ae8b2b8298e013e5f3b4206f3ddf288c036ab3386f607d8d923e8da548736",
+      "shape": [
+        21,
+        2
+      ]
+    },
+    "ni_polefamilies": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ni_polefamilies.bin",
+      "rtol": 0.0,
+      "sha256": "4057416993468605a7220ae4aec77d58c58cac690f6b7d371b741d3c8edf645f",
+      "shape": [
+        4,
+        3
+      ]
+    },
+    "ni_poles": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ni_poles.bin",
+      "note": "every variant, hkl (3-index)",
+      "rtol": 0.0,
+      "sha256": "05c13b1792cf5023f2e31a856c2341a701507447008923b6f96b34379f25849f",
+      "shape": [
+        50,
+        3
+      ]
+    },
+    "ni_poles_cart": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ni_poles_cart.bin",
+      "rtol": 1e-07,
+      "sha256": "016c29aedbf28052bc395f5121fbe59289aed81fb21c7d79ec656adf0b572400",
+      "shape": [
+        50,
+        3
+      ]
+    },
+    "ni_triplet_angles": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ni_triplet_angles.bin",
+      "note": "degrees, rows sorted ascending, table sorted by (family key, angles)",
+      "rtol": 1e-07,
+      "sha256": "a6df3eb004eacd18920ed1764510b800dec230de305589911471d823129dc08f",
+      "shape": [
+        167,
+        3
+      ]
+    },
+    "ni_triplet_family_id": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "ni_triplet_family_id.bin",
+      "rtol": 0.0,
+      "sha256": "8afc0b80039712a0d6cd20cd4ddb9a8681a59f78c599869bbcf7b2c63d2f3a88",
+      "shape": [
+        167,
+        3
+      ]
+    }
+  },
+  "case": "m4/hough-library",
+  "inputs": [
+    {
+      "path": "fixtures/hough_inputs.json",
+      "sha256": "f6d77ae0b4ea6d23f336c29b575e9ef138280a59e1f0120188d37acc6eef907f"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "pyebsdindex.tripletvote.addphase / BandIndexer.build_trip_lib",
+    "package": "pyebsdindex",
+    "version": "0.3.10.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "bcc_laue": {
+      "angTol": 2.0,
+      "lauecode": 43,
+      "nband_earlyexit": 8,
+      "npolefamilies": 4,
+      "nsymops": 24
+    },
+    "hcp_laue": {
+      "angTol": 2.0,
+      "lauecode": 62,
+      "nband_earlyexit": 10,
+      "npolefamilies": 8,
+      "nsymops": 12
+    },
+    "ni_laue": {
+      "angTol": 2.0,
+      "lauecode": 43,
+      "nband_earlyexit": 10,
+      "npolefamilies": 4,
+      "nsymops": 24
+    }
+  }
+}

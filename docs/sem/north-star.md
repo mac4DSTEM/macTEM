@@ -108,6 +108,12 @@ indexed Euler angles, the normalised cross-correlation scores and the orientatio
 tutorials state none; the misorientation between our map and the reference is held under 1° per point for 99 % of
 points, and the score arrays within rtol 1e-5 (the pattern matching runs in float32).
 
+| Part | Reference | Bundle | Arrays and tolerance |
+| --- | --- | --- | --- |
+| The reflector libraries of Ni (FCC, the default {002} {111} {022} {113}, early exit 10), a BCC and an HCP phase: variants, unit normals, family ids, the variant angle table, family-pair angles, the triplet table | `tripletvote.addphase`, `BandIndexer.build_trip_lib` | `m4/hough-library` | indices and hkl exact; normals rtol 1e-7; angles rtol 1e-7, atol 1e-5° (arccos at 1) |
+| Every stage on a 6 x 6 block of the corrected scan (rows 20 to 25, columns 30 to 35; kikuchipy's uint8 patterns stored): line plan, Radon mask, kernel, the Radon transform and its convolution of pattern (20, 30), the band table of all 36 patterns, band normals, the triplet vote, the indexing result | `radon_fast.Radon`, `band_detect.BandDetect`, `Radon.radon2pole`, `BandIndexer.bandindex`, `EBSDIndexer.index_pats` (CPU), vendor "KIKUCHIPY", nBands 10, tSigma 2, rSigma 2 | `m4/hough-nickel-block` | plan, mask, peak cells, valid flags, vote counts and families, matched-band counts exact; Radon arrays rtol 1e-5 (atol 1e-4, 2e-3); peaks 1e-3 px; theta and normals 1e-4; fit, CM, PQ rtol 1e-5; orientations under 1e-3° (symmetry-reduced) |
+| F8: the Hough-indexed IPF-Z map of the whole scan (Ni, PC the file's mean, kikuchipy's docs background chain) | `EBSD.hough_indexing` | `m4/hough-indexing-nickel-large` | 4124 of 4125 points indexed; the app's chain: indexed count within one point, 99 % of points under 1° (symmetry-reduced), matched-band counts equal on 95 % |
+
 ### Figure 5 (milestone 5): maps and grains
 
 orix on the indexed map: KAM, GOS, grain segmentation at 5°, grain size statistics, ODF. Reference arrays from orix

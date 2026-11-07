@@ -1,0 +1,465 @@
+{
+  "arrays": {
+    "band_aveloc": {
+      "atol": 0.001,
+      "dtype": "float32",
+      "file": "band_aveloc.bin",
+      "rtol": 0.0,
+      "sha256": "8be5eff51f2cd51e0ddabdf7eb7126132763ef789d23a747a69dc932f74319a4",
+      "shape": [
+        36,
+        10,
+        2
+      ]
+    },
+    "band_avemax": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "band_avemax.bin",
+      "rtol": 1e-05,
+      "sha256": "17cebee0875d57d704cbd1ee12eca5d6e82e79ed2de677a87ad7afe0ce208862",
+      "shape": [
+        36,
+        10
+      ]
+    },
+    "band_fit": {
+      "atol": 0.001,
+      "dtype": "float64",
+      "file": "band_fit.bin",
+      "rtol": 0.0001,
+      "sha256": "6b4244e031f4aab695dfa6925435721954ba6206bd738d80a744b897ea6688c4",
+      "shape": [
+        36,
+        10
+      ]
+    },
+    "band_intensity": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "band_intensity.bin",
+      "note": "the vote's band weights",
+      "rtol": 1e-05,
+      "sha256": "556cfd17fb968b0949b47a85d40ab12776d6d6db3cb345f609b769ae2708ddfc",
+      "shape": [
+        36,
+        10
+      ]
+    },
+    "band_match_index": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "band_match_index.bin",
+      "note": "library variant per band; symmetry-equivalent solutions pick other variants, the test holds the family",
+      "rtol": 0.0,
+      "sha256": "5593f92317027797552105850ead0a4fde538da738d5aee12ca0e8a5c03ba902",
+      "shape": [
+        36,
+        10
+      ]
+    },
+    "band_max": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "band_max.bin",
+      "note": "convolved Radon peak value",
+      "rtol": 1e-05,
+      "sha256": "005eb98e910b2658e33e7263f947e08ebe5bb7c3379975c953a7a2b317c4f6f3",
+      "shape": [
+        36,
+        10
+      ]
+    },
+    "band_maxloc": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "band_maxloc.bin",
+      "note": "(rho, theta) Radon cell, unpadded",
+      "rtol": 0.0,
+      "sha256": "5efd3a1f77bd78ec36021efcea42d2eefd271f0f427c9c2fda5aee8eabff7e15",
+      "shape": [
+        36,
+        10,
+        2
+      ]
+    },
+    "band_normals": {
+      "atol": 0.0001,
+      "dtype": "float32",
+      "file": "band_normals.bin",
+      "note": "unit normals in the detector frame",
+      "rtol": 0.0,
+      "sha256": "36837ccf4b80717f6abfb21cddc50d70578d23cfc062106e578569b1cd2b360e",
+      "shape": [
+        36,
+        10,
+        3
+      ]
+    },
+    "band_normmax": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "band_normmax.bin",
+      "note": "(max - min) / (mean - min) of the convolved Radon",
+      "rtol": 0.0001,
+      "sha256": "49591a70b6853be41e2683a00a0d436788f06c8e3b84130d31171f0c030e8ede",
+      "shape": [
+        36,
+        10
+      ]
+    },
+    "band_rho": {
+      "atol": 0.001,
+      "dtype": "float32",
+      "file": "band_rho.bin",
+      "note": "pixels",
+      "rtol": 0.0,
+      "sha256": "78b5c1495b1dbe1367dfa38ca9f5e0260ae054db0385d4a6cd9933314567d5ea",
+      "shape": [
+        36,
+        10
+      ]
+    },
+    "band_theta": {
+      "atol": 0.0001,
+      "dtype": "float32",
+      "file": "band_theta.bin",
+      "note": "radians",
+      "rtol": 0.0,
+      "sha256": "2a4884184bf3848998a6cc932247d944ecd3ea71b38e40790f220e889255640e",
+      "shape": [
+        36,
+        10
+      ]
+    },
+    "band_valid": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "band_valid.bin",
+      "rtol": 0.0,
+      "sha256": "76b2875461618e970a037f35eeb94af3911e11353a7e620c81e49b9756cda47b",
+      "shape": [
+        36,
+        10
+      ]
+    },
+    "band_width": {
+      "atol": 0.001,
+      "dtype": "float32",
+      "file": "band_width.bin",
+      "rtol": 0.0,
+      "sha256": "c40fa5337b3dffa17dc084da5683f6eab0098077a10e444ef6b9a46c0f643ca0",
+      "shape": [
+        36,
+        10
+      ]
+    },
+    "block_corrected_patterns": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "block_corrected_patterns.bin",
+      "note": "scan rows 20..25, cols 30..35, kikuchipy's uint8",
+      "rtol": 0.0,
+      "sha256": "e21f4b08c8259f30d7677610e722c0d5089e3296572ba980eea6dfd7edb52373",
+      "shape": [
+        6,
+        6,
+        60,
+        60
+      ]
+    },
+    "cm": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "cm.bin",
+      "rtol": 1e-05,
+      "sha256": "56241f824b1904bf1b2ea3af7de067faa548f54f0dc92f015a336155e7a99fe0",
+      "shape": [
+        36
+      ]
+    },
+    "fit": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "fit.bin",
+      "note": "degrees",
+      "rtol": 1e-05,
+      "sha256": "03630231d919894a6108611f07dfa84fd82f54498d225a37b13f61df72ffc7d1",
+      "shape": [
+        36
+      ]
+    },
+    "iq": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "iq.bin",
+      "rtol": 0.0001,
+      "sha256": "13303705c5c231c0b11815bbec123bc99c31f0d7ebf49507150689ab24ebc7f1",
+      "shape": [
+        36
+      ]
+    },
+    "kernel": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "kernel.bin",
+      "rtol": 1e-05,
+      "sha256": "6d9eda863c99207a0f59d85be92b86c067047a2000c1f8d3d3e1a093d7103603",
+      "shape": [
+        9,
+        9
+      ]
+    },
+    "matchattempts": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "matchattempts.bin",
+      "rtol": 0.0,
+      "sha256": "60aa30e3a31d4d42663a1f4bdd87fb820bd03ef8a99ace6a30783702ef30c76b",
+      "shape": [
+        36,
+        4
+      ]
+    },
+    "nmatch": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "nmatch.bin",
+      "rtol": 0.0,
+      "sha256": "55769463359693acdffcc85fe3e7f59f4dbfc105be9db77d67b18362133ebedd",
+      "shape": [
+        36
+      ]
+    },
+    "phase": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "phase.bin",
+      "rtol": 0.0,
+      "sha256": "81c611f35bff79491538b2f7cf201c7597a661a5c549633541c62bdc8af1613f",
+      "shape": [
+        36
+      ]
+    },
+    "pq": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "pq.bin",
+      "rtol": 1e-05,
+      "sha256": "47cb5e9009fa2ecbe915ffd2d2f3688d7f773ce9ec3fcc1186b17cbc41c1b1d9",
+      "shape": [
+        36
+      ]
+    },
+    "quaternion": {
+      "atol": 0.02,
+      "dtype": "float64",
+      "file": "quaternion.bin",
+      "note": "KIKUCHIPY frame, a >= 0; the test holds misorientation",
+      "rtol": 0.0,
+      "sha256": "e5975fbd621f2503d0878812a9e8c8fb4559db9357f5af2792053bb81fd401a5",
+      "shape": [
+        36,
+        4
+      ]
+    },
+    "radon_conv_first": {
+      "atol": 0.002,
+      "dtype": "float32",
+      "file": "radon_conv_first.bin",
+      "note": "padded (nRho + 2 pad, nTheta + 2 pad) after the edge fill and the convolution",
+      "rtol": 1e-05,
+      "sha256": "c9389ed921a98e79f0a08a17ed4620cc6ad0d74640f49537d5a601730f615dc7",
+      "shape": [
+        128,
+        218
+      ]
+    },
+    "radon_conv_stats_first": {
+      "atol": 0.002,
+      "dtype": "float32",
+      "file": "radon_conv_stats_first.bin",
+      "note": "min, mean, max over pyEBSDindex's window",
+      "rtol": 1e-05,
+      "sha256": "3ae558e47ae25ff54dacd1ae887f5e37a85b1ed34a7d0c941bee1786b405bbcc",
+      "shape": [
+        3
+      ]
+    },
+    "radon_counts": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "radon_counts.bin",
+      "note": "pixels on each (rho, theta) line",
+      "rtol": 0.0,
+      "sha256": "50ee0c1d5a5fb3994f9153cd0c644973f1c69cde4dde34565fa0eb9248431455",
+      "shape": [
+        90,
+        180
+      ]
+    },
+    "radon_first": {
+      "atol": 0.0001,
+      "dtype": "float32",
+      "file": "radon_first.bin",
+      "note": "unpadded (nRho, nTheta)",
+      "rtol": 1e-05,
+      "sha256": "8407f451af7b520c9b852f130b663e0d48a90e89e3d9d053a1dcac61d391eb4d",
+      "shape": [
+        90,
+        180
+      ]
+    },
+    "radon_mask": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "radon_mask.bin",
+      "rtol": 0.0,
+      "sha256": "11829d5132c314875bf8bf622f5d8f308c95082d03b815346969f3403c06d3f0",
+      "shape": [
+        90,
+        180
+      ]
+    },
+    "radon_rho": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "radon_rho.bin",
+      "note": "pixels, float32",
+      "rtol": 0.0,
+      "sha256": "2896de637c5013f97893f6e7f8c68100af89736cdb369c0b5649a41f87719e4b",
+      "shape": [
+        90
+      ]
+    },
+    "radon_theta": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "radon_theta.bin",
+      "note": "degrees, float32",
+      "rtol": 0.0,
+      "sha256": "4dd822f314da3fa146b8a5f1cf5513b751f273d01419fcd070e9a1fe3e716fea",
+      "shape": [
+        180
+      ]
+    },
+    "totvotes": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "totvotes.bin",
+      "rtol": 0.0,
+      "sha256": "55769463359693acdffcc85fe3e7f59f4dbfc105be9db77d67b18362133ebedd",
+      "shape": [
+        36
+      ]
+    },
+    "vote_accumulator": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "vote_accumulator.bin",
+      "rtol": 0.0,
+      "sha256": "b9ffca85cb2f7e89eafbd96e47b5ece95bda0c88c113bd9231cf6bf63ac47d8d",
+      "shape": [
+        36,
+        4,
+        10
+      ]
+    },
+    "vote_accumulator_weighted": {
+      "atol": 0.001,
+      "dtype": "float32",
+      "file": "vote_accumulator_weighted.bin",
+      "rtol": 1e-05,
+      "sha256": "93efcf865f4ccee91fe05ed44d63cc9e15a61b92fd12f2380170c3a70df4e938",
+      "shape": [
+        36,
+        4,
+        10
+      ]
+    },
+    "vote_band_family": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "vote_band_family.bin",
+      "rtol": 0.0,
+      "sha256": "9fdcefa20454545e56af745733f470697417b23877e68c7964d4ad837bc3ae3a",
+      "shape": [
+        36,
+        10
+      ]
+    },
+    "vote_band_rank": {
+      "atol": 0.001,
+      "dtype": "float32",
+      "file": "vote_band_rank.bin",
+      "rtol": 1e-05,
+      "sha256": "dbf8febc359fe68f306d6d64acedde6d4b5ed3edb82f6ffbaaaaf751bdd34a49",
+      "shape": [
+        36,
+        10
+      ]
+    }
+  },
+  "case": "m4/hough-nickel-block",
+  "inputs": [
+    {
+      "path": "fixtures/hough_inputs.json",
+      "sha256": "f6d77ae0b4ea6d23f336c29b575e9ef138280a59e1f0120188d37acc6eef907f"
+    },
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "pyebsdindex.ebsd_index.EBSDIndexer.index_pats (CPU)",
+    "package": "pyebsdindex",
+    "version": "0.3.10.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "geometry": {
+      "camera_elevation": 0.0,
+      "sample_tilt": 70.0,
+      "vendor": "KIKUCHIPY"
+    },
+    "pc_bruker": [
+      0.4232600661596353,
+      0.2136332544638906,
+      0.5020740783903906
+    ],
+    "plan": {
+      "dRho": 0.3333333432674408,
+      "nBands": 10,
+      "nRho": 90,
+      "nTheta": 180,
+      "padding": [
+        19,
+        19
+      ],
+      "peakPad": [
+        19,
+        19
+      ],
+      "rSigma": 2.0,
+      "rhoMaskFrac": 0.15,
+      "rhoMax": 30.0,
+      "tSigma": 2.0
+    }
+  }
+}
