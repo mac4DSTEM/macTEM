@@ -620,6 +620,61 @@ def case_m2_quality_nickel_large(ctx):
     ctx.done("m2/quality-nickel-ebsd-large")
 
 
+SAMPLING_INPUTS = FIXTURES / "sampling_inputs.json"
+
+
+def _strided_rows(a: np.ndarray, rows: int) -> tuple[int, np.ndarray]:
+    """Every stride-th row of a sample in orix's order and the last one, stride = ceil(count / rows): the rows a
+    bundle keeps of a large sample (the count is exact on its own)."""
+    n = a.shape[0]
+    stride = max(1, -(-n // rows))
+    idx = np.arange(0, n, stride)
+    if idx[-1] != n - 1:
+        idx = np.append(idx, n - 1)
+    return stride, a[idx]
+
+
+def case_m3_orientation_sampling(ctx):
+    """orix.sampling with the cubochoric method (Rosca et al. 2014; Singh & De Graef 2016): resolution to semi-edge
+    steps, the full grid S000(N) for a small N, get_sample_fundamental for m-3m at 4, 2 and 1.5 degrees, 6/mmm at 4
+    degrees and three more groups, and get_sample_local around the identity and two centres. Counts exact; rotations in
+    orix's order within atol 1e-7 (every stride-th row and the last of a large sample, see sampling_inputs.json)."""
+    import json
+
+    from orix.quaternion import Rotation
+    from orix.sampling import get_sample_fundamental, get_sample_local
+    from orix.sampling._cubochoric_sampling import cubochoric_sampling, resolution_to_semi_edge_steps
+
+    inp = json.loads(SAMPLING_INPUTS.read_text(encoding="utf-8"))
+    rows = int(inp["rows_per_case"])
+    b = Bundle("m3/orientation-sampling", 3, "orix", "orix.sampling.get_sample_fundamental / get_sample_local (cubochoric)", ctx.out)
+    b.input(SAMPLING_INPUTS, "fixtures/sampling_inputs.json")
+    res = [float(x) for x in inp["semi_edge_resolutions"]]
+    b.value("semi_edge_resolutions", res)
+    b.value("semi_edge_steps", [int(resolution_to_semi_edge_steps(x)) for x in res])
+    n = int(inp["full_grid_semi_edge_steps"])
+    b.array("full_grid", cubochoric_sampling(semi_edge_steps=n).data, **ORI)
+    fundamental = []
+    for i, c in enumerate(inp["fundamental"]):
+        (g,) = _point_groups([c["point_group"]])
+        R = get_sample_fundamental(float(c["resolution"]), point_group=g)
+        stride, kept = _strided_rows(R.data, rows)
+        fundamental.append({"point_group": g.name, "resolution": float(c["resolution"]), "count": int(R.size), "stride": stride})
+        b.array(f"fundamental_{i:02d}", kept, **ORI)
+    b.value("fundamental", fundamental)
+    local = []
+    for i, c in enumerate(inp["local"]):
+        eu = c["center_euler_degrees"]
+        center = None if eu is None else Rotation.from_euler(np.asarray(eu, dtype=np.float64), degrees=True)
+        R = get_sample_local(float(c["resolution"]), center=center, grid_width=float(c["grid_width"]))
+        stride, kept = _strided_rows(R.data, rows)
+        local.append({"resolution": float(c["resolution"]), "grid_width": float(c["grid_width"]), "count": int(R.size), "stride": stride})
+        b.array(f"local_{i:02d}", kept, **ORI)
+    b.value("local", local)
+    b.write()
+    ctx.done("m3/orientation-sampling")
+
+
 # --------------------------------------------------------------------------------------------- SEM-EDS (m1 read, m7)
 
 

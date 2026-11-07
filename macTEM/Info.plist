@@ -55,6 +55,11 @@
 				<string>hdf5</string>
 				<string>h5oina</string>
 				<string>h5ebsd</string>
+				<string>ebsp</string>
+				<string>ctf</string>
+				<string>up1</string>
+				<string>up2</string>
+				<string>ang</string>
 			</array>
 		</dict>
 	</array>
