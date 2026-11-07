@@ -1,6 +1,6 @@
 //
 //  SEMKikuchiSimulationParityTests.swift
-//  TEMCore's Kikuchi simulation (`KikuchiLattice`, `KikuchiReflectors`, `KikuchiWavelength`, `GeometricalKikuchiSimulation`,
+//  TEMCore's Kikuchi simulation (`CrystalLattice`, `KikuchiReflectors`, `KikuchiWavelength`, `GeometricalKikuchiSimulation`,
 //  `KinematicMasterPattern`, `KikuchiOverlay`) against diffpy.structure, diffsims 0.7.0 and kikuchipy 0.13.1: the bundles
 //  `m6/kikuchi-lattice`, `m6/kikuchi-scattering-tables`, `m6/kikuchi-reflectors-{ni,ti,al2cu}`, `m6/geometrical-simulation-nickel`
 //  (figure F14), `m6/geometrical-simulation-tilted` and `m6/kinematic-master-pattern-ni` from tools/parity/sem/simulation_cases.py, at each
@@ -50,7 +50,8 @@ nonisolated final class SEMKikuchiSimulationParityTests: XCTestCase {
         stride(from: 0, to: values.count, by: 4).map { SIMD4(values[$0], values[$0 + 1], values[$0 + 2], values[$0 + 3]) }
     }
 
-    private func lattice(_ p: [Double]) throws -> KikuchiLattice { try XCTUnwrap(KikuchiLattice(parameters: p)) }
+    /// diffpy's frame, as the lattice bundle stores it; `.orixAligned` is the frame the simulations work in.
+    private func lattice(_ p: [Double]) throws -> CrystalLattice { try XCTUnwrap(CrystalLattice.diffpy(parameters: p)) }
 
     private func ints(_ v: [SIMD3<Double>]) -> [Double] { v.flatMap { [$0.x.rounded(), $0.y.rounded(), $0.z.rounded()] } }
 
@@ -66,6 +67,10 @@ nonisolated final class SEMKikuchiSimulationParityTests: XCTestCase {
             base += l.base.flatMap { [$0.x, $0.y, $0.z] }
             rec += l.recbase.flatMap { [$0.x, $0.y, $0.z] }
             let o = l.orixAligned
+            let closed = try XCTUnwrap(CrystalLattice(parameters: p))
+            for (x, y) in zip(closed.base, o.base) {
+                for k in 0..<3 { XCTAssertEqual(x[k], y[k], accuracy: 1e-12, "orix's closed-form base is diffpy's re-aligned one, \(p)") }
+            }
             obase += o.base.flatMap { [$0.x, $0.y, $0.z] }
             orec += o.recbase.flatMap { [$0.x, $0.y, $0.z] }
             volume.append(l.volume)
@@ -77,7 +82,7 @@ nonisolated final class SEMKikuchiSimulationParityTests: XCTestCase {
         SEMAssertParity(orec, try ref.array("orix_recbase"))
         SEMAssertParity(volume, try ref.array("volume"))
         SEMAssertParity(rnorm, try ref.array("rnorm"))
-        XCTAssertEqual(KikuchiLattice.cosd(-90), 0, "diffpy takes the angle modulo 360 before its exact table")
+        XCTAssertEqual(CrystalLattice.cosd(-90), 0, "diffpy takes the angle modulo 360 before its exact table")
     }
 
     func testScatteringTablesAreDiffsims() throws {

@@ -31,15 +31,15 @@ package nonisolated struct KikuchiAtom: Sendable, Equatable {
     }
 }
 
-/// The reflectors of a phase in a lattice frame (orix's re-aligned one, `KikuchiLattice.orixAligned`).
+/// The reflectors of a phase in a lattice frame (orix's re-aligned one, `CrystalLattice`).
 package nonisolated struct KikuchiReflectors: Sendable, Equatable {
-    package let lattice: KikuchiLattice
+    package let lattice: CrystalLattice
     /// The planes hkl (as doubles: a symmetrised plane carries orix's rounding of its Cartesian vector).
     package let hkl: [SIMD3<Double>]
     /// For each plane, the index of the family it came from (`symmetrised`), or its own index.
     package let family: [Int]
 
-    package init(lattice: KikuchiLattice, hkl: [SIMD3<Double>], family: [Int]? = nil) {
+    package init(lattice: CrystalLattice, hkl: [SIMD3<Double>], family: [Int]? = nil) {
         self.lattice = lattice
         self.hkl = hkl
         self.family = family ?? Array(hkl.indices)
@@ -50,14 +50,14 @@ package nonisolated struct KikuchiReflectors: Sendable, Equatable {
     /// The families' symmetrically equivalent planes (diffsims' `symmetrise`), family by family, each in order of appearance through
     /// the point group's elements (orix's `outer`, an improper element negating the vector), rounded and made unique as orix's
     /// `Vector3d.unique`, then written back as hkl. `multiplicity` is each family's count.
-    package static func symmetrised(_ families: [SIMD3<Double>], lattice: KikuchiLattice, pointGroup: PointGroup) -> (reflectors: KikuchiReflectors, multiplicity: [Int]) {
+    package static func symmetrised(_ families: [SIMD3<Double>], lattice: CrystalLattice, pointGroup: PointGroup) -> (reflectors: KikuchiReflectors, multiplicity: [Int]) {
         var hkl: [SIMD3<Double>] = [], family: [Int] = [], multiplicity: [Int] = []
         for (i, f) in families.enumerated() {
-            let g = lattice.reciprocal(f)
+            let g = lattice.cartesian(hkl: f)
             let equivalent = Vector3.unique(pointGroup.elements.map { $0 * g })
             multiplicity.append(equivalent.count)
             for v in equivalent {
-                hkl.append(lattice.reciprocalIndices(v))
+                hkl.append(lattice.hkl(cartesian: v))
                 family.append(i)
             }
         }
@@ -67,7 +67,7 @@ package nonisolated struct KikuchiReflectors: Sendable, Equatable {
     /// Every plane with a spacing of at least `minDSpacing` (diffsims' `from_min_dspacing`): the highest index along each axis whose
     /// spacing is still above the bound (orix's `_get_highest_hkl`), every index triplet within them in reversed product order with
     /// (000) left out (`_get_indices_from_highest`), then those with d ≥ the bound.
-    package static func minDSpacing(_ minDSpacing: Double, lattice: KikuchiLattice) -> KikuchiReflectors {
+    package static func minDSpacing(_ minDSpacing: Double, lattice: CrystalLattice) -> KikuchiReflectors {
         var highest = [1, 1, 1]
         for axis in 0..<3 {
             var index = SIMD3<Double>(0, 0, 0)
@@ -109,7 +109,7 @@ package nonisolated struct KikuchiReflectors: Sendable, Equatable {
     }
 
     /// diffsims' `has_hexagonal_lattice` (orix's `Phase.is_hexagonal`): α, β, γ close to 90°, 90°, 120° (numpy's `allclose`).
-    static func isHexagonal(_ lattice: KikuchiLattice) -> Bool {
+    static func isHexagonal(_ lattice: CrystalLattice) -> Bool {
         func close(_ x: Double, _ y: Double) -> Bool { abs(x - y) <= 1e-8 + 1e-5 * abs(y) }
         return close(lattice.alpha, 90) && close(lattice.beta, 90) && close(lattice.gamma, 120)
     }
@@ -134,9 +134,9 @@ package nonisolated struct KikuchiReflectors: Sendable, Equatable {
     /// family and given to the rest of it.
     package func structureFactors(cell: [KikuchiAtom]) -> [Double] {
         let l = lattice
-        let std = KikuchiLattice.standardBase(a: l.a, b: l.b, c: l.c, alpha: l.alpha, beta: l.beta, gamma: l.gamma)
+        let std = CrystalLattice.standardBase(a: l.a, b: l.b, c: l.c, alpha: l.alpha, beta: l.beta, gamma: l.gamma)
         let product = std.map { r in r.x * l.recbase[0] + r.y * l.recbase[1] + r.z * l.recbase[2] }
-        let toMiller = KikuchiLattice.inverse(product)
+        let toMiller = CrystalLattice.inverse(product)
         let positions = cell.map { a in a.position.x * toMiller[0] + a.position.y * toMiller[1] + a.position.z * toMiller[2] }
         var firstOfFamily: [Int: Int] = [:]
         for (i, f) in family.enumerated() where firstOfFamily[f] == nil { firstOfFamily[f] = i }

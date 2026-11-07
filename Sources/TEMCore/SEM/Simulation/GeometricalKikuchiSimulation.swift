@@ -70,7 +70,7 @@ package nonisolated struct GeometricalKikuchiSimulation: Sendable, Equatable {
         // The reflectors in the detector frame; those pointing away from the screen (z ≤ 0) are not in the pattern.
         var visible: [(index: Int, hkl: SIMD3<Double>, d: SIMD3<Double>)] = []
         for (i, h) in reflectors.hkl.enumerated() {
-            let d = toDetector(lattice.reciprocal(h))
+            let d = toDetector(lattice.cartesian(hkl: h))
             if d.z > 0 { visible.append((i, h, d)) }
         }
 
@@ -94,12 +94,12 @@ package nonisolated struct GeometricalKikuchiSimulation: Sendable, Equatable {
         // rounded to the smallest integers (max index 20), unique in order of appearance, then those pointing at the screen and
         // within one pixel of the detector's gnomonic bounds and inside the r_max circle.
         var candidates: [SIMD3<Double>] = []
-        let cartesian = visible.map { lattice.reciprocal($0.hkl) }
+        let cartesian = visible.map { lattice.cartesian(hkl: $0.hkl) }
         for g1 in cartesian {
             for g2 in cartesian {
                 let xyz = Vector3.cross(g1, g2)
                 if abs(xyz.x) <= 1e-8 && abs(xyz.y) <= 1e-8 && abs(xyz.z) <= 1e-8 { continue }
-                candidates.append(Self.roundIndices(lattice.directIndices(xyz), maxIndex: 20))
+                candidates.append(Self.roundIndices(lattice.uvw(cartesian: xyz), maxIndex: 20))
             }
         }
         var seen = Set<Rotation.Differentiators>()
@@ -107,8 +107,8 @@ package nonisolated struct GeometricalKikuchiSimulation: Sendable, Equatable {
         let xLow = bounds.xMin - scale.x, xHigh = bounds.xMax + scale.x
         let yLow = bounds.yMin - scale.y, yHigh = bounds.yMax + scale.y
         for uvw in candidates {
-            guard seen.insert(Vector3.key(lattice.direct(uvw))).inserted else { continue }
-            let d = toDetector(lattice.direct(uvw))
+            guard seen.insert(Vector3.key(lattice.cartesian(uvw: uvw))).inserted else { continue }
+            let d = toDetector(lattice.cartesian(uvw: uvw))
             guard d.z > 0 else { continue }
             let xg = d.x / d.z, yg = d.y / d.z
             guard xg >= xLow, xg <= xHigh, yg >= yLow, yg <= yHigh else { continue }
