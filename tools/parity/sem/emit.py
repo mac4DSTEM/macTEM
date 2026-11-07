@@ -43,10 +43,13 @@ from hough_cases import (  # noqa: E402,F401  (milestone 4 Hough indexing and fi
     case_m4_hough_indexing_nickel_large, case_m4_hough_library, case_m4_hough_nickel_block)
 from dictionary_cases import (  # noqa: E402,F401  (milestone 4 dictionary indexing, figure F9)
     case_m4_dictionary_indexing_nickel_large, case_m4_dictionary_indexing_small)
+from similarity_cases import (  # noqa: E402,F401  (milestone 4 orientation similarity map and merge of dictionary maps)
+    case_m4_merge_crystal_maps, case_m4_orientation_similarity_map)
 from writer_cases import (  # noqa: E402,F401  (milestone 8 .ang and .ctf writers and figure F18)
     case_m8_write_ang_sdss, case_m8_write_ang_sdss_ferrite, case_m8_write_ang_sdss_window, case_m8_write_ang_ti,
     case_m8_write_ctf_sdss, case_m8_write_ctf_sdss_ferrite, case_m8_write_ctf_sdss_window, case_m8_write_ctf_ti)
 from grain_cases import case_m5_grains_sdss, case_m5_grains_ti, case_m5_grains_ti_full  # noqa: E402,F401  (m5, F11 and F12)
+from texture_cases import case_m5_texture_cubic, case_m5_texture_ti, case_m5_texture_ti_full  # noqa: E402,F401  (m5, F13)
 
 warnings.filterwarnings("ignore")
 
