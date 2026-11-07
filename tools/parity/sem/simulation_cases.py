@@ -398,3 +398,85 @@ def case_m6_kinematic_master_pattern_ni(ctx):
         numba.set_num_threads(threads)
     b.write()
     ctx.done(case)
+
+
+def case_m6_kinematic_overlay_nickel(ctx):
+    """The Kinematical overlay (#201): kikuchipy's band rule (`get_pattern`, every band intensity 1, no structure factors) on the
+    square Lambert grid's directions (`_lambert2vector`, normalised; the lower hemisphere with z negated), held as a Lambert
+    `EBSDMasterPattern` of both hemispheres, and `get_patterns` of it for the file's orientations and projection centres at two
+    points of nickel_ebsd_large. The reflectors are the tutorial's {111}, {200}, {220}, {311} on the file's phase in Angstrom with
+    diffsims' theta at the file's 20 kV. kikuchipy's own route to a Lambert kinematical pattern, `as_lambert`, interpolates the
+    stereographic one with a cubic spline; the band rule at each Lambert direction is that without the spline."""
+    import kikuchipy as kp
+    import numba
+    from diffpy.structure import Lattice, Structure
+    from diffsims.crystallography import ReciprocalLatticeVector
+    from kikuchipy.signals.util._master_pattern import _lambert2vector
+    from kikuchipy.simulations.kikuchi_pattern_simulator import get_pattern
+    from orix.crystal_map import Phase
+    from orix.vector import Vector3d
+
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    case = "m6/kinematic-overlay-nickel"
+    if not ctx.have(p, case):
+        return
+    s = kp.load(str(p), lazy=True)
+    xmap, det = s.xmap, s.detector
+    phase = xmap.phases[0]
+    lat = phase.structure.lattice
+    angstrom = Phase(name=phase.name, space_group=phase.space_group.number,
+                     structure=Structure(lattice=Lattice(10 * lat.a, 10 * lat.b, 10 * lat.c, lat.alpha, lat.beta, lat.gamma),
+                                         atoms=list(phase.structure)))
+    ref = ReciprocalLatticeVector(phase=angstrom, hkl=_C["families"]["ni"]).symmetrise()
+    kv = 20.0
+    ref.calculate_theta(1e3 * kv)
+    half = 60
+    size = 2 * half + 1
+    arr = np.linspace(-1, 1, size)
+    x, y = np.meshgrid(arr, arr)
+    upper = Vector3d(_lambert2vector(x.ravel(), y.ravel())).unit.data
+    lower = upper * np.array([1.0, 1.0, -1.0])
+    normals = Vector3d(ref).unit.data
+    theta = np.asarray(ref.theta, dtype=np.float64)
+    ones = np.ones(ref.size)
+    threads = numba.get_num_threads()
+    numba.set_num_threads(1)
+    try:
+        mp_upper = get_pattern(ones, upper, normals, theta)
+        mp_lower = get_pattern(ones, lower, normals, theta)
+    finally:
+        numba.set_num_threads(threads)
+    data = np.stack([mp_upper, mp_lower]).reshape(2, size, size).astype(np.float32)
+    axes = [{"size": 2, "name": "hemisphere"}]
+    for name in ["height", "width"]:
+        axes.append({"size": size, "name": name, "offset": -size // 2, "units": "px"})
+    mp = kp.signals.EBSDMasterPattern(data, axes=axes, phase=angstrom, hemisphere="both", projection="lambert")
+
+    b = Bundle(case, 6, "kikuchipy", "kikuchipy get_pattern on _lambert2vector directions, then EBSDMasterPattern.get_patterns", ctx.out)
+    b.input(p, "sem-data/nickel_ebsd_large/patterns_v2.h5")
+    b.input(CASES_FILE, CASES_LABEL)
+    b.value("half_size", half)
+    b.value("voltage_kv", kv)
+    b.array("reflectors_hkl", _hkl_int(ref.hkl), **EXACT)
+    b.array("theta", theta, **F64)
+    b.array("lambert", np.asarray(data, dtype=np.float64), **MP, note="hemisphere (upper, lower), row (Y), column (X); band counts")
+    points = _C["nickel_points"][:2]
+    b.value("points", points)
+    rotations, pcs, patterns = [], [], []
+    for r, c in points:
+        rot = xmap.rotations[r * xmap.shape[1] + c]
+        d = kp.detectors.EBSDDetector(shape=det.shape, px_size=det.px_size, binning=det.binning, pc=det.pc[r, c],
+                                      sample_tilt=det.sample_tilt, tilt=det.tilt, azimuthal=det.azimuthal, twist=det.twist)
+        sim = mp.get_patterns(rot, d, dtype_out=np.float32, compute=True, show_progressbar=False)
+        patterns.append(np.asarray(sim.data, dtype=np.float64).reshape(det.shape))
+        rotations.append(rot.data[0])
+        pcs.append(det.pc[r, c])
+    b.array("rotations", np.asarray(rotations, dtype=np.float64), **EXACT, note="point, (a, b, c, d)")
+    b.array("pcs", np.asarray(pcs, dtype=np.float64), **EXACT, note="point, (PCx, PCy, PCz) Bruker")
+    b.value("detector", {"shape": list(det.shape), "sample_tilt": float(det.sample_tilt), "tilt": float(det.tilt),
+                         "azimuthal": float(det.azimuthal), "twist": float(det.twist), "binning": int(det.binning),
+                         "px_size": float(det.px_size)})
+    b.array("patterns", np.stack(patterns), **{"rtol": 1e-6, "atol": 1e-5},
+            note="point, row, column; get_patterns in float32 (no rescale: the master pattern is float32)")
+    b.write()
+    ctx.done(case)

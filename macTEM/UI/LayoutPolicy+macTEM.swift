@@ -50,4 +50,6 @@ extension LayoutPolicy {
     /// A phase's colour square in the Maps room's legend and inspector, and the IPF colour swatch under the unit cell.
     static let mapsPhaseSwatchSize: CGFloat = 12
     static let mapsColourSwatchSize: CGFloat = 22
+    /// The kinematical master pattern's picture in the Simulation section: wide enough to read its zone axes (rule 4).
+    static let overlayMasterPictureWidth: CGFloat = 180
 }

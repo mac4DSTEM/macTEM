@@ -12,6 +12,7 @@
 
 import ShellControls
 import ShellInspector
+import ShellLayout
 import SwiftUI
 import TEMCore
 import TEMSession
@@ -29,10 +30,26 @@ struct KikuchiOverlayLayer: View {
          geometry.panePoint(of: ImagePoint(x: line.pixel[2], y: line.pixel[3])))
     }
 
+    /// The kinematical simulation as an 8-bit grey image, its band counts stretched from their least to their most; nil without one.
+    static func simulatedImage(_ pattern: KikuchiOverlay.Pattern) -> CGImage? {
+        guard let values = pattern.simulated else { return nil }
+        return PatternsSimulationSection.greyImage(values.map(Double.init), width: pattern.simulatedColumns, height: pattern.simulatedRows)
+    }
+
     var body: some View {
         let rect = CGRect(origin: .zero, size: size)
         let accent = Color.accentColor
         Canvas { context, _ in
+            if settings.kinematical, let simulated = Self.simulatedImage(pattern) {
+                // The kinematical simulation under the lines, over the experimental pattern, at the Blend opacity: the detector's
+                // pixel corners mapped as the pane maps them, one image pixel per detector pixel without smoothing.
+                let a = geometry.panePoint(of: ImagePoint(x: -0.5, y: -0.5))
+                let b = geometry.panePoint(of: ImagePoint(x: Double(pattern.simulatedColumns) - 0.5, y: Double(pattern.simulatedRows) - 0.5))
+                var layer = context
+                layer.opacity = settings.blend
+                layer.draw(Image(decorative: simulated, scale: 1).interpolation(.none),
+                           in: CGRect(x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y))
+            }
             var halo = Path(), lines = Path()
             for line in pattern.simulation.lines {
                 let (a, b) = ends(line)
@@ -109,15 +126,46 @@ struct PatternsSimulationSection: View {
     let session: EBSDSession
     private static let number = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...4))
 
+    /// Row-major values as an 8-bit grey image, stretched from their least to their most; nil for a size that does not match.
+    static func greyImage(_ values: [Double], width: Int, height: Int) -> CGImage? {
+        guard width > 0, height > 0, values.count == width * height else { return nil }
+        let low = values.min() ?? 0, high = values.max() ?? 0
+        let span = high > low ? high - low : 1
+        let bytes = values.map { UInt8(min(max((($0 - low) / span * 255).rounded(), 0), 255)) }
+        guard let provider = CGDataProvider(data: Data(bytes) as CFData) else { return nil }
+        return CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
+                       bitmapInfo: CGBitmapInfo(rawValue: 0), provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
+    }
+
     var body: some View {
         let settings = session.overlaySettings
         InspectorSection("Simulation", startsExpanded: false) {
             SegmentedPicker(label: "Overlay", items: [
-                (false, .title("Off", help: "The pattern alone")),
-                (true, .title("Geometrical", help: "The Kikuchi bands and zone axes of the orientation at this point (kikuchipy's geometrical simulation)")),
-            ], selection: Binding(get: { session.overlayOn }, set: { session.setOverlayOn($0) }))
+                (0, .title("Off", help: "The pattern alone")),
+                (1, .title("Geometrical", help: "The Kikuchi bands and zone axes of the orientation at this point (kikuchipy's geometrical simulation)")),
+                (2, .title("Kinematical", help: "The kinematical simulation of the pattern at this point under the bands, blended over the experimental one")),
+            ], selection: Binding(get: { session.overlayOn ? (settings.kinematical ? 2 : 1) : 0 }, set: { v in
+                var s = settings; s.kinematical = v == 2; session.setOverlaySettings(s)
+                session.setOverlayOn(v != 0)
+            }))
                 .disabled(!session.canOverlay)
                 .accessibilityIdentifier("patterns.overlay")
+            if session.overlayOn && settings.kinematical {
+                AdjustmentSlider("Blend", value: Binding(get: { settings.blend }, set: { v in var s = settings; s.blend = v; session.setOverlaySettings(s) }),
+                                 in: 0...1, format: .number.precision(.fractionLength(2)), defaultValue: 0.5)
+                    .accessibilityIdentifier("patterns.overlay.blend")
+                if let picture = session.overlayMasterPicture, let image = Self.greyImage(picture.values, width: picture.side, height: picture.side) {
+                    InspectorRow("Master") {
+                        Image(decorative: image, scale: 1).resizable().interpolation(.medium).aspectRatio(1, contentMode: .fit)
+                            .frame(maxWidth: LayoutPolicy.overlayMasterPictureWidth)
+                            .help("The kinematical master pattern of \(picture.phase), upper hemisphere, stereographic: every band down to Min d at the file's beam energy, each of intensity 1")
+                            .accessibilityLabel("Kinematical master pattern of \(picture.phase)")
+                            .accessibilityIdentifier("patterns.overlay.master")
+                    }
+                } else if !session.canDrawBandWidth {
+                    InspectorNote("The file states no beam energy, so the Bragg angles of the kinematical simulation are unknown.")
+                }
+            }
             InspectorRow("Min d") {
                 NumericField("Smallest interplanar spacing", value: Binding(get: { settings.minDSpacing }, set: { v in
                     var s = settings; s.minDSpacing = min(max(v, 0.3), 10); session.setOverlaySettings(s)
