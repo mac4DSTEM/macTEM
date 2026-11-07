@@ -371,7 +371,11 @@ nonisolated final class SEMKikuchiSimulationParityTests: XCTestCase {
         let reference = Array(try ref.array("patterns").values.prefix(simulated.count))
         func centred(_ v: [Double]) -> [Double] { let m = v.reduce(0, +) / Double(v.count); return v.map { $0 - m } }
         let a = centred(simulated), b = centred(reference)
-        let ncc = zip(a, b).map { $0 * $1 }.reduce(0, +) / (a.map { $0 * $0 }.reduce(0, +) * b.map { $0 * $0 }.reduce(0, +)).squareRoot()
+        var ab = 0.0, aa = 0.0, bb = 0.0
+        for k in a.indices {
+            ab += a[k] * b[k]; aa += a[k] * a[k]; bb += b[k] * b[k]
+        }
+        let ncc = ab / (aa * bb).squareRoot()
         XCTAssertGreaterThan(ncc, 0.95, "the overlay's kinematical pattern is kikuchipy's up to the inner potential")
         XCTAssertEqual(KikuchiOverlay.masterPatternPicture(bands, beamEnergyKeV: kv, halfSize: 20).count, 41 * 41)
         guard case .success(let plain) = KikuchiOverlay.pattern(dataset, at: .origin, maxR: maxR, bands: { _, _ in bands }) else {
