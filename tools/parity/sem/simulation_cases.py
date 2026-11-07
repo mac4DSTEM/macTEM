@@ -29,6 +29,7 @@ F64 = {"rtol": 1e-7, "atol": 0.0}
 F64Z = {"rtol": 1e-7, "atol": 1e-12}
 PX = {"rtol": 1e-7, "atol": 1e-6}
 MP = {"rtol": 1e-5, "atol": 1e-8}
+CIRCLE = {"rtol": 1e-5, "atol": 1e-8}  # orix's own get_circle tests: np.allclose defaults
 EXACT = {"rtol": 0.0, "atol": 0.0}
 
 CASES_FILE = Path(__file__).resolve().parent / "fixtures" / "simulation_cases.json"
@@ -251,6 +252,81 @@ def case_m6_geometrical_simulation_nickel(ctx):
         _sim_arrays(b, f"p{r}_{c}_", full, (r, c))
     b.array("rotations", np.asarray(rotations, dtype=np.float64), **EXACT, note="point, (a, b, c, d) of the crystal map")
     b.array("pcs", np.asarray(pcs, dtype=np.float64), **EXACT, note="point, (PCx, PCy, PCz) Bruker")
+    b.write()
+    ctx.done(case)
+
+
+def case_m6_geometrical_band_edges_nickel(ctx):
+    """The band edges of figure F14's bands (#201): for each line kikuchipy draws on pattern (0, 0) of nickel_ebsd_large, the
+    small circles at pi/2 - theta and pi/2 + theta about its reflector in the detector frame, as kikuchipy's `plot(mode="bands")`
+    draws them (orix's `Vector3d.get_circle`, 360 steps), on the gnomonic plane where they face the screen (z > 0) and lie inside
+    the scan's r_max circle, and in detector pixels by on_detector's formula. A reference holds no NaN, so the points kikuchipy
+    masks are 0 in the coordinates and 0 in `edges_visible`. theta is diffsims' `calculate_theta` at the file's beam energy on
+    the file's phase with its lattice in Angstrom. Tolerance: orix's get_circle tests (np.allclose defaults)."""
+    import kikuchipy as kp
+    from diffpy.structure import Lattice, Structure
+    from diffsims.crystallography import ReciprocalLatticeVector
+    from orix.crystal_map import Phase
+    from orix.vector import Vector3d
+
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    case = "m6/geometrical-band-edges-nickel"
+    if not ctx.have(p, case):
+        return
+    import h5py
+
+    with h5py.File(p, "r") as f:
+        kv = float(np.asarray(f["Scan 1/SEM/Header/beam_energy"]).ravel()[0])
+    s = kp.load(str(p), lazy=True)
+    xmap, det = s.xmap, s.detector
+    phase = xmap.phases[0]
+    lat = phase.structure.lattice
+    angstrom = Phase(name=phase.name, space_group=phase.space_group.number,
+                     structure=Structure(lattice=Lattice(10 * lat.a, 10 * lat.b, 10 * lat.c, lat.alpha, lat.beta, lat.gamma),
+                                         atoms=list(phase.structure)))
+    families = _C["families"]["ni"]
+    ref = ReciprocalLatticeVector(phase=angstrom, hkl=families).symmetrise()
+    ref.calculate_theta(1e3 * kv)
+    sim = kp.simulations.KikuchiPatternSimulator(ref)
+    full = sim.on_detector(det, xmap.rotations.reshape(*xmap.shape))
+    index = (0, 0)
+    keep = ~np.isnan(full.lines_coordinates(index, coordinates="pixel", exclude_nan=False)).any(axis=-1).ravel()
+    vd = full._lines.vector_detector[index].data.reshape(-1, 3)[keep]
+    theta = np.asarray(ref.theta, dtype=np.float64)[keep]
+    hkl = _hkl_int(full._lines.vector.hkl.reshape(-1, 3))[keep]
+    steps = 360
+    max_r = float(np.max(det.r_max))
+    pc = det.pc[index]
+    x_scale, y_scale = float(det.x_scale[index]), float(det.y_scale[index])
+    edges_gn = np.full((len(vd), 2, steps, 2), np.nan)
+    for i, (v, t) in enumerate(zip(vd, theta)):
+        for j, opening in enumerate((np.pi / 2 - t, np.pi / 2 + t)):
+            xyz = Vector3d(v).get_circle(opening_angle=opening, steps=steps).data.reshape(-1, 3)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                xg, yg = xyz[:, 0] / xyz[:, 2], xyz[:, 1] / xyz[:, 2]
+            ok = (xyz[:, 2] > 0) & (np.hypot(xg, yg) < max_r)
+            edges_gn[i, j, ok, 0], edges_gn[i, j, ok, 1] = xg[ok], yg[ok]
+    edges_px = np.empty_like(edges_gn)
+    edges_px[..., 0] = (edges_gn[..., 0] + pc[0] / pc[2] * det.aspect_ratio) / x_scale
+    edges_px[..., 1] = (-edges_gn[..., 1] + pc[1] / pc[2]) / y_scale
+    visible = ~np.isnan(edges_gn).any(axis=-1)
+    edges_gn, edges_px = np.nan_to_num(edges_gn, nan=0.0), np.nan_to_num(edges_px, nan=0.0)
+
+    b = Bundle(case, 6, "kikuchipy", "kikuchipy.simulations.KikuchiPatternSimulator.plot(mode='bands') edges "
+               "(orix Vector3d.get_circle at pi/2 -+ theta) on on_detector's detector frame", ctx.out)
+    b.input(p, "sem-data/nickel_ebsd_large/patterns_v2.h5")
+    b.input(CASES_FILE, CASES_LABEL)
+    b.value("beam_energy_kev", kv)
+    b.value("steps", steps)
+    b.value("point", list(index))
+    b.scalar("max_r_gnomonic", max_r, **F64)
+    b.array("lines_hkl", hkl, **EXACT, note="the lines of pattern (0, 0), as m6/geometrical-simulation-nickel's p0_0_lines_hkl")
+    b.array("theta", theta, **F64, note="diffsims' Bragg angle of each line's reflector at the file's beam energy, radians")
+    b.array("vector_detector", np.asarray(vd, dtype=np.float64), **F64Z, note="each line's reflector in the detector frame")
+    b.array("edges_visible", visible.astype(np.uint8), **EXACT, note="line, (pi/2 - theta, pi/2 + theta), step: 1 where the "
+            "point faces the screen (z > 0) inside r_max, 0 where kikuchipy masks it")
+    b.array("edges_gnomonic", edges_gn, **CIRCLE, note="line, (pi/2 - theta, pi/2 + theta), step, (x, y); 0 where not visible")
+    b.array("edges_px", edges_px, **CIRCLE, note="the same in detector pixels")
     b.write()
     ctx.done(case)
 

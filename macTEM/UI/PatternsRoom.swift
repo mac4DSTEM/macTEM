@@ -101,7 +101,7 @@ struct PatternsRoom: View {
 
 /// A file the save panel writes: the bytes `PatternsRoomState.export` made (the pattern PNG or the metadata JSON).
 struct PatternsExportFile: FileDocument {
-    static var readableContentTypes: [UTType] { [.png, .json] }
+    static var readableContentTypes: [UTType] { [.png, .json, .commaSeparatedText] }
     var data: Data
 
     init(data: Data) { self.data = data }

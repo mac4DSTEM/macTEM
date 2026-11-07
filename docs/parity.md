@@ -287,13 +287,16 @@ International Tables' X-ray parameters and the refraction-corrected wavelength w
 | `KikuchiWavelength.refractionCorrected` | `diffsims.utils.sim_utils.get_refraction_corrected_wavelength` | same, at 10, 20, 30 kV | rtol 1e-7 | the mean inner potential over the first asymmetric atom's orbit, as diffsims takes it |
 | `GeometricalKikuchiSimulation.simulate` | `KikuchiPatternSimulator.on_detector` (`lines_coordinates`, `zone_axes_coordinates`, `_zone_axes_labels`) | `testFigureF14…`, `testTiltedTitaniumDetectorAsKikuchipy`, `testOverlayOnTheDemoNickelIsFigureF14` | hkl, [uvw], labels exact; pixels rtol 1e-7, atol 1e-6 px; gnomonic rtol 1e-7 | the line ends lie on the circle of `maxRGnomonic`: kikuchipy takes the largest r_max of the detector it is given, the whole scan's for F14 |
 | `GeometricalKikuchiSimulation.roundIndices` | orix `Miller.round` (`_round_indices`, max index 20) | `testRoundIndicesAsOrix` and the zone axes above | exact | |
+| `GeometricalKikuchiSimulation.Line.edges` (band edges, #201) | `KikuchiPatternSimulator.plot(mode="bands")`: orix `Vector3d.get_circle` at π/2 ∓ θ about `vector_detector`, put on the detector by `on_detector`'s formula | `testBandEdgesAsKikuchipyBands` (`m6/geometrical-band-edges-nickel`) | rtol 1e-5, atol 1e-8 (orix's own `get_circle` tests, np.allclose defaults), visibility exact | θ from the bundle; the overlay's own θ is checked within 0.1 % (`testOverlayBandEdgesOnTheDemoNickel`, D-SEM-94) |
 | `KinematicMasterPattern.calculate` | `KikuchiPatternSimulator.calculate_master_pattern` (stereographic, `_get_pattern`) | `testKinematicMasterPatternOfNickelAsKikuchipy` | rtol 1e-5, atol 1e-8 | emitted with numba on one thread: kikuchipy's parallel loop adds into shared pixels |
 
 ### Known limits and decisions
 
 - D-SEM-93 (2026-11-07): the overlay draws the geometrical simulation in the Patterns room from the file's crystal map; see
-  docs/decisions.md. Only kikuchipy's lines and zone axes are drawn (no band edges at ±θ, no Kikuchi line pairs); the
+  docs/decisions.md. kikuchipy's lines and zone axes are drawn, and the band edges with `Band width` (D-SEM-94); the
   kinematic master pattern is computed in TEMCore and not yet shown in a room.
+- D-SEM-94 (2026-11-07): the overlay's Bragg angles use the relativistic wavelength without diffsims' mean inner potential
+  (a file's phase carries no atoms the app reads): θ is 0.07 % larger at 20 kV than diffsims' (0.15 % at 10 kV).
 
 ## Pattern quality
 
@@ -432,3 +435,37 @@ Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST),
 - Figure F8: `tools/parity/sem/hough_figure.py` draws the reference IPF-Z map beside the one
   `testFigureF8HoughIndexedMapOfTheDemoScan` prints (`F8 ours euler …` in the test log, passed with `--ours`) and their
   misorientation.
+
+## Refinement of orientations and projection centres (figure F10)
+
+References: `tools/parity/sem/refinement_cases.py` (kikuchipy 0.13.1's `EBSD.refine_orientation`,
+`refine_projection_center` and `refine_orientation_projection_center` with their default solver, SciPy 1.18.1's
+`minimize(method="Nelder-Mead")`), bundles `m4/nelder-mead` and `m4/refine-nickel-block` (a 10 x 10 block of the
+corrected Ni scan, rows 20 to 29 and columns 30 to 39, from kikuchipy's Hough orientations against the Ni 20 kV master
+pattern at 20 kV), tests in `SEMRefinementParityTests`. kikuchipy states no tolerance; the brief's bounds are 0.1° for
+orientations and rtol 1e-4 for PCs and scores. Methods: Nelder & Mead 1965 (simplex), Winkelmann et al. 2020 and Ånes et
+al. 2020 (pattern matching refinement), the NCC as kikuchipy computes it.
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `NelderMead.minimize` | `scipy.optimize._optimize._minimize_neldermead` | `testNelderMeadFollowsSciPyStepForStep` | x, fun, final simplex rtol 1e-12; nfev, nit, status exact | unbounded, bounded, zero start, start at a bound, maxfev, maxiter |
+| `EBSDRefinement.refineOrientations` (trust region, none, signal mask, pseudo-symmetry operators) | `EBSD.refine_orientation` | `testOrientationRefinement…`, `testPseudoSymmetry…` | every point within 0.1° (m-3m); scores rtol 1e-4; operator index exact; operator starts atol 1e-10 | a float64-NCC replica of kikuchipy: 0.005° and 4e-6 |
+| `EBSDRefinement.refineProjectionCenters` | `EBSD.refine_projection_center` | `testProjectionCentreRefinement…` | scores rtol 1e-4; PCs rtol 1e-4 on 95 % of values, all within 1e-3 | replica: median 0, largest 5e-4 |
+| `EBSDRefinement.refineOrientationsAndProjectionCenters` | `EBSD.refine_orientation_projection_center` | `testOrientationAndProjectionCentreRefinement…` | 90 % of points within 0.1°, all within 1°; 90 % of scores rtol 1e-4, all 1e-2, mean 1e-4; 90 % of PC values rtol 2e-3, all 5e-2 | D-SEM-87 |
+| `EBSDRefinement.refineOrientations(map:)` and the PC twin | `compute_refine_*_results` | `testCrystalMapInAndOut` | grid, unit, phase list, −1 and identity at points not indexed, `scores` and `num_evals` | the master pattern's phase at the refined id |
+| `refineOrientations(map:)` on a dictionary-indexed map (`DictionaryIndexing.Result.crystalMap`) | `dictionary_indexing` then `refine_orientation` (from `rotations[:, 0]`, the best match) | `testRefiningADictionaryIndexedMapMatchesKikuchipy` (`m4/refine-dictionary-nickel-block`) | under 0.1° (m-3m), scores rtol 1e-4; `is_in_data` and phase ids exact | F9's 6 x 6 corrected block, keep_n 5, two points masked out, F15 detector, trust region 1° (macTEM#213) |
+
+### Known limits and decisions
+
+- D-SEM-86 (2026-11-07): only kikuchipy's default solver is ported, SciPy's local Nelder-Mead with its default options;
+  NLopt's `LN_NELDERMEAD` and SciPy's global optimisers (basin hopping, differential evolution, dual annealing, SHGO)
+  are not. The refinement runs on the CPU, one pattern per core: each evaluation projects one pattern (3600 pixels for
+  the 60 x 60 detector), below the size at which the Metal projection pays (D16).
+- D-SEM-87 (2026-11-07): the NCC takes kikuchipy's float32 patterns and sums in float64 where kikuchipy sums in float32
+  under numba fastmath, so the simplex walks a slightly different path. Three-variable runs stay within the brief's
+  bounds on every point. The six-variable joint run is ill-conditioned (a PC shift mimics a small rotation): a few
+  points settle in a neighbouring optimum in either implementation, so it is held by the spread in the table, with the
+  north star's 1° on every point. The evaluation counts are stored for the record, not compared.
+- The orientation similarity map and the merging of crystal maps (kikuchipy's `_orientation_similarity_map`,
+  `_merge_crystal_maps`) need dictionary indexing's best matches per point; they follow when dictionary indexing (P4-02)
+  is on main, in its own PR (macTEM#213).

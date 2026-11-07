@@ -22,9 +22,11 @@ package nonisolated enum KikuchiOverlay {
         package var minDSpacing: Double
         package var zoneAxes: Bool
         package var labels: Bool
+        /// Draw each band's two edges at the Bragg angle for the file's beam energy (the design's `Band width`).
+        package var bandWidth: Bool
 
-        package init(minDSpacing: Double = 1.0, zoneAxes: Bool = true, labels: Bool = true) {
-            self.minDSpacing = minDSpacing; self.zoneAxes = zoneAxes; self.labels = labels
+        package init(minDSpacing: Double = 1.0, zoneAxes: Bool = true, labels: Bool = true, bandWidth: Bool = false) {
+            self.minDSpacing = minDSpacing; self.zoneAxes = zoneAxes; self.labels = labels; self.bandWidth = bandWidth
         }
     }
 
@@ -61,6 +63,10 @@ package nonisolated enum KikuchiOverlay {
         package var simulation: GeometricalKikuchiSimulation
         /// The family label of each line, in `simulation.lines` order.
         package var lineLabels: [String]
+        /// The family representative of each line, in `simulation.lines` order.
+        package var lineFamilies: [SIMD3<Int>] = []
+        /// The Bragg angle of each line (radians) when the band edges were asked for and the file states its beam energy.
+        package var lineTheta: [Double]? = nil
     }
 
     // MARK: Bands
@@ -143,8 +149,17 @@ package nonisolated enum KikuchiOverlay {
         return pcs.count == dataset.patternCount && pcs.indices.contains(index) ? pcs[index] : pcs[0]
     }
 
+    /// The Bragg angle of each of `bands`' reflectors at `beamEnergyKeV`: θ = arcsin(λ |g| / 2) with the relativistic wavelength
+    /// (`KikuchiWavelength.refractionCorrected` without the mean inner potential: a file's phase carries no atoms the app reads, and
+    /// the potential moves θ by 0.07 % at 20 kV, decision D-SEM-94).
+    package static func braggAngles(_ bands: Bands, beamEnergyKeV: Double) -> [Double] {
+        let lambda = KikuchiWavelength.refractionCorrected(voltage: 1000 * beamEnergyKeV, orbit: [], cellVolume: bands.reflectors.lattice.volume)
+        return bands.reflectors.braggAngles(wavelengthNM: lambda)
+    }
+
     /// The overlay at `position`, or why there is none. `bands` maps a phase id to its bands (the session caches them per phase).
-    package static func pattern(_ dataset: EBSDDataset, at position: EBSDPosition, maxR: Double,
+    /// With `beamEnergyKeV` each line carries its band's two edges.
+    package static func pattern(_ dataset: EBSDDataset, at position: EBSDPosition, maxR: Double, beamEnergyKeV: Double? = nil,
                                 bands: (Int, CrystalPhase) -> Bands?) -> Result<Pattern, Absence> {
         guard let map = dataset.crystalMap, let pc = projectionCenter(dataset, at: position) else { return .failure(.noOrientations) }
         let index = position.index(columns: dataset.scanColumns)
@@ -152,10 +167,44 @@ package nonisolated enum KikuchiOverlay {
         let id = map.allPhaseIDs[index]
         guard id != PhaseList.notIndexedID, let phase = map.phases[id: id] else { return .failure(.notIndexed) }
         guard let b = bands(id, phase) else { return .failure(.noLattice(phase: phase.name)) }
+        let theta = beamEnergyKeV.flatMap { $0 > 0 ? braggAngles(b, beamEnergyKeV: $0) : nil }
         let simulation = GeometricalKikuchiSimulation.simulate(reflectors: b.reflectors, rotation: map.rotations[index],
-                                                               detector: dataset.detector, pc: pc, maxRGnomonic: maxR)
+                                                               detector: dataset.detector, pc: pc, maxRGnomonic: maxR, braggAngles: theta)
         let labels = simulation.lines.map { b.labels[b.reflectors.family[$0.reflector]] }
-        return .success(Pattern(phase: phase.name, simulation: simulation, lineLabels: labels))
+        let families = simulation.lines.map { b.families[b.reflectors.family[$0.reflector]] }
+        return .success(Pattern(phase: phase.name, simulation: simulation, lineLabels: labels, lineFamilies: families,
+                                lineTheta: theta.map { t in simulation.lines.map { t[$0.reflector] } }))
+    }
+
+    // MARK: Export
+
+    /// The overlay as CSV (simulation-overlay.md §4, `Overlay CSV`): one row per band line, then one per zone axis, in detector pixels
+    /// (x right, y down, pixel centres at integers as kikuchipy's on_detector). Columns: feature (`band` or `zone_axis`), the
+    /// indices (h, k, l or u, v, w), the family or the direction with its signs written out ({-111}, [-101]), the line's
+    /// ends x1, y1, x2, y2 on the r_max circle (a zone axis fills x1, y1), and θ in radians when the band edges were computed.
+    /// Numbers in their shortest round-trip form, POSIX.
+    package static func csv(_ pattern: Pattern) -> String {
+        func n(_ x: Double) -> String { x.isFinite ? "\(x)" : "" }
+        func i(_ x: Double) -> String { "\(Int(x.rounded()))" }
+        var rows = ["feature,h_or_u,k_or_v,l_or_w,label,x1_px,y1_px,x2_px,y2_px,theta_rad"]
+        for (k, line) in pattern.simulation.lines.enumerated() {
+            let theta = pattern.lineTheta.map { n($0[k]) } ?? ""
+            let label = pattern.lineFamilies.indices.contains(k) ? plainMiller(pattern.lineFamilies[k], brackets: "{}") : ""
+            rows.append(["band", i(line.hkl.x), i(line.hkl.y), i(line.hkl.z), label,
+                         n(line.pixel[0]), n(line.pixel[1]), n(line.pixel[2]), n(line.pixel[3]), theta].joined(separator: ","))
+        }
+        for axis in pattern.simulation.zoneAxes {
+            rows.append(["zone_axis", "\(axis.uvw.x)", "\(axis.uvw.y)", "\(axis.uvw.z)",
+                         plainMiller(axis.uvw, brackets: "[]"),
+                         n(axis.pixel.x), n(axis.pixel.y), "", "", ""].joined(separator: ","))
+        }
+        return rows.joined(separator: "\n") + "\n"
+    }
+
+    /// Miller indices for a CSV read by other programs: the signs written out, "{-111}", "[-1-21]".
+    package static func plainMiller(_ v: SIMD3<Int>, brackets: String) -> String {
+        let pair = Array(brackets)
+        return "\(pair[0])\(v.x)\(v.y)\(v.z)\(pair[1])"
     }
 
     // MARK: Text
