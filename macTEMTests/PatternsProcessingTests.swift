@@ -80,6 +80,35 @@ nonisolated final class PatternsProcessingTests: XCTestCase {
         XCTAssertEqual(events.last, "Process: The file carries no static background. Choose the scan's mean.")
     }
 
+    /// NLPAR in the room: Process runs it after the per-pattern stages, says its λ, and the processed pattern on screen is the scan's
+    /// NLPAR result (it needs the neighbours, so the pane shows the run, not a one-pattern preview).
+    @MainActor func testNLPARRunsWithProcessAndThePaneShowsItsResult() async throws {
+        let session = EBSDSession()
+        await session.bind(try DemoDocuments.ebsd()).value
+        try await waitIdle(session)
+        session.editPipeline { $0.nlpar.isOn = true }
+        XCTAssertNil(session.processingRefusal)
+        var events: [String] = []
+        session.onEvent = { events.append($0) }
+        await session.process().value
+        let processed = try XCTUnwrap(session.processed)
+        XCTAssertEqual(processed.dataset.dataType, .float32)
+        XCTAssertEqual(session.stageState(.nlpar), .current)
+        let lambda = try XCTUnwrap(session.nlparLambda)
+        XCTAssertTrue(lambda > 0, "λ \(lambda)")
+        XCTAssertTrue(events.last?.contains("NLPAR λ") ?? false, events.last ?? "")
+        for _ in 0..<2000 where !session.patternIsProcessed { try await Task.sleep(for: .milliseconds(5)) }
+        let canvas = try XCTUnwrap(session.patternPresentation.canvas)
+        let pinned = session.pinned
+        let expected = EBSDBrowsing.pixels(try processed.pattern(row: pinned.row, column: pinned.column))
+        XCTAssertEqual(canvas.width, DemoDocuments.Truth.ebsdPatternSide)
+        XCTAssertEqual(canvas.rawRange?.lowerBound, expected.min())
+        XCTAssertEqual(canvas.rawRange?.upperBound, expected.max())
+        session.editPipeline { $0.nlpar.searchRadius = 2 }
+        XCTAssertEqual(session.stageState(.nlpar), .stale)
+        XCTAssertEqual(session.stageState(.size), .current)
+    }
+
     @MainActor func testTheMethodJSONExportWritesTheStages() async throws {
         let session = EBSDSession()
         await session.bind(try DemoDocuments.ebsd()).value
