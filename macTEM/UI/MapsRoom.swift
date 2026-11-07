@@ -18,7 +18,6 @@
 //  pins the hovered one. A click on the map at 1× pins the point under it.
 //
 
-import AppKit
 import ShellControls
 import ShellLayout
 import ShellMetal
@@ -231,15 +230,16 @@ struct MapPane: View {
             .frame(width: box.width, height: box.height)
             .clipped()
             .contentShape(Rectangle())
+            // ⌘-click adds the grain under the point to the selection, or takes it out (macTEM#239); a plain click pins.
+            .highPriorityGesture(SpatialTapGesture().modifiers(.command).onEnded { value in
+                let q = geometry.imagePoint(atPanePoint: value.location)
+                session.toggleGrain(at: EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded())))
+                patterns?.pin(session.pinned)
+            })
             .onTapGesture { location in
                 let q = geometry.imagePoint(atPanePoint: location)
                 let point = EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded()))
-                // ⌘-click adds the grain under the point to the selection (macTEM#239). AppKit: SwiftUI's tap gives no modifiers.
-                if session.analysis != nil, NSEvent.modifierFlags.contains(.command) {
-                    session.toggleGrain(at: point)
-                } else {
-                    session.pin(point)
-                }
+                session.pin(point)
                 patterns?.pin(session.pinned)
             }
             .border(Color.white.opacity(0.08))
