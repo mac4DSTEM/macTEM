@@ -30,6 +30,9 @@ final class AppState {
     /// The Patterns room's dataset, position and pictures (TEMSession) and its view state (App/).
     let ebsd = EBSDSession()
     let patternsRoom = PatternsRoomState()
+    /// The Maps room's orientation map, layer and pictures (TEMSession) and its view state (App/).
+    let maps = OrientationMapSession()
+    let mapsRoom = MapsRoomState()
 
     /// The window's title: the file of the room that is shown (the spectrum image in the EDX and EELS rooms, the image elsewhere).
     var windowTitle: String {
@@ -37,6 +40,7 @@ final class AppState {
         case .edx: edx.fileName
         case .eels: eels.fileName
         case .patterns: ebsd.fileName
+        case .maps: maps.fileName
         default: imageSession.image?.fileName
         }
         if let name, !name.isEmpty { return name }
@@ -106,6 +110,19 @@ final class AppState {
         eels.onFailure = { [weak self] in self?.present($0) }
         ebsd.onEvent = { [weak self] in self?.statusText = $0 }
         ebsd.onFailure = { [weak self] in self?.present($0) }
+        maps.onEvent = { [weak self] in self?.statusText = $0 }
+        maps.onFailure = { [weak self] in self?.present($0) }
+        // The Maps room follows the Patterns room's dataset: its crystal map is shown with the patterns beside; a map opened on its own
+        // gives way to it, and a map that came with a dataset goes when the dataset does.
+        ebsd.onBind = { [weak self] document in
+            guard let self else { return }
+            if let mapDocument = OrientationMapSession.patternsDocument(fileName: document.fileName, url: document.url, dataset: document.dataset) {
+                self.maps.bind(mapDocument)
+            } else {
+                self.maps.patternsClosed()
+            }
+        }
+        ebsd.onClose = { [weak self] in self?.maps.patternsClosed() }
         applyLaunchOptions(launch)
     }
 
@@ -117,6 +134,7 @@ final class AppState {
         if launch.demoStack, let url = try? DemoDocuments.stackFile() { open(urls: [url]) }
         if launch.demoSpectrumFile, let url = try? DemoDocuments.spectrumFile() { open(urls: [url]) }
         if launch.demoSEMSpectrum { openDemo(.semSpectrum) }
+        if launch.demoOrientationMap { openDemo(.orientationMap) }
         if launch.demoSpectrum {
             edx.bind(DemoDocuments.edx())
             if launch.demoRegions { DemoDocuments.drawRegions(on: edx) }

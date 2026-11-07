@@ -213,12 +213,13 @@ nonisolated final class EDAXBinaryReaderTests: XCTestCase {
         XCTAssertEqual(mismatched.notes.count, 1)
         XCTAssertTrue(mismatched.notes[0].contains("12 points for 9 patterns"), mismatched.notes[0])
         XCTAssertEqual([mismatched.scanRows, mismatched.scanColumns], [1, 9])
-        // A map alone, without its patterns, is refused with the sentence that names them (D-SEM-25).
+        // A map alone, without its patterns: the pattern door refuses it with the sentence that names them (D-SEM-25); the routing sends it to
+        // the Maps room (P3-04).
         try FileManager.default.removeItem(at: up1)
         XCTAssertThrowsError(try EDAXOpening.open(url: ang)) { error in
             XCTAssertTrue(((error as? EDAXReadError)?.text ?? "").hasPrefix("scan.ang is an orientation map without its patterns"), String(describing: error))
         }
-        XCTAssertEqual(FileRouting.inventory(path: ang.path).refusal, "scan.ang is an orientation map without its patterns: open the .up1 or .up2 of the same name next to it, which reads the map with it.")
+        XCTAssertEqual(FileRouting.inventory(path: ang.path), FileInventory(orientationMap: true))
     }
 
     func testAnUnreadableCompanionLeavesANoteAndAnUnreadableMainFileThrows() throws {
