@@ -39,6 +39,10 @@ from detector_cases import (  # noqa: E402,F401  (milestone 2 detector geometry 
     case_m2_detector_tkd_geometry, case_m2_pc_moving_screen_si)
 from hough_cases import (  # noqa: E402,F401  (milestone 4 Hough indexing and figure F8)
     case_m4_hough_indexing_nickel_large, case_m4_hough_library, case_m4_hough_nickel_block)
+from writer_cases import (  # noqa: E402,F401  (milestone 8 .ang and .ctf writers and figure F18)
+    case_m8_write_ang_sdss, case_m8_write_ang_sdss_ferrite, case_m8_write_ang_sdss_window, case_m8_write_ang_ti,
+    case_m8_write_ctf_sdss, case_m8_write_ctf_sdss_ferrite, case_m8_write_ctf_sdss_window, case_m8_write_ctf_ti)
+from grain_cases import case_m5_grains_sdss, case_m5_grains_ti, case_m5_grains_ti_full  # noqa: E402,F401  (m5, F11 and F12)
 
 warnings.filterwarnings("ignore")
 
@@ -352,6 +356,179 @@ def case_m2_background_nickel_large(ctx):
     p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
     if ctx.have(p, "m2/background-nickel-ebsd-large"):
         _background_bundle(ctx, "m2/background-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5")
+
+
+# ------------------------------------------------------------------------------------- NLPAR denoising (m2)
+
+F32 = {"rtol": 1e-5, "atol": 0.0}   # float32 results: the harness rule for float32 scores (D-SEM-13)
+NLPAR_TILE_BYTES = 32e9             # pyebsdindex's cap on its tile budget; fixed so the tiling is machine-independent
+
+
+class _MemoryPatternFile:
+    """The in-memory stand-in for a pyebsdindex pattern file: `read_data` hands out a slab of the scan as float32
+    (as `convertToFloat=True` does), `write_data` keeps NLPAR's float32 output before any cast to a file type. The
+    NLPAR code itself runs unchanged."""
+
+    def __init__(self, data: np.ndarray):
+        self.data = data
+        self.nRows, self.nCols, self.patternH, self.patternW = data.shape
+        self.filetype, self.filepath, self.version = "MEMORY", "memory", 1
+        self.filedatatype = np.float32
+        self.datamin = self.datamax = None
+        self.out = np.full(data.shape, np.nan, dtype=np.float32)
+
+    def read_header(self):
+        pass
+
+    def read_datamaxmin(self):
+        pass
+
+    def write_datamaxmin(self):
+        pass
+
+    def read_data(self, patStartCount, convertToFloat=True, returnArrayOnly=True):
+        (c0, r0), (nc, nr) = patStartCount
+        block = self.data[r0:r0 + nr, c0:c0 + nc].reshape(-1, self.patternH, self.patternW).astype(np.float32)
+        return block, None
+
+    def write_data(self, newpatterns, patStartCount, flt2int=None, scalevalue=1.0):
+        (c0, r0), (nc, nr) = patStartCount
+        self.out[r0:r0 + nr, c0:c0 + nc] = np.asarray(newpatterns, dtype=np.float32).reshape(nr, nc, self.patternH, self.patternW)
+
+
+def _nlpar_bundle(ctx, case: str, path: Path, label: str, searchradius: int, blocks: dict | None) -> None:
+    """pyebsdindex's NLPAR as its documentation runs it: `opt_lambda()` (noise estimate over the 3 x 3 neighbourhood,
+    Nelder-Mead on the three target weights 0.5, 0.34, 0.25; lambda = their median), then `calcnlpar()` with that
+    lambda and the estimate, defaults otherwise (dthresh 0, saturation protection, automask). The CPU path
+    (`pyebsdindex.nlpar_cpu`, what `pyebsdindex.nlpar.NLPAR` is without a GPU), tile budget fixed at pyebsdindex's
+    32e9-byte cap. The input is the raw uint8 scan as float32. `blocks` None writes the noise estimate and lambda only:
+    on a scan whose tiles are narrower than the search window pyebsdindex reads outside the tile, so its average there
+    is not a reference."""
+    import contextlib
+    import io
+
+    import kikuchipy as kp
+    from pyebsdindex.nlpar_cpu import NLPAR
+
+    class MemoryNLPAR(NLPAR):
+        def __init__(self, data, **kw):
+            super().__init__(**kw)
+            self._file = _MemoryPatternFile(data)
+            self.nrows, self.ncols = data.shape[:2]
+
+        def getinfileobj(self):
+            return self._file
+
+        def getoutfileobj(self):
+            return self._file
+
+        def setoutfile(self, patternfile, filepath=None):
+            pass
+
+    s = kp.load(str(path))
+    data = np.asarray(s.data)
+    rows, cols, h, w = data.shape
+    nl = MemoryNLPAR(data, searchradius=searchradius)
+    with contextlib.redirect_stdout(io.StringIO()):
+        lambdas = np.asarray(nl.opt_lambda(chunksize=NLPAR_TILE_BYTES, verbose=0), dtype=np.float64)
+        sigma, d2, n2 = nl.calcsigma_cpu(chunksize=NLPAR_TILE_BYTES, nn=1, verbose=0)
+        if blocks is not None:
+            nl.calcnlpar(chunksize=NLPAR_TILE_BYTES, verbose=0)
+    out = nl._file.out
+    if blocks is not None and np.isnan(out).any():
+        raise RuntimeError(f"{case}: NLPAR left patterns unwritten")
+    sig_tiles = nl._calcchunks([w, h], cols, rows, target_bytes=NLPAR_TILE_BYTES, col_overlap=1, row_overlap=1)
+    nl_tiles = nl._calcchunks([w, h], cols, rows, target_bytes=NLPAR_TILE_BYTES, col_overlap=searchradius, row_overlap=searchradius)
+
+    b = Bundle(case, 2, "pyebsdindex", "pyebsdindex.nlpar_cpu.NLPAR.opt_lambda / calcsigma / calcnlpar", ctx.out)
+    b.input(path, label)
+    b.value("scan_shape_rc", [rows, cols])
+    b.value("pattern_shape", [h, w])
+    b.value("search_radius", searchradius)
+    b.value("dthresh", 0.0)
+    b.value("target_weights", [0.5, 0.34, 0.25])
+    b.value("tile_bytes", NLPAR_TILE_BYTES)
+    b.value("sigma_tiles", {"columns": sig_tiles[2].tolist(), "rows": sig_tiles[3].tolist()})
+    b.value("nlpar_tiles", {"columns": nl_tiles[2].tolist(), "rows": nl_tiles[3].tolist()})
+    b.array("automask", np.asarray(nl.mask, dtype=np.uint8), **EXACT)
+    b.array("sigma", np.asarray(sigma, dtype=np.float32), **F32)
+    b.array("distances", np.asarray(d2, dtype=np.float32), rtol=1e-5, atol=1e-5,
+            note="normalised squared distances to the 3 x 3 neighbours, the lambda optimisation's input")
+    b.array("lambdas", lambdas, rtol=1e-4, atol=0.0, note="target weights 0.5, 0.34, 0.25")
+    b.scalar("lambda", float(np.median(lambdas)), rtol=1e-4)
+    if blocks is None:
+        b.write()
+        ctx.done(case)
+        return
+    b.fingerprint("denoised", out)
+    b.array("denoised_mean", out.astype(np.float64).mean(axis=(-2, -1)), **F32)
+    for name, (r0, r1, c0, c1) in blocks.items():
+        b.array(name, out[r0:r1, c0:c1], rtol=1e-5, atol=1e-4, note=f"scan rows {r0}..{r1 - 1}, cols {c0}..{c1 - 1}")
+    b.write()
+    ctx.done(case)
+
+
+def _intensity_bundle(ctx, case: str, path: Path, label: str) -> None:
+    """kikuchipy's intensity and size stages on background-corrected patterns (static then dynamic, as the background
+    bundle): `rescale_intensity` to the dtype range with and without `percentiles`, `normalize_intensity` on float32,
+    `downsample` by 2 and 3. The input of every stage is kikuchipy's own corrected uint8 patterns (`corrected`), so a port
+    checks each stage alone; `chain` is the Patterns room's default run (static, dynamic, rescale 2 to 98 %, bin 2).
+    A whole scan keeps a 3 x 3 corner; the fixture keeps all nine patterns."""
+    import kikuchipy as kp
+
+    s = kp.load(str(path))
+    b = Bundle(case, 2, "kikuchipy", "kikuchipy.signals.EBSD.rescale_intensity / normalize_intensity / downsample", ctx.out)
+    b.input(path, label)
+    s.remove_static_background(operation="subtract")
+    s.remove_dynamic_background(operation="subtract", filter_domain="frequency", truncate=4.0)
+    if s.data.shape[0] * s.data.shape[1] > 9:
+        s = s.inav[:3, :3]
+        b.value("positions", "scan rows 0..2, cols 0..2")
+    else:
+        b.value("positions", "the whole scan")
+    corrected = np.asarray(s.data)
+    b.array("corrected", corrected, **EXACT, note="kikuchipy's static then dynamic subtract: every stage's input")
+    b.value("rescale_percentiles", [2.0, 98.0])
+    r = s.rescale_intensity(inplace=False)
+    b.array("rescaled", np.asarray(r.data), **U8, note="rescale_intensity() to uint8's range: a corrected pattern already spans it")
+    rp = s.rescale_intensity(percentiles=(2.0, 98.0), inplace=False)
+    b.array("rescaled_percentiles", np.asarray(rp.data), **U8, note="np.nanpercentile per pattern, clipped, rescaled, cast by truncation")
+    f = s.deepcopy()
+    f.change_dtype("float32")
+    n = f.normalize_intensity(num_std=1, inplace=False)
+    b.array("normalized", np.asarray(n.data), rtol=1e-5, atol=1e-6, note="float32 input, mean 0, population std 1 (fastmath)")
+    n2 = f.normalize_intensity(num_std=2, divide_by_square_root=True, inplace=False)
+    b.array("normalized_std2_sqrt", np.asarray(n2.data), rtol=1e-5, atol=1e-8)
+    for k in (2, 3):
+        d = s.downsample(k, inplace=False)
+        b.array(f"downsampled_{k}", np.asarray(d.data), **U8, note=f"_bin2d sums in float32, rescaled to uint8's range, truncated")
+    c = rp.downsample(2, inplace=False)
+    b.array("chain", np.asarray(c.data), **U8, note="static, dynamic, rescale 2 to 98 %, bin 2")
+    b.write()
+    ctx.done(case)
+
+
+def case_m2_nlpar_small(ctx):
+    _nlpar_bundle(ctx, "m2/nlpar-kikuchipy-h5ebsd", FIXTURES / "kikuchipy_h5ebsd_patterns.h5",
+                  "fixtures/kikuchipy_h5ebsd_patterns.h5", searchradius=1, blocks=None)
+
+
+def case_m2_nlpar_nickel_large(ctx):
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    if ctx.have(p, "m2/nlpar-nickel-ebsd-large"):
+        # the corner (window shifted at two edges) and a block across the seam of pyebsdindex's two column tiles
+        _nlpar_bundle(ctx, "m2/nlpar-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5", searchradius=3,
+                      blocks={"denoised_corner": (0, 3, 0, 3), "denoised_seam": (26, 29, 33, 40)})
+
+
+def case_m2_intensity_small(ctx):
+    _intensity_bundle(ctx, "m2/intensity-kikuchipy-h5ebsd", FIXTURES / "kikuchipy_h5ebsd_patterns.h5", "fixtures/kikuchipy_h5ebsd_patterns.h5")
+
+
+def case_m2_intensity_nickel_large(ctx):
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    if ctx.have(p, "m2/intensity-nickel-ebsd-large"):
+        _intensity_bundle(ctx, "m2/intensity-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5")
 
 
 # ------------------------------------------------------------------------------------------- orientation maths (m3)
@@ -680,6 +857,147 @@ def case_m3_orientation_sampling(ctx):
     b.value("local", local)
     b.write()
     ctx.done("m3/orientation-sampling")
+
+
+TI_MAP_COLUMNS = 507  # orix-data's Ti map is 381 x 507 (x varies fastest)
+F7_EDGES = np.arange(0.0, 95.0, 1.0)  # 1 degree bins to 94, above 622's largest disorientation (93.84 degrees)
+
+
+def _neighbour_pairs(O, rows):
+    """Horizontal (right, left) and vertical (below, above) neighbour pairs of a row-major map as flat Orientation arrays.
+    Taken flat on purpose: in orix 0.15.0, `O2[:, 1:] - O2[:, :-1]` on a 2D-shaped Orientation returns the right angles in a
+    permuted order (a pair of identical orientations comes out at 90 degrees; the histogram is unchanged), while the same pairs taken flat agree
+    with `angle_with` on the 2D arrays; D-SEM-48."""
+    from orix.quaternion import Orientation
+
+    q = O.data.reshape(rows, TI_MAP_COLUMNS, 4)
+    g = O.symmetry
+    flat = lambda a: Orientation(np.ascontiguousarray(a).reshape(-1, 4), symmetry=g)  # noqa: E731
+    h = flat(q[:, 1:]) - flat(q[:, :-1])
+    v = flat(q[1:, :]) - flat(q[:-1, :])
+    O2 = O.reshape(rows, TI_MAP_COLUMNS)
+    check = np.concatenate([O2[:, 1:].angle_with(O2[:, :-1]).ravel(), O2[1:, :].angle_with(O2[:-1, :]).ravel()])
+    assert np.allclose(np.concatenate([h.angle, v.angle]), check, atol=1e-7), "flat pairs disagree with angle_with"
+    return h, v
+
+
+def case_m3_ti_neighbour_misorientations(ctx):
+    """Figure F7 on a committed map: the first three rows (3 x 507) of orix-data's Ti orientations (point group 622), the
+    misorientations of horizontal and vertical neighbours (Orientation subtraction, reduced into the (622, 622) zone),
+    their angles and the histogram of the angles in degrees on 1-degree bins (numpy.histogram)."""
+    from orix.quaternion import Orientation
+    from orix.quaternion.symmetry import D6
+
+    inp = _orientation_inputs()
+    assert inp["ti_point_group"] == D6.name
+    rows = 3
+    eu = np.asarray(inp["ti_euler_degrees"], dtype=np.float64)[: rows * TI_MAP_COLUMNS]
+    O = Orientation.from_euler(eu, symmetry=D6, degrees=True)
+    h, v = _neighbour_pairs(O, rows)
+    angles = np.rad2deg(np.concatenate([h.angle, v.angle]))
+    counts, edges = np.histogram(angles, F7_EDGES)
+    b = Bundle("m3/ti-neighbour-misorientations", 3, "orix",
+               "orix.quaternion.Orientation.__sub__ of map neighbours, Misorientation.angle; numpy.histogram", ctx.out)
+    b.input(ORIENTATION_INPUTS, "fixtures/orientation_inputs.json")
+    b.value("point_group", D6.name)
+    b.value("map_shape", [rows, TI_MAP_COLUMNS])
+    b.value("pairs", {"horizontal": int(h.size), "vertical": int(v.size)})
+    b.array("euler_degrees", eu, **EXACT)
+    b.array("horizontal_misorientations", h.data, **ORI)
+    b.array("vertical_misorientations", v.data, **ORI)
+    b.array("horizontal_angles", h.angle, **ORI)
+    b.array("vertical_angles", v.angle, **ORI)
+    b.array("edges_degrees", edges.astype(np.float64), **EXACT)
+    b.array("counts", counts.astype(np.int64), **EXACT)
+    frac = angles - np.floor(angles)
+    b.scalar("closest_to_an_edge_degrees", float(np.min(np.minimum(frac, 1 - frac)[angles > 1e-6])), atol=1e-9)
+    b.write()
+    ctx.done("m3/ti-neighbour-misorientations")
+
+
+def case_m3_ti_neighbour_misorientations_full(ctx):
+    """Figure F7: the neighbour disorientation angle histogram of orix-data's whole Ti map (Ti_orientations.ctf, 381 x
+    507, point group 622, read as orix.data.ti_orientations reads it: numpy.loadtxt of phi1, Phi, phi2 in degrees). Counts
+    and edges exact; a sample of the angles (every 997th) within atol 1e-7 rad."""
+    from orix.quaternion import Orientation
+    from orix.quaternion.symmetry import D6
+
+    p = ctx.data / "orix" / "Ti_orientations.ctf"
+    if not ctx.have(p, "m3/ti-neighbour-misorientations-full"):
+        return
+    table = np.loadtxt(p, skiprows=1)
+    rows = len(np.unique(table[:, 10]))
+    assert len(np.unique(table[:, 9])) == TI_MAP_COLUMNS and rows * TI_MAP_COLUMNS == table.shape[0]
+    O = Orientation.from_euler(np.deg2rad(table[:, :3]), D6)
+    h, v = _neighbour_pairs(O, rows)
+    rad = np.concatenate([h.angle, v.angle])
+    angles = np.rad2deg(rad)
+    counts, edges = np.histogram(angles, F7_EDGES)
+    b = Bundle("m3/ti-neighbour-misorientations-full", 3, "orix",
+               "orix.data.ti_orientations; Orientation.__sub__ of map neighbours, Misorientation.angle; numpy.histogram", ctx.out)
+    b.input(p, "sem-data/orix/Ti_orientations.ctf")
+    b.value("point_group", D6.name)
+    b.value("map_shape", [rows, TI_MAP_COLUMNS])
+    b.value("pairs", {"horizontal": int(h.size), "vertical": int(v.size)})
+    b.value("above_7_degrees", int(np.count_nonzero(angles > 7)))
+    b.array("edges_degrees", edges.astype(np.float64), **EXACT)
+    b.array("counts", counts.astype(np.int64), **EXACT)
+    b.array("sample_index", np.arange(0, rad.size, 997, dtype=np.int64), **EXACT)
+    b.array("sample_angles", rad[::997], **ORI)
+    frac = angles - np.floor(angles)
+    b.scalar("closest_to_an_edge_degrees", float(np.min(np.minimum(frac, 1 - frac)[angles > 1e-6])), atol=1e-9)
+    b.write()
+    ctx.done("m3/ti-neighbour-misorientations-full")
+
+
+def case_m3_crystal_map_sdss(ctx):
+    """orix's CrystalMap on a two-phase map (orix-data's sdss_ferrite_austenite.ang, 100 x 117):
+    the phase list, the slices by phase, by "indexed" and by rows and columns, their sizes, shapes, rows and columns, map
+    data with NaN where a point is not in the slice, and the orientations of one phase. Everything a reader hands through
+    is exact; orientations within atol 1e-7."""
+    from orix import io
+
+    p = ctx.data / "orix" / "sdss_ferrite_austenite.ang"
+    if not ctx.have(p, "m3/crystal-map-sdss"):
+        return
+    xm = io.load(str(p))
+    b = Bundle("m3/crystal-map-sdss", 3, "orix", "orix.crystal_map.CrystalMap (__getitem__, row, col, get_map_data, orientations)", ctx.out)
+    b.input(p, "sem-data/orix/sdss_ferrite_austenite.ang")
+    b.value("shape", list(xm.shape))
+    b.value("size", int(xm.size))
+    b.value("dx", float(xm.dx))
+    b.value("dy", float(xm.dy))
+    b.value("phase_ids", [int(i) for i in xm.phases.ids])
+    b.value("phase_names", list(xm.phases.names))
+    b.value("phase_colors", list(xm.phases.colors))
+    b.value("point_groups", [pg.name if pg is not None else None for pg in xm.phases.point_groups])
+    b.value("all_indexed", bool(xm.all_indexed))
+    b.value("indexed_count", int(np.count_nonzero(xm.is_indexed)))
+    slices = {}
+    for key in list(xm.phases.names) + ["indexed"]:
+        s = xm[key]
+        slices[key] = {"size": int(s.size), "shape": list(s.shape),
+                       "phases_in_data": [int(i) for i in s.phases_in_data.ids]}
+    b.value("phase_slices", slices)
+    window = xm[10:20, 5:15]
+    b.value("window", {"rows": [10, 20], "columns": [5, 15], "size": int(window.size), "shape": list(window.shape)})
+    b.array("window_row", window.row.astype(np.int64), **EXACT)
+    b.array("window_col", window.col.astype(np.int64), **EXACT)
+    b.array("window_iq", window.get_map_data("iq").astype(np.float64), **EXACT)
+    b.array("window_id", window.id.astype(np.int64), **EXACT)
+    first, second = xm.phases.names  # orix autogenerates "austenite/austenite", "ferrite/ferrite" (name/formula)
+    b.value("ferrite_name", second)
+    ferrite = xm[second]
+    b.array("ferrite_iq_map", ferrite.get_map_data("iq", fill_value=-1).astype(np.float64), **EXACT,
+            note="-1 where the point is not ferrite (get_map_data fill_value; a bundle holds no NaN)")
+    b.array("ferrite_row", ferrite.row.astype(np.int64), **EXACT)
+    b.array("ferrite_col", ferrite.col.astype(np.int64), **EXACT)
+    b.array("phase_id_map", xm.get_map_data("phase_id").astype(np.float64), **EXACT)
+    aus = xm[first].orientations
+    b.value("austenite_symmetry", aus.symmetry.name)
+    b.array("austenite_quaternions", aus.data, **ORI)
+    b.write()
+    ctx.done("m3/crystal-map-sdss")
 
 
 # --------------------------------------------------------------------------------------------- SEM-EDS (m1 read, m7)

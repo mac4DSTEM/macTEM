@@ -23,6 +23,8 @@ package nonisolated enum EBSDFileFormat: String, Sendable, Equatable {
     case oxfordBinary = "Oxford ebsp"
     /// EDAX TSL's binary pattern file (`.up1`, `.up2`), with the `.ang` map next to it when there is one.
     case edaxBinary = "EDAX up1/up2"
+    /// NORDIF `Pattern.dat` with `Setting.txt` beside it (`NORDIFOpening`).
+    case nordif = "NORDIF"
     /// The generated demo dataset (`DemoDocuments.ebsd`): not data, never read from a file.
     case generated = "generated demo (not data)"
 }
@@ -82,75 +84,6 @@ package nonisolated struct EBSDDetectorGeometry: Sendable, Equatable {
             if convention == .emsoft4 { x = -x }
             return SIMD3(x, (0.5 - pc.y) * Double(rows) * b, pc.z * Double(rows) * b * pixelSize)
         }
-    }
-}
-
-/// A phase of the file's crystal map.
-package nonisolated struct EBSDPhase: Sendable, Equatable {
-    /// The id the map's `phaseIDs` use, as the file numbers its phases (orix: -1 is `not_indexed`); nil where the file numbers none.
-    package var id: Int?
-    package var name: String
-    /// The formula when the file writes one beside the name (`.ang`).
-    package var formula: String?
-    package var spaceGroup: Int?
-    /// The point group as orix names it (`m-3m`, `6/mmm`, `432`, ...).
-    package var pointGroup: String?
-    /// a, b, c (the file's unit), alpha, beta, gamma (degrees).
-    package var lattice: [Double]?
-
-    package init(id: Int? = nil, name: String, formula: String? = nil, spaceGroup: Int? = nil, pointGroup: String? = nil, lattice: [Double]? = nil) {
-        self.id = id; self.name = name; self.formula = formula; self.spaceGroup = spaceGroup; self.pointGroup = pointGroup; self.lattice = lattice
-    }
-}
-
-/// The indexing results a file carries, one entry per map position in row-major scan order (orix's `CrystalMap` fields).
-package nonisolated struct EBSDCrystalMapData: Sendable, Equatable {
-    /// Bunge Euler angles (phi1, Phi, phi2) in radians.
-    package var euler: [SIMD3<Double>]
-    package var phaseIDs: [Int]
-    package var phases: [EBSDPhase]
-    /// Every other per-point column (scores, fit, confidence, ...), by its name in the file.
-    package var properties: [String: [Double]]
-    /// The point coordinates the file writes (`.ctf`, `.ang`), in the dataset's scan unit; nil where the file writes none (h5ebsd).
-    package var x: [Double]?
-    package var y: [Double]?
-
-    package init(euler: [SIMD3<Double>], phaseIDs: [Int], phases: [EBSDPhase], properties: [String: [Double]] = [:],
-                 x: [Double]? = nil, y: [Double]? = nil) {
-        self.euler = euler; self.phaseIDs = phaseIDs; self.phases = phases; self.properties = properties; self.x = x; self.y = y
-    }
-
-    package var pointCount: Int { phaseIDs.count }
-
-    /// orix `CrystalMap.dy` and `dx` from the coordinates: the difference of the two smallest distinct values, 0 for one value;
-    /// empty without coordinates.
-    package var coordinateSteps: [Double] {
-        guard let x, let y else { return [] }
-        return [Self.stepSize(y), Self.stepSize(x)]
-    }
-
-    /// orix `CrystalMap.shape` from the coordinates: rows then columns from their extents; an axis with one value (or none) is
-    /// dropped; empty without coordinates.
-    package var coordinateShape: [Int] {
-        guard let x, let y else { return [] }
-        return Self.dataSlices(coordinates: [y, x], steps: coordinateSteps).map { $0.stop - $0.start }
-    }
-
-    /// orix `_step_size_from_coordinates`.
-    package static func stepSize(_ coordinates: [Double]) -> Double {
-        let unique = Set(coordinates).sorted()
-        return unique.count > 1 ? unique[1] - unique[0] : 0
-    }
-
-    /// orix `_data_slices_from_coordinates`: for each axis with coordinates and a non-zero step, the index extent
-    /// `round(min / step) ..< round(max / step + 1)` (numpy's round half to even).
-    package static func dataSlices(coordinates: [[Double]], steps: [Double]) -> [(start: Int, stop: Int)] {
-        var slices: [(start: Int, stop: Int)] = []
-        for (values, step) in zip(coordinates, steps) where !values.isEmpty && step != 0 {
-            let low = values.min()!, high = values.max()!
-            slices.append((start: Int((low / step).rounded(.toNearestOrEven)), stop: Int((high / step + 1).rounded(.toNearestOrEven))))
-        }
-        return slices
     }
 }
 
@@ -227,7 +160,7 @@ package nonisolated struct EBSDDataset: Sendable, Equatable {
     /// The static background pattern, as stored (uint8 or uint16, `patternRows` x `patternColumns`), when the file carries one.
     package var staticBackground: FormatoArray?
     package var sem: EBSDSEMHeader
-    package var crystalMap: EBSDCrystalMapData?
+    package var crystalMap: CrystalMap?
     package var patterns: EBSDPatternSource
     /// What the reader left out and why (a companion map that did not fit, a vendor warning), one sentence each, for the Open Files row.
     package var notes: [String]
@@ -235,7 +168,7 @@ package nonisolated struct EBSDDataset: Sendable, Equatable {
     package init(format: EBSDFileFormat, manufacturer: String, version: String, scanGroup: String, scanGroups: [String], scanRows: Int, scanColumns: Int,
                  patternRows: Int, patternColumns: Int, dataType: FormatoDataType, stepY: Double, stepX: Double, scanUnit: String = "um",
                  detector: EBSDDetectorGeometry, staticBackground: FormatoArray? = nil, sem: EBSDSEMHeader = EBSDSEMHeader(),
-                 crystalMap: EBSDCrystalMapData? = nil, patterns: EBSDPatternSource, notes: [String] = []) {
+                 crystalMap: CrystalMap? = nil, patterns: EBSDPatternSource, notes: [String] = []) {
         self.format = format; self.manufacturer = manufacturer; self.version = version; self.scanGroup = scanGroup; self.scanGroups = scanGroups
         self.scanRows = scanRows; self.scanColumns = scanColumns; self.patternRows = patternRows; self.patternColumns = patternColumns
         self.dataType = dataType; self.stepY = stepY; self.stepX = stepX; self.scanUnit = scanUnit; self.detector = detector

@@ -38,6 +38,13 @@ enum BusyOperation {
         }
     }
 
+    /// The Patterns room's running work: the processing run (named by its first stage that is not current), else the map's pass.
+    nonisolated static func patterns(processing: Bool, mapping: Bool, stage: PatternPipeline.Stage?) -> String? {
+        if processing { return stage.map { "Processing: \($0.title)…" } ?? "Processing the patterns…" }
+        if mapping { return "Reading the scan…" }
+        return nil
+    }
+
     /// What `room` is running now, or nil when it is idle.
     @MainActor
     static func name(room: WorkspaceArea, appState: AppState) -> String? {
@@ -50,6 +57,9 @@ enum BusyOperation {
             let s = appState.eels
             let next = s.stages.first { $0.stage.isRun && $0.state != .current }?.stage
             return eels(opening: s.isOpening, openSentence: appState.statusText, computing: s.isComputing, stage: next)
+        case .patterns:
+            let s = appState.ebsd
+            return patterns(processing: s.isProcessing, mapping: s.isMapping, stage: s.firstStaleStage)
         default:
             return nil
         }
