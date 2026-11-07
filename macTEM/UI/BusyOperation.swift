@@ -61,7 +61,9 @@ enum BusyOperation {
             let s = appState.ebsd
             return patterns(processing: s.isProcessing, mapping: s.isMapping, stage: s.firstStaleStage)
         case .indexing:
-            return appState.indexing.isIndexing ? "Indexing with Hough…" : nil
+            let session = appState.indexing
+            guard session.isIndexing else { return nil }
+            return session.result?.method == .dictionary ? "Indexing with the dictionary…" : "Indexing with Hough…"
         default:
             return nil
         }

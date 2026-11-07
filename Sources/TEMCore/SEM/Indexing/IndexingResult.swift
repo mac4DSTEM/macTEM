@@ -1,9 +1,16 @@
 //
 //  IndexingResult.swift
-//  Role: a Hough run of the Indexing room as it lands (docs/sem/design/indexing-room.md §3, §6): one solution per scan point, filled
-//        row by row, so the map grows in place and a stopped run keeps its indexed prefix; the map's layers (IPF-Z, IPF-X, IPF-Y,
-//        Phase, CI, Fit, Bands, PQ, D-SEM-84) as RGBA, one pixel per scan point; the status line's readout; the Bands table of the
-//        pattern on screen, and each detected band's centre line on that pattern for the overlay.
+//  Role: a run of the Indexing room as it lands (docs/sem/design/indexing-room.md §3, §6): one solution per scan point, filled row by
+//        row (Hough) or block of rows by block (dictionary, D-SEM-92), so the map grows in place and a stopped run keeps its indexed
+//        prefix; the map's layers (IPF-Z, IPF-X, IPF-Y, Phase, then CI, Fit, Bands, PQ for Hough, D-SEM-84, or Score and OSM for a
+//        dictionary) as RGBA, one pixel per scan point; the status line's readout; the Bands table of the pattern on screen, and each
+//        detected band's centre line on that pattern for the overlay.
+//
+//  A dictionary run's point carries its best match as a `HoughIndexer.Solution` (the rotation, phase 0, the score as its confidence,
+//  no fit and no bands), so the map, the readout and the tables read both methods alike; the full ranking (keep_n matches per point)
+//  stays in `dictionary`, kikuchipy's result, which its crystal map is built from. Its orientation similarity map (kikuchipy's
+//  `orientation_similarity_map` with its defaults: every kept match, not normalised, the four nearest neighbours; Marquardt et al.
+//  2017) is `OrientationSimilarityMap` (#221) on the rows landed, updated as each block lands (D-SEM-92).
 //
 //  Colours: the IPF layers are orix's `IPFColorKeyTSL` of the phase's point group (parity-tested, `SEMColorKeyParityTests`); Phase
 //  is the phase's colour; the scalar layers are grey from their smallest to their largest value over the points reached. A point
@@ -15,9 +22,17 @@ import Foundation
 
 /// The Indexing room's map layers (D-SEM-84).
 package nonisolated enum IndexingLayer: String, Sendable, CaseIterable, Identifiable, Codable {
-    case ipfZ, ipfX, ipfY, phase, confidence, fit, bands, patternQuality
+    case ipfZ, ipfX, ipfY, phase, confidence, fit, bands, patternQuality, score, osm
 
     package var id: String { rawValue }
+
+    /// The layers a run of `method` has (D-SEM-84, D-SEM-92): the orientation's and the phase's, then the method's own scalars.
+    package static func layers(for method: IndexingMethod) -> [IndexingLayer] {
+        switch method {
+        case .hough: [.ipfZ, .ipfX, .ipfY, .phase, .confidence, .fit, .bands, .patternQuality]
+        case .dictionary: [.ipfZ, .ipfX, .ipfY, .phase, .score, .osm]
+        }
+    }
 
     /// The picker's word.
     package var title: String {
@@ -30,6 +45,8 @@ package nonisolated enum IndexingLayer: String, Sendable, CaseIterable, Identifi
         case .fit: "Fit"
         case .bands: "Matched bands"
         case .patternQuality: "Pattern quality"
+        case .score: "Score"
+        case .osm: "OSM"
         }
     }
 
@@ -55,45 +72,130 @@ package nonisolated enum IndexingLayer: String, Sendable, CaseIterable, Identifi
         case .fit: "The mean angle between the detected and the matched band normals, degrees"
         case .bands: "The number of detected bands matched to the phase's reflectors"
         case .patternQuality: "The mean Radon peak of the detected bands (pyEBSDindex's pq)"
+        case .score: "The best match's score against the dictionary, kikuchipy's scores: its normalised cross-correlation (NCC) or dot product (NDP)"
+        case .osm: "The orientation similarity map (kikuchipy's, Marquardt et al. 2017): how many of a point's kept matches each of its four nearest neighbours shares, on average. High inside a grain, low at its boundaries and on poor patterns"
         }
     }
 
-    /// The scalar of a solution on this layer; nil where it has none (the orientation's layers on a point not indexed).
+    /// The scalar of a solution on this layer; nil where it has none (the orientation's layers on a point not indexed, and OSM, which
+    /// is the neighbourhood's and not the solution's: `IndexingResult.value(_:at:)` reads it).
     package func value(_ s: HoughIndexer.Solution) -> Double? {
         switch self {
-        case .confidence: return s.phase >= 0 ? s.confidence : nil
+        case .confidence, .score: return s.phase >= 0 ? s.confidence : nil
         case .fit: return s.phase >= 0 ? s.fit : nil
         case .bands: return Double(s.matchedBands)
         case .patternQuality: return s.patternQuality.isFinite ? s.patternQuality : nil
-        case .ipfZ, .ipfX, .ipfY, .phase: return nil
+        case .ipfZ, .ipfX, .ipfY, .phase, .osm: return nil
         }
     }
 }
 
-/// One Hough run of a scan, filled row by row.
+/// One run of a scan, filled row by row (Hough) or block by block (dictionary).
 package nonisolated struct IndexingResult: Sendable {
     package let scanRows: Int
     package let scanColumns: Int
     /// The phases indexed against; a solution's `phase` indexes this list.
     package let phases: [IndexingPhase]
+    package let method: IndexingMethod
+    /// A dictionary run's metric (the score's name); nil for Hough.
+    package let metric: DictionaryIndexing.Metric?
     /// One per scan point in map order; nil until its row has landed.
     package private(set) var solutions: [HoughIndexer.Solution?]
     /// The rows landed (they land in order: a stopped run keeps rows 0..<rowsDone).
     package private(set) var rowsDone = 0
+    /// A dictionary run's matches of the rows landed, kikuchipy's result (keep_n per point, best first); nil for Hough.
+    package private(set) var dictionary: DictionaryIndexing.Result?
+    /// A dictionary run's orientation similarity map of the rows landed, one per scan point in map order (NaN where no row has landed,
+    /// and for Hough, which keeps one solution per point).
+    package private(set) var similarity: [Float]
 
-    package init(scanRows: Int, scanColumns: Int, phases: [IndexingPhase]) {
+    /// A Hough run (`metric` nil) or a dictionary run (`metric` its score).
+    package init(scanRows: Int, scanColumns: Int, phases: [IndexingPhase], metric: DictionaryIndexing.Metric? = nil) {
         self.scanRows = scanRows
         self.scanColumns = scanColumns
         self.phases = phases
+        self.metric = metric
+        method = metric == nil ? .hough : .dictionary
         solutions = [HoughIndexer.Solution?](repeating: nil, count: max(scanRows, 0) * max(scanColumns, 0))
+        similarity = [Float](repeating: .nan, count: solutions.count)
     }
 
-    /// Lands scan row `row`'s solutions; a row of the wrong length or outside the scan is dropped.
+    /// Lands scan row `row`'s solutions; a row of the wrong length or outside the scan, or on a dictionary run, is dropped.
     package mutating func land(_ row: [HoughIndexer.Solution], at index: Int) {
-        guard index >= 0, index < scanRows, row.count == scanColumns else { return }
+        guard method == .hough, index >= 0, index < scanRows, row.count == scanColumns else { return }
         for c in 0..<scanColumns { solutions[index * scanColumns + c] = row[c] }
         rowsDone = max(rowsDone, index + 1)
     }
+
+    /// Lands a dictionary block, kikuchipy's result for scan rows `rows` (the next rows: blocks land in order). Each point's solution is
+    /// its best match: the rotation, phase 0 and the score; a point whose score is not a number (a pattern without contrast, which
+    /// kikuchipy scores NaN) or that is not in the data is not indexed. A block that does not follow or does not fit is dropped.
+    package mutating func land(_ block: DictionaryIndexing.Result, rows: Range<Int>) {
+        guard method == .dictionary, rows.lowerBound == rowsDone, rows.upperBound <= scanRows, block.keepN >= 1,
+              block.pointCount == rows.count * scanColumns, block.scores.count == block.pointCount * block.keepN,
+              block.simulationIndices.count == block.scores.count, block.rotations.count == block.scores.count,
+              dictionary.map({ $0.keepN == block.keepN }) ?? true else { return }
+        let scores = block.bestScores, rotations = block.bestRotations
+        let start = rows.lowerBound * scanColumns
+        for k in 0..<block.pointCount {
+            var s = HoughIndexer.Solution()
+            let indexed = block.isInData[k] && scores[k].isFinite
+            s.quaternion = rotations[k]
+            s.phase = indexed ? 0 : -1
+            s.confidence = indexed ? scores[k] : 0
+            s.fit = .nan
+            s.patternQuality = .nan
+            solutions[start + k] = s
+        }
+        if var landed = dictionary {
+            landed.isInData += block.isInData
+            landed.scores += block.scores
+            landed.simulationIndices += block.simulationIndices
+            landed.rotations += block.rotations
+            landed.navigationShape = [rows.upperBound, scanColumns]
+            dictionary = landed
+        } else {
+            var landed = block
+            landed.navigationShape = [rows.upperBound, scanColumns]
+            dictionary = landed
+        }
+        rowsDone = rows.upperBound
+        updateSimilarity(from: rows.lowerBound)
+    }
+
+    /// Recomputes the orientation similarity map from row `first` down to the last row landed, and the row above it (whose neighbour
+    /// below has just landed). A point's value needs only its four nearest neighbours, so the map is computed on those rows and the
+    /// one above them, and the rows' values are taken from it: the same numbers kikuchipy gives on the map of the rows landed.
+    private mutating func updateSimilarity(from first: Int) {
+        guard let dictionary, rowsDone > 0 else { return }
+        let keep = dictionary.keepN
+        let lo = max(first - 1, 0), top = max(lo - 1, 0)
+        let window = Array(dictionary.simulationIndices[(top * scanColumns * keep)..<(rowsDone * scanColumns * keep)])
+        guard let map = try? OrientationSimilarityMap.compute(simulationIndices: window, keepN: keep, rows: rowsDone - top,
+                                                              columns: scanColumns).maps.first else { return }
+        for i in (lo * scanColumns)..<(rowsDone * scanColumns) { similarity[i] = map[i - top * scanColumns] }
+    }
+
+    /// A layer's scalar at point `i` in map order: the solution's (`IndexingLayer.value`), or for OSM the orientation similarity map's
+    /// where the point is indexed; nil where the point has none or has not landed.
+    package func value(_ layer: IndexingLayer, at i: Int) -> Double? {
+        guard solutions.indices.contains(i), let s = solutions[i] else { return nil }
+        guard layer == .osm else { return layer.value(s) }
+        return s.phase >= 0 && similarity[i].isFinite ? Double(similarity[i]) : nil
+    }
+
+    /// A dictionary run's best simulation index at a point (into the dictionary's orientations); nil where none has landed.
+    package func simulationIndex(at position: EBSDPosition) -> Int? {
+        guard let dictionary, position.isInside(rows: scanRows, columns: scanColumns) else { return nil }
+        let i = position.index(columns: scanColumns) * dictionary.keepN
+        return dictionary.simulationIndices.indices.contains(i) && dictionary.simulationIndices[i] >= 0 ? dictionary.simulationIndices[i] : nil
+    }
+
+    /// The score's name: "NCC", "NDP"; "CI" for Hough.
+    package var scoreTitle: String { metric?.title ?? "CI" }
+
+    /// The map layers this run has.
+    package var layers: [IndexingLayer] { IndexingLayer.layers(for: method) }
 
     package var isComplete: Bool { rowsDone >= scanRows }
     package var pointCount: Int { scanRows * scanColumns }
@@ -121,7 +223,7 @@ package nonisolated struct IndexingResult: Sendable {
     /// `steps` (dy, dx) in `scanUnit`; the phases keep the room's colours. `indexer` is the run's (its phases are `phases`). nil before a
     /// row has landed.
     package func crystalMap(indexer: HoughIndexer, steps: (dy: Double, dx: Double), scanUnit: String) throws -> CrystalMap? {
-        guard rowsDone > 0 else { return nil }
+        guard method == .hough, rowsDone > 0 else { return nil }
         let landed = solutions.prefix(rowsDone * scanColumns).map { $0 ?? HoughIndexer.Solution() }
         var map = try indexer.crystalMap(HoughIndexer.Map(scanRows: rowsDone, scanColumns: scanColumns, solutions: landed),
                                          steps: steps, scanUnit: scanUnit)
@@ -132,6 +234,26 @@ package nonisolated struct IndexingResult: Sendable {
         })
         return map
     }
+
+    /// A dictionary run's rows landed as orix's crystal map, as kikuchipy builds it (`DictionaryIndexing.Result.crystalMap`, D-SEM-92):
+    /// the best match's rotation, the phase as id 0 in the room's colour, the properties `scores` and `simulation_indices`, steps
+    /// `steps` (dy, dx) in `scanUnit`. A point the room does not index (no contrast, NaN score) is `not_indexed` with score 0, so the
+    /// files hold numbers. nil before a block has landed.
+    package func crystalMap(steps: (dy: Double, dx: Double), scanUnit: String) throws -> CrystalMap? {
+        guard method == .dictionary, rowsDone > 0, let dictionary, let phase = phases.first else { return nil }
+        let map = try dictionary.crystalMap(phase: phase.crystalPhase, stepSizes: [steps.dy, steps.dx], scanUnit: scanUnit)
+        let best = dictionary.bestScores
+        guard best.contains(where: { !$0.isFinite }) else { return map }
+        var properties = map.properties
+        properties["scores"] = best.map { $0.isFinite ? $0 : 0 }
+        let ids = zip(map.allPhaseIDs, best).map { $1.isFinite ? $0 : PhaseList.notIndexedID }
+        return try CrystalMap(rotations: map.rotations, phaseIDs: ids, x: map.allX, y: map.allY, phaseList: map.phases,
+                              properties: properties, scanUnit: map.scanUnit, isInData: map.isInData)
+    }
+
+    /// The .ang columns of a dictionary crystal map (D-SEM-92): the confidence index from the best score (`scores`, as orix's writer
+    /// takes it by name), no image quality, fit or detector signal (written 0).
+    package static let dictionaryAngOptions = ANGWriter.Options(confidenceIndex: "scores")
 
     /// The .ang columns of a Hough crystal map (D-SEM-84): image quality from `pq` (pyEBSDindex's mean Radon peak of the bands, as
     /// EDAX's IQ is the mean Hough peak), confidence index from `cm` (its vote confidence after EDAX's voting CI), fit from `fit`.
@@ -162,11 +284,20 @@ package nonisolated struct IndexingResult: Sendable {
     }
 
     /// The status line over the map: "row 12 · col 40 · Ni · φ₁ 12,3° Φ 44,0° φ₂ 271,5° · CI 0,82 · fit 0,6° · bands 9 of 10"; a point
-    /// not indexed says so with its band count, a point the run has not reached says "not indexed yet". nil outside the scan.
+    /// not indexed says so with its band count, a point the run has not reached says "not indexed yet". A dictionary run's point:
+    /// "row 12 · col 40 · ni · φ₁ … Φ … φ₂ … · NCC 0,412 · OSM 4,25". nil outside the scan.
     package func readout(at position: EBSDPosition, locale: Locale = .autoupdatingCurrent) -> String? {
         guard position.isInside(rows: scanRows, columns: scanColumns) else { return nil }
         let head = "row \(position.row) · col \(position.column)"
         guard let s = solution(at: position) else { return head + " · not indexed yet" }
+        if method == .dictionary {
+            guard let indexedPhase = self.phase(of: s) else { return head + " · not indexed: the pattern has no contrast to score" }
+            let e = Self.eulerDegrees(s)
+            var words = head + " · \(indexedPhase.name) · φ₁ \(Self.fixed(e.x, 1, locale))° Φ \(Self.fixed(e.y, 1, locale))° φ₂ \(Self.fixed(e.z, 1, locale))°"
+            words += " · \(scoreTitle) \(Self.fixed(s.confidence, 3, locale))"
+            if let osm = value(.osm, at: position.index(columns: scanColumns)) { words += " · OSM \(Self.fixed(osm, 2, locale))" }
+            return words
+        }
         let bands = "bands \(s.matchedBands) of \(s.bandMatch.count)"
         guard let indexedPhase = self.phase(of: s) else { return head + " · not indexed · " + bands }
         let e = Self.eulerDegrees(s)
@@ -190,6 +321,10 @@ package nonisolated struct IndexingResult: Sendable {
         package let fit: Double
         package let bands: Int
         package let patternQuality: Double
+        /// A dictionary run's best simulation index (-1 for Hough and where none).
+        package let simulationIndex: Int
+        /// A dictionary run's orientation similarity (NaN for Hough and where the point is not indexed).
+        package let similarity: Double
 
         package var position: EBSDPosition { EBSDPosition(row: row, column: column) }
 
@@ -199,33 +334,46 @@ package nonisolated struct IndexingResult: Sendable {
         package var phi2Key: Double { phi2.isFinite ? phi2 : .infinity }
         package var fitKey: Double { fit.isFinite ? fit : .infinity }
         package var patternQualityKey: Double { patternQuality.isFinite ? patternQuality : .infinity }
+        package var similarityKey: Double { similarity.isFinite ? similarity : .infinity }
     }
 
-    /// The reached points, in map order. Not indexed: phase "not indexed", the Euler angles and fit NaN, CI 0.
+    /// The reached points, in map order. Not indexed: phase "not indexed", the Euler angles and fit NaN, CI (or score) 0. A dictionary
+    /// run's row carries the score as its CI, its simulation index and its OSM, and no fit, bands or pattern quality.
     package var rows: [Row] {
         var out: [Row] = []
         out.reserveCapacity(rowsDone * scanColumns)
+        let keep = dictionary?.keepN ?? 1
         for (i, solution) in solutions.enumerated() {
             guard let s = solution else { continue }
             let indexed = self.phase(of: s)
             let e = indexed == nil ? SIMD3<Double>(.nan, .nan, .nan) : Self.eulerDegrees(s)
+            var simulation = -1
+            if let dictionary, dictionary.simulationIndices.indices.contains(i * keep) { simulation = dictionary.simulationIndices[i * keep] }
             out.append(Row(id: i, row: i / scanColumns, column: i % scanColumns, phase: indexed?.name ?? "not indexed",
                            phi1: e.x, capitalPhi: e.y, phi2: e.z, confidence: indexed == nil ? 0 : s.confidence,
-                           fit: indexed == nil ? .nan : s.fit, bands: s.matchedBands, patternQuality: s.patternQuality))
+                           fit: indexed == nil ? .nan : s.fit, bands: s.matchedBands, patternQuality: s.patternQuality,
+                           simulationIndex: simulation, similarity: value(.osm, at: i) ?? .nan))
         }
         return out
     }
 
     /// The reached points as CSV (locale-free numbers, one header line): row, column, x and y in the scan unit, phase, the Euler
-    /// angles in degrees, CI, fit, matched bands, pattern quality.
+    /// angles in degrees, then for Hough CI, fit, matched bands, pattern quality, for a dictionary the score (named by its metric), the
+    /// simulation index and the OSM.
     package func csv(stepX: Double, stepY: Double) -> String {
-        var lines = ["row,column,x,y,phase,phi1_deg,Phi_deg,phi2_deg,ci,fit_deg,matched_bands,pattern_quality"]
+        let tail = method == .dictionary ? "\((metric ?? .ncc).rawValue),simulation_index,osm" : "ci,fit_deg,matched_bands,pattern_quality"
+        var lines = ["row,column,x,y,phase,phi1_deg,Phi_deg,phi2_deg," + tail]
         func number(_ v: Double) -> String { v.isFinite ? String(format: "%.6g", v) : "" }
         for r in rows {
             let phase = r.phase.contains(",") ? "\"\(r.phase)\"" : r.phase
-            lines.append([String(r.row), String(r.column), number(Double(r.column) * stepX), number(Double(r.row) * stepY), phase,
-                          number(r.phi1), number(r.capitalPhi), number(r.phi2), number(r.confidence), number(r.fit), String(r.bands),
-                          number(r.patternQuality)].joined(separator: ","))
+            var fields = [String(r.row), String(r.column), number(Double(r.column) * stepX), number(Double(r.row) * stepY), phase,
+                          number(r.phi1), number(r.capitalPhi), number(r.phi2), number(r.confidence)]
+            if method == .dictionary {
+                fields += [r.simulationIndex >= 0 ? String(r.simulationIndex) : "", number(r.similarity)]
+            } else {
+                fields += [number(r.fit), String(r.bands), number(r.patternQuality)]
+            }
+            lines.append(fields.joined(separator: ","))
         }
         return lines.joined(separator: "\n") + "\n"
     }
@@ -265,7 +413,7 @@ package nonisolated struct IndexingPalette: Sendable {
                 let colors = key.color(of: members.map { solutions[$0]?.quaternion ?? SIMD4(1, 0, 0, 0) })
                 for (k, i) in members.enumerated() { out[i] = colors[k] }
             }
-        case .confidence, .fit, .bands, .patternQuality:
+        case .confidence, .fit, .bands, .patternQuality, .score, .osm:
             break
         }
         return out
@@ -310,10 +458,10 @@ package nonisolated enum IndexingRaster {
         for (k, solution) in slice.enumerated() {
             let i = start + k
             let rgb: SIMD3<Double>
-            if let s = solution {
+            if solution != nil {
                 if palette.layer.isPointwise {
                     rgb = colors[k] ?? SIMD3(0, 0, 0)
-                } else if let v = palette.layer.value(s), let scalar {
+                } else if let v = result.value(palette.layer, at: i), let scalar {
                     let t = scalar.upperBound > scalar.lowerBound ? (v - scalar.lowerBound) / (scalar.upperBound - scalar.lowerBound) : 1
                     rgb = SIMD3(repeating: min(max(t, 0), 1))
                 } else {
@@ -331,8 +479,8 @@ package nonisolated enum IndexingRaster {
     /// The smallest and largest finite value of a scalar layer over the points reached; nil when there is none.
     package static func scalarRange(_ result: IndexingResult, layer: IndexingLayer) -> ClosedRange<Double>? {
         var lo = Double.infinity, hi = -Double.infinity
-        for case let s? in result.solutions {
-            guard let v = layer.value(s), v.isFinite else { continue }
+        for i in result.solutions.indices {
+            guard let v = result.value(layer, at: i), v.isFinite else { continue }
             lo = min(lo, v); hi = max(hi, v)
         }
         return lo <= hi ? lo...hi : nil

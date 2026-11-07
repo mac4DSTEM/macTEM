@@ -306,10 +306,14 @@ package nonisolated enum DictionaryIndexing {
         return Experimental(count: count, inData: inData, indexed: indexed, kept: kept, prepared: prepared)
     }
 
+    /// The chunks done and the chunks in all, after each chunk merges (and once with 0 before the first); called on the indexing thread.
+    package typealias Progress = @Sendable (_ done: Int, _ total: Int) -> Void
+
     /// Runs the chunks: `chunk(start, end)` hands the dictionary patterns `start ..< end` (float32-valued doubles, row-major), each
-    /// prepared, matched on the chosen backend and merged.
+    /// prepared, matched on the chosen backend and merged. Inside a task, a cancelled task stops before the next chunk
+    /// (`CancellationError`); `progress` hears of each chunk merged.
     private static func run(_ exp: Experimental, pixels: Int, dictionarySize: Int, rotations: [SIMD4<Double>], navigationShape: [Int],
-                            options: Options, chunk: (Int, Int) throws -> [Double]) throws -> Result {
+                            options: Options, progress: Progress? = nil, chunk: (Int, Int) throws -> [Double]) throws -> Result {
         guard dictionarySize > 0 else { throw Error.emptyDictionary }
         let keepN = min(options.keepN, dictionarySize)
         let length = exp.kept.count, nExp = exp.indexed.count
@@ -318,8 +322,11 @@ package nonisolated enum DictionaryIndexing {
         var gpu: DictionaryIndexingMetal.Matcher?
         if metal { gpu = try DictionaryIndexingMetal.Matcher(experimental: exp.prepared, count: nExp, length: length) }
         var best = Best(patterns: nExp, keepN: keepN)
-        var start = 0
+        let chunks = (dictionarySize + per - 1) / per
+        progress?(0, chunks)
+        var start = 0, done = 0
         while start < dictionarySize {
+            try Task.checkCancellation()
             let end = min(dictionarySize, start + per)
             let raw = try chunk(start, end)
             let prepared = raw.withUnsafeBufferPointer { prepare($0, count: end - start, pixels: pixels, kept: exp.kept, metric: options.metric) }
@@ -331,6 +338,8 @@ package nonisolated enum DictionaryIndexing {
             }
             best.merge(scores, count: end - start, offset: start)
             start = end
+            done += 1
+            progress?(done, chunks)
         }
         var result = Result(navigationShape: navigationShape, keepN: keepN, isInData: exp.inData,
                             scores: [Double](repeating: .nan, count: exp.count * keepN),
@@ -369,13 +378,14 @@ package nonisolated enum DictionaryIndexing {
     /// (`EBSDMasterPattern.get_patterns(rotations, detector, energy, dtype_out=float32)` then `dictionary_indexing`): the dictionary
     /// is never held whole. The projection runs on the GPU when the matching does (`MasterPatternProjection.patternsFloat32`).
     package static func index(experimental: [Double], navigationShape: [Int], master: EBSDMasterPattern, rotations: [SIMD4<Double>],
-                              detector: EBSDDetectorGeometry, energy: Double? = nil, options: Options = Options()) throws -> Result {
+                              detector: EBSDDetectorGeometry, energy: Double? = nil, options: Options = Options(),
+                              progress: Progress? = nil) throws -> Result {
         let pixels = detector.rows * detector.columns
         let exp = try experimentalSide(experimental, navigationShape: navigationShape, pixels: pixels, options: options)
         guard !rotations.isEmpty else { throw Error.emptyDictionary }
         let metal = usesMetal(options.backend, work: exp.indexed.count * rotations.count * exp.kept.count)
         return try run(exp, pixels: pixels, dictionarySize: rotations.count, rotations: rotations, navigationShape: navigationShape,
-                       options: options) { s, e in
+                       options: options, progress: progress) { s, e in
             let chunk = Array(rotations[s ..< e])
             if metal {
                 return try MasterPatternProjection.patternsFloat32(master: master, rotations: chunk, detector: detector, energy: energy,
@@ -385,11 +395,12 @@ package nonisolated enum DictionaryIndexing {
         }
     }
 
-    /// `index(experimental:navigationShape:master:rotations:detector:energy:options:)` off the caller's actor (seconds to minutes).
+    /// `index(experimental:navigationShape:master:rotations:detector:energy:options:progress:)` off the caller's actor (seconds to
+    /// minutes); cancelling the calling task stops it before the next chunk.
     @concurrent package static func indexAsync(experimental: [Double], navigationShape: [Int], master: EBSDMasterPattern,
                                                rotations: [SIMD4<Double>], detector: EBSDDetectorGeometry, energy: Double? = nil,
-                                               options: Options = Options()) async throws -> Result {
+                                               options: Options = Options(), progress: Progress? = nil) async throws -> Result {
         try index(experimental: experimental, navigationShape: navigationShape, master: master, rotations: rotations,
-                  detector: detector, energy: energy, options: options)
+                  detector: detector, energy: energy, options: options, progress: progress)
     }
 }

@@ -208,6 +208,7 @@ patterns bit for bit on all three projection bundles (2026-11-06).
 | `MasterPatternProjection.directionCosines` | `_get_direction_cosines_for_fixed_pc` / `_varying_pc` | same | rtol 1e-7 | |
 | `MasterPatternProjection.project` (float32, float64, uint8, uint16) | `EBSDMasterPattern.get_patterns` (`_project_single_pattern_from_master_pattern`, `_vector2lambert`, `_get_lambert_interpolation_parameters`, `_rescale_with_min_max`) | `testTheDocsExample…`, `testFigureF15…`, `testATiltedDetector…` | float: rtol 1e-5, atol 1e-8; integer: 1 count | a flat pattern is refused (kikuchipy divides by zero); the master pattern must be Lambert, with both hemispheres unless the point group holds the inversion |
 | `MasterPatternProjectionMetal.project` (float32 GPU) | `MasterPatternProjection.project` (float64 CPU) | `testTheMetalPathMatchesTheCPUReference` (skipped without a Metal device) | 1e-3 absolute on the -1 to 1 scale | float32 emulation of the kernel measured 3.2e-5 (it takes 1 - |z| as (x² + y²) / (1 + |z|) against float32 cancellation near the pole); `patternsFloat32` picks it from 10⁶ pattern pixels |
+| `MasterPatternProjectionMetal.project` on a float32 master pattern (EMsoft's type) | `MasterPatternProjection.project` (float64 CPU), which keeps a float32 master pattern's intensities (`get_patterns`: `rescale = dtype_out != self.data.dtype`) | `testTheMetalPathProjectsAFloat32MasterPatternAsStored` (skipped without a Metal device) | 1e-3 of the pattern's half range | the GPU rescaled every pattern to -1 to 1 until 2026-11-07; results change for a float32 master pattern on the GPU path only (NDP scores; NCC centres and scales each pattern, so its scores do not move) |
 
 ### Known limits and decisions
 
@@ -217,6 +218,7 @@ patterns bit for bit on all three projection bundles (2026-11-06).
   numset slice for ECP, so its energy pick slices the numset axis and returns an empty array; the ECP bundle therefore covers the
   whole-energy Lambert readings and every stereographic one.
 - D-SEM-34 (2026-11-06): the GPU path's bound (1e-3 on -1 to 1) is ours, not upstream's: kikuchipy has no float32 projection.
+  For a float32 master pattern, which neither path rescales, the bound is taken on the pattern's half range (2026-11-07).
 - Figure F15 (`docs/sem/north-star.md`): `tools/parity/sem/master_pattern_figure.py` draws the reference patterns beside the ones
   `testFigureF15NickelMasterPatternOnTheNorthStarDetector` writes to `$TMPDIR/macTEM-F15-ours.u8` (and prints as base64).
 
@@ -240,12 +242,20 @@ of the Swift steps matched every bundle: float32 runs within 2.3e-6, the float64
 | F9 whole scan | `m4/dictionary-indexing-nickel-ebsd-large` | `testFigureF9WholeScanIndexedAgainstTheNickelDictionary`, `testTheCorrectedBlockMatchesKikuchipy` | best match ≥ 99.5 % equal, best scores rtol 1e-2; block rtol 1e-4 | D-SEM-73 |
 | `OrientationSimilarityMap.compute`, `DictionaryIndexing.Result.orientationSimilarityMap` (Marquardt et al. 2017, Microsc. Microanal. 23, 1144) | `kikuchipy.indexing.orientation_similarity_map` (scipy `generic_filter`, origin at size // 2, outside −1) | `testOrientationSimilarityMapMatchesKikuchipy`, `testOrientationSimilarityMapOfFigureF9` (`m4/orientation-similarity-map`) | exact (float32) | defaults, n_best 5 to 2 normalised, 3 x 3, even 2 x 2 and corner-centred footprints; F9's whole scan; D-SEM-88 |
 | `DictionaryMapMerge.merge`, `Merged.crystalMap` | `kikuchipy.indexing.merge_crystal_maps` (with `simulation_indices_prop`) | `testMergeMatchesKikuchipy` (`m4/merge-crystal-maps`) | exact; rotations atol 1e-15 (orix normalises them again) | float32 means of the best n, first map on a tie, stable merge sort over n-major map-minor order, shifted indices, equal phases kept once, different ones renamed, navigation masks; D-SEM-88 |
+| F9 through the Indexing room's plan: `DictionaryIndexingPlan.indexBlock` (the room's per-pattern source, the shipped master pattern as the room opens it, orix's 4° sample of the file phase's point group, the file's detector with F9's PC) | `m4/dictionary-indexing-nickel-ebsd-large` | `IndexingDictionaryRoomTests.testFigureF9ThroughTheRoomsPlan` | as F9: best match ≥ 99.5 % equal, best scores rtol 1e-2 | the room's runs use the file's mean PC, 0.002 from F9's fixed one (0.1 px on the 60 px pattern), so the parity run sets F9's; D-SEM-91, D-SEM-92 |
+| Dictionary indexing through the Indexing room: `IndexingSession.index` with Method · Dictionary (block by block, chunk progress, Stop, the map, the readout, the exports) | the run's own `DictionaryIndexing.Result` and dictionary | `IndexingDictionaryRoomTests.testDictionaryThroughTheRoom` (10°, fast) | solutions equal the result's best rotations and scores exactly, each the dictionary's rotation at its best simulation index; the crystal map's `scores` and `simulation_indices` exact; the .ang's CI within its five decimals | display and files only; the numbers are `DictionaryIndexing`'s. Not compared with F9: at 10° kikuchipy 0.13.1 itself sits a median 45.2° from its 4° best on this scan (6°: 30.8°; 4°: 0°), measured 2026-11-07, so a 10° dictionary is too coarse for these 60 × 60 patterns |
+| The Indexing room's OSM layer: `IndexingResult.similarity` as dictionary blocks land (Marquardt et al. 2017) | `m4/orientation-similarity-map` (F9's map), kikuchipy's map of the rows kept | `IndexingDictionaryRoomTests.testTheRoomsSimilarityMapIsKikuchipysAsBlocksLand`; `testDictionaryThroughTheRoom` (the run's own matches) | exact | F9's matches landed in blocks of 1, 19, 1 and 34 rows; D-SEM-92 |
 
 ### Known limits and decisions
 
 - D-SEM-72 (2026-11-07): ties ranked by the lower simulation index; masked points carry NaN and -1.
 - D-SEM-73 (2026-11-07): F9's dictionary and its chain tolerance.
 - D-SEM-88 (2026-11-07): the OSM and the merge work on the dictionary result's keep_n matches; refusals and phase equality without atoms. A Python mirror of the Swift steps matched both bundles exactly (2026-11-07).
+- D-SEM-91 (2026-11-07): the Indexing room's dictionary takes one phase and a master pattern of its space group, the file's detector
+  with one (mean) PC, and figure F9's settings by default (4°, NCC, keep 5, no mask).
+- D-SEM-92 (2026-11-07): the room runs the scan in blocks of rows against the whole dictionary; Stop keeps whole blocks; a NaN score
+  (no contrast) is not indexed in the room and its files; the OSM layer is kikuchipy's map of the rows landed, a point not indexed
+  showing none.
 - Figure F9 (`docs/sem/north-star.md`): `tools/parity/sem/dictionary_figure.py` draws kikuchipy's IPF-Z map beside the one from
   the indices `testFigureF9WholeScanIndexedAgainstTheNickelDictionary` writes to `$TMPDIR/macTEM-F9-ours.i32` (and prints as
   base64), the score map and the points whose best match differs.

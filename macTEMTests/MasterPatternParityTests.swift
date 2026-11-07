@@ -290,4 +290,27 @@ nonisolated final class MasterPatternParityTests: XCTestCase {
         let automatic = try MasterPatternProjection.patternsFloat32(master: c.master, rotations: rotations, detector: c.detector)
         XCTAssertEqual(automatic, gpu)
     }
+
+    /// A float32 master pattern (EMsoft writes its `mLPNH` so) is projected as stored, without `_rescale_with_min_max`, on both paths
+    /// (`get_patterns`: `rescale = dtype_out != self.data.dtype`). The GPU stays within its tolerance of the CPU, taken on the pattern's
+    /// half range as for a pattern in -1 ... 1. Red when the GPU rescales every pattern to -1 ... 1 whatever the master pattern's type,
+    /// which changes every NDP score of a dictionary projected from an EMsoft file.
+    func testTheMetalPathProjectsAFloat32MasterPatternAsStored() throws {
+        guard MasterPatternProjectionMetal.isAvailable else { throw XCTSkip("no Metal device on this machine") }
+        let c = try projectionCase("ni")
+        var master = c.master
+        master.dataType = .float32
+        let cpu = try MasterPatternProjection.patternsFloat32(master: master, rotations: c.rotations, detector: c.detector, backend: .cpu)
+        let gpu = try MasterPatternProjection.patternsFloat32(master: master, rotations: c.rotations, detector: c.detector, backend: .metal)
+        XCTAssertEqual(gpu.count, cpu.count)
+        let pixels = c.detector.rows * c.detector.columns
+        XCTAssertFalse(c.rotations.isEmpty)
+        for n in c.rotations.indices {
+            let range = n * pixels ..< (n + 1) * pixels
+            let span = Double((cpu[range].max() ?? 0) - (cpu[range].min() ?? 0))
+            XCTAssertGreaterThan(span, 2, "pattern \(n) keeps the master pattern's intensities, not -1 ... 1")
+            let worst = zip(gpu[range], cpu[range]).reduce(0.0) { max($0, Double(abs($1.0 - $1.1))) }
+            XCTAssertLessThanOrEqual(worst, MasterPatternProjectionMetal.tolerance * span / 2, "pattern \(n)")
+        }
+    }
 }
