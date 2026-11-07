@@ -131,6 +131,16 @@ points, and the score arrays within rtol 1e-5 (the pattern matching runs in floa
 orix on the indexed map: KAM, GOS, grain segmentation at 5°, grain size statistics, ODF. Reference arrays from orix
 on the same map, rtol 1e-7 for angles, exact for grain ids after relabelling by size.
 
+Grains, KAM and GOS (P5-01) are DefDAP 1.3.1's (orix has no grain segmentation), first on orix-data's Ti map, so F11 and
+F12 stand before the indexed nickel map exists; the same functions run on the indexed map once phase 4 lands. DefDAP's
+defaults: boundaries at 10°, grains of at least 10 points; the symmetric KAM at 5°.
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| Boundaries, grains, network, KAM (DefDAP's and symmetric), grain average orientation, GROD, GOS on a committed 90 × 120 corner of the Ti map (`fixtures/grain_inputs.json`) | `ebsd.Map.find_boundaries`, `find_grains`, `build_neighbour_network`, `calc_kam`; `Grain.calc_average_ori`, `calc_grod` | `m5/grains-ti` | images, grains, sizes, network exact; KAM, GROD, GOS atol 1e-6 rad; average orientation 1e-10 |
+| The same on the two-phase steel (austenite and ferrite, phase boundaries) | as above | `m5/grains-sdss` | as above |
+| **F11** grain map with sizes of the whole 381 × 507 Ti map (62 grains, the largest 78 515 points) and **F12** KAM and GOS maps (GOS up to 4.95°, mean 0.90°; mean KAM 4.14° DefDAP's, 2.39° symmetric, 0.81° at 5°) | as above | `m5/grains-ti-full` | grain map exact (sha256), sizes exact; KAM and GROD every 37th value atol 1e-6; GOS atol 1e-6 |
+
 ### Figure 6 (milestone 6): geometrical simulation
 
 Kikuchipy *Geometrical EBSD simulations*: Kikuchi bands and zone axes of the indexed orientation drawn on the
