@@ -137,6 +137,20 @@ and F12, the whole 381 x 507 Ti map, fetched; skips without it). DefDAP runs as 
 | `GrainOrientationStatistics.compute` (`averageOrientations`, `grod`, `grodAxis`, `gos`, `averageCosine`, `grodMap`, `gosMap`) | `Grain.calc_average_ori` (`Quat.calc_average_ori`), `calcMisOri`, `build_mis_ori_list`, `calc_grod` (Wright et al. 2011) | as above | average orientation atol 1e-10; GROD, axis, GOS atol 1e-6 rad | GOS is the mean GROD angle; DefDAP's `average_mis_ori` (mean cosine) is `averageCosine` |
 | `GrainSegmentation.meanLinealIntercept`, `astmGrainSizeNumber` | ASTM E112-13 (Heyn intercept; G = −6.643856 log10 ℓ − 3.288, ℓ in mm) | `testMeanLinealInterceptAndASTMGrainSizeNumber` | hand numbers, 1e-12 | every row and column of the map is a test line; a crossing is a grain boundary edge |
 
+## Slip analysis and GND density
+
+DefDAP 1.3.1 (Apache-2.0) ported into `Sources/TEMCore/SEM/Deformation/` (P5-03): DefDAP's own quaternion conventions and
+symmetry lists (`DefDAPQuat`, `DefDAPCrystalStructure`; passive, northern hemisphere, its element order), its six slip-system
+files verbatim, the per-grain slip analysis and the Nye tensor. Bundles `m5/slip-ti` and `m5/slip-sdss` from
+`tools/parity/sem/emit.py`, inputs in `tools/parity/sem/fixtures/slip_inputs.json`, tests in `SEMSlipParityTests`.
+
+| Function | Reference | Test | Tolerance | Notes |
+| --- | --- | --- | --- | --- |
+| `SlipSystemSet.load`/`parse`, `SlipPhase` (files, plane grouping, colours, hexagonal orthonormalisation in the Oxford convention) | `defdap.crystal.SlipSystem.load`, `group`, `Phase`; `crystal_utils.create_l_matrix`, `create_q_matrix`, `convert_idc` | `testSlipSystemsAreDefDAPs`, `testEverySlipSystemFileLoadsAndOnlyDefDAPsBCCFileHoldsSystemsOutOfTheirPlane` | indices exact; unit vectors 1e-12 | 12 of the 24 {123}<111> rows in `cubic_bcc` put the direction out of the plane; the parity reads them as DefDAP does, the app analyses `analysisSlipSystems` without them (D-SEM-75) |
+| `DefDAPQuat.fromEuler`, `averageOrientation` | `Quat.create_many_quats`, `Quat.calc_sym_eqvs`, `Quat.calc_average_ori` | `testQuaternionsFromEulerAnglesAreDefDAPs`, `testGrainAveragesSchmidFactorsAndTracesMatchDefDAP` | 1e-12; grain averages 1e-10 | the average is DefDAP's running sum in its point order, so a grain's points go in in DefDAP's order (`grain_points`); grain segmentation itself is P5-01's |
+| `SlipTraceAnalysis.schmidFactors`, `traces` | `Grain.calc_average_schmid_factors`, `calc_slip_traces` (Schmid & Boas 1935) | `testGrainAveragesSchmidFactorsAndTracesMatchDefDAP`, `testPerOrientationSchmidFactorsAndTracesMatchDefDAP`, `testSchmidFactorAndTraceOfTheCubeOrientationByHand` | atol 1e-6 | the load is not normalised, as in DefDAP; trace angle from +y counter-clockwise in [0, π], NaN for a plane parallel to the map |
+| `NyeTensor.compute` (`.separate`, `.defdap131`) | `defdap.ebsd.Map.calc_nye` (Pantleon 2008; L1 norm of the nine components, Ruggles & Fullwood 2013) | `testNyeTensorAndGNDMatchDefDAPBothWays`, `testAUniformMapHasNoDislocationContent` | rtol 1e-5, atol 1e6 m⁻² | DefDAP aliases its two derivative arrays (`betadery = betaderx`); `.separate` is the default and matches DefDAP's code with that line corrected (D-SEM-74); Burgers vector 1.4 Å; the last row and column are zero as in DefDAP; float64 loops, no symmetry table held in memory |
+
 ## Patterns room
 
 | Function | Reference | Test | Tolerance | Notes |

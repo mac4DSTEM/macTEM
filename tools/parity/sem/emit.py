@@ -12,7 +12,8 @@ stack, a fixture or this script that moves a number is red until the bundle is r
 
 Milestones (docs/sem/north-star.md): m1 data in and seen (readers, pattern browser values, virtual BSE), m2 pattern
 processing (static and dynamic background, emitted now so phase-2 ports can start from a committed reference), m3
-orientation maths (orix's rotations, point groups, fundamental zones, orientations and misorientations), m7 SEM-EDS line
+orientation maths (orix's rotations, point groups, fundamental zones, orientations and misorientations), m5 maps and
+grains (DefDAP's slip systems, Schmid factors, slip traces and GND density), m7 SEM-EDS line
 intensities, background windows and Cliff-Lorimer on the TM002 spectrum (figures F16, F17), m6 master patterns (EMsoft EBSD, TKD and ECP
 master pattern files read, the Ni 20 kV pattern projected onto a detector: figure F15).
 
@@ -61,7 +62,7 @@ def assert_pins() -> None:
 
     pins = dict(re.findall(r"^([A-Za-z0-9_.-]+)==(\S+)", LOCK.read_text(), re.M))
     names = {"kikuchipy": "kikuchipy", "orix": "orix", "hyperspy": "hyperspy", "exspy": "exspy",
-             "rosettasciio": "rsciio", "pyebsdindex": "pyebsdindex", "diffsims": "diffsims", "numpy": "numpy"}
+             "rosettasciio": "rsciio", "pyebsdindex": "pyebsdindex", "diffsims": "diffsims", "numpy": "numpy", "defdap": "defdap._version"}
     bad = []
     for dist, mod in names.items():
         want = pins.get(dist)
@@ -1498,6 +1499,198 @@ def case_m6_project_master_pattern_tilted(ctx):
                        energies=(None, 12.4),
                        note="the dummy master pattern is flat at each energy (its value is the energy), so only the "
                             "float32 output (no rescale) is compared: a rescale of a flat pattern divides zero by zero")
+
+
+# --------------------------------------------------------------------------- slip systems, Schmid factors, slip traces, GND (m5)
+
+SLIP_INPUTS = FIXTURES / "slip_inputs.json"
+SLIP = {"rtol": 0.0, "atol": 1e-6}      # DefDAP's Schmid factors and trace angles (catalogue section 5)
+UNIT = {"rtol": 0.0, "atol": 1e-12}     # unit vectors and quaternions computed by the same closed formulas
+GND = {"rtol": 1e-5, "atol": 1e6}       # m^-2; atol is far below any physical density (1e12 to 1e16 m^-2) and above
+                                        # the rounding of R - I between identical neighbours (about 1e1 m^-2)
+
+
+def _defdap():
+    """DefDAP with its progress lines silenced and its version where Bundle looks for it."""
+    import defdap
+    import defdap._version
+
+    defdap.__version__ = defdap._version.__version__
+    return defdap
+
+
+def _quiet():
+    import contextlib
+    import io
+
+    return contextlib.redirect_stdout(io.StringIO())
+
+
+def _nye_separate_derivatives():
+    """DefDAP 1.3.1's `Map.calc_nye` with its one defect corrected: `betadery = betaderx` makes both lattice-curvature
+    arrays one object, so the y derivative overwrites the x derivative and the Nye tensor is built from the y
+    neighbour alone. The corrected reference is DefDAP's own source with that line replaced by a second array (asserted
+    to occur exactly once), everything else as written."""
+    import inspect
+    import textwrap
+
+    from defdap import ebsd
+
+    src = textwrap.dedent(inspect.getsource(ebsd.Map.calc_nye))
+    old = "betadery = betaderx"
+    assert src.count(old) == 1, "DefDAP's calc_nye no longer aliases the derivative arrays; drop the corrected variant"
+    src = src.replace(old, "betadery = np.zeros((3, 3) + self.shape)")
+    ns = dict(vars(ebsd))
+    exec(compile(src, "<defdap calc_nye, derivatives separate>", "exec"), ns)
+    return ns["calc_nye"]
+
+
+def _slip_bundle(ctx, case: str, maps: dict, note: str) -> None:
+    """One map through DefDAP 1.3.1: the slip systems of each phase (DefDAP's files, grouped by plane), the quaternions,
+    the Nye tensor and GND density (as DefDAP computes them, and with the x and y derivatives kept apart), the grains
+    (`find_boundaries` at 10 degrees, `find_grains` with at least 10 points), each grain's average orientation, Schmid
+    factors for a load along x and slip-trace angles and inclinations, and the same per-orientation values for every
+    37th point under loads along x and y."""
+    from defdap import ebsd
+    from defdap.quat import Quat
+
+    m = maps["map"]
+    shape = m.shape
+    b = Bundle(case, 5, "defdap", "defdap.ebsd.Map.calc_nye, find_grains; Grain.calc_average_ori, calc_average_schmid_factors, calc_slip_traces; crystal.SlipSystem.load", ctx.out)
+    b.input(SLIP_INPUTS, "fixtures/slip_inputs.json")
+    b.value("note", note)
+    b.value("shape", list(shape))
+    b.value("step_um", float(m.step_size))
+    b.value("phases", [{"name": ph.name, "laue_group": ph.laue_group, "space_group": ph.spaceGroup,
+                        "crystal_structure": ph.crystal_structure.name, "c_over_a": ph.c_over_a,
+                        "slip_system_file": ph.ss_file, "trace_colours": ph.slip_trace_colours,
+                        "groups": [[{"plane": [int(x) for x in ss.plane_idc], "direction": [int(x) for x in ss.dir_idc]}
+                                    for ss in grp] for grp in ph.slip_systems]} for ph in m.phases])
+    for k, ph in enumerate(m.phases):
+        flat = [ss for grp in ph.slip_systems for ss in grp]
+        b.array(f"slip_planes_{k}", np.array([ss.slip_plane for ss in flat]), **UNIT)
+        b.array(f"slip_directions_{k}", np.array([ss.slip_dir for ss in flat]), **UNIT)
+
+    with _quiet():
+        q = np.array([o.quat_coef for o in m.data.orientation.ravel()])
+    b.array("quaternions", q.reshape(shape + (4,)), **UNIT, note="DefDAP Quat.create_many_quats, northern hemisphere")
+
+    with _quiet():
+        gnd_defdap, nye_defdap = m.data.GND, m.data.Nye_tensor
+        gnd, nye = _nye_separate_derivatives()(m)
+    b.array("gnd_defdap_1_3_1", gnd_defdap, **GND, note="calc_nye as DefDAP 1.3.1 runs it (y derivative in both arrays)")
+    b.array("gnd", gnd, **GND, note="calc_nye with the x and y derivatives kept apart")
+    win = (slice(None), slice(None), slice(0, 30), slice(0, 40))
+    b.array("nye_defdap_1_3_1_window", np.ascontiguousarray(nye_defdap[win]), **GND, note="alpha[i, j, row, col], rows 0-29, columns 0-39")
+    b.array("nye_window", np.ascontiguousarray(nye[win]), **GND, note="alpha[i, j, row, col], rows 0-29, columns 0-39")
+
+    with _quiet():
+        m.data.generate("grain_boundaries", misori_tol=10)
+        m.find_grains(min_grain_size=10)
+        m.calc_average_grain_schmid_factors(np.array([1.0, 0.0, 0.0]))
+        for g in m:
+            g.calc_slip_traces()
+    points, offsets, phase_of, ref = [], [0], [], []
+    for g in m:
+        pts = np.asarray(g.data.point)
+        points.extend(int(y) * shape[1] + int(x) for x, y in pts)
+        offsets.append(len(points))
+        phase_of.append(m.phases.index(g.phase))
+        ref.append(g.ref_ori.quat_coef)
+    b.value("grain_count", len(m))
+    b.array("grain_points", np.array(points, dtype=np.int32), **EXACT, note="row * width + column, each grain's points in DefDAP's order")
+    b.array("grain_offsets", np.array(offsets, dtype=np.int32), **EXACT)
+    b.array("grain_phase", np.array(phase_of, dtype=np.int32), **EXACT, note="index into phases")
+    b.array("grain_average_orientation", np.array(ref), **{"rtol": 0.0, "atol": 1e-10})
+    for k in range(len(m.phases)):
+        gs = [g for g in m if m.phases.index(g.phase) == k]
+        if not gs:
+            continue
+        b.array(f"grain_schmid_x_{k}", np.array([[sf for grp in g.average_schmid_factors for sf in grp] for g in gs]), **SLIP)
+        b.array(f"grain_trace_angles_{k}", np.array([g.slip_trace_angles for g in gs]), **SLIP)
+        b.array(f"grain_trace_inclinations_{k}", np.array([g.slip_trace_inclinations for g in gs]), **SLIP)
+
+    # Per orientation: every 37th point, each through a grain of its phase with the point's orientation as reference.
+    phase_map = np.asarray(m.data.phase).ravel()
+    idx = np.array([i for i in range(0, phase_map.size, 37) if phase_map[i] > 0], dtype=np.int32)
+    b.array("sample_points", idx, **EXACT, note="row * width + column")
+    carrier = {}
+    for g in m:
+        carrier.setdefault(m.phases.index(g.phase), g)
+    for k in range(len(m.phases)):
+        sel = idx[phase_map[idx] - 1 == k]
+        if sel.size == 0:
+            continue
+        g = carrier[k]
+        sx, sy, ta, ti = [], [], [], []
+        for i in sel:
+            g.ref_ori = Quat(q[i])
+            g.calc_average_schmid_factors(np.array([1.0, 0.0, 0.0]))
+            sx.append([sf for grp in g.average_schmid_factors for sf in grp])
+            g.calc_average_schmid_factors(np.array([0.0, 1.0, 0.0]))
+            sy.append([sf for grp in g.average_schmid_factors for sf in grp])
+            g.calc_slip_traces()
+            ta.append(g.slip_trace_angles)
+            ti.append(g.slip_trace_inclinations)
+        b.array(f"sample_points_{k}", sel.astype(np.int32), **EXACT)
+        b.array(f"sample_schmid_x_{k}", np.array(sx), **SLIP)
+        b.array(f"sample_schmid_y_{k}", np.array(sy), **SLIP)
+        b.array(f"sample_trace_angles_{k}", np.array(ta), **SLIP)
+        b.array(f"sample_trace_inclinations_{k}", np.array(ti), **SLIP)
+    b.write()
+    ctx.done(case)
+
+
+def _slip_inputs() -> dict:
+    import json
+
+    return json.loads(SLIP_INPUTS.read_text(encoding="utf-8"))
+
+
+def case_m5_slip_ti(ctx):
+    """Hexagonal titanium: DefDAP's `hexagonal_withca` slip systems (basal, prismatic, pyramidal <a> and <c+a>) on the
+    90 x 120 corner of orix-data's Ti map, Bunge angles converted to radians as DefDAP's loaders do (degrees * pi / 180)."""
+    _defdap()
+    from defdap import ebsd
+    from defdap.crystal import Phase
+
+    t = _slip_inputs()["ti"]
+    h, w = t["shape"]
+    a, b_, c, al, be, ga = t["lattice_angstrom_degrees"]
+    phase = Phase(t["phase"], 9, t["space_group"], (a, b_, c, al * np.pi / 180, be * np.pi / 180, ga * np.pi / 180))
+    eu = np.asarray(t["euler_degrees"], dtype=np.float64).reshape(h, w, 3).transpose(2, 0, 1) * np.pi / 180
+    with _quiet():
+        m = ebsd.Map({"step_size": t["step_um"], "phases": [phase], "phase": np.ones((h, w), np.uint8),
+                      "euler_angle": np.ascontiguousarray(eu), "band_contrast": np.zeros((h, w), np.uint8)},
+                     data_type="PythonDict")
+    _slip_bundle(ctx, "m5/slip-ti", {"map": m},
+                 "orix-data Ti_orientations.ctf rows 0-89, columns 0-119; Ti a = 2.951, c = 4.684 Angstrom (c/a 1.5872)")
+
+
+def case_m5_slip_sdss(ctx):
+    """The duplex steel: austenite with DefDAP's `cubic_fcc` systems, ferrite with `cubic_bcc`, on the whole sdss map.
+    The EDAX Bunge angles get DefDAP's EdaxAngLoader frame change (phi1 - pi/2, wrapped into [0, 2 pi)) in float64;
+    DefDAP's own .ang loader would also name every cubic phase bcc (space group 229) and parse in float32, so the map
+    is built from the file's numbers with the phases named by their space groups (225 fcc, 229 bcc)."""
+    _defdap()
+    from defdap import ebsd
+    from defdap.crystal import Phase
+
+    t = _slip_inputs()["sdss"]
+    h, w = t["shape"]
+    phases = []
+    for p in t["phases"]:
+        a, b_, c, al, be, ga = p["lattice_angstrom_degrees"]
+        phases.append(Phase(p["name"], 11, p["space_group"], (a, b_, c, al * np.pi / 180, be * np.pi / 180, ga * np.pi / 180)))
+    eu = np.asarray(t["euler_radians"], dtype=np.float64).reshape(h, w, 3).transpose(2, 0, 1).copy()
+    eu[0] -= np.pi / 2
+    eu[0, eu[0] < 0.0] += 2 * np.pi
+    with _quiet():
+        m = ebsd.Map({"step_size": t["step_um"], "phases": phases,
+                      "phase": np.asarray(t["phase_id"], dtype=np.uint8).reshape(h, w),
+                      "euler_angle": eu, "band_contrast": np.zeros((h, w), np.uint8)}, data_type="PythonDict")
+    _slip_bundle(ctx, "m5/slip-sdss", {"map": m},
+                 "orix-data sdss_ferrite_austenite.ang, the whole 100 x 117 map; phase 1 austenite (fcc), 2 ferrite (bcc)")
 
 
 # --------------------------------------------------------------------------------------------------------- driver
