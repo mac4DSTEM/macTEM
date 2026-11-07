@@ -2,7 +2,8 @@
 //  HyperSpySpectrumFile.swift
 //  Role: open one spectrum saved in HyperSpy's own HDF5 layout (`.hspy`: `Experiments/<title>/data`, the axes as `axis-<i>` groups whose
 //        attributes are offset, scale, size and units, the metadata tree as groups whose attributes are the values) through FormatoKit's
-//        HDF5 layer, for the EDS room's one-pixel spectrum image. Counts, axis, beam energy and the elements are read exact: no numerics.
+//        HDF5 layer, for the EDS room's one-pixel spectrum image. Counts, axis, beam energy, the elements and the EDS conditions (detector
+//        resolution, elevation, azimuth, stage tilt, live time) are read exact: no numerics.
 //        A file of several experiments, a signal with a navigation axis or a non-1D dataset is refused in words (spectrum images in this
 //        layout are a later port). FormatoKit's sniff knows no `.hspy`, so this file checks the extension and the HDF5 signature itself.
 //        Reference layout: RosettaSciIO 0.15.0, `rsciio/hspy/_api.py` (GPL-3.0-or-later); the first file read is exspy's `EDS_SEM_TM002`,
@@ -27,6 +28,11 @@ package nonisolated enum HyperSpySpectrumFile {
         package var microscope: String?
         /// `metadata/Sample/_list_elements`, as written (symbols); empty when the file names none.
         package var elements: [String]
+        /// The detector and stage as `Acquisition_instrument.SEM` (else `.TEM`) states them: energy resolution at Mn Kα, elevation and
+        /// azimuth, stage tilts, live and real time; what the file leaves out takes exspy's defaults (`SEMEDSLines.Conditions`).
+        package var conditions: SEMEDSLines.Conditions
+        /// Whether the acquisition is an SEM's (`Acquisition_instrument/SEM`, or the signal type `EDS_SEM`).
+        package var isSEM: Bool
     }
 
     /// The experiment group and its axis, found without reading the counts: what the Open route needs to say where the file goes.
@@ -96,9 +102,20 @@ package nonisolated enum HyperSpySpectrumFile {
         let microscope = text(reader, "microscope", of: sem) ?? text(reader, "microscope", of: tem)
         let elementsPath = metadata + "/Sample/_list_elements"
         let elements = (try? reader.exists(elementsPath)) == true ? ((try? reader.readStrings(elementsPath)) ?? []) : []
-        return Spectrum(title: header.title, signalType: text(reader, "signal_type", of: metadata + "/Signal") ?? "", counts: counts,
+        let signalType = text(reader, "signal_type", of: metadata + "/Signal") ?? ""
+        let isSEM = signalType == "EDS_SEM" || (try? reader.exists(sem)) == true
+        let instrument = isSEM ? sem : tem
+        let detector = instrument + "/Detector/EDS", stage = instrument + "/Stage"
+        let positiveBeam = beam.flatMap { $0 > 0 ? $0 : nil }
+        let conditions = SEMEDSLines.Conditions(
+            beamEnergyKeV: positiveBeam, energyResolutionMnKaEV: number(reader, "energy_resolution_MnKa", of: detector),
+            elevationAngleDeg: number(reader, "elevation_angle", of: detector), azimuthAngleDeg: number(reader, "azimuth_angle", of: detector),
+            tiltAlphaDeg: number(reader, "tilt_alpha", of: stage), tiltBetaDeg: number(reader, "tilt_beta", of: stage),
+            liveTimeS: number(reader, "live_time", of: detector), realTimeS: number(reader, "real_time", of: detector))
+        return Spectrum(title: header.title, signalType: signalType, counts: counts,
                         offset: header.offset, scale: header.scale, units: header.units,
-                        beamEnergyKeV: beam.flatMap { $0 > 0 ? $0 : nil }, microscope: microscope, elements: elements)
+                        beamEnergyKeV: positiveBeam, microscope: microscope, elements: elements,
+                        conditions: conditions, isSEM: isSEM)
     }
 
     /// A numeric attribute of a group that may not exist (HyperSpy writes a scalar as one value; a one-element array counts too).

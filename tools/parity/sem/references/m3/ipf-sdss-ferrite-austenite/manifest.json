@@ -1,0 +1,81 @@
+{
+  "arrays": {
+    "euler": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "euler.bin",
+      "note": "Bunge angles in radians as orix read them, the input of the colours",
+      "rtol": 0.0,
+      "sha256": "4609be2d844033d60c10d23b0330d452628901308705d9d4dff2eb44e16c2f82",
+      "shape": [
+        11700,
+        3
+      ]
+    },
+    "ipf_z_rgb": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "ipf_z_rgb.bin",
+      "rtol": 0.0,
+      "sha256": "480673f8414482979d404dde49eddf290149e1c0ad5bc99966810aa941f210c4",
+      "shape": [
+        11700,
+        3
+      ]
+    },
+    "phase_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "phase_id.bin",
+      "rtol": 0.0,
+      "sha256": "c123daf5fedbbc792f35d99ccc8c62668422f701dd2136e62b2e9ac3fc7bb1d0",
+      "shape": [
+        11700
+      ]
+    }
+  },
+  "case": "m3/ipf-sdss-ferrite-austenite",
+  "inputs": [
+    {
+      "path": "sem-data/orix/sdss_ferrite_austenite.ang",
+      "sha256": "ac2fc2fc2b8c9c598703c96f9888677bccc9cd88cddd5e78735653fd5504e371"
+    }
+  ],
+  "milestone": 3,
+  "reference": {
+    "function": "orix.plot.IPFColorKeyTSL.orientation2color per phase",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "phases": {
+      "1": {
+        "name": "austenite/austenite",
+        "point_group": "432"
+      },
+      "2": {
+        "name": "ferrite/ferrite",
+        "point_group": "432"
+      }
+    },
+    "shape": [
+      100,
+      117
+    ]
+  }
+}

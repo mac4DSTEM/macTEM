@@ -54,19 +54,19 @@ Each milestone reproduces one more figure; release-please tags the minor when it
 | Phase | Scope | Exit gate |
 |---|---|---|
 | 0 | survey, catalogue, north star, parity environment, room designs, briefs, this plan | `plan.md` complete; `tools/parity/sem` emits the M1 references; summary in the project chat |
-| 1 | data in and seen: EBSD/TKD formats (h5oina, Bruker h5, EDAX up1/up2 + ang, Oxford ctf and ebsp, kikuchipy h5ebsd, NORDIF), SEM TIFFs with metadata (Thermo, Zeiss, Tescan), the Patterns room with live navigation and virtual BSE images | F1 and F2 reproduced and posted beside the reference. STOP: Paul says "continue" |
-| 2 | pattern processing: static and dynamic background, binning, normalisation, FFT filters, IQ, PC conventions incl. TKD geometry | F3 to F5 posted; 24 h for an objection |
-| 3 | orientation core: rotations, symmetry, misorientation, IPF keys, pole figures, parity against orix | F6, F7 posted; 24 h |
-| 4 | indexing: Hough (pyEBSDindex), dictionary with master patterns, refinement of orientation and PC | F8 to F10 posted; 24 h |
-| 5 | maps and grains: IPF, phase, KAM, GOS, GND, grains with statistics, ODF | F11 to F13 posted; 24 h |
-| 6 | simulation: kinematic overlay, master-pattern reading and projection, geometrical simulation | F14, F15 posted; 24 h |
-| 7 | SEM-EDS: the EDS room on SEM files; quantification parity with exspy | F16, F17 posted; 24 h |
-| 8 | export and reports: ang/ctf writers, maps and figures with scale bars, session report | F18 posted; 24 h |
+| 1 | data in and seen: EBSD/TKD formats (h5oina, Bruker h5, EDAX up1/up2 + ang, Oxford ctf and ebsp, kikuchipy h5ebsd, NORDIF), SEM TIFFs with metadata (Thermo, Zeiss, Tescan), the Patterns room with live navigation and virtual BSE images | F1 and F2 reproduced and posted beside the reference (for review; nothing waits, D-SEM-26) |
+| 2 | pattern processing: static and dynamic background, binning, normalisation, FFT filters, IQ, PC conventions incl. TKD geometry | F3 to F5 posted |
+| 3 | orientation core: rotations, symmetry, misorientation, IPF keys, pole figures, parity against orix | F6, F7 posted |
+| 4 | indexing: Hough (pyEBSDindex), dictionary with master patterns, refinement of orientation and PC | F8 to F10 posted |
+| 5 | maps and grains: IPF, phase, KAM, GOS, GND, grains with statistics, ODF | F11 to F13 posted |
+| 6 | simulation: kinematic overlay, master-pattern reading and projection, geometrical simulation | F14, F15 posted |
+| 7 | SEM-EDS: the EDS room on SEM files; quantification parity with exspy | F16, F17 posted |
+| 8 | export and reports: ang/ctf writers, maps and figures with scale bars, session report | F18 posted |
 | 9 | polish: every room against its design, keyboard and accessibility, 1000 x 1000 map budget, screenshots, 2.0.0 notes | final report in the project chat |
 
-From phase 2 on, a gate posts its figures next to the reference values and waits 24 hours for an objection before
-the next phase's rooms are built; parity-backed kit-free work for the next phase (readers, numerics in TEMCore with
-their parity tests) starts at once.
+Every gate posts its figures next to the reference values for review; nothing waits for an answer or an objection
+window (Paul, 2026-11-06 22:32: "finish macEM fully"; D-SEM-26). Work starts as soon as its prerequisites are on
+`main`, in the waves of `briefs/README.md`.
 
 ## Workstreams
 

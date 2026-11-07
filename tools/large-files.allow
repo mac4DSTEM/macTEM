@@ -1,3 +1,3 @@
 # Tracked files over 1 MiB, each with its reason: path<TAB>reason. tools/run-tests.sh inventory fails on any other.
 DemoData/nickel_ebsd_large/patterns_v2.h5	shipped demo data: kikuchipy's nickel_ebsd_large (CC BY 4.0), the SEM program's north-star EBSD set; NOTICE
-tools/parity/sem/fixtures/rsciio/bruker/bcf-edx-ebsd.bcf	parity fixture: RosettaSciIO 0.15.0 test file, the only version 2 .bcf without zlib (GPL-3.0-or-later); D-SEM-62
+tools/parity/sem/fixtures/rsciio/bruker/bcf-edx-ebsd.bcf	parity fixture: RosettaSciIO 0.15.0 test file, the only version 2 .bcf without zlib (GPL-3.0-or-later); D-SEM-79
