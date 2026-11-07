@@ -1,0 +1,122 @@
+{
+  "arrays": {
+    "counts": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "counts.bin",
+      "rtol": 0.0,
+      "sha256": "575fff255439b8bbe0fd876652e4fb842aea017036a318ea398acc1488ec881d",
+      "shape": [
+        94
+      ]
+    },
+    "edges_degrees": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "edges_degrees.bin",
+      "rtol": 0.0,
+      "sha256": "b79c5056cf8969638fccc3617fa40c9fc4d58e46a4be44b58aac33d841c14a3f",
+      "shape": [
+        95
+      ]
+    },
+    "euler_degrees": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "euler_degrees.bin",
+      "rtol": 0.0,
+      "sha256": "e39b6bc014ac9a275c414e6431bbb9fef2162574a38affa33a0b201b19b97b7c",
+      "shape": [
+        1521,
+        3
+      ]
+    },
+    "horizontal_angles": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "horizontal_angles.bin",
+      "rtol": 0.0,
+      "sha256": "be2bca0251818e7e46d018b9a6e1437f431f3fbf4c2954e194af6eee169fd40c",
+      "shape": [
+        1518
+      ]
+    },
+    "horizontal_misorientations": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "horizontal_misorientations.bin",
+      "rtol": 0.0,
+      "sha256": "68791df2e37be1d2d3c5958bcfd902a5270c7e4c66c94fb3309b7285f008529d",
+      "shape": [
+        1518,
+        4
+      ]
+    },
+    "vertical_angles": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "vertical_angles.bin",
+      "rtol": 0.0,
+      "sha256": "f982a905b78c42921dcd16e51ed26ad5fc42c8c1563bd7ba290e0c7e2a947323",
+      "shape": [
+        1014
+      ]
+    },
+    "vertical_misorientations": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "vertical_misorientations.bin",
+      "rtol": 0.0,
+      "sha256": "8d67f68e71da09478c931daa898931bfdec59b073b874fdb62fb270163e20c65",
+      "shape": [
+        1014,
+        4
+      ]
+    }
+  },
+  "case": "m3/ti-neighbour-misorientations",
+  "inputs": [
+    {
+      "path": "fixtures/orientation_inputs.json",
+      "sha256": "faf36e30d99e1b9261c4075804a15488762c97ff16d5ac9a7c53b5e4da479f23"
+    }
+  ],
+  "milestone": 3,
+  "reference": {
+    "function": "orix.quaternion.Orientation.__sub__ of map neighbours, Misorientation.angle; numpy.histogram",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "closest_to_an_edge_degrees": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 0.000742752261825963
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "map_shape": [
+      3,
+      507
+    ],
+    "pairs": {
+      "horizontal": 1518,
+      "vertical": 1014
+    },
+    "point_group": "622"
+  }
+}
