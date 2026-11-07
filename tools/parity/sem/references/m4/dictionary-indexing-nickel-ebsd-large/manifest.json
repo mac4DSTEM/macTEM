@@ -1,0 +1,185 @@
+{
+  "arrays": {
+    "block_experimental": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "block_experimental.bin",
+      "note": "scan rows 20..25, cols 30..35, kikuchipy's corrected uint8",
+      "rtol": 0.0,
+      "sha256": "e21f4b08c8259f30d7677610e722c0d5089e3296572ba980eea6dfd7edb52373",
+      "shape": [
+        6,
+        6,
+        60,
+        60
+      ]
+    },
+    "block_ncc_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "block_ncc_scores.bin",
+      "note": "the block as its own signal",
+      "rtol": 0.0001,
+      "sha256": "a21f5ef69477a403c52fbd76fd11527d1e56ad5efd39081dbcafd7725cc31a6f",
+      "shape": [
+        36,
+        5
+      ]
+    },
+    "block_ncc_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "block_ncc_simulation_indices.bin",
+      "note": "the block as its own signal",
+      "rtol": 0.0,
+      "sha256": "b4446add1cd83048a2fc5cd62b318e29e0640b9535048170767cf6e7c289c613",
+      "shape": [
+        36,
+        5
+      ]
+    },
+    "ncc_best_euler": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ncc_best_euler.bin",
+      "rtol": 1e-07,
+      "sha256": "e2b5698a314bbbb9ea99214e832f73a99941d17135c9f14a3fd1e941884f39a3",
+      "shape": [
+        4125,
+        3
+      ]
+    },
+    "ncc_best_quaternions": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ncc_best_quaternions.bin",
+      "note": "the dictionary's rotation at the best simulation index",
+      "rtol": 0.0,
+      "sha256": "a6a7c276cf7c0d989b698c0ee08b99c0594893d9d44e8de798fa2d3cc55e698a",
+      "shape": [
+        4125,
+        4
+      ]
+    },
+    "ncc_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "ncc_scores.bin",
+      "note": "figure F9: the whole scan after kikuchipy's background chain",
+      "rtol": 0.002,
+      "sha256": "323ef453ca5e6eebda17e48e8901f8772fc3c2070f39f114edc208d3cc8b016e",
+      "shape": [
+        4125,
+        5
+      ]
+    },
+    "ncc_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "ncc_simulation_indices.bin",
+      "note": "figure F9: the whole scan after kikuchipy's background chain",
+      "rtol": 0.0,
+      "sha256": "5710c4946b40c714c0d694288970013f6f3a2c4ccc8ea5211805f4ebd5ea3e29",
+      "shape": [
+        4125,
+        5
+      ]
+    },
+    "ncc_x": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ncc_x.bin",
+      "rtol": 0.0,
+      "sha256": "967924949d6ae12346c6494521a12a0998ee20b23c7e9c995c2871bb097f01d4",
+      "shape": [
+        4125
+      ]
+    },
+    "ncc_y": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "ncc_y.bin",
+      "rtol": 0.0,
+      "sha256": "463165d920894d3458f7396496d63fe1980d0b6b37682b05f6096d9adc9cdd81",
+      "shape": [
+        4125
+      ]
+    }
+  },
+  "case": "m4/dictionary-indexing-nickel-ebsd-large",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    },
+    {
+      "path": "fixtures/emsoft_ebsd_master_pattern_ni_mc_mp_20kv_uint8_gzip_opts9.h5",
+      "sha256": "8a7c1fb471d9ce750f0332a154e87cf41eed7529be508548e0c0f51ec6f92bc2"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.dictionary_indexing",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "background": "remove_static_background(operation='subtract') then remove_dynamic_background(operation='subtract', filter_domain='frequency', truncate=4.0)",
+    "block": {
+      "cols": [
+        30,
+        36
+      ],
+      "rows": [
+        20,
+        26
+      ]
+    },
+    "detector": {
+      "binning": 8,
+      "pc": [
+        0.4214,
+        0.2142,
+        0.5013
+      ],
+      "sample_tilt": 70.0,
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "dictionary_size": 11935,
+    "experimental": {
+      "dtype": "uint8",
+      "sha256": "e76a8b011a187e04ed25c931ee2a67cc062a962abfd71535937c2a7ab2f1ca01",
+      "shape": [
+        55,
+        75,
+        60,
+        60
+      ]
+    },
+    "keep_n": 5,
+    "point_group": "m-3m",
+    "resolution": 4.0,
+    "step_sizes": [
+      1.5,
+      1.5
+    ]
+  }
+}

@@ -108,6 +108,33 @@ patterns bit for bit on all three projection bundles (2026-11-06).
 - Figure F15 (`docs/sem/north-star.md`): `tools/parity/sem/master_pattern_figure.py` draws the reference patterns beside the ones
   `testFigureF15NickelMasterPatternOnTheNorthStarDetector` writes to `$TMPDIR/macTEM-F15-ours.u8` (and prints as base64).
 
+## Dictionary indexing (figure F9)
+
+References: `tools/parity/sem/dictionary_cases.py` (kikuchipy 0.13.1, orix 0.15.0), bundles `m4/dictionary-indexing-*`, tests in
+`SEMDictionaryIndexingParityTests`. Method: Chen et al. (2015), Microsc. Microanal. 21, 739; Jackson et al. (2019), Integr.
+Mater. Manuf. Innov. 8, 226. kikuchipy matches in float32 by default (`da.einsum`, BLAS) and in float64 on request; TEMCore's
+reference path prepares and multiplies in float64, the GPU path multiplies in float32. Upstream's tests state no score
+tolerance; the brief's rtol 1e-4 holds for float32 runs, `np.allclose`'s rtol 1e-5 for float64 runs. A float64 numpy mirror
+of the Swift steps matched every bundle: float32 runs within 2.3e-6, the float64 run within 1e-14, every index in order
+(2026-11-07).
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `DictionaryIndexing.prepare` (NCC: centre, unit norm; NDP: unit norm) | `NormalizedCrossCorrelationMetric` / `NormalizedDotProductMetric.prepare_experimental`, `prepare_dictionary` | through every run | — | the signal mask drops pixels before the normalisation; a flat pattern's values are NaN, as kikuchipy's |
+| `DictionaryIndexing.index` (dictionary in memory; CPU float64) | `EBSD.dictionary_indexing` (`_dictionary_indexing`, `_match_chunk`) | `testNCCMatchesKikuchipyInFloat32AndFloat64`, `testNDPMatchesKikuchipy`, `testSignalAndNavigationMasksMatchKikuchipy`, `testChunksGiveTheSameResult` | scores rtol 1e-4 (float32 runs), 1e-5 (float64); indices exact where scores do not tie | ties ranked by the lower simulation index (D-SEM-51), so any chunking gives the same result; `keepN` clamped to the dictionary |
+| `DictionaryIndexing.index` (master pattern, chunk by chunk) | `get_patterns(dtype_out=float32)` then `dictionary_indexing` | `testProjectingTheDictionaryInChunksMatchesTheDictionaryInMemory`, `testFigureF9…` | equal to the in-memory dictionary; F9 as below | the dictionary is never held whole |
+| `DictionaryIndexing.Result.crystalMap` | the returned `CrystalMap` (`rotations`, `prop`, `create_coordinate_arrays`) | `testCrystalMapOfTheResult` | quaternions atol 1e-7, Euler 1e-6, coordinates exact | a point the navigation mask leaves out has phase id -1, score NaN, index -1 (kikuchipy: `np.empty`) |
+| `DictionaryIndexingMetal` (float32 GPU product) | the CPU float64 product | `testTheMetalPathMatchesTheCPUReference` (skipped without a Metal device) | 1e-5 absolute on scores; against kikuchipy rtol 1e-4, with the GPU-projected dictionary 1e-3 | automatic from 10⁹ products (patterns x dictionary x pixels) |
+| F9 whole scan | `m4/dictionary-indexing-nickel-ebsd-large` | `testFigureF9WholeScanIndexedAgainstTheNickelDictionary`, `testTheCorrectedBlockMatchesKikuchipy` | best match ≥ 99.5 % equal, best scores rtol 2e-3; block rtol 1e-4 | D-SEM-52 |
+
+### Known limits and decisions
+
+- D-SEM-51 (2026-11-07): ties ranked by the lower simulation index; masked points carry NaN and -1.
+- D-SEM-52 (2026-11-07): F9's dictionary and its chain tolerance.
+- Figure F9 (`docs/sem/north-star.md`): `tools/parity/sem/dictionary_figure.py` draws kikuchipy's IPF-Z map beside the one from
+  the indices `testFigureF9WholeScanIndexedAgainstTheNickelDictionary` writes to `$TMPDIR/macTEM-F9-ours.i32` (and prints as
+  base64), the score map and the points whose best match differs.
+
 ## Pattern quality
 
 References: `tools/parity/sem/emit.py` cases `m2/quality-kikuchipy-h5ebsd` and `m2/quality-nickel-ebsd-large` (kikuchipy

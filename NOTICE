@@ -54,6 +54,10 @@ calibration in Sources/TEMCore/SEM/PCCalibrationMovingScreen.swift are ports of 
 (detectors/_ebsd_detector.py, detectors/_convert_detector_coordinates.py, detectors/_calibration.py), Copyright (C)
 2019-2026 the kikuchipy developers, GPL-3.0-or-later, taken under GPL-3.0.
 
+The dictionary indexing in Sources/TEMCore/SEM/Indexing/ (DictionaryIndexing.swift, DictionaryIndexingMetal.swift) is a port
+of kikuchipy 0.13.1 (indexing/_dictionary_indexing.py, indexing/similarity_metrics/), Copyright (C) 2019-2026 the kikuchipy
+developers, GPL-3.0-or-later, taken under GPL-3.0; the method is Chen et al. (2015), Microsc. Microanal. 21, 739.
+
 ================================================================================
 SpectroKit (a Swift package the app is built with)
 ================================================================================

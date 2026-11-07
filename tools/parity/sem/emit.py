@@ -14,7 +14,8 @@ Milestones (docs/sem/north-star.md): m1 data in and seen (readers, pattern brows
 processing (static and dynamic background, emitted now so phase-2 ports can start from a committed reference), m3
 orientation maths (orix's rotations, point groups, fundamental zones, orientations and misorientations), m7 SEM-EDS line
 intensities on the TM002 spectrum (the numbers behind the EDS figure), m6 master patterns (EMsoft EBSD, TKD and ECP
-master pattern files read, the Ni 20 kV pattern projected onto a detector: figure F15).
+master pattern files read, the Ni 20 kV pattern projected onto a detector: figure F15), m4 dictionary indexing against
+that pattern (figure F9, dictionary_cases.py).
 
 Run with `python -I -B` from outside this folder: a fixture is data, never code.
 """
@@ -37,6 +38,8 @@ sys.path.append(str(HERE))
 from detector_cases import (  # noqa: E402,F401  (milestone 2 detector geometry and figure F5; emit collects case_ names)
     case_m2_detector_gnomonic, case_m2_detector_pc_conventions, case_m2_detector_sample_to_detector,
     case_m2_detector_tkd_geometry, case_m2_pc_moving_screen_si)
+from dictionary_cases import (  # noqa: E402,F401  (milestone 4 dictionary indexing, figure F9)
+    case_m4_dictionary_indexing_nickel_large, case_m4_dictionary_indexing_small)
 
 warnings.filterwarnings("ignore")
 
