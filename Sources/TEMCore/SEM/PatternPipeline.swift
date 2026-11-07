@@ -1,12 +1,14 @@
 //
 //  PatternPipeline.swift
 //  The Patterns room's processing pipeline (docs/sem/design/pattern-processing.md §3): the stages in kikuchipy's dependency order
-//  — static background, dynamic background, intensity (rescale or normalise), size (bin) — as one Sendable value, applied to one
-//  pattern (the live preview) or to every pattern of a scan (the room's verb `Process`, into memory). NLPAR (`NLPAR`, pyebsdindex
-//  0.3.10.1) is the last stage and the only one over the whole scan at once: each pattern is averaged with its neighbours, so it
-//  runs only in `process`, after the per-pattern stages, and its output is float32 as pyebsdindex's. Every number is
-//  `PatternProcessing`'s, ported function by function from kikuchipy 0.13.1 and held by its parity tests; this file only chains
-//  the stages and keeps their parameters in kikuchipy's names (`methodJSON`), so a user reproduces the run in Python.
+//  — static background, dynamic background, intensity (rescale or normalise, then adaptive histogram equalisation), FFT filter,
+//  size (bin) — as one Sendable value, applied to one pattern (the live preview) or to every pattern of a scan (the room's verb
+//  `Process`, into memory). Two stages work on the whole scan at once, so they run only in `process`, after the per-pattern
+//  stages: neighbour averaging (kikuchipy's `average_neighbour_patterns`) and, last, NLPAR (`NLPAR`, pyebsdindex 0.3.10.1), whose
+//  output is float32 as pyebsdindex's. Every number is `PatternProcessing`'s, `AdaptiveHistogramEqualization`'s,
+//  `PatternFilters`'s and `NeighbourAveraging`'s, ported function by function from kikuchipy 0.13.1 and held by their parity
+//  tests; this file only chains the stages and keeps their parameters in kikuchipy's names (`methodJSON`), so a user reproduces
+//  the run in Python.
 //
 //  Pattern types: unsigned 8 and 16 bit (every EBSD reader's); normalisation makes float32, as kikuchipy's
 //  `change_dtype("float32")` then `normalize_intensity` does. Binning a float32 pattern rescales it to [-1, 1], float32's
@@ -69,12 +71,102 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         /// Normalise: kikuchipy's `num_std` and `divide_by_square_root`.
         package var numStd = 1.0
         package var divideBySquareRoot = false
+        /// Equalise: kikuchipy's `adaptive_histogram_equalization` (CLAHE, scikit-image's `equalize_adapthist`) after the rescale.
+        package var equalize = false
+        /// The square contextual region in pixels; nil is kikuchipy's default, a quarter of the pattern.
+        package var equalizeKernel: Int?
+        /// scikit-image's normalised clip limit; 0 clips nothing (kikuchipy's default).
+        package var clipLimit = 0.0
+        package init() {}
+    }
+
+    /// kikuchipy's `adaptive_histogram_equalization` histogram bins (`nbins`).
+    package static let equalizeBins = 128
+
+    /// Which frequencies the FFT filter keeps: the guide's Gaussian-edged `lowpass` and `highpass` transfer functions, or their product.
+    package enum FFTPass: String, Sendable, Codable, CaseIterable, Identifiable {
+        case low, high, band
+        package var id: String { rawValue }
+        package var title: String {
+            switch self {
+            case .low: "Low"
+            case .high: "High"
+            case .band: "Band"
+            }
+        }
+    }
+
+    /// kikuchipy's `EBSD.fft_filter` in the frequency domain with `shift=True`, the transfer function the pattern's shape. The defaults
+    /// are kikuchipy's pattern-processing guide (lowpass cutoff 22, width 10; highpass cutoff 3, width 2), north-star figure F4.
+    package struct FFTFilterStage: Sendable, Equatable, Codable {
+        package var isOn = false
+        package var pass = FFTPass.band
+        /// Lowpass: frequencies within `lowCutoff` pixels of the centre are kept, rolling off over `lowWidth`.
+        package var lowCutoff = 22.0
+        package var lowWidth = 10.0
+        /// Highpass: frequencies beyond `highCutoff` are kept, rolling off over `highWidth` inside it.
+        package var highCutoff = 3.0
+        package var highWidth = 2.0
+        package init() {}
+
+        package var usesLowpass: Bool { pass != .high }
+        package var usesHighpass: Bool { pass != .low }
+
+        /// The transfer function for a rows × columns pattern.
+        package func transferFunction(rows: Int, columns: Int) throws -> PatternWindow {
+            switch pass {
+            case .low: return try PatternWindow.lowpass(rows: rows, columns: columns, cutoff: lowCutoff, cutoffWidth: lowWidth)
+            case .high: return try PatternWindow.highpass(rows: rows, columns: columns, cutoff: highCutoff, cutoffWidth: highWidth)
+            case .band:
+                return try PatternWindow.lowpass(rows: rows, columns: columns, cutoff: lowCutoff, cutoffWidth: lowWidth)
+                    * PatternWindow.highpass(rows: rows, columns: columns, cutoff: highCutoff, cutoffWidth: highWidth)
+            }
+        }
+
+        /// The transfer function as kikuchipy builds it, for the method JSON.
+        func python(rows: Int, columns: Int) -> String {
+            let low = "Window('lowpass', cutoff=\(lowCutoff), cutoff_width=\(lowWidth), shape=(\(rows), \(columns)))"
+            let high = "Window('highpass', cutoff=\(highCutoff), cutoff_width=\(highWidth), shape=(\(rows), \(columns)))"
+            switch pass {
+            case .low: return low
+            case .high: return high
+            case .band: return low + " * " + high
+            }
+        }
+    }
+
+    /// The window of neighbour averaging: kikuchipy's default 3 × 3 circular window, the 5 × 5 circular one, or a 3 × 3 Gaussian (std 1).
+    package enum AveragingWindow: String, Sendable, Codable, CaseIterable, Identifiable {
+        case circular3, circular5, gaussian3
+        package var id: String { rawValue }
+        package var title: String {
+            switch self {
+            case .circular3: "3 × 3"
+            case .circular5: "5 × 5"
+            case .gaussian3: "Gaussian"
+            }
+        }
+        package var size: Int { self == .circular5 ? 5 : 3 }
+        package var kikuchipyName: String { self == .gaussian3 ? "gaussian" : "circular" }
+        package func window() throws -> PatternWindow {
+            switch self {
+            case .circular3, .circular5: return try PatternWindow.circular(rows: size, columns: size)
+            case .gaussian3: return try PatternWindow.gaussian(rows: 3, columns: 3, std: 1)
+            }
+        }
+    }
+
+    /// Neighbour pattern averaging over the scan (Wright et al. 2015): kikuchipy's `average_neighbour_patterns`.
+    package struct AveragingStage: Sendable, Equatable, Codable {
+        package var isOn = false
+        package var window = AveragingWindow.circular3
         package init() {}
     }
 
     package var staticStage = StaticStage()
     package var dynamicStage = DynamicStage()
     package var intensity = IntensityStage()
+    package var fftFilter = FFTFilterStage()
     /// The binning factor (`EBSD.downsample`): 1, 2, 4 or 8.
     package var binning = 1
 
@@ -85,6 +177,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         package init() {}
     }
 
+    package var averaging = AveragingStage()
     package var nlpar = NLPARStage()
 
     package static let binnings = [1, 2, 4, 8]
@@ -97,14 +190,16 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
 
     /// The pipeline's stages in dependency order, for the stage glyphs.
     package enum Stage: Int, Sendable, CaseIterable, Identifiable, Comparable {
-        case staticBackground, dynamicBackground, intensity, size, nlpar
+        case staticBackground, dynamicBackground, intensity, fftFilter, size, averaging, nlpar
         package var id: Int { rawValue }
         package var title: String {
             switch self {
             case .staticBackground: "Static background"
             case .dynamicBackground: "Dynamic background"
             case .intensity: "Intensity"
+            case .fftFilter: "FFT filter"
             case .size: "Size"
+            case .averaging: "Average neighbours"
             case .nlpar: "NLPAR"
             }
         }
@@ -116,8 +211,10 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         switch stage {
         case .staticBackground: staticStage.isOn
         case .dynamicBackground: dynamicStage.isOn
-        case .intensity: intensity.mode != .none
+        case .intensity: intensity.mode != .none || intensity.equalize
+        case .fftFilter: fftFilter.isOn
         case .size: binning > 1
+        case .averaging: averaging.isOn
         case .nlpar: nlpar.isOn
         }
     }
@@ -127,7 +224,9 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         if staticStage != other.staticStage { return .staticBackground }
         if dynamicStage != other.dynamicStage { return .dynamicBackground }
         if intensity != other.intensity { return .intensity }
+        if fftFilter != other.fftFilter { return .fftFilter }
         if binning != other.binning { return .size }
+        if averaging != other.averaging { return .averaging }
         if nlpar != other.nlpar { return .nlpar }
         return nil
     }
@@ -175,8 +274,36 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         if intensity.mode == .normalize, !(intensity.numStd.isFinite && intensity.numStd > 0) {
             return Refusal(.intensity, "Std must be positive.")
         }
+        if intensity.equalize {
+            if intensity.mode == .normalize {
+                return Refusal(.intensity, "Equalise reads 8 and 16 bit patterns; Normalise makes them float32. Rescale or leave the intensities instead.")
+            }
+            if let k = intensity.equalizeKernel, k < 1 { return Refusal(.intensity, "The equalisation kernel must be at least 1 px.") }
+            guard intensity.clipLimit.isFinite, intensity.clipLimit >= 0 else { return Refusal(.intensity, "The clip limit must be 0 or more.") }
+        }
+        if fftFilter.isOn {
+            if intensity.mode == .normalize {
+                return Refusal(.fftFilter, "The FFT filter reads 8 and 16 bit patterns; Normalise makes them float32. Rescale or leave the intensities instead.")
+            }
+            if fftFilter.usesLowpass {
+                guard fftFilter.lowCutoff.isFinite, fftFilter.lowCutoff > 0, fftFilter.lowWidth.isFinite, fftFilter.lowWidth > 0 else {
+                    return Refusal(.fftFilter, "The lowpass cutoff and width must be positive.")
+                }
+            }
+            if fftFilter.usesHighpass {
+                guard fftFilter.highCutoff.isFinite, fftFilter.highCutoff > 0, fftFilter.highWidth.isFinite, fftFilter.highWidth > 0 else {
+                    return Refusal(.fftFilter, "The highpass cutoff and width must be positive.")
+                }
+            }
+            if fftFilter.pass == .band, fftFilter.highCutoff >= fftFilter.lowCutoff {
+                return Refusal(.fftFilter, "Band keeps the frequencies between the highpass and lowpass cutoffs: the highpass cutoff must be the lower.")
+            }
+        }
         if binning > 1, dataset.patternRows % binning != 0 || dataset.patternColumns % binning != 0 {
             return Refusal(.size, "Bin \(binning) does not divide the \(dataset.patternRows) × \(dataset.patternColumns) px pattern.")
+        }
+        if averaging.isOn, intensity.mode == .normalize {
+            return Refusal(.averaging, "Average neighbours reads 8 and 16 bit patterns; Normalise makes them float32. Rescale or leave the intensities instead.")
         }
         if nlpar.isOn {
             let window = 2 * nlpar.searchRadius + 1
@@ -227,9 +354,33 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         case .rescale:
             x = try PatternProcessing.rescaleIntensity(x, percentiles: intensity.usesPercentiles ? (intensity.lowPercentile, intensity.highPercentile) : nil)
         case .normalize:
+            guard !intensity.equalize, !fftFilter.isOn else {
+                throw Refusal(intensity.equalize ? .intensity : .fftFilter, "Equalise and the FFT filter read 8 and 16 bit patterns; Normalise makes them float32.")
+            }
             var f = try PatternProcessing.normalizeIntensity(x.map { Double($0) }, numStd: intensity.numStd, divideBySquareRoot: intensity.divideBySquareRoot)
             if binning > 1 { f = try PatternProcessing.downsampleFloat(f, rows: rows, columns: columns, factor: binning) }
             return try Self.array(f, rows: outRows, columns: outColumns)
+        }
+        if intensity.equalize {
+            do {
+                x = try AdaptiveHistogramEqualization.equalize(x, rows: rows, columns: columns, kernel: intensity.equalizeKernel.map { ($0, $0) },
+                                                               clipLimit: intensity.clipLimit, bins: Self.equalizeBins)
+            } catch {
+                throw Refusal(.intensity, "This pattern is flat after equalisation, so it cannot be rescaled.")
+            }
+        }
+        if fftFilter.isOn {
+            let h: PatternWindow
+            do {
+                h = try fftFilter.transferFunction(rows: rows, columns: columns)
+            } catch {
+                throw Refusal(.fftFilter, "The cutoffs and widths must be positive.")
+            }
+            do {
+                x = try PatternFilters.fftFilter(x, rows: rows, columns: columns, domain: .frequency, filter: h, shift: true)
+            } catch {
+                throw Refusal(.fftFilter, "This pattern is flat after the FFT filter, so it cannot be rescaled.")
+            }
         }
         if binning > 1 { x = try PatternProcessing.downsample(x, rows: rows, columns: columns, factor: binning) }
         return try Self.array(x, type: type, rows: outRows, columns: outColumns)
@@ -255,9 +406,10 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         return out
     }
 
-    /// Every pattern of the scan through the pipeline, row by row, into memory, then NLPAR over the result when it is on (`lambda` is
-    /// told the λ it chose). `progress` gets the fraction done after each scan row (the rows are the first half when NLPAR follows);
-    /// returns nil when `isCancelled` says so between rows.
+    /// Every pattern of the scan through the pipeline, row by row, into memory, then neighbour averaging and NLPAR over the result when
+    /// they are on (`lambda` is told the λ NLPAR chose). `progress` gets the fraction done after each scan row (the rows are the first
+    /// half when a whole-scan stage follows, averaging the third quarter when NLPAR follows it); returns nil when `isCancelled` says so
+    /// between rows.
     package func process(_ access: any EBSDPatternAccess, background: FormatoArray?,
                          progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false },
                          lambda: (Double) -> Void = { _ in }) throws -> EBSDMemoryPatterns? {
@@ -275,7 +427,12 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
                                            bytes: slab.bytes.subdata(in: (column * inSize)..<((column + 1) * inSize)))
                 bytes.append(try apply(one, rows: dataset.patternRows, columns: dataset.patternColumns, background: background).bytes)
             }
-            progress(Double(row + 1) / Double(dataset.scanRows) * (nlpar.isOn ? 0.5 : 1))
+            progress(Double(row + 1) / Double(dataset.scanRows) * (nlpar.isOn || averaging.isOn ? 0.5 : 1))
+        }
+        if averaging.isOn {
+            if isCancelled() { return nil }
+            bytes = try averaged(bytes, dataset: out)
+            progress(nlpar.isOn ? 0.75 : 1)
         }
         guard nlpar.isOn else { return try EBSDMemoryPatterns(dataset: out, bytes: bytes) }
         if isCancelled() { return nil }
@@ -288,6 +445,28 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         progress(1)
         let denoised = try Self.array(result.denoised.values, rows: result.denoised.values.count, columns: 1)
         return try EBSDMemoryPatterns(dataset: out, bytes: denoised.bytes)
+    }
+
+    /// The per-pattern output of the scan (uint8 or uint16, `dataset`'s shapes) averaged with its neighbours.
+    private func averaged(_ bytes: Data, dataset: EBSDDataset) throws -> Data {
+        let window = try averaging.window.window()
+        func run<P: FixedWidthInteger & UnsignedInteger>(_: P.Type, _ type: FormatoDataType) throws -> Data {
+            let all = try FormatoArray(dataType: type, shape: [bytes.count / type.byteSize], bytes: bytes)
+            let values = Self.unsigned(all, as: P.self)
+            let out: [P]
+            do {
+                out = try NeighbourAveraging.average(values, scanRows: dataset.scanRows, scanColumns: dataset.scanColumns,
+                                                     pixels: dataset.patternPixels, window: window)
+            } catch {
+                throw Refusal(.averaging, "An averaged pattern is flat, so it cannot be rescaled.")
+            }
+            return try Self.array(out, type: type, rows: out.count, columns: 1).bytes
+        }
+        switch dataset.dataType {
+        case .uint8: return try run(UInt8.self, .uint8)
+        case .uint16: return try run(UInt16.self, .uint16)
+        default: throw Refusal(.averaging, "Average neighbours reads 8 and 16 bit patterns; these are \(dataset.dataType.rawValue).")
+        }
     }
 
     /// The mean of every pattern of the scan cast to the pattern type by truncation (`PatternProcessing.meanBackground`'s numbers, summed
@@ -345,7 +524,22 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             steps.append(["method": "EBSD.change_dtype", "dtype": "float32"])
             steps.append(["method": "EBSD.normalize_intensity", "num_std": intensity.numStd, "divide_by_square_root": intensity.divideBySquareRoot])
         }
+        if intensity.equalize {
+            var step: [String: Any] = ["method": "EBSD.adaptive_histogram_equalization", "clip_limit": intensity.clipLimit, "nbins": Self.equalizeBins]
+            step["kernel_size"] = intensity.equalizeKernel.map { [$0, $0] } ?? NSNull()
+            steps.append(step)
+        }
+        if fftFilter.isOn {
+            steps.append(["method": "EBSD.fft_filter", "function_domain": "frequency", "shift": true,
+                          "transfer_function": fftFilter.python(rows: dataset.patternRows, columns: dataset.patternColumns)])
+        }
         if binning > 1 { steps.append(["method": "EBSD.downsample", "factor": binning]) }
+        if averaging.isOn {
+            var step: [String: Any] = ["method": "EBSD.average_neighbour_patterns", "window": averaging.window.kikuchipyName,
+                                       "window_shape": [averaging.window.size, averaging.window.size]]
+            if averaging.window == .gaussian3 { step["std"] = 1.0 }
+            steps.append(step)
+        }
         if nlpar.isOn {
             steps.append(["method": "pyebsdindex.nlpar.NLPAR", "searchradius": nlpar.searchRadius, "lam": "opt_lambda() median",
                           "reference": "pyebsdindex 0.3.10.1"])
