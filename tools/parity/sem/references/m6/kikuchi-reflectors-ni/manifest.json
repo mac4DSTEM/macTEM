@@ -1,0 +1,217 @@
+{
+  "arrays": {
+    "dspacing": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "dspacing.bin",
+      "rtol": 1e-07,
+      "sha256": "d7984b6c463cd4ae1a1df39009ec18416b70a6e58839f940c064e95f7fa91d52",
+      "shape": [
+        50
+      ]
+    },
+    "min_dspacing_allowed": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "min_dspacing_allowed.bin",
+      "rtol": 0.0,
+      "sha256": "61d7205570f2c34efc057fbcdeea861006fcb35d61f326c1ee15ba425f801fd4",
+      "shape": [
+        178
+      ]
+    },
+    "min_dspacing_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "min_dspacing_hkl.bin",
+      "note": "diffsims' order (the index product reversed, (000) removed, d >= min)",
+      "rtol": 0.0,
+      "sha256": "f3ca0a94e14d01cd5b0a8d999d02dacfc58351dac5e0e13f0242e1f5897bdd78",
+      "shape": [
+        178,
+        3
+      ]
+    },
+    "multiplicity": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "multiplicity.bin",
+      "rtol": 0.0,
+      "sha256": "916d085b422740e7f45296f618655244dc713040d7f25c855e69ce53c2d98ff6",
+      "shape": [
+        4
+      ]
+    },
+    "structure_factor_abs": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "structure_factor_abs.bin",
+      "rtol": 1e-07,
+      "sha256": "a149223ba8072e73e5bea8d5a86265187558631bafe8ba2cb89a2e8d47448535",
+      "shape": [
+        50
+      ]
+    },
+    "symmetrised_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "symmetrised_hkl.bin",
+      "note": "diffsims' order: family by family, orix's operation order",
+      "rtol": 0.0,
+      "sha256": "5988c6fb69722afd558877d57d4b5fce5946b639a47767be7c0f55acb7d5ac3c",
+      "shape": [
+        50,
+        3
+      ]
+    },
+    "symmetrised_hkl_float": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "symmetrised_hkl_float.bin",
+      "rtol": 1e-07,
+      "sha256": "18522205da138d90d748e33532187f5dab5e10afa27cc02695d0bb7c5a7b6365",
+      "shape": [
+        50,
+        3
+      ]
+    },
+    "theta": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "theta.bin",
+      "note": "voltage, reflector (symmetrised_hkl), radians",
+      "rtol": 1e-07,
+      "sha256": "00768d56189cd1fb8dc684a90629fcc1577e15b6a114bcbdcaefa0c0dbeac271",
+      "shape": [
+        3,
+        50
+      ]
+    },
+    "wavelength_nm": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "wavelength_nm.bin",
+      "note": "refraction-corrected, per voltage",
+      "rtol": 1e-07,
+      "sha256": "f23d96a85e5b7fde5b2bc93fdcabc6f9aee5cb98783884825dcd0722f6a0f4db",
+      "shape": [
+        3
+      ]
+    }
+  },
+  "case": "m6/kikuchi-reflectors-ni",
+  "inputs": [
+    {
+      "path": "fixtures/simulation_cases.json",
+      "sha256": "53ac4cc181b31ba459c94fc5ee11e78f387778d1e297fc3b86110759dc02b0dd"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "diffsims.crystallography.ReciprocalLatticeVector symmetrise / from_min_dspacing / allowed / dspacing / calculate_structure_factor / calculate_theta",
+    "package": "diffsims",
+    "version": "0.7.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "cell_atoms": [
+      [
+        "Ni",
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ni",
+        [
+          0.0,
+          0.49999999999999994,
+          0.49999999999999994
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ni",
+        [
+          0.49999999999999994,
+          0.0,
+          0.49999999999999994
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ni",
+        [
+          0.49999999999999994,
+          0.49999999999999994,
+          0.0
+        ],
+        1.0,
+        0.0
+      ]
+    ],
+    "centering": "F",
+    "diffsims": "0.7.0",
+    "families": [
+      [
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        2,
+        2,
+        0
+      ],
+      [
+        3,
+        1,
+        1
+      ]
+    ],
+    "first_orbit_element": "Ni",
+    "first_orbit_size": 4,
+    "lattice": [
+      3.5236,
+      3.5236,
+      3.5236,
+      90.0,
+      90.0,
+      90.0
+    ],
+    "min_dspacing": 1.0,
+    "phase": "ni",
+    "point_group": "m-3m",
+    "space_group": 225,
+    "voltages": [
+      10000.0,
+      20000.0,
+      30000.0
+    ]
+  }
+}

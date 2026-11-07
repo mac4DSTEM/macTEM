@@ -166,8 +166,26 @@ defaults: boundaries at 10°, grains of at least 10 points; the symmetric KAM at
 
 ### Figure 6 (milestone 6): geometrical simulation
 
-Kikuchipy *Geometrical EBSD simulations*: Kikuchi bands and zone axes of the indexed orientation drawn on the
-experimental pattern (0, 0); band and zone-axis detector coordinates rtol 1e-7.
+Figure F14 (milestone 6): kikuchipy's *Geometrical EBSD simulations* tutorial, the {111}, {200}, {220} and {311} bands
+and their zone axes of the orientation the file's crystal map holds, drawn on the experimental pattern (0, 0) of
+`nickel_ebsd_large` with that pattern's projection centre (`KikuchiPatternSimulator.on_detector` over the whole scan, so the
+lines end on the circle of the scan's largest r_max, 2.0581 in gnomonic units). The app draws it as the Patterns room's
+Simulation overlay; `SEMKikuchiSimulationParityTests.testOverlayOnTheDemoNickelIsFigureF14` takes the app's own path from
+the shipped file to the numbers. Done when band and zone-axis pixel coordinates match within atol 1e-6 px and the
+kinematic master pattern within rtol 1e-5.
+
+| Part | Bundle | Arrays and tolerance |
+| --- | --- | --- |
+| Lattices in diffpy's frame and orix's (x ∥ a, z ∥ c*): five cells from cubic to triclinic, bases, volumes, reciprocal lengths | `m6/kikuchi-lattice` | rtol 1e-7, atol 1e-12 on the bases |
+| diffsims' scattering tables (X-ray, Doyle and Turner) and the physical constants | `m6/kikuchi-scattering-tables` | exact |
+| Reflectors of Ni (Fm-3m), Ti (P6₃/mmc) and Al2Cu (I4/mcm): `symmetrise` (hkl and multiplicity), `from_min_dspacing`, `allowed`, spacings, \|F\| (`calculate_structure_factor`, xtables), refraction-corrected wavelength and Bragg angles at 10, 20 and 30 kV | `m6/kikuchi-reflectors-ni`, `m6/kikuchi-reflectors-ti`, `m6/kikuchi-reflectors-al2cu` | indices, multiplicity and `allowed` exact; spacings, \|F\|, wavelength and θ rtol 1e-7 |
+| **F14**: the nickel at points (0, 0), (20, 30), (54, 74) and (27, 37), each with its own orientation and PC: line hkl, line ends in pixels and gnomonic units, zone axes [uvw], their positions and labels | `m6/geometrical-simulation-nickel` | hkl, [uvw], labels exact; pixel coordinates rtol 1e-7 and atol 1e-6 px; gnomonic rtol 1e-7 |
+| A non-square 48 x 64 detector (sample tilt 68°, tilt 10°, azimuthal 2.5°, twist 1.2°) with Ti and three orientations | `m6/geometrical-simulation-tilted` | as F14 |
+| The kinematic master pattern of Ni at 20 kV (`calculate_master_pattern`, stereographic, 201 x 201, both hemispheres) with linear, square and no scaling | `m6/kinematic-master-pattern-ni` | rtol 1e-5, atol 1e-8 (`np.allclose`, kikuchipy's own tests); θ and \|F\| rtol 1e-7 |
+
+Measured on 2026-11-07 with a numpy port of the Swift steps: line ends within 1e-9 px, zone axes within 1e-14, every
+master pattern equal to kikuchipy's. Figure script: `tools/parity/sem/simulation_figure.py` draws the reference lines over
+the pattern beside the ones the F14 test prints.
 
 Figure F15 (milestone 6): the Ni 20 kV master pattern projected onto a detector, kikuchipy's
 `EBSDMasterPattern.get_patterns`. The master pattern is kikuchipy's in-package uint8 copy of the EMsoft Ni pattern
