@@ -61,6 +61,17 @@ Kikuchipy *Pattern processing*: the static and dynamic background figures above 
 the FFT filters, and the moving-screen projection-centre estimate on `si_in.h5` (bundles to be emitted with the
 phase, same stack).
 
+Plan figure F3, the image quality and average neighbour dot product maps of the corrected scan (kikuchipy *Feature maps*):
+
+| Part | Reference | Bundle | Arrays and tolerance |
+| --- | --- | --- | --- |
+| Image quality map after static then dynamic background (Krieger Lassen, `normalize=True`) | `EBSD.get_image_quality` | `m2/quality-nickel-ebsd-large` | `iq` float32 [55, 75], rtol 1e-5 (range 0.0957 to 0.2237); `raw_iq` on the raw patterns; `block_iq` on the 6 x 6 block of corrected patterns `block_corrected_patterns` (rows 20..25, cols 30..35) |
+| Average neighbour dot product map (3 x 3 circular window, zero mean, normalised) | `EBSD.get_average_neighbour_dot_product_map` | same | `adp` float32 [55, 75], rtol 1e-5 (range 0.1598 to 0.7322); `raw_adp`, `block_adp` as above |
+
+On the 3 x 3 cut, `m2/quality-kikuchipy-h5ebsd` holds every option: the frequency vectors (exact), IQ with and without
+normalisation, ADP under the default, rectangular 3 x 3, circular 5 x 5 and 1 x 3 windows, without zero mean and without
+normalisation.
+
 NLPAR denoising (PyEBSDIndex 0.3.10.1, `opt_lambda` then `calcnlpar`, search radius 3, automask, saturation protection):
 
 | Part | Reference | Bundle | Arrays and tolerance |
