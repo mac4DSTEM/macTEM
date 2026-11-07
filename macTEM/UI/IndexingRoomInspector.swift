@@ -2,13 +2,13 @@
 //  IndexingRoomInspector.swift
 //  Role: the Indexing room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the Image room's order
 //        (control placement §2; design §4): Calibration (where the patterns come from and the geometry the indexer takes, as value rows),
-//        Display (the map's layer, the detected bands), Map Display (a scalar layer's colormap, window, gamma and scale bar, D-SEM-96),
+//        Display (the map's layer, the detected bands, Compare with its A and B pop-ups, D-SEM-97), Map Display (a scalar layer's colormap, window, gamma and scale bar, D-SEM-96),
 //        Pattern Display (the pattern pane's own contrast), Phases (the list indexed
 //        against, each with its colour and its switch; a preset or a CIF added), Method (Hough or Dictionary, D-SEM-91), then the
 //        method's own section: Hough (pyEBSDindex's `EBSDIndexer` parameters) or Dictionary (the master pattern, kikuchipy's
 //        `dictionary_indexing` settings and orix's sampling), and Export (the map, the results, the method; `Open in Maps` hands the
 //        run to the Maps room, D-SEM-99). Info: the dataset's rows
-//        (Patterns › Info) and the run's. Presentation only: the state is `IndexingSession`'s (TEMSession), the phases
+//        (Patterns › Info) and the run's, with the other method's run held. Presentation only: the state is `IndexingSession`'s (TEMSession), the phases
 //        `IndexingPhase`'s and the dictionary's `DictionaryIndexingPlan`'s (TEMCore).
 //
 
@@ -116,6 +116,30 @@ private struct IndexingDisplaySection: View {
                     .toggleStyle(.switch).labelsHidden()
                     .help("The bands the Hough transform found on the pattern: matched solid green with their family, unmatched dashed orange")
                     .accessibilityIdentifier("indexing.showBands")
+            }
+            InspectorRow("Compare") {
+                Toggle("Compare two results", isOn: Binding(get: { session.showsCompare }, set: { session.setShowsCompare($0) }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("Two results side by side on one zoom, and the histogram of the disorientation between them, in place of the Results and Bands tables")
+                    .accessibilityIdentifier("indexing.showCompare")
+            }
+            if session.showsCompare {
+                InspectorRow("A") {
+                    Picker("Compare A", selection: Binding(get: { session.compareA }, set: { session.setCompareA($0) })) {
+                        ForEach(session.compareSources) { Text($0.title).tag($0) }
+                    }
+                    .labelsHidden()
+                    .help("The result on the left: the room's last Hough or Dictionary run, or the indexing the file holds")
+                    .accessibilityIdentifier("indexing.compareA")
+                }
+                InspectorRow("B") {
+                    Picker("Compare B", selection: Binding(get: { session.compareB }, set: { session.setCompareB($0) })) {
+                        ForEach(session.compareSources) { Text($0.title).tag($0) }
+                    }
+                    .labelsHidden()
+                    .help("The result on the right, compared with A point by point")
+                    .accessibilityIdentifier("indexing.compareB")
+                }
             }
         }
     }
@@ -245,7 +269,8 @@ private struct IndexingPhaseRow: View {
 // MARK: - Method
 
 /// How Index indexes (design §4, D-SEM-91): Hough or Dictionary, full width; the caption under it says what Dictionary needs while no
-/// master pattern is open. Picking a method shows its section below; the result on screen stays its own method's.
+/// master pattern is open. Picking a method shows its section below and its last run on the map (D-SEM-97); before it has one, the
+/// run on screen stays.
 private struct IndexingMethodSection: View {
     let session: IndexingSession
 
@@ -557,6 +582,11 @@ struct IndexingRoomInfo: View {
                     }
                     InspectorValueRow("State", state(result))
                     if let seconds = session.lastRunSeconds { InspectorValueRow("Time", "\(UnitDisplay.number(seconds, digits: 3)) s") }
+                    if let other = session.otherRun {
+                        InspectorValueRow("Also held", "\(other.method.title) · \(other.result.indexedCount.formatted()) of \(other.result.pointCount.formatted()) indexed"
+                                          + (session.isStale(of: other.method) ? " · stale" : ""))
+                            .accessibilityIdentifier("indexing.info.otherRun")
+                    }
                 } else {
                     InspectorValueRow("State", "Not indexed")
                 }

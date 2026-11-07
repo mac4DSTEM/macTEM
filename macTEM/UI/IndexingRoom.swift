@@ -9,9 +9,11 @@
 //        orange). Under them the Results table (one row per point reached; a single row selected pins the pattern, ⌘C copies the
 //        selected rows as TSV) beside, for a Hough result, the Bands table of the pattern on screen (pyEBSDindex's band list: ρ, θ,
 //        peak, width, the family and the fit) or, for a dictionary result, the Best match pane (the point's best orientation simulated
-//        from the master pattern, its score). The phases, the method's settings and the exports are
-//        the inspector's (`IndexingRoomInspector.swift`). Presentation only: every number is `HoughIndexer`'s or `DictionaryIndexing`'s
-//        (TEMCore) through `IndexingSession` (TEMSession).
+//        from the master pattern, its score). While `Display › Compare` is on, Compare takes the tables' place: two results side by
+//        side on one zoom and their disorientation histogram (`IndexingCompare.swift`, D-SEM-97). The map shows the run in flight, else
+//        the last run of the method picked, and its title names the method. The phases, the method's settings and the exports are
+//        the inspector's (`IndexingRoomInspector.swift`). Presentation only: every number is `HoughIndexer`'s, `DictionaryIndexing`'s or
+//        `IndexingComparison`'s (TEMCore) through `IndexingSession` (TEMSession).
 //
 //  KEYS: as the Patterns room (`PatternsKeys`): ← → ↑ ↓ step the pinned position by one (⇧ by ten), Space pins the hovered position; a
 //  click on the map pins the point under it. The pinned position is the Patterns room's: the two rooms share one marker. In the Results
@@ -57,13 +59,17 @@ struct IndexingRoom: View {
                         IndexedPatternPane(session: session, dataset: document.dataset)
                     }
                 } bottom: {
-                    PaneSplit(storageKey: "indexing.tablesSplit", resizeLabel: "Resize the results and the bands", leadingName: "Results") {
-                        IndexingResultsTable(session: session, dataset: document.dataset)
-                    } trailing: {
-                        if (session.result?.method ?? session.method) == .dictionary {
-                            IndexingBestMatchPane(session: session)
-                        } else {
-                            IndexingBandsTable(session: session)
+                    if session.showsCompare {
+                        IndexingComparePane(session: session, state: state, dataset: document.dataset)
+                    } else {
+                        PaneSplit(storageKey: "indexing.tablesSplit", resizeLabel: "Resize the results and the bands", leadingName: "Results") {
+                            IndexingResultsTable(session: session, dataset: document.dataset)
+                        } trailing: {
+                            if (session.result?.method ?? session.method) == .dictionary {
+                                IndexingBestMatchPane(session: session)
+                            } else {
+                                IndexingBandsTable(session: session)
+                            }
                         }
                     }
                 }
@@ -71,7 +77,10 @@ struct IndexingRoom: View {
                 .modifier(IndexingKeyedRoom(session: session))
                 // The map's backdrop is the Patterns room's mean map, which lands after the open; the pattern follows the shared marker
                 // and the Patterns room's processing.
-                .onChange(of: session.patterns.meanIntensities == nil, initial: true) { session.refreshMap() }
+                .onChange(of: session.patterns.meanIntensities == nil, initial: true) {
+                    session.refreshMap()
+                    session.refreshComparison()
+                }
                 .onChange(of: session.patterns.pinned) { session.showPattern() }
                 .onChange(of: session.patterns.pipeline) { session.showPattern() }
                 .onChange(of: session.patterns.processedWith) { session.showPattern() }
@@ -163,10 +172,10 @@ struct IndexingMapPane: View {
         .clipped()
     }
 
-    /// "Indexed map · IPF-Z", with "· stale" once the inputs changed since the run (design §6).
+    /// "Indexed map · Hough · IPF-Z", with "· stale" once the inputs changed since the run (design §6).
     private var title: String {
-        guard session.result != nil else { return "Scan map · mean intensity, not indexed" }
-        return "Indexed map · \(session.layer.title)" + (session.isStale ? " · stale" : "")
+        guard let result = session.result else { return "Scan map · mean intensity, not indexed" }
+        return "Indexed map · \(result.method.title) · \(session.layer.title)" + (session.isStale ? " · stale" : "")
     }
 
     /// "4 120 of 4 125 indexed", "1 875 of 4 125 reached" while it runs (a dictionary run's chunk first), "stopped at row 12 of 55".
@@ -354,20 +363,7 @@ private struct IndexingLegend: View {
         let groups = phases.compactMap(\.pointGroupName).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
         Group {
             if session.layer.direction != nil {
-                HStack(alignment: .bottom, spacing: 6) {
-                    ForEach(groups, id: \.self) { name in
-                        if let key = session.keyImages[name], let image = IPFKeyPicture.cgImage(key) {
-                            VStack(spacing: 2) {
-                                Image(decorative: image, scale: 1).resizable().interpolation(.medium).aspectRatio(contentMode: .fit)
-                                    .frame(height: LayoutPolicy.indexingKeyHeight)
-                                Text(groups.count > 1 ? "\(session.layer.title) · \(name)" : session.layer.title)
-                                    .font(.caption2).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(session.layer.title) colour key of point group \(groups.joined(separator: ", "))")
+                IndexingIPFKey(session: session, layer: session.layer, groups: groups)
             } else if session.layer == .euler {
                 // orix's Euler key has no picture: each angle's range in its channel, per point group.
                 VStack(alignment: .leading, spacing: 2) {
@@ -398,6 +394,31 @@ private struct IndexingLegend: View {
                 .accessibilityElement(children: .combine)
             }
         }
+    }
+}
+
+/// The IPF colour key of each of `groups` (orix point group names) on IPF layer `layer`, side by side, each named when there are
+/// several: the indexed map's legend and Compare's.
+struct IndexingIPFKey: View {
+    let session: IndexingSession
+    let layer: IndexingLayer
+    let groups: [String]
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 6) {
+            ForEach(groups, id: \.self) { name in
+                if let key = session.keyImages[name], let image = IPFKeyPicture.cgImage(key) {
+                    VStack(spacing: 2) {
+                        Image(decorative: image, scale: 1).resizable().interpolation(.medium).aspectRatio(contentMode: .fit)
+                            .frame(height: LayoutPolicy.indexingKeyHeight)
+                        Text(groups.count > 1 ? "\(layer.title) · \(name)" : layer.title)
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(layer.title) colour key of point group \(groups.joined(separator: ", "))")
     }
 }
 

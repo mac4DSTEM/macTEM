@@ -101,7 +101,7 @@ nonisolated final class IndexingMapsHandOffTests: XCTestCase {
         state.indexing.stop()
         await again.value
         XCTAssertEqual(state.indexing.openInMapsRefusal, "Index first")
-        XCTAssertEqual(state.mapsStaleness, "Stale: the Indexing room has started another run since.")
+        XCTAssertEqual(state.mapsStaleness, "Stale: the Indexing room has started another Hough run since.")
         XCTAssertEqual(state.maps.map, shown, "Maps keeps the run it was handed")
 
         // A stopped run's 12 rows in the run's place: switching onto it from a point past them puts the crosshair and the pattern

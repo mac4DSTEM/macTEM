@@ -216,10 +216,11 @@ final class AppState {
         ebsd.pin(maps.pinned)
     }
 
-    /// What the Maps room says of the map it shows when that is an Indexing run (`IndexingSession.staleness(ofRun:)`), nil otherwise.
+    /// What the Maps room says of the map it shows when that is an Indexing run (`IndexingSession.staleness(ofRun:method:)`), nil
+    /// otherwise.
     var mapsStaleness: String? {
-        guard case .indexing(let run, _) = maps.document?.source else { return nil }
-        return indexing.staleness(ofRun: run)
+        guard case .indexing(let run, let method) = maps.document?.source else { return nil }
+        return indexing.staleness(ofRun: run, method: method)
     }
 
     /// What the shared EDS room's views ask of this window: the status line, the error sheet, a UI journey's export folder.
