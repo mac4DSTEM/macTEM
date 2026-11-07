@@ -24,6 +24,7 @@ package's own tests use, never stricter. References are pinned in `tools/parity/
 | `NORDIFScan.read` (`Pattern.dat`, `Background acquisition pattern.bmp`) | `kikuchipy.load("Pattern.dat")` | same | patterns bit-exact (SHA-256 of the uint8 block in map order), background bit-exact | a short file reads zero-padded with a note, as upstream pads with a warning; `Setting_bad1-3.txt` read the acquisition as upstream does |
 | `NORDIFCalibrationPatterns.read` (`Calibration (x,y).bmp`, positions, area, ROI, scaled to steps) | `kikuchipy.load("Setting.txt")` (`nordif_calibration_patterns`) | same | positions and shapes exact; patterns bit-exact | scaled values round half to even as NumPy; `Setting_bad1.txt` and `Setting_bad2.txt` refused with one sentence where upstream raises `ValueError`; `Setting_bad3.txt` reads with its missing `Top` as 0 and no area shape, as upstream |
 | `NORDIFBitmap.decode` (8-bit greyscale BMP) | `matplotlib.pyplot.imread` (Pillow mode L) | same | bit-exact | own decoder, not ImageIO; any other bitmap kind refused with a sentence |
+| `NORDIFOpening.open` (`Pattern.dat` as an `EBSDDataset`, read by record) | `kikuchipy.load("Pattern.dat")` through `NORDIFScan` | `NORDIFOpeningTests` | patterns bit-exact against `NORDIFScan` | a `.dat` routes only with a NORDIF `Setting.txt` beside it; a short file reads whole records and the rest as 0 with a note (upstream keeps the bytes of an incomplete last pattern; `NORDIFScan` keeps that for the parity) |
 
 ## Pattern processing
 
@@ -44,6 +45,22 @@ Upstream's own tests compare hand-written 3 x 3 uint8 answers exactly (`test_rem
 | `PatternProcessing.dynamicBackground` (frequency) | `get_dynamic_background` / `filters.fft_barnes._fft_filter` with `_dynamic_background_frequency_space_setup` | `testDynamicBackgroundFrequency…` | 1e-5 relative (measured 4.9e-7) | computed as the separable nearest-edge correlation with the `int(truncate · std)` px `scipy.signal.windows.gaussian` window, the operator the padded real FFT evaluates (taps i − 15 … i + 14 for the default 30 px window, symmetric for an odd one); not an FFT, decision D-SEM-17 |
 | `PatternProcessing.dynamicBackground` (spatial) | `scipy.ndimage.gaussian_filter(sigma=std, truncate=truncate)` | `testDynamicBackgroundSpatial…` | 1e-5 relative (measured 6.7e-8) | ImagoKit's `SeparableFilters.gaussianFilter`, mode reflect |
 | `PatternProcessing.removeDynamicBackground` / `...Values` (subtract, divide; frequency, spatial; `std`, `truncate`) | `_remove_dynamic_background` | `testRemoveDynamicBackground…`, `testFigureF2…`, `testWholeSetF2…` (opt-in, `$MACEM_DATA/sem/nickel_ebsd_large`) | as the static rows | `std` defaults to the pattern width / 8 |
+
+NLPAR (`Sources/TEMCore/SEM/NLPAR.swift`, tests `SEMNLPARParityTests`): PyEBSDIndex 0.3.10.1's CPU path (`nlpar_cpu`;
+Brewick, Wright and Rowenhorst 2019, Ultramicroscopy 200, 50), references `tools/parity/sem/emit.py` cases
+`m2/nlpar-nickel-ebsd-large` (the shipped demo scan, run in every unit-test pass) and `m2/nlpar-kikuchipy-h5ebsd`.
+pyebsdindex has no NLPAR test of its own; the tolerances are the harness rule for float32 results (D-SEM-13). The port keeps
+pyebsdindex's float32 arithmetic and order of sums (D-SEM-30), so σ and the distances are expected bit-identical and the
+denoised values differ only where float64 `exp` rounds differently.
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `NLPAR.autoMask` | `NLPAR.makeautomask` | `testSmallScan…`, `testNickel…` | exact | circle of radius 0.98 · min(h, w) / 2, compared in float32 |
+| `NLPAR.tiles` | `NLPAR._calcchunks` | same | exact | budget fixed at 32e9 bytes (D-SEM-31) |
+| `NLPAR.estimateNoise` | `NLPAR.calcsigma_cpu(nn=1)` / `sigma_numba` | same | σ rtol 1e-5; distances rtol 1e-5, atol 1e-5 | per-tile saturation level 0.9961 · max; edge slots stay 0, as upstream |
+| `NLPAR.optimiseLambda` | `NLPAR.opt_lambda_cpu` | same | rtol 1e-4 | SciPy 1.18.1 Nelder–Mead in one dimension with bounds [0.001, 10], fatol and xatol 1e-4 |
+| `NLPAR.denoise`, `NLPAR.run` | `NLPAR.calcnlpar_cpu` / `nlpar_nb` | `testNickel…`, `testHugeLambda…` | rtol 1e-5, atol 1e-4 | window shifted inward at edges; tiles narrower than the window run as one tile and a window larger than the scan is refused (D-SEM-31) |
+
 
 ### Known limits and decisions
 

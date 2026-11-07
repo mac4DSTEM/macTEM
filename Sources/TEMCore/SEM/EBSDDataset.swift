@@ -23,6 +23,8 @@ package nonisolated enum EBSDFileFormat: String, Sendable, Equatable {
     case oxfordBinary = "Oxford ebsp"
     /// EDAX TSL's binary pattern file (`.up1`, `.up2`), with the `.ang` map next to it when there is one.
     case edaxBinary = "EDAX up1/up2"
+    /// NORDIF `Pattern.dat` with `Setting.txt` beside it (`NORDIFOpening`).
+    case nordif = "NORDIF"
     /// The generated demo dataset (`DemoDocuments.ebsd`): not data, never read from a file.
     case generated = "generated demo (not data)"
 }
