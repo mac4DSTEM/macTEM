@@ -1,0 +1,314 @@
+{
+  "arrays": {
+    "gos": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "gos.bin",
+      "note": "mean GROD angle per grain, radians",
+      "rtol": 0.0,
+      "sha256": "a7cbaa8f62d796e6f77f49bb09ca1057bc235117a4e38b5b64bcb8e897f2a764",
+      "shape": [
+        102
+      ]
+    },
+    "grain_average_cosine": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "grain_average_cosine.bin",
+      "note": "Grain.average_mis_ori: mean of |q . ref| per grain",
+      "rtol": 0.0,
+      "sha256": "f95d981506ed46d2e54423192ac593b5ee22526c2192a7d39d067947070365a4",
+      "shape": [
+        102
+      ]
+    },
+    "grain_average_orientation": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "grain_average_orientation.bin",
+      "note": "Grain.ref_ori (calc_average_ori), DefDAP order",
+      "rtol": 0.0,
+      "sha256": "125f6c07546931e314a76b0374242d7169222c9bb83ec745fa29af65aee687e3",
+      "shape": [
+        102,
+        4
+      ]
+    },
+    "grain_boundary_x": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "grain_boundary_x.bin",
+      "rtol": 0.0,
+      "sha256": "4e0576047f9a33a17d24345256a07720dd407fe10581a3e1aed1ce4f4c121405",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "grain_boundary_y": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "grain_boundary_y.bin",
+      "rtol": 0.0,
+      "sha256": "ef2de0f19f60a9bc13598c3cb8cb5c34bc97b541f95218a01a68fa58a72506d1",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "grain_phase": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "grain_phase.bin",
+      "note": "DefDAP phase index (0-based) per grain",
+      "rtol": 0.0,
+      "sha256": "12e480ebd5ec5e779d6378eb323a803d21654223be8a82d4c3c3b66c0e3bca31",
+      "shape": [
+        102
+      ]
+    },
+    "grain_points": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "grain_points.bin",
+      "note": "row * width + column, DefDAP's flood order",
+      "rtol": 0.0,
+      "sha256": "93c11e9c26c067aac3cedb0be69369febb1fac8f53bf1d6db921d880dff68095",
+      "shape": [
+        11568
+      ]
+    },
+    "grain_sizes": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "grain_sizes.bin",
+      "note": "points per grain, DefDAP's grain order",
+      "rtol": 0.0,
+      "sha256": "54b2449c733e206d43d515d53be579183969d19d5a93ac41489fb003f5b47259",
+      "shape": [
+        102
+      ]
+    },
+    "grains": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "grains.bin",
+      "note": "DefDAP grain map: 1... grains, -2 points of grains below the minimum size, 0 never filled",
+      "rtol": 0.0,
+      "sha256": "3f804d9228cbf89b1e30a4c632358dafa1e67463cae473643f840aae5e253091",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "grod": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "grod.bin",
+      "note": "GROD per grain point, in grain_points order, radians",
+      "rtol": 0.0,
+      "sha256": "92187a51b688cfca493338dfd0562db23fcc086efea545a03c39155d9fa7d973",
+      "shape": [
+        11568
+      ]
+    },
+    "grod_axis": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "grod_axis.bin",
+      "note": "Grain.calc_grod axis (angle times unit axis), grain_points order",
+      "rtol": 0.0,
+      "sha256": "8c987f613eb3e50ce066727ab0eada7fc42ef5e4da813cef75f9860afc2a61e1",
+      "shape": [
+        11568,
+        3
+      ]
+    },
+    "kam": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "kam.bin",
+      "note": "symmetric KAM, no threshold; -1 where none",
+      "rtol": 0.0,
+      "sha256": "0496043d7122e24c46254a030f90054a02e2a31b3529c5515f9bd510bf3b99be",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "kam_defdap": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "kam_defdap.bin",
+      "note": "Map.calc_kam: no crystal symmetry",
+      "rtol": 0.0,
+      "sha256": "b2a0447f341df86aa1d254fc12b0750286b3fa4ab515a93e5dc2c4180df2c880",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "kam_threshold": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "kam_threshold.bin",
+      "note": "symmetric KAM, 5 degree threshold; -1 where none",
+      "rtol": 0.0,
+      "sha256": "5d6340c19dace4cf46b38483ee3968c3d2d0dbd3a6311fca5a9c7a1f8bee6660",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "neighbour_angle_x": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "neighbour_angle_x.bin",
+      "note": "right neighbour; -1 on the last column",
+      "rtol": 0.0,
+      "sha256": "e3d0c51aed488e896025e7abbc1695a08de2d05c2d3f037a756fc3ad3c33aa51",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "neighbour_angle_y": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "neighbour_angle_y.bin",
+      "note": "neighbour below; -1 on the last row",
+      "rtol": 0.0,
+      "sha256": "775d7dba8d0bdf24fb5b07b34cc5413b4fe2c220f5ab82b6d7451f7e903e763d",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "neighbour_network": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "neighbour_network.bin",
+      "note": "grain a, grain b (a < b, ids from 0), boundary points in x, boundary points in y; sorted",
+      "rtol": 0.0,
+      "sha256": "2e6f95f2ebeb5f1fa242f50c664b3b693bf32d0e78e8aa7591c2c7d0a7e14d81",
+      "shape": [
+        238,
+        4
+      ]
+    },
+    "phase": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "phase.bin",
+      "note": "DefDAP phase numbers: 0 not indexed, 1...",
+      "rtol": 0.0,
+      "sha256": "c123daf5fedbbc792f35d99ccc8c62668422f701dd2136e62b2e9ac3fc7bb1d0",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "phase_boundary_x": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "phase_boundary_x.bin",
+      "rtol": 0.0,
+      "sha256": "407d36872bd9c5c5017d98900c0a7e3525f022b94fa53acc007a16ed010ca32d",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "phase_boundary_y": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "phase_boundary_y.bin",
+      "rtol": 0.0,
+      "sha256": "e92c3a8975174ebb222a7841d57051f19f6ff44fa73bd9cce430c29d7f172469",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "quaternions": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "quaternions.bin",
+      "note": "DefDAP Quat.create_many_quats, northern hemisphere",
+      "rtol": 0.0,
+      "sha256": "7720f40db59b7b1ba02bb6f172d63d2d71cefbab335f593b53079b21be3ff422",
+      "shape": [
+        100,
+        117,
+        4
+      ]
+    }
+  },
+  "case": "m5/grains-sdss",
+  "inputs": [
+    {
+      "path": "sem-data/orix/sdss_ferrite_austenite.ang",
+      "sha256": "ac2fc2fc2b8c9c598703c96f9888677bccc9cd88cddd5e78735653fd5504e371"
+    }
+  ],
+  "milestone": 5,
+  "reference": {
+    "function": "defdap.ebsd.Map.find_boundaries, find_grains, build_neighbour_network, calc_kam; Grain.calc_average_ori, build_mis_ori_list, calc_grod",
+    "package": "defdap",
+    "version": "1.3.1"
+  },
+  "scalars": {
+    "closest_neighbour_angle_to_kam_threshold_rad": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 0.00048828111844191613
+    },
+    "closest_neighbour_angle_to_threshold_rad": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 0.008283678346448997
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "boundary_degrees": 10.0,
+    "grain_count": 102,
+    "kam_threshold_degrees": 5.0,
+    "min_grain_size": 10,
+    "note": "orix-data sdss_ferrite_austenite.ang, the whole 100 x 117 map; phase 1 austenite, 2 ferrite",
+    "phases": [
+      {
+        "crystal_structure": "cubic",
+        "laue_group": 11,
+        "name": "austenite",
+        "space_group": 225
+      },
+      {
+        "crystal_structure": "cubic",
+        "laue_group": 11,
+        "name": "ferrite",
+        "space_group": 229
+      }
+    ],
+    "shape": [
+      100,
+      117
+    ],
+    "small_grain_points": 132,
+    "step_um": 1.5,
+    "unassigned_points": 0
+  }
+}

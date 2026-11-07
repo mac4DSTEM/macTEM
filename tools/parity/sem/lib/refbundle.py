@@ -202,13 +202,15 @@ def compare_bundles(committed: Path, fresh: Path) -> list[str]:
         if sha256_of_array(x) != e["sha256"]:
             out.append(f"{a['case']}: array {name}: the committed file is not the manifest's sha256 (edited by hand?)")
         if e["rtol"] == 0 and e["atol"] == 0:
-            if not np.array_equal(x, y):
-                n = int(np.count_nonzero(x != y))
+            floats = x.dtype.kind == "f"
+            if not np.array_equal(x, y, equal_nan=floats):  # NaN matches NaN only, as the Swift loader compares
+                n = int(np.count_nonzero((x != y) & ~(np.isnan(x) & np.isnan(y)))) if floats else int(np.count_nonzero(x != y))
                 out.append(f"{a['case']}: array {name} is exact and differs in {n} of {x.size} elements")
         else:
             diff = np.abs(x.astype(np.float64) - y.astype(np.float64))
             bound = e["atol"] + e["rtol"] * np.abs(x.astype(np.float64))
-            bad = diff > bound
+            xf, yf = x.astype(np.float64), y.astype(np.float64)
+            bad = (diff > bound) | (np.isnan(xf) != np.isnan(yf))
             if bad.any():
                 i = np.unravel_index(int(np.argmax(diff - bound)), x.shape)
                 out.append(f"{a['case']}: array {name} drifts in {int(bad.sum())} elements; worst at {[int(k) for k in i]}: "

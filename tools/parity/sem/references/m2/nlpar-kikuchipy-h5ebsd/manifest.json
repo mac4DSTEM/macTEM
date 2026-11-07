@@ -1,0 +1,138 @@
+{
+  "arrays": {
+    "automask": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "automask.bin",
+      "rtol": 0.0,
+      "sha256": "003437d0286cf84c40894e545d62ce3edb9f4f431ed9c5256f06534c5cf8f3ac",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "distances": {
+      "atol": 1e-05,
+      "dtype": "float32",
+      "file": "distances.bin",
+      "note": "normalised squared distances to the 3 x 3 neighbours, the lambda optimisation's input",
+      "rtol": 1e-05,
+      "sha256": "e1e1c807732df32bfc640a14c08776054e66101dc01d2354e0c7ce060e8d2314",
+      "shape": [
+        3,
+        3,
+        9
+      ]
+    },
+    "lambdas": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "lambdas.bin",
+      "note": "target weights 0.5, 0.34, 0.25",
+      "rtol": 0.0001,
+      "sha256": "c30b2019f0ecf0c78f0d591978e176d5a9a275f5515608762f2ee69cf48dcdc9",
+      "shape": [
+        3
+      ]
+    },
+    "sigma": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "sigma.bin",
+      "rtol": 1e-05,
+      "sha256": "4eaa071a2685011a56ea13b7a4a08c006225f715ce5ad1a6bf3d7be941236719",
+      "shape": [
+        3,
+        3
+      ]
+    }
+  },
+  "case": "m2/nlpar-kikuchipy-h5ebsd",
+  "inputs": [
+    {
+      "path": "fixtures/kikuchipy_h5ebsd_patterns.h5",
+      "sha256": "8f46638f5affa21c08db447b7b472b9a8d02e9e1e70fe11488dc5a50c2b8ee67"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "pyebsdindex.nlpar_cpu.NLPAR.opt_lambda / calcsigma / calcnlpar",
+    "package": "pyebsdindex",
+    "version": "0.3.10.1"
+  },
+  "scalars": {
+    "lambda": {
+      "atol": 0.0,
+      "rtol": 0.0001,
+      "value": 0.6279296874999996
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "dthresh": 0.0,
+    "nlpar_tiles": {
+      "columns": [
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "rows": [
+        [
+          0,
+          3
+        ]
+      ]
+    },
+    "pattern_shape": [
+      60,
+      60
+    ],
+    "scan_shape_rc": [
+      3,
+      3
+    ],
+    "search_radius": 1,
+    "sigma_tiles": {
+      "columns": [
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "rows": [
+        [
+          0,
+          3
+        ]
+      ]
+    },
+    "target_weights": [
+      0.5,
+      0.34,
+      0.25
+    ],
+    "tile_bytes": 32000000000.0
+  }
+}
