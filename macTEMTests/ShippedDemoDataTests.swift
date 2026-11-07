@@ -20,7 +20,7 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
     /// Every shipped file is in the bundle (the `DemoData` folder reference copies the whole folder) at the pinned size and md5.
     /// Mutation: a file replaced, truncated or renamed; the folder reference dropped from the project.
     func testEveryShippedFileIsInTheBundleAtItsPinnedSizeAndMD5() throws {
-        XCTAssertEqual(DemoDocuments.Shipped.all.count, 2)
+        XCTAssertEqual(DemoDocuments.Shipped.all.count, 3)
         for file in DemoDocuments.Shipped.all {
             let url = try XCTUnwrap(file.url, "\(file.relativePath) is not in the bundle's DemoData/")
             let size = try XCTUnwrap(FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
@@ -47,6 +47,22 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         let all = try reader.readDataset(DemoDocuments.Shipped.nickelEBSDPatternsPath).doubles()
         XCTAssertEqual(all.count, 4125 * 3600)
         XCTAssertEqual(UInt64(all.reduce(0, +)), DemoDocuments.Shipped.nickelEBSDPixelSum)
+    }
+
+    /// The Ni master pattern through the EMsoft reader: an EBSD master pattern of nickel (space group 225) at 20 kV, 401 x 401 px in
+    /// both hemispheres, each Lambert hemisphere's sum as h5py read it; projectable (Lambert, both hemispheres).
+    func testTheNickelMasterPatternReadsBackToItsTruth() throws {
+        let url = try XCTUnwrap(DemoDocuments.Shipped.nickelMasterPattern.url)
+        XCTAssertEqual(EMsoftMasterPatternReader.sniff(url: url), .ebsd)
+        let mp = try EMsoftMasterPatternReader.read(url: url, type: .ebsd, projection: .lambert, hemisphere: .both)
+        XCTAssertEqual(mp.side, DemoDocuments.Shipped.nickelMasterPatternSide)
+        XCTAssertEqual(mp.energies, [20])
+        XCTAssertEqual(mp.phase.name, "ni")
+        XCTAssertEqual(mp.phase.spaceGroup, 225)
+        for h in 0 ..< 2 {
+            XCTAssertEqual(mp.pattern(hemisphere: h, energy: 0).reduce(UInt64(0)) { $0 + UInt64($1) }, DemoDocuments.Shipped.nickelMasterPatternLambertSum)
+        }
+        XCTAssertNoThrow(try MasterPatternProjection.checkSuitable(mp))
     }
 
     /// The BAM TM002 spectrum through the HyperSpy reader: 1024 channels of 0.01 keV from -0.1 keV, 10 kV, the counts exact (their total,

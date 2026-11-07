@@ -1,0 +1,156 @@
+{
+  "arrays": {
+    "direction_cosines": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "direction_cosines.bin",
+      "note": "(n PCs x) rows x columns x 3, row-major",
+      "rtol": 1e-07,
+      "sha256": "683bdbbef3d4212d5cef9c5e7d76dfaefd7dea644aaa319579720157fd5a3513",
+      "shape": [
+        9216,
+        3
+      ]
+    },
+    "euler_deg": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "euler_deg.bin",
+      "rtol": 0.0,
+      "sha256": "cf472400942e0c9d0428a0921ba5e0e69167d80db01da716773e43340a1e8f58",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "gnomonic_bounds": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "gnomonic_bounds.bin",
+      "rtol": 1e-07,
+      "sha256": "19c79648b86f82b93f94b4d768d081df17f2b34b9559f5fea2a1d8032d789688",
+      "shape": [
+        3,
+        4
+      ]
+    },
+    "patterns_float32": {
+      "atol": 1e-08,
+      "dtype": "float32",
+      "file": "patterns_float32.bin",
+      "rtol": 1e-05,
+      "sha256": "35ddf532c9c7b5b2a1afa0935d409dd621480861498c981bde9cd8db300d62a3",
+      "shape": [
+        3,
+        48,
+        64
+      ]
+    },
+    "patterns_float32_e12_4": {
+      "atol": 1e-08,
+      "dtype": "float32",
+      "file": "patterns_float32_e12_4.bin",
+      "rtol": 1e-05,
+      "sha256": "647f8ade99e05d425d76acbe54ff978e6b129d8205864bb6219f2bac0f602772",
+      "shape": [
+        3,
+        48,
+        64
+      ]
+    },
+    "quaternions": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "quaternions.bin",
+      "note": "orix (a, b, c, d) of the Euler angles",
+      "rtol": 0.0,
+      "sha256": "c6bcad58574c65a1d2d49b9d88aad8031715286656eb9587694c6f626b7cdc58",
+      "shape": [
+        3,
+        4
+      ]
+    },
+    "sample_to_detector": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "sample_to_detector.bin",
+      "rtol": 1e-07,
+      "sha256": "89cd7d7a50fbe8c4c53a263735ee2223c304581b89f73538730a6d81e7826cd6",
+      "shape": [
+        3,
+        3
+      ]
+    }
+  },
+  "case": "m6/project-master-pattern-tilted",
+  "inputs": [
+    {
+      "path": "fixtures/emsoft_ebsd_master_pattern_dummy.h5",
+      "sha256": "089553356523fa297570e9b554c27b3d4de32ce7238e23c9bf9206d78f0fdd01"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "kikuchipy.signals.EBSDMasterPattern.get_patterns",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "detector": {
+      "azimuthal": 2.5,
+      "pc": [
+        [
+          0.52,
+          0.31,
+          0.61
+        ],
+        [
+          0.47,
+          0.28,
+          0.55
+        ],
+        [
+          0.5,
+          0.35,
+          0.7
+        ]
+      ],
+      "sample_tilt": 68.0,
+      "shape": [
+        48,
+        64
+      ],
+      "tilt": 10.0,
+      "twist": 1.2
+    },
+    "dtypes": [
+      "float32"
+    ],
+    "energies": [
+      null,
+      12.4
+    ],
+    "master_pattern_shape": [
+      2,
+      11,
+      13,
+      13
+    ],
+    "note": "the dummy master pattern is flat at each energy (its value is the energy), so only the float32 output (no rescale) is compared: a rescale of a flat pattern divides zero by zero"
+  }
+}

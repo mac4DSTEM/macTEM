@@ -1,0 +1,154 @@
+{
+  "arrays": {
+    "direction_cosines": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "direction_cosines.bin",
+      "note": "(n PCs x) rows x columns x 3, row-major",
+      "rtol": 1e-07,
+      "sha256": "194af0a98404b5536df2dee16757b0a133dd3bfbf2a5b89be90039188358a128",
+      "shape": [
+        3600,
+        3
+      ]
+    },
+    "euler_deg": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "euler_deg.bin",
+      "rtol": 0.0,
+      "sha256": "75d3f9c180af8aa18d0f8149803d942c7a5ef306704aaa4171154d25ba3855f2",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "gnomonic_bounds": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "gnomonic_bounds.bin",
+      "rtol": 1e-07,
+      "sha256": "01f569acf16baa108041dd7b0c2d89c4774cf130d3ed6a9498490e33e6004765",
+      "shape": [
+        1,
+        4
+      ]
+    },
+    "patterns_float32": {
+      "atol": 1e-08,
+      "dtype": "float32",
+      "file": "patterns_float32.bin",
+      "rtol": 1e-05,
+      "sha256": "c7425d5f31ebb7b376d504b13c90149fe1dc4f426b7b9dc3a454819854774b43",
+      "shape": [
+        3,
+        60,
+        60
+      ]
+    },
+    "patterns_float64": {
+      "atol": 1e-08,
+      "dtype": "float64",
+      "file": "patterns_float64.bin",
+      "rtol": 1e-05,
+      "sha256": "77762db91ad374c6c843208b60d4b370af78e67d26428291cf3172bf9ac7b58f",
+      "shape": [
+        3,
+        60,
+        60
+      ]
+    },
+    "patterns_uint8": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "patterns_uint8.bin",
+      "rtol": 0.0,
+      "sha256": "a0ca6ae5d35ba6dc46da5bd27ff042320cb5446ee25c834d21ee4e4c7074f531",
+      "shape": [
+        3,
+        60,
+        60
+      ]
+    },
+    "quaternions": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "quaternions.bin",
+      "note": "orix (a, b, c, d) of the Euler angles",
+      "rtol": 0.0,
+      "sha256": "6e266ec1328c2f9117101eeecd6903a2a45f515f182b5a90dc07713a33b4b686",
+      "shape": [
+        3,
+        4
+      ]
+    },
+    "sample_to_detector": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "sample_to_detector.bin",
+      "rtol": 1e-07,
+      "sha256": "2aa092967c459fc2b099f15bc6dbf3eaa242f15babaed5dc1ec229afac402003",
+      "shape": [
+        3,
+        3
+      ]
+    }
+  },
+  "case": "m6/project-master-pattern-ni",
+  "inputs": [
+    {
+      "path": "fixtures/emsoft_ebsd_master_pattern_ni_mc_mp_20kv_uint8_gzip_opts9.h5",
+      "sha256": "8a7c1fb471d9ce750f0332a154e87cf41eed7529be508548e0c0f51ec6f92bc2"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "kikuchipy.signals.EBSDMasterPattern.get_patterns",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "detector": {
+      "binning": 8,
+      "pc": [
+        0.4214,
+        0.2142,
+        0.5013
+      ],
+      "sample_tilt": 70.0,
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "dtypes": [
+      "float32",
+      "uint8",
+      "float64"
+    ],
+    "energies": [
+      null
+    ],
+    "master_pattern_shape": [
+      2,
+      401,
+      401
+    ],
+    "note": "figure F15, right"
+  }
+}
