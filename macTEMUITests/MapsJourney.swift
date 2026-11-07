@@ -76,6 +76,12 @@ nonisolated final class MapsJourney: Journey {
             app.radioButtons["Pole figures"].firstMatch.click()
             for k in 0..<4 { waitFor("maps.pole.\(k)", timeout: 120) }
         }
+        try step("the Histogram tab counts the KAM of every point") {
+            try requireFrontmost()
+            app.radioButtons["Histogram"].firstMatch.click()
+            waitFor("maps.histogram.bars", timeout: 30)
+            XCTAssertTrue(label("maps.histogram.caption").contains("KAM"), label("maps.histogram.caption"))
+        }
         try step("the grain table exports as CSV") {
             showInspector(waitingFor: "maps.layer")
             try requireFrontmost()

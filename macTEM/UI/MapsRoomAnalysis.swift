@@ -43,8 +43,16 @@ struct MapsAnalysisOverlay: View {
             }
         }
         .accessibilityElement()
-        .accessibilityLabel(session.selectedGrain.map { "Grain \($0) outlined, boundaries " + (session.showsBoundaries ? "shown" : "hidden") }
-                            ?? "Grain boundaries " + (session.showsBoundaries ? "shown" : "hidden"))
+        .accessibilityLabel(spokenLabel)
+    }
+
+    /// "Grain 12 outlined, boundaries shown", "3 grains outlined, …", or the boundaries alone.
+    private var spokenLabel: String {
+        let boundaries = "boundaries " + (session.showsBoundaries ? "shown" : "hidden")
+        let count = session.selectedGrains.count
+        if count > 1 { return "\(count) grains outlined, " + boundaries }
+        if let grain = session.selectedGrain { return "Grain \(grain) outlined, " + boundaries }
+        return "Grain " + boundaries
     }
 
     /// DefDAP's matplotlib trace colour names as colours.
@@ -83,6 +91,7 @@ enum MapsBottomTab: String, CaseIterable, Identifiable {
     case grains = "Grains"
     case poleFigures = "Pole figures"
     case odf = "ODF"
+    case histogram = "Histogram"
     var id: String { rawValue }
 }
 
@@ -104,6 +113,14 @@ struct MapsBottomPane: View {
                 if state.bottomTab == .poleFigures || state.bottomTab == .odf {
                     MapsTexturePhasePicker(session: session)
                 }
+                if state.bottomTab == .histogram {
+                    Picker("Histogram of", selection: $state.histogramKind) {
+                        ForEach(MapAnalysis.HistogramKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    .fixedSize()
+                    .help("KAM of every point, or GOS or the equivalent circle diameter of every grain")
+                    .accessibilityIdentifier("maps.histogram.kind")
+                }
             }
             .padding(.horizontal, 10)
             .padding(.top, 6)
@@ -112,6 +129,7 @@ struct MapsBottomPane: View {
             case .grains: MapsGrainsTable(session: session)
             case .poleFigures: MapsTextureFigures(session: session, odf: false)
             case .odf: MapsTextureFigures(session: session, odf: true)
+            case .histogram: MapsHistogramPane(session: session, state: state)
             }
         }
     }
@@ -150,7 +168,7 @@ struct MapsGrainsTable: View {
                     Text(verbatim: MapsRoomFormat.grainSummary(analysis))
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                         .accessibilityIdentifier("maps.grains.summary")
-                    Table(rows, selection: Binding(get: { session.selectedGrain }, set: { session.selectGrain($0) }), sortOrder: $sortOrder) {
+                    Table(rows, selection: Binding(get: { session.selectedGrains }, set: { session.selectGrains($0) }), sortOrder: $sortOrder) {
                         TableColumn("Grain", value: \.id) { Text(verbatim: "\($0.id)").monospacedDigit() }
                         TableColumn("Phase", value: \.phaseName)
                         TableColumn("Points", value: \.points) { Text(verbatim: "\($0.points)").monospacedDigit() }
@@ -205,8 +223,9 @@ struct MapsTextureFigures: View {
                 let figures = odf ? texture.odfSections : texture.poleFigures + (texture.inversePoleFigure.map { [$0] } ?? [])
                 ScrollView(.horizontal) {
                     HStack(alignment: .top, spacing: 16) {
+                        let selected = session.selectedRows.filter { $0.phaseID == texture.phaseID }.map(\.orientation)
                         ForEach(Array(figures.enumerated()), id: \.offset) { index, figure in
-                            MapsTextureFigureCell(figure: figure, odf: odf)
+                            MapsTextureFigureCell(figure: figure, odf: odf, markers: MapTexture.poleMarkers(figure, orientations: selected))
                                 .accessibilityIdentifier("maps.\(odf ? "odf" : "pole").\(index)")
                         }
                         VStack(alignment: .leading, spacing: 4) {
@@ -233,6 +252,8 @@ struct MapsTextureFigures: View {
 struct MapsTextureFigureCell: View {
     let figure: MapTexture.Figure
     let odf: Bool
+    /// The selected grains' poles in the figure's unit square (macTEM#239), drawn as rings over the density.
+    var markers: [SIMD2<Double>] = []
 
     var body: some View {
         let side = LayoutPolicy.mapsTextureFigureSide
@@ -249,13 +270,86 @@ struct MapsTextureFigureCell: View {
                             Text(verbatim: "φ₁ →  Φ ↓").font(.caption2).foregroundStyle(.white).padding(2)
                         }
                     }
+                    .overlay {
+                        if !markers.isEmpty {
+                            Canvas { context, size in
+                                let r = LayoutPolicy.mapsPoleMarkerRadius
+                                for m in markers {
+                                    let rect = CGRect(x: m.x * size.width - r, y: m.y * size.height - r, width: 2 * r, height: 2 * r)
+                                    context.stroke(Path(ellipseIn: rect), with: .color(.white), lineWidth: 2.5)
+                                    context.stroke(Path(ellipseIn: rect), with: .color(.accentColor), lineWidth: 1.5)
+                                }
+                            }
+                            .allowsHitTesting(false)
+                        }
+                    }
             }
             MapsColourBar()
                 .frame(width: side, height: LayoutPolicy.mapsColourBarHeight)
             Text(verbatim: "0 to \(MapsRoomFormat.number(figure.maximum)) MRD").font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(figure.title), maximum \(MapsRoomFormat.number(figure.maximum)) multiples of random")
+        .accessibilityLabel("\(figure.title), maximum \(MapsRoomFormat.number(figure.maximum)) multiples of random"
+                            + (markers.isEmpty ? "" : ", \(markers.count) poles of the selected grains marked"))
+    }
+}
+
+// MARK: The histogram
+
+/// The Histogram tab (design §3): KAM per point, GOS or equivalent circle diameter per grain, in 40 bins (`MapAnalysis.histogram`),
+/// with each selected grain's value ticked under the bars. Bars in the accent colour, counts on the left, the range under them.
+struct MapsHistogramPane: View {
+    let session: OrientationMapSession
+    let state: MapsRoomState
+
+    var body: some View {
+        Group {
+            if let analysis = session.analysis {
+                let kind = state.histogramKind
+                let histogram = analysis.histogram(kind)
+                let ticks = session.selectedRows.compactMap { analysis.histogramValue(kind, of: $0) }
+                let unit = kind == .grainSize ? EBSDBrowsing.unitLabel(analysis.scanUnit) : "°"
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(verbatim: MapsRoomFormat.histogramCaption(kind, histogram: histogram, unit: unit))
+                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("maps.histogram.caption")
+                    Canvas { context, size in
+                        let counts = histogram.counts
+                        guard let top = counts.max(), top > 0, let low = histogram.edges.first, let high = histogram.edges.last, high > low else { return }
+                        let barArea = CGRect(x: 0, y: 0, width: size.width, height: size.height - LayoutPolicy.mapsHistogramTickHeight)
+                        let w = barArea.width / CGFloat(counts.count)
+                        for (k, n) in counts.enumerated() where n > 0 {
+                            let h = barArea.height * CGFloat(n) / CGFloat(top)
+                            context.fill(Path(CGRect(x: CGFloat(k) * w + 0.5, y: barArea.maxY - h, width: max(w - 1, 1), height: h)),
+                                         with: .color(.accentColor.opacity(0.8)))
+                        }
+                        for v in ticks where v.isFinite {
+                            let x = CGFloat((min(max(v, low), high) - low) / (high - low)) * barArea.width
+                            var p = Path()
+                            p.move(to: CGPoint(x: x, y: barArea.maxY))
+                            p.addLine(to: CGPoint(x: x, y: size.height))
+                            context.stroke(p, with: .color(.primary), lineWidth: 2)
+                        }
+                    }
+                    .accessibilityElement()
+                    .accessibilityLabel("Histogram of \(kind.rawValue), \(histogram.counts.reduce(0, +)) values in \(histogram.counts.count) bins")
+                    .accessibilityIdentifier("maps.histogram.bars")
+                    HStack {
+                        Text(verbatim: "\(MapsRoomFormat.number(histogram.edges.first ?? 0)) \(unit)")
+                        Spacer()
+                        Text(verbatim: "\(MapsRoomFormat.number(histogram.edges.last ?? 0)) \(unit)")
+                    }
+                    .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                }
+                .padding(10)
+            } else {
+                Text(session.isSegmenting ? "Segmenting…" : "Segment the map for its KAM, GOS and grain-size histograms.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("maps.histogram")
     }
 }
 
