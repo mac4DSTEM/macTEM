@@ -20,7 +20,7 @@ import FormatoDM
 
 package nonisolated enum ImageOpening {
     /// File extensions macTEM reads today, lower case.
-    package static let readableExtensions = ["dm4", "dm3", "tif", "tiff", "mrc", "emd"]
+    package static let readableExtensions = ["dm4", "dm3", "tif", "tiff", "mrc", "emd"] + SEMEDSOpening.imageExtensions
 
     package enum Refusal: LocalizedError, Equatable {
         case unreadableFormat(file: String, ext: String)
@@ -28,6 +28,7 @@ package nonisolated enum ImageOpening {
         case tiff(file: String, TIFFImageReader.Refusal)
         case mrc(file: String, MRCImageReader.Refusal)
         case velox(file: String, VeloxImageReader.Refusal)
+        case jeol(file: String, reason: String)
 
         package var errorDescription: String? {
             switch self {
@@ -42,6 +43,8 @@ package nonisolated enum ImageOpening {
                 return "\(file) is not read: " + refusal.reason
             case .velox(let file, let refusal):
                 return "\(file) is not read: " + refusal.reason
+            case .jeol(let file, let reason):
+                return "\(file) is not read: " + reason
             }
         }
     }
@@ -55,6 +58,11 @@ package nonisolated enum ImageOpening {
         if ext == "tif" || ext == "tiff" {
             do { return try TIFFImageReader.read(path: path) } catch let refusal as TIFFImageReader.Refusal {
                 throw Refusal.tiff(file: formatoDisplayFileName(path), refusal)
+            }
+        }
+        if SEMEDSOpening.imageExtensions.contains(ext) {
+            do { return try SEMEDSOpening.image(url: URL(fileURLWithPath: path)) } catch let refusal as SEMEDSReadError {
+                throw Refusal.jeol(file: formatoDisplayFileName(path), reason: refusal.text)
             }
         }
         if ext == "mrc" {

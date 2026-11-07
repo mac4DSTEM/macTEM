@@ -1,0 +1,122 @@
+{
+  "arrays": {
+    "signal0_sum_spectrum": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal0_sum_spectrum.bin",
+      "rtol": 0.0,
+      "sha256": "d368d1649b14f5c40d46df58bcd2d0aa216205373b7224dcdbb78e2b152048d8",
+      "shape": [
+        2500
+      ]
+    }
+  },
+  "case": "m7/read-spd-map-crop8",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/edax/spd_map_crop8.spd",
+      "sha256": "d3e401789d734ad4d67314e2e335164bbad0000c7b5369b0b6a25eb39078cbd4"
+    },
+    {
+      "path": "fixtures/rsciio/edax/spd_map_crop8.spc",
+      "sha256": "4f97a5a7c70c816792c6ff14294d10f93ef658155bbbd73f436cf2b163d05308"
+    },
+    {
+      "path": "fixtures/rsciio/edax/Live Map 2_Img.ipr",
+      "sha256": "10e2b1b883aaab021f612a9f32f3bc0ff69daa8ff39c13f7ab0e9b86fd77bdc2"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.edax.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signal0_nonzero": {
+      "count": 15529,
+      "index_sha256": "218c81bd3da1b3a12218e36bfe82c0169f02399de8ce7b9af3eaa4b967e2add3",
+      "value_sha256": "e1b2a54d34263d625f2567b44dd0bdbe566c20dc66080204725bf0eb566ff779"
+    },
+    "signal0_pixel_totals": {
+      "dtype": "int64",
+      "sha256": "e9593ee2092ae371a9e41d3f7e63cac81441a63e8643dd42aef8e0b909380253",
+      "shape": [
+        64
+      ]
+    },
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "y",
+            "offset": 0.0,
+            "scale": 0.014227345585823059,
+            "size": 8,
+            "units": "µm"
+          },
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 0.014235896058380604,
+            "size": 8,
+            "units": "µm"
+          },
+          {
+            "name": "Energy",
+            "offset": 0.0,
+            "scale": 0.005,
+            "size": 2500,
+            "units": "keV"
+          }
+        ],
+        "dtype": "uint16",
+        "kind": "spectrum_image",
+        "metadata": {
+          "azimuth_angle": 0.0,
+          "beam_energy": 22.0,
+          "elements": [
+            "Ce",
+            "Co",
+            "Cr",
+            "Fe",
+            "Gd",
+            "La",
+            "Mg",
+            "O",
+            "Sr"
+          ],
+          "elevation_angle": 34.0,
+          "energy_resolution_MnKa": 126.6025161743164,
+          "live_time": 2621.43994140625,
+          "mode": "SEM",
+          "original_filename": "spd_map_crop8.spd",
+          "signal_type": "EDS_SEM",
+          "tilt_alpha": 0.0,
+          "title": "EDS Spectrum Image"
+        },
+        "shape": [
+          8,
+          8,
+          2500
+        ]
+      }
+    ]
+  }
+}
