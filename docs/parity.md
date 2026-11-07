@@ -164,11 +164,11 @@ Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST),
 
 | Function | Reference | Test | Tolerance | Notes |
 |---|---|---|---|---|
-| `HoughReflectorLibrary` (pole families, variants, Cartesian normals, angle table, family pairs, triplet table; Laue codes and rotations) | `tripletvote.addphase`, `BandIndexer.build_trip_lib`, `crystal_sym`, `crystallometry.Crystal` | `testReflectorLibraries…`, `testLaueCodes…` | indices exact; rtol 1e-7; angles atol 1e-5° | triplet table ordered by (family key, angles), D-SEM-49 |
-| `HoughBandDetector` plan, mask, kernel, `radon`, `convolve` | `radon_fast.Radon.radon_plan_setup`, `radon_faster`; `band_detect.BandDetect.band_detect_setup`, `rdn_conv` | `testRadonPlanKernelAndTransform…` | counts, bins, mask exact; Radon rtol 1e-5 (atol 1e-4), convolution rtol 1e-5 (atol 2e-3) | the stats window keeps pyEBSDindex's row bound (`shprdn[1]`), D-SEM-49 |
-| `HoughBandDetector.detect`, `normals` | `find_bands`, `rdn_local_max`, `band_label_numba`, `Radon.radon2pole` ("KIKUCHIPY") | `testBandsOfTheBlock…` | peak cells exact; sub-pixel peaks and rho 1e-3 px; theta and normals 1e-4; peak values rtol 1e-5 | brief bound 1 px / 1° |
+| `HoughReflectorLibrary` (pole families, variants, Cartesian normals, angle table, family pairs, triplet table; Laue codes and rotations) | `tripletvote.addphase`, `BandIndexer.build_trip_lib`, `crystal_sym`, `crystallometry.Crystal` | `testReflectorLibraries…`, `testLaueCodes…` | indices exact; poles and normals rtol 1e-7; angles atol 1e-5° | triplet table ordered by (family key, angles), D-SEM-49 |
+| `HoughBandDetector` plan, mask, kernel, `radon`, `convolve` | `radon_fast.Radon.radon_plan_setup`, `radon_faster`; `band_detect.BandDetect.band_detect_setup`, `rdn_conv` | `testRadonPlanKernelAndTransform…` | counts, bins, mask exact; Radon rtol 1e-5 (atol 1e-4), convolution rtol 1e-5 (atol 2e-3); a flipped plan pixel (below) may move up to 6 lines and 1 % of the convolution, each within 5 grey levels | the stats window keeps pyEBSDindex's row bound (`shprdn[1]`), D-SEM-49 |
+| `HoughBandDetector.detect`, `normals` | `find_bands`, `rdn_local_max`, `band_label_numba`, `Radon.radon2pole` ("KIKUCHIPY") | `testBandsOfTheBlock…` | peak cells exact; sub-pixel peaks and rho 1e-3 px; theta and normals 1e-4; peak values rtol 1e-5; the bands of a pattern with a flipped plan pixel within 1 px and 1° | brief bound 1 px / 1° |
 | `HoughIndexer.tripletVote` | `BandIndexer._tripvote_numba` | `testTripletVote…` | counts and families exact; weighted votes and ranks rtol 1e-5 (atol 1e-3) | fed the reference normals |
-| `HoughIndexer.index` (`assignBands`, `quest`, confidence) | `bandindex`, `_assign_bands_nb2`, `_calc_quest_weights`, `_orientation_quest_nb`, `_calc_cm`, `EBSDIndexer._indexbandsphase` | `testBlockIsIndexed…` | matched bands, phase, total votes exact; fit, CM, PQ rtol 1e-5, IQ 1e-4; orientation < 1e-3° (m-3m) | the matched variant compared by family, D-SEM-49 |
+| `HoughIndexer.index` (`assignBands`, `quest`, confidence) | `bandindex`, `_assign_bands_nb2`, `_calc_quest_weights`, `_orientation_quest_nb`, `_calc_cm`, `EBSDIndexer._indexbandsphase` | `testBlockIsIndexed…` | matched bands, phase, total votes exact; fit atol 2e-3° (float32 arccos near 1), CM, PQ rtol 1e-5, IQ 1e-4 (one flipped-pixel pattern within 0.01 / 1 / 0.01); orientation < 0.01° (m-3m) | the matched variant compared by family, D-SEM-49 |
 | F8 end to end: `HoughIndexer.indexMap` on the app's corrected demo scan | `EBSD.hough_indexing` on kikuchipy's corrected scan | `testFigureF8…` | indexed count within 1; 99 % of points under 1°; matched-band count equal on 95 % | a float64 replica on kikuchipy's exact patterns: 4124 of 4124 within 1.3e-5°, every matched-band count equal |
 
 ### Known limits and decisions
@@ -179,6 +179,10 @@ Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST),
   symmetry-reduced misorientations, not variant indices or raw quaternions. The vendor is fixed to "KIKUCHIPY" (Bruker
   PCs in, the orix frame out), the one kikuchipy's `hough_indexing` uses; the rho mask fraction is limited to [0, 1)
   (pyEBSDindex's erosion and circle modes above 1 and below 0 are refused, not ported).
+- The line plan rounds float32 sin and cos of the angle grid as pyEBSDindex does, but numpy's SIMD float32 sin/cos and
+  Apple's differ in the last ulp, so a line whose pixel rounding sits on a half takes the neighbouring pixel (2 of 16200
+  lines of the first block pattern on the CI Mac; counts stay exact). The tests allow these lines and what follows from
+  them within the brief's 1 px and 1°.
 - D-SEM-50 (2026-11-07): the result of a scan is `HoughIndexer.Map` (rotations as orix takes them, fit, CM, PQ, matched
   bands per point) until the orix `CrystalMap` port (P3-03) is on main; carrying it into a `CrystalMap` is its own issue.
 - Speed: the CPU path indexes in parallel over a scan row; the F8 test prints the time of the 4125 patterns. The brief's

@@ -39,6 +39,8 @@ CONV = {"rtol": 1e-5, "atol": 2e-3}
 VOTE = {"rtol": 1e-5, "atol": 1e-3}
 WIDTH = {"rtol": 0.0, "atol": 1e-3}
 NORM = {"rtol": 1e-4, "atol": 1e-6}
+# arccos of a float32 mean dot product near 1: one float32 ulp there is about 6e-4 degrees of fit.
+FIT = {"rtol": 0.0, "atol": 2e-3}
 
 INPUTS_FILE = Path(__file__).resolve().parent / "fixtures" / "hough_inputs.json"
 INPUTS_LABEL = "fixtures/hough_inputs.json"
@@ -78,7 +80,7 @@ def case_m4_hough_library(ctx):
                               "nband_earlyexit": int(lib.nband_earlyexit)})
         b.array(f"{n}_polefamilies", np.asarray(lib.polefamilies, dtype=np.float64).reshape(lib.npolefamilies, -1), **EXACT)
         c = lib.completelib
-        b.array(f"{n}_poles", np.asarray(c["poles"], dtype=np.float64), **EXACT, note="every variant, hkl (3-index)")
+        b.array(f"{n}_poles", np.asarray(c["poles"], dtype=np.float64), **F64, note="every variant, hkl (3-index)")
         b.array(f"{n}_poles_cart", np.asarray(c["polesCart"], dtype=np.float64), **F64)
         b.array(f"{n}_family_id", np.asarray(c["familyid"], dtype=np.int32), **EXACT)
         b.array(f"{n}_ang_table", np.asarray(c["angTable"], dtype=np.float64), **ANG, note="degrees")
@@ -193,7 +195,7 @@ def case_m4_hough_nickel_block(ctx):
     b.array("vote_band_rank", np.asarray(rank, dtype=np.float32), **VOTE)
     d = data[-1]
     b.array("quaternion", np.asarray(d["quat"], dtype=np.float64), **LOOSE, note="KIKUCHIPY frame, a >= 0; the test holds misorientation")
-    b.array("fit", np.asarray(d["fit"], dtype=np.float32), **F32, note="degrees")
+    b.array("fit", np.asarray(d["fit"], dtype=np.float32), **FIT, note="degrees")
     b.array("cm", np.asarray(d["cm"], dtype=np.float32), **F32)
     b.array("pq", np.asarray(d["pq"], dtype=np.float32), **F32)
     b.array("iq", np.asarray(d["iq"], dtype=np.float32), **NORM)

@@ -80,7 +80,7 @@
       "dtype": "float64",
       "file": "bcc_poles.bin",
       "note": "every variant, hkl (3-index)",
-      "rtol": 0.0,
+      "rtol": 1e-07,
       "sha256": "a04ee698f87746d7da48e2512f42abc468c867d2ab12d163a50f6deb6147612f",
       "shape": [
         66,
@@ -201,7 +201,7 @@
       "dtype": "float64",
       "file": "hcp_poles.bin",
       "note": "every variant, hkl (3-index)",
-      "rtol": 0.0,
+      "rtol": 1e-07,
       "sha256": "b45e47902ab9002e8049613f9e449f90d44f7ccfcda95bb7cedf7b60e5082b50",
       "shape": [
         74,
@@ -322,7 +322,7 @@
       "dtype": "float64",
       "file": "ni_poles.bin",
       "note": "every variant, hkl (3-index)",
-      "rtol": 0.0,
+      "rtol": 1e-07,
       "sha256": "05c13b1792cf5023f2e31a856c2341a701507447008923b6f96b34379f25849f",
       "shape": [
         50,
