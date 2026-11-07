@@ -8,7 +8,8 @@
 //  `Quat` is constructed without `allow_southern`. They are orix's convention (D-SEM-35) for the same Bunge angles, but
 //  DefDAP's averaging and symmetry loops depend on its own element order and on where it flips signs, so this file carries
 //  DefDAP's formulas and lists as written rather than orix's `Rotation` and `PointGroup`. Parity: `tools/parity/sem` bundles
-//  `m5/slip-ti` and `m5/slip-sdss` (quaternions within 1e-12, grain averages within 1e-10; docs/parity.md).
+//  `m5/slip-ti` and `m5/slip-sdss` (quaternions within 1e-12, grain averages within 1e-10), and the grain analysis's
+//  `m5/grains-ti` and `m5/grains-sdss` (Sources/TEMCore/SEM/Grains), which runs on the same types (docs/parity.md).
 //
 
 import Foundation
@@ -57,6 +58,7 @@ package nonisolated enum DefDAPQuat {
     }
 
     /// `quat_comps[i] = sym * quat` as `Quat.calc_sym_eqvs` and `Map.calc_nye` expand it, then the positive-hemisphere swap.
+    @inline(__always)
     package static func symmetricEquivalent(_ q: SIMD4<Double>, _ s: SIMD4<Double>) -> SIMD4<Double> {
         let a = q[0] * s[0] - q[1] * s[1] - q[2] * s[2] - q[3] * s[3]
         let b = q[0] * s[1] + q[1] * s[0] - q[2] * s[3] + q[3] * s[2]
@@ -64,6 +66,20 @@ package nonisolated enum DefDAPQuat {
         let d = q[0] * s[3] + q[3] * s[0] - q[1] * s[2] + q[2] * s[1]
         let e = SIMD4(a, b, c, d)
         return a < 0 ? -e : e
+    }
+
+    /// `Quat.calc_sym_eqvs` for one quaternion: the quaternion itself first, then sym * q for every other operator.
+    package static func symmetricEquivalents(_ q: SIMD4<Double>, _ ops: [SIMD4<Double>]) -> [SIMD4<Double>] {
+        var out = [q]
+        out.reserveCapacity(ops.count)
+        for s in ops.dropFirst() { out.append(symmetricEquivalent(q, s)) }
+        return out
+    }
+
+    /// The |dot product| of two quaternions, summed in component order (DefDAP's `abs(Quat.dot)`).
+    @inline(__always)
+    package static func absDot(_ a: SIMD4<Double>, _ b: SIMD4<Double>) -> Double {
+        abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3])
     }
 
     /// `Quat.calc_sym_eqvs`: for every symmetry (identity first, the quaternion as given), the equivalents of every quaternion.
@@ -105,6 +121,27 @@ package nonisolated enum DefDAPCrystalStructure: String, Sendable, CaseIterable 
         case .cubic: return Self.cubicSymmetries
         case .hexagonal: return Self.hexagonalSymmetries
         }
+    }
+
+    /// The structure DefDAP gives a phase by its Laue group (m-3m cubic, 6/mmm hexagonal), nil for the others.
+    package init?(pointGroup group: PointGroup) {
+        switch PointGroup.laueName(group.name) {
+        case "m-3m": self = .cubic
+        case "6/mmm": self = .hexagonal
+        default: return nil
+        }
+    }
+
+    /// The symmetry operators of a phase's point group: DefDAP's tables for the m-3m and 6/mmm Laue groups; for any other
+    /// point group the proper rotations of its Laue group (orix's elements, northern hemisphere, identity first), which is
+    /// the set DefDAP's tables hold for the two it knows (no DefDAP reference exists for those); the identity alone
+    /// without a point group.
+    package static func operators(for group: PointGroup?) -> [SIMD4<Double>] {
+        guard let group else { return [SIMD4(1, 0, 0, 0)] }
+        if let structure = DefDAPCrystalStructure(pointGroup: group) { return structure.symmetries }
+        var ops = group.laue.properSubgroup.elements.map { DefDAPQuat.northern($0.q) }
+        if let i = ops.firstIndex(where: { $0 == SIMD4(1, 0, 0, 0) }), i != 0 { ops.swapAt(0, i) }
+        return ops
     }
 
     private static let overRoot2 = 2.0.squareRoot() / 2
