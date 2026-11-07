@@ -76,7 +76,7 @@
       ]
     },
     "bcc_poles": {
-      "atol": 0.0,
+      "atol": 1e-12,
       "dtype": "float64",
       "file": "bcc_poles.bin",
       "note": "every variant, hkl (3-index)",
@@ -197,7 +197,7 @@
       ]
     },
     "hcp_poles": {
-      "atol": 0.0,
+      "atol": 1e-12,
       "dtype": "float64",
       "file": "hcp_poles.bin",
       "note": "every variant, hkl (3-index)",
@@ -318,7 +318,7 @@
       ]
     },
     "ni_poles": {
-      "atol": 0.0,
+      "atol": 1e-12,
       "dtype": "float64",
       "file": "ni_poles.bin",
       "note": "every variant, hkl (3-index)",

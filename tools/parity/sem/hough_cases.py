@@ -41,6 +41,8 @@ WIDTH = {"rtol": 0.0, "atol": 1e-3}
 NORM = {"rtol": 1e-4, "atol": 1e-6}
 # arccos of a float32 mean dot product near 1: one float32 ulp there is about 6e-4 degrees of fit.
 FIT = {"rtol": 0.0, "atol": 2e-3}
+# hkl back from float64 reciprocal-lattice arithmetic: zeros come out as +-1e-16.
+POLE = {"rtol": 1e-7, "atol": 1e-12}
 
 INPUTS_FILE = Path(__file__).resolve().parent / "fixtures" / "hough_inputs.json"
 INPUTS_LABEL = "fixtures/hough_inputs.json"
@@ -80,7 +82,7 @@ def case_m4_hough_library(ctx):
                               "nband_earlyexit": int(lib.nband_earlyexit)})
         b.array(f"{n}_polefamilies", np.asarray(lib.polefamilies, dtype=np.float64).reshape(lib.npolefamilies, -1), **EXACT)
         c = lib.completelib
-        b.array(f"{n}_poles", np.asarray(c["poles"], dtype=np.float64), **F64, note="every variant, hkl (3-index)")
+        b.array(f"{n}_poles", np.asarray(c["poles"], dtype=np.float64), **POLE, note="every variant, hkl (3-index)")
         b.array(f"{n}_poles_cart", np.asarray(c["polesCart"], dtype=np.float64), **F64)
         b.array(f"{n}_family_id", np.asarray(c["familyid"], dtype=np.int32), **EXACT)
         b.array(f"{n}_ang_table", np.asarray(c["angTable"], dtype=np.float64), **ANG, note="degrees")
