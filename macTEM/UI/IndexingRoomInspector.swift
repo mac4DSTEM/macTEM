@@ -2,7 +2,8 @@
 //  IndexingRoomInspector.swift
 //  Role: the Indexing room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the Image room's order
 //        (control placement §2; design §4): Calibration (where the patterns come from and the geometry the indexer takes, as value rows),
-//        Display (the map's layer, the detected bands), Pattern Display (the pattern pane's own contrast), Phases (the list indexed
+//        Display (the map's layer, the detected bands), Map Display (a scalar layer's colormap, window, gamma and scale bar, D-SEM-96),
+//        Pattern Display (the pattern pane's own contrast), Phases (the list indexed
 //        against, each with its colour and its switch; a preset or a CIF added), Method (Hough or Dictionary, D-SEM-91), then the
 //        method's own section: Hough (pyEBSDindex's `EBSDIndexer` parameters) or Dictionary (the master pattern, kikuchipy's
 //        `dictionary_indexing` settings and orix's sampling), and Export (the map, the results, the method). Info: the dataset's rows
@@ -27,6 +28,9 @@ struct IndexingRoomSettings: View {
         if let dataset = session.patterns.dataset {
             IndexingCalibrationSection(session: session, dataset: dataset)
             IndexingDisplaySection(session: session)
+            if session.showsScalarMap {
+                ImageRoomDisplaySection(presentation: session.mapPresentation, title: "Map Display", colormapID: "indexing.map.colormap")
+            }
             ImageRoomDisplaySection(presentation: session.patternPresentation, title: "Pattern Display", colormapID: "indexing.pattern.colormap")
             IndexingPhasesSection(session: session)
             IndexingMethodSection(session: session)
@@ -90,7 +94,8 @@ private struct IndexingCalibrationSection: View {
 
 // MARK: - Display
 
-/// The map's layer (eight for Hough, five for a dictionary: a pop-up, control placement §3) and the detected bands over the pattern.
+/// The map's layer (nine for Hough, seven for a dictionary: a pop-up, control placement §3; the colour key follows the layer, IPF or
+/// Euler, D-SEM-96) and the detected bands over the pattern.
 private struct IndexingDisplaySection: View {
     let session: IndexingSession
 

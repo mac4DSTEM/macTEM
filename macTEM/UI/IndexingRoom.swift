@@ -1,18 +1,21 @@
 //
 //  IndexingRoom.swift
 //  Role: the Indexing room (docs/sem/design/indexing-room.md §3): the indexed map on the left (the result on the layer `Display › Map`
-//        picks, one pixel per scan point, over the Patterns room's mean map dimmed until a point is reached; the pinned position's
-//        crosshair; the IPF colour key in the footer beside the scale bar) and the pattern pane on the right (the pattern under the
-//        pointer while it hovers the map, the pinned one otherwise, as the indexer sees it, with its detected bands: the ones the solution
-//        matched solid green and labelled with their family, the others dashed orange). Under them the Results table (one row per
-//        point reached; a selected row pins the pattern) beside, for a Hough result, the Bands table of the pattern on screen
-//        (pyEBSDindex's band list: ρ, θ, peak, width, the family and the fit) or, for a dictionary result, the Best match pane (the
-//        point's best orientation simulated from the master pattern, its score). The phases, the method's settings and the exports are
+//        picks, one pixel per scan point: an orientation or phase layer over the Patterns room's mean map dimmed until a point is
+//        reached, a scalar layer through the Map Display's colormap, window and gamma; the pinned position's crosshair; the layer's
+//        legend in the footer beside the scale bar: the IPF key, the Euler key's ranges, the phases or the colour bar, D-SEM-96) and the
+//        pattern pane on the right (the pattern under the pointer while it hovers the map, the pinned one otherwise, as the indexer sees
+//        it, with its detected bands: the ones the solution matched solid green and labelled with their family, the others dashed
+//        orange). Under them the Results table (one row per point reached; a single row selected pins the pattern, ⌘C copies the
+//        selected rows as TSV) beside, for a Hough result, the Bands table of the pattern on screen (pyEBSDindex's band list: ρ, θ,
+//        peak, width, the family and the fit) or, for a dictionary result, the Best match pane (the point's best orientation simulated
+//        from the master pattern, its score). The phases, the method's settings and the exports are
 //        the inspector's (`IndexingRoomInspector.swift`). Presentation only: every number is `HoughIndexer`'s or `DictionaryIndexing`'s
 //        (TEMCore) through `IndexingSession` (TEMSession).
 //
 //  KEYS: as the Patterns room (`PatternsKeys`): ← → ↑ ↓ step the pinned position by one (⇧ by ten), Space pins the hovered position; a
-//  click on the map pins the point under it. The pinned position is the Patterns room's: the two rooms share one marker.
+//  click on the map pins the point under it. The pinned position is the Patterns room's: the two rooms share one marker. In the Results
+//  table, ⌘A selects every row and ⌘C copies the selected ones (Copy is off with none selected).
 //
 
 import CoreGraphics
@@ -205,9 +208,18 @@ struct IndexingMapPane: View {
         let transform = MetalDisplayTransform(paneSize: box, imageBox: box, zoom: zp.drawZoom, offset: zp.effectiveOffset)
         let geometry = MarkGeometry(transform: transform, imageWidth: dataset.scanColumns, imageHeight: dataset.scanRows)
         let points = dataset.scanRows * dataset.scanColumns
+        let presentation = session.mapPresentation
         return ZStack {
             ZStack {
-                if let rgba = session.mapRGBA, rgba.count == points * 4 {
+                if session.showsScalarMap, let canvas = presentation.canvas, canvas.width == dataset.scanColumns, canvas.height == dataset.scanRows {
+                    // A scalar layer's values through the Map Display (colormap, window, gamma), as the Patterns room's map.
+                    MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                                   colormap: presentation.colormap, displayLo: presentation.displayFractions.low,
+                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma))
+                        .displayTransform(transform)
+                        .frame(width: box.width, height: box.height)
+                        .allowsHitTesting(false)
+                } else if let rgba = session.mapRGBA, rgba.count == points * 4 {
                     // The map as packed RGBA (orix's colours, `IndexingRaster`) through the view's RGBA pipeline.
                     MetalImageView(pixels: [Float](repeating: 0, count: points), width: dataset.scanColumns, height: dataset.scanRows,
                                    contentVersion: session.mapVersion, rgba: rgba)
@@ -243,8 +255,12 @@ struct IndexingMapPane: View {
             }
 
             PaneFooter {
+                // The Map Display's switch hides the bar on a scalar layer; the orientation layers always carry it.
+                let hidden = session.showsScalarMap && !presentation.showsScaleBar
                 ScaleBar(unitsPerPoint: ImageScaleBar.unitsPerPoint(perPixel: dataset.stepX, imageWidth: dataset.scanColumns, boxWidth: box.width, zoom: zp.drawZoom),
                          unitLabel: EBSDBrowsing.unitLabel(dataset.scanUnit))
+                    .opacity(hidden ? 0 : 1)
+                    .accessibilityHidden(hidden)
             } trailing: {
                 HStack(alignment: .bottom, spacing: 8) {
                     if session.result != nil { IndexingLegend(session: session) }
@@ -284,16 +300,60 @@ struct IndexingMapPane: View {
 
 // MARK: - The legend
 
-/// The map's key in the footer (design §3): the IPF colour key of each point group for an IPF layer, the phases' colours for the Phase
-/// layer, the grey ramp's two ends for a scalar layer.
+/// The map's key in the footer (design §3, D-SEM-96): the IPF colour key of each point group for an IPF layer, the Euler key's angle
+/// ranges for Euler, the phases' colours for the Phase layer, the colour bar of the Map Display's colormap and window for a scalar
+/// layer, with what its grey stands for.
 private struct IndexingLegend: View {
     let session: IndexingSession
 
     var body: some View {
+        if session.showsScalarMap, let result = session.result {
+            scalarKey(result)
+        } else {
+            pointwiseKey
+                .padding(4)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
+                .accessibilityIdentifier("indexing.map.legend")
+        }
+    }
+
+    /// The colour bar (ShellControls', on its own plate) over the window's two ends in the layer's raw values, and the masked grey's
+    /// words.
+    @ViewBuilder private func scalarKey(_ result: IndexingResult) -> some View {
+        let presentation = session.mapPresentation
+        if let range = presentation.canvas?.rawRange {
+            let span = Double(range.upperBound - range.lowerBound)
+            let fractions = presentation.displayFractions
+            let masked = IndexingRaster.maskedWords(result, layer: session.layer)
+            VStack(alignment: .trailing, spacing: 3) {
+                Colorbar(colormap: presentation.colormap, low: Double(range.lowerBound) + Double(fractions.low) * span,
+                         high: Double(range.lowerBound) + Double(fractions.high) * span, unitLabel: result.scalarTitle(session.layer),
+                         gamma: Float(presentation.gamma))
+                    .allowsHitTesting(false)
+                if let masked {
+                    Text(masked)
+                        .font(.caption2).foregroundStyle(.secondary)
+                        .padding(4)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
+                        .accessibilityLabel(masked.replacingOccurrences(of: "grey:", with: "grey marks points"))
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("indexing.map.legend")
+        } else {
+            Text("\(result.scalarTitle(session.layer)): no point has a value")
+                .font(.caption2).foregroundStyle(.secondary)
+                .padding(4)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
+                .accessibilityIdentifier("indexing.map.legend")
+        }
+    }
+
+    @ViewBuilder private var pointwiseKey: some View {
         let phases = session.result?.phases ?? []
+        let groups = phases.compactMap(\.pointGroupName).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
         Group {
             if session.layer.direction != nil {
-                let groups = phases.compactMap(\.pointGroupName).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
                 HStack(alignment: .bottom, spacing: 6) {
                     ForEach(groups, id: \.self) { name in
                         if let key = session.keyImages[name], let image = IPFKeyPicture.cgImage(key) {
@@ -308,6 +368,18 @@ private struct IndexingLegend: View {
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(session.layer.title) colour key of point group \(groups.joined(separator: ", "))")
+            } else if session.layer == .euler {
+                // orix's Euler key has no picture: each angle's range in its channel, per point group.
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(groups, id: \.self) { name in
+                        if let group = PointGroup.named(name) {
+                            let words = IndexingColorKey.eulerWords(group)
+                            Text(verbatim: groups.count > 1 ? "Euler · \(name) · \(words)" : "Euler · \(words)")
+                                .font(.caption2.monospacedDigit())
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
             } else if session.layer == .phase {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(phases) { phase in
@@ -324,17 +396,9 @@ private struct IndexingLegend: View {
                     }
                 }
                 .accessibilityElement(children: .combine)
-            } else if let result = session.result, let range = IndexingRaster.scalarRange(result, layer: session.layer) {
-                Text("\(session.layer.title): black \(Self.number(range.lowerBound)) · white \(Self.number(range.upperBound))")
-                    .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
             }
         }
-        .padding(4)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
-        .accessibilityIdentifier("indexing.map.legend")
     }
-
-    private static func number(_ v: Double) -> String { v.formatted(.number.precision(.significantDigits(1...3))) }
 }
 
 /// The IPF key as a picture: its premultiplied RGBA (transparent outside the sector) as a `CGImage`.
@@ -486,13 +550,14 @@ private struct DetectedBandsOverlay: View {
 
 // MARK: - The tables
 
-/// One row per point reached (design §3, the Results tab): sortable by any column; the selected row pins its pattern. The rows are
-/// rebuilt as the run lands them, every twentieth of the scan and once at its end.
+/// One row per point reached (design §3, the Results tab): sortable by any column; a row clicked pins its pattern, and the pinned
+/// point's row is selected; ⌘C copies the selected rows (⌘A: all) as TSV in the table's order (`IndexingTableFormat`, D-SEM-96). The
+/// rows are rebuilt as the run lands them, every twentieth of the scan and once at its end.
 struct IndexingResultsTable: View {
     let session: IndexingSession
     let dataset: EBSDDataset
     @State private var rows: [IndexingResult.Row] = []
-    @State private var selection: IndexingResult.Row.ID?
+    @State private var selection: Set<IndexingResult.Row.ID> = []
     @State private var sortOrder = [KeyPathComparator(\IndexingResult.Row.id)]
 
     /// What the rows are of: the run (its rows done, and whether it still runs).
@@ -528,6 +593,7 @@ struct IndexingResultsTable: View {
                 .frame(height: LayoutPolicy.paneHeaderHeight)
                 .accessibilityIdentifier("indexing.results.title")
             table
+            .onCopyCommand(perform: selection.isEmpty ? nil : { copied() })
             .overlay {
                 if session.result == nil {
                     Text("Index fills this table, one row per scan point").foregroundStyle(.secondary).allowsHitTesting(false)
@@ -538,13 +604,15 @@ struct IndexingResultsTable: View {
         .padding(8)
         .onChange(of: key, initial: true) { refresh() }
         .onChange(of: sortOrder) { rows.sort(using: sortOrder) }
-        .onChange(of: selection) {
-            guard let id = selection, let row = rows.first(where: { $0.id == id }), row.position != session.patterns.pinned else { return }
+        .onChange(of: selection) { old, new in
+            guard let id = IndexingTableFormat.pinTarget(old: old, new: new), let row = rows.first(where: { $0.id == id }),
+                  row.position != session.patterns.pinned else { return }
             session.pin(row.position)
         }
         .onChange(of: session.patterns.pinned) {
+            // A point pinned elsewhere (the map, the arrows) selects its row alone; one already in the selection leaves it.
             let id = session.patterns.pinned.row * dataset.scanColumns + session.patterns.pinned.column
-            if selection != id, rows.contains(where: { $0.id == id }) { selection = id }
+            if !selection.contains(id), rows.contains(where: { $0.id == id }) { selection = [id] }
         }
     }
 
@@ -556,27 +624,27 @@ struct IndexingResultsTable: View {
                 TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
                 TableColumn("Col", value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
                 TableColumn("Phase", value: \.phase)
-                TableColumn("φ₁ °", value: \.phi1Key) { Text(Self.angle($0.phi1)).monospacedDigit() }
-                TableColumn("Φ °", value: \.capitalPhiKey) { Text(Self.angle($0.capitalPhi)).monospacedDigit() }
-                TableColumn("φ₂ °", value: \.phi2Key) { Text(Self.angle($0.phi2)).monospacedDigit() }
-                TableColumn(result.scoreTitle, value: \.confidence) { Text(Self.fraction($0.confidence)).monospacedDigit() }
+                TableColumn("φ₁ °", value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
+                TableColumn("Φ °", value: \.capitalPhiKey) { Text(IndexingTableFormat.angle($0.capitalPhi)).monospacedDigit() }
+                TableColumn("φ₂ °", value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
+                TableColumn(result.scoreTitle, value: \.confidence) { Text(IndexingTableFormat.fraction($0.confidence)).monospacedDigit() }
                 TableColumn("Simulation", value: \.simulationIndex) {
                     Text(verbatim: $0.simulationIndex >= 0 ? "\($0.simulationIndex)" : "–").monospacedDigit()
                 }
-                TableColumn("OSM", value: \.similarityKey) { Text(Self.angle($0.similarity, digits: 2)).monospacedDigit() }
+                TableColumn("OSM", value: \.similarityKey) { Text(IndexingTableFormat.angle($0.similarity, digits: 2)).monospacedDigit() }
             }
         } else {
             Table(rows, selection: $selection, sortOrder: $sortOrder) {
                 TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
                 TableColumn("Col", value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
                 TableColumn("Phase", value: \.phase)
-                TableColumn("φ₁ °", value: \.phi1Key) { Text(Self.angle($0.phi1)).monospacedDigit() }
-                TableColumn("Φ °", value: \.capitalPhiKey) { Text(Self.angle($0.capitalPhi)).monospacedDigit() }
-                TableColumn("φ₂ °", value: \.phi2Key) { Text(Self.angle($0.phi2)).monospacedDigit() }
-                TableColumn("CI", value: \.confidence) { Text(Self.fraction($0.confidence)).monospacedDigit() }
-                TableColumn("Fit °", value: \.fitKey) { Text(Self.angle($0.fit, digits: 2)).monospacedDigit() }
+                TableColumn("φ₁ °", value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
+                TableColumn("Φ °", value: \.capitalPhiKey) { Text(IndexingTableFormat.angle($0.capitalPhi)).monospacedDigit() }
+                TableColumn("φ₂ °", value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
+                TableColumn("CI", value: \.confidence) { Text(IndexingTableFormat.fraction($0.confidence)).monospacedDigit() }
+                TableColumn("Fit °", value: \.fitKey) { Text(IndexingTableFormat.angle($0.fit, digits: 2)).monospacedDigit() }
                 TableColumn("Bands", value: \.bands) { Text(verbatim: "\($0.bands)").monospacedDigit() }
-                TableColumn("PQ", value: \.patternQualityKey) { Text(Self.number($0.patternQuality)).monospacedDigit() }
+                TableColumn("PQ", value: \.patternQualityKey) { Text(IndexingTableFormat.number($0.patternQuality)).monospacedDigit() }
             }
         }
     }
@@ -585,13 +653,14 @@ struct IndexingResultsTable: View {
         rows = (session.result?.rows ?? []).sorted(using: sortOrder)
     }
 
-    static func angle(_ v: Double, digits: Int = 1) -> String {
-        v.isFinite ? v.formatted(.number.precision(.fractionLength(digits))) : "–"
+    /// ⌘C: the selected rows as TSV, in the table's order (the sort on screen), under the column titles.
+    private func copied() -> [NSItemProvider] {
+        guard let result = session.result else { return [] }
+        let picked = rows.filter { selection.contains($0.id) }
+        guard !picked.isEmpty else { return [] }
+        let text = IndexingTableFormat.copyText(picked, method: result.method, scoreTitle: result.scoreTitle)
+        return [NSItemProvider(object: text as NSString)]
     }
-
-    static func fraction(_ v: Double) -> String { v.isFinite ? v.formatted(.number.precision(.fractionLength(3))) : "–" }
-
-    static func number(_ v: Double) -> String { v.isFinite ? v.formatted(.number.precision(.significantDigits(1...4))) : "–" }
 }
 
 /// A dictionary run's best match at the pattern pane's point (design §3, the Dictionary tab): the simulated pattern of the point's best
@@ -606,7 +675,7 @@ struct IndexingBestMatchPane: View {
         guard let position = session.bestMatchPosition, let result = session.result, let solution = result.solution(at: position) else {
             return "Best match"
         }
-        var words = "Best match · row \(position.row) · col \(position.column) · \(result.scoreTitle) \(IndexingResultsTable.fraction(solution.confidence))"
+        var words = "Best match · row \(position.row) · col \(position.column) · \(result.scoreTitle) \(IndexingTableFormat.fraction(solution.confidence))"
         if let index = result.simulationIndex(at: position) {
             words += " · simulation \(index)"
             if let size = session.dictionaryPlan?.rotations.count { words += " of \(size.formatted())" }
@@ -694,12 +763,12 @@ struct IndexingBandsTable: View {
                 .accessibilityIdentifier("indexing.bands.title")
             Table(session.detectedBands) {
                 TableColumn("#") { Text(verbatim: "\($0.id)").monospacedDigit() }
-                TableColumn("ρ px") { Text(IndexingResultsTable.angle($0.rho, digits: 2)).monospacedDigit() }
-                TableColumn("θ °") { Text(IndexingResultsTable.angle($0.thetaDegrees, digits: 2)).monospacedDigit() }
-                TableColumn("Peak") { Text(IndexingResultsTable.number($0.peak)).monospacedDigit() }
-                TableColumn("Width") { Text(IndexingResultsTable.number($0.width)).monospacedDigit() }
+                TableColumn("ρ px") { Text(IndexingTableFormat.angle($0.rho, digits: 2)).monospacedDigit() }
+                TableColumn("θ °") { Text(IndexingTableFormat.angle($0.thetaDegrees, digits: 2)).monospacedDigit() }
+                TableColumn("Peak") { Text(IndexingTableFormat.number($0.peak)).monospacedDigit() }
+                TableColumn("Width") { Text(IndexingTableFormat.number($0.width)).monospacedDigit() }
                 TableColumn("Family") { Text($0.family ?? ($0.isValid ? "–" : "invalid")) }
-                TableColumn("Fit °") { Text($0.fitDegrees.map { IndexingResultsTable.angle($0, digits: 2) } ?? "–").monospacedDigit() }
+                TableColumn("Fit °") { Text($0.fitDegrees.map { IndexingTableFormat.angle($0, digits: 2) } ?? "–").monospacedDigit() }
             }
             .accessibilityIdentifier("indexing.bands")
         }
