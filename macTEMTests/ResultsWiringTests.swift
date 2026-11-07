@@ -66,7 +66,7 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         XCTAssertEqual(state.navigation.workspaceArea, .diffraction)
         XCTAssertEqual(WorkspaceArea.image.shortcutDigit, "1")
         XCTAssertEqual(WorkspaceArea.maps.shortcutDigit, "8")
-        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "9", "Results keeps ⌘9 after Patterns ⌘6, Indexing ⌘7 and Maps ⌘8 (D-SEM-70)")
+        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "9", "Results keeps ⌘9 after Patterns ⌘6, Indexing ⌘7 and Maps ⌘8 (D-SEM-80)")
         XCTAssertEqual(Set(WorkspaceArea.allCases.map(\.shortcutDigit)).count, WorkspaceArea.allCases.count, "no two rooms share a key")
         XCTAssertTrue(state.resultsRoom.selection.isEmpty)
     }

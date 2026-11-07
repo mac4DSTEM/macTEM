@@ -1,7 +1,7 @@
 // macTEM's rooms, in the shape of mac4DSTEM's `WorkspaceArea`, conforming to the shell's `WorkspaceRoom`. Added (EDX room, owner 2026-10-21): a sixth room, `edx`, last so ⌘1…⌘5 keep their rooms. Added (EELS room, 2026-10-21): a seventh, `eels`, after it (⌘7).
 // Added (SEM program, 2026-11-06, design D1): `patterns` before Results, so Results moves to ⌘7 now and to ⌘9 once Indexing and Maps are built.
 // Added (P3-04, 2026-11-07): `maps` after Patterns, where Indexing will sit before it; Maps and Results take the plan's fixed keys ⌘8 and
-// ⌘9 now, ⌘7 waits for Indexing (D-SEM-70).
+// ⌘9 now, ⌘7 waits for Indexing (D-SEM-80).
 import ShellLayout
 import SwiftUI
 
@@ -68,7 +68,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
     /// going, and cannot be entered.
     var isBuilt: Bool { true }
 
-    /// The Go to <room> shortcut: ⌘1…⌘6 in list order up to Patterns, then the SEM plan's fixed keys (D-SEM-70): Indexing ⌘7 (its
+    /// The Go to <room> shortcut: ⌘1…⌘6 in list order up to Patterns, then the SEM plan's fixed keys (D-SEM-80): Indexing ⌘7 (its
     /// room is the next to land), Maps ⌘8, Results ⌘9, so the keys do not move again when Indexing arrives.
     var shortcutDigit: Character {
         switch self {

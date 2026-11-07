@@ -3,7 +3,7 @@
 //  Role: an Oxford scan at the app's door, as one `EBSDDataset`: the `.ebsp` pattern file and the `.ctf` map Oxford's software exports
 //        next to it with the same name, paired by name whichever of the two is opened (as `EDAXOpening` pairs `.up` and `.ang`). The map
 //        is the scan's when its point count is the pattern count; otherwise it is left out with a note. A `.ctf` alone, without its
-//        patterns, opens in the Maps room instead (D-SEM-70; D-SEM-25 refused it). The reader's refusals come out in its words.
+//        patterns, opens in the Maps room instead (D-SEM-80; D-SEM-25 refused it). The reader's refusals come out in its words.
 //
 
 import Foundation

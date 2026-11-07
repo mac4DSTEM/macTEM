@@ -209,7 +209,7 @@ nonisolated final class MapsRoomTests: XCTestCase {
 
     // MARK: - The room key
 
-    /// Maps sits after Patterns with the plan's fixed key: ⌘8, leaving ⌘7 to Indexing, Results ⌘9 (D-SEM-70).
+    /// Maps sits after Patterns with the plan's fixed key: ⌘8, leaving ⌘7 to Indexing, Results ⌘9 (D-SEM-80).
     func testTheMapsRoomIsOnCommandEight() {
         XCTAssertEqual(WorkspaceArea.maps.shortcutDigit, "8")
         XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "9")
