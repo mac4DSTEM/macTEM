@@ -43,4 +43,11 @@ extension LayoutPolicy {
     static let regionSwatchSize: CGFloat = 9
     /// The Indexing room's IPF colour key in the map pane's footer: legible beside the scale bar, small enough not to hide the map.
     static let indexingKeyHeight: CGFloat = 56
+    /// The Maps room's colour key in the bottom pane: one phase's key image this wide (its own aspect sets the height).
+    static let mapsKeyWidth: CGFloat = 150
+    /// The Maps room's bottom pane under the map: the keys' height plus their titles (rule 4).
+    static let mapsKeyPaneMinimum: CGFloat = 140
+    /// A phase's colour square in the Maps room's legend and inspector, and the IPF colour swatch under the unit cell.
+    static let mapsPhaseSwatchSize: CGFloat = 12
+    static let mapsColourSwatchSize: CGFloat = 22
 }

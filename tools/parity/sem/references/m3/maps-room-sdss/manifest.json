@@ -1,0 +1,102 @@
+{
+  "arrays": {
+    "ipf_x_image": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "ipf_x_image.bin",
+      "note": "(rows, columns, 3): the IPF-X map as CrystalMap.plot draws it",
+      "rtol": 0.0,
+      "sha256": "ae54b9c9f91c3b69590ce1ed8de9f077f87c2e3e7c80de29c43f985c5ce24430",
+      "shape": [
+        100,
+        117,
+        3
+      ]
+    },
+    "ipf_y_image": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "ipf_y_image.bin",
+      "note": "(rows, columns, 3): the IPF-Y map as CrystalMap.plot draws it",
+      "rtol": 0.0,
+      "sha256": "582fe6072417076d108455196f6f7026a37a86f7b4e058f5d3acbe06b81802ee",
+      "shape": [
+        100,
+        117,
+        3
+      ]
+    },
+    "ipf_z_image": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "ipf_z_image.bin",
+      "note": "(rows, columns, 3): the IPF-Z map as CrystalMap.plot draws it",
+      "rtol": 0.0,
+      "sha256": "480673f8414482979d404dde49eddf290149e1c0ad5bc99966810aa941f210c4",
+      "shape": [
+        100,
+        117,
+        3
+      ]
+    },
+    "phase_image": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "phase_image.bin",
+      "note": "(rows, columns, 3): each point the colour of its phase (Phase.color_rgb)",
+      "rtol": 0.0,
+      "sha256": "18b473876eb1b9fb90b53de7cf625a6fa0737a76373464ec6150b3afbcd6dca9",
+      "shape": [
+        100,
+        117,
+        3
+      ]
+    }
+  },
+  "case": "m3/maps-room-sdss",
+  "inputs": [
+    {
+      "path": "sem-data/orix/sdss_ferrite_austenite.ang",
+      "sha256": "ac2fc2fc2b8c9c598703c96f9888677bccc9cd88cddd5e78735653fd5504e371"
+    }
+  ],
+  "milestone": 3,
+  "reference": {
+    "function": "orix.plot.IPFColorKeyTSL.orientation2color per phase, Phase.color_rgb, CrystalMap.get_map_data",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "phases": {
+      "1": {
+        "color": "tab:blue",
+        "name": "austenite/austenite",
+        "point_group": "432"
+      },
+      "2": {
+        "color": "tab:orange",
+        "name": "ferrite/ferrite",
+        "point_group": "432"
+      }
+    },
+    "shape": [
+      100,
+      117
+    ]
+  }
+}

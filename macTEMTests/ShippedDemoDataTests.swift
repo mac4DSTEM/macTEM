@@ -20,7 +20,7 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
     /// Every shipped file is in the bundle (the `DemoData` folder reference copies the whole folder) at the pinned size and md5.
     /// Mutation: a file replaced, truncated or renamed; the folder reference dropped from the project.
     func testEveryShippedFileIsInTheBundleAtItsPinnedSizeAndMD5() throws {
-        XCTAssertEqual(DemoDocuments.Shipped.all.count, 3)
+        XCTAssertEqual(DemoDocuments.Shipped.all.count, 4)
         for file in DemoDocuments.Shipped.all {
             let url = try XCTUnwrap(file.url, "\(file.relativePath) is not in the bundle's DemoData/")
             let size = try XCTUnwrap(FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)

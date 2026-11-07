@@ -75,3 +75,4 @@ Since macTEM#127 (2026-11-06), reachable from "Try Demo Data":
 | --- | --- | --- | --- |
 | `DemoData/nickel_ebsd_large/patterns_v2.h5` | kikuchipy `nickel_ebsd_large`, the EBSD north star | 15.4 MB | CC BY 4.0 |
 | `DemoData/EDS_SEM_TM002.hspy` | exspy `EDS_SEM_TM002`, the SEM-EDS north star | 31 KB | GPL-3.0 |
+| `DemoData/sdss_ferrite_austenite.ang` | orix-data `sdss_ferrite_austenite`, the Maps room's demo map (macTEM P3-04) | 0.65 MB | CC BY 4.0 |

@@ -1,6 +1,7 @@
 // macTEM's rooms, in the shape of mac4DSTEM's `WorkspaceArea`, conforming to the shell's `WorkspaceRoom`. Added (EDX room, owner 2026-10-21): a sixth room, `edx`, last so ⌘1…⌘5 keep their rooms. Added (EELS room, 2026-10-21): a seventh, `eels`, after it (⌘7).
 // Added (SEM program, 2026-11-06, design D1): `patterns` before Results, so Results moves to ⌘7 now and to ⌘9 once Indexing and Maps are built.
 // Added (SEM program, 2026-11-07, D-SEM-84): `indexing` after Patterns (⌘7); Results keeps ⌘9 from here on, the digit the Maps room leaves it.
+// Added (P3-04, 2026-11-07, D-SEM-80): `maps` after Indexing (⌘8), Results keeps ⌘9.
 import ShellLayout
 import SwiftUI
 
@@ -14,6 +15,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
     case diffraction
     case patterns
     case indexing
+    case maps
     case results
 
     var id: String { rawValue }
@@ -28,6 +30,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .eels: "EELS"
         case .patterns: "Patterns"
         case .indexing: "Indexing"
+        case .maps: "Maps"
         }
     }
 
@@ -41,6 +44,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .eels: "Low-loss spectrum images: thickness (t/λ) maps"
         case .patterns: "EBSD and TKD patterns: the scan, its mean-intensity map and the live pattern"
         case .indexing: "Hough indexing of the scan: orientation maps, the solution at each point and its bands"
+        case .maps: "Orientation maps: IPF and phase maps, the colour key and the pattern or unit cell at each point"
         }
     }
 
@@ -54,6 +58,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .eels: "chart.xyaxis.line"
         case .patterns: "square.grid.3x3.square"
         case .indexing: "scope"
+        case .maps: "map"
         }
     }
 
@@ -67,8 +72,8 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
     /// going, and cannot be entered.
     var isBuilt: Bool { true }
 
-    /// The Go to <room> shortcut, ⌘1…⌘7 in list order, and ⌘9 for Results (design D1: the SEM rooms take ⌘6 to ⌘8, so Results
-    /// keeps the digit it ends on). Derived, so the menu and the list cannot disagree.
+    /// The Go to <room> shortcut, ⌘1…⌘8 in list order (Patterns ⌘6, Indexing ⌘7, Maps ⌘8), and ⌘9 for Results (design D1: the SEM
+    /// rooms take ⌘6 to ⌘8, so Results keeps the digit it ends on). Derived, so the menu and the list cannot disagree.
     var shortcutDigit: Character {
         switch self {
         case .results: "9"

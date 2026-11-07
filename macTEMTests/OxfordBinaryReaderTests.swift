@@ -186,13 +186,14 @@ nonisolated final class OxfordBinaryReaderTests: XCTestCase {
         XCTAssertNil(mismatched.crystalMap)
         XCTAssertEqual(mismatched.notes.count, 1)
         XCTAssertTrue(mismatched.notes[0].contains("10 points for 9 patterns"), mismatched.notes[0])
-        // A map alone.
+        // A map alone: the pattern door refuses it, the routing sends it to the Maps room (P3-04).
         try FileManager.default.removeItem(at: ebsp)
         XCTAssertThrowsError(try OxfordOpening.open(url: ctf)) { error in
             let text = (error as? EBSDReadError)?.text ?? ""
             XCTAssertTrue(text.contains("scan.ctf is an orientation map without its patterns"), text)
         }
-        XCTAssertEqual(FileRouting.inventory(path: ctf.path).refusal, "scan.ctf is an orientation map without its patterns: open the .ebsp of the same name next to it, which reads the map with it.")
+        XCTAssertEqual(FileRouting.inventory(path: ctf.path), FileInventory(orientationMap: true))
+        XCTAssertEqual(FileRouting.inventory(path: ctf.path).landing, .maps)
     }
 
     /// The Patterns room's own door opens an `.ebsp` through `EBSDOpening` and the routing sends it there. Red under: the extension not
