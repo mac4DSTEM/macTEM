@@ -183,12 +183,12 @@ enum ExportSnapshot {
         let inExportingRoom: Bool
         switch area {
         case .image: inExportingRoom = true
-        case .fft, .diffraction, .results, .edx, .eels, .patterns: inExportingRoom = false
+        case .fft, .diffraction, .results, .edx, .eels, .patterns, .indexing: inExportingRoom = false
         }
         let inResultsRoom: Bool
         switch area {
         case .results: inResultsRoom = true
-        case .image, .fft, .diffraction, .edx, .eels, .patterns: inResultsRoom = false
+        case .image, .fft, .diffraction, .edx, .eels, .patterns, .indexing: inResultsRoom = false
         }
         let ready = hasImage && inExportingRoom && !isLoading
         return ExportAvailability(image: ready, profile: ready && profileHasSamples,

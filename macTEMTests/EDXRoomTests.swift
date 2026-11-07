@@ -75,13 +75,14 @@ nonisolated final class EDXRoomTests: XCTestCase {
     /// The rooms list in the order the work goes (Paul 2026-10-22): looking (Prepare, Image, FFT), the spectra (EDS, EELS), then Diffraction and Results; the keys follow
     /// the list. Red under: EDS and EELS after Results.
     @MainActor func testTheRoomsListInTheOrderTheWorkGoes() {
-        XCTAssertEqual(WorkspaceArea.allCases.map(\.title), ["Image", "FFT", "EDS", "EELS", "Diffraction", "Patterns", "Results"])
+        XCTAssertEqual(WorkspaceArea.allCases.map(\.title), ["Image", "FFT", "EDS", "EELS", "Diffraction", "Patterns", "Indexing", "Results"])
         XCTAssertTrue(WorkspaceArea.edx.isBuilt)
         XCTAssertEqual(WorkspaceArea.edx.shortcutDigit, "3")
         XCTAssertEqual(WorkspaceArea.eels.shortcutDigit, "4")
         XCTAssertEqual(WorkspaceArea.diffraction.shortcutDigit, "5")
         XCTAssertEqual(WorkspaceArea.patterns.shortcutDigit, "6")
-        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "7")
+        XCTAssertEqual(WorkspaceArea.indexing.shortcutDigit, "7")
+        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "9")
     }
 
     /// The spectrum rooms follow the selected file: a file that opened into the EDS room is reopened there when its row is selected while another file
@@ -114,7 +115,7 @@ nonisolated final class EDXRoomTests: XCTestCase {
     /// no image, and no export command acts in it. Red under: a slot removed; an owner composed twice; the menu rule dropped.
     func testTheShellMountsTheRoomInItsSlots() throws {
         let view = squeezed(try source("macTEM/UI/WorkspaceView.swift"))
-        XCTAssertTrue(view.contains("if appState.navigation.workspaceArea == .edx { EDXRoom(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions, openExtensions: EDXOpening.readableExtensions) } else if appState.navigation.workspaceArea == .eels { EELSRoom() } else if appState.navigation.workspaceArea == .patterns { PatternsRoom() } else if let item = appState.openItems.selected {"))
+        XCTAssertTrue(view.contains("if appState.navigation.workspaceArea == .edx { EDXRoom(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions, openExtensions: EDXOpening.readableExtensions) } else if appState.navigation.workspaceArea == .eels { EELSRoom() } else if appState.navigation.workspaceArea == .patterns { PatternsRoom() } else if appState.navigation.workspaceArea == .indexing { IndexingRoom() } else if let item = appState.openItems.selected {"))
         let inspector = squeezed(try source("macTEM/UI/WorkspaceInspector.swift"))
         XCTAssertTrue(inspector.contains("if appState.navigation.workspaceArea == .edx { InspectorScrollColumn {"))
         XCTAssertTrue(inspector.contains("EDXRoomSettings(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions)"))

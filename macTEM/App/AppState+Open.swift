@@ -49,7 +49,7 @@ extension AppState {
             // The Patterns room holds one dataset, as the spectrum rooms do; the batch's first is it.
             if let first = ebsdBatch.first { ebsd.open(url: first) }
             switch landing {
-            case .patterns: selectWorkspace(.patterns)
+            case .patterns: if navigation.workspaceArea != .indexing { selectWorkspace(.patterns) }   // Indexing shows the scan too
             case .eds: selectWorkspace(.edx)
             case .eels: selectWorkspace(.eels)
             case .image, nil: break   // the image is selected below, once its item exists
@@ -59,8 +59,8 @@ extension AppState {
                 return
             }
             openItems.open(urls: images)
-            // From a spectrum room the image is not shown: land on it. From an image room, stay where the person was.
-            if landing == .image, [.edx, .eels, .patterns].contains(navigation.workspaceArea) { selectWorkspace(.image) }
+            // From a spectrum or SEM room the image is not shown: land on it. From an image room, stay where the person was.
+            if landing == .image, [.edx, .eels, .patterns, .indexing].contains(navigation.workspaceArea) { selectWorkspace(.image) }
             await openItems.settled()
             if let image = imageSession.image {
                 let suffix = openItems.selected.map(Self.sessionSuffix(of:)) ?? ""
