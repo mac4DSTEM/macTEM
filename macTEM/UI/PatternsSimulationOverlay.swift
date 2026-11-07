@@ -12,6 +12,7 @@
 
 import ShellControls
 import ShellInspector
+import ShellLayout
 import SwiftUI
 import TEMCore
 import TEMSession
@@ -156,7 +157,7 @@ struct PatternsSimulationSection: View {
                 if let picture = session.overlayMasterPicture, let image = Self.greyImage(picture.values, width: picture.side, height: picture.side) {
                     InspectorRow("Master") {
                         Image(decorative: image, scale: 1).resizable().interpolation(.medium).aspectRatio(1, contentMode: .fit)
-                            .frame(maxWidth: 180)
+                            .frame(maxWidth: LayoutPolicy.overlayMasterPictureWidth)
                             .help("The kinematical master pattern of \(picture.phase), upper hemisphere, stereographic: every band down to Min d at the file's beam energy, each of intensity 1")
                             .accessibilityLabel("Kinematical master pattern of \(picture.phase)")
                             .accessibilityIdentifier("patterns.overlay.master")
