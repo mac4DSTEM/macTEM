@@ -37,9 +37,11 @@ COUNT = {"rtol": 1.0, "atol": 1e9}
 # the vector width): PCs from a PC-only run move up to 5e-4 relative; the six-variable joint run scatters a few points
 # into neighbouring optima (up to 0.4 degree, PC 1 %, score 0.3 %). The Swift tests hold the tighter bounds of D-SEM-87.
 PC_RUN = {"rtol": 1e-3, "atol": 0.0}
-# The starting orientations come from pyEBSDindex's float32 fastmath Hough fit (and the PC run's from a refinement), so a
+# The starting orientations come from pyEBSDindex's float32 fastmath Hough fit, so a
 # re-emit on another CPU moves them in the last bits (5e-15 measured).
 START = {"rtol": 0.0, "atol": 1e-10}
+# The PC run's fixed rotations are the orientation run's result, so they move with it (3e-5 measured on CI).
+PC_START = {"rtol": 0.0, "atol": 2e-3}
 JOINT_EULER = {"rtol": 0.0, "atol": 2e-2}
 JOINT_SCORE = {"rtol": 1e-2, "atol": 0.0}
 JOINT_PC = {"rtol": 5e-2, "atol": 0.0}
@@ -182,7 +184,7 @@ def case_m4_refine_nickel_block(ctx):
                                                  pseudo_symmetry_ops=ops, **kw), ps=True)
 
     sc, det_pc, ne = blk.refine_projection_center(xr, det, mp, energy=ENERGY, trust_region=TRUST_PC, **kw)
-    b.array("pc_start_quaternion", np.asarray(xr.rotations.data, dtype=np.float64).reshape(*nav, 4), **START,
+    b.array("pc_start_quaternion", np.asarray(xr.rotations.data, dtype=np.float64).reshape(*nav, 4), **PC_START,
             note="the orientation run's result as orix quaternions, the PC refinement's fixed rotations")
     b.array("pc_scores", np.asarray(sc, dtype=np.float64).reshape(nav), **SCORE)
     b.array("pc_pc", np.asarray(det_pc.pc, dtype=np.float64).reshape(*nav, 3), **PC_RUN,

@@ -267,7 +267,7 @@
       ]
     },
     "pc_start_quaternion": {
-      "atol": 1e-10,
+      "atol": 0.002,
       "dtype": "float64",
       "file": "pc_start_quaternion.bin",
       "note": "the orientation run's result as orix quaternions, the PC refinement's fixed rotations",
