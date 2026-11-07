@@ -12,9 +12,9 @@
 //
 //  The cell's atoms come expanded (diffsims' `sanitise_phase`, which expands the asymmetric unit by the space group): the port
 //  carries no space-group operations, so a caller hands the full cell, and the first asymmetric atom's orbit for the mean inner
-//  potential (diffsims counts only that orbit: decision in docs/decisions.md). The structure factor is computed per reflector, where
-//  diffsims computes it for one member of each family and copies it to the rest; |F| is the same within a family, and |F| is all the
-//  simulator uses.
+//  potential (diffsims counts only that orbit: decision in docs/decisions.md). As diffsims, the structure factor is computed for the
+//  first member of each family and copied to the rest; the phase of a member's F is then its family's, so only |F| is compared, and
+//  |F| is all the simulator uses.
 //
 
 import Foundation
@@ -128,20 +128,35 @@ package nonisolated struct KikuchiReflectors: Sendable, Equatable {
 
     /// |F| of each plane (diffsims' `calculate_structure_factor`, scattering parameters "xtables", no Debye–Waller factor): F = Σ f(|g|)
     /// occ exp(2πi hkl·r) over the cell's atoms, f(|g|) = Σ aᵢ exp(−bᵢ |g|² / 4) from the International Tables' X-ray parameters, |g| in
-    /// 1/Å (so the lattice must be in Å). An element the table lacks scatters nothing, as diffsims' zero default.
+    /// 1/Å (so the lattice must be in Å). An element the table lacks scatters nothing, as diffsims' zero default. As diffsims does,
+    /// the positions are first taken into the frame of the Miller indices (r · (stdbase · recbase)⁻¹, the identity unless the lattice
+    /// was re-aligned from diffpy's standard frame, as orix re-aligns a hexagonal one), and F is computed for the first plane of each
+    /// family and given to the rest of it.
     package func structureFactors(cell: [KikuchiAtom]) -> [Double] {
-        hkl.map { v in
-            let g = lattice.rnorm(v)
+        let l = lattice
+        let std = KikuchiLattice.standardBase(a: l.a, b: l.b, c: l.c, alpha: l.alpha, beta: l.beta, gamma: l.gamma)
+        let product = std.map { r in r.x * l.recbase[0] + r.y * l.recbase[1] + r.z * l.recbase[2] }
+        let toMiller = KikuchiLattice.inverse(product)
+        let positions = cell.map { a in a.position.x * toMiller[0] + a.position.y * toMiller[1] + a.position.z * toMiller[2] }
+        var firstOfFamily: [Int: Int] = [:]
+        for (i, f) in family.enumerated() where firstOfFamily[f] == nil { firstOfFamily[f] = i }
+        var memo: [Int: Double] = [:]
+        return family.map { f in
+            let i = firstOfFamily[f]!
+            if let known = memo[i] { return known }
+            let v = hkl[i]
+            let g = l.rnorm(v)
             let g2 = g * g
             var re = 0.0, im = 0.0
-            for atom in cell {
-                let f = Self.xrayScatteringFactor(z: atom.z, gSquared: g2)
-                let phase = 2 * Double.pi * Vector3.dot(v, atom.position)
-                let weight = f * atom.occupancy
+            for (atom, r) in zip(cell, positions) {
+                let weight = Self.xrayScatteringFactor(z: atom.z, gSquared: g2) * atom.occupancy
+                let phase = 2 * Double.pi * Vector3.dot(v, r)
                 re += weight * cos(phase)
                 im += weight * sin(phase)
             }
-            return (re * re + im * im).squareRoot()
+            let value = (re * re + im * im).squareRoot()
+            memo[i] = value
+            return value
         }
     }
 
