@@ -39,6 +39,7 @@ struct IndexingRoomSettings: View {
             case .hough: IndexingHoughSection(session: session)
             case .dictionary: IndexingDictionarySection(session: session)
             }
+            IndexingSimulationSection(session: session)
             IndexingExportSection(session: session, state: appState.indexingRoom)
         } else {
             ContentUnavailableView("No EBSD dataset open", systemImage: "scope",

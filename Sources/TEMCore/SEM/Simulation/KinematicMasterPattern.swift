@@ -44,12 +44,7 @@ package nonisolated enum KinematicMasterPattern {
     package static func calculate(reflectors: KikuchiReflectors, theta: [Double], structureFactor: [Double], halfSize: Int = 500,
                                   hemisphere: Hemisphere = .upper, scaling: Scaling = .linear) -> [[Double]] {
         precondition(theta.count == reflectors.count, "one Bragg angle per reflector")
-        let intensity: [Double]
-        switch scaling {
-        case .linear: intensity = structureFactor
-        case .square: intensity = structureFactor.map { $0 * $0 }
-        case .none: intensity = Array(repeating: 1, count: reflectors.count)
-        }
+        let intensity = intensities(scaling, structureFactor: structureFactor, count: reflectors.count)
         precondition(intensity.count == reflectors.count, "one structure factor per reflector")
         let normals = reflectors.hkl.map { Vector3.unit(reflectors.lattice.cartesian(hkl: $0)) }
         let size = 2 * halfSize + 1
@@ -68,17 +63,7 @@ package nonisolated enum KinematicMasterPattern {
                         let x = axis[column]
                         let denominator = 1 + x * x + y * y
                         let v = SIMD3(2 * x / denominator, 2 * y / denominator, -pole * (1 - x * x - y * y) / denominator)
-                        var sum = 0.0
-                        for i in 0..<normals.count {
-                            let d = Vector3.dot(normals[i], v)
-                            if abs(d) <= 1e-7 {
-                                sum += 0.5 * intensity[i]
-                            } else {
-                                let angle = acos(d)
-                                if angle <= Double.pi / 2 && angle >= thetaMin[i] { sum += intensity[i] }
-                            }
-                        }
-                        shared.base[row * size + column] = sum
+                        shared.base[row * size + column] = bandSum(v, normals: normals, thetaMin: thetaMin, intensity: intensity)
                     }
                 }
             }
@@ -86,8 +71,34 @@ package nonisolated enum KinematicMasterPattern {
         }
     }
 
+    /// kikuchipy's `get_pattern` at one direction `v` (a unit vector): every band whose plane normal makes an angle with `v`
+    /// between π/2 − θ and π/2 adds its intensity, half of it on the plane itself (|cos| ≤ 1e-7); summed in reflector order.
+    @inline(__always)
+    static func bandSum(_ v: SIMD3<Double>, normals: [SIMD3<Double>], thetaMin: [Double], intensity: [Double]) -> Double {
+        var sum = 0.0
+        for i in 0..<normals.count {
+            let d = Vector3.dot(normals[i], v)
+            if abs(d) <= 1e-7 {
+                sum += 0.5 * intensity[i]
+            } else {
+                let angle = acos(d)
+                if angle <= Double.pi / 2 && angle >= thetaMin[i] { sum += intensity[i] }
+            }
+        }
+        return sum
+    }
+
+    /// The band intensities kikuchipy's `scaling` gives.
+    static func intensities(_ scaling: Scaling, structureFactor: [Double], count: Int) -> [Double] {
+        switch scaling {
+        case .linear: return structureFactor
+        case .square: return structureFactor.map { $0 * $0 }
+        case .none: return Array(repeating: 1, count: count)
+        }
+    }
+
     /// The output buffer handed to the rows (each row writes only its own span).
-    private struct SendablePointer: @unchecked Sendable {
+    struct SendablePointer: @unchecked Sendable {
         let base: UnsafeMutablePointer<Double>
     }
 }

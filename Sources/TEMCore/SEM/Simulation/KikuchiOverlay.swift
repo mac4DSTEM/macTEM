@@ -24,9 +24,15 @@ package nonisolated enum KikuchiOverlay {
         package var labels: Bool
         /// Draw each band's two edges at the Bragg angle for the file's beam energy (the design's `Band width`).
         package var bandWidth: Bool
+        /// Draw the kinematical simulation of the pattern (the master pattern of the bands put on the detector) under the lines.
+        package var kinematical: Bool
+        /// The simulated pattern's opacity over the experimental one, 0 to 1 (the design's `Blend`).
+        package var blend: Double
 
-        package init(minDSpacing: Double = 1.0, zoneAxes: Bool = true, labels: Bool = true, bandWidth: Bool = false) {
+        package init(minDSpacing: Double = 1.0, zoneAxes: Bool = true, labels: Bool = true, bandWidth: Bool = false, kinematical: Bool = false,
+                     blend: Double = 0.5) {
             self.minDSpacing = minDSpacing; self.zoneAxes = zoneAxes; self.labels = labels; self.bandWidth = bandWidth
+            self.kinematical = kinematical; self.blend = blend
         }
     }
 
@@ -67,6 +73,12 @@ package nonisolated enum KikuchiOverlay {
         package var lineFamilies: [SIMD3<Int>] = []
         /// The Bragg angle of each line (radians) when the band edges were asked for and the file states its beam energy.
         package var lineTheta: [Double]? = nil
+        /// The kinematical simulation of this pattern, row-major in the detector's shape (band counts, kikuchipy's `get_patterns` of
+        /// the kinematical master pattern in float32), when it was asked for.
+        package var simulated: [Float]? = nil
+        /// The simulated pattern's shape (the detector's), 0 without one.
+        package var simulatedRows = 0
+        package var simulatedColumns = 0
     }
 
     // MARK: Bands
@@ -157,9 +169,25 @@ package nonisolated enum KikuchiOverlay {
         return bands.reflectors.braggAngles(wavelengthNM: lambda)
     }
 
+    /// The kinematical master pattern of a phase's overlay bands (decision D-SEM-95): kikuchipy's band rule on the square Lambert grid
+    /// (`KinematicMasterPattern.lambert`), every band intensity 1 (a file's phase carries no atoms for |F|), θ at `beamEnergyKeV`.
+    package static func masterPattern(_ bands: Bands, phase: CrystalPhase, beamEnergyKeV: Double, halfSize: Int = 200) -> EBSDMasterPattern {
+        KinematicMasterPattern.lambert(reflectors: bands.reflectors, theta: braggAngles(bands, beamEnergyKeV: beamEnergyKeV), halfSize: halfSize,
+                                       scaling: .none, energyKeV: beamEnergyKeV, phase: phase)
+    }
+
+    /// The kinematical master pattern's picture: the upper hemisphere in the stereographic projection (kikuchipy's
+    /// `calculate_master_pattern`, every band intensity 1), row-major `(2 halfSize + 1)²`.
+    package static func masterPatternPicture(_ bands: Bands, beamEnergyKeV: Double, halfSize: Int = 100) -> [Double] {
+        KinematicMasterPattern.calculate(reflectors: bands.reflectors, theta: braggAngles(bands, beamEnergyKeV: beamEnergyKeV), structureFactor: [],
+                                         halfSize: halfSize, hemisphere: .upper, scaling: .none)[0]
+    }
+
     /// The overlay at `position`, or why there is none. `bands` maps a phase id to its bands (the session caches them per phase).
-    /// With `beamEnergyKeV` each line carries its band's two edges.
+    /// With `beamEnergyKeV` each line carries its band's two edges. With `master` (a phase id, the phase and its bands to the phase's
+    /// kinematical master pattern), the pattern carries its kinematical simulation for the point's orientation and projection centre.
     package static func pattern(_ dataset: EBSDDataset, at position: EBSDPosition, maxR: Double, beamEnergyKeV: Double? = nil,
+                                master: ((Int, CrystalPhase, Bands) -> EBSDMasterPattern?)? = nil,
                                 bands: (Int, CrystalPhase) -> Bands?) -> Result<Pattern, Absence> {
         guard let map = dataset.crystalMap, let pc = projectionCenter(dataset, at: position) else { return .failure(.noOrientations) }
         let index = position.index(columns: dataset.scanColumns)
@@ -167,13 +195,31 @@ package nonisolated enum KikuchiOverlay {
         let id = map.allPhaseIDs[index]
         guard id != PhaseList.notIndexedID, let phase = map.phases[id: id] else { return .failure(.notIndexed) }
         guard let b = bands(id, phase) else { return .failure(.noLattice(phase: phase.name)) }
+        return .success(pattern(phase: phase.name, rotation: map.rotations[index], bands: b, detector: dataset.detector, pc: pc, maxR: maxR,
+                                beamEnergyKeV: beamEnergyKeV, master: master?(id, phase, b)))
+    }
+
+    /// The overlay of one orientation: `bands` of the phase named `phase` at `rotation` (orix's, crystal to sample) on `detector` with
+    /// projection centre `pc`, the lines ending on the circle of `maxR`. With `beamEnergyKeV` each line carries its band's two edges;
+    /// with `master` the pattern carries its kinematical simulation on `detector`'s rows and columns. The Patterns room's overlay (a
+    /// file's orientation) and the Indexing room's (a run's solution) both come through here.
+    package static func pattern(phase: String, rotation: SIMD4<Double>, bands b: Bands, detector: EBSDDetectorGeometry, pc: SIMD3<Double>,
+                                maxR: Double, beamEnergyKeV: Double? = nil, master: EBSDMasterPattern? = nil) -> Pattern {
         let theta = beamEnergyKeV.flatMap { $0 > 0 ? braggAngles(b, beamEnergyKeV: $0) : nil }
-        let simulation = GeometricalKikuchiSimulation.simulate(reflectors: b.reflectors, rotation: map.rotations[index],
-                                                               detector: dataset.detector, pc: pc, maxRGnomonic: maxR, braggAngles: theta)
+        let simulation = GeometricalKikuchiSimulation.simulate(reflectors: b.reflectors, rotation: rotation, detector: detector, pc: pc,
+                                                               maxRGnomonic: maxR, braggAngles: theta)
         let labels = simulation.lines.map { b.labels[b.reflectors.family[$0.reflector]] }
         let families = simulation.lines.map { b.families[b.reflectors.family[$0.reflector]] }
-        return .success(Pattern(phase: phase.name, simulation: simulation, lineLabels: labels, lineFamilies: families,
-                                lineTheta: theta.map { t in simulation.lines.map { t[$0.reflector] } }))
+        var simulated: [Float]?
+        if let master {
+            var one = detector
+            one.projectionCenters = [pc]
+            simulated = (try? MasterPatternProjection.project(master: master, rotations: [rotation], detector: one, output: .float32))
+                .map { $0.values.map { Float($0) } }
+        }
+        return Pattern(phase: phase, simulation: simulation, lineLabels: labels, lineFamilies: families,
+                       lineTheta: theta.map { t in simulation.lines.map { t[$0.reflector] } }, simulated: simulated,
+                       simulatedRows: simulated == nil ? 0 : detector.rows, simulatedColumns: simulated == nil ? 0 : detector.columns)
     }
 
     // MARK: Export

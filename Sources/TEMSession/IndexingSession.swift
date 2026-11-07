@@ -47,6 +47,8 @@ package final class IndexingSession {
     package private(set) var layer = IndexingLayer.ipfZ
     /// Whether the pattern pane draws the detected bands.
     package var showsDetectedBands = true
+    /// Whether the pattern pane draws the Kikuchi simulation of the point's solution (`simulationOverlay`, #201).
+    package var showsSimulation = false
 
     // MARK: The run
 
@@ -159,6 +161,11 @@ package final class IndexingSession {
     @ObservationIgnored private var masterTasks: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var bestMatchTask: Task<Void, Never>?
     @ObservationIgnored private var bestMatchKey: BestMatchKey?
+    /// The simulation overlay's bands and kinematical master patterns per phase and spacing, and the last overlay made
+    /// (IndexingSession+Overlay.swift).
+    @ObservationIgnored var overlayBands: [IndexingOverlayKey: KikuchiOverlay.Bands?] = [:]
+    @ObservationIgnored var overlayMasters: [IndexingOverlayKey: EBSDMasterPattern] = [:]
+    @ObservationIgnored var overlayMemo: (key: IndexingOverlayMemo, value: Result<KikuchiOverlay.Pattern, KikuchiOverlay.Absence>)?
 
     package init(patterns: EBSDSession) {
         self.patterns = patterns
@@ -216,6 +223,7 @@ package final class IndexingSession {
         mapPresentation.resetWindow()
         hovered = nil; patternPosition = nil; detectedBands = []; patternFailure = nil; patternShape = (rows: 0, columns: 0)
         bestMatchPosition = nil; bestMatchFailure = nil; bestMatchKey = nil
+        overlayBands = [:]; overlayMasters = [:]; overlayMemo = nil
         phases = []; skippedPhases = []; settings = .roomDefault; layer = .ipfZ
         method = .hough; dictionarySettings = .roomDefault; dictionarySize = nil
     }
