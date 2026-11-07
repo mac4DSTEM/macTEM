@@ -57,6 +57,8 @@ from dictionary_cases import (  # noqa: E402,F401  (milestone 4 dictionary index
     case_m4_dictionary_indexing_nickel_large, case_m4_dictionary_indexing_small)
 from similarity_cases import (  # noqa: E402,F401  (milestone 4 orientation similarity map and merge of dictionary maps)
     case_m4_merge_crystal_maps, case_m4_orientation_similarity_map)
+from compare_cases import (  # noqa: E402,F401 (milestone 4, Indexing room Compare, #230)
+    case_m4_indexing_compare_nickel_large, case_m4_indexing_compare_planted)
 from writer_cases import (  # noqa: E402,F401  (milestone 8 .ang and .ctf writers and figure F18)
     case_m8_write_ang_sdss, case_m8_write_ang_sdss_ferrite, case_m8_write_ang_sdss_window, case_m8_write_ang_ti,
     case_m8_write_ctf_sdss, case_m8_write_ctf_sdss_ferrite, case_m8_write_ctf_sdss_window, case_m8_write_ctf_ti)

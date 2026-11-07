@@ -17,7 +17,7 @@ pole figures and the ODF". The verb is `Segment`. A map room in the control plac
 - *Texture*: pole figures for picked `{hkl}` in the sample frame (orix `PoleFigure`-style, from `Vector3d` projections),
   inverse pole figures with the colour key as a legend, the ODF (orix's `ODF`-style kernel density on the fundamental
   zone, as sections), the texture index.
-- *Compare*: the vendor's indexing from the file, next to ours (Indexing's Compare tab is the home; here a map is a map).
+- *Compare*: the vendor's indexing from the file, next to ours (Indexing's Compare is the home, D-SEM-97; here a map is a map).
 
 Every number is orix's with a parity test: `Orientation`, `Rotation`, `Quaternion`, `Symmetry` (the 32 point groups),
 `Misorientation.angle`, `Orientation.get_distance_matrix`, `Vector3d`, `IPFColorKeyTSL`, the stereographic projection,

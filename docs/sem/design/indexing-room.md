@@ -32,12 +32,12 @@ master pattern (EMsoft HDF5, kikuchipy's `.h5`) is opened from the `Dictionary` 
 │ or CI, phase, OSM; scan      │ with the solution's Kikuchi   │
 │ marker; regions              │ bands and PC drawn over it    │
 ├──────────────────────────────┴───────────────────────────────┤
-│ Bottom pane  tabs: Results · Compare · Dictionary · Log      │
+│ Bottom pane (no tabs, D-SEM-92)                              │
 │  Results: one row per scan point in view (row, col, phase,   │
 │   φ₁ Φ φ₂, CI/NCC, fit, bands); selection pins the pattern   │
-│  Compare: disorientation histogram A vs B, two maps linked   │
-│  Dictionary: the master pattern (Lambert north) and the      │
-│   simulated pattern at the pinned point                      │
+│  beside Bands (Hough) or Best match (Dictionary)             │
+│  Compare in their place while Display › Compare is on:       │
+│   maps A and B on one zoom, disorientation histogram A vs B  │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -50,11 +50,12 @@ master pattern (EMsoft HDF5, kikuchipy's `.h5`) is opened from the `Dictionary` 
   refinement, see §6), the detected Hough bands as thin lines when `Display › Show detected bands` is on.
 - **Bottom pane**: `Results` (a `Table`, ⌘C TSV, sorted by column, the selected row pins the pattern; footer: method ·
   phases · PC · validation badge), `Compare` (two results side by side as maps sharing the transform, the
-  disorientation angle histogram between them, its median and 95th percentile), `Dictionary` (the master pattern as a
+  disorientation angle histogram between them, its median and the fraction over 2°; it takes the bottom pane in place of
+  the tables while `Display › Compare` is on, D-SEM-97), `Dictionary` (the master pattern as a
   picture, the simulated pattern for the pinned point's solution, the NCC score), `Log` (pyEBSDindex's band-detection
   readout for the pinned pattern: ρ, θ, intensity, width of every band).
-- **Scan navigator**: shown beside the pattern pane while the main pane shows a result that is not a map of scan
-  positions (`Compare`'s histogram in full-pane mode); otherwise the map is the scan.
+- **Scan navigator**: the main map stays the scan: Compare draws its two maps and its histogram in the bottom pane
+  (D-SEM-97), so no navigator is needed beside the pattern pane.
 - **Status line**: `row 12 · col 40 · Ni · φ₁ 12,3° Φ 44,0° φ₂ 271,5° · CI 0,82 · bands 9 of 9`.
 - **Toolbar**: `Index` (⌘↩), Stop in its place; centre display `Hough · 2 341 of 4 125 · 0:08` or `Dictionary · 1 of 3
   chunks · NCC`. A second verb would be `Refine`; it is the same verb with `Method · Refine` picked (DNA 3: one verb;
@@ -112,11 +113,12 @@ the kit versions the numbers come from (pyEBSDindex, kikuchipy, orix pins from `
 - **PC drag**: while `Refine › Apply to · Pinned point` is picked, the PC glyph in the pattern pane is draggable
   (direct manipulation); release previews the simulated bands at the new PC on the pinned pattern and writes the three
   numbers into Geometry as `Typed`; `Index` with `Refine · PC` commits a fit from there.
-- **Compare**: the `Compare` tab shows `A` against `B`, two of the results the session holds (Hough, Dictionary,
-  Refined, the file's vendor indexing). A pane holds no controls, so the two choices are `Display › Compare A · B`
-  pop-ups, shown while the Compare tab is selected. The histogram is the disorientation
-  angle per point (orix `Misorientation.angle` with the phase's symmetry); the footer gives median and the fraction over
-  2°.
+- **Compare**: `Display › Compare` is a switch; while it is on, the bottom pane shows `A` against `B`, two of the
+  results the session holds (the last Hough run, the last Dictionary run, the file's vendor indexing when it lies on
+  the scan's grid; Refined joins once the room refines). A pane holds no controls, so the two choices are
+  `Display › A · B` pop-ups, shown while Compare is on. The histogram is the disorientation angle per point (orix
+  `Orientation.angle_with` with each side's point group, the same number as `Misorientation.angle` for one group) on
+  1° bins; the footer gives the median and the fraction over 2° (D-SEM-97).
 - **Stale**: a Processing change in Patterns stales Indexing (`●` on `Method`), the map dims, `Index` says "Patterns
   changed: index again"; a Phases change stales too; a Display change never does.
 - **Memory**: a dictionary at 1° on a 1001 × 1001 master pattern is ~ 800 000 patterns; the caption names the size and
@@ -144,5 +146,6 @@ at 2° with `Refine · Orientation` reproduces NS-4.
 `Index`, wait on `indexing.map` to show the IPF-Z (the empty sentence is gone), hover the map, the status line reads
 three Euler angles and `CI`; screenshot (NS-3 gate); (3) select a Results row, the pattern pane header reads that row
 and the overlay is drawn (`indexing.pattern.overlay` exists); (4) `Method · Dictionary`, the caption names the
-dictionary size, `Index`, the map fills, `Compare` shows the Hough-vs-Dictionary histogram with a median under 1°;
+dictionary size, `Index`, the map fills; `Display › Compare` shows Hough against the file's indexing with a median
+under 1° (0.44°; Hough against the 4° dictionary reads 2.4°, the dictionary's grid), then `B · Dictionary`;
 screenshot (NS-4 gate); (5) `Export › Results ang…` writes a file the unit tests read back.

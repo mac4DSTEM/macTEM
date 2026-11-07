@@ -1,0 +1,326 @@
+{
+  "arrays": {
+    "dictionary_file_angles_radians": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "dictionary_file_angles_radians.bin",
+      "note": "orix Orientation.angle_with (A against B, each with its phase's point group); -1 where not compared",
+      "rtol": 0.0,
+      "sha256": "b2499db6649eeafa695819c6a93189aa117c990e56d466038538eb5ea886ce9d",
+      "shape": [
+        4125
+      ]
+    },
+    "dictionary_file_counts": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "dictionary_file_counts.bin",
+      "note": "numpy.histogram of numpy.rad2deg(angles) of the compared points",
+      "rtol": 0.0,
+      "sha256": "8e16f456f2383c93892069b984b5a70fae1b96981067f5c205615393db193f1d",
+      "shape": [
+        63
+      ]
+    },
+    "dictionary_file_edges_degrees": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "dictionary_file_edges_degrees.bin",
+      "note": "numpy.arange(0, top + 1): 1 degree bins up to the compared groups' bins top",
+      "rtol": 0.0,
+      "sha256": "42b018599b726a5aa3ec0c1e48fc217ee4eb90d0c6af2022f34b8a38b678b945",
+      "shape": [
+        64
+      ]
+    },
+    "dictionary_file_outcomes": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "dictionary_file_outcomes.bin",
+      "note": "0 compared, 1 no A (phase -1 or no point group), 2 no B, 3 unpaired phases",
+      "rtol": 0.0,
+      "sha256": "2b034ac052b13ef895ee8752d2f4dd2e3b84237b0ed114078d1bcdabb07d9d43",
+      "shape": [
+        4125
+      ]
+    },
+    "file_phase": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "file_phase.bin",
+      "rtol": 0.0,
+      "sha256": "88d0e4fd08db2ba867068d0e42ecbfbef69566332aca5de4538738b1353571de",
+      "shape": [
+        4125
+      ]
+    },
+    "file_quaternions": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "file_quaternions.bin",
+      "note": "orix rotations of the file's crystal map, row-major on the scan",
+      "rtol": 0.0,
+      "sha256": "755eba7b70ca886f68433b9a5f00f212cb26993e787ca1c9cf608d2146e3dbcc",
+      "shape": [
+        4125,
+        4
+      ]
+    },
+    "hough_dictionary_angles_radians": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "hough_dictionary_angles_radians.bin",
+      "note": "orix Orientation.angle_with (A against B, each with its phase's point group); -1 where not compared",
+      "rtol": 0.0,
+      "sha256": "5e257db9086a271c7f291196e5a777dedbed83a08fa773fc0d3a4d09836dceaa",
+      "shape": [
+        4125
+      ]
+    },
+    "hough_dictionary_counts": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "hough_dictionary_counts.bin",
+      "note": "numpy.histogram of numpy.rad2deg(angles) of the compared points",
+      "rtol": 0.0,
+      "sha256": "5d072f5522baf8d993fc87ff9de492fddfcbd92448ee98ffa77cd8601c8ae9bf",
+      "shape": [
+        63
+      ]
+    },
+    "hough_dictionary_edges_degrees": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "hough_dictionary_edges_degrees.bin",
+      "note": "numpy.arange(0, top + 1): 1 degree bins up to the compared groups' bins top",
+      "rtol": 0.0,
+      "sha256": "42b018599b726a5aa3ec0c1e48fc217ee4eb90d0c6af2022f34b8a38b678b945",
+      "shape": [
+        64
+      ]
+    },
+    "hough_dictionary_outcomes": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "hough_dictionary_outcomes.bin",
+      "note": "0 compared, 1 no A (phase -1 or no point group), 2 no B, 3 unpaired phases",
+      "rtol": 0.0,
+      "sha256": "2c04820768084d79fad4cd6c2df756f52449a428626d99b325c820ec0ee95d6e",
+      "shape": [
+        4125
+      ]
+    },
+    "hough_file_angles_radians": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "hough_file_angles_radians.bin",
+      "note": "orix Orientation.angle_with (A against B, each with its phase's point group); -1 where not compared",
+      "rtol": 0.0,
+      "sha256": "6deb14aeb75694b21374f82afeadbeaec6b802976654c0b4a51245ea50f098e1",
+      "shape": [
+        4125
+      ]
+    },
+    "hough_file_counts": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "hough_file_counts.bin",
+      "note": "numpy.histogram of numpy.rad2deg(angles) of the compared points",
+      "rtol": 0.0,
+      "sha256": "9a7297fb625b3f1c52854bc92e36f7dc236a6cf6d2ea701e6612069743bcfee0",
+      "shape": [
+        63
+      ]
+    },
+    "hough_file_edges_degrees": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "hough_file_edges_degrees.bin",
+      "note": "numpy.arange(0, top + 1): 1 degree bins up to the compared groups' bins top",
+      "rtol": 0.0,
+      "sha256": "42b018599b726a5aa3ec0c1e48fc217ee4eb90d0c6af2022f34b8a38b678b945",
+      "shape": [
+        64
+      ]
+    },
+    "hough_file_outcomes": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "hough_file_outcomes.bin",
+      "note": "0 compared, 1 no A (phase -1 or no point group), 2 no B, 3 unpaired phases",
+      "rtol": 0.0,
+      "sha256": "2c04820768084d79fad4cd6c2df756f52449a428626d99b325c820ec0ee95d6e",
+      "shape": [
+        4125
+      ]
+    }
+  },
+  "case": "m4/indexing-compare-nickel-large",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "orix.quaternion.Orientation.angle_with; numpy.rad2deg, histogram, median, mean",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "dictionary_file_closest_to_2_degrees": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 0.0002772222397975366
+    },
+    "dictionary_file_closest_to_an_edge_degrees": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 0.00012796479548127238
+    },
+    "dictionary_file_fraction_over_2_degrees": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 0.7153939393939394
+    },
+    "dictionary_file_median_degrees": {
+      "atol": 5.8e-06,
+      "rtol": 0.0,
+      "value": 2.442832236130421
+    },
+    "hough_dictionary_closest_to_2_degrees": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 1.4564216727741552e-05
+    },
+    "hough_dictionary_closest_to_an_edge_degrees": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 1.4564216727741552e-05
+    },
+    "hough_dictionary_fraction_over_2_degrees": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 0.7313288069835111
+    },
+    "hough_dictionary_median_degrees": {
+      "atol": 5.8e-06,
+      "rtol": 0.0,
+      "value": 2.3732650313585864
+    },
+    "hough_file_closest_to_2_degrees": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 0.06862823432597986
+    },
+    "hough_file_closest_to_an_edge_degrees": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 0.0019340840031083495
+    },
+    "hough_file_fraction_over_2_degrees": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 0.010426770126091174
+    },
+    "hough_file_median_degrees": {
+      "atol": 5.8e-06,
+      "rtol": 0.0,
+      "value": 0.43648041991281017
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "dictionary_file_a_phases": [
+      {
+        "name": "ni",
+        "point_group": "m-3m"
+      }
+    ],
+    "dictionary_file_b_phases": [
+      {
+        "name": "ni",
+        "point_group": "m-3m"
+      }
+    ],
+    "dictionary_file_compared_count": 4125,
+    "dictionary_file_pairs": {
+      "0": 0
+    },
+    "hough_dictionary_a_phases": [
+      {
+        "name": "ni",
+        "point_group": "m-3m"
+      }
+    ],
+    "hough_dictionary_b_phases": [
+      {
+        "name": "ni",
+        "point_group": "m-3m"
+      }
+    ],
+    "hough_dictionary_compared_count": 4124,
+    "hough_dictionary_pairs": {
+      "0": 0
+    },
+    "hough_file_a_phases": [
+      {
+        "name": "ni",
+        "point_group": "m-3m"
+      }
+    ],
+    "hough_file_b_phases": [
+      {
+        "name": "ni",
+        "point_group": "m-3m"
+      }
+    ],
+    "hough_file_compared_count": 4124,
+    "hough_file_pairs": {
+      "0": 0
+    },
+    "navigation_shape_rc": [
+      55,
+      75
+    ],
+    "outcome_codes": {
+      "compared": 0,
+      "none_in_a": 1,
+      "none_in_b": 2,
+      "unpaired_phases": 3
+    },
+    "sides": {
+      "dictionary": "m4/dictionary-indexing-nickel-ebsd-large ncc_best_quaternions, phase 0 everywhere (ni m-3m)",
+      "file": "kikuchipy.load(patterns_v2.h5).xmap at row * columns + column: file_quaternions, file_phase",
+      "hough": "m4/hough-indexing-nickel-large quaternion and phase (-1 not indexed; phases: ni m-3m)"
+    },
+    "source_bundles": {
+      "dictionary_quaternions": {
+        "path": "references/m4/dictionary-indexing-nickel-ebsd-large/ncc_best_quaternions.bin",
+        "sha256": "a6a7c276cf7c0d989b698c0ee08b99c0594893d9d44e8de798fa2d3cc55e698a"
+      },
+      "hough_phase": {
+        "path": "references/m4/hough-indexing-nickel-large/phase.bin",
+        "sha256": "3f8d074ae843d3f6e60c246c598ba8811f6ac0ef956242f46b9a68a43ff27ed3"
+      },
+      "hough_quaternions": {
+        "path": "references/m4/hough-indexing-nickel-large/quaternion.bin",
+        "sha256": "f6c7b0062a75eb72130fd3e5a11022a4e1eb37ff98e33a0a3ebd9e559d2c6946"
+      }
+    }
+  }
+}

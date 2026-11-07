@@ -1,0 +1,339 @@
+{
+  "arrays": {
+    "multi_a_phase": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "multi_a_phase.bin",
+      "rtol": 0.0,
+      "sha256": "5b39e51003a7e6a9dbd3efde2d805408dc18a4e35ccd605af0a38f4b12a41379",
+      "shape": [
+        500
+      ]
+    },
+    "multi_a_quaternions": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "multi_a_quaternions.bin",
+      "rtol": 0.0,
+      "sha256": "e8c287dedd5c2d1b6aaa830f64b30304c53565fe23e33154adb39daec69fede6",
+      "shape": [
+        500,
+        4
+      ]
+    },
+    "multi_angles_radians": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "multi_angles_radians.bin",
+      "note": "orix Orientation.angle_with (A against B, each with its phase's point group); -1 where not compared",
+      "rtol": 0.0,
+      "sha256": "e4b5b68eae59e708f700ad546b054d17504459146c200654c6c3e29bd2e9220c",
+      "shape": [
+        500
+      ]
+    },
+    "multi_b_phase": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "multi_b_phase.bin",
+      "rtol": 0.0,
+      "sha256": "2c5b5c64a7d335ab0d94fea7bd369f056ba0d7f6588478d0914ab277fda51a41",
+      "shape": [
+        500
+      ]
+    },
+    "multi_b_quaternions": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "multi_b_quaternions.bin",
+      "rtol": 0.0,
+      "sha256": "bf394f9f5a41cbe9164bddc0b308e4b3a226d23531e66b0ccea16d493f74c368",
+      "shape": [
+        500,
+        4
+      ]
+    },
+    "multi_counts": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "multi_counts.bin",
+      "note": "numpy.histogram of numpy.rad2deg(angles) of the compared points",
+      "rtol": 0.0,
+      "sha256": "a168e25207a861f7e5aca5dd5016d9fd7c682c757228384cd3f1528b87625774",
+      "shape": [
+        94
+      ]
+    },
+    "multi_edges_degrees": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "multi_edges_degrees.bin",
+      "note": "numpy.arange(0, top + 1): 1 degree bins up to the compared groups' bins top",
+      "rtol": 0.0,
+      "sha256": "b79c5056cf8969638fccc3617fa40c9fc4d58e46a4be44b58aac33d841c14a3f",
+      "shape": [
+        95
+      ]
+    },
+    "multi_outcomes": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "multi_outcomes.bin",
+      "note": "0 compared, 1 no A (phase -1 or no point group), 2 no B, 3 unpaired phases",
+      "rtol": 0.0,
+      "sha256": "63f0972c02b3a38e2004f25eba50b8cfd608042fbebd7b058a70b7703838a0bb",
+      "shape": [
+        500
+      ]
+    },
+    "single_a_phase": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "single_a_phase.bin",
+      "rtol": 0.0,
+      "sha256": "429f148e97060ace10dcb0c8096f6bea286b7b1e1c9e6acb0819c9bf9072530f",
+      "shape": [
+        500
+      ]
+    },
+    "single_a_quaternions": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "single_a_quaternions.bin",
+      "rtol": 0.0,
+      "sha256": "e792e8e36c1f702972ae218df0c5de8fc5bfdff6368625a04d87ce339445b511",
+      "shape": [
+        500,
+        4
+      ]
+    },
+    "single_angles_radians": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "single_angles_radians.bin",
+      "note": "orix Orientation.angle_with (A against B, each with its phase's point group); -1 where not compared",
+      "rtol": 0.0,
+      "sha256": "6b36f231837ab62d050e2344e009002bee9c4e778a43968ca661f9e67e27a82c",
+      "shape": [
+        500
+      ]
+    },
+    "single_b_phase": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "single_b_phase.bin",
+      "rtol": 0.0,
+      "sha256": "667ee63b35f1c61f4e9c54d9dc8ed1ee43a8c0718ee7bd3535c8758462863700",
+      "shape": [
+        500
+      ]
+    },
+    "single_b_quaternions": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "single_b_quaternions.bin",
+      "rtol": 0.0,
+      "sha256": "f6791abd6e2c1efc934ae3ecaf24c1f843aa8db3d364dd083e1291f662ce7e43",
+      "shape": [
+        500,
+        4
+      ]
+    },
+    "single_counts": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "single_counts.bin",
+      "note": "numpy.histogram of numpy.rad2deg(angles) of the compared points",
+      "rtol": 0.0,
+      "sha256": "7d1156eadf4b1b1ddd131f0bf57938200141671ed28848c239f3eb9d435ce8e3",
+      "shape": [
+        63
+      ]
+    },
+    "single_edges_degrees": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "single_edges_degrees.bin",
+      "note": "numpy.arange(0, top + 1): 1 degree bins up to the compared groups' bins top",
+      "rtol": 0.0,
+      "sha256": "42b018599b726a5aa3ec0c1e48fc217ee4eb90d0c6af2022f34b8a38b678b945",
+      "shape": [
+        64
+      ]
+    },
+    "single_outcomes": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "single_outcomes.bin",
+      "note": "0 compared, 1 no A (phase -1 or no point group), 2 no B, 3 unpaired phases",
+      "rtol": 0.0,
+      "sha256": "92b481456eb3cde1092fb9cb2cba19b8093b2cea79e97ebc3926060dcfd6f80e",
+      "shape": [
+        500
+      ]
+    }
+  },
+  "case": "m4/indexing-compare-planted",
+  "inputs": [
+    {
+      "path": "fixtures/orientation_inputs.json",
+      "sha256": "faf36e30d99e1b9261c4075804a15488762c97ff16d5ac9a7c53b5e4da479f23"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "orix.quaternion.Orientation.angle_with; numpy.rad2deg, histogram, median, mean",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "multi_closest_to_2_degrees": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 0.0064330722604271084
+    },
+    "multi_closest_to_an_edge_degrees": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 0.0017243074205453013
+    },
+    "multi_fraction_over_2_degrees": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 0.675
+    },
+    "multi_median_degrees": {
+      "atol": 5.8e-06,
+      "rtol": 0.0,
+      "value": 3.262784950937778
+    },
+    "single_closest_to_2_degrees": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 0.0018388988411683904
+    },
+    "single_closest_to_an_edge_degrees": {
+      "atol": 1e-09,
+      "rtol": 0.0,
+      "value": 0.001708002402835973
+    },
+    "single_fraction_over_2_degrees": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 0.65
+    },
+    "single_median_degrees": {
+      "atol": 5.8e-06,
+      "rtol": 0.0,
+      "value": 3.1999884266243
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "bins_top_degrees": {
+      "1": 181,
+      "2": 181,
+      "222": 121,
+      "23": 91,
+      "3": 181,
+      "32": 105,
+      "4": 181,
+      "422": 99,
+      "432": 63,
+      "6": 181,
+      "622": 94
+    },
+    "grid_rc": [
+      20,
+      25
+    ],
+    "multi_a_phases": [
+      {
+        "name": "ni",
+        "point_group": "m-3m"
+      },
+      {
+        "name": "ti",
+        "point_group": "6/mmm"
+      }
+    ],
+    "multi_b_phases": [
+      {
+        "name": "ni",
+        "point_group": "432"
+      },
+      {
+        "name": "ti",
+        "point_group": "622"
+      },
+      {
+        "name": "fe",
+        "point_group": "m-3m"
+      },
+      {
+        "name": "x",
+        "point_group": null
+      }
+    ],
+    "multi_compared_count": 320,
+    "multi_pairs": {
+      "0": 0,
+      "1": 1
+    },
+    "multi_planted": {
+      "b_x": 40,
+      "none_a": 40,
+      "none_b": 40,
+      "sigma3": 40,
+      "small_ni": 140,
+      "small_ti": 110,
+      "unpaired_ni_fe": 30,
+      "unpaired_ti_ni": 30,
+      "zero_a": 15,
+      "zero_b": 15
+    },
+    "outcome_codes": {
+      "compared": 0,
+      "none_in_a": 1,
+      "none_in_b": 2,
+      "unpaired_phases": 3
+    },
+    "single_a_phases": [
+      {
+        "name": "ni",
+        "point_group": "m-3m"
+      }
+    ],
+    "single_b_phases": [
+      {
+        "name": "Nickel",
+        "point_group": "432"
+      }
+    ],
+    "single_compared_count": 420,
+    "single_pairs": {
+      "0": 0
+    },
+    "single_planted": {
+      "none_a": 40,
+      "none_b": 40,
+      "sigma3": 60,
+      "small_ni": 320,
+      "zero_a": 20,
+      "zero_b": 20
+    }
+  }
+}
