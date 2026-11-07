@@ -137,6 +137,22 @@ and F12, the whole 381 x 507 Ti map, fetched; skips without it). DefDAP runs as 
 | `GrainOrientationStatistics.compute` (`averageOrientations`, `grod`, `grodAxis`, `gos`, `averageCosine`, `grodMap`, `gosMap`) | `Grain.calc_average_ori` (`Quat.calc_average_ori`), `calcMisOri`, `build_mis_ori_list`, `calc_grod` (Wright et al. 2011) | as above | average orientation atol 1e-10; GROD, axis, GOS atol 1e-6 rad | GOS is the mean GROD angle; DefDAP's `average_mis_ori` (mean cosine) is `averageCosine` |
 | `GrainSegmentation.meanLinealIntercept`, `astmGrainSizeNumber` | ASTM E112-13 (Heyn intercept; G = −6.643856 log10 ℓ − 3.288, ℓ in mm) | `testMeanLinealInterceptAndASTMGrainSizeNumber` | hand numbers, 1e-12 | every row and column of the map is a test line; a crossing is a grain boundary edge |
 
+## Pole figures, inverse pole figures and the ODF (figure F13)
+
+orix 0.15.0 ported into `Sources/TEMCore/SEM/Texture/` (P5-02). Tests in `SEMTextureParityTests`; bundles from
+`tools/parity/sem/texture_cases.py` (imported by `emit.py`): `m5/texture-ti` (the 2000 committed Ti orientations of
+`fixtures/orientation_inputs.json`, 622), `m5/texture-cubic` (the 100 seeded m-3m orientations) and `m5/texture-ti-full`
+(figure F13, the whole 381 x 507 Ti map, fetched; skips without it). Figure script `texture_figure.py`.
+
+| Function | Reference | Test | Tolerance | Notes |
+| --- | --- | --- | --- | --- |
+| `EqualAreaGrid` (edges, centres, stereographic nodes, numpy's `histogramdd` bin rule) | `_sample_S2_equal_area_coordinates` (Rohrer et al. 2004), the x, y `pole_density_function` returns | `testEqualAreaGridMatchesOrix` | atol 1e-10 | |
+| `PoleDensityFunction.counts` | `numpy.histogram2d` of `to_polar` on that grid (half resolution, after `in_fundamental_sector`, with a symmetry) | every test below | exact, except that each vector the bundle finds within 1e-12 rad of an edge may sit one bin over (16 of 2000 {0001} poles, 5 IPF vectors; 1197 and 393 on the full map) | the Ti map's Euler angles have two decimals, so an integer φ1 puts a basal pole exactly on a 1° azimuth edge, where atan2's last bit (glibc against Apple's libm) picks the bin; D-SEM-68 |
+| `PoleDensityFunction.density(counts:)` (gaussian smoothing, fold into the sector, mask, mrd, log) | the rest of `pole_density_function`; scipy's `gaussian_filter` (truncate 4, `wrap` in azimuth, `reflect` in polar) | `testTiPoleFiguresMatchOrix`, `testTiInversePoleFigureDensityMatchesOrix`, `testCubicPoleFiguresAndInversePoleFigureMatchOrix`, `testFigureF13OnTheTiMap` | atol 1e-7 (catalogue section 5), measured 4e-14 in a Python mirror | fed orix's own counts, so the edge vectors above do not move it; with the port's own counts the whole chain is compared whenever they are equal |
+| `PoleFigures.poles` / `symmetrise`, `sampleDirections`, `crystalDirections` | `Miller.symmetrise(unique=True).unit`, `(~O).outer(m)`, `O * Vector3d.zvector()` | as above | poles atol 1e-10 (as a set: orix sorts) | |
+| `OrientationDensity.values` / `section` (kernel density on SO(3), φ2 sections) | the closed form of Hielscher and Schaeben (2008) with MTEX's de la Vallee Poussin kernel, on orix's rotations and proper symmetry elements (`texture_cases.odf_values`); orix has no ODF | `testTiODFSectionsMatchTheKernelDensity`, `testCubicODFSectionAndItsNormalisation`, `testFigureF13OnTheTiMap` | rtol 1e-4 (brief P5-02) | half-width 10° (MTEX's default), every orientation counted (no cut-off); checks that do not rest on the formula: the mean over orix's uniform 3° m-3m sample is 1.00025 mrd, the identity's peak is C(κ) / 24 |
+| `TextureRaster.stereographic`, `.section` | none (drawing) | `testRastersDrawTheBinsTheyFallIn` | each pixel the value of its bin | values, not colours: the Maps room colours them with the shared colormap (D-SEM-68) |
+
 ## Patterns room
 
 | Function | Reference | Test | Tolerance | Notes |
