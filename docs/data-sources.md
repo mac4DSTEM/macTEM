@@ -57,6 +57,7 @@ test files are compatible, and each entry below says which it is. Demo data ship
 | `emsoft_ebsd_master_pattern_ni_mc_mp_20kv_uint8_gzip_opts9.h5` | The Ni 20 kV master pattern, see above | kikuchipy 0.13.1 package data | CC BY 4.0 (data), GPL-3.0 (package) |
 | `emsoft_ebsd_master_pattern_dummy.h5` | A 13 x 13 float32 EMsoft EBSD master pattern file of 11 energies (10 to 20 kV), Lambert and stereographic, both hemispheres, of kikuchipy's Al2Cu test phase (`master_patterns.h5`) | kikuchipy 0.13.1 package data | GPL-3.0 |
 | `planted_emsoft_tkd_master_pattern.h5`, `planted_emsoft_ecp_master_pattern.h5` | The same 13 x 13 x 11-energy layout as EMsoft TKD and ECP master pattern files, written as kikuchipy's test fixtures write them (`kikuchipy/conftest.py`); kikuchipy ships no TKD or ECP file | this repo (`make_fixtures.py`) | GPL-3.0 |
+| `simulation_cases.json` | The inputs of the Kikuchi simulation bundles (P6-02, figure F14): the Ni, Ti and Al2Cu phases (space group, lattice, asymmetric atoms), the lattices and hkl of the lattice bundle, the families and smallest spacings, the voltages, the four nickel scan points, a tilted 48 x 64 detector with three orientations and projection centres, the master pattern's half size and scalings. Ni's families and 20 kV are kikuchipy's geometrical and kinematic simulation tutorials'; Ti's lattice and atom are orix's `ti_orientations` phase; Al2Cu's are kikuchipy's test phase | kikuchipy 0.13.1 tutorials and tests (Ni, Al2Cu); chosen for the SEM program (the rest) | GPL-3.0 |
 
 ## Gaps on 2026-11-06
 

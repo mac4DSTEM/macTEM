@@ -49,6 +49,10 @@ from writer_cases import (  # noqa: E402,F401  (milestone 8 .ang and .ctf writer
     case_m8_write_ang_sdss, case_m8_write_ang_sdss_ferrite, case_m8_write_ang_sdss_window, case_m8_write_ang_ti,
     case_m8_write_ctf_sdss, case_m8_write_ctf_sdss_ferrite, case_m8_write_ctf_sdss_window, case_m8_write_ctf_ti)
 from grain_cases import case_m5_grains_sdss, case_m5_grains_ti, case_m5_grains_ti_full  # noqa: E402,F401  (m5, F11 and F12)
+from simulation_cases import (  # noqa: E402,F401  (milestone 6 Kikuchi simulation and figure F14)
+    case_m6_geometrical_simulation_nickel, case_m6_geometrical_simulation_tilted, case_m6_kikuchi_lattice,
+    case_m6_kikuchi_reflectors_al2cu, case_m6_kikuchi_reflectors_ni, case_m6_kikuchi_reflectors_ti,
+    case_m6_kikuchi_scattering_tables, case_m6_kinematic_master_pattern_ni)
 from texture_cases import case_m5_texture_cubic, case_m5_texture_ti, case_m5_texture_ti_full  # noqa: E402,F401  (m5, F13)
 
 warnings.filterwarnings("ignore")
