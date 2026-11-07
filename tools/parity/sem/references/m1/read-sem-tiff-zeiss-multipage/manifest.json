@@ -1,0 +1,138 @@
+{
+  "arrays": {
+    "vendor_tag": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "vendor_tag.bin",
+      "note": "the vendor tag's bytes as stored, planted by SEMImageMetadataTests",
+      "rtol": 0.0,
+      "sha256": "b42eba6546815b816fa0e463c4afda3985b705c0a6163fb96a5b757a09f2fecc",
+      "shape": [
+        25998
+      ]
+    }
+  },
+  "case": "m1/read-sem-tiff-zeiss-multipage",
+  "inputs": [
+    {
+      "path": "sem-data/rsciio/tiff/tiff_Zeiss_SEM.zip",
+      "sha256": "a4b4532fef22e9222682429dbe4723fff62e82bcaf17ad5142122c9999217950"
+    }
+  ],
+  "milestone": 1,
+  "reference": {
+    "function": "hyperspy.api.load (rsciio.tiff)",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "mean": {
+      "atol": 0.0,
+      "rtol": 1e-07,
+      "value": 64.13487164179485
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "axes": [
+      {
+        "name": "width",
+        "offset": 0.0,
+        "scale": 1.2326225e-08,
+        "size": 2048,
+        "units": "m"
+      },
+      {
+        "name": "height",
+        "offset": 0.0,
+        "scale": 1.2326225e-08,
+        "size": 1536,
+        "units": "m"
+      }
+    ],
+    "dtype": "uint8",
+    "general": {
+      "authors": "AREK",
+      "date": "2016-04-18",
+      "original_filename": "ZEISS_SEM_multipage.tif",
+      "time": "22:42:02"
+    },
+    "image": {
+      "height": 1536,
+      "pages": 2,
+      "tag": 34118,
+      "tag_type": 2,
+      "vendor": "zeiss",
+      "width": 2048
+    },
+    "pixels": {
+      "dtype": "uint8",
+      "sha256": "970b2bdf68b1582c7a964846001a9fd17f62ff2fcfedacf82b521f2b4fc2bb08",
+      "shape": [
+        2,
+        1536,
+        2048
+      ]
+    },
+    "sem_metadata": {
+      "Detector": {
+        "detector_type": "InLens"
+      },
+      "Stage": {
+        "rotation": 113.6,
+        "tilt": 52.6,
+        "x": 71.4538,
+        "y": 91.3161,
+        "z": 41.676
+      },
+      "beam_current": 4.7,
+      "beam_energy": 1.8,
+      "dwell_time": 1e-07,
+      "magnification": "4.53 K X",
+      "microscope": "Auriga 60-46-17",
+      "working_distance": 4.5
+    },
+    "shape": [
+      2,
+      1536,
+      2048
+    ],
+    "tifffile_cz_sem": {
+      "ap_chamber_pressure": [
+        "Chamber",
+        0.0,
+        "Pa"
+      ],
+      "ap_line_counter": [
+        "Line Counter",
+        1535
+      ],
+      "ap_spotsize": [
+        "Spot Size",
+        1
+      ],
+      "dp_image_store": [
+        "Store resolution",
+        "2048 * 1536"
+      ],
+      "keys": 647
+    },
+    "zip_member": {
+      "name": "ZEISS_SEM_multipage.tif",
+      "sha256": "c0b4a4b3335f8727612571171da2be55f331d14e853e4cd69b2c929075dd9804"
+    }
+  }
+}

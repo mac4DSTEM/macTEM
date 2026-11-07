@@ -1,10 +1,10 @@
 //
 //  SEMImageMetadataTests.swift
-//  The SEM TIFF record (TEMCore/SEM/SEMImageMetadata.swift) against RosettaSciIO 0.15.0 and tifffile 2026.9.20: the parity
-//  part reads the vendor tag of each of RosettaSciIO's eight SEM test TIFFs (the tag's bytes, Fixtures/sem-tiff/*.bin, planted
-//  into a TIFF of the file's own width and height) and compares every mapped value with Fixtures/sem-tiff/sem-tiff-reference.json,
-//  which tools/parity/sem/sem-image/reference.py wrote from the real files: texts exactly, numbers to 1e-9 relative, nil
-//  exactly where the reference has no value. The rules part pins what the reference cannot (a Tescan header, a databar
+//  The SEM TIFF record (TEMCore/SEM/SEMImageMetadata.swift) against RosettaSciIO 0.15.0 and tifffile (tools/parity/sem's
+//  pinned stack): the parity part reads the vendor tag of each of RosettaSciIO's eight SEM test TIFFs (the tag's bytes, held in
+//  each `m1/read-sem-tiff-*` bundle that tools/parity/sem/emit.py wrote from the real file, planted into a TIFF of the file's
+//  own width and height) and compares every mapped value with that bundle: texts exactly, numbers to 1e-9 relative, axes at
+//  RosettaSciIO's rtol 1e-4, nil exactly where the reference has no value. The rules part pins what the reference cannot (a Tescan header, a databar
 //  height that disagrees with the image, the Zeiss unit conversion and rounding, the date shapes, Python's text rules) on
 //  planted bytes, and the image part the axes and the crop.
 //
@@ -19,91 +19,105 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
 
     // MARK: Parity with RosettaSciIO on its SEM test files
 
+    /// The harness's bundles of RosettaSciIO's eight SEM test TIFFs (tools/parity/sem/emit.py, `m1/read-sem-tiff-*`).
+    static let semTIFFCases = ["m1/read-sem-tiff-fei-helios", "m1/read-sem-tiff-fei-helios-16bits", "m1/read-sem-tiff-fei-navcam",
+                               "m1/read-sem-tiff-fei-navcam-no-irbeam", "m1/read-sem-tiff-fei-navcam-bad-floats", "m1/read-sem-tiff-zeiss",
+                               "m1/read-sem-tiff-zeiss-1k", "m1/read-sem-tiff-zeiss-multipage"]
+
     func testEveryRosettaSciIOSEMFileReadsAsTheReference() throws {
-        let reference = try Self.reference()
-        let files = try XCTUnwrap(reference["files"] as? [String: [String: Any]])
-        XCTAssertEqual(files.count, 8, "eight SEM test files: five Helios, three Zeiss")
-        for (name, entry) in files.sorted(by: { $0.key < $1.key }) {
-            let tag = try XCTUnwrap(entry["tag"] as? Int, name)
-            let bytes = try Self.fixture(try XCTUnwrap(entry["tagBytes"] as? String, name))
-            let width = try XCTUnwrap(entry["width"] as? Int), height = try XCTUnwrap(entry["height"] as? Int)
+        for name in Self.semTIFFCases {
+            let ref = try SEMParityReference.load(name)
+            let image = try XCTUnwrap(ref.values["image"] as? [String: Any], name)
+            let tag = try XCTUnwrap(image["tag"] as? Int, name)
+            let width = try XCTUnwrap(image["width"] as? Int), height = try XCTUnwrap(image["height"] as? Int)
+            let bytes = try ref.array("vendor_tag").values.map { UInt8($0) }
             let got = try XCTUnwrap(SEMImageMetadata.read(data: PlantedSEMTIFF(width: width, height: height, tag: tag, bytes: bytes).build()), name)
-            let vendor = try XCTUnwrap(entry["vendor"] as? String)
-            XCTAssertEqual(got.vendor, vendor == "fei" ? .thermo : .zeiss, name)
-            XCTAssertEqual(got.imageWidth, width, name)
-            XCTAssertEqual(got.imageHeight, height, name)
+            try check(got, against: ref, name)
+            // A committed fixture is read whole as well: the record of the file is the record of its planted tag.
+            if let url = ref.inputURL(), ref.manifest.inputs[0].path.hasPrefix("fixtures/") {
+                let whole = try XCTUnwrap(SEMImageMetadata.read(path: url.path), "\(name): no SEM record from the file")
+                try check(whole, against: ref, "\(name) (whole file)")
+            }
+        }
+    }
 
-            // The axes RosettaSciIO's vendor branch gives the file (metres, or none).
-            let axes = try XCTUnwrap(entry["axes"] as? [[String: Any]])
-            for axis in axes {
-                guard let axisName = axis["name"] as? String, ["width", "height"].contains(axisName) else { continue }
-                let scale = axisName == "width" ? got.pixelSizeX : got.pixelSizeY
-                if let units = axis["units"] as? String {
-                    XCTAssertEqual(units, "m", name)
-                    // RosettaSciIO's own tolerance for the axes (test_tiff.py, `test_read_FEI_navcam_metadata`: rtol 1e-4). Its
-                    // `_order_axes_by_name` gives the height axis the x scale (HFW / ResolutionX) and the width axis the y scale; on
-                    // the navcam file (768 x 512 scan, non-square by 2.5e-6) that swap is inside this tolerance, and macTEM keeps
-                    // each scale on its own axis (docs/parity.md).
-                    assertClose(scale, axis["scale"] as? Double, "\(name) \(axisName) scale", rtol: 1e-4)
-                } else {
-                    XCTAssertNil(scale, "\(name) \(axisName): RosettaSciIO leaves the file uncalibrated")
-                }
-            }
+    private func check(_ got: SEMImageMetadata, against ref: SEMParityReference, _ name: String) throws {
+        let image = try XCTUnwrap(ref.values["image"] as? [String: Any], name)
+        let vendor = try XCTUnwrap(image["vendor"] as? String, name)
+        let height = try XCTUnwrap(image["height"] as? Int, name)
+        XCTAssertEqual(got.vendor, vendor == "fei" ? .thermo : .zeiss, name)
+        XCTAssertEqual(got.imageWidth, image["width"] as? Int, name)
+        XCTAssertEqual(got.imageHeight, height, "\(name) height, the whole frame as RosettaSciIO reads it")
 
-            // The mapped metadata (`mapping_fei`, `mapping_cz_sem`), key by key; a key the reference lacks reads nil.
-            let md = try XCTUnwrap(entry["metadata"] as? [String: Any])
-            func number(_ key: String) -> Double? {
-                if let d = md[key] as? Double { return d }
-                if let i = md[key] as? Int { return Double(i) }
-                return nil
-            }
-            let sem = "Acquisition_instrument.SEM."
-            XCTAssertFalse(got.rawFields.isEmpty, "\(name): the Vendor fields disclosure lists every key of the tag")
-            XCTAssertEqual(got.pixelSizeSource != nil, got.pixelSizeX != nil,
-                           "\(name): the Calibration Source row names the vendor field exactly when the file is calibrated")
-            assertClose(got.beamEnergyKV, number(sem + "beam_energy"), "\(name) beam energy")
-            assertClose(got.workingDistanceMM, number(sem + "working_distance"), "\(name) working distance")
-            assertClose(got.dwellS, number(sem + "dwell_time"), "\(name) dwell")
-            assertClose(got.beamCurrentNA, number(sem + "beam_current"), "\(name) beam current")
-            assertClose(got.stageX, number(sem + "Stage.x"), "\(name) stage x")
-            assertClose(got.stageY, number(sem + "Stage.y"), "\(name) stage y")
-            assertClose(got.stageZ, number(sem + "Stage.z"), "\(name) stage z")
-            assertClose(got.stageRotationDeg, number(sem + "Stage.rotation"), "\(name) stage rotation")
-            assertClose(got.stageTiltDeg, number(sem + "Stage.tilt"), "\(name) stage tilt")
-            XCTAssertEqual(got.instrument, md[sem + "microscope"] as? String, "\(name) microscope")
-            XCTAssertEqual(got.user, md["General.authors"] as? String, "\(name) authors")
-            XCTAssertEqual(got.date, md["General.date"] as? String, "\(name) date")
-            XCTAssertEqual(got.time, md["General.time"] as? String, "\(name) time")
-            if let magText = md[sem + "magnification"] as? String {
-                XCTAssertEqual(got.magnificationText, magText, "\(name) magnification text")
-                XCTAssertNil(got.magnification, name)
+        // The axes RosettaSciIO's vendor branch gives the file (metres, or none).
+        let axes = try XCTUnwrap(ref.values["axes"] as? [[String: Any]], name)
+        for axis in axes {
+            guard let axisName = axis["name"] as? String, ["width", "height"].contains(axisName) else { continue }
+            let scale = axisName == "width" ? got.pixelSizeX : got.pixelSizeY
+            XCTAssertEqual(axis["size"] as? Int, axisName == "width" ? got.imageWidth : got.imageHeight, "\(name) \(axisName) size")
+            if let units = axis["units"] as? String {
+                XCTAssertEqual(units, "m", name)
+                // RosettaSciIO's own tolerance for the axes (test_tiff.py, `test_read_FEI_navcam_metadata`: rtol 1e-4). Its
+                // `_order_axes_by_name` gives the height axis the x scale (HFW / ResolutionX) and the width axis the y scale; on
+                // the navcam file (768 x 512 scan, non-square by 2.5e-6) that swap is inside this tolerance, and macTEM keeps
+                // each scale on its own axis (docs/parity.md).
+                assertClose(scale, axis["scale"] as? Double, "\(name) \(axisName) scale", rtol: 1e-4)
             } else {
-                assertClose(got.magnification, number(sem + "magnification"), "\(name) magnification")
-                XCTAssertNil(got.magnificationText, name)
+                XCTAssertNil(scale, "\(name) \(axisName): RosettaSciIO leaves the file uncalibrated")
             }
-            if vendor == "zeiss" {
-                XCTAssertEqual(got.detector, md[sem + "Detector.detector_type"] as? String, "\(name) detector")
-                XCTAssertEqual(got.stageUnit, "mm", name)
-                XCTAssertNil(got.databarRows, "\(name): a Zeiss file is never cropped")
-                let cz = try XCTUnwrap(entry["zeiss"] as? [String: Any])
-                XCTAssertEqual(got.spotSize, (cz["ap_spotsize"] as? [Any])?[1] as? Double ?? ((cz["ap_spotsize"] as? [Any])?[1] as? Int).map(Double.init), "\(name) spot")
-                if let pressure = cz["ap_chamber_pressure"] as? [Any], pressure.count == 3 {
-                    XCTAssertEqual(pressure[2] as? String, "Pa", name)
-                    assertClose(got.chamberPressurePa, pressure[1] as? Double ?? (pressure[1] as? Int).map(Double.init), "\(name) pressure")
-                } else {
-                    XCTAssertNil(got.chamberPressurePa, name)
-                }
+        }
+
+        // The mapped metadata (`mapping_fei`, `mapping_cz_sem`, through HyperSpy's load), key by key; a key the reference
+        // lacks reads nil (the navcam file's unparseable floats are dropped there, and read nil here).
+        let sem = ref.values["sem_metadata"] as? [String: Any] ?? [:]
+        let stage = sem["Stage"] as? [String: Any] ?? [:]
+        let general = ref.values["general"] as? [String: Any] ?? [:]
+        func number(_ v: Any?) -> Double? { (v as? Double) ?? (v as? Int).map(Double.init) }
+        XCTAssertFalse(got.rawFields.isEmpty, "\(name): the Vendor fields disclosure lists every key of the tag")
+        XCTAssertEqual(got.pixelSizeSource != nil, got.pixelSizeX != nil,
+                       "\(name): the Calibration Source row names the vendor field exactly when the file is calibrated")
+        assertClose(got.beamEnergyKV, number(sem["beam_energy"]), "\(name) beam energy")
+        assertClose(got.workingDistanceMM, number(sem["working_distance"]), "\(name) working distance")
+        assertClose(got.dwellS, number(sem["dwell_time"]), "\(name) dwell")
+        assertClose(got.beamCurrentNA, number(sem["beam_current"]), "\(name) beam current")
+        assertClose(got.stageX, number(stage["x"]), "\(name) stage x")
+        assertClose(got.stageY, number(stage["y"]), "\(name) stage y")
+        assertClose(got.stageZ, number(stage["z"]), "\(name) stage z")
+        assertClose(got.stageRotationDeg, number(stage["rotation"]), "\(name) stage rotation")
+        assertClose(got.stageTiltDeg, number(stage["tilt"]), "\(name) stage tilt")
+        XCTAssertEqual(got.instrument, sem["microscope"] as? String, "\(name) microscope")
+        XCTAssertEqual(got.user, general["authors"] as? String, "\(name) authors")
+        XCTAssertEqual(got.date, general["date"] as? String, "\(name) date")
+        XCTAssertEqual(got.time, general["time"] as? String, "\(name) time")
+        if let magText = sem["magnification"] as? String {
+            XCTAssertEqual(got.magnificationText, magText, "\(name) magnification text")
+            XCTAssertNil(got.magnification, name)
+        } else {
+            assertClose(got.magnification, number(sem["magnification"]), "\(name) magnification")
+            XCTAssertNil(got.magnificationText, name)
+        }
+        if vendor == "zeiss" {
+            XCTAssertEqual(got.detector, (sem["Detector"] as? [String: Any])?["detector_type"] as? String, "\(name) detector")
+            XCTAssertEqual(got.stageUnit, "mm", name)
+            XCTAssertNil(got.databarRows, "\(name): a Zeiss file is never cropped")
+            let cz = try XCTUnwrap(ref.values["tifffile_cz_sem"] as? [String: Any], name)
+            XCTAssertEqual(got.spotSize, number((cz["ap_spotsize"] as? [Any])?[1]), "\(name) spot")
+            if let pressure = cz["ap_chamber_pressure"] as? [Any], pressure.count == 3 {
+                XCTAssertEqual(pressure[2] as? String, "Pa", name)
+                assertClose(got.chamberPressurePa, number(pressure[1]), "\(name) pressure")
             } else {
-                XCTAssertEqual(got.stageUnit, "m", name)
-                let fei = try XCTUnwrap(entry["fei"] as? [String: Any])
-                XCTAssertEqual(got.detector, fei["DetectorName"] as? String, "\(name) detector (tifffile's [Detectors] Name)")
-                XCTAssertEqual(got.spotSize, (fei["Spot"] as? Int).map(Double.init) ?? fei["Spot"] as? Double, "\(name) spot ('' reads nil)")
-                assertClose(got.chamberPressurePa, fei["ChPressure"] as? Double, "\(name) chamber pressure ('' reads nil)")
-                let bar = try XCTUnwrap(fei["DatabarHeight"] as? Int), rows = try XCTUnwrap(fei["ResolutionY"] as? Int)
-                XCTAssertEqual(rows + bar, height, "\(name): every Helios file's databar plus scan is the image")
-                XCTAssertEqual(got.databarRows, bar, "\(name) databar")
-                XCTAssertEqual(got.scanRows, rows, name)
+                XCTAssertNil(got.chamberPressurePa, name)
             }
+        } else {
+            XCTAssertEqual(got.stageUnit, "m", name)
+            let fei = try XCTUnwrap(ref.values["tifffile_fei"] as? [String: Any], name)
+            XCTAssertEqual(got.detector, fei["DetectorName"] as? String, "\(name) detector (tifffile's [Detectors] Name)")
+            XCTAssertEqual(got.spotSize, number(fei["Spot"]), "\(name) spot ('' reads nil)")
+            assertClose(got.chamberPressurePa, number(fei["ChPressure"]), "\(name) chamber pressure ('' reads nil)")
+            let bar = try XCTUnwrap(fei["DatabarHeight"] as? Int, name), rows = try XCTUnwrap(fei["ResolutionY"] as? Int, name)
+            XCTAssertEqual(rows + bar, height, "\(name): every Helios file's databar plus scan is the image")
+            XCTAssertEqual(got.databarRows, bar, "\(name) databar")
+            XCTAssertEqual(got.scanRows, rows, name)
         }
     }
 
@@ -366,44 +380,6 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
     /// The two SEM TIFFs the parity harness commits (tools/parity/sem/fixtures) read as its bundles `m1/read-sem-tiff-fei-helios`
     /// and `m1/read-sem-tiff-zeiss` state (hyperspy.api.load over RosettaSciIO 0.15.0, D-SEM-16): the whole file through
     /// `SEMImageMetadata.read(path:)`, not only its tag bytes.
-    func testTheHarnessBundlesReadAsTheirReference() throws {
-        for (name, vendor) in [("m1/read-sem-tiff-fei-helios", SEMImageMetadata.Vendor.thermo), ("m1/read-sem-tiff-zeiss", .zeiss)] {
-            let ref = try SEMParityReference.load(name)
-            let url = try XCTUnwrap(ref.inputURL(), name)
-            let got = try XCTUnwrap(SEMImageMetadata.read(path: url.path), "\(name): no SEM record")
-            XCTAssertEqual(got.vendor, vendor, name)
-            let axes = try XCTUnwrap(ref.values["axes"] as? [[String: Any]], name)
-            XCTAssertEqual(axes.count, 2, name)
-            XCTAssertEqual(got.imageWidth, axes[0]["size"] as? Int, "\(name) width")
-            XCTAssertEqual(got.imageHeight, axes[1]["size"] as? Int, "\(name) height, the whole frame as RosettaSciIO reads it")
-            XCTAssertEqual(axes[0]["units"] as? String, "m", name)
-            assertClose(got.pixelSizeX, axes[0]["scale"] as? Double, "\(name) x scale")
-            assertClose(got.pixelSizeY, axes[1]["scale"] as? Double, "\(name) y scale")
-            let general = try XCTUnwrap(ref.values["general"] as? [String: Any], name)
-            XCTAssertEqual(got.date, general["date"] as? String, "\(name) date")
-            XCTAssertEqual(got.time, general["time"] as? String, "\(name) time")
-            XCTAssertEqual(got.user, general["authors"] as? String, "\(name) user")
-            let sem = try XCTUnwrap(ref.values["sem_metadata"] as? [String: Any], name)
-            func number(_ v: Any?) -> Double? { (v as? Double) ?? (v as? Int).map(Double.init) }
-            XCTAssertEqual(got.instrument, sem["microscope"] as? String, "\(name) microscope")
-            assertClose(got.beamEnergyKV, number(sem["beam_energy"]), "\(name) beam energy")
-            assertClose(got.workingDistanceMM, number(sem["working_distance"]), "\(name) working distance")
-            assertClose(got.beamCurrentNA, number(sem["beam_current"]), "\(name) beam current")
-            assertClose(got.dwellS, number(sem["dwell_time"]), "\(name) dwell")
-            if let text = sem["magnification"] as? String {
-                XCTAssertEqual(got.magnificationText, text, "\(name) magnification as text")
-            } else {
-                assertClose(got.magnification, number(sem["magnification"]), "\(name) magnification")
-            }
-            let stage = try XCTUnwrap(sem["Stage"] as? [String: Any], name)
-            assertClose(got.stageX, number(stage["x"]), "\(name) stage x")
-            assertClose(got.stageY, number(stage["y"]), "\(name) stage y")
-            assertClose(got.stageZ, number(stage["z"]), "\(name) stage z")
-            assertClose(got.stageRotationDeg, number(stage["rotation"]), "\(name) stage rotation")
-            assertClose(got.stageTiltDeg, number(stage["tilt"]), "\(name) stage tilt")
-        }
-    }
-
     private func assertClose(_ got: Double?, _ want: Double?, _ what: String, rtol: Double = 1e-9,
                              file: StaticString = #filePath, line: UInt = #line) {
         switch (got, want) {
@@ -413,12 +389,6 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
             else { XCTAssertLessThanOrEqual(abs(g - w) / abs(w), rtol, "\(what): got \(g), reference \(w)", file: file, line: line) }
         default: XCTFail("\(what): got \(String(describing: got)), reference \(String(describing: want))", file: file, line: line)
         }
-    }
-
-    static func reference() throws -> [String: Any] {
-        let url = try XCTUnwrap(Bundle(for: SEMImageMetadataTests.self).url(forResource: "sem-tiff-reference", withExtension: "json"),
-                                "Fixtures/sem-tiff/sem-tiff-reference.json is copied flat into the test bundle")
-        return try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
     }
 
     static func fixture(_ name: String) throws -> [UInt8] {

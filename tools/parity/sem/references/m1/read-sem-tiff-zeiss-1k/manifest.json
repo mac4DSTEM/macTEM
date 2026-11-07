@@ -1,0 +1,136 @@
+{
+  "arrays": {
+    "vendor_tag": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "vendor_tag.bin",
+      "note": "the vendor tag's bytes as stored, planted by SEMImageMetadataTests",
+      "rtol": 0.0,
+      "sha256": "ba2bd532cd93d2a1c2613d8fc59b972e60cccf31b861cf098538ca69a16acfd3",
+      "shape": [
+        30002
+      ]
+    }
+  },
+  "case": "m1/read-sem-tiff-zeiss-1k",
+  "inputs": [
+    {
+      "path": "sem-data/rsciio/tiff/tiff_Zeiss_SEM.zip",
+      "sha256": "a4b4532fef22e9222682429dbe4723fff62e82bcaf17ad5142122c9999217950"
+    }
+  ],
+  "milestone": 1,
+  "reference": {
+    "function": "hyperspy.api.load (rsciio.tiff)",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "mean": {
+      "atol": 0.0,
+      "rtol": 1e-07,
+      "value": 163.42735036214194
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "axes": [
+      {
+        "name": "width",
+        "offset": 0.0,
+        "scale": 2.614514e-06,
+        "size": 1024,
+        "units": "m"
+      },
+      {
+        "name": "height",
+        "offset": 0.0,
+        "scale": 2.614514e-06,
+        "size": 768,
+        "units": "m"
+      }
+    ],
+    "dtype": "uint8",
+    "general": {
+      "authors": "LIM",
+      "date": "2015-12-23",
+      "original_filename": "test_tiff_Zeiss_SEM_1k.tif",
+      "time": "09:40:32"
+    },
+    "image": {
+      "height": 768,
+      "pages": 1,
+      "tag": 34118,
+      "tag_type": 2,
+      "vendor": "zeiss",
+      "width": 1024
+    },
+    "pixels": {
+      "dtype": "uint8",
+      "sha256": "26377ea4b5a9b06e216826fbde3334c1c695e12de2c352771291376f2b31f73d",
+      "shape": [
+        768,
+        1024
+      ]
+    },
+    "sem_metadata": {
+      "Detector": {
+        "detector_type": "HE-SE2"
+      },
+      "Stage": {
+        "rotation": 10.2,
+        "tilt": -0.0,
+        "x": 75.6442,
+        "y": 60.4901,
+        "z": 25.193
+      },
+      "beam_current": 1.0,
+      "beam_energy": 25.0,
+      "dwell_time": 5e-08,
+      "magnification": 105.0,
+      "microscope": "Merlin-61-08",
+      "working_distance": 14.808
+    },
+    "shape": [
+      768,
+      1024
+    ],
+    "tifffile_cz_sem": {
+      "ap_chamber_pressure": [
+        "Chamber",
+        0.000187,
+        "Pa"
+      ],
+      "ap_line_counter": [
+        "Line Counter",
+        692
+      ],
+      "ap_spotsize": [
+        "Spot Size",
+        1
+      ],
+      "dp_image_store": [
+        "Store resolution",
+        "1024 * 768"
+      ],
+      "keys": 724
+    },
+    "zip_member": {
+      "name": "test_tiff_Zeiss_SEM_1k.tif",
+      "sha256": "c6c20b1f01fc33f23c3267941fb86748b3bc9414c38325873d450d8a6d23ece7"
+    }
+  }
+}

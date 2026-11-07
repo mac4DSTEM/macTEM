@@ -232,7 +232,8 @@ package final class EBSDSession {
             let mb = Double(result.bytes.count) / 1_000_000
             let nlpar = run.nlpar.isOn ? nlparLambda.map { " · NLPAR λ \(String(format: "%.3f", $0))" } ?? "" : ""
             onEvent?("Processed \(result.dataset.patternCount) patterns in \(String(format: "%.1f", seconds)) s · \(String(format: "%.1f", mb)) MB in memory" + nlpar)
-            setPatternDisplay(.processed)
+            // Already showing Processed: re-draw, so the pane trades the one-pattern preview for the run (the whole-scan stages show).
+            if patternDisplay == .processed { showPattern(at: shown) } else { setPatternDisplay(.processed) }
         } else if let failure {
             onEvent?("Error: \(failure)")
         }
