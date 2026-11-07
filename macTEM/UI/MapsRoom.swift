@@ -8,6 +8,10 @@
 //        Phase, the colour bar's range for a property). Presentation only: the pictures and words are `OrientationMaps`' (TEMCore), the
 //        state `OrientationMapSession`'s (TEMSession).
 //
+//  P5-04 completes it: Segment (the toolbar's verb) adds the grain analysis' layers (Grains, KAM, GOS, GND, Schmid factor), the boundaries
+//  and the selected grain's outline and slip traces over the map, and the bottom pane's Grains, Pole figures and ODF tabs beside the key
+//  (`MapsRoomAnalysis.swift`).
+//
 //  KEYS: the room's root is the one focusable container (as the Patterns room's): ← → ↑ ↓ step the pinned point by one (⇧ by ten), Space
 //  pins the hovered one. A click on the map at 1× pins the point under it.
 //
@@ -66,7 +70,7 @@ struct MapsRoom: View {
                                   topName: "Map and pattern", minimumTop: 160, minimumBottom: LayoutPolicy.mapsKeyPaneMinimum) {
                     upper(document)
                 } bottom: {
-                    MapsKeyPane(session: session)
+                    MapsBottomPane(session: session, state: state)
                 }
                 .id(document.id)
                 .modifier(MapsKeyedRoom(session: session, patterns: patternsDataset.map { _ in appState.ebsd }))
@@ -90,7 +94,7 @@ struct MapsRoom: View {
             }
         }
         .fileExporter(isPresented: Binding(get: { state.isExporting }, set: { state.isExporting = $0 }),
-                      document: PatternsExportFile(data: state.exportData), contentType: .png, defaultFilename: state.exportName) { result in
+                      document: MapsExportFile(data: state.exportData), contentType: state.exportType, defaultFilename: state.exportName) { result in
             switch result {
             case .success(let url):
                 appState.statusText = "Exported \(url.lastPathComponent)"
@@ -101,6 +105,16 @@ struct MapsRoom: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("maps.room")
     }
+}
+
+/// The bytes the Maps room's save panel writes: a PNG figure or the grain table's CSV.
+struct MapsExportFile: FileDocument {
+    static var readableContentTypes: [UTType] { [.png, .commaSeparatedText] }
+    var data: Data
+
+    init(data: Data) { self.data = data }
+    init(configuration: ReadConfiguration) throws { data = configuration.file.regularFileContents ?? Data() }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 
 // MARK: - The keys
@@ -202,6 +216,12 @@ struct MapPane: View {
                     }
                 } else {
                     Rectangle().fill(.quaternary).frame(width: box.width, height: box.height)
+                }
+                if session.analysis != nil {
+                    MapsAnalysisOverlay(session: session, geometry: geometry)
+                        .frame(width: box.width, height: box.height)
+                        .allowsHitTesting(false)
+                        .accessibilityIdentifier("maps.grain.outline")
                 }
                 ScanMarker(center: geometry.panePoint(of: ImagePoint(x: Double(session.pinned.column), y: Double(session.pinned.row))),
                            pointsPerPixel: geometry.pointsPerPixel)
@@ -361,6 +381,23 @@ struct MapsKeyPane: View {
                                 .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
                         }
                         Text("Its colormap and window are the Display section's.").font(.caption).foregroundStyle(.secondary)
+                    }
+                case .derived(.grains):
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Grains").font(.headline)
+                        Text(verbatim: session.analysis.map { MapsRoomFormat.grainSummary($0) } ?? "")
+                            .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                        Text("Each grain its own colour; grey: regions below the smallest grain; black: not indexed.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                case .derived(let derived):
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(verbatim: derived.unit.isEmpty ? derived.title : "\(derived.title) (\(derived.unit))").font(.headline)
+                        if let range = session.raster?.valueRange {
+                            Text(verbatim: "\(UnitDisplay.number(range.lowerBound, digits: 4)) to \(UnitDisplay.number(range.upperBound, digits: 4))")
+                                .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                        }
+                        Text(MapsRoomFormat.derivedNote(derived, load: session.loadDirection)).font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }

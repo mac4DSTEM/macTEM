@@ -16,6 +16,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
     case virtualBSE, imageQuality, averageDotProduct
     case houghIndexing, dictionaryIndexing, orientationSimilarity, kikuchiOverlay, kinematicalSimulation
     case orientationMap, ipfColours
+    case grains, kam, gos, gnd, schmid, texture
     case angWriter, ctfWriter
     case edsLines, cliffLorimer
 
@@ -43,6 +44,12 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
         case .kinematicalSimulation: "Kinematical simulation"
         case .orientationMap: "Crystal map"
         case .ipfColours: "IPF colour key"
+        case .grains: "Grains and boundaries"
+        case .kam: "Kernel average misorientation"
+        case .gos: "Grain orientation spread"
+        case .gnd: "GND density"
+        case .schmid: "Schmid factors and slip traces"
+        case .texture: "Pole figures and ODF"
         case .angWriter: "EDAX .ang writer"
         case .ctfWriter: "Oxford .ctf writer"
         case .edsLines: "Line intensities"
@@ -91,6 +98,18 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
             "The orientations, phases and properties of each point held as orix's CrystalMap, the Euler angles in Bunge's convention."
         case .ipfColours:
             "Each orientation coloured by the direction it puts along the sample axis, in the TSL key of its phase's Laue group, as orix's IPFColorKeyTSL does."
+        case .grains:
+            "Grain and phase boundaries where neighbouring points are misoriented by more than the boundary angle, each pair with its phase's symmetry, and grains by flood fill above the smallest size, as DefDAP's find_boundaries and find_grains do."
+        case .kam:
+            "Each point's mean misorientation with its four first neighbours of the same phase, with crystal symmetry, neighbours above the KAM maximum left out, on DefDAP's neighbours and boundary angle."
+        case .gos:
+            "Each grain's mean orientation as DefDAP's calc_average_ori, each point's misorientation from it (GROD), and the grain orientation spread as the mean GROD angle, as DefDAP's calc_grod does."
+        case .gnd:
+            "The geometrically necessary dislocation density from the lattice curvature by the Nye tensor, the L1 norm of its nine components with a Burgers vector of 1.4 Å, as DefDAP's calc_nye does with its two derivatives kept apart."
+        case .schmid:
+            "Each grain's largest Schmid factor of its slip systems for the load axis, and the traces of their planes on the map, as DefDAP's calc_average_schmid_factors and calc_slip_traces do."
+        case .texture:
+            "Pole figures and the inverse pole figure density on an equal-area grid, smoothed, in multiples of a random distribution, as orix's pole_density_function does; ODF sections as the kernel density with MTEX's de la Vallée Poussin kernel of half-width 10°."
         case .angWriter:
             "The crystal map written as an EDAX TSL .ang file (Euler angles in radians, the phases' symmetry and lattice in the header), as orix's .ang writer writes it."
         case .ctfWriter:
@@ -143,6 +162,16 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
             ["Rowenhorst et al. 2015, Modelling Simul. Mater. Sci. Eng. 23, 083501 (rotation conventions)", Self.orix]
         case .ipfColours:
             ["Nolze and Hielscher 2016, J. Appl. Cryst. 49, 1786", Self.orix]
+        case .grains:
+            ["Humphreys 2001, J. Mater. Sci. 36, 3833", Self.defdap]
+        case .kam, .gos:
+            ["Wright, Nowell and Field 2011, Microsc. Microanal. 17, 316", Self.defdap]
+        case .gnd:
+            ["Pantleon 2008, Scripta Mater. 58, 994", "Ruggles and Fullwood 2013, Ultramicroscopy 133, 8", Self.defdap]
+        case .schmid:
+            ["Schmid and Boas 1935, Kristallplastizität, Springer", Self.defdap]
+        case .texture:
+            ["Hielscher and Schaeben 2008, J. Appl. Cryst. 41, 1024", Self.orix]
         case .angWriter, .ctfWriter:
             [Self.orix]
         case .edsLines:
@@ -168,8 +197,10 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
             SEMReferenceVersions.label("kikuchipy") + " and " + SEMReferenceVersions.label("diffsims")
         case .kinematicalSimulation:
             SEMReferenceVersions.label("kikuchipy")
-        case .orientationMap, .ipfColours, .angWriter, .ctfWriter:
+        case .orientationMap, .ipfColours, .angWriter, .ctfWriter, .texture:
             SEMReferenceVersions.label("orix")
+        case .grains, .kam, .gos, .gnd, .schmid:
+            SEMReferenceVersions.label("defdap")
         case .edsLines, .cliffLorimer:
             SEMReferenceVersions.label("exspy")
         }
@@ -179,6 +210,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
     static let pyebsdindex = "PyEBSDIndex: Rowenhorst, Callahan and Ånes 2024, J. Appl. Cryst. 57, 3"
     static let orix = "orix: Johnstone et al. 2020, J. Appl. Cryst. 53, 1293"
     static let exspy = "exspy, HyperSpy's EDS and EELS package (github.com/hyperspy/exspy)"
+    static let defdap = "DefDAP: Mechanics of Microstructures Group, The University of Manchester (github.com/MechMicroMan/DefDAP)"
     static let anes2020 = "Ånes, Hjelen, Sørensen, van Helvoort and Marthinsen 2020, IOP Conf. Ser.: Mater. Sci. Eng. 891, 012002"
 }
 

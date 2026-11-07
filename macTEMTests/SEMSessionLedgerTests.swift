@@ -175,6 +175,27 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         XCTAssertEqual(SEMSessionReport.defaultTitle(rows), "SEM session report", "the generated dataset has no file")
     }
 
+    /// A Maps figure cites what made its layer, and a layer the analysis makes carries the settings it ran with; every method the report
+    /// can cite names its literature and a pinned reference with its version. Red under: a KAM map cited as an IPF colour key; a
+    /// method without a reference.
+    func testMapsFiguresCiteTheirAnalysisAndEveryMethodIsReferenced() {
+        XCTAssertEqual(MapsRoomFormat.methods(of: .ipf(.z)), [.orientationMap, .ipfColours])
+        XCTAssertEqual(MapsRoomFormat.methods(of: .phase), [.orientationMap])
+        XCTAssertEqual(MapsRoomFormat.methods(of: .derived(.kam)), [.orientationMap, .kam])
+        XCTAssertEqual(MapsRoomFormat.methods(of: .derived(.gos)), [.orientationMap, .grains, .gos])
+        XCTAssertEqual(MapsRoomFormat.methods(of: .derived(.gnd)), [.orientationMap, .gnd])
+        XCTAssertEqual(MapsRoomFormat.methods(of: .derived(.schmid)), [.orientationMap, .grains, .schmid])
+        XCTAssertEqual(MapsRoomFormat.analysisFields(MapAnalysisSettings()).map(\.name), ["Boundary", "Smallest", "KAM maximum"])
+        XCTAssertEqual(MapsRoomFormat.analysisFields(MapAnalysisSettings()).map(\.value), ["5°", "10 points", "5°"])
+        let pinned = Set(SEMReferenceVersions.pinned.map { "\($0.name) \($0.version)" })
+        for method in SEMMethod.allCases {
+            XCTAssertFalse(method.title.isEmpty, method.rawValue)
+            XCTAssertTrue(method.sentence.hasSuffix("."), method.rawValue)
+            XCTAssertFalse(method.references.isEmpty, method.rawValue)
+            XCTAssertTrue(pinned.contains { method.parityReference.contains($0) }, "\(method.rawValue): \(method.parityReference)")
+        }
+    }
+
     /// The record keeps a room's lines with their times, not the "…ing" lines of a run in flight.
     @MainActor func testTheRecordKeepsTheEndingLines() {
         let record = SEMSessionRecord()
