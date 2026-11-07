@@ -7,6 +7,7 @@
 
 import Foundation
 import ImageIO
+import ImagoCore
 import Observation
 import ShellSpectroscopy
 import UniformTypeIdentifiers
