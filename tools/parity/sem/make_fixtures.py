@@ -22,6 +22,10 @@ Planted, deterministic, small, committed under fixtures/ with the hand-written t
   defines, and the Bunge angles of the first 2000 rows of orix-data's `Ti_orientations.ctf` (CC BY 4.0, the head
   committed as macTEMTests/Fixtures/sem/oxford/ti_orientations_head.ctf). `--orientation-only` writes just this file.
 
+* `grain_inputs.json`: the input of the grain bundle `m5/grains-ti`: a 90 x 120 corner of orix-data's
+  `Ti_orientations.ctf` (hcp titanium, CC BY 4.0), the file's own Bunge angles in degrees, read from the fetched dataset
+  (fetch-data.sh first). `--grain-only` writes just this file.
+
 Run with `python -I -B`.
 """
 
@@ -197,10 +201,37 @@ def write_orientation_inputs() -> None:
     (FIXTURES / "orientation_inputs.json").write_text(json.dumps(out) + "\n", encoding="utf-8")
 
 
+# The grain input (m5): rows 0-89, columns 0-119 of orix-data's Ti_orientations.ctf, so the Swift test of the grain
+# port runs without the 29 MB download (the whole map is figure F11's bundle, which skips without it).
+GRAIN_TI_CROP = (0, 0, 90, 120)  # row, column, height, width of the 381 x 507 map
+
+
+def write_grain_inputs() -> None:
+    import numpy as np
+
+    path = HERE.parent.parent.parent / "References" / "sem-data" / "orix" / "Ti_orientations.ctf"
+    ti = np.loadtxt(path, skiprows=1)
+    assert ti.shape == (381 * 507, 13), ti.shape
+    r0, c0, h, w = GRAIN_TI_CROP
+    eu = ti[:, :3].reshape(381, 507, 3)[r0:r0 + h, c0:c0 + w].reshape(-1, 3)
+    out = {
+        "note": "Input of tools/parity/sem bundle m5/grains-ti: rows 0-89, columns 0-119 of orix-data Ti_orientations.ctf "
+                "(CC BY 4.0), Bunge angles in degrees as written, rows first.",
+        "ti": {"shape": [h, w], "crop_row_column": [r0, c0], "step_um": 0.25, "euler_degrees": eu.tolist()},
+    }
+    (FIXTURES / "grain_inputs.json").write_text(json.dumps(out) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--orientation-only", action="store_true", help="write orientation_inputs.json only")
+    ap.add_argument("--grain-only", action="store_true", help="write grain_inputs.json only (needs fetch-data.sh)")
     args = ap.parse_args()
+    if args.grain_only:
+        FIXTURES.mkdir(exist_ok=True)
+        write_grain_inputs()
+        print("make_fixtures.py: grain_inputs.json written")
+        return 0
     FIXTURES.mkdir(exist_ok=True)
     write_orientation_inputs()
     if args.orientation_only:

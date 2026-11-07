@@ -40,6 +40,7 @@ from detector_cases import (  # noqa: E402,F401  (milestone 2 detector geometry 
 from writer_cases import (  # noqa: E402,F401  (milestone 8 .ang and .ctf writers and figure F18)
     case_m8_write_ang_sdss, case_m8_write_ang_sdss_ferrite, case_m8_write_ang_sdss_window, case_m8_write_ang_ti,
     case_m8_write_ctf_sdss, case_m8_write_ctf_sdss_ferrite, case_m8_write_ctf_sdss_window, case_m8_write_ctf_ti)
+from grain_cases import case_m5_grains_sdss, case_m5_grains_ti, case_m5_grains_ti_full  # noqa: E402,F401  (m5, F11 and F12)
 
 warnings.filterwarnings("ignore")
 
