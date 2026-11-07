@@ -245,11 +245,15 @@ nonisolated final class SEMKikuchiSimulationParityTests: XCTestCase {
         XCTAssertEqual(sim.lines.map(\.hkl), bare.lines.map(\.hkl), "the edges do not change which lines are drawn")
         XCTAssertEqual(sim.lines.map(\.pixel), bare.lines.map(\.pixel))
         XCTAssertTrue(sim.lines.allSatisfy { $0.edges.count == 2 && $0.edges.allSatisfy { $0.pixel.count == steps } })
-        SEMAssertParity(sim.lines.flatMap { $0.edges.flatMap { $0.gnomonic.flatMap { [$0.x, $0.y] } } }, try ref.array("edges_gnomonic"))
-        SEMAssertParity(sim.lines.flatMap { $0.edges.flatMap { $0.pixel.flatMap { [$0.x, $0.y] } } }, try ref.array("edges_px"))
-        // Every band shows on the pattern as two arcs, one either side of its centre line.
+        // The bundle holds no NaN: kikuchipy's masked points are 0 there and 0 in `edges_visible`.
+        let points = sim.lines.flatMap { $0.edges.flatMap(\.gnomonic) }
+        SEMAssertParity(points.map { (p: SIMD2<Double>) -> Double in p.x.isNaN ? 0 : 1 }, try ref.array("edges_visible"))
+        func unmasked(_ p: [SIMD2<Double>]) -> [Double] { p.flatMap { $0.x.isNaN ? [0, 0] : [$0.x, $0.y] } }
+        SEMAssertParity(unmasked(points), try ref.array("edges_gnomonic"))
+        SEMAssertParity(unmasked(sim.lines.flatMap { $0.edges.flatMap(\.pixel) }), try ref.array("edges_px"))
+        // Every band shows at least one arc beside its centre line (an edge can fall wholly outside r_max).
         for line in sim.lines {
-            XCTAssertTrue(line.edges.allSatisfy { !$0.pixelRuns.isEmpty }, "\(line.hkl) has an edge with no visible arc")
+            XCTAssertTrue(line.edges.contains { !$0.pixelRuns.isEmpty }, "\(line.hkl) has no visible edge")
         }
     }
 
@@ -297,7 +301,7 @@ nonisolated final class SEMKikuchiSimulationParityTests: XCTestCase {
         XCTAssertEqual(bandRows.count, overlay.simulation.lines.count)
         XCTAssertEqual(axisRows.count, overlay.simulation.zoneAxes.count)
         for (row, line) in zip(bandRows, overlay.simulation.lines) {
-            XCTAssertEqual(row[1...3].map { Double($0)! }, [line.hkl.x, line.hkl.y, line.hkl.z])
+            XCTAssertEqual(row[1...3].map { Double($0)! }, [line.hkl.x, line.hkl.y, line.hkl.z].map { $0.rounded() }, "the indices as integers")
             XCTAssertEqual(row[5...8].map { Double($0)!.bitPattern }, [line.pixel[0], line.pixel[1], line.pixel[2], line.pixel[3]].map(\.bitPattern))
             XCTAssertTrue(["{111}", "{200}", "{220}", "{311}"].contains(row[4]), row[4])
             XCTAssertGreaterThan(Double(row[9]) ?? 0, 0)

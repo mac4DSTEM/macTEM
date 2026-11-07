@@ -29,6 +29,7 @@ F64 = {"rtol": 1e-7, "atol": 0.0}
 F64Z = {"rtol": 1e-7, "atol": 1e-12}
 PX = {"rtol": 1e-7, "atol": 1e-6}
 MP = {"rtol": 1e-5, "atol": 1e-8}
+CIRCLE = {"rtol": 1e-5, "atol": 1e-8}  # orix's own get_circle tests: np.allclose defaults
 EXACT = {"rtol": 0.0, "atol": 0.0}
 
 CASES_FILE = Path(__file__).resolve().parent / "fixtures" / "simulation_cases.json"
@@ -259,8 +260,9 @@ def case_m6_geometrical_band_edges_nickel(ctx):
     """The band edges of figure F14's bands (#201): for each line kikuchipy draws on pattern (0, 0) of nickel_ebsd_large, the
     small circles at pi/2 - theta and pi/2 + theta about its reflector in the detector frame, as kikuchipy's `plot(mode="bands")`
     draws them (orix's `Vector3d.get_circle`, 360 steps), on the gnomonic plane where they face the screen (z > 0) and lie inside
-    the scan's r_max circle, NaN elsewhere, and in detector pixels by on_detector's formula. theta is diffsims'
-    `calculate_theta` at the file's beam energy on the file's phase with its lattice in Angstrom."""
+    the scan's r_max circle, and in detector pixels by on_detector's formula. A reference holds no NaN, so the points kikuchipy
+    masks are 0 in the coordinates and 0 in `edges_visible`. theta is diffsims' `calculate_theta` at the file's beam energy on
+    the file's phase with its lattice in Angstrom. Tolerance: orix's get_circle tests (np.allclose defaults)."""
     import kikuchipy as kp
     from diffpy.structure import Lattice, Structure
     from diffsims.crystallography import ReciprocalLatticeVector
@@ -307,6 +309,8 @@ def case_m6_geometrical_band_edges_nickel(ctx):
     edges_px = np.empty_like(edges_gn)
     edges_px[..., 0] = (edges_gn[..., 0] + pc[0] / pc[2] * det.aspect_ratio) / x_scale
     edges_px[..., 1] = (-edges_gn[..., 1] + pc[1] / pc[2]) / y_scale
+    visible = ~np.isnan(edges_gn).any(axis=-1)
+    edges_gn, edges_px = np.nan_to_num(edges_gn, nan=0.0), np.nan_to_num(edges_px, nan=0.0)
 
     b = Bundle(case, 6, "kikuchipy", "kikuchipy.simulations.KikuchiPatternSimulator.plot(mode='bands') edges "
                "(orix Vector3d.get_circle at pi/2 -+ theta) on on_detector's detector frame", ctx.out)
@@ -319,9 +323,10 @@ def case_m6_geometrical_band_edges_nickel(ctx):
     b.array("lines_hkl", hkl, **EXACT, note="the lines of pattern (0, 0), as m6/geometrical-simulation-nickel's p0_0_lines_hkl")
     b.array("theta", theta, **F64, note="diffsims' Bragg angle of each line's reflector at the file's beam energy, radians")
     b.array("vector_detector", np.asarray(vd, dtype=np.float64), **F64Z, note="each line's reflector in the detector frame")
-    b.array("edges_gnomonic", edges_gn, **F64Z, note="line, (pi/2 - theta, pi/2 + theta), step, (x, y); NaN off the screen or "
-            "outside r_max")
-    b.array("edges_px", edges_px, **PX, note="the same in detector pixels")
+    b.array("edges_visible", visible.astype(np.uint8), **EXACT, note="line, (pi/2 - theta, pi/2 + theta), step: 1 where the "
+            "point faces the screen (z > 0) inside r_max, 0 where kikuchipy masks it")
+    b.array("edges_gnomonic", edges_gn, **CIRCLE, note="line, (pi/2 - theta, pi/2 + theta), step, (x, y); 0 where not visible")
+    b.array("edges_px", edges_px, **CIRCLE, note="the same in detector pixels")
     b.write()
     ctx.done(case)
 

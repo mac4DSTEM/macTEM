@@ -1,12 +1,12 @@
 {
   "arrays": {
     "edges_gnomonic": {
-      "atol": 1e-12,
+      "atol": 1e-08,
       "dtype": "float64",
       "file": "edges_gnomonic.bin",
-      "note": "line, (pi/2 - theta, pi/2 + theta), step, (x, y); NaN off the screen or outside r_max",
-      "rtol": 1e-07,
-      "sha256": "cacaaba5b34e08b30782ef60a5b129960b7c9467208a3937e0fad3acedab79fc",
+      "note": "line, (pi/2 - theta, pi/2 + theta), step, (x, y); 0 where not visible",
+      "rtol": 1e-05,
+      "sha256": "99ee108351c4c6553ca5cf3352884c92238713c87957e3db268b254e240138d8",
       "shape": [
         22,
         2,
@@ -15,17 +15,30 @@
       ]
     },
     "edges_px": {
-      "atol": 1e-06,
+      "atol": 1e-08,
       "dtype": "float64",
       "file": "edges_px.bin",
       "note": "the same in detector pixels",
-      "rtol": 1e-07,
-      "sha256": "ac01f19c5ecde4f62eef9e76ce6459aa5aa2a16c2dd9209c267c9459d06a183d",
+      "rtol": 1e-05,
+      "sha256": "6cdbdee51f3b9931c5d642567505929e01896bf624a35a719ff7a591b3cbb640",
       "shape": [
         22,
         2,
         360,
         2
+      ]
+    },
+    "edges_visible": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "edges_visible.bin",
+      "note": "line, (pi/2 - theta, pi/2 + theta), step: 1 where the point faces the screen (z > 0) inside r_max, 0 where kikuchipy masks it",
+      "rtol": 0.0,
+      "sha256": "94670072b0390b5356110dec7518199f8cc71852f255dee08a1f0023ceb0ec8e",
+      "shape": [
+        22,
+        2,
+        360
       ]
     },
     "lines_hkl": {
