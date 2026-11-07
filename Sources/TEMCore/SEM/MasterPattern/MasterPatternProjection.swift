@@ -290,9 +290,10 @@ package nonisolated enum MasterPatternProjection {
     /// 60 x 60 px, i.e. a dictionary, not a single overlay.
     package static let metalWorkThreshold = 1_000_000
 
-    /// The patterns rescaled to -1 ... 1 in float32 (`get_patterns`' default `dtype_out`), from the CPU reference or the float32 GPU
-    /// path (`MasterPatternProjectionMetal`, checked against the CPU within `MasterPatternProjectionMetal.tolerance`). The automatic
-    /// backend takes the GPU from `metalWorkThreshold` on when a device is there.
+    /// The patterns in float32 (`get_patterns`' default `dtype_out`: rescaled to -1 ... 1 unless the master pattern is float32 already,
+    /// as EMsoft writes it), from the CPU reference or the float32 GPU path (`MasterPatternProjectionMetal`, checked against the CPU
+    /// within `MasterPatternProjectionMetal.tolerance` of the pattern's half range). The automatic backend takes the GPU from
+    /// `metalWorkThreshold` on when a device is there.
     package static func patternsFloat32(master: EBSDMasterPattern, rotations: [SIMD4<Double>], detector: EBSDDetectorGeometry,
                                         energy: Double? = nil, backend: Backend = .automatic) throws -> [Float] {
         let work = rotations.count * detector.rows * detector.columns

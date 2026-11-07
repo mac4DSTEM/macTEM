@@ -10,7 +10,8 @@
 //  The numbers are `DictionaryIndexing`'s (kikuchipy 0.13.1's port, figure F9), `MasterPatternProjection`'s and `OrientationSampling`'s;
 //  this file decides only what goes in. A block's patterns are read through the room's `IndexingSource` (the Patterns room's pipeline,
 //  D-SEM-83) and matched against the whole dictionary, projected chunk by chunk inside `DictionaryIndexing`, so a block's result equals
-//  the whole scan's at those points: the score of a pattern against a simulation does not depend on the other patterns.
+//  the whole scan's at those points: the score of a pattern against a simulation does not depend on the other patterns. The backend
+//  (float64 CPU or float32 GPU) is chosen once for the run from the whole scan's work, so a short last block runs the same path.
 //
 
 import Foundation
@@ -144,6 +145,7 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
     /// The master pattern's energy the projection takes (nil: its highest, kikuchipy's default), and the words that say which.
     package let energy: Double?
     package let energyWords: String
+    /// kikuchipy's arguments, with the backend the whole run takes (`DictionaryIndexing`'s automatic choice from the whole scan's work).
     package let options: DictionaryIndexing.Options
     /// Scan rows per block (the last may hold fewer).
     package let rowsPerBlock: Int
@@ -175,14 +177,17 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
     }
 
     /// The energy the dictionary is projected for: the master pattern's one energy; with several, the scan's beam energy (refused
-    /// outside the master pattern's), or the highest when the scan states none (kikuchipy's default).
+    /// outside the master pattern's), or the highest when the scan states none (kikuchipy's default). A beam energy of 0 or less is
+    /// none: kikuchipy's h5ebsd writer stores 0 when the signal has no beam energy.
     package static func energy(master: EBSDMasterPattern, beamEnergy: Double?) -> Result<(value: Double?, words: String), IndexingRefusal> {
         let format = { (v: Double) in v.formatted(.number.precision(.significantDigits(1...4))) }
         guard let low = master.energies.min(), let high = master.energies.max() else {
             return .failure(IndexingRefusal("The master pattern holds no energy."))
         }
         if master.energies.count == 1 { return .success((nil, "\(format(high)) kV, the master pattern's one energy")) }
-        guard let beam = beamEnergy, beam.isFinite else { return .success((nil, "\(format(high)) kV, the highest; the scan states no beam energy")) }
+        guard let beam = beamEnergy, beam.isFinite, beam > 0 else {
+            return .success((nil, "\(format(high)) kV, the highest; the scan states no beam energy"))
+        }
         let step = master.energies.count > 1 ? (high - low) / Double(master.energies.count - 1) : 0
         guard beam >= low - step / 2, beam <= high + step / 2 else {
             return .failure(IndexingRefusal("The scan's beam energy, \(format(beam)) kV, is outside the master pattern's \(format(low)) to \(format(high)) kV."))
@@ -254,9 +259,21 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         self.energy = energy.value
         energyWords = energy.words
         let mask = try settings.signalMask(rows: source.patternRows, columns: source.patternColumns)
-        options = DictionaryIndexing.Options(metric: settings.metric, keepN: settings.keep, signalMask: mask)
+        let kept = mask.map { $0.filter { !$0 }.count } ?? source.patternRows * source.patternColumns
+        options = DictionaryIndexing.Options(metric: settings.metric, keepN: settings.keep, signalMask: mask,
+                                             backend: Self.backend(points: source.scanRows * source.scanColumns, dictionary: rotations.count,
+                                                                   keptPixels: kept))
         rowsPerBlock = Self.rowsPerBlock(scanRows: source.scanRows, scanColumns: source.scanColumns,
                                          pixels: source.patternRows * source.patternColumns)
+    }
+
+    /// One backend for the whole run (D-SEM-92): `DictionaryIndexing`'s automatic choice from the whole scan's work (points × dictionary
+    /// × kept pixels), so every block, a short last one included, projects and matches on the same path and gives what the whole scan
+    /// gives. Left automatic per block, a last block under the threshold would run the float64 CPU path beside float32 GPU blocks.
+    package static func backend(points: Int, dictionary: Int, keptPixels: Int) -> DictionaryIndexing.Backend {
+        let (perPoint, a) = dictionary.multipliedReportingOverflow(by: keptPixels)
+        let (work, b) = points.multipliedReportingOverflow(by: perPoint)
+        return DictionaryIndexing.usesMetal(.automatic, work: a || b ? .max : work) ? .metal : .cpu
     }
 
     /// The scan's row blocks, in order.
@@ -289,7 +306,8 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
                                                        options: options, progress: progress)
     }
 
-    /// The simulated pattern of one of the dictionary's orientations on the run's detector, -1 to 1 (the Best match pane).
+    /// The simulated pattern of one of the dictionary's orientations on the run's detector, -1 to 1 (or as stored for a float32 master
+    /// pattern; the Best match pane).
     package func simulated(_ rotation: SIMD4<Double>) async throws -> [Float] {
         try await MasterPatternProjection.patternsFloat32Async(master: master.master, rotations: [rotation], detector: detector,
                                                                energy: energy, backend: .cpu)
@@ -317,6 +335,8 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         var phase: IndexingPhase
         var masterPattern: Master
         var energy: String
+        /// The energy handed to `get_patterns` (nil: its default, the highest).
+        var energyKeV: Double?
         var samplingResolutionDegrees: Double
         var samplingMethod: String
         var dictionarySize: Int
@@ -327,6 +347,8 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         var projectionCenterBruker: [Double]
         var sampleTilt: Double
         var cameraElevation: Double
+        var azimuthal: Double
+        var twist: Double
         var points: Int
         var indexed: Int
     }
@@ -342,10 +364,10 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
             file: fileName, patterns: source.kind.title, processing: source.pipeline, phase: phase,
             masterPattern: Record.Master(file: master.fileName, phase: m.phase.name, spaceGroup: m.phase.spaceGroup, energies: m.energies,
                                          side: m.side, projection: m.projection.rawValue, hemisphere: m.hemisphere.rawValue),
-            energy: energyWords, samplingResolutionDegrees: settings.resolution, samplingMethod: "cubochoric", dictionarySize: rotations.count,
+            energy: energyWords, energyKeV: energy, samplingResolutionDegrees: settings.resolution, samplingMethod: "cubochoric", dictionarySize: rotations.count,
             metric: settings.metric.rawValue, keepN: min(settings.keep, rotations.count), signalMask: settings.signalMask.rawValue,
             detectorShape: [detector.rows, detector.columns], projectionCenterBruker: [pc.x, pc.y, pc.z], sampleTilt: detector.sampleTilt,
-            cameraElevation: detector.tilt, points: points, indexed: indexed)
+            cameraElevation: detector.tilt, azimuthal: detector.azimuthal, twist: detector.twist, points: points, indexed: indexed)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try encoder.encode(record)

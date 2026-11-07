@@ -209,6 +209,7 @@ patterns bit for bit on all three projection bundles (2026-11-06).
 | `MasterPatternProjection.directionCosines` | `_get_direction_cosines_for_fixed_pc` / `_varying_pc` | same | rtol 1e-7 | |
 | `MasterPatternProjection.project` (float32, float64, uint8, uint16) | `EBSDMasterPattern.get_patterns` (`_project_single_pattern_from_master_pattern`, `_vector2lambert`, `_get_lambert_interpolation_parameters`, `_rescale_with_min_max`) | `testTheDocsExample…`, `testFigureF15…`, `testATiltedDetector…` | float: rtol 1e-5, atol 1e-8; integer: 1 count | a flat pattern is refused (kikuchipy divides by zero); the master pattern must be Lambert, with both hemispheres unless the point group holds the inversion |
 | `MasterPatternProjectionMetal.project` (float32 GPU) | `MasterPatternProjection.project` (float64 CPU) | `testTheMetalPathMatchesTheCPUReference` (skipped without a Metal device) | 1e-3 absolute on the -1 to 1 scale | float32 emulation of the kernel measured 3.2e-5 (it takes 1 - |z| as (x² + y²) / (1 + |z|) against float32 cancellation near the pole); `patternsFloat32` picks it from 10⁶ pattern pixels |
+| `MasterPatternProjectionMetal.project` on a float32 master pattern (EMsoft's type) | `MasterPatternProjection.project` (float64 CPU), which keeps a float32 master pattern's intensities (`get_patterns`: `rescale = dtype_out != self.data.dtype`) | `testTheMetalPathProjectsAFloat32MasterPatternAsStored` (skipped without a Metal device) | 1e-3 of the pattern's half range | the GPU rescaled every pattern to -1 to 1 until 2026-11-07; results change for a float32 master pattern on the GPU path only (NDP scores; NCC centres and scales each pattern, so its scores do not move) |
 
 ### Known limits and decisions
 
@@ -218,6 +219,7 @@ patterns bit for bit on all three projection bundles (2026-11-06).
   numset slice for ECP, so its energy pick slices the numset axis and returns an empty array; the ECP bundle therefore covers the
   whole-energy Lambert readings and every stereographic one.
 - D-SEM-34 (2026-11-06): the GPU path's bound (1e-3 on -1 to 1) is ours, not upstream's: kikuchipy has no float32 projection.
+  For a float32 master pattern, which neither path rescales, the bound is taken on the pattern's half range (2026-11-07).
 - Figure F15 (`docs/sem/north-star.md`): `tools/parity/sem/master_pattern_figure.py` draws the reference patterns beside the ones
   `testFigureF15NickelMasterPatternOnTheNorthStarDetector` writes to `$TMPDIR/macTEM-F15-ours.u8` (and prints as base64).
 

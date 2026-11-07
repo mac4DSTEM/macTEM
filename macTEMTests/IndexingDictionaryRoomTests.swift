@@ -71,6 +71,8 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(plan.options.keepN, 5)
         XCTAssertEqual(plan.options.metric, .ncc)
         XCTAssertNil(plan.options.signalMask)
+        XCTAssertEqual(plan.options.backend, DictionaryIndexingPlan.backend(points: 4125, dictionary: 11_935, keptPixels: 3600),
+                       "one backend for the run, from the whole scan's work")
         let start = Date()
         let r = try await plan.indexBlock(0..<55)
         print("F9 through the room's plan: \(String(format: "%.1f", Date().timeIntervalSince(start))) s")
@@ -218,6 +220,8 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(method?["metric"] as? String, "ncc")
         XCTAssertEqual(method?["keepN"] as? Int, 5)
         XCTAssertEqual(method?["samplingResolutionDegrees"] as? Double, 10)
+        XCTAssertEqual(method?["azimuthal"] as? Double, indexing.dictionaryPlan?.detector.azimuthal)
+        XCTAssertEqual(method?["twist"] as? Double, indexing.dictionaryPlan?.detector.twist)
 
         // Staleness per method: a Hough edit leaves the dictionary result current, a dictionary edit stales it; picking Hough does not.
         indexing.editSettings { $0.bands = 9 }
@@ -311,6 +315,23 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
                        "The file states no projection centre, which dictionary indexing needs.")
         XCTAssertNil(DictionaryIndexingPlan.refusal(phases: [ni], master: master, settings: .roomDefault, detector: detector, beamEnergy: 15),
                      "one energy in the master pattern: the projection takes it whatever the beam")
+
+        // A master pattern of several energies: the scan's beam energy picks one, and a beam energy of 0 (kikuchipy's h5ebsd writer
+        // stores 0 when the signal has none) is none, so the highest is taken as kikuchipy does. Red when 0 kV is refused.
+        var multi = master.master
+        multi.energies = (10...20).map(Double.init)
+        let unstated = try DictionaryIndexingPlan.energy(master: multi, beamEnergy: 0).get()
+        XCTAssertNil(unstated.value)
+        XCTAssertEqual(unstated.words, "20 kV, the highest; the scan states no beam energy")
+        XCTAssertEqual(try DictionaryIndexingPlan.energy(master: multi, beamEnergy: 15).get().value, 15)
+        if case .success = DictionaryIndexingPlan.energy(master: multi, beamEnergy: 30) { XCTFail("30 kV is outside 10 to 20 kV") }
+
+        // One backend for a run: a 301 × 300 scan of 60 × 60 px patterns at about 800 orientations runs in blocks of 15 rows, and its
+        // one-row last block alone would fall under the GPU's threshold; the run's choice holds for every block.
+        XCTAssertEqual(DictionaryIndexingPlan.rowsPerBlock(scanRows: 301, scanColumns: 300, pixels: 3600), 15)
+        XCTAssertEqual(DictionaryIndexingPlan.backend(points: 300, dictionary: 800, keptPixels: 3600), .cpu)
+        XCTAssertEqual(DictionaryIndexingPlan.backend(points: 301 * 300, dictionary: 800, keptPixels: 3600),
+                       DictionaryIndexingMetal.isAvailable ? .metal : .cpu)
         XCTAssertEqual(DictionaryIndexingPlan.detector(detector, rows: 30, columns: 30)?.binning, 16, "binning 2 folded in")
         XCTAssertEqual(DictionaryIndexingPlan.detector(detector, rows: 30, columns: 30)?.projectionCenters.count, 1)
         XCTAssertEqual(DictionaryIndexingPlan.detector(detector, rows: 30, columns: 30)?.rows, 30)
