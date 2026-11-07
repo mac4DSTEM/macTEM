@@ -90,6 +90,11 @@ package nonisolated enum FileRouting {
     /// only): run it off the main actor.
     package static func inventory(path: String) -> FileInventory {
         let name = (path as NSString).lastPathComponent
+        // SEM-EDS map files (Bruker, EDAX, JEOL; FormatoKit's sniff knows none of them), by extension: a spectrum image or one spectrum for
+        // the EDS room, a JEOL image or element map for the Image room. The readers say in words what a file lacks when it is opened.
+        if SEMEDSOpening.isImageFile(path: path) { return FileInventory(image: true) }
+        if SEMEDSOpening.isSingleSpectrumFile(path: path) { return FileInventory(singleSpectrum: true) }
+        if SEMEDSOpening.opensInEDS(path: path) { return FileInventory(edsSpectrumImage: true) }
         // HyperSpy's own HDF5 layout (`.hspy`, which FormatoKit's sniff does not know): one spectrum opens in the EDS room, anything else is
         // refused in the reader's words.
         if HyperSpySpectrumFile.isHyperSpyFile(path: path) {
@@ -155,6 +160,7 @@ package nonisolated enum FileRouting {
 
     /// Whether `path` is a single spectrum the EDX room opens (an `.msa` that is not EELS, or a Velox file of spectra).
     package static func isSingleSpectrum(path: String) -> Bool {
+        if SEMEDSOpening.isSingleSpectrumFile(path: path) { return true }
         if HyperSpySpectrumFile.isHyperSpyFile(path: path) { return inventory(path: path).singleSpectrum }
         let kind = FormatoLoader.sniff(path: path)
         return (kind == .msa || kind == .veloxEMD) && inventory(path: path).singleSpectrum
@@ -164,6 +170,7 @@ package nonisolated enum FileRouting {
     /// non-finite values is refused); the beam energy is the file's when it states one.
     package static func spectrumFile(path: String) throws -> LoadedSpectrumImage {
         let name = (path as NSString).lastPathComponent
+        if SEMEDSOpening.isSingleSpectrumFile(path: path) { return try SEMEDSOpening.open(url: URL(fileURLWithPath: path)) }
         if HyperSpySpectrumFile.isHyperSpyFile(path: path) {
             let spectrum = try HyperSpySpectrumFile.read(path: path)
             return try onePixel(name: name, path: path, values: spectrum.counts, offset: spectrum.offset, scale: spectrum.scale, units: spectrum.units,

@@ -1,0 +1,159 @@
+{
+  "arrays": {
+    "signal1_sum_spectrum": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal1_sum_spectrum.bin",
+      "rtol": 0.0,
+      "sha256": "8b18367f377d06b73381dc50600c84fbfe6c65f619284e4308938661c3ae1db8",
+      "shape": [
+        2048
+      ]
+    }
+  },
+  "case": "m7/read-bcf-hitachi",
+  "inputs": [
+    {
+      "path": "sem-data/rsciio/bruker/Hitachi_TM3030Plus.bcf",
+      "sha256": "984e0c4eef0d10704fabd865fd9e1286005aade95e57018e5914bfe54726248c"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.bruker.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "signal0_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 4872181184.0
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signal0_pixels": {
+      "dtype": "uint16",
+      "sha256": "f85b483e6627848d39695c886e1ebf84456c1fcba0bdcff46b05cd2993e07def",
+      "shape": [
+        240,
+        320
+      ]
+    },
+    "signal1_nonzero": {
+      "count": 159337,
+      "index_sha256": "4b0887be6a3cfc7ded50b4c9095562f3f205829fff27a7b941c25f3115d1bd49",
+      "value_sha256": "28e8bc7377a2439601f54d39219a5e00014e83dda69d675306df3957bee4429a"
+    },
+    "signal1_pixel_totals": {
+      "dtype": "int64",
+      "sha256": "d50b4e2a2d10348b1a0cde82a400eddd1a9f7d3abb7ca9ee547b3a8064db09a8",
+      "shape": [
+        76800
+      ]
+    },
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "height",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 240,
+            "units": "pix"
+          },
+          {
+            "name": "width",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 320,
+            "units": "pix"
+          }
+        ],
+        "dtype": "uint16",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 15.0,
+          "magnification": 600.0,
+          "mode": "SEM",
+          "original_filename": "Hitachi_TM3030Plus.bcf",
+          "sample_name": "Cathode_161007_74",
+          "title": "SEM"
+        },
+        "shape": [
+          240,
+          320
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "height",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 240,
+            "units": "pix"
+          },
+          {
+            "name": "width",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 320,
+            "units": "pix"
+          },
+          {
+            "name": "Energy",
+            "offset": -0.4746,
+            "scale": 0.01,
+            "size": 2048,
+            "units": "keV"
+          }
+        ],
+        "dtype": "uint8",
+        "kind": "spectrum_image",
+        "metadata": {
+          "beam_energy": 15.0,
+          "date": "2017-01-06",
+          "detector_type": "XFlash 430",
+          "elements": [
+            "Al",
+            "Cu"
+          ],
+          "elevation_angle": 25.0,
+          "magnification": 600.0,
+          "mode": "SEM",
+          "original_filename": "Hitachi_TM3030Plus.bcf",
+          "real_time": 35.0976,
+          "sample_name": "Cathode_161007_74",
+          "signal_type": "EDS_SEM",
+          "time": "11:42:15",
+          "title": "EDX",
+          "xray_lines": [
+            "Al_Ka",
+            "Cu_Ka"
+          ]
+        },
+        "shape": [
+          240,
+          320,
+          2048
+        ]
+      }
+    ]
+  }
+}
