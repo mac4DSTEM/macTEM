@@ -3,9 +3,9 @@
 //  Role: one run of the Indexing room as the room keeps it (D-SEM-97): its result, filled row by row (Hough) or block by block
 //        (dictionary), what it was made of (its inputs stale it when the room's differ), where it read its patterns, its projection
 //        centre, its time or that it was stopped, and its method's plan (Hough's libraries for the Bands table's families and the .ang,
-//        the dictionary's master pattern, orientations and detector for Info, Best match and the method record). The room keeps the
-//        last run of each method (`IndexingSession.runs`), so a Dictionary run leaves the Hough one, its map, exports and Maps' view of
-//        it, as it was; Compare (#230) reads two of them side by side.
+//        each phase's dictionary plan, its master pattern, orientations and detector, for Info, Best match and the method record,
+//        D-SEM-98). The room keeps the last run of each method (`IndexingSession.runs`), so a Dictionary run leaves the Hough one, its
+//        map, exports and Maps' view of it, as it was; Compare (#230) reads two of them side by side.
 //
 
 import Foundation
@@ -26,8 +26,9 @@ package nonisolated struct IndexingRun: Sendable {
     package internal(set) var wasStopped = false
     /// A Hough run's libraries once built (the Bands table's families, the .ang's phases, the method record).
     package internal(set) var houghPlan: IndexingPlan?
-    /// A dictionary run's plan once built: its master pattern, orientations, detector and energy.
-    package internal(set) var dictionaryPlan: DictionaryIndexingPlan?
+    /// A dictionary run's plans once built, one per phase it indexed against in `result.phases` order (D-SEM-98): each phase's master
+    /// pattern, orientations, detector and energy. Empty before they are built and for Hough.
+    package internal(set) var dictionaryPlans: [DictionaryIndexingPlan] = []
 
     package init(id: Int, result: IndexingResult, inputs: IndexingInputs, source: IndexingSource.Kind, projectionCenter: SIMD3<Double>?) {
         self.id = id

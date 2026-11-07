@@ -6,7 +6,9 @@
 //  `m4/dictionary-indexing-nickel-ebsd-large` at the thresholds of `SEMDictionaryIndexingParityTests`; then the room's path at a coarse
 //  10° (fast): Method · Dictionary, the dictionary's size and chunking, Stop, the run in chunks, the map and its layers, the status line,
 //  the Results rows, the best match, the exports read back, staleness per method; the orientation similarity map against kikuchipy's
-//  as blocks land; the refusals of the plan; the master pattern's loader.
+//  as blocks land; the refusals of the plan; the master pattern's loader. Several phases (#231, D-SEM-98): two phases through the room
+//  (one dictionary each, merged as kikuchipy's `merge_crystal_maps`; held to kikuchipy in IndexingDictionaryPhasesTests), each phase's
+//  master pattern.
 //  Red before the wiring: no `DictionaryIndexingPlan`, no Method; red under a detector with the file's 4125 centres (the projection
 //  refuses them) or the unbinned shape, a sampling of the wrong point group, the master pattern in the stereographic projection, a Stop
 //  that keeps landing blocks, a Hough edit that stales a dictionary result.
@@ -42,7 +44,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
     /// against kikuchipy: the best match equal at 99.5 % of the points or more, the best scores within rtol 1e-2 (D-SEM-73).
     @MainActor func testFigureF9ThroughTheRoomsPlan() async throws {
         let (patterns, indexing) = try await openNickel()
-        let master = try XCTUnwrap(indexing.currentMaster)
+        let master = try XCTUnwrap(indexing.master(for: try XCTUnwrap(indexing.phases.first)))
         XCTAssertEqual(master.summary, "ni · 20 kV · Lambert · 401 × 401")
         XCTAssertEqual(master.master.projection, .lambert)
         XCTAssertEqual(master.master.hemisphereCount, 2)
@@ -56,7 +58,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         let group = try XCTUnwrap(DictionaryIndexingPlan.pointGroup(of: ni))
         let rotations = try await DictionaryIndexingPlan.sample(resolution: DictionaryIndexingSettings.roomDefault.resolution, pointGroup: group)
         XCTAssertEqual(rotations.count, 11_935, "orix's m-3m sample at 4°")
-        let plan = try DictionaryIndexingPlan(source: source, phases: indexing.phases, master: master, settings: .roomDefault,
+        let plan = try DictionaryIndexingPlan(source: source, phase: ni, master: master, settings: .roomDefault,
                                               fileDetector: fileDetector, beamEnergy: dataset.sem.beamEnergyKeV, rotations: rotations)
         XCTAssertEqual(plan.blocks, [0..<55], "the demo scan is one block")
         XCTAssertEqual([plan.detector.rows, plan.detector.columns, plan.detector.binning], [60, 60, 8])
@@ -132,7 +134,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         let dictionary = try XCTUnwrap(result.dictionary)
         XCTAssertEqual(dictionary.navigationShape, [55, 75])
         XCTAssertEqual(dictionary.keepN, 5)
-        XCTAssertEqual(indexing.dictionaryPlan?.rotations.count, expected)
+        XCTAssertEqual(indexing.dictionaryPlans.map(\.rotations.count), [expected])
         let solutions = result.solutions.compactMap { $0 }
         XCTAssertEqual(solutions.count, 4125)
         XCTAssertEqual(solutions.map(\.quaternion), dictionary.bestRotations)
@@ -141,7 +143,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         // Each point's rotation is the dictionary's at its best simulation index. (A 10° dictionary is too coarse for these 60 × 60
         // patterns to land near F9's 4° best: kikuchipy 0.13.1 itself, at 10° on this scan and chain, sits a median 45.2° from
         // F9's best, measured 2026-11-07; F9's numbers are held at 4° by `testFigureF9ThroughTheRoomsPlan`.)
-        let sampled = try XCTUnwrap(indexing.dictionaryPlan?.rotations)
+        let sampled = try XCTUnwrap(indexing.dictionaryPlans.first?.rotations)
         XCTAssertEqual(dictionary.bestSimulationIndices.map { sampled[$0] }, solutions.map(\.quaternion))
 
         // The map: IPF-Z of the best rotation; the score layer; Hough's layers are not offered.
@@ -215,8 +217,8 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(method?["metric"] as? String, "ncc")
         XCTAssertEqual(method?["keepN"] as? Int, 5)
         XCTAssertEqual(method?["samplingResolutionDegrees"] as? Double, 10)
-        XCTAssertEqual(method?["azimuthal"] as? Double, indexing.dictionaryPlan?.detector.azimuthal)
-        XCTAssertEqual(method?["twist"] as? Double, indexing.dictionaryPlan?.detector.twist)
+        XCTAssertEqual(method?["azimuthal"] as? Double, indexing.dictionaryPlans.first?.detector.azimuthal)
+        XCTAssertEqual(method?["twist"] as? Double, indexing.dictionaryPlans.first?.detector.twist)
 
         // Staleness per method: a Hough edit leaves the dictionary result current, a dictionary edit stales it; picking Hough does not.
         indexing.editSettings { $0.bands = 9 }
@@ -235,9 +237,160 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
 
         patterns.close()
         XCTAssertNil(indexing.result)
-        XCTAssertNil(indexing.dictionaryPlan)
+        XCTAssertTrue(indexing.dictionaryPlans.isEmpty)
         XCTAssertEqual(indexing.method, .hough)
-        XCTAssertNotNil(indexing.currentMaster, "a master pattern is not the dataset's: it stays open")
+        XCTAssertEqual(indexing.masterPatterns.map(\.fileName), ["ni_mc_mp_20kv_uint8_gzip_opts9.h5"],
+                       "a master pattern is not the dataset's: it stays open")
+        XCTAssertTrue(indexing.masterPicks.isEmpty, "the picks are the dataset's phases'")
+    }
+
+    // MARK: - Several phases
+
+    /// Two phases on (#231, D-SEM-98): ni and the Al preset, which takes the shipped Ni master pattern (the only one open, of its space
+    /// group), so the two dictionaries are the same patterns and every point ties. One dictionary per phase (m-3m sampled once), Stop
+    /// before a block keeps nothing; the first phase takes each point, as kikuchipy's `np.nanargmax` does, with the one-phase run's
+    /// matches; the OSM counts each shared match in both dictionaries, twice the one-phase map; the crystal map lists the phase that
+    /// won points only, as `merge_crystal_maps` does; the method record lists both dictionaries; with Al first, Al takes every point.
+    /// Red when a second phase is refused, when a tie takes the last phase, when the OSM's indices of the two phases collide.
+    @MainActor func testTwoPhasesThroughTheRoom() async throws {
+        let (_, indexing) = try await openNickel()
+        indexing.setMethod(.dictionary)
+        indexing.editDictionarySettings { $0.resolution = 10 }
+        for _ in 0..<4000 where indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        let single = try XCTUnwrap(indexing.dictionarySize)
+        let singleChunks = try XCTUnwrap(indexing.dictionaryChunking).chunks
+        await indexing.index().value
+        let one = try XCTUnwrap(indexing.result)
+        let d1 = try XCTUnwrap(one.dictionary)
+        let backend = try XCTUnwrap(indexing.dictionaryPlans.first?.options.backend)
+
+        let al = try XCTUnwrap(IndexingPhase.presets.first { $0.name == "Al" })
+        indexing.addPhase(al)
+        XCTAssertEqual(indexing.phasesOn.map(\.name), ["ni", "Al"])
+        XCTAssertEqual(indexing.master(for: indexing.phases[1])?.fileName, "ni_mc_mp_20kv_uint8_gzip_opts9.h5",
+                       "the latest master pattern opened of the phase's space group")
+        XCTAssertNil(indexing.refusal, indexing.refusal ?? "")
+        XCTAssertTrue(indexing.verbHelp.contains("patterns with Dictionary (ni, Al)"), indexing.verbHelp)
+        for _ in 0..<4000 where indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(indexing.dictionarySize, 2 * single, "one dictionary per phase")
+        XCTAssertEqual(indexing.dictionaryChunking?.chunks, 2 * singleChunks)
+
+        let stopped = indexing.index()
+        indexing.stop()
+        await stopped.value
+        XCTAssertEqual(indexing.result?.rowsDone, 0)
+        XCTAssertNil(try indexing.crystalMap())
+
+        var events: [String] = []
+        indexing.onEvent = { events.append($0) }
+        await indexing.index().value
+        let two = try XCTUnwrap(indexing.result)
+        XCTAssertTrue(two.isComplete)
+        XCTAssertEqual(two.phases.map(\.name), ["ni", "Al"])
+        XCTAssertEqual(indexing.chunksDone, indexing.chunksTotal)
+        XCTAssertNil(indexing.chunkPhase)
+        XCTAssertEqual(indexing.dictionaryPlans.map(\.phase.name), ["ni", "Al"])
+        XCTAssertEqual(indexing.dictionaryPlans.map(\.options.backend), [backend, backend], "one backend for every phase's dictionary")
+        XCTAssertTrue(events.first?.hasPrefix("Indexing 4125 patterns against 2 dictionaries (ni, Al) at 10° (NCC)") == true, "\(events)")
+        XCTAssertTrue(events.last?.hasPrefix("Indexed 4125 of 4125 patterns with Dictionary") == true, "\(events)")
+        XCTAssertTrue(events.last?.hasSuffix(" s (ni 4125 · Al 0)") == true, "\(events)")
+
+        // Tied at every point: the first phase, with the one-phase run's matches; each phase's own indices feed the OSM.
+        XCTAssertEqual(two.countsByPhase, [4125, 0])
+        let d2 = try XCTUnwrap(two.dictionary)
+        XCTAssertEqual(d2.scores, d1.scores)
+        XCTAssertEqual(d2.simulationIndices, d1.simulationIndices)
+        XCTAssertEqual(d2.rotations, d1.rotations)
+        XCTAssertEqual(two.solutions.compactMap { $0 }.map(\.confidence), d1.bestScores)
+        XCTAssertEqual(two.phaseSimulationIndices, [d1.simulationIndices, d1.simulationIndices])
+        XCTAssertEqual(two.similarity, one.similarity.map { 2 * $0 }, "each shared match counted in both dictionaries")
+
+        // The layers, the status line, the best match read the merged map.
+        indexing.setLayer(.score)
+        let range = try XCTUnwrap(indexing.mapPresentation.canvas?.rawRange)
+        XCTAssertEqual(range, Float(try XCTUnwrap(d1.bestScores.min()))...Float(try XCTUnwrap(d1.bestScores.max())))
+        let position = EBSDPosition(row: 10, column: 20)
+        let line = try XCTUnwrap(indexing.readout(at: position))
+        XCTAssertTrue(line.hasPrefix("row 10 · col 20 · ni · φ₁"), line)
+        indexing.pin(position)
+        for _ in 0..<4000 where indexing.bestMatchPosition != position { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(indexing.bestMatchPosition, position)
+        XCTAssertEqual(indexing.bestMatchPresentation.canvas.map { [$0.width, $0.height] }, [60, 60])
+
+        // The exports: kikuchipy's merged map (Al wins no point, so it is not listed) and both dictionaries in the method record.
+        let xmap = try XCTUnwrap(try indexing.crystalMap())
+        XCTAssertEqual(xmap.phases.names, ["ni"])
+        XCTAssertEqual(xmap.property("scores"), d1.bestScores)
+        XCTAssertEqual(xmap.property("simulation_indices"), d1.bestSimulationIndices.map(Double.init))
+        let record = try XCTUnwrap(try JSONSerialization.jsonObject(with: try XCTUnwrap(try indexing.methodJSON())) as? [String: Any])
+        let listed = try XCTUnwrap(record["phases"] as? [[String: Any]])
+        XCTAssertEqual(listed.map { $0["dictionarySize"] as? Int }, [single, single])
+        XCTAssertEqual(listed.map { $0["indexed"] as? Int }, [4125, 0])
+        XCTAssertNotNil(record["merge"] as? String)
+        XCTAssertNotNil(record["orientationSimilarityMap"] as? String)
+        XCTAssertEqual(record["indexed"] as? Int, 4125)
+
+        // The first phase in the list takes a tie: with Al first, Al takes every point.
+        let ni = indexing.phases[0]
+        indexing.removePhase(named: "ni")
+        indexing.addPhase(ni)
+        XCTAssertEqual(indexing.phasesOn.map(\.name), ["Al", "ni"])
+        await indexing.index().value
+        XCTAssertEqual(indexing.result?.countsByPhase, [4125, 0])
+        XCTAssertEqual(indexing.result?.dictionary?.simulationIndices, d1.simulationIndices)
+        XCTAssertTrue(try XCTUnwrap(indexing.readout(at: position)).hasPrefix("row 10 · col 20 · Al · φ₁"))
+    }
+
+    /// Each phase on takes a master pattern (D-SEM-98): the one picked for it, else the latest opened with its space group and name,
+    /// else the latest of its space group, else the latest opened (refused with both space groups named). A pick stales the run, a
+    /// removed phase loses its pick, a newly opened file says which phases take it. Red when every phase takes one master pattern.
+    @MainActor func testEachPhaseTakesAMasterPattern() async throws {
+        let (_, indexing) = try await openNickel()
+        indexing.setMethod(.dictionary)
+        let ni = try XCTUnwrap(indexing.phases.first)
+        let shipped = try XCTUnwrap(indexing.master(for: ni))
+        let dummyURL = try XCTUnwrap(try SEMParityReference.load("m6/read-master-pattern-dummy").inputURL())
+        var events: [String] = []
+        indexing.onEvent = { events.append($0) }
+        await indexing.openMasterPattern(url: dummyURL).value
+        XCTAssertEqual(indexing.masterPatterns.count, 2)
+        let dummy = try XCTUnwrap(indexing.masterPatterns.first { $0.id != shipped.id })
+        XCTAssertEqual(dummy.master.phase.spaceGroup, 140)
+        XCTAssertTrue(events.last?.hasPrefix("Opened the master pattern \(dummy.fileName)") == true, "\(events)")
+        XCTAssertTrue(events.last?.hasSuffix("no phase on takes it: pick it for a phase under Dictionary") == true, "\(events)")
+        XCTAssertEqual(indexing.master(for: ni)?.id, shipped.id, "ni keeps the master pattern of its space group and name")
+        XCTAssertNil(indexing.refusal)
+
+        // A phase of another space group takes the latest opened, and is refused with both space groups named.
+        let fe = try XCTUnwrap(IndexingPhase.presets.first { $0.name == "Fe (α)" })
+        indexing.addPhase(fe)
+        let iron = try XCTUnwrap(indexing.phases.first { $0.name == "Fe (α)" })
+        XCTAssertEqual(indexing.master(for: iron)?.id, dummy.id)
+        XCTAssertEqual(indexing.refusal, "The master pattern is for \(dummy.master.phase.name) (space group 140), the phase is Fe (α) (space group 229).")
+
+        // A pick is the phase's; it stales the run it changes.
+        indexing.setPhase(named: "Fe (α)", isOn: false)
+        XCTAssertNil(indexing.refusal)
+        let before = indexing.currentInputs
+        indexing.selectMasterPattern(dummy.id, forPhase: "ni")
+        XCTAssertEqual(indexing.masterPicks, ["ni": dummy.id])
+        XCTAssertEqual(indexing.master(for: ni)?.id, dummy.id)
+        XCTAssertNotEqual(indexing.currentInputs, before, "the master pattern is part of the run's inputs")
+        XCTAssertEqual(indexing.refusal, "The master pattern is for \(dummy.master.phase.name) (space group 140), the phase is ni (space group 225).")
+        indexing.selectMasterPattern(shipped.id, forPhase: "ni")
+        XCTAssertEqual(indexing.currentInputs, before)
+        XCTAssertNil(indexing.refusal)
+        indexing.selectMasterPattern("not open", forPhase: "ni")
+        XCTAssertEqual(indexing.masterPicks["ni"], shipped.id, "a file that is not open is not picked")
+
+        // Reopening a file names the phases that take it; a removed phase loses its pick.
+        indexing.selectMasterPattern(dummy.id, forPhase: "Fe (α)")
+        indexing.setPhase(named: "Fe (α)", isOn: true)
+        await indexing.openMasterPattern(url: dummyURL).value
+        XCTAssertEqual(events.last, "\(dummy.fileName) is already open; Fe (α) takes it", "\(events)")
+        indexing.removePhase(named: "Fe (α)")
+        XCTAssertNil(indexing.masterPicks["Fe (α)"])
+        XCTAssertEqual(indexing.masterPicks["ni"], shipped.id)
     }
 
     // MARK: - The orientation similarity map as blocks land
@@ -282,22 +435,30 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
 
     // MARK: - Refusals
 
-    /// The plan's refusals, in the room's words: one phase on, a master pattern of its space group, settings in range, a centre, an
-    /// energy the master pattern holds. Red under a master pattern of another phase accepted, two phases accepted.
+    /// The plan's refusals, in the room's words: a phase on, a master pattern of each phase's space group (D-SEM-98: every phase on
+    /// is checked), settings in range, a centre, an energy the master pattern holds. Red under a master pattern of another phase
+    /// accepted, a phase of another space group accepted beside one that fits.
     @MainActor func testTheDictionaryRefusesWhatItCannotIndex() async throws {
         let (_, indexing) = try await openNickel()
         indexing.setMethod(.dictionary)
         XCTAssertNil(indexing.dictionaryRefusal)
-        let master = try XCTUnwrap(indexing.currentMaster)
-        let detector = try XCTUnwrap(indexing.patterns.dataset?.detector)
         let ni = try XCTUnwrap(indexing.phases.first)
+        let master = try XCTUnwrap(indexing.master(for: ni))
+        let detector = try XCTUnwrap(indexing.patterns.dataset?.detector)
         let fe = try XCTUnwrap(IndexingPhase.presets.first { $0.name == "Fe (α)" })
         XCTAssertEqual(DictionaryIndexingPlan.refusal(phases: [fe], master: master, settings: .roomDefault, detector: detector, beamEnergy: 20),
                        "The master pattern is for ni (space group 225), the phase is Fe (α) (space group 229).")
         var two = [ni, fe]
         two[1].isOn = true
         XCTAssertEqual(DictionaryIndexingPlan.refusal(phases: two, master: master, settings: .roomDefault, detector: detector, beamEnergy: 20),
-                       "Dictionary indexing takes one phase and its master pattern: turn the others off.")
+                       "The master pattern is for ni (space group 225), the phase is Fe (α) (space group 229).")
+        var al = try XCTUnwrap(IndexingPhase.presets.first { $0.name == "Al" })
+        al.isOn = true
+        XCTAssertNil(DictionaryIndexingPlan.refusal(phases: [ni, al], master: master, settings: .roomDefault, detector: detector, beamEnergy: 20),
+                     "two phases of one space group share a master pattern")
+        XCTAssertEqual(DictionaryIndexingPlan.refusal(phases: [ni, al], masters: [ni.id: master], settings: .roomDefault, detector: detector,
+                                                      beamEnergy: 20),
+                       "Open a master pattern for Al in Dictionary.")
         XCTAssertEqual(DictionaryIndexingPlan.refusal(phases: [ni], master: nil, settings: .roomDefault, detector: detector, beamEnergy: 20),
                        "Open a master pattern for ni in Dictionary.")
         var coarse = DictionaryIndexingSettings.roomDefault
@@ -331,8 +492,9 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(DictionaryIndexingPlan.detector(detector, rows: 30, columns: 30)?.projectionCenters.count, 1)
         XCTAssertEqual(DictionaryIndexingPlan.detector(detector, rows: 30, columns: 30)?.rows, 30)
 
+        // Fe (α) takes the latest master pattern opened, as none of its space group is open, and is refused beside ni.
         indexing.addPhase(fe)
-        XCTAssertEqual(indexing.refusal, "Dictionary indexing takes one phase and its master pattern: turn the others off.")
+        XCTAssertEqual(indexing.refusal, "The master pattern is for ni (space group 225), the phase is Fe (α) (space group 229).")
         XCTAssertFalse(indexing.canIndex)
         indexing.setPhase(named: "ni", isOn: false)
         XCTAssertEqual(indexing.refusal, "The master pattern is for ni (space group 225), the phase is Fe (α) (space group 229).")
@@ -364,6 +526,6 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         await indexing.openMasterPattern(url: scan).value
         XCTAssertEqual(failures, 1)
         XCTAssertEqual(indexing.masterPatterns.count, 1)
-        XCTAssertEqual(indexing.currentMaster?.fileName, "ni_mc_mp_20kv_uint8_gzip_opts9.h5")
+        XCTAssertEqual(indexing.master(for: try XCTUnwrap(indexing.phases.first))?.fileName, "ni_mc_mp_20kv_uint8_gzip_opts9.h5")
     }
 }

@@ -7,11 +7,15 @@
 //        point; the status line's readout; the Bands table of the pattern on screen, and each detected band's centre line on that
 //        pattern for the overlay.
 //
-//  A dictionary run's point carries its best match as a `HoughIndexer.Solution` (the rotation, phase 0, the score as its confidence,
-//  no fit and no bands), so the map, the readout and the tables read both methods alike; the full ranking (keep_n matches per point)
-//  stays in `dictionary`, kikuchipy's result, which its crystal map is built from. Its orientation similarity map (kikuchipy's
+//  A dictionary run's point carries its best match as a `HoughIndexer.Solution` (the rotation, the phase whose dictionary scored it
+//  best, the score as its confidence, no fit and no bands), so the map, the readout and the tables read both methods alike; the full
+//  ranking (keep_n matches per point) stays in `dictionary`, kikuchipy's result (with several phases the merged map's: each point's
+//  matches in the phase it takes), which its crystal map is built from. Its orientation similarity map (kikuchipy's
 //  `orientation_similarity_map` with its defaults: every kept match, not normalised, the four nearest neighbours; Marquardt et al.
-//  2017) is `OrientationSimilarityMap` (#221) on the rows landed, updated as each block lands (D-SEM-92).
+//  2017) is `OrientationSimilarityMap` (#221) on the rows landed, updated as each block lands (D-SEM-92). A run against several phases
+//  (D-SEM-98) lands each block as kikuchipy's `merge_crystal_maps` merges the phases' maps (`DictionaryMapMerge.chosenMaps` and
+//  `picked`), and its OSM is kikuchipy's on the merged map's `merged_simulation_indices` (keep_n × phases per point), computed on
+//  each phase's own indices (`phaseSimulationIndices`) made distinct across the phases.
 //
 //  Colours: the IPF layers are orix's `IPFColorKeyTSL` of the phase's point group, Euler is orix's `EulerColorKey` of it (both
 //  parity-tested, `SEMColorKeyParityTests`); Phase is the phase's colour. On those layers a point the run has not indexed is black,
@@ -79,7 +83,7 @@ package nonisolated enum IndexingLayer: String, Sendable, CaseIterable, Identifi
         case .bands: "The number of detected bands matched to the phase's reflectors"
         case .patternQuality: "The mean Radon peak of the detected bands (pyEBSDindex's pq)"
         case .score: "The best match's score against the dictionary, kikuchipy's scores: its normalised cross-correlation (NCC) or dot product (NDP)"
-        case .osm: "The orientation similarity map (kikuchipy's, Marquardt et al. 2017): how many of a point's kept matches each of its four nearest neighbours shares, on average. High inside a grain, low at its boundaries and on poor patterns"
+        case .osm: "The orientation similarity map (kikuchipy's, Marquardt et al. 2017): how many of a point's kept matches (in every phase's dictionary) each of its four nearest neighbours shares, on average. High inside a grain, low at its boundaries and on poor patterns"
         }
     }
 
@@ -109,8 +113,13 @@ package nonisolated struct IndexingResult: Sendable {
     package private(set) var solutions: [HoughIndexer.Solution?]
     /// The rows landed (they land in order: a stopped run keeps rows 0..<rowsDone).
     package private(set) var rowsDone = 0
-    /// A dictionary run's matches of the rows landed, kikuchipy's result (keep_n per point, best first); nil for Hough.
+    /// A dictionary run's matches of the rows landed, kikuchipy's result (keep_n per point, best first); with several phases the merged
+    /// map's (each point's matches in the phase it takes, the simulation indices into that phase's dictionary), whose own
+    /// `orientationSimilarityMap()` is not the run's OSM (`similarity` is). nil for Hough.
     package private(set) var dictionary: DictionaryIndexing.Result?
+    /// A run against several phases (D-SEM-98): each phase's simulation indices of the rows landed (point × keep_n, best first, in
+    /// `phases` order), the OSM's input. Empty for one phase and for Hough.
+    package private(set) var phaseSimulationIndices: [[Int]]
     /// A dictionary run's orientation similarity map of the rows landed, one per scan point in map order (NaN where no row has landed,
     /// and for Hough, which keeps one solution per point).
     package private(set) var similarity: [Float]
@@ -124,6 +133,7 @@ package nonisolated struct IndexingResult: Sendable {
         method = metric == nil ? .hough : .dictionary
         solutions = [HoughIndexer.Solution?](repeating: nil, count: max(scanRows, 0) * max(scanColumns, 0))
         similarity = [Float](repeating: .nan, count: solutions.count)
+        phaseSimulationIndices = metric != nil && phases.count > 1 ? Array(repeating: [], count: phases.count) : []
     }
 
     /// Lands scan row `row`'s solutions; a row of the wrong length or outside the scan, or on a dictionary run, is dropped.
@@ -133,11 +143,12 @@ package nonisolated struct IndexingResult: Sendable {
         rowsDone = max(rowsDone, index + 1)
     }
 
-    /// Lands a dictionary block, kikuchipy's result for scan rows `rows` (the next rows: blocks land in order). Each point's solution is
-    /// its best match: the rotation, phase 0 and the score; a point whose score is not a number (a pattern without contrast, which
-    /// kikuchipy scores NaN) or that is not in the data is not indexed. A block that does not follow or does not fit is dropped.
+    /// Lands a dictionary block of a run against one phase, kikuchipy's result for scan rows `rows` (the next rows: blocks land in
+    /// order). Each point's solution is its best match: the rotation, phase 0 and the score; a point whose score is not a number (a
+    /// pattern without contrast, which kikuchipy scores NaN) or that is not in the data is not indexed. A block that does not follow or
+    /// does not fit is dropped, and so is any block of a run against several phases (`land(_:rows:)` with one result per phase).
     package mutating func land(_ block: DictionaryIndexing.Result, rows: Range<Int>) {
-        guard method == .dictionary, rows.lowerBound == rowsDone, rows.upperBound <= scanRows, block.keepN >= 1,
+        guard method == .dictionary, phases.count < 2, rows.lowerBound == rowsDone, rows.upperBound <= scanRows, block.keepN >= 1,
               block.pointCount == rows.count * scanColumns, block.scores.count == block.pointCount * block.keepN,
               block.simulationIndices.count == block.scores.count, block.rotations.count == block.scores.count,
               dictionary.map({ $0.keepN == block.keepN }) ?? true else { return }
@@ -153,6 +164,49 @@ package nonisolated struct IndexingResult: Sendable {
             s.patternQuality = .nan
             solutions[start + k] = s
         }
+        append(block, rows: rows)
+        rowsDone = rows.upperBound
+        updateSimilarity(from: rows.lowerBound)
+    }
+
+    /// Lands a dictionary block of scan rows `rows` (the next rows): kikuchipy's result of each phase's dictionary, in `phases` order
+    /// (D-SEM-98). One phase lands as `land(_:rows:)`. With several, each point takes the phase `DictionaryMapMerge.chosenMaps` picks,
+    /// kikuchipy's `merge_crystal_maps` with its defaults (the best score, the first phase on a tie) on the scores as the run made
+    /// them, with that phase's best rotation and score; its keep_n matches are the merged map's (`picked`). A point no phase scores (a
+    /// pattern without contrast, NaN in every dictionary, where kikuchipy's `nanargmax` raises) is not indexed; a phase that does not
+    /// score a point leaves it to the others. A set of blocks that does not follow, does not fit or keeps another keep_n is dropped.
+    package mutating func land(_ blocks: [DictionaryIndexing.Result], rows: Range<Int>) {
+        guard blocks.count == phases.count, let keep = blocks.first?.keepN else { return }
+        if blocks.count == 1 {
+            land(blocks[0], rows: rows)
+            return
+        }
+        guard method == .dictionary, rows.lowerBound == rowsDone, rows.upperBound <= scanRows, keep >= 1,
+              blocks.allSatisfy({ $0.keepN == keep && $0.pointCount == rows.count * scanColumns && $0.scores.count == $0.pointCount * keep
+                                  && $0.simulationIndices.count == $0.scores.count && $0.rotations.count == $0.scores.count }),
+              dictionary.map({ $0.keepN == keep }) ?? true else { return }
+        let inputs = zip(blocks, phases).map { DictionaryMapMerge.Input(result: $0, phase: $1.crystalPhase) }
+        guard let choice = try? DictionaryMapMerge.chosenMaps(inputs, float32: false) else { return }
+        let best = DictionaryMapMerge.picked(inputs, choice: choice, float32: false)
+        let start = rows.lowerBound * scanColumns
+        for k in 0..<best.pointCount {
+            var s = HoughIndexer.Solution()
+            let indexed = choice[k] != nil && best.isInData[k] && best.scores[k * keep].isFinite
+            s.quaternion = best.rotations[k * keep]
+            s.phase = indexed ? (choice[k] ?? -1) : -1
+            s.confidence = indexed ? best.scores[k * keep] : 0
+            s.fit = .nan
+            s.patternQuality = .nan
+            solutions[start + k] = s
+        }
+        append(best, rows: rows)
+        for (i, block) in blocks.enumerated() { phaseSimulationIndices[i] += block.simulationIndices }
+        rowsDone = rows.upperBound
+        updateSimilarity(from: rows.lowerBound)
+    }
+
+    /// Appends a landed block's matches to `dictionary`.
+    private mutating func append(_ block: DictionaryIndexing.Result, rows: Range<Int>) {
         if var landed = dictionary {
             landed.isInData += block.isInData
             landed.scores += block.scores
@@ -165,19 +219,36 @@ package nonisolated struct IndexingResult: Sendable {
             landed.navigationShape = [rows.upperBound, scanColumns]
             dictionary = landed
         }
-        rowsDone = rows.upperBound
-        updateSimilarity(from: rows.lowerBound)
     }
 
     /// Recomputes the orientation similarity map from row `first` down to the last row landed, and the row above it (whose neighbour
     /// below has just landed). A point's value needs only its four nearest neighbours, so the map is computed on those rows and the
-    /// one above them, and the rows' values are taken from it: the same numbers kikuchipy gives on the map of the rows landed.
+    /// one above them, and the rows' values are taken from it: the same numbers kikuchipy gives on the map of the rows landed. With
+    /// several phases the points' sets are kikuchipy's `merged_simulation_indices` up to order and shift (D-SEM-98): phase i's index j
+    /// is j · phases + i, one-to-one across the phases as kikuchipy's shift past the previous map's largest index is, and with every
+    /// merged match counted (its default n_best) a neighbour shares the same number of them either way; unlike kikuchipy's shift, it
+    /// does not depend on the rows landed.
     private mutating func updateSimilarity(from first: Int) {
         guard let dictionary, rowsDone > 0 else { return }
         let keep = dictionary.keepN
         let lo = max(first - 1, 0), top = max(lo - 1, 0)
-        let window = Array(dictionary.simulationIndices[(top * scanColumns * keep)..<(rowsDone * scanColumns * keep)])
-        guard let map = try? OrientationSimilarityMap.compute(simulationIndices: window, keepN: keep, rows: rowsDone - top,
+        let window: [Int], width: Int
+        if phaseSimulationIndices.isEmpty {
+            window = Array(dictionary.simulationIndices[(top * scanColumns * keep)..<(rowsDone * scanColumns * keep)])
+            width = keep
+        } else {
+            let k = phaseSimulationIndices.count
+            var merged: [Int] = []
+            merged.reserveCapacity((rowsDone - top) * scanColumns * keep * k)
+            for p in (top * scanColumns)..<(rowsDone * scanColumns) {
+                for (i, indices) in phaseSimulationIndices.enumerated() {
+                    for n in 0..<keep { merged.append(indices[p * keep + n] * k + i) }
+                }
+            }
+            window = merged
+            width = keep * k
+        }
+        guard let map = try? OrientationSimilarityMap.compute(simulationIndices: window, keepN: width, rows: rowsDone - top,
                                                               columns: scanColumns).maps.first else { return }
         for i in (lo * scanColumns)..<(rowsDone * scanColumns) { similarity[i] = map[i - top * scanColumns] }
     }
@@ -190,7 +261,7 @@ package nonisolated struct IndexingResult: Sendable {
         return s.phase >= 0 && similarity[i].isFinite ? Double(similarity[i]) : nil
     }
 
-    /// A dictionary run's best simulation index at a point (into the dictionary's orientations); nil where none has landed.
+    /// A dictionary run's best simulation index at a point (into the dictionary of the point's phase); nil where none has landed.
     package func simulationIndex(at position: EBSDPosition) -> Int? {
         guard let dictionary, position.isInside(rows: scanRows, columns: scanColumns) else { return nil }
         let i = position.index(columns: scanColumns) * dictionary.keepN
@@ -254,9 +325,22 @@ package nonisolated struct IndexingResult: Sendable {
     /// A dictionary run's rows landed as orix's crystal map, as kikuchipy builds it (`DictionaryIndexing.Result.crystalMap`, D-SEM-92):
     /// the best match's rotation, the phase as id 0 in the room's colour, the properties `scores` and `simulation_indices`, steps
     /// `steps` (dy, dx) in `scanUnit`. A point the room does not index (no contrast, NaN score) is `not_indexed` with score 0, so the
-    /// files hold numbers. nil before a block has landed.
+    /// files hold numbers. With several phases (D-SEM-98) it is kikuchipy's merged map (`DictionaryMapMerge.Merged.crystalMap`): each
+    /// point's phase by its index in `phases`, in the room's names and colours, a phase that wins no point left out as kikuchipy leaves
+    /// it. nil before a block has landed.
     package func crystalMap(steps: (dy: Double, dx: Double), scanUnit: String) throws -> CrystalMap? {
         guard method == .dictionary, rowsDone > 0, let dictionary, let phase = phases.first else { return nil }
+        if phases.count > 1 {
+            let (x, y) = CrystalMap.coordinates(shape: (rowsDone, scanColumns), steps: (steps.dy, steps.dx))
+            let ids = (0..<(rowsDone * scanColumns)).map { i in solutions[i].map { $0.phase >= 0 ? $0.phase : PhaseList.notIndexedID } ?? PhaseList.notIndexedID }
+            // kikuchipy adds a map's phase to the merged list only where it wins a point.
+            let won = Set(ids)
+            let list = PhaseList(phases.enumerated().filter { won.contains($0.offset) }.map { (id: $0.offset, phase: $0.element.crystalPhase) })
+            return try CrystalMap(rotations: dictionary.bestRotations, phaseIDs: ids, x: x, y: y, phaseList: list,
+                                  properties: ["scores": dictionary.bestScores.map { $0.isFinite ? $0 : 0 },
+                                               "simulation_indices": dictionary.bestSimulationIndices.map(Double.init)],
+                                  scanUnit: scanUnit, isInData: dictionary.isInData)
+        }
         let map = try dictionary.crystalMap(phase: phase.crystalPhase, stepSizes: [steps.dy, steps.dx], scanUnit: scanUnit)
         let best = dictionary.bestScores
         guard best.contains(where: { !$0.isFinite }) else { return map }

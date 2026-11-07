@@ -1,7 +1,8 @@
 //
 //  IndexingSession.swift
 //  Role: the one owner of the Indexing room's state (docs/sem/design/indexing-room.md): the phases indexed against, the method (Hough
-//        or Dictionary, D-SEM-91) and its settings, the master patterns opened for a dictionary, the last run of each method
+//        or Dictionary, D-SEM-91) and its settings, the master patterns opened and the one each phase on takes (D-SEM-98), the last
+//        run of each method
 //        (`IndexingRun`, D-SEM-97: its result, filled row by row or block by block, and what it was made of, so a later change to
 //        Processing, the phases or the method's settings stales it) and which one is on screen (the run in flight, else the picked
 //        method's), the map on screen as RGBA, the pattern pane's pattern with its detected bands, a dictionary run's best match at
@@ -13,7 +14,8 @@
 //  indexes the scan row by row (Hough) or block of rows by block (dictionary, its chunks counted for the toolbar) and lands each only if
 //  no newer run or dataset started meanwhile (`generation`), so the map grows in place and Stop keeps the indexed rows; the pattern
 //  under the pointer in a task the next hover cancels; the band detector (the Radon line plan) built once per settings off the main
-//  actor and kept (`probe`); the dictionary's orientations sampled once per resolution and point group and kept (`sampled`).
+//  actor and kept (`probe`); the dictionary's orientations sampled once per resolution and point group and kept (`sampled`), one
+//  sampling for every phase of a point group.
 //
 
 import Foundation
@@ -38,12 +40,13 @@ package final class IndexingSession {
     package private(set) var dictionarySettings = DictionaryIndexingSettings.roomDefault
     /// The master patterns opened, in the order opened (the shipped Ni 20 kV one first); kept across datasets.
     package private(set) var masterPatterns: [IndexingMasterPattern] = []
-    /// The one a dictionary is projected from (`IndexingMasterPattern.id`).
-    package private(set) var masterID: String?
+    /// The master pattern picked for a phase in the Dictionary section, phase name (`IndexingPhase.id`) to `IndexingMasterPattern.id`
+    /// (D-SEM-98); a phase without a pick takes `IndexingMasterPattern.preferred(for:among:)`. The dataset's, as its phases are.
+    package private(set) var masterPicks: [String: String] = [:]
     package private(set) var isLoadingMaster = false
-    /// The dictionary's orientations at the current resolution for the phase on; nil while they are counted or when there is no one
-    /// phase on.
-    package private(set) var dictionarySize: Int?
+    /// The dictionary's orientations counted at the current resolution, by point group (orix's name); a group is missing while it is
+    /// counted, and all are while Dictionary is not picked.
+    package private(set) var dictionarySizes: [String: Int] = [:]
     /// What the map shows.
     package private(set) var layer = IndexingLayer.ipfZ
     /// Whether the pattern pane draws the detected bands.
@@ -60,9 +63,12 @@ package final class IndexingSession {
     package private(set) var runningMethod: IndexingMethod?
     /// The run's fraction of rows done (0...1).
     package private(set) var progress = 0.0
-    /// A dictionary run's chunks done and in all (every block runs the whole dictionary in chunks).
+    /// A dictionary run's chunks done and in all (every block runs every phase's whole dictionary in chunks).
     package private(set) var chunksDone = 0
     package private(set) var chunksTotal = 0
+    /// The phase whose dictionary a run against several phases is matching now (the toolbar, the map's count and Info name it); nil
+    /// otherwise.
+    package private(set) var chunkPhase: String?
     /// The dataset's own crystal map when it lies on the scan's grid (the Maps room's guard): Compare's `File`.
     package private(set) var fileIndexing: CrystalMap?
 
@@ -99,8 +105,9 @@ package final class IndexingSession {
     package var lastRunSeconds: Double? { shownRun?.seconds }
     /// The run on screen was stopped: its indexed rows stay, the rest of the map shows the navigator.
     package var wasStopped: Bool { shownRun?.wasStopped ?? false }
-    /// The run on screen's dictionary plan: its master pattern, orientations, detector and energy (Info, the method record, Best match).
-    package var dictionaryPlan: DictionaryIndexingPlan? { shownRun?.dictionaryPlan }
+    /// The run on screen's dictionary plans, one per phase in its result's order: each master pattern, orientations, detector and
+    /// energy (Info, the method record, Best match). Empty without one.
+    package var dictionaryPlans: [DictionaryIndexingPlan] { shownRun?.dictionaryPlans ?? [] }
     /// The run on screen's Hough libraries, for the Bands table's families, the .ang and the method record.
     private var runPlan: IndexingPlan? { shownRun?.houghPlan }
 
@@ -162,7 +169,7 @@ package final class IndexingSession {
     }
 
     /// The dictionary's orientations are those of a resolution in a point group's fundamental zone.
-    nonisolated private struct SamplingKey: Equatable, Sendable {
+    nonisolated private struct SamplingKey: Hashable, Sendable {
         var resolution: Double
         var pointGroup: String
     }
@@ -170,6 +177,7 @@ package final class IndexingSession {
     nonisolated private struct BestMatchKey: Equatable, Sendable {
         var position: EBSDPosition
         var run: Int
+        var phase: Int
         var simulation: Int
     }
 
@@ -186,9 +194,10 @@ package final class IndexingSession {
     @ObservationIgnored private var probe: (key: ProbeKey, probe: IndexingProbe)?
     @ObservationIgnored private var shownKey: ShownKey?
     @ObservationIgnored private var shownRaw: [HoughBandDetector.Band] = []
-    /// The dictionary's orientations last sampled, kept for the next run at the same resolution and point group.
-    @ObservationIgnored private var sampled: (key: SamplingKey, rotations: [SIMD4<Double>])?
-    @ObservationIgnored private var samplingTask: Task<Void, Never>?
+    /// The dictionary's orientations sampled, by resolution and point group, kept for the next run: those the settings want, and the
+    /// last landed.
+    @ObservationIgnored private var sampled: [SamplingKey: [SIMD4<Double>]] = [:]
+    @ObservationIgnored private var samplingTasks: [SamplingKey: Task<Void, Never>] = [:]
     @ObservationIgnored private var masterTasks: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var bestMatchTask: Task<Void, Never>?
     @ObservationIgnored private var bestMatchKey: BestMatchKey?
@@ -210,7 +219,7 @@ package final class IndexingSession {
     /// The inputs a run of `method` would take now.
     package func inputs(for method: IndexingMethod) -> IndexingInputs {
         IndexingInputs(pipeline: patterns.pipeline, phases: phases, settings: settings, method: method, dictionary: dictionarySettings,
-                       masterID: masterID)
+                       masterIDs: method == .dictionary ? mastersOn.mapValues(\.id) : [:])
     }
     /// The inputs a run would take now.
     package var currentInputs: IndexingInputs { inputs(for: method) }
@@ -222,8 +231,16 @@ package final class IndexingSession {
     }
     /// The run on screen is stale (`isStale(of:)` of its method).
     package var isStale: Bool { shownRun.map { isStale(of: $0.method) } ?? false }
-    /// The master pattern a dictionary is projected from.
-    package var currentMaster: IndexingMasterPattern? { masterPatterns.first { $0.id == masterID } }
+    /// The master pattern `phase`'s dictionary is projected from (D-SEM-98): the one picked for it, else the one it prefers
+    /// (`IndexingMasterPattern.preferred(for:among:)`); nil when none is open.
+    package func master(for phase: IndexingPhase) -> IndexingMasterPattern? {
+        if let id = masterPicks[phase.id], let picked = masterPatterns.first(where: { $0.id == id }) { return picked }
+        return IndexingMasterPattern.preferred(for: phase, among: masterPatterns)
+    }
+    /// Each phase on with its master pattern, by phase name.
+    private var mastersOn: [String: IndexingMasterPattern] {
+        Dictionary(phasesOn.compactMap { p in master(for: p).map { (p.id, $0) } }, uniquingKeysWith: { first, _ in first })
+    }
     /// The map layers on offer: the result's method's, or the method picked before a run.
     package var availableLayers: [IndexingLayer] { result?.layers ?? IndexingLayer.layers(for: method) }
 
@@ -252,9 +269,11 @@ package final class IndexingSession {
     private func reset() {
         generation += 1
         runGeneration += 1
-        runTask?.cancel(); patternTask?.cancel(); samplingTask?.cancel(); bestMatchTask?.cancel(); compareTask?.cancel()
+        runTask?.cancel(); patternTask?.cancel(); bestMatchTask?.cancel(); compareTask?.cancel()
+        for task in samplingTasks.values { task.cancel() }
+        samplingTasks = [:]
         runs = [:]; runningMethod = nil; fileIndexing = nil
-        isIndexing = false; progress = 0; chunksDone = 0; chunksTotal = 0
+        isIndexing = false; progress = 0; chunksDone = 0; chunksTotal = 0; chunkPhase = nil
         showsCompare = false; comparison = nil; comparePictures = nil; compareTask = nil; compareKey = nil
         mapRGBA = nil; palette = nil; probe = nil; shownKey = nil; shownRaw = []
         mapPresentation.resetWindow()
@@ -262,7 +281,7 @@ package final class IndexingSession {
         bestMatchPosition = nil; bestMatchFailure = nil; bestMatchKey = nil
         overlayBands = [:]; overlayMasters = [:]; overlayMemo = nil
         phases = []; skippedPhases = []; settings = .roomDefault; layer = .ipfZ
-        method = .hough; dictionarySettings = .roomDefault; dictionarySize = nil
+        method = .hough; dictionarySettings = .roomDefault; dictionarySizes = [:]; masterPicks = [:]
     }
 
     // MARK: - Phases and settings
@@ -280,6 +299,7 @@ package final class IndexingSession {
     package func removePhase(named name: String) {
         guard let i = phases.firstIndex(where: { $0.name == name }) else { return }
         phases.remove(at: i)
+        masterPicks[name] = nil
         phasesChanged()
     }
 
@@ -298,7 +318,7 @@ package final class IndexingSession {
     private func phasesChanged() {
         loadKeys()
         refreshBandRows()
-        refreshDictionarySize()
+        refreshDictionarySizes()
     }
 
     /// Edits the Hough settings in place (one field); the pattern pane re-detects its bands with them.
@@ -329,7 +349,7 @@ package final class IndexingSession {
         } else if result == nil, !IndexingLayer.layers(for: new).contains(layer) {
             setLayer(.ipfZ)
         }
-        refreshDictionarySize()
+        refreshDictionarySizes()
     }
 
     /// Edits the dictionary settings in place (one field).
@@ -338,23 +358,25 @@ package final class IndexingSession {
         change(&edited)
         guard edited != dictionarySettings else { return }
         dictionarySettings = edited
-        refreshDictionarySize()
+        refreshDictionarySizes()
     }
 
     package func resetDictionarySettings() {
         guard dictionarySettings != .roomDefault else { return }
         dictionarySettings = .roomDefault
-        refreshDictionarySize()
+        refreshDictionarySizes()
     }
 
-    /// Picks the master pattern a dictionary is projected from, by its id.
-    package func selectMasterPattern(_ id: String) {
-        guard id != masterID, masterPatterns.contains(where: { $0.id == id }) else { return }
-        masterID = id
+    /// Picks the master pattern phase `name`'s dictionary is projected from, by its id (D-SEM-98). The run's inputs name it, so a pick
+    /// stales a dictionary run.
+    package func selectMasterPattern(_ id: String, forPhase name: String) {
+        guard masterPatterns.contains(where: { $0.id == id }), phases.contains(where: { $0.name == name }), masterPicks[name] != id else { return }
+        masterPicks[name] = id
     }
 
-    /// Opens the master pattern at `url` off the main actor and picks it (an open one is picked again). A file that is not an EMsoft
-    /// EBSD or TKD master pattern is refused with the reason. The returned task ends when it is open (or refused).
+    /// Opens the master pattern at `url` off the main actor (D-SEM-98: each phase without a pick then takes it when it prefers it, of
+    /// its name and space group, `IndexingMasterPattern.preferred(for:among:)`; the event says which phases on do). A file that is
+    /// not an EMsoft EBSD or TKD master pattern is refused with the reason. The returned task ends when it is open (or refused).
     @discardableResult
     package func openMasterPattern(url: URL) -> Task<Void, Never> {
         openMasterPattern(url: url, quietly: false)
@@ -370,8 +392,8 @@ package final class IndexingSession {
     @discardableResult
     private func openMasterPattern(url: URL, quietly: Bool) -> Task<Void, Never> {
         let id = url.standardizedFileURL.path
-        if masterPatterns.contains(where: { $0.id == id }) {
-            masterID = id
+        if let open = masterPatterns.first(where: { $0.id == id }) {
+            if !quietly { onEvent?("\(open.fileName) is already open; " + users(of: open)) }
             return Task {}
         }
         if let loading = masterTasks[id] { return loading }
@@ -383,8 +405,7 @@ package final class IndexingSession {
                 self.masterTasks[id] = nil
                 self.isLoadingMaster = !self.masterTasks.isEmpty
                 if !self.masterPatterns.contains(where: { $0.id == opened.id }) { self.masterPatterns.append(opened) }
-                if !quietly || self.masterID == nil { self.masterID = opened.id }
-                if !quietly { self.onEvent?("Opened the master pattern \(opened.fileName): \(opened.summary)") }
+                if !quietly { self.onEvent?("Opened the master pattern \(opened.fileName): \(opened.summary); " + self.users(of: opened)) }
             } catch {
                 guard let self else { return }
                 self.masterTasks[id] = nil
@@ -403,55 +424,106 @@ package final class IndexingSession {
         try IndexingMasterPattern.load(url)
     }
 
-    /// Counts the dictionary's orientations for the current resolution and the one phase on, off the main actor, and keeps them for
-    /// the run (only while Dictionary is picked: sampling 1° takes seconds).
-    private func refreshDictionarySize() {
-        guard method == .dictionary, phasesOn.count == 1, let phase = phasesOn.first, let name = phase.pointGroupName,
-              dictionarySettings.refusal == nil else {
-            samplingTask?.cancel()
-            dictionarySize = nil
-            return
-        }
-        let key = SamplingKey(resolution: dictionarySettings.resolution, pointGroup: name)
-        if let sampled, sampled.key == key {
-            dictionarySize = sampled.rotations.count
-            return
-        }
-        dictionarySize = nil
-        samplingTask?.cancel()
-        samplingTask = Task { [weak self] in
-            guard let group = PointGroup.named(name),
-                  let rotations = try? await DictionaryIndexingPlan.sample(resolution: key.resolution, pointGroup: group),
-                  !Task.isCancelled, let self else { return }
-            self.sampled = (key: key, rotations: rotations)
-            if self.samplingKey == key { self.dictionarySize = rotations.count }
-        }
+    /// Which phases on take master pattern `master`, for the open event: "ni, Al take it", or how to give it one.
+    private func users(of master: IndexingMasterPattern) -> String {
+        let names = phasesOn.filter { self.master(for: $0)?.id == master.id }.map(\.name)
+        if names.isEmpty { return "no phase on takes it: pick it for a phase under Dictionary" }
+        return names.joined(separator: ", ") + (names.count == 1 ? " takes it" : " take it")
     }
 
-    /// The sampling the current settings ask for; nil without one phase on.
-    private var samplingKey: SamplingKey? {
-        guard phasesOn.count == 1, let name = phasesOn.first?.pointGroupName else { return nil }
-        return SamplingKey(resolution: dictionarySettings.resolution, pointGroup: name)
+    /// The sampling `phase`'s dictionary takes at the current resolution; nil without a point group.
+    private func samplingKey(for phase: IndexingPhase) -> SamplingKey? {
+        phase.pointGroupName.map { SamplingKey(resolution: dictionarySettings.resolution, pointGroup: $0) }
     }
 
-    /// The Dictionary section's Chunk row: patterns per chunk, chunks per block and blocks, as the run would cut them now; nil before
-    /// the dictionary is counted.
+    /// The samplings the phases on take now.
+    private var wantedSamplingKeys: Set<SamplingKey> { Set(phasesOn.compactMap(samplingKey(for:))) }
+
+    /// `phase`'s dictionary size at the current resolution; nil while it is counted, when it cannot be, or while Dictionary is not
+    /// picked.
+    package func dictionarySize(for phase: IndexingPhase) -> Int? { phase.pointGroupName.flatMap { dictionarySizes[$0] } }
+
+    /// The dictionaries of the phases on, summed (one per phase on: two phases of one point group are sampled once and run twice); nil
+    /// while one is counted, without a phase on, or when Dictionary is not picked or its settings are refused.
+    package var dictionarySize: Int? {
+        guard method == .dictionary, !phasesOn.isEmpty, dictionarySettings.refusal == nil else { return nil }
+        var total = 0
+        for phase in phasesOn {
+            guard let n = dictionarySize(for: phase) else { return nil }
+            total += n
+        }
+        return total
+    }
+
+    /// Counts the dictionary's orientations for the current resolution and each point group of the phases on, off the main actor, one
+    /// task per point group, and keeps them for the run (only while Dictionary is picked: sampling 1° takes seconds).
+    private func refreshDictionarySizes() {
+        guard method == .dictionary, dictionarySettings.refusal == nil else {
+            for task in samplingTasks.values { task.cancel() }
+            samplingTasks = [:]
+            dictionarySizes = [:]
+            return
+        }
+        let wanted = wantedSamplingKeys
+        for (key, task) in samplingTasks where !wanted.contains(key) {
+            task.cancel()
+            samplingTasks[key] = nil
+        }
+        var sizes: [String: Int] = [:]
+        for key in wanted {
+            if let rotations = sampled[key] {
+                sizes[key.pointGroup] = rotations.count
+                continue
+            }
+            guard samplingTasks[key] == nil else { continue }
+            samplingTasks[key] = Task { [weak self] in
+                var rotations: [SIMD4<Double>]?
+                if let group = PointGroup.named(key.pointGroup) {
+                    rotations = try? await DictionaryIndexingPlan.sample(resolution: key.resolution, pointGroup: group)
+                }
+                // A cancelled task was taken out of `samplingTasks` by whoever cancelled it; any other ends its own entry, landed or
+                // not, so a later refresh samples the group again.
+                guard let self, !Task.isCancelled else { return }
+                self.samplingTasks[key] = nil
+                if let rotations { self.keepSampled([key: rotations]) }
+            }
+        }
+        dictionarySizes = sizes
+    }
+
+    /// Keeps freshly sampled orientations and drops the samples no setting wants any more (the wanted keys and those just landed
+    /// stay); the dictionary sizes of the wanted ones follow.
+    private func keepSampled(_ landed: [SamplingKey: [SIMD4<Double>]]) {
+        sampled.merge(landed) { _, new in new }
+        let wanted = wantedSamplingKeys
+        sampled = sampled.filter { wanted.contains($0.key) || landed[$0.key] != nil }
+        guard method == .dictionary, dictionarySettings.refusal == nil else { return }
+        for (key, rotations) in landed where wanted.contains(key) { dictionarySizes[key.pointGroup] = rotations.count }
+    }
+
+    /// The Dictionary section's Chunk row: patterns per chunk (the largest over the phases), the chunks of every phase's dictionary per
+    /// block summed, and the blocks, as the run would cut them now; nil before every dictionary is counted.
     package var dictionaryChunking: (size: Int, chunks: Int, blocks: Int)? {
-        guard let size = dictionarySize, case .success(let source) = self.source() else { return nil }
+        guard dictionarySize != nil, case .success(let source) = self.source() else { return nil }
         let pixels = source.patternRows * source.patternColumns
         let mask = (try? dictionarySettings.signalMask(rows: source.patternRows, columns: source.patternColumns)) ?? nil
         let kept = mask.map { $0.filter { !$0 }.count } ?? pixels
         let perBlock = DictionaryIndexingPlan.rowsPerBlock(scanRows: source.scanRows, scanColumns: source.scanColumns, pixels: pixels)
         let options = DictionaryIndexing.Options(metric: dictionarySettings.metric, keepN: dictionarySettings.keep, signalMask: mask)
-        let cut = DictionaryIndexingPlan.chunking(points: perBlock * source.scanColumns, keptPixels: kept, dictionary: size, options: options)
-        return (cut.size, cut.chunks, (source.scanRows + perBlock - 1) / max(perBlock, 1))
+        let cuts = phasesOn.compactMap { dictionarySize(for: $0) }.map {
+            DictionaryIndexingPlan.chunking(points: perBlock * source.scanColumns, keptPixels: kept, dictionary: $0, options: options)
+        }
+        return (cuts.map(\.size).max() ?? 0, cuts.reduce(0) { $0 + $1.chunks }, (source.scanRows + perBlock - 1) / max(perBlock, 1))
     }
 
-    /// Why a dictionary cannot run now (the Dictionary section's warning); nil when it can.
+    /// Why a dictionary cannot run now (the Dictionary section's warning); nil when it can. Every phase on needs a master pattern of
+    /// its space group (D-SEM-98).
     package var dictionaryRefusal: String? {
         guard let document = patterns.document else { return "No EBSD dataset is open." }
-        if currentMaster == nil, isLoadingMaster { return "The master pattern is being read." }
-        return DictionaryIndexingPlan.refusal(phases: phases, master: currentMaster, settings: dictionarySettings,
+        if isLoadingMaster, phasesOn.contains(where: { master(for: $0)?.master.phase.spaceGroup != $0.spaceGroup }) {
+            return "The master pattern is being read."
+        }
+        return DictionaryIndexingPlan.refusal(phases: phases, masters: mastersOn, settings: dictionarySettings,
                                               detector: document.dataset.detector, beamEnergy: document.dataset.sem.beamEnergyKeV)
     }
 
@@ -588,12 +660,16 @@ package final class IndexingSession {
         return Task { await task.value }
     }
 
-    /// A dictionary run (D-SEM-92): the orientations sampled (or the ones kept for this resolution and point group), the plan built, then
-    /// each block of rows read and matched against the whole dictionary, chunk by chunk, its rows landing when it is done.
+    /// A dictionary run (D-SEM-92, D-SEM-98): each phase's orientations sampled (or the ones kept for its resolution and point group,
+    /// one sampling for every phase of a group), the plans built (one per phase on), then each block of rows read once and matched
+    /// against every phase's dictionary in turn, chunk by chunk, its rows landing when every phase has matched them (merged as
+    /// kikuchipy's `merge_crystal_maps` merges the phases' maps, `IndexingResult.land(_:rows:)`). One phase makes today's calls.
     private func indexWithDictionary(_ document: EBSDSession.Document, source: IndexingSource) -> Task<Void, Never> {
         let inputs = currentInputs
-        guard let master = currentMaster, let phase = inputs.phases.first, let key = samplingKey else { return Task {} }
-        let cached = sampled?.key == key ? sampled?.rotations : nil
+        let on = phasesOn, masters = mastersOn
+        let keys = on.compactMap { samplingKey(for: $0) }
+        guard !on.isEmpty, keys.count == on.count, on.allSatisfy({ masters[$0.id] != nil }) else { return Task {} }
+        let cached = sampled.filter { keys.contains($0.key) }
         let phases = self.phases, settings = dictionarySettings, detector = document.dataset.detector
         let beam = document.dataset.sem.beamEnergyKeV
         let rows = document.dataset.scanRows, columns = document.dataset.scanColumns
@@ -603,7 +679,7 @@ package final class IndexingSession {
         runs[.dictionary] = IndexingRun(id: run, result: IndexingResult(scanRows: rows, scanColumns: columns, phases: inputs.phases,
                                                                         metric: settings.metric),
                                         inputs: inputs, source: source.kind, projectionCenter: IndexingPlan.meanProjectionCenter(detector))
-        isIndexing = true; runningMethod = .dictionary; progress = 0; chunksDone = 0; chunksTotal = 0
+        isIndexing = true; runningMethod = .dictionary; progress = 0; chunksDone = 0; chunksTotal = 0; chunkPhase = nil
         if !IndexingLayer.layers(for: .dictionary).contains(layer) { layer = .ipfZ }
         palette = IndexingPalette(layer: layer, phases: inputs.phases)
         clearBestMatch()
@@ -611,34 +687,47 @@ package final class IndexingSession {
         refreshBandRows()
         refreshComparison()
         let resolution = settings.resolution.formatted(.number.precision(.significantDigits(1...3)))
-        onEvent?("Indexing \(rows * columns) patterns against the \(phase.name) dictionary at \(resolution)° (\(settings.metric.title))…")
-        // The chunks merged, in order, to the main actor (the newest only: the count only grows).
-        let (chunks, chunkSink) = AsyncStream.makeStream(of: Int.self, bufferingPolicy: .bufferingNewest(1))
+        if on.count == 1 {
+            onEvent?("Indexing \(rows * columns) patterns against the \(on[0].name) dictionary at \(resolution)° (\(settings.metric.title))…")
+        } else {
+            onEvent?("Indexing \(rows * columns) patterns against \(on.count) dictionaries (\(on.map(\.name).joined(separator: ", "))) at "
+                + "\(resolution)° (\(settings.metric.title)); each point takes the phase of its best score…")
+        }
+        // The chunks merged, in order, and the phase matching, to the main actor (the newest only: the count only grows).
+        let (chunks, chunkSink) = AsyncStream.makeStream(of: (done: Int, phase: Int).self, bufferingPolicy: .bufferingNewest(1))
         Task { [weak self] in
-            for await done in chunks { self?.chunkMerged(done, run: run) }
+            for await chunk in chunks { self?.chunkMerged(chunk.done, phase: chunk.phase, run: run) }
         }
         let started = Date()
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             defer { chunkSink.finish() }
             do {
-                let rotations: [SIMD4<Double>]
-                if let cached {
-                    rotations = cached
-                } else {
+                var byKey = cached
+                for (phase, key) in zip(on, keys) where byKey[key] == nil {
                     guard let group = phase.pointGroup else { throw IndexingRefusal("\(phase.name): no point group is known for space group \(phase.spaceGroup).") }
-                    rotations = try await DictionaryIndexingPlan.sample(resolution: settings.resolution, pointGroup: group)
+                    byKey[key] = try await DictionaryIndexingPlan.sample(resolution: settings.resolution, pointGroup: group)
+                    try Task.checkCancellation()
                 }
                 try Task.checkCancellation()
-                let plan = try DictionaryIndexingPlan(source: source, phases: phases, master: master, settings: settings,
-                                                      fileDetector: detector, beamEnergy: beam, rotations: rotations)
-                let perBlock = plan.chunksPerBlock
-                await self?.landDictionaryPlan(plan, key: key, chunks: perBlock.reduce(0, +), run: run)
+                let plans = try DictionaryIndexingPlan.plans(source: source, phases: phases, masters: masters, settings: settings,
+                                                             fileDetector: detector, beamEnergy: beam, rotations: keys.map { byKey[$0] ?? [] })
+                guard let first = plans.first else { throw IndexingRefusal("Turn a phase on to index against it.") }
+                let perBlock = plans.map(\.chunksPerBlock)
+                await self?.landDictionaryPlans(plans, sampled: byKey, chunks: perBlock.joined().reduce(0, +), run: run)
                 var before = 0
-                for (k, block) in plan.blocks.enumerated() {
+                for (k, block) in first.blocks.enumerated() {
                     try Task.checkCancellation()
-                    let offset = before
-                    let matched = try await plan.indexBlock(block) { done, _ in _ = chunkSink.yield(offset + done) }
-                    before += perBlock[k]
+                    // Read once, matched against every phase's dictionary.
+                    let experimental = try await first.readBlock(block)
+                    var matched: [DictionaryIndexing.Result] = []
+                    for (i, plan) in plans.enumerated() {
+                        let offset = before
+                        _ = chunkSink.yield((done: offset, phase: i))
+                        matched.append(try await plan.indexBlock(block, experimental: experimental) { done, _ in
+                            _ = chunkSink.yield((done: offset + done, phase: i))
+                        })
+                        before += perBlock[i][k]
+                    }
                     await self?.landBlock(matched, rows: block, run: run)
                 }
                 await self?.finish(seconds: Date().timeIntervalSince(started), failure: nil, run: run)
@@ -662,6 +751,7 @@ package final class IndexingSession {
         let stopped = runningMethod
         isIndexing = false
         runningMethod = nil
+        chunkPhase = nil
         if let stopped {
             runs[stopped]?.wasStopped = true
             if let result = runs[stopped]?.result {
@@ -694,21 +784,23 @@ package final class IndexingSession {
         if patternPosition?.row == row { refreshBandRows() }
     }
 
-    private func landDictionaryPlan(_ plan: DictionaryIndexingPlan, key: SamplingKey, chunks: Int, run: Int) {
+    private func landDictionaryPlans(_ plans: [DictionaryIndexingPlan], sampled landed: [SamplingKey: [SIMD4<Double>]], chunks: Int,
+                                     run: Int) {
         guard run == runGeneration else { return }
-        runs[.dictionary]?.dictionaryPlan = plan
-        sampled = (key: key, rotations: plan.rotations)
-        if samplingKey == key { dictionarySize = plan.rotations.count }
+        runs[.dictionary]?.dictionaryPlans = plans
+        keepSampled(landed)
         chunksTotal = chunks
     }
 
-    private func chunkMerged(_ done: Int, run: Int) {
+    /// `done` chunks of the run merged, phase `phase`'s dictionary matching now.
+    private func chunkMerged(_ done: Int, phase: Int, run: Int) {
         guard run == runGeneration, isIndexing, chunksTotal > 0 else { return }
         chunksDone = min(max(chunksDone, done), chunksTotal)
         progress = Double(chunksDone) / Double(chunksTotal)
+        if let phases = runs[.dictionary]?.result.phases, phases.count > 1, phases.indices.contains(phase) { chunkPhase = phases[phase].name }
     }
 
-    private func landBlock(_ matched: DictionaryIndexing.Result, rows: Range<Int>, run: Int) {
+    private func landBlock(_ matched: [DictionaryIndexing.Result], rows: Range<Int>, run: Int) {
         guard run == runGeneration, isIndexing else { return }
         runs[.dictionary]?.result.land(matched, rows: rows)
         repaint(rows: rows)
@@ -721,6 +813,7 @@ package final class IndexingSession {
         let finished = runningMethod
         isIndexing = false
         runningMethod = nil
+        chunkPhase = nil
         let shownChanged = shownRun?.id != before
         if let failure {
             onEvent?("Error: \(failure)")
@@ -732,7 +825,11 @@ package final class IndexingSession {
         if let finished {
             runs[finished]?.seconds = seconds
             if let result = runs[finished]?.result {
-                onEvent?("Indexed \(result.indexedCount) of \(result.pointCount) patterns with \(result.method.title) in \(String(format: "%.1f", seconds)) s")
+                // A run against several phases says how many points each took.
+                let byPhase = result.method == .dictionary && result.phases.count > 1
+                    ? " (" + zip(result.phases, result.countsByPhase).map { "\($0.name) \($1)" }.joined(separator: " · ") + ")" : ""
+                onEvent?("Indexed \(result.indexedCount) of \(result.pointCount) patterns with \(result.method.title) in \(String(format: "%.1f", seconds)) s"
+                    + byPhase)
             }
         }
         if shownChanged {
@@ -908,16 +1005,18 @@ package final class IndexingSession {
 
     // MARK: - The best match
 
-    /// The Best match pane: a dictionary run's best orientation at the pattern pane's point, simulated on the run's detector from its
-    /// master pattern (`MasterPatternProjection`, kikuchipy's `get_patterns`), off the main actor; nothing where the point has none.
+    /// The Best match pane: a dictionary run's best orientation at the pattern pane's point, simulated on the run's detector from the
+    /// master pattern of the point's phase (`MasterPatternProjection`, kikuchipy's `get_patterns`, D-SEM-98), off the main actor;
+    /// nothing where the point has none.
     private func showBestMatch() {
-        guard let run = shownRun, run.method == .dictionary, let plan = run.dictionaryPlan, let position = patternPosition,
-              let solution = run.result.solution(at: position), solution.phase >= 0,
+        guard let run = shownRun, run.method == .dictionary, let position = patternPosition,
+              let solution = run.result.solution(at: position), solution.phase >= 0, run.dictionaryPlans.indices.contains(solution.phase),
               let simulation = run.result.simulationIndex(at: position) else {
             clearBestMatch()
             return
         }
-        let key = BestMatchKey(position: position, run: run.id, simulation: simulation)
+        let plan = run.dictionaryPlans[solution.phase]
+        let key = BestMatchKey(position: position, run: run.id, phase: solution.phase, simulation: simulation)
         guard key != bestMatchKey else { return }
         bestMatchKey = key
         bestMatchTask?.cancel()
@@ -1006,8 +1105,10 @@ package final class IndexingSession {
             guard let runPlan else { return nil }
             return try runPlan.methodJSON(fileName: document.fileName, points: result.pointCount, indexed: result.indexedCount)
         case .dictionary:
-            guard let dictionaryPlan else { return nil }
-            return try dictionaryPlan.methodJSON(fileName: document.fileName, points: result.pointCount, indexed: result.indexedCount)
+            let plans = dictionaryPlans
+            guard !plans.isEmpty else { return nil }
+            return try DictionaryIndexingPlan.methodJSON(plans, fileName: document.fileName, points: result.pointCount,
+                                                         indexed: result.indexedCount, indexedByPhase: result.countsByPhase)
         }
     }
 }

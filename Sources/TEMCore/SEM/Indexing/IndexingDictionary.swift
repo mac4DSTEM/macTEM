@@ -1,17 +1,21 @@
 //
 //  IndexingDictionary.swift
-//  Role: what one dictionary run of the Indexing room is made of (docs/sem/design/indexing-room.md §4, D-SEM-91): the method the room
-//        indexes with (`IndexingMethod`), kikuchipy's `dictionary_indexing` settings the Dictionary section edits
-//        (`DictionaryIndexingSettings`), the master pattern opened for it (`IndexingMasterPattern`, an EMsoft file read as kikuchipy
-//        reads it for a projection: Lambert, both hemispheres), and the plan built from them (`DictionaryIndexingPlan`): the
-//        orientations sampled in the phase's fundamental zone (orix's `sample_SO3`, cubochoric), the detector with the indexed pattern
-//        shape and the file's mean projection centre, the energy, and the scan cut into row blocks the room indexes one after the other.
+//  Role: what one dictionary run of the Indexing room is made of (docs/sem/design/indexing-room.md §4, D-SEM-91, D-SEM-98): the
+//        method the room indexes with (`IndexingMethod`), kikuchipy's `dictionary_indexing` settings the Dictionary section edits
+//        (`DictionaryIndexingSettings`), the master patterns opened for it (`IndexingMasterPattern`, an EMsoft file read as kikuchipy
+//        reads it for a projection: Lambert, both hemispheres; each phase on takes one, `preferred(for:among:)` until one is picked),
+//        and the plans built from them (`DictionaryIndexingPlan`, one per phase on, `plans`): the orientations sampled in the phase's
+//        fundamental zone (orix's `sample_SO3`, cubochoric), the detector with the indexed pattern shape and the file's mean
+//        projection centre, the energy, and the scan cut into row blocks the room indexes one after the other, each block read once and
+//        matched against every phase's dictionary in turn (kikuchipy's multi-phase recipe: one `dictionary_indexing` per phase, then
+//        `merge_crystal_maps`).
 //
 //  The numbers are `DictionaryIndexing`'s (kikuchipy 0.13.1's port, figure F9), `MasterPatternProjection`'s and `OrientationSampling`'s;
 //  this file decides only what goes in. A block's patterns are read through the room's `IndexingSource` (the Patterns room's pipeline,
 //  D-SEM-83) and matched against the whole dictionary, projected chunk by chunk inside `DictionaryIndexing`, so a block's result equals
 //  the whole scan's at those points: the score of a pattern against a simulation does not depend on the other patterns. The backend
-//  (float64 CPU or float32 GPU) is chosen once for the run from the whole scan's work, so a short last block runs the same path.
+//  (float64 CPU or float32 GPU) is chosen once for the run from the whole scan's work against every phase's dictionary, so a short last
+//  block and every phase run the same path.
 //
 
 import Foundation
@@ -114,6 +118,14 @@ package nonisolated struct IndexingMasterPattern: Sendable, Identifiable {
         "\(master.phase.name) · \(energyWords) · Lambert · \(master.side) × \(master.side)"
     }
 
+    /// The master pattern a phase takes until one is picked for it (D-SEM-98): the latest opened whose phase has the phase's space
+    /// group and name (ignoring case, so the preset "Ni" takes kikuchipy's "ni"), else the latest opened of its space group, else the
+    /// latest opened (which `DictionaryIndexingPlan.refusal` then names as the wrong one). nil when none is open.
+    package static func preferred(for phase: IndexingPhase, among masters: [IndexingMasterPattern]) -> IndexingMasterPattern? {
+        let sameGroup = masters.filter { $0.master.phase.spaceGroup == phase.spaceGroup }
+        return sameGroup.last { $0.master.phase.name.lowercased() == phase.name.lowercased() } ?? sameGroup.last ?? masters.last
+    }
+
     /// Reads `url` (call it off the main actor: an HDF5 read of a few to some hundred megabytes). Refuses a file that is not an EMsoft
     /// master pattern, an ECP master pattern, and one a projection cannot take.
     package static func load(_ url: URL) throws -> IndexingMasterPattern {
@@ -131,8 +143,9 @@ package nonisolated struct IndexingMasterPattern: Sendable, Identifiable {
     }
 }
 
-/// One dictionary run of the room: the patterns, the phase and its master pattern, the dictionary's orientations, the detector and the
-/// energy the dictionary is projected for, and the scan's row blocks.
+/// One phase's dictionary in a run of the room: the patterns, the phase and its master pattern, the dictionary's orientations, the
+/// detector and the energy the dictionary is projected for, and the scan's row blocks. A run against several phases holds one per
+/// phase (`plans`, D-SEM-98).
 package nonisolated struct DictionaryIndexingPlan: Sendable {
     package let source: IndexingSource
     package let phase: IndexingPhase
@@ -154,26 +167,36 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
     /// `DictionaryIndexing`'s own memory budget. The demo scan (4125 patterns of 60 × 60) is one block.
     package static let blockBudget = 128 << 20
 
-    /// Why the room cannot index with a dictionary now, without building anything; nil when it can.
-    package static func refusal(phases: [IndexingPhase], master: IndexingMasterPattern?, settings: DictionaryIndexingSettings,
+    /// Why the room cannot index with a dictionary now, without building anything; nil when it can. Every phase on is checked in
+    /// turn (D-SEM-98), against its master pattern in `masters` (by `IndexingPhase.id`); one phase keeps D-SEM-91's sentences.
+    package static func refusal(phases: [IndexingPhase], masters: [String: IndexingMasterPattern], settings: DictionaryIndexingSettings,
                                 detector: EBSDDetectorGeometry, beamEnergy: Double?) -> String? {
         let on = phases.filter(\.isOn)
         if phases.isEmpty { return "Add a phase first: from the file, a preset or a CIF." }
         if on.isEmpty { return "Turn a phase on to index against it." }
-        guard on.count == 1, let phase = on.first else {
-            return "Dictionary indexing takes one phase and its master pattern: turn the others off."
-        }
-        guard (1...230).contains(phase.spaceGroup) else { return "\(phase.name): space group \(phase.spaceGroup) is outside 1 to 230." }
-        guard phase.pointGroup != nil else { return "\(phase.name): no point group is known for space group \(phase.spaceGroup)." }
-        guard let master else { return "Open a master pattern for \(phase.name) in Dictionary." }
-        if master.master.phase.spaceGroup != phase.spaceGroup {
-            return "The master pattern is for \(master.master.phase.name) (space group \(master.master.phase.spaceGroup)), the phase is "
-                + "\(phase.name) (space group \(phase.spaceGroup))."
+        for phase in on {
+            guard (1...230).contains(phase.spaceGroup) else { return "\(phase.name): space group \(phase.spaceGroup) is outside 1 to 230." }
+            guard phase.pointGroup != nil else { return "\(phase.name): no point group is known for space group \(phase.spaceGroup)." }
+            guard let master = masters[phase.id] else { return "Open a master pattern for \(phase.name) in Dictionary." }
+            if master.master.phase.spaceGroup != phase.spaceGroup {
+                return "The master pattern is for \(master.master.phase.name) (space group \(master.master.phase.spaceGroup)), the phase is "
+                    + "\(phase.name) (space group \(phase.spaceGroup))."
+            }
         }
         if let why = settings.refusal { return why }
         if IndexingPlan.meanProjectionCenter(detector) == nil { return "The file states no projection centre, which dictionary indexing needs." }
-        if case .failure(let refusal) = energy(master: master.master, beamEnergy: beamEnergy) { return refusal.sentence }
+        for phase in on {
+            guard let master = masters[phase.id], case .failure(let refusal) = energy(master: master.master, beamEnergy: beamEnergy) else { continue }
+            return on.count == 1 ? refusal.sentence : "\(phase.name): " + refusal.sentence
+        }
         return nil
+    }
+
+    /// `refusal(phases:masters:…)` with every phase on against `master` (one phase's plan; nil: none open).
+    package static func refusal(phases: [IndexingPhase], master: IndexingMasterPattern?, settings: DictionaryIndexingSettings,
+                                detector: EBSDDetectorGeometry, beamEnergy: Double?) -> String? {
+        let masters = master.map { m in Dictionary(phases.map { ($0.id, m) }, uniquingKeysWith: { first, _ in first }) } ?? [:]
+        return refusal(phases: phases, masters: masters, settings: settings, detector: detector, beamEnergy: beamEnergy)
     }
 
     /// The energy the dictionary is projected for: the master pattern's one energy; with several, the scan's beam energy (refused
@@ -236,14 +259,15 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         return (size, (dictionary + size - 1) / size)
     }
 
-    /// The plan, with the dictionary's orientations already sampled (`sample`) for the phase on.
-    package init(source: IndexingSource, phases: [IndexingPhase], master: IndexingMasterPattern, settings: DictionaryIndexingSettings,
-                 fileDetector: EBSDDetectorGeometry, beamEnergy: Double?, rotations: [SIMD4<Double>]) throws {
-        if let why = Self.refusal(phases: phases, master: master, settings: settings, detector: fileDetector, beamEnergy: beamEnergy) {
+    /// The plan of `phase`'s dictionary, its orientations already sampled (`sample`), refused as `refusal` refuses the phase against
+    /// `master`. `backend`: the run's (`plans`, chosen from every phase's work), or nil to choose from this dictionary's alone.
+    package init(source: IndexingSource, phase: IndexingPhase, master: IndexingMasterPattern, settings: DictionaryIndexingSettings,
+                 fileDetector: EBSDDetectorGeometry, beamEnergy: Double?, rotations: [SIMD4<Double>],
+                 backend: DictionaryIndexing.Backend? = nil) throws {
+        if let why = Self.refusal(phases: [phase], master: master, settings: settings, detector: fileDetector, beamEnergy: beamEnergy) {
             throw IndexingRefusal(why)
         }
-        guard let phase = phases.first(where: \.isOn),
-              let detector = Self.detector(fileDetector, rows: source.patternRows, columns: source.patternColumns) else {
+        guard let detector = Self.detector(fileDetector, rows: source.patternRows, columns: source.patternColumns) else {
             throw IndexingRefusal("The file states no projection centre, which dictionary indexing needs.")
         }
         guard !rotations.isEmpty else { throw IndexingRefusal("The dictionary holds no orientation.") }
@@ -261,10 +285,39 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         let mask = try settings.signalMask(rows: source.patternRows, columns: source.patternColumns)
         let kept = mask.map { $0.filter { !$0 }.count } ?? source.patternRows * source.patternColumns
         options = DictionaryIndexing.Options(metric: settings.metric, keepN: settings.keep, signalMask: mask,
-                                             backend: Self.backend(points: source.scanRows * source.scanColumns, dictionary: rotations.count,
-                                                                   keptPixels: kept))
+                                             backend: backend ?? Self.backend(points: source.scanRows * source.scanColumns,
+                                                                              dictionary: rotations.count, keptPixels: kept))
         rowsPerBlock = Self.rowsPerBlock(scanRows: source.scanRows, scanColumns: source.scanColumns,
                                          pixels: source.patternRows * source.patternColumns)
+    }
+
+    /// The plans of a run against the phases on (D-SEM-98), one per phase in their order: phase i's dictionary of `rotations[i]`,
+    /// projected from `masters[phase.id]`. Refused as `refusal` refuses. One backend for every phase, chosen from the whole run's work
+    /// (every dictionary over the whole scan), so the phases are scored on one path as kikuchipy scores every dictionary in one dtype;
+    /// one phase gets exactly its plan's own choice. The phases' maps keep as many matches (kikuchipy's merge needs it).
+    package static func plans(source: IndexingSource, phases: [IndexingPhase], masters: [String: IndexingMasterPattern],
+                              settings: DictionaryIndexingSettings, fileDetector: EBSDDetectorGeometry, beamEnergy: Double?,
+                              rotations: [[SIMD4<Double>]]) throws -> [DictionaryIndexingPlan] {
+        if let why = refusal(phases: phases, masters: masters, settings: settings, detector: fileDetector, beamEnergy: beamEnergy) {
+            throw IndexingRefusal(why)
+        }
+        let on = phases.filter(\.isOn)
+        guard rotations.count == on.count else { throw IndexingRefusal("Each phase on needs its dictionary's orientations.") }
+        let mask = try settings.signalMask(rows: source.patternRows, columns: source.patternColumns)
+        let kept = mask.map { $0.filter { !$0 }.count } ?? source.patternRows * source.patternColumns
+        let shared = Self.backend(points: source.scanRows * source.scanColumns, dictionary: rotations.reduce(0) { $0 + $1.count },
+                                  keptPixels: kept)
+        var plans: [DictionaryIndexingPlan] = []
+        for (phase, sample) in zip(on, rotations) {
+            guard let master = masters[phase.id] else { throw IndexingRefusal("Open a master pattern for \(phase.name) in Dictionary.") }
+            plans.append(try DictionaryIndexingPlan(source: source, phase: phase, master: master, settings: settings, fileDetector: fileDetector,
+                                                    beamEnergy: beamEnergy, rotations: sample, backend: shared))
+        }
+        if plans.count > 1, let small = plans.first(where: { $0.rotations.count < settings.keep }) {
+            throw IndexingRefusal("Keep is above the \(small.phase.name) dictionary's \(small.rotations.count) patterns; the phases' maps "
+                + "must keep as many matches to be merged.")
+        }
+        return plans
     }
 
     /// One backend for the whole run (D-SEM-92): `DictionaryIndexing`'s automatic choice from the whole scan's work (points × dictionary
@@ -292,16 +345,25 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         blocks.map { Self.chunking(points: $0.count * source.scanColumns, keptPixels: keptPixels, dictionary: rotations.count, options: options).chunks }
     }
 
-    /// Indexes the scan rows `rows` against the dictionary (their patterns read here, the dictionary projected chunk by chunk);
-    /// `progress` hears of each chunk merged. A cancelled task stops before the next chunk. Off the caller's actor.
-    @concurrent package func indexBlock(_ rows: Range<Int>, progress: DictionaryIndexing.Progress? = nil) async throws -> DictionaryIndexing.Result {
+    /// The experimental patterns of scan rows `rows`, read through the room's source, row after row. Off the caller's actor.
+    @concurrent package func readBlock(_ rows: Range<Int>) async throws -> [Double] {
         var experimental: [Double] = []
         experimental.reserveCapacity(rows.count * source.scanColumns * source.patternRows * source.patternColumns)
         for row in rows {
             try Task.checkCancellation()
             for pattern in try source.patterns(row: row) { experimental.append(contentsOf: pattern) }
         }
-        return try await DictionaryIndexing.indexAsync(experimental: experimental, navigationShape: [rows.count, source.scanColumns],
+        return experimental
+    }
+
+    /// Indexes the scan rows `rows` against the dictionary (projected chunk by chunk); `experimental` holds their patterns as
+    /// `readBlock` reads them (a run against several phases reads a block once for every phase), nil reads them here. `progress`
+    /// hears of each chunk merged. A cancelled task stops before the next chunk. Off the caller's actor.
+    @concurrent package func indexBlock(_ rows: Range<Int>, experimental: [Double]? = nil,
+                                        progress: DictionaryIndexing.Progress? = nil) async throws -> DictionaryIndexing.Result {
+        let patterns: [Double]
+        if let experimental { patterns = experimental } else { patterns = try await readBlock(rows) }
+        return try await DictionaryIndexing.indexAsync(experimental: patterns, navigationShape: [rows.count, source.scanColumns],
                                                        master: master.master, rotations: rotations, detector: detector, energy: energy,
                                                        options: options, progress: progress)
     }
@@ -368,6 +430,76 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
             metric: settings.metric.rawValue, keepN: min(settings.keep, rotations.count), signalMask: settings.signalMask.rawValue,
             detectorShape: [detector.rows, detector.columns], projectionCenterBruker: [pc.x, pc.y, pc.z], sampleTilt: detector.sampleTilt,
             cameraElevation: detector.tilt, azimuthal: detector.azimuthal, twist: detector.twist, points: points, indexed: indexed)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(record)
+    }
+
+    /// The record of a run against several phases (D-SEM-98): each phase's dictionary, and the two kikuchipy calls that merge the
+    /// phases' maps and map their orientation similarity.
+    private struct MergedRecord: Encodable {
+        struct Phase: Encodable {
+            var phase: IndexingPhase
+            var masterPattern: Record.Master
+            var energy: String
+            var energyKeV: Double?
+            var dictionarySize: Int
+            var indexed: Int
+        }
+
+        var software: String
+        var method: String
+        var reference: String
+        var file: String
+        var patterns: String
+        var processing: PatternPipeline?
+        var phases: [Phase]
+        var samplingResolutionDegrees: Double
+        var samplingMethod: String
+        var metric: String
+        var keepN: Int
+        var signalMask: String
+        var merge: String
+        var orientationSimilarityMap: String
+        var detectorShape: [Int]
+        var projectionCenterBruker: [Double]
+        var sampleTilt: Double
+        var cameraElevation: Double
+        var azimuthal: Double
+        var twist: Double
+        var points: Int
+        var indexed: Int
+    }
+
+    /// The method record of a run: one plan's as `methodJSON(fileName:points:indexed:)`; several plans (D-SEM-98) list each phase's
+    /// dictionary (its master pattern, energy, size and the points it won, `indexedByPhase` in the plans' order) and the merge.
+    package static func methodJSON(_ plans: [DictionaryIndexingPlan], fileName: String, points: Int, indexed: Int,
+                                   indexedByPhase: [Int]) throws -> Data {
+        guard let first = plans.first else { throw IndexingRefusal("The run has no dictionary.") }
+        if plans.count == 1 { return try first.methodJSON(fileName: fileName, points: points, indexed: indexed) }
+        let pc = first.detector.projectionCenters.first ?? SIMD3(0, 0, 0)
+        let phases = plans.enumerated().map { i, plan in
+            let m = plan.master.master
+            return MergedRecord.Phase(
+                phase: plan.phase,
+                masterPattern: Record.Master(file: plan.master.fileName, phase: m.phase.name, spaceGroup: m.phase.spaceGroup, energies: m.energies,
+                                             side: m.side, projection: m.projection.rawValue, hemisphere: m.hemisphere.rawValue),
+                energy: plan.energyWords, energyKeV: plan.energy, dictionarySize: plan.rotations.count,
+                indexed: indexedByPhase.indices.contains(i) ? indexedByPhase[i] : 0)
+        }
+        let keep = plans.map { min(first.settings.keep, $0.rotations.count) }.min() ?? first.settings.keep
+        let record = MergedRecord(
+            software: "macTEM",
+            method: "Dictionary indexing against several phases (one dictionary each, simulated from the phase's master pattern), each point taking the phase whose best match scores highest",
+            reference: "kikuchipy 0.13.1 EBSD.dictionary_indexing, EBSDMasterPattern.get_patterns, indexing.merge_crystal_maps and indexing.orientation_similarity_map; orix 0.15.0 sample_SO3 (cubochoric)",
+            file: fileName, patterns: first.source.kind.title, processing: first.source.pipeline, phases: phases,
+            samplingResolutionDegrees: first.settings.resolution, samplingMethod: "cubochoric", metric: first.settings.metric.rawValue, keepN: keep,
+            signalMask: first.settings.signalMask.rawValue,
+            merge: "kikuchipy.indexing.merge_crystal_maps(xmaps, mean_n_best=1, simulation_indices_prop=\"simulation_indices\")",
+            orientationSimilarityMap: "kikuchipy.indexing.orientation_similarity_map(merged, simulation_indices_prop=\"merged_simulation_indices\")",
+            detectorShape: [first.detector.rows, first.detector.columns], projectionCenterBruker: [pc.x, pc.y, pc.z],
+            sampleTilt: first.detector.sampleTilt, cameraElevation: first.detector.tilt, azimuthal: first.detector.azimuthal,
+            twist: first.detector.twist, points: points, indexed: indexed)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try encoder.encode(record)

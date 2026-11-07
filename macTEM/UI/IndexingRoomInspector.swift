@@ -282,7 +282,7 @@ private struct IndexingMethodSection: View {
                     : "kikuchipy's dictionary indexing: every pattern against simulated patterns of a master pattern"))
             }, selection: Binding(get: { session.method }, set: { session.setMethod($0) }))
                 .accessibilityIdentifier("indexing.method")
-            if session.currentMaster == nil {
+            if session.masterPatterns.isEmpty {
                 InspectorNote(session.isLoadingMaster ? "Reading the master pattern" : "Dictionary needs a master pattern")
                     .accessibilityIdentifier("indexing.method.caption")
             }
@@ -292,9 +292,10 @@ private struct IndexingMethodSection: View {
 
 // MARK: - Dictionary
 
-/// kikuchipy's dictionary indexing (design §4, D-SEM-91): the master pattern the dictionary is projected from (the shipped Ni 20 kV one
-/// open from the start; others opened here), orix's sampling resolution with the dictionary's size, the metric, the matches kept, the
-/// signal mask, and how the run cuts the work (memory, not a setting).
+/// kikuchipy's dictionary indexing (design §4, D-SEM-91, D-SEM-98): the master pattern each phase on's dictionary is projected from
+/// (a pop-up per phase on, the shipped Ni 20 kV one open from the start, others opened here; a phase takes the latest opened of its
+/// name and space group until one is picked), orix's sampling resolution with the dictionaries' sizes, the metric, the matches kept,
+/// the signal mask, and how the run cuts the work (memory, not a setting).
 private struct IndexingDictionarySection: View {
     @Environment(AppState.self) private var appState
     let session: IndexingSession
@@ -306,17 +307,21 @@ private struct IndexingDictionarySection: View {
     private var settings: DictionaryIndexingSettings { session.dictionarySettings }
     private var defaults: DictionaryIndexingSettings { .roomDefault }
 
+    /// "11,935 patterns at 4°"; with several phases one count each, "11,935 + 11,935 patterns at 4°".
     private var sizeRow: String {
         let resolution = settings.resolution.formatted(Self.decimal)
-        guard let size = session.dictionarySize else {
-            return session.phasesOn.count == 1 && settings.refusal == nil ? "Counting at \(resolution)°" : "–"
+        guard session.dictionarySize != nil else {
+            let countable = !session.phasesOn.isEmpty && session.phasesOn.allSatisfy { $0.pointGroupName != nil } && settings.refusal == nil
+            return countable ? "Counting at \(resolution)°" : "–"
         }
-        return "\(size.formatted()) patterns at \(resolution)°"
+        let sizes = session.phasesOn.compactMap { session.dictionarySize(for: $0)?.formatted() }
+        return "\(sizes.joined(separator: " + ")) patterns at \(resolution)°"
     }
 
     private var chunkRow: String {
         guard let cut = session.dictionaryChunking, cut.size > 0 else { return "–" }
-        let chunks = "\(cut.size.formatted()) patterns · \(cut.chunks) chunk\(cut.chunks == 1 ? "" : "s")"
+        let over = session.phasesOn.count > 1 ? " over \(session.phasesOn.count) dictionaries" : ""
+        let chunks = "\(cut.size.formatted()) patterns · \(cut.chunks) chunk\(cut.chunks == 1 ? "" : "s")\(over)"
         return cut.blocks > 1 ? chunks + " per block · \(cut.blocks) blocks" : chunks
     }
 
@@ -326,24 +331,14 @@ private struct IndexingDictionarySection: View {
                 InspectorValueRow("Master", session.isLoadingMaster ? "Reading…" : "None open")
                     .accessibilityIdentifier("indexing.dictionary.master")
             } else {
-                InspectorRow("Master") {
-                    Picker("Master pattern", selection: Binding(get: { session.masterID ?? "" }, set: { session.selectMasterPattern($0) })) {
-                        ForEach(session.masterPatterns) { Text($0.fileName).tag($0.id) }
-                    }
-                    .labelsHidden()
-                    .help("The master pattern the dictionary is simulated from; its phase must be the phase on")
-                    .accessibilityIdentifier("indexing.dictionary.master")
+                ForEach(session.phasesOn) { phase in
+                    IndexingMasterRows(session: session, phase: phase)
                 }
-            }
-            if let master = session.currentMaster {
-                InspectorValueRow("Pattern", master.summary)
-                    .help("The master pattern's phase, energies, projection and side, as EMsoft wrote it")
-                    .accessibilityIdentifier("indexing.dictionary.summary")
-                    .accessibilityValue(master.summary)
             }
             InspectorActionRow {
                 Button("Open Master Pattern…") { importing = true }
-                    .help("Open an EMsoft EBSD or TKD master pattern (.h5), as kikuchipy loads it: Lambert, both hemispheres")
+                    .help("Open an EMsoft EBSD or TKD master pattern (.h5), as kikuchipy loads it: Lambert, both hemispheres; until one is "
+                        + "picked for it, each phase on takes the latest opened of its space group, one of its name first")
                     .accessibilityIdentifier("indexing.dictionary.open")
             }
             InspectorRow("Resolution") {
@@ -355,7 +350,8 @@ private struct IndexingDictionarySection: View {
                 .accessibilityIdentifier("indexing.dictionary.resolution")
             }
             InspectorValueRow("Dictionary", sizeRow)
-                .help("The orientations sampled, one simulated pattern each")
+                .help(session.phasesOn.count > 1 ? "The orientations sampled, one simulated pattern each; one dictionary per phase on"
+                    : "The orientations sampled, one simulated pattern each")
                 .accessibilityIdentifier("indexing.dictionary.size")
                 .accessibilityValue(sizeRow)
             SegmentedPicker(label: "Metric", items: DictionaryIndexing.Metric.allCases.map { metric in
@@ -387,6 +383,8 @@ private struct IndexingDictionarySection: View {
             if let why = session.dictionaryRefusal {
                 InspectorWarning(why)
                     .accessibilityIdentifier("indexing.dictionary.refusal")
+            } else if session.phasesOn.count > 1 {
+                InspectorNote("kikuchipy's dictionary indexing, one dictionary per phase on; each point takes the phase whose best match scores highest (merge_crystal_maps).")
             } else {
                 InspectorNote("kikuchipy's dictionary indexing: the patterns compared in double precision on the CPU, or in single precision on the GPU when the work pays.")
             }
@@ -396,6 +394,32 @@ private struct IndexingDictionarySection: View {
             case .success(let url): session.openMasterPattern(url: url)
             case .failure(let error): appState.present(error)
             }
+        }
+    }
+}
+
+/// One phase on and the master pattern its dictionary is projected from (D-SEM-98): a pop-up of the master patterns open, labelled with
+/// the phase, and the picked one's phase, energies, projection and side under it.
+private struct IndexingMasterRows: View {
+    let session: IndexingSession
+    let phase: IndexingPhase
+
+    var body: some View {
+        let master = session.master(for: phase)
+        InspectorRow("\(phase.name) master") {
+            Picker("Master pattern for \(phase.name)", selection: Binding(get: { master?.id ?? "" },
+                                                                           set: { session.selectMasterPattern($0, forPhase: phase.name) })) {
+                ForEach(session.masterPatterns) { Text($0.fileName).tag($0.id) }
+            }
+            .labelsHidden()
+            .help("The master pattern \(phase.name)'s dictionary is simulated from; its space group must be \(phase.spaceGroup)")
+            .accessibilityIdentifier("indexing.dictionary.master.\(phase.name)")
+        }
+        if let master {
+            InspectorValueRow("Pattern", master.summary)
+                .help("The master pattern's phase, energies, projection and side, as EMsoft wrote it")
+                .accessibilityIdentifier("indexing.dictionary.summary.\(phase.name)")
+                .accessibilityValue(master.summary)
         }
     }
 }
@@ -574,10 +598,22 @@ struct IndexingRoomInfo: View {
                     if let pc = session.resultProjectionCenter {
                         InspectorValueRow("PC", "(\(UnitDisplay.number(pc.x, digits: 4)), \(UnitDisplay.number(pc.y, digits: 4)), \(UnitDisplay.number(pc.z, digits: 4))) · mean of the file's")
                     }
-                    if result.method == .dictionary, let plan = session.dictionaryPlan {
+                    let plans = result.method == .dictionary ? session.dictionaryPlans : []
+                    if plans.count == 1, let plan = plans.first {
                         InspectorValueRow("Master", "\(plan.master.fileName) · \(plan.master.summary)")
                         InspectorValueRow("Energy", plan.energyWords)
                         InspectorValueRow("Dictionary", "\(plan.rotations.count.formatted()) patterns at \(UnitDisplay.number(plan.settings.resolution))° · \(plan.settings.metric.title) · keep \(min(plan.settings.keep, plan.rotations.count))")
+                            .accessibilityIdentifier("indexing.info.dictionary")
+                    } else if let first = plans.first {
+                        // A run against several phases (D-SEM-98): each phase's master pattern and energy, then the dictionaries.
+                        ForEach(plans.indices, id: \.self) { i in
+                            InspectorValueRow("\(plans[i].phase.name) master", "\(plans[i].master.fileName) · \(plans[i].energyWords)")
+                                .help(plans[i].master.summary)
+                                .accessibilityIdentifier("indexing.info.master.\(plans[i].phase.name)")
+                        }
+                        let sizes = plans.map { $0.rotations.count.formatted() }.joined(separator: " + ")
+                        let keep = plans.map { min(first.settings.keep, $0.rotations.count) }.min() ?? first.settings.keep
+                        InspectorValueRow("Dictionary", "\(sizes) patterns at \(UnitDisplay.number(first.settings.resolution))° · \(first.settings.metric.title) · keep \(keep)")
                             .accessibilityIdentifier("indexing.info.dictionary")
                     }
                     InspectorValueRow("State", state(result))
@@ -593,7 +629,9 @@ struct IndexingRoomInfo: View {
                 if method == .hough {
                     InspectorNote("Krieger Lassen 1994 (Radon), Wright and Adams 1992 (triplet voting), Shuster and Oh 1981 (QUEST), Rowenhorst et al. 2024 (pyEBSDindex 0.3.10.1, as kikuchipy 0.13.1 drives it); orientations and colours as orix 0.15.0.")
                 } else {
-                    InspectorNote("Chen et al. 2015 and Jackson et al. 2019 (dictionary indexing), Callahan and De Graef 2013 (EMsoft's master patterns), Roşca, Morawiec and De Graef 2014 and Singh and De Graef 2016 (cubochoric sampling), Marquardt et al. 2017 (the orientation similarity map); as kikuchipy 0.13.1 and orix 0.15.0 do it.")
+                    let several = (session.result?.phases.count ?? session.phasesOn.count) > 1
+                    InspectorNote("Chen et al. 2015 and Jackson et al. 2019 (dictionary indexing), Callahan and De Graef 2013 (EMsoft's master patterns), Roşca, Morawiec and De Graef 2014 and Singh and De Graef 2016 (cubochoric sampling), Marquardt et al. 2017 (the orientation similarity map); as kikuchipy 0.13.1 and orix 0.15.0 do it."
+                        + (several ? " Several phases: one dictionary each, merged by the best score per point (kikuchipy's merge_crystal_maps)." : ""))
                 }
             }
         } else {
@@ -605,7 +643,8 @@ struct IndexingRoomInfo: View {
     private func state(_ result: IndexingResult) -> String {
         let session = appState.indexing
         if session.isIndexing, result.method == .dictionary {
-            return "Indexing, chunk \(session.chunksDone) of \(session.chunksTotal) · row \(result.rowsDone) of \(result.scanRows)"
+            let phase = session.chunkPhase.map { " · \($0)" } ?? ""
+            return "Indexing, chunk \(session.chunksDone) of \(session.chunksTotal)\(phase) · row \(result.rowsDone) of \(result.scanRows)"
         }
         if appState.indexing.isIndexing { return "Indexing, row \(result.rowsDone) of \(result.scanRows)" }
         if appState.indexing.wasStopped { return "Stopped at row \(result.rowsDone) of \(result.scanRows)" }

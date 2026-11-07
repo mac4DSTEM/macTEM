@@ -22,6 +22,8 @@ The room needs an EBSD dataset open (`RoomHoldings.ebsd`); it reads the processe
 Processing ran, raw otherwise (the inspector says which). Phases come from the file (Patterns › Calibration) or are
 added here from DiffractoKit's `CrystalPresets` and CIF import (the Diffraction room's `Crystal` section, reused). A
 master pattern (EMsoft HDF5, kikuchipy's `.h5`) is opened from the `Dictionary` section; the demo Ni master pattern ships.
+Dictionary indexing takes every phase on, each against its own dictionary from its own master pattern, and each point
+takes the phase whose best match scores highest, as kikuchipy's `merge_crystal_maps` merges the phases' maps (D-SEM-98).
 
 ## 3. Layout
 
@@ -52,7 +54,8 @@ master pattern (EMsoft HDF5, kikuchipy's `.h5`) is opened from the `Dictionary` 
   phases · PC · validation badge), `Compare` (two results side by side as maps sharing the transform, the
   disorientation angle histogram between them, its median and the fraction over 2°; it takes the bottom pane in place of
   the tables while `Display › Compare` is on, D-SEM-97), `Dictionary` (the master pattern as a
-  picture, the simulated pattern for the pinned point's solution, the NCC score), `Log` (pyEBSDindex's band-detection
+  picture, the simulated pattern for the pinned point's solution, the NCC score; with several phases its header names
+  the point's phase, D-SEM-98), `Log` (pyEBSDindex's band-detection
   readout for the pinned pattern: ρ, θ, intensity, width of every band).
 - **Scan navigator**: the main map stays the scan: Compare draws its two maps and its histogram in the bottom pane
   (D-SEM-97), so no navigator is needed beside the pattern pane.
@@ -84,8 +87,9 @@ Diffraction room's `Crystal` controls reused); a phase row has a colour swatch a
 `CPU · Metal` (the kit's one API; Metal checked against CPU at float32 tolerance). `Vendor PC` caption names the PC
 pyEBSDindex sees after conversion (EDAX convention, converted internally).
 
-**Dictionary** (open when Method is Dictionary): `Master pattern` row with a pop-up of opened ones and `Open…`; its
-value row `Ni · 20 kV · Lambert · 1001 × 1001`; `Angular resolution` field (°, 2 by default; the dictionary size is the
+**Dictionary** (open when Method is Dictionary): for each phase on, a `<phase> master` row with a pop-up of opened ones
+and its value row `Ni · 20 kV · Lambert · 1001 × 1001` (D-SEM-98: until one is picked, a phase takes the latest opened of
+its space group, one of its name first), then `Open…`; `Angular resolution` field (°, 2 by default; the dictionary size is the
 caption: `Dictionary: 100 347 patterns at 2°`); `Metric` segmented `NCC · NDP`; `Keep` field (n best, 1); `Signal
 mask` pop-up `None · Circular · From file`; `Chunk` value row (patterns per chunk, chosen by memory).
 
