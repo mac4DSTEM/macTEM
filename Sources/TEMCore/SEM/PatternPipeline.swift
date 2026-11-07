@@ -431,7 +431,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         }
         if averaging.isOn {
             if isCancelled() { return nil }
-            bytes = try averaged(bytes, dataset: out)
+            bytes = try averaged(bytes, dataset: out, type: dataset.dataType)
             progress(nlpar.isOn ? 0.75 : 1)
         }
         guard nlpar.isOn else { return try EBSDMemoryPatterns(dataset: out, bytes: bytes) }
@@ -447,8 +447,9 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         return try EBSDMemoryPatterns(dataset: out, bytes: denoised.bytes)
     }
 
-    /// The per-pattern output of the scan (uint8 or uint16, `dataset`'s shapes) averaged with its neighbours.
-    private func averaged(_ bytes: Data, dataset: EBSDDataset) throws -> Data {
+    /// The per-pattern output of the scan (`type`, uint8 or uint16, in `dataset`'s shapes; not `dataset.dataType`, which is float32
+    /// when NLPAR follows) averaged with its neighbours.
+    private func averaged(_ bytes: Data, dataset: EBSDDataset, type: FormatoDataType) throws -> Data {
         let window = try averaging.window.window()
         func run<P: FixedWidthInteger & UnsignedInteger>(_: P.Type, _ type: FormatoDataType) throws -> Data {
             let all = try FormatoArray(dataType: type, shape: [bytes.count / type.byteSize], bytes: bytes)
@@ -462,10 +463,10 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             }
             return try Self.array(out, type: type, rows: out.count, columns: 1).bytes
         }
-        switch dataset.dataType {
+        switch type {
         case .uint8: return try run(UInt8.self, .uint8)
         case .uint16: return try run(UInt16.self, .uint16)
-        default: throw Refusal(.averaging, "Average neighbours reads 8 and 16 bit patterns; these are \(dataset.dataType.rawValue).")
+        default: throw Refusal(.averaging, "Average neighbours reads 8 and 16 bit patterns; these are \(type.rawValue).")
         }
     }
 
