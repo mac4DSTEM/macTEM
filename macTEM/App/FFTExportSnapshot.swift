@@ -93,7 +93,7 @@ extension ExportSnapshot {
         let inExportingRoom: Bool
         switch area {
         case .fft: inExportingRoom = true
-        case .image, .diffraction, .results, .edx, .eels, .patterns: inExportingRoom = false
+        case .image, .diffraction, .results, .edx, .eels, .patterns, .maps: inExportingRoom = false
         }
         let ready = hasImage && inExportingRoom && !isLoading && spectrumIsCurrent
         return FFTExportAvailability(transform: ready, profile: ready && profileHasBins, spots: ready && measuredSpots > 0)

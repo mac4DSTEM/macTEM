@@ -17,6 +17,8 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
     case semSpectrum
     /// The shipped nickel EBSD scan (`DemoDocuments.Shipped.nickelEBSD`), opened through the app's own Open into the Patterns room.
     case ebsd
+    /// The shipped two-phase orientation map (`DemoDocuments.Shipped.duplexSteelMap`), opened through the app's own Open into the Maps room.
+    case orientationMap
 
     var id: String { rawValue }
 
@@ -29,6 +31,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
         case .eels: "EELS Spectrum Image"
         case .semSpectrum: DemoDocuments.Shipped.semEDSSpectrum.title
         case .ebsd: DemoDocuments.Shipped.nickelEBSD.title
+        case .orientationMap: DemoDocuments.Shipped.duplexSteelMap.title
         }
     }
 
@@ -40,6 +43,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
         case .edx, .semSpectrum: .edx
         case .eels: .eels
         case .ebsd: .patterns
+        case .orientationMap: .maps
         }
     }
 }
@@ -70,6 +74,10 @@ extension AppState {
         case .ebsd:
             // The file in the bundle, through the Open route (`FileRouting`: an h5ebsd file lands in the Patterns room).
             guard let url = DemoDocuments.Shipped.nickelEBSD.url else { return nil }
+            task = open(urls: [url])
+        case .orientationMap:
+            // The file in the bundle, through the Open route (`FileRouting`: an `.ang` without patterns lands in the Maps room).
+            guard let url = DemoDocuments.Shipped.duplexSteelMap.url else { return nil }
             task = open(urls: [url])
         }
         navigation.workspaceArea = demo.room

@@ -30,10 +30,11 @@ extension AppState {
             let inventories = await Self.inventories(urls)
             var images: [URL] = []
             var landing: FileInventory.Landing?
-            var edsBatch: [URL] = [], eelsBatch: [URL] = [], ebsdBatch: [URL] = []
+            var edsBatch: [URL] = [], eelsBatch: [URL] = [], ebsdBatch: [URL] = [], mapBatch: [URL] = []
             for (url, inventory) in inventories {
                 if let why = inventory.refusal { present(OpenRefusal(text: why)); continue }
                 if inventory.ebsdPatterns { ebsdBatch.append(url) }
+                if inventory.orientationMap { mapBatch.append(url) }
                 if inventory.image { images.append(url) }
                 if inventory.image, inventory.opensInEDS || inventory.eelsSpectrumImage { spectrumCompanionImages.insert(url) }
                 if let scan = inventory.scan { spectrumScans[url] = scan }
@@ -48,19 +49,22 @@ extension AppState {
             if let first = eelsBatch.first { eels.open(url: first) }
             // The Patterns room holds one dataset, as the spectrum rooms do; the batch's first is it.
             if let first = ebsdBatch.first { ebsd.open(url: first) }
+            // The Maps room holds one map: an `.ang` or `.ctf` opened on its own (a dataset's map comes through the Patterns room).
+            if let first = mapBatch.first { maps.open(url: first) }
             switch landing {
             case .patterns: selectWorkspace(.patterns)
+            case .maps: selectWorkspace(.maps)
             case .eds: selectWorkspace(.edx)
             case .eels: selectWorkspace(.eels)
             case .image, nil: break   // the image is selected below, once its item exists
             }
             guard !images.isEmpty else {
-                if landing == .eds || landing == .eels || landing == .patterns { statusText = "" }
+                if landing == .eds || landing == .eels || landing == .patterns || landing == .maps { statusText = "" }
                 return
             }
             openItems.open(urls: images)
             // From a spectrum room the image is not shown: land on it. From an image room, stay where the person was.
-            if landing == .image, [.edx, .eels, .patterns].contains(navigation.workspaceArea) { selectWorkspace(.image) }
+            if landing == .image, [.edx, .eels, .patterns, .maps].contains(navigation.workspaceArea) { selectWorkspace(.image) }
             await openItems.settled()
             if let image = imageSession.image {
                 let suffix = openItems.selected.map(Self.sessionSuffix(of:)) ?? ""

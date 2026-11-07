@@ -264,6 +264,9 @@ package final class EBSDSession {
     /// The infobar's line for an event ("Opening…", "Opened…") and the alert for a failure (the window's `AppState` wires them).
     package var onEvent: ((String) -> Void)?
     package var onFailure: ((any Error) -> Void)?
+    /// A dataset was bound, and one was closed: the Maps room shows the dataset's crystal map beside its patterns (`OrientationMapSession`).
+    package var onBind: ((Document) -> Void)?
+    package var onClose: (() -> Void)?
 
     @ObservationIgnored private var openTask: Task<Void, Never>?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
@@ -440,6 +443,7 @@ package final class EBSDSession {
         resetProcessing()
         onEvent?("Opened \(document.fileName) — \(EBSDBrowsing.capsuleDetail(document.dataset)), step \(UnitDisplay.number(document.dataset.stepX)) \(EBSDBrowsing.unitLabel(document.dataset.scanUnit))")
         startMap(document)
+        onBind?(document)
         return showPattern(at: .origin)
     }
 
@@ -474,6 +478,7 @@ package final class EBSDSession {
         processed = nil; processedWith = nil; isProcessing = false; processProgress = 0; nlparLambda = nil
         scanMeanBackground = nil; isComputingMean = false; patternIsProcessed = false; previewFailure = nil
         patternDisplay = .raw; pipeline = .roomDefault
+        onClose?()
     }
 
     // MARK: The map

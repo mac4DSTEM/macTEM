@@ -156,7 +156,14 @@ package nonisolated enum DemoDocuments {
         /// The sum of each hemisphere's Lambert pattern (kikuchipy reads both hemispheres alike; 2026-11-06).
         package static let nickelMasterPatternLambertSum: UInt64 = 7_099_353
 
-        package static let all = [nickelEBSD, semEDSSpectrum, nickelMasterPattern]
+        /// orix-data's `sdss_ferrite_austenite.ang`: a 100 x 117 EDAX TSL orientation map at 1.5 µm of a super duplex stainless steel,
+        /// austenite and ferrite (point group 432), indexed with EMsoft by H. W. Ånes; EBSD data by J. Hjelen (NTNU), CC BY 4.0
+        /// (pyxem/orix-data). The Maps room's demo without patterns (design §7, `--demo-ang`) and the input of figure F6.
+        package static let duplexSteelMap = ShippedFile(relativePath: "sdss_ferrite_austenite.ang", bytes: 651_687,
+                                                        md5: "0c45548b82445657fbd52d882a27f2fd", title: "Duplex Steel Orientation Map (orix)")
+        package static let duplexSteelMapRows = 100, duplexSteelMapColumns = 117
+
+        package static let all = [nickelEBSD, semEDSSpectrum, nickelMasterPattern, duplexSteelMap]
     }
 
     /// The md5 of a file, as `md5sum` prints it: how a shipped file is pinned to the copy its source publishes.

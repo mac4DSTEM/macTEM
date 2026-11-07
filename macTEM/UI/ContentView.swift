@@ -38,6 +38,7 @@ struct ContentView: View {
         .onChange(of: appState.edx.isBusy, initial: true) { appState.markBusy(.edx, appState.edx.isBusy) }
         .onChange(of: appState.eels.isBusy, initial: true) { appState.markBusy(.eels, appState.eels.isBusy) }
         .onChange(of: appState.ebsd.isBusy, initial: true) { appState.markBusy(.patterns, appState.ebsd.isBusy) }
+        .onChange(of: appState.maps.isBusy, initial: true) { appState.markBusy(.maps, appState.maps.isBusy) }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: imageTypes,
@@ -96,6 +97,14 @@ struct ContentView: View {
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
             return .idle(file: session.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
+        case .maps:
+            let session = appState.maps
+            if session.isOpening {
+                return .busy(operation: "Opening the orientation map…", progress: nil,
+                             metrics: { now in RunClock.reading(since: appState.busySince[room], progress: nil, now: now) })
+            }
+            guard let map = session.map else { return nil }
+            return .idle(file: session.fileName, room: room.title, detail: MapsRoomFormat.capsuleDetail(map), help: "Map rows × columns and its indexed phases")
         default:
             guard !appState.imageSession.isLoading, let image = appState.imageSession.image else { return nil }
             return .idle(file: image.fileName, room: room.title, detail: "\(image.width) × \(image.height) px", help: nil)

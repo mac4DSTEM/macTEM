@@ -23,6 +23,9 @@ package nonisolated struct FileInventory: Equatable, Sendable {
     /// An EBSD or TKD pattern dataset (an h5ebsd file of kikuchipy, Bruker, EDAX or Oxford; EDAX `.up1`/`.up2` or Oxford `.ebsp` with the map
     /// next to it): the Patterns room.
     package var ebsdPatterns = false
+    /// An orientation map on its own (an `.ang` or `.ctf` without the pattern file of its name next to it): the Maps room. A map with its
+    /// patterns is `ebsdPatterns`, and the Maps room shows it through the dataset.
+    package var orientationMap = false
     /// Set instead of the above when the file is not opened here: the sentence says what it is and where it goes.
     package var refusal: String?
     /// The scan of a DM4 spectrum image, from its header: the size the file's Open Files row shows. The image the Image room draws from the
@@ -44,20 +47,22 @@ package nonisolated struct FileInventory: Equatable, Sendable {
     }
 
     package init(image: Bool = false, edsSpectrumImage: Bool = false, eelsSpectrumImage: Bool = false, singleSpectrum: Bool = false,
-                 ebsdPatterns: Bool = false, refusal: String? = nil, scan: Scan? = nil) {
+                 ebsdPatterns: Bool = false, orientationMap: Bool = false, refusal: String? = nil, scan: Scan? = nil) {
         self.image = image; self.edsSpectrumImage = edsSpectrumImage; self.eelsSpectrumImage = eelsSpectrumImage
-        self.singleSpectrum = singleSpectrum; self.ebsdPatterns = ebsdPatterns; self.refusal = refusal; self.scan = scan
+        self.singleSpectrum = singleSpectrum; self.ebsdPatterns = ebsdPatterns; self.orientationMap = orientationMap
+        self.refusal = refusal; self.scan = scan
     }
 
     /// The room an Open lands in: the richest dataset the file holds (a spectrum cube before an image).
     package enum Landing: Equatable, Sendable {
-        case patterns, eds, eels, image
-        /// The richer dataset wins when several files are opened together.
-        package var richness: Int { switch self { case .patterns: 4; case .eds: 3; case .eels: 2; case .image: 1 } }
+        case patterns, maps, eds, eels, image
+        /// The richer dataset wins when several files are opened together: patterns (which carry their map), then a map alone.
+        package var richness: Int { switch self { case .patterns: 5; case .maps: 4; case .eds: 3; case .eels: 2; case .image: 1 } }
     }
 
     package var landing: Landing? {
         if ebsdPatterns { return .patterns }
+        if orientationMap { return .maps }
         if edsSpectrumImage || singleSpectrum { return .eds }
         if eelsSpectrumImage { return .eels }
         return image ? .image : nil
@@ -68,7 +73,7 @@ package nonisolated struct FileInventory: Equatable, Sendable {
 }
 
 package nonisolated enum FileRouting {
-    /// Every extension an Open routes somewhere (an image, an EDS or EELS spectrum image, a single spectrum), each once:
+    /// Every extension an Open routes somewhere (an image, an EDS or EELS spectrum image, a single spectrum, EBSD patterns, an orientation map), each once:
     /// what the Open panel offers, a drop takes, and the app declares as document types for Finder's Open With.
     package static let openableExtensions: [String] = {
         var seen = Set<String>()
@@ -96,6 +101,7 @@ package nonisolated enum FileRouting {
         // decides (a map file counts when its patterns are next to it), and a refusal is the door's sentence.
         let url = URL(fileURLWithPath: path)
         if EBSDOpening.isVendorFile(url) {
+            if EBSDOpening.isLoneMap(url) { return FileInventory(orientationMap: true) }
             if let why = EBSDOpening.vendorRefusal(url: url) { return FileInventory(refusal: why) }
             return FileInventory(ebsdPatterns: true)
         }
