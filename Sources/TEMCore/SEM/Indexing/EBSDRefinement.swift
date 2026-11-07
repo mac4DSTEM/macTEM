@@ -19,6 +19,7 @@
 //
 
 import Foundation
+import FormatoCore
 
 package nonisolated enum EBSDRefinement {
     package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {
