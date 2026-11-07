@@ -21,13 +21,24 @@ nonisolated final class SEMSimilarityMergeParityTests: XCTestCase {
 
     private func ints(_ a: SEMParityReference.LoadedArray) -> [Int] { a.values.map { Int($0) } }
 
+    /// The bundles store kikuchipy's NaN as -1 (a reference holds no NaN).
+    private func noNaN(_ a: [Double]) -> [Double] { a.map { $0.isNaN ? -1 : $0 } }
+
+    /// `fixtures/similarity_inputs.json`, the section of `key`.
+    private func inputs(_ ref: SEMParityReference, _ key: String) throws -> [String: Any] {
+        let data = try Data(contentsOf: try XCTUnwrap(ref.inputURL(0)))
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        return try XCTUnwrap(json[key] as? [String: Any])
+    }
+
     // MARK: Orientation similarity map
 
     func testOrientationSimilarityMapMatchesKikuchipy() throws {
         let ref = try SEMParityReference.load("m4/orientation-similarity-map")
         let indices = ints(try ref.array("simulation_indices"))
-        for name in ["default", "range", "square", "even", "corner"] {
-            let o = try XCTUnwrap(ref.values["\(name)_options"] as? [String: Any])
+        let runs = try XCTUnwrap(try inputs(ref, "orientation_similarity_map")["runs"] as? [String: [String: Any]])
+        XCTAssertEqual(runs.count, 5)
+        for (name, o) in runs {
             let footprint = (o["footprint"] as? [[Int]])?.map { $0.map { $0 != 0 } } ?? OrientationSimilarityMap.crossFootprint
             let result = try OrientationSimilarityMap.compute(
                 simulationIndices: indices, keepN: 6, rows: 7, columns: 9, nBest: o["n_best"] as? Int,
@@ -36,7 +47,7 @@ nonisolated final class SEMSimilarityMergeParityTests: XCTestCase {
             // kikuchipy's osm[:, :, i]: n interleaved per point.
             var flat: [Double] = []
             for p in 0 ..< 63 { for m in result.maps { flat.append(Double(m[p])) } }
-            SEMAssertParity(flat, try ref.array("\(name)_osm"))
+            SEMAssertParity(noNaN(flat), try ref.array("\(name)_osm"))
         }
     }
 
@@ -49,7 +60,7 @@ nonisolated final class SEMSimilarityMergeParityTests: XCTestCase {
                                                rotations: Array(repeating: SIMD4(1, 0, 0, 0), count: indices.count))
         let osm = try result.orientationSimilarityMap()
         XCTAssertEqual(osm.n, [5])
-        SEMAssertParity(osm.maps[0].map(Double.init), try ref.array("f9_osm"))
+        SEMAssertParity(noNaN(osm.maps[0].map(Double.init)), try ref.array("f9_osm"))
     }
 
     func testOrientationSimilarityMapRefusals() throws {
@@ -74,6 +85,7 @@ nonisolated final class SEMSimilarityMergeParityTests: XCTestCase {
         let indices: [[Int]]
         let rotations: [[SIMD4<Double>]]
         let phases: [String: CrystalPhase]
+        let runs: [String: [String: Any]]
     }
 
     private func mergeInputs(_ ref: SEMParityReference) throws -> MergeInputs {
@@ -84,32 +96,41 @@ nonisolated final class SEMSimilarityMergeParityTests: XCTestCase {
             let q = try ref.array("map\(i)_rotations").values
             rotations.append(stride(from: 0, to: q.count, by: 4).map { SIMD4(q[$0], q[$0 + 1], q[$0 + 2], q[$0 + 3]) })
         }
-        let table = try XCTUnwrap(ref.values["phases"] as? [String: [String: Any]])
+        let cfg = try inputs(ref, "merge_crystal_maps")
+        let table = try XCTUnwrap(cfg["phases"] as? [String: [String: Any]])
         var phases: [String: CrystalPhase] = [:]
         for (key, p) in table {
             phases[key] = CrystalPhase(name: try XCTUnwrap(p["name"] as? String), spaceGroup: p["space_group"] as? Int,
                                        pointGroup: "m-3m", lattice: try XCTUnwrap(p["lattice"] as? [Double]))
         }
-        return MergeInputs(scores: scores, indices: indices, rotations: rotations, phases: phases)
+        return MergeInputs(scores: scores, indices: indices, rotations: rotations, phases: phases,
+                           runs: try XCTUnwrap(cfg["runs"] as? [String: [String: Any]]))
     }
 
-    private func check(_ name: String, _ ref: SEMParityReference, _ inputs: MergeInputs, masks: [[Bool]?] = [nil, nil, nil],
-                       meanNBest: Int = 1, greaterIsBetter: Bool? = nil) throws {
-        let keys = try XCTUnwrap(ref.values["\(name)_maps"] as? [String])
+    private func check(_ name: String, _ ref: SEMParityReference, _ inputs: MergeInputs) throws {
+        let run = try XCTUnwrap(inputs.runs[name])
+        let keys = try XCTUnwrap(run["maps"] as? [String])
+        let options = run["options"] as? [String: Any] ?? [:]
+        // masked_points: per map, the (row, column) of each point out of its data, or null.
+        let masked = run["masked_points"] as? [Any] ?? []
         let maps = try keys.enumerated().map { i, key in
-            let inData = masks[i].map { $0.map { !$0 } } ?? Array(repeating: true, count: 42)
+            var inData = Array(repeating: true, count: 42)
+            if i < masked.count, let points = masked[i] as? [[Int]] {
+                for p in points { inData[p[0] * 7 + p[1]] = false }
+            }
             return DictionaryMapMerge.Input(
                 result: DictionaryIndexing.Result(navigationShape: [6, 7], keepN: 5, isInData: inData, scores: inputs.scores[i],
                                                   simulationIndices: inputs.indices[i], rotations: inputs.rotations[i]),
                 phase: try XCTUnwrap(inputs.phases[key]))
         }
-        let merged = try DictionaryMapMerge.merge(maps, meanNBest: meanNBest, greaterIsBetter: greaterIsBetter)
+        let merged = try DictionaryMapMerge.merge(maps, meanNBest: options["mean_n_best"] as? Int ?? 1,
+                                                  greaterIsBetter: options["greater_is_better"] as? Bool)
         SEMAssertParity(merged.phaseIDs.map(Double.init), try ref.array("\(name)_phase_id"))
         SEMAssertParity(merged.rotations.flatMap { [$0.x, $0.y, $0.z, $0.w] }, try ref.array("\(name)_rotations"))
         SEMAssertParity(merged.scores, try ref.array("\(name)_scores"))
         SEMAssertParity(merged.simulationIndices.map(Double.init), try ref.array("\(name)_simulation_indices"))
-        SEMAssertParity(merged.mergedScores, try ref.array("\(name)_merged_scores"))
-        SEMAssertParity(merged.mergedSimulationIndices, try ref.array("\(name)_merged_simulation_indices"))
+        SEMAssertParity(noNaN(merged.mergedScores), try ref.array("\(name)_merged_scores"))
+        SEMAssertParity(noNaN(merged.mergedSimulationIndices), try ref.array("\(name)_merged_simulation_indices"))
 
         let map = try merged.crystalMap(stepSizes: [1, 1])
         let phases = try XCTUnwrap(ref.values["\(name)_phases"] as? [String: [String: String]])
@@ -124,13 +145,8 @@ nonisolated final class SEMSimilarityMergeParityTests: XCTestCase {
     func testMergeMatchesKikuchipy() throws {
         let ref = try SEMParityReference.load("m4/merge-crystal-maps")
         let inputs = try mergeInputs(ref)
-        try check("two", ref, inputs)
-        try check("equal", ref, inputs, meanNBest: 3)
-        try check("renamed", ref, inputs)
-        try check("lowest", ref, inputs, meanNBest: -2)
-        let masks: [[Bool]?] = [try ref.array("masked_mask0").values.map { $0 != 0 }, nil,
-                                try ref.array("masked_mask2").values.map { $0 != 0 }]
-        try check("masked", ref, inputs, masks: masks, greaterIsBetter: true)
+        XCTAssertEqual(inputs.runs.count, 5)
+        for name in inputs.runs.keys.sorted() { try check(name, ref, inputs) }
     }
 
     func testMergeRefusals() throws {

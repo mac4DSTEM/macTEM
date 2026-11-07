@@ -4,7 +4,7 @@
       "atol": 0.0,
       "dtype": "float32",
       "file": "equal_merged_scores.bin",
-      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order)",
+      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order); -1 for NaN",
       "rtol": 0.0,
       "sha256": "4869ea40d2045da2d7d6a84d9216d619417414dd1306952c58ce791f1a5a86a0",
       "shape": [
@@ -16,7 +16,7 @@
       "atol": 0.0,
       "dtype": "float64",
       "file": "equal_merged_simulation_indices.bin",
-      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; NaN out of data",
+      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; -1 for NaN",
       "rtol": 0.0,
       "sha256": "de27b19bc21e11664a15194bd6e05fc4dfe80a481919c32755f940627f6443d5",
       "shape": [
@@ -35,9 +35,10 @@
       ]
     },
     "equal_rotations": {
-      "atol": 0.0,
+      "atol": 1e-15,
       "dtype": "float64",
       "file": "equal_rotations.bin",
+      "note": "orix normalises the chosen map's quaternions again in the merged map",
       "rtol": 0.0,
       "sha256": "c42006671a1474913d4b8509a437d5bb53f20259644928afdbea732046f15eea",
       "shape": [
@@ -72,7 +73,7 @@
       "atol": 0.0,
       "dtype": "float32",
       "file": "lowest_merged_scores.bin",
-      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order)",
+      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order); -1 for NaN",
       "rtol": 0.0,
       "sha256": "e5f9e6f0160f9f8b458452be5c46f3f4586f509a5f53bc21a1582c7919c0614f",
       "shape": [
@@ -84,7 +85,7 @@
       "atol": 0.0,
       "dtype": "float64",
       "file": "lowest_merged_simulation_indices.bin",
-      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; NaN out of data",
+      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; -1 for NaN",
       "rtol": 0.0,
       "sha256": "9406f56c606621ae8e1c47c6eb24adac93d7b438a1230fc7217dcba182709d48",
       "shape": [
@@ -103,9 +104,10 @@
       ]
     },
     "lowest_rotations": {
-      "atol": 0.0,
+      "atol": 1e-15,
       "dtype": "float64",
       "file": "lowest_rotations.bin",
+      "note": "orix normalises the chosen map's quaternions again in the merged map",
       "rtol": 0.0,
       "sha256": "3248f7c1eb1a108e7fb63a67b3ba7e97d1dcbee5424fa5a3836a8e6db32cd6bc",
       "shape": [
@@ -152,7 +154,7 @@
       "atol": 0.0,
       "dtype": "float32",
       "file": "map0_scores.bin",
-      "note": "synthetic float32 scores, 40 levels, best first",
+      "note": "synthetic float32 scores on score_levels levels, best first",
       "rtol": 0.0,
       "sha256": "698e5558c13f409d4f291d402fbba5e1e361f9667722a23f42ffc8cb3c95f714",
       "shape": [
@@ -187,7 +189,7 @@
       "atol": 0.0,
       "dtype": "float32",
       "file": "map1_scores.bin",
-      "note": "synthetic float32 scores, 40 levels, best first",
+      "note": "synthetic float32 scores on score_levels levels, best first",
       "rtol": 0.0,
       "sha256": "ee8db3f089713effbcef14106e53c9569dcbb07e338262fb33527485fe58264f",
       "shape": [
@@ -222,7 +224,7 @@
       "atol": 0.0,
       "dtype": "float32",
       "file": "map2_scores.bin",
-      "note": "synthetic float32 scores, 40 levels, best first",
+      "note": "synthetic float32 scores on score_levels levels, best first",
       "rtol": 0.0,
       "sha256": "88481d5788387be07b3796d37c9b2859e5ed832f12043bc0d4ab46631e4a0ac0",
       "shape": [
@@ -241,37 +243,13 @@
         5
       ]
     },
-    "masked_mask0": {
-      "atol": 0.0,
-      "dtype": "uint8",
-      "file": "masked_mask0.bin",
-      "note": "1 = point not in map 0",
-      "rtol": 0.0,
-      "sha256": "881b44a6c3393057a7da3fa52d77a42ab5455be324f267ea73c29ff3dc371bf6",
-      "shape": [
-        6,
-        7
-      ]
-    },
-    "masked_mask2": {
-      "atol": 0.0,
-      "dtype": "uint8",
-      "file": "masked_mask2.bin",
-      "note": "1 = point not in map 2",
-      "rtol": 0.0,
-      "sha256": "6f295b4a4db22b76b1c56b60852fce186683acacc6cb738d5f5266be5253a863",
-      "shape": [
-        6,
-        7
-      ]
-    },
     "masked_merged_scores": {
       "atol": 0.0,
       "dtype": "float32",
       "file": "masked_merged_scores.bin",
-      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order)",
+      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order); -1 for NaN",
       "rtol": 0.0,
-      "sha256": "2c3bf62c01560f55144d3ca8319a1b8fbe4087d4561568a523cd1fc9098678ae",
+      "sha256": "cb6e3d7f749adb818030c47b872cc74acd0a5446b104810a123e13ef30f1c935",
       "shape": [
         42,
         15
@@ -281,9 +259,9 @@
       "atol": 0.0,
       "dtype": "float64",
       "file": "masked_merged_simulation_indices.bin",
-      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; NaN out of data",
+      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; -1 for NaN",
       "rtol": 0.0,
-      "sha256": "e4e35ba2d6565260a33c8d7d8eae896746b0dee81e6550e2a0dc15f15a687e06",
+      "sha256": "2dfd066bd87abb1e6167dc38c4231815119a8acbea42dd64fd2d2fcc404d23d3",
       "shape": [
         42,
         15
@@ -300,9 +278,10 @@
       ]
     },
     "masked_rotations": {
-      "atol": 0.0,
+      "atol": 1e-15,
       "dtype": "float64",
       "file": "masked_rotations.bin",
+      "note": "orix normalises the chosen map's quaternions again in the merged map",
       "rtol": 0.0,
       "sha256": "d793367b21b79830e2476cda7eed5bd2a1e79f6622ca0f4fbda08c3aebdda078",
       "shape": [
@@ -337,7 +316,7 @@
       "atol": 0.0,
       "dtype": "float32",
       "file": "renamed_merged_scores.bin",
-      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order)",
+      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order); -1 for NaN",
       "rtol": 0.0,
       "sha256": "4869ea40d2045da2d7d6a84d9216d619417414dd1306952c58ce791f1a5a86a0",
       "shape": [
@@ -349,7 +328,7 @@
       "atol": 0.0,
       "dtype": "float64",
       "file": "renamed_merged_simulation_indices.bin",
-      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; NaN out of data",
+      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; -1 for NaN",
       "rtol": 0.0,
       "sha256": "de27b19bc21e11664a15194bd6e05fc4dfe80a481919c32755f940627f6443d5",
       "shape": [
@@ -368,9 +347,10 @@
       ]
     },
     "renamed_rotations": {
-      "atol": 0.0,
+      "atol": 1e-15,
       "dtype": "float64",
       "file": "renamed_rotations.bin",
+      "note": "orix normalises the chosen map's quaternions again in the merged map",
       "rtol": 0.0,
       "sha256": "0136ed36272dbc2e283c80dcb70b3c4710a62ff52cfaad07719952406431d521",
       "shape": [
@@ -405,7 +385,7 @@
       "atol": 0.0,
       "dtype": "float32",
       "file": "two_merged_scores.bin",
-      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order)",
+      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order); -1 for NaN",
       "rtol": 0.0,
       "sha256": "30b1c1460339205cae4ee0bf5346e4046337509194ae00138022df83a8a9d8a9",
       "shape": [
@@ -417,7 +397,7 @@
       "atol": 0.0,
       "dtype": "float64",
       "file": "two_merged_simulation_indices.bin",
-      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; NaN out of data",
+      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; -1 for NaN",
       "rtol": 0.0,
       "sha256": "6513d448c6b24e71af783ec1f6e5456be741d4c1134681e1d5ea1bee40759803",
       "shape": [
@@ -436,9 +416,10 @@
       ]
     },
     "two_rotations": {
-      "atol": 0.0,
+      "atol": 1e-15,
       "dtype": "float64",
       "file": "two_rotations.bin",
+      "note": "orix normalises the chosen map's quaternions again in the merged map",
       "rtol": 0.0,
       "sha256": "8e585ef5f31665575534a50f343188b0a52632a69bc4a79d12035ed6350ea73c",
       "shape": [
@@ -471,7 +452,12 @@
     }
   },
   "case": "m4/merge-crystal-maps",
-  "inputs": [],
+  "inputs": [
+    {
+      "path": "fixtures/similarity_inputs.json",
+      "sha256": "0b47d7c048391615cf301cb94fe7160fe6f46f3662586c3d25646fac5f12327e"
+    }
+  ],
   "milestone": 4,
   "reference": {
     "function": "kikuchipy.indexing.merge_crystal_maps",
@@ -494,14 +480,6 @@
     "scipy": "1.18.1"
   },
   "values": {
-    "equal_maps": [
-      "ni",
-      "al",
-      "ni"
-    ],
-    "equal_options": {
-      "mean_n_best": 3
-    },
     "equal_phases": {
       "0": {
         "color": "tab:blue",
@@ -512,14 +490,6 @@
         "name": "al"
       }
     },
-    "keep_n": 5,
-    "lowest_maps": [
-      "ni",
-      "al"
-    ],
-    "lowest_options": {
-      "mean_n_best": -2
-    },
     "lowest_phases": {
       "0": {
         "color": "tab:blue",
@@ -529,14 +499,6 @@
         "color": "tab:orange",
         "name": "al"
       }
-    },
-    "masked_maps": [
-      "ni",
-      "al",
-      "ni_other"
-    ],
-    "masked_options": {
-      "greater_is_better": true
     },
     "masked_phases": {
       "0": {
@@ -552,50 +514,6 @@
         "name": "ni2"
       }
     },
-    "phases": {
-      "al": {
-        "lattice": [
-          4.05,
-          4.05,
-          4.05,
-          90,
-          90,
-          90
-        ],
-        "name": "al",
-        "space_group": 225
-      },
-      "ni": {
-        "lattice": [
-          3.52,
-          3.52,
-          3.52,
-          90,
-          90,
-          90
-        ],
-        "name": "ni",
-        "space_group": 225
-      },
-      "ni_other": {
-        "lattice": [
-          3.6,
-          3.6,
-          3.6,
-          90,
-          90,
-          90
-        ],
-        "name": "ni",
-        "space_group": 225
-      }
-    },
-    "renamed_maps": [
-      "ni",
-      "al",
-      "ni_other"
-    ],
-    "renamed_options": {},
     "renamed_phases": {
       "0": {
         "color": "tab:blue",
@@ -610,15 +528,6 @@
         "name": "ni2"
       }
     },
-    "shape": [
-      6,
-      7
-    ],
-    "two_maps": [
-      "ni",
-      "al"
-    ],
-    "two_options": {},
     "two_phases": {
       "0": {
         "color": "tab:blue",
