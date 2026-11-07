@@ -76,8 +76,38 @@ nonisolated enum MapsRoomFormat {
         map.phasesInData.entries.filter { $0.id != PhaseList.notIndexedID }
     }
 
-    /// "Map · IPF-Z", "Map · Phase", "Map · iq".
-    static func mapTitle(_ layer: OrientationMapLayer) -> String { "Map · " + layer.title }
+    /// "Map · IPF-Z", "Map · Phase", "Map · iq"; "Map · IPF-Z · stale" for an Indexing run the room has moved on from (D-SEM-99).
+    static func mapTitle(_ layer: OrientationMapLayer, stale: Bool = false) -> String { "Map · " + layer.title + (stale ? " · stale" : "") }
+
+    /// A held map's name in the Source pop-up (design §4: the result, then where it is from): "File · sdss.ang",
+    /// "Hough · Indexing room".
+    static func sourceTitle(_ document: OrientationMapSession.Document) -> String {
+        switch document.source {
+        case .mapFile, .patterns: "File · " + document.fileName
+        case .indexing(_, let method): method.title + " · Indexing room"
+        }
+    }
+
+    /// Where the map shown came from, in the Source row when it is the only map held.
+    static func sourceWords(_ source: OrientationMapSession.Document.Source) -> String {
+        switch source {
+        case .mapFile: "The map file"
+        case .patterns: "The pattern file's map"
+        case .indexing(_, let method): "The Indexing room's \(method.title) run"
+        }
+    }
+
+    /// The Info tab's note on what the map is.
+    static func sourceNote(_ source: OrientationMapSession.Document.Source) -> String {
+        switch source {
+        case .mapFile:
+            "The indexing as the file stores it; no patterns came with it, so the pane beside the map draws each point's unit cell."
+        case .patterns:
+            "The vendor's or kikuchipy's indexing as the file stores it; the patterns are the Patterns room's."
+        case .indexing:
+            "The Indexing room's run as its .ang and .ctf exports write it (the rows it reached), handed over without a file; the patterns are the Patterns room's."
+        }
+    }
 
     /// A phase's name as the room writes it: the file's, or "phase 2" for an unnamed one.
     static func phaseName(_ phase: CrystalPhase, id: Int) -> String { phase.name.isEmpty ? "phase \(id)" : phase.name }
@@ -90,7 +120,7 @@ nonisolated enum MapsRoomFormat {
         var out = [
             EBSDBrowsing.Row("File", document.fileName),
             EBSDBrowsing.Row("Format", document.format),
-            EBSDBrowsing.Row("Source", document.source == .patterns ? "The pattern file's crystal map" : "The map file alone (no patterns)"),
+            EBSDBrowsing.Row("Source", Self.infoSource(document.source)),
             EBSDBrowsing.Row("Map", "\(rows) × \(columns)"),
             EBSDBrowsing.Row("Step", "\(UnitDisplay.number(map.dx)) \(unit) × \(UnitDisplay.number(map.dy)) \(unit)"),
             EBSDBrowsing.Row("Points", "\(map.size)"),
@@ -106,6 +136,14 @@ nonisolated enum MapsRoomFormat {
         out.append(EBSDBrowsing.Row("IPF colours", "TSL key of each phase's Laue group (Nolze and Hielscher 2016), as orix 0.15.0"))
         out.append(EBSDBrowsing.Row("Phase colours", "orix's phase list (matplotlib Tableau colours)"))
         return out
+    }
+
+    private static func infoSource(_ source: OrientationMapSession.Document.Source) -> String {
+        switch source {
+        case .mapFile: "The map file alone (no patterns)"
+        case .patterns: "The pattern file's crystal map"
+        case .indexing(_, let method): "The Indexing room's \(method.title) run on the pattern file"
+        }
     }
 }
 

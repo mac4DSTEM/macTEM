@@ -120,16 +120,14 @@ final class AppState {
         ebsd.onFailure = { [weak self] in self?.present($0) }
         maps.onEvent = { [weak self] in self?.statusText = $0 }
         maps.onFailure = { [weak self] in self?.present($0) }
-        // Every dataset the Patterns room binds: the Indexing room starts over on it, and the Maps room shows its crystal map with the
-        // patterns beside (a map opened on its own gives way to it); both go back when the dataset closes, a map opened on its own stays.
+        // Every dataset the Patterns room binds: the Indexing room starts over on it, and the Maps room drops the old dataset's maps
+        // (its own and an Indexing run on it) and shows the new one's crystal map with the patterns beside (a map opened on its own
+        // gives way to it); both go back when the dataset closes, a map opened on its own stays.
         ebsd.onBind = { [weak self] document in
             guard let self else { return }
             self.indexing.bind(document)
-            if let mapDocument = OrientationMapSession.patternsDocument(fileName: document.fileName, url: document.url, dataset: document.dataset) {
-                self.maps.bind(mapDocument)
-            } else {
-                self.maps.patternsClosed()
-            }
+            self.maps.patternsChanged(to: OrientationMapSession.patternsDocument(fileName: document.fileName, url: document.url,
+                                                                                 dataset: document.dataset))
         }
         ebsd.onClose = { [weak self] in
             self?.indexing.close()
@@ -182,6 +180,29 @@ final class AppState {
     func selectWorkspace(_ area: WorkspaceArea) {
         guard roomUnavailableReason(area) == nil else { return }
         navigation.workspaceArea = area
+    }
+
+    /// Indexing's `Open in Maps` (D-SEM-99): the last run's crystal map to the Maps room without a file, at the pattern pinned in
+    /// Patterns and Indexing, and the Maps room in front. The returned task ends when the map is drawn; nil when nothing went across
+    /// (`IndexingSession.openInMapsRefusal`, said in the status line, or the map could not be built, said in the error sheet).
+    @discardableResult
+    func openIndexingInMaps() -> Task<Void, Never>? {
+        if let refusal = indexing.openInMapsRefusal { statusText = refusal; return nil }
+        do {
+            guard let run = try indexing.mapsDocument() else { statusText = "Index first"; return nil }
+            let drawn = maps.bind(run, pinned: ebsd.pinned)
+            selectWorkspace(.maps)
+            return drawn
+        } catch {
+            present(error)
+            return nil
+        }
+    }
+
+    /// What the Maps room says of the map it shows when that is an Indexing run (`IndexingSession.staleness(ofRun:)`), nil otherwise.
+    var mapsStaleness: String? {
+        guard case .indexing(let run, _) = maps.document?.source else { return nil }
+        return indexing.staleness(ofRun: run)
     }
 
     /// What the shared EDS room's views ask of this window: the status line, the error sheet, a UI journey's export folder.
