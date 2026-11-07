@@ -122,13 +122,12 @@ final class AppState {
         applyLaunchOptions(launch)
     }
 
-    /// Whether a Thermo or Tescan SEM TIFF opens without its databar (`SEMImageSettings`, on by default). Setting it stores the
-    /// choice and reads the selected file again, so the image follows at once; the other open files follow at their next read.
+    /// Whether the databar a Thermo or Tescan SEM TIFF's vendor drew under the scan is hidden (`SEMImageSettings`, on by default).
+    /// The picture is always the scan alone; shown, the bar is a strip under it (`ImagePane`), so the setting re-reads nothing.
     var cropsDatabar = SEMImageSettings.cropDatabar() {
         didSet {
             guard cropsDatabar != oldValue else { return }
             SEMImageSettings.setCropDatabar(cropsDatabar)
-            if let selected = openItems.selected, selected.session.sem?.databarRows != nil { openItems.reread(selected) }
         }
     }
 
