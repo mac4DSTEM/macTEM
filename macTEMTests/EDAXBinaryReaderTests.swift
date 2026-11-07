@@ -3,7 +3,8 @@
 //  The EDAX .up1/.up2 reader against kikuchipy 0.13.1 (`edax_binary.file_reader`): every Fixtures/ebsd-edax-binary*.up* reads with the
 //  values of Fixtures/ebsd-edax.truth.json (tools/parity/sem-readers/make_edax_fixtures.py): the header, the navigation and pattern
 //  shapes, the element type, kikuchipy's warning as the note, the first and last pattern and the sha256 of every pattern in map order;
-//  version 2 refused in words. Then the door (`EDAXOpening`): a hexagonal grid refused, the `.ang` next to the file paired by name.
+//  version 2 refused in words. Then the door (`EDAXOpening`, one `EBSDDataset` whose patterns stay in the file): a hexagonal grid
+//  refused, the `.ang` next to the file paired by name as the dataset's crystal map, the patterns read by map position bit-exact.
 //
 
 import CryptoKit
@@ -151,6 +152,7 @@ nonisolated final class EDAXBinaryReaderTests: XCTestCase {
             XCTAssertTrue(text.contains("hexagonal grid"), text)
             XCTAssertTrue(text.contains("ebsd-edax-binary-hex.up2"), text)
         }
+        XCTAssertEqual(FileRouting.inventory(path: url.path).refusal, "ebsd-edax-binary-hex.up2 was acquired on a hexagonal grid; only square-grid EBSD maps are read.")
         XCTAssertThrowsError(try EDAXOpening.open(url: Self.fixture("ebsd-tsl-hex.ang"))) { error in
             let text = (error as? EDAXReadError)?.text ?? ""
             XCTAssertTrue(text.contains("hexagonal grid"), text)
@@ -163,11 +165,18 @@ nonisolated final class EDAXBinaryReaderTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: folder) }
         let up1 = folder.appendingPathComponent("scan.up1")
         try FileManager.default.copyItem(at: Self.fixture("ebsd-edax-binary.up1"), to: up1)
-        // Alone: nine patterns in one row, no map.
+        // Alone: nine patterns in one row, no map, kikuchipy's default detector; the patterns are the file's records, bit-exact.
         let alone = try EDAXOpening.open(url: up1)
-        XCTAssertNil(alone.map)
+        XCTAssertNil(alone.crystalMap)
+        XCTAssertEqual(alone.format, .edaxBinary)
         XCTAssertEqual([alone.scanRows, alone.scanColumns], [1, 9])
         XCTAssertEqual(alone.notes, [])
+        XCTAssertEqual(alone.detector.projectionCenters, [SIMD3(0.5, 0.5, 0.5)])
+        let file = try EDAXBinaryReader.read(url: up1)
+        XCTAssertEqual(alone.patterns.layout, .records(offset: file.patternOffset, recordBytes: file.bytesPerPattern, patternOffset: 0))
+        XCTAssertEqual(try alone.allPatterns(), try EDAXBinaryReader.allPatterns(file))
+        XCTAssertEqual(try EBSDPatternReader(alone).pattern(row: 0, column: 8), try EDAXBinaryReader.pattern(file, index: 8))
+        XCTAssertEqual(FileRouting.inventory(path: up1.path), FileInventory(ebsdPatterns: true))
         // A 3 x 3 EDAX map with the same name: the scan takes its grid and step.
         let header = try String(contentsOf: Self.fixture("ebsd-tsl.ang"), encoding: .utf8).split(separator: "\n").filter { $0.hasPrefix("#") }
             .map { $0.replacingOccurrences(of: "NCOLS_ODD: 4", with: "NCOLS_ODD: 3").replacingOccurrences(of: "NCOLS_EVEN: 4", with: "NCOLS_EVEN: 3") }
@@ -176,24 +185,40 @@ nonisolated final class EDAXBinaryReaderTests: XCTestCase {
         let ang = folder.appendingPathComponent("scan.ang")
         try (header + rows).joined(separator: "\n").appending("\n").write(to: ang, atomically: true, encoding: .utf8)
         let paired = try EDAXOpening.open(url: up1)
-        XCTAssertEqual(paired.map?.url, ang)
-        XCTAssertEqual(paired.map?.pointCount, 9)
+        let map = try XCTUnwrap(paired.crystalMap)
+        XCTAssertEqual(map.pointCount, 9)
+        XCTAssertEqual(map.shape, [3, 3])
+        XCTAssertEqual(map.phaseIDs, [Int](repeating: 1, count: 9))
+        XCTAssertEqual(map.phases.ids, [1])
+        XCTAssertEqual(map.rotations[0], RotationConversions.eu2qu(SIMD3(0.1, 0.2, 0.3)))
+        XCTAssertEqual(map.euler[0], SIMD3(0.1, 0.2, 0.3))
         XCTAssertEqual([paired.scanRows, paired.scanColumns], [3, 3])
         XCTAssertEqual(paired.stepX, 2)
         XCTAssertEqual(paired.stepY, 2)
         XCTAssertEqual(paired.notes, [])
-        // Opened from the .ang side the same scan comes back.
+        let angHeader = try ANGReader.read(url: ang).header
+        XCTAssertEqual(paired.detector.projectionCenters, [paired.detector.brukerCenter(try XCTUnwrap(angHeader.projectionCenter), from: .tsl)], "the .ang's PC is TSL's")
+        XCTAssertEqual(paired.sem.workingDistanceMM, angHeader.workingDistance)
+        // Opened from the .ang side the same scan comes back, and the routing sends it to the Patterns room.
         let fromMap = try EDAXOpening.open(url: ang)
-        XCTAssertEqual(fromMap.patterns?.url, up1)
-        XCTAssertEqual([fromMap.scanRows, fromMap.scanColumns], [3, 3])
+        XCTAssertEqual(fromMap.patterns.url, up1)
+        XCTAssertEqual(fromMap, paired)
+        XCTAssertEqual(FileRouting.inventory(path: ang.path), FileInventory(ebsdPatterns: true))
+        XCTAssertEqual(try EBSDOpening.open(url: ang).dataset, paired)
         // A map of another point count is left out with a note; the patterns still open.
         try FileManager.default.removeItem(at: ang)
         try FileManager.default.copyItem(at: Self.fixture("ebsd-tsl.ang"), to: ang)
         let mismatched = try EDAXOpening.open(url: up1)
-        XCTAssertNil(mismatched.map)
+        XCTAssertNil(mismatched.crystalMap)
         XCTAssertEqual(mismatched.notes.count, 1)
         XCTAssertTrue(mismatched.notes[0].contains("12 points for 9 patterns"), mismatched.notes[0])
         XCTAssertEqual([mismatched.scanRows, mismatched.scanColumns], [1, 9])
+        // A map alone, without its patterns, is refused with the sentence that names them (D-SEM-25).
+        try FileManager.default.removeItem(at: up1)
+        XCTAssertThrowsError(try EDAXOpening.open(url: ang)) { error in
+            XCTAssertTrue(((error as? EDAXReadError)?.text ?? "").hasPrefix("scan.ang is an orientation map without its patterns"), String(describing: error))
+        }
+        XCTAssertEqual(FileRouting.inventory(path: ang.path).refusal, "scan.ang is an orientation map without its patterns: open the .up1 or .up2 of the same name next to it, which reads the map with it.")
     }
 
     func testAnUnreadableCompanionLeavesANoteAndAnUnreadableMainFileThrows() throws {
@@ -205,7 +230,7 @@ nonisolated final class EDAXBinaryReaderTests: XCTestCase {
         let ang = folder.appendingPathComponent("scan.ang")
         try "# GRID: SqrGrid\nnot a number\n".write(to: ang, atomically: true, encoding: .utf8)
         let scan = try EDAXOpening.open(url: up2)
-        XCTAssertNil(scan.map)
+        XCTAssertNil(scan.crystalMap)
         XCTAssertEqual(scan.notes.count, 1)
         XCTAssertTrue(scan.notes[0].hasPrefix("scan.ang next to it was not read:"), scan.notes[0])
         XCTAssertEqual([scan.scanRows, scan.scanColumns], [3, 4])

@@ -1,0 +1,150 @@
+{
+  "arrays": {
+    "chain": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "chain.bin",
+      "note": "static, dynamic, rescale 2 to 98 %, bin 2",
+      "rtol": 0.0,
+      "sha256": "73c21302e774d876dcde0ddb4336fcd1945383aec1bf28bcb818808ca735892d",
+      "shape": [
+        3,
+        3,
+        30,
+        30
+      ]
+    },
+    "corrected": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "corrected.bin",
+      "note": "kikuchipy's static then dynamic subtract: every stage's input",
+      "rtol": 0.0,
+      "sha256": "476d8b9344a0258a560d7097882548cff9646d078fe9b26a318c0382f19d2584",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "downsampled_2": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "downsampled_2.bin",
+      "note": "_bin2d sums in float32, rescaled to uint8's range, truncated",
+      "rtol": 0.0,
+      "sha256": "08faef406e42e71d51a75ed263de513a1162db0640609a366cb4d4fb10bafa46",
+      "shape": [
+        3,
+        3,
+        30,
+        30
+      ]
+    },
+    "downsampled_3": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "downsampled_3.bin",
+      "note": "_bin2d sums in float32, rescaled to uint8's range, truncated",
+      "rtol": 0.0,
+      "sha256": "8ea5ccf5b55327796f3004be43179172452c83b463aefb36da9d736a88ec2345",
+      "shape": [
+        3,
+        3,
+        20,
+        20
+      ]
+    },
+    "normalized": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "normalized.bin",
+      "note": "float32 input, mean 0, population std 1 (fastmath)",
+      "rtol": 1e-05,
+      "sha256": "089d62c8f6293a9e4137856c4f4e72913a7a3bffab9f4e3de1afa2957bb0fe4c",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "normalized_std2_sqrt": {
+      "atol": 1e-08,
+      "dtype": "float32",
+      "file": "normalized_std2_sqrt.bin",
+      "rtol": 1e-05,
+      "sha256": "bf80f0f117f8909481150bc9d035b8fe632a6f2333f49d96c29d5f284f9ca07a",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "rescaled": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "rescaled.bin",
+      "note": "rescale_intensity() to uint8's range: a corrected pattern already spans it",
+      "rtol": 0.0,
+      "sha256": "c4b6062633d7d4f58c1fefbf33307f694e7451ab01c072ae9a8483136bc83e8a",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "rescaled_percentiles": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "rescaled_percentiles.bin",
+      "note": "np.nanpercentile per pattern, clipped, rescaled, cast by truncation",
+      "rtol": 0.0,
+      "sha256": "9cea6bb8ab3614e068f5b3f017e7920585d24ed0c703b440fd3285f4710cff01",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    }
+  },
+  "case": "m2/intensity-nickel-ebsd-large",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.rescale_intensity / normalize_intensity / downsample",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "positions": "scan rows 0..2, cols 0..2",
+    "rescale_percentiles": [
+      2.0,
+      98.0
+    ]
+  }
+}

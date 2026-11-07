@@ -14,6 +14,10 @@
 //        numpy and attaches the 622 point group by hand; this reader keeps every column under its name and leaves the
 //        phase list to the caller (D-SEM-19).
 //
+//        The result is the dataset's `CrystalMap` (Euler angles in radians as orix holds them, the file's phase ids with -1 for
+//        not indexed and orix's `not_indexed` phase, the coordinates, the vendor's columns by name) with the vendor and the
+//        header lines beside it.
+//
 //        The parity test reads the files orix's own tests write and the head of Ti_orientations.ctf at 1e-12
 //        (macTEMTests/Fixtures/sem/oxford, from tools/parity/sem-readers/make_oxford_fixtures.py).
 //
@@ -48,7 +52,30 @@ package nonisolated enum CTFReader {
         1: "-1", 2: "2/m", 3: "mmm", 4: "4/m", 5: "4/mmm", 6: "-3", 7: "-3m", 8: "6/m", 9: "6/mmm", 10: "m3", 11: "m-3m",
     ]
 
-    package static func read(path: String) throws -> CrystalMapData {
+    /// Who wrote the file, as orix detects it from the header; `orientationTable` is a headerless export (first line the
+    /// column names, as orix-data's Ti_orientations.ctf from MTEX).
+    package enum Vendor: String, Sendable {
+        case oxfordOrBruker = "oxford_or_bruker"
+        case emsoft
+        case astar
+        case mtex
+        case orientationTable = "orientation_table"
+    }
+
+    /// One `.ctf` file: the map, who wrote it, and its header.
+    package struct File: Sendable, Equatable {
+        package var map: CrystalMap
+        package var vendor: Vendor
+        /// The header lines above the data, verbatim.
+        package var header: [String]
+        /// The vendor's per-point columns beyond phase, coordinates and Euler angles, in file order (the keys of `map.properties`).
+        package var propertyNames: [String]
+        /// µm, in every form the reader knows.
+        package var scanUnit: String { "um" }
+        package var pointCount: Int { map.pointCount }
+    }
+
+    package static func read(path: String) throws -> File {
         let data = try Data(contentsOf: URL(fileURLWithPath: path), options: .alwaysMapped)
         guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
             throw Refusal.notText
@@ -56,7 +83,10 @@ package nonisolated enum CTFReader {
         return try read(text: text)
     }
 
-    package static func read(text: String) throws -> CrystalMapData {
+    /// Degrees to radians as numpy's `deg2rad` computes it.
+    static func radians(_ degrees: Double) -> Double { degrees * (Double.pi / 180) }
+
+    package static func read(text: String) throws -> File {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map { line -> Substring in
             line.last == "\r" ? line.dropLast() : line
         }
@@ -64,7 +94,7 @@ package nonisolated enum CTFReader {
         // _get_header: the lines up to the column line, and the vendor.
         var header: [String] = []
         var columnLine: Int?
-        var vendors: [CrystalMapData.Vendor] = []
+        var vendors: [Vendor] = []
         for (index, line) in lines.enumerated() where index < 1000 {
             if line.hasPrefix("Phase\tX\tY") { columnLine = index; break }
             if line.contains("EMsoft v. "), line.contains("; BANDS=pattern index, MAD=CI, BC=OSM, BS=IQ"),
@@ -76,21 +106,21 @@ package nonisolated enum CTFReader {
             header.append(String(line))
         }
         guard let columnLine else { return try readOrientationTable(lines: lines) }
-        let vendor = vendors.count == 1 ? vendors[0] : CrystalMapData.Vendor.oxfordOrBruker
+        let vendor = vendors.count == 1 ? vendors[0] : Vendor.oxfordOrBruker
 
         let phases = try phasesFromHeader(header)
         let rows = try numberRows(lines: lines, from: columnLine + 1, needed: 11)
 
-        var x = [Double](), y = [Double](), phaseID = [Int](), euler = [Double]()
+        var x = [Double](), y = [Double](), phaseID = [Int](), euler = [SIMD3<Double>]()
         x.reserveCapacity(rows.count); y.reserveCapacity(rows.count); phaseID.reserveCapacity(rows.count)
-        euler.reserveCapacity(3 * rows.count)
+        euler.reserveCapacity(rows.count)
         var bands = [Double](), error = [Double](), mad = [Double](), bc = [Double](), bs = [Double]()
         for row in rows {
             let id = Int(row[0])
             phaseID.append(id == 0 ? -1 : id)
             x.append(row[1]); y.append(row[2])
             bands.append(row[3]); error.append(row[4])
-            euler.append(row[5]); euler.append(row[6]); euler.append(row[7])
+            euler.append(SIMD3(radians(row[5]), radians(row[6]), radians(row[7])))
             mad.append(row[8]); bc.append(row[9]); bs.append(row[10])
         }
         let names = vendor == .emsoft ? ["bands", "error", "DP", "OSM", "IQ"] : ["bands", "error", "MAD", "BC", "BS"]
@@ -98,18 +128,18 @@ package nonisolated enum CTFReader {
 
         if vendor == .astar { fixASTARCoordinates(header: header, x: &x, y: &y) }
 
-        return CrystalMapData(phases: phases, x: x, y: y, phaseID: phaseID, eulerDegrees: euler, propertyNames: names,
-                              properties: properties, scanUnit: "um", vendor: vendor, header: header)
+        let map = try CrystalMap(euler: euler, phaseIDs: phaseID, x: x, y: y, phaseList: phases, properties: properties, scanUnit: "um")
+        return File(map: map, vendor: vendor, header: header, propertyNames: names)
     }
 
     // MARK: - The header
 
     /// `_get_phases_from_header`.
-    static func phasesFromHeader(_ header: [String]) throws -> [CrystalMapData.Phase] {
+    static func phasesFromHeader(_ header: [String]) throws -> PhaseList {
         guard let phasesLine = header.firstIndex(where: { $0.hasPrefix("Phases") }) else { throw Refusal.noPhases }
         let fields = header[phasesLine].split(separator: "\t", omittingEmptySubsequences: false)
         guard fields.count > 1, let count = Int(fields[1].trimmingCharacters(in: .whitespaces)) else { throw Refusal.noPhases }
-        var phases: [CrystalMapData.Phase] = []
+        var phases: [CrystalPhase] = []
         for i in 0..<count {
             let lineNumber = phasesLine + 1 + i
             guard lineNumber < header.count else { throw Refusal.phase(line: lineNumber + 1, "the header ends before it") }
@@ -126,10 +156,11 @@ package nonisolated enum CTFReader {
             guard let spaceGroup = Int(parts[4].trimmingCharacters(in: .whitespaces)) else {
                 throw Refusal.phase(line: lineNumber + 1, "its space group `\(parts[4])` is not a number")
             }
-            phases.append(CrystalMapData.Phase(id: i + 1, name: parts[2], lattice: constants.map { $0! }, laueGroupID: laue,
-                                               pointGroup: group, spaceGroup: spaceGroup == 0 ? nil : spaceGroup))
+            phases.append(CrystalPhase(name: parts[2], spaceGroup: spaceGroup == 0 ? nil : spaceGroup, pointGroup: group,
+                                       lattice: constants.map { $0! }))
         }
-        return phases
+        // orix's `PhaseList(**phases)`: ids 1, 2, ... in header order, colours in matplotlib's Tableau order.
+        return PhaseList(ids: (0..<count).map { $0 + 1 }, phases: phases, assignColors: true)
     }
 
     /// `XCells`/`YCells` and `XStep`/`YStep` from the header (a comma as the decimal mark is read as a point).
@@ -144,7 +175,7 @@ package nonisolated enum CTFReader {
     /// `_fix_astar_coords`: when the coordinates' decimals round to another extent than the header's cells, the
     /// coordinates are regenerated from the header's steps (orix compares the x slice with the y cells; kept as is).
     static func fixASTARCoordinates(header: [String], x: inout [Double], y: inout [Double]) {
-        let slices = CrystalMapData.dataSlices(coordinates: [x, y], steps: [CrystalMapData.stepSize(x), CrystalMapData.stepSize(y)])
+        let slices = CrystalMap.dataSlices(coordinates: [x, y], steps: [CrystalMap.stepSize(x), CrystalMap.stepSize(y)])
         guard slices.count == 2,
               let cellsX = headerValue(header, key: "XCells"), let cellsY = headerValue(header, key: "YCells"),
               let stepX = headerValue(header, key: "XStep"), let stepY = headerValue(header, key: "YStep") else { return }
@@ -188,7 +219,7 @@ package nonisolated enum CTFReader {
     // MARK: - The orientation table
 
     /// A headerless export: the first line names the columns, every other line is one point.
-    static func readOrientationTable(lines: [Substring]) throws -> CrystalMapData {
+    static func readOrientationTable(lines: [Substring]) throws -> File {
         guard let nameLine = lines.firstIndex(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) else { throw Refusal.noColumnLine }
         let names = lines[nameLine].split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)
         guard names.contains("phi1"), names.contains("Phi"), names.contains("phi2") else { throw Refusal.noColumnLine }
@@ -197,16 +228,15 @@ package nonisolated enum CTFReader {
             guard let i = names.firstIndex(of: name) else { return nil }
             return rows.map { $0[i] }
         }
-        var euler = [Double]()
-        euler.reserveCapacity(3 * rows.count)
+        var euler = [SIMD3<Double>]()
+        euler.reserveCapacity(rows.count)
         let i1 = names.firstIndex(of: "phi1")!, i2 = names.firstIndex(of: "Phi")!, i3 = names.firstIndex(of: "phi2")!
-        for row in rows { euler.append(row[i1]); euler.append(row[i2]); euler.append(row[i3]) }
+        for row in rows { euler.append(SIMD3(radians(row[i1]), radians(row[i2]), radians(row[i3]))) }
         let phaseID = column("phase").map { $0.map { Int($0) == 0 ? -1 : Int($0) } } ?? [Int](repeating: 1, count: rows.count)
         let taken: Set<String> = ["phi1", "Phi", "phi2", "phase", "x", "y"]
         let propertyNames = names.filter { !taken.contains($0) }
         let properties = Dictionary(uniqueKeysWithValues: propertyNames.map { ($0, column($0)!) })
-        return CrystalMapData(phases: [], x: column("x") ?? [], y: column("y") ?? [], phaseID: phaseID, eulerDegrees: euler,
-                              propertyNames: propertyNames, properties: properties, scanUnit: "um", vendor: .orientationTable,
-                              header: [String(lines[nameLine])])
+        let map = try CrystalMap(euler: euler, phaseIDs: phaseID, x: column("x"), y: column("y"), properties: properties, scanUnit: "um")
+        return File(map: map, vendor: .orientationTable, header: [String(lines[nameLine])], propertyNames: propertyNames)
     }
 }

@@ -76,10 +76,12 @@ package nonisolated enum EBSDBrowsing {
     /// The scan unit as shown: the files write "um".
     package static func unitLabel(_ unit: String) -> String { unit == "um" ? "µm" : UnitDisplay.label(unit) }
 
-    /// The status line over the map (control placement §7): "row 12 · col 40 · mean 118.3".
-    package static func mapReadout(_ position: EBSDPosition, mean: Float?) -> String {
+    /// The status line over the map (control placement §7): "row 12 · col 40 · mean 118.3", then the shown virtual image's value
+    /// ("· r2 c1 12 034") when the map is not the mean.
+    package static func mapReadout(_ position: EBSDPosition, mean: Float?, map: (label: String, value: Float)? = nil) -> String {
         var text = "row \(position.row) · col \(position.column)"
         if let mean { text += " · mean \(UnitDisplay.number(Double(mean), digits: 4))" }
+        if let map { text += " · \(map.label) \(UnitDisplay.number(Double(map.value), digits: 6))" }
         return text
     }
 
@@ -132,7 +134,7 @@ package nonisolated enum EBSDBrowsing {
         }
         rows.append(Row("Convention", "Bruker"))
         if let map = dataset.crystalMap {
-            for phase in map.phases {
+            for (id, phase) in map.phases.entries where id != PhaseList.notIndexedID {
                 var words = phase.name
                 if let group = phase.spaceGroup { words += " (space group \(group)" + (phase.lattice?.first.map { ", \(UnitDisplay.number($0, digits: 4)) Å" } ?? "") + ")" }
                 rows.append(Row("Phase", words))
@@ -154,7 +156,10 @@ package nonisolated enum EBSDBrowsing {
         if let mag = dataset.sem.magnification { rows.append(Row("Magnification", "\(UnitDisplay.number(mag))×")) }
         if let wd = dataset.sem.workingDistanceMM { rows.append(Row("Working distance", "\(UnitDisplay.number(wd)) mm")) }
         rows.append(Row("Static background", dataset.staticBackground == nil ? "None in the file" : "In the file"))
-        rows.append(Row("Indexed", dataset.crystalMap.map { "\($0.phases.count) \($0.phases.count == 1 ? "phase" : "phases") in the file" } ?? "Not in the file"))
+        rows.append(Row("Indexed", dataset.crystalMap.map { map in
+            let n = map.phases.ids.filter { $0 != PhaseList.notIndexedID }.count
+            return "\(n) \(n == 1 ? "phase" : "phases") in the file"
+        } ?? "Not in the file"))
         return rows
     }
 
@@ -188,10 +193,10 @@ package nonisolated enum EBSDBrowsing {
         if let v = dataset.sem.microscope { sem["microscope"] = v }
         object["sem"] = sem
         if let map = dataset.crystalMap {
-            object["phases"] = map.phases.map { phase -> [String: Any] in
-                var p: [String: Any] = ["name": phase.name]
+            object["phases"] = map.phases.entries.filter { $0.id != PhaseList.notIndexedID }.map { id, phase -> [String: Any] in
+                var p: [String: Any] = ["id": id, "name": phase.name]
                 if let g = phase.spaceGroup { p["space_group"] = g }
-                if let g = phase.pointGroup { p["point_group"] = g }
+                if let g = phase.pointGroupName { p["point_group"] = g }
                 if let l = phase.lattice { p["lattice"] = l }
                 return p
             }

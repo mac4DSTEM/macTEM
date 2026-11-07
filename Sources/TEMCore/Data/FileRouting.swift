@@ -20,7 +20,8 @@ package nonisolated struct FileInventory: Equatable, Sendable {
     package var eelsSpectrumImage = false
     /// One spectrum (an `.msa`, a Velox file of spectra and nothing else), opened in the EDS room as a one-pixel spectrum image.
     package var singleSpectrum = false
-    /// An EBSD or TKD pattern dataset (an h5ebsd file of kikuchipy, Bruker, EDAX or Oxford): the Patterns room.
+    /// An EBSD or TKD pattern dataset (an h5ebsd file of kikuchipy, Bruker, EDAX or Oxford; EDAX `.up1`/`.up2` or Oxford `.ebsp` with the map
+    /// next to it): the Patterns room.
     package var ebsdPatterns = false
     /// Set instead of the above when the file is not opened here: the sentence says what it is and where it goes.
     package var refusal: String?
@@ -96,11 +97,18 @@ package nonisolated enum FileRouting {
                 return FileInventory(refusal: (error as? LocalizedError)?.errorDescription ?? "\(name) is not a spectrum macTEM opens.")
             }
         }
+        // A vendor's EBSD file (EDAX `.up1`/`.up2`/`.ang`, Oxford `.ebsp`/`.ctf`): FormatoKit's sniff knows none of them; the pattern file's header
+        // decides (a map file counts when its patterns are next to it), and a refusal is the door's sentence.
+        let url = URL(fileURLWithPath: path)
+        if EBSDOpening.isVendorFile(url) {
+            if let why = EBSDOpening.vendorRefusal(url: url) { return FileInventory(refusal: why) }
+            return FileInventory(ebsdPatterns: true)
+        }
         let kind = FormatoLoader.sniff(path: path)
         // An h5ebsd file (kikuchipy, Bruker, EDAX, Oxford H5OINA): FormatoKit's sniff knows `.h5` as HDF5 and `.h5oina` not at all, so the
         // EBSD reader's own sniff decides for both (one HDF5 open). A `.h5` that is neither an EBSD scan nor a Velox file keeps its refusal.
-        if kind == .hdf5 || (kind == .unknown && EBSDOpening.readableExtensions.contains(URL(fileURLWithPath: path).pathExtension.lowercased())),
-           EBSDH5Reader.sniff(url: URL(fileURLWithPath: path)) != nil {
+        if kind == .hdf5 || (kind == .unknown && EBSDOpening.h5Extensions.contains(url.pathExtension.lowercased())),
+           EBSDH5Reader.sniff(url: url) != nil {
             return FileInventory(ebsdPatterns: true)
         }
         switch kind {

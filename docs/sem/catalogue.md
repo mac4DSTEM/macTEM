@@ -59,7 +59,7 @@ header, and `docs/parity.md` names the function, its reference and its tolerance
 | FFT filters (Barnes windows: lowpass, highpass, Gaussian, modified Hann) | `kikuchipy.filters.fft_barnes`, `filters.window.Window`, `EBSD.fft_filter` | Barnes et al. 2016, J. Microsc. 261, 125 | synthetic | rtol 1e-5 |
 | Adaptive histogram equalisation | `EBSD.adaptive_histogram_equalization` (skimage CLAHE) | Zuiderveld 1994 | | exact |
 | Neighbour pattern averaging | `EBSD.average_neighbour_patterns` | kikuchipy docs | | rtol 1e-5 |
-| NLPAR denoising | `pyebsdindex.nlpar` | Brewick, Kalidindi, Rowenhorst 2019, Ultramicroscopy 200, 50 | nickel_ebsd_large | within pyebsdindex's own float32 tests |
+| NLPAR denoising | `pyebsdindex.nlpar` | Brewick, Wright, Rowenhorst 2019, Ultramicroscopy 200, 50 | nickel_ebsd_large | within pyebsdindex's own float32 tests |
 | Image quality (IQ) | `kikuchipy.pattern.get_image_quality` | Lassen 1994 (thesis), Krieger Lassen 1998 | nickel_ebsd_small | rtol 1e-5 |
 | Average neighbour dot product map | `EBSD.get_average_neighbour_dot_product_map` | Brewer, Field, Merriman 2009 | | rtol 1e-5 |
 | Virtual BSE images (grid, RGB, ROI) | `kikuchipy.imaging.VirtualBSEImager` | Wright et al. 2015, Microsc. Microanal. 21, 1 (vBSE) | nickel_ebsd_large | exact sums |

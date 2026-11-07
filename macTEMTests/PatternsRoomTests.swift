@@ -124,6 +124,31 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         XCTAssertNotNil(session.meanIntensity(at: .origin))
         XCTAssertNil(session.meanIntensity(at: EBSDPosition(row: 999, column: 0)))
 
+        // The virtual images (P1-07): the pass landed the whole detector's sum and the 5 x 5 tiles; the map follows the choice; the mix needs three tiles.
+        XCTAssertEqual(session.virtualGrid, VirtualBSEGrid(5))
+        XCTAssertEqual(session.virtualImages?.count, 26)
+        let meanCanvas = session.mapPresentation.canvas?.contentVersion
+        session.showMap(.bse)
+        XCTAssertNotEqual(session.mapPresentation.canvas?.contentVersion, meanCanvas, "the BSE sum is another picture")
+        XCTAssertEqual(session.mapValue(at: .origin)?.label, "BSE")
+        XCTAssertEqual(try XCTUnwrap(session.mapValue(at: .origin)?.value), try XCTUnwrap(session.meanIntensity(at: .origin)) * 3600, accuracy: 0.5)
+        let tile = VirtualBSETile(row: 2, column: 1)
+        session.showMap(.tile(tile))
+        XCTAssertEqual(session.mapValue(at: .origin)?.label, "r2 c1")
+        XCTAssertFalse(session.hasMix)
+        session.setMixTile(tile, channel: 0); session.setMixTile(VirtualBSETile(row: 2, column: 2), channel: 1)
+        XCTAssertFalse(session.hasMix)
+        session.setMixTile(VirtualBSETile(row: 2, column: 3), channel: 2)
+        XCTAssertTrue(session.hasMix)
+        XCTAssertEqual(session.mapChoice, .mix)
+        XCTAssertEqual(session.mixRGBA?.count, 30 * 40 * 4)
+        XCTAssertNil(session.mapValue(at: .origin), "the mix has no one value")
+        // A new grid runs the pass again and drops the mix.
+        session.setVirtualGrid(VirtualBSEGrid(3))
+        XCTAssertNil(session.virtualImages); XCTAssertFalse(session.hasMix); XCTAssertEqual(session.mapChoice, .mean)
+        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(session.virtualImages?.count, 10)
+
         session.close()
         XCTAssertFalse(session.hasDataset); XCTAssertNil(session.patternPosition)
     }
@@ -145,6 +170,35 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         }
         for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
         XCTAssertEqual(session.meanIntensities?.count, 9)
+    }
+
+    /// The quality maps (P2-03, north star F3) through the room's own path: picking Image quality on the kikuchipy fixture runs the quality
+    /// pass over the file and the map is kikuchipy's IQ and ADP of the raw patterns (the bundle `m2/quality-kikuchipy-h5ebsd`, rtol 1e-5);
+    /// the readout names the map and the Map PNG export writes it. Red under: the choice not starting the pass, the maps swapped.
+    @MainActor func testTheQualityMapsLandOnTheScanMapAsKikuchipysNumbers() async throws {
+        let session = EBSDSession()
+        await session.open(url: try fixture("ebsd-kikuchipy-h5ebsd", "h5")).value
+        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        session.showMap(.imageQuality)
+        XCTAssertTrue(session.isQualityMapping || session.imageQualityMap != nil)
+        for _ in 0..<4000 where session.isQualityMapping { try await Task.sleep(for: .milliseconds(5)) }
+        let ref = try SEMParityReference.load("m2/quality-kikuchipy-h5ebsd")
+        let iq = try XCTUnwrap(session.chosenImage).map(Double.init)
+        SEMAssertParity(iq, try ref.array("raw_iq"))
+        XCTAssertEqual(session.mapValue(at: EBSDPosition(row: 1, column: 2))?.label, "IQ")
+        session.showMap(.dotProduct)
+        XCTAssertFalse(session.isQualityMapping)   // one pass made both maps
+        SEMAssertParity(try XCTUnwrap(session.chosenImage).map(Double.init), try ref.array("raw_adp"))
+        XCTAssertEqual(session.mapValue(at: .origin)?.label, "ADP")
+        let canvas = try XCTUnwrap(session.mapPresentation.canvas)
+        XCTAssertEqual(canvas.width * canvas.height, 9)
+        let state = PatternsRoomState()
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("patterns-quality-\(UUID().uuidString)")
+        var reports: [String] = []
+        state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
+        XCTAssertEqual(reports, ["Exported ebsd-kikuchipy-h5ebsd map average dot product.png"])
+        session.close()
+        XCTAssertNil(session.imageQualityMap); XCTAssertNil(session.dotProductMap)
     }
 
     // MARK: The demo dataset
@@ -207,6 +261,15 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         XCTAssertEqual(reports, ["Exported Demo EBSD metadata.json", "Exported Demo EBSD pattern r0 c0.png"])
         let png = try Data(contentsOf: dir.appendingPathComponent("Demo EBSD pattern r0 c0.png"))
         XCTAssertEqual([UInt8](png.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
+        // The map, once the pass has landed: the mean, then the colour mix through its own encoder.
+        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
+        XCTAssertEqual(reports.last, "Exported Demo EBSD map mean.png")
+        for (channel, column) in [1, 2, 3].enumerated() { session.setMixTile(VirtualBSETile(row: 2, column: column), channel: channel) }
+        state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
+        XCTAssertEqual(reports.last, "Exported Demo EBSD map mix.png")
+        let mix = try Data(contentsOf: dir.appendingPathComponent("Demo EBSD map mix.png"))
+        XCTAssertEqual([UInt8](mix.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
     }
 
     // MARK: Routing

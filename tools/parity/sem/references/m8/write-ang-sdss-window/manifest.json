@@ -1,0 +1,117 @@
+{
+  "arrays": {},
+  "case": "m8/write-ang-sdss-window",
+  "inputs": [
+    {
+      "path": "sem-data/orix/sdss_ferrite_austenite.ang",
+      "sha256": "ac2fc2fc2b8c9c598703c96f9888677bccc9cd88cddd5e78735653fd5504e371"
+    }
+  ],
+  "milestone": 8,
+  "reference": {
+    "function": "orix.io.plugins.ang.file_writer (orix.io.save), read back by orix.io.load",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "round_trip_max_rotation_angle_rad": {
+      "atol": 1e-12,
+      "rtol": 0.0,
+      "value": 0.0
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "byte_count": 10411,
+    "data_line_sample": {
+      "134": " 3.01716   0.81434   3.86172   13.50000   13.50000   25.20000   0.00000   2   0.00000   0.00000",
+      "35": " 3.52774   0.66772   2.99406    0.00000    0.00000   37.00000   0.00000   2   0.00000   0.00000",
+      "85": " 0.95887   0.78195   5.96634    0.00000    7.50000   29.10000   0.00000   1   0.00000   0.00000"
+    },
+    "file_bytes": {
+      "dtype": "uint8",
+      "sha256": "d9815ad57e8567ad9bcdebdfd9952aab319ebe38b7e150381213ca247b4836a7",
+      "shape": [
+        10411
+      ]
+    },
+    "header_lines": [
+      "# TEM_PIXperUM           1.000000",
+      "# x-star                 0.000000",
+      "# y-star                 0.000000",
+      "# z-star                 0.000000",
+      "# WorkingDistance        0.000000",
+      "# ",
+      "# Phase 2",
+      "# MaterialName    ferrite/ferrite",
+      "# Formula    ferrite/ferrite",
+      "# Info",
+      "# Symmetry    43",
+      "# LatticeConstants    2.867 2.867 2.867 90.000 90.000 90.000",
+      "# NumberFamilies    0",
+      "# Phase 1",
+      "# MaterialName    austenite/austenite",
+      "# Formula    austenite/austenite",
+      "# Info",
+      "# Symmetry    43",
+      "# LatticeConstants    3.595 3.595 3.595 90.000 90.000 90.000",
+      "# NumberFamilies    0",
+      "# GRID: SqrGrid",
+      "# XSTEP: 1.500000",
+      "# YSTEP: 1.500000",
+      "# NCOLS_ODD: 10",
+      "# NCOLS_EVEN: 10",
+      "# NROWS: 10",
+      "# ",
+      "# OPERATOR: orix_v0.15.0",
+      "# ",
+      "# SAMPLEID:",
+      "# ",
+      "# SCANID:",
+      "# ",
+      "# Column names: phi1, Phi, phi2, x, y, image_quality, confidence_index, phase_id, detector_signal, pattern_fit",
+      "# "
+    ],
+    "line_count": 135,
+    "read_back": {
+      "dx": 1.5,
+      "dy": 1.5,
+      "indexed": 100,
+      "phase_ids": [
+        1,
+        2
+      ],
+      "phase_names": [
+        "austenite/austenite",
+        "ferrite/ferrite"
+      ],
+      "point_groups": [
+        "432",
+        "432"
+      ],
+      "properties": [
+        "iq",
+        "ci",
+        "detector_signal",
+        "fit"
+      ],
+      "shape": [
+        10,
+        10
+      ]
+    }
+  }
+}

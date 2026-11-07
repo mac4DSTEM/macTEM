@@ -1,0 +1,524 @@
+{
+  "arrays": {
+    "angle": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "angle.bin",
+      "rtol": 0.0,
+      "sha256": "d0e10365ebdc9f0c14af0d72af45966bd7c1c7b75cf859e4df353f2514a10967",
+      "shape": [
+        64
+      ]
+    },
+    "angle_with": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "angle_with.bin",
+      "rtol": 0.0,
+      "sha256": "89ef80610246bf4ca1377a155a22f0417b17324aa30e7feb29daf40b9c180dda",
+      "shape": [
+        32
+      ]
+    },
+    "angle_with_outer": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "angle_with_outer.bin",
+      "rtol": 0.0,
+      "sha256": "afff054d03ec255baed9f0431e706433ee6417f682db8aad75b921083e36496a",
+      "shape": [
+        8,
+        8
+      ]
+    },
+    "ax2qu": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "ax2qu.bin",
+      "rtol": 0.0,
+      "sha256": "d7ca1f093d661423d5bacd971e434a400b5e37190883c9773988975b3f1cb269",
+      "shape": [
+        64,
+        4
+      ]
+    },
+    "axangle": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "axangle.bin",
+      "rtol": 0.0,
+      "sha256": "086473a5549526117e7fd26d0847e44a54b35d4dd7237d0fe9e02f21daa3b124",
+      "shape": [
+        64,
+        3
+      ]
+    },
+    "axis": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "axis.bin",
+      "rtol": 0.0,
+      "sha256": "a2fd474dd2d920eaa22f3f0ebb08e9cdba375b7337d9d94a5c9c2474ba51552e",
+      "shape": [
+        64,
+        3
+      ]
+    },
+    "cu": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "cu.bin",
+      "rtol": 0.0,
+      "sha256": "50e26fbb4486c4b5992854b815a779a8977951c74c2b01a933f81f74ca935754",
+      "shape": [
+        64,
+        3
+      ]
+    },
+    "cu2ho": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "cu2ho.bin",
+      "rtol": 0.0,
+      "sha256": "6bd8f5c5bd0c73bb4933b7ba812525e501615f053414b4ab5cb8ecffab11fc70",
+      "shape": [
+        64,
+        3
+      ]
+    },
+    "cu2ro": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "cu2ro.bin",
+      "note": "cu2ro: rows at 180 degrees hold +inf (ax2ro), compared as equal infinities",
+      "rtol": 1e-07,
+      "sha256": "e240955448c011f741f7d6daa46fd964c05fac9708a9a9c0a0e9650267cabd3f",
+      "shape": [
+        64,
+        4
+      ]
+    },
+    "cu_pyramid": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "cu_pyramid.bin",
+      "rtol": 0.0,
+      "sha256": "04b4fbe0cb5a9c97c050615bba7509489689e5c0588f8e07047ecfc01fb4e023",
+      "shape": [
+        64
+      ]
+    },
+    "dot_outer": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "dot_outer.bin",
+      "rtol": 0.0,
+      "sha256": "ecde42f9345992e18378b39146d7ea26357e5f61eb55163cad47b36379fe7b8d",
+      "shape": [
+        8,
+        8
+      ]
+    },
+    "eu": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "eu.bin",
+      "rtol": 0.0,
+      "sha256": "df641af1c520846278e1d00770102445dbe6b984044f81b3ea5bdbd7e149a7ef",
+      "shape": [
+        64,
+        3
+      ]
+    },
+    "eu2qu": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "eu2qu.bin",
+      "rtol": 0.0,
+      "sha256": "a9a4ec2ae7223422dfa6d4de1db6ec7d21968621cd9ef7b3f5c3a39d0fc589a0",
+      "shape": [
+        64,
+        4
+      ]
+    },
+    "eu2qu_crystal2lab": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "eu2qu_crystal2lab.bin",
+      "rtol": 0.0,
+      "sha256": "7854197305df1bef22125e6fd6a20e22bc859c195d907f36cfaffb1bd52275ab",
+      "shape": [
+        64,
+        4
+      ]
+    },
+    "eu_roundtrip": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "eu_roundtrip.bin",
+      "rtol": 0.0,
+      "sha256": "e23e45f0d471ae0e188cac552c86b06ed1b4173d852bcb3b5e7ffa6801e58710",
+      "shape": [
+        64,
+        3
+      ]
+    },
+    "ho2ax": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "ho2ax.bin",
+      "rtol": 0.0,
+      "sha256": "ac1768180670feb08088029bb5292110c3629930246a18f5049bb443dd451b5b",
+      "shape": [
+        64,
+        4
+      ]
+    },
+    "ho2qu": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "ho2qu.bin",
+      "rtol": 0.0,
+      "sha256": "b2c87be58c9637a566100863e62f8fd71e90ae149ec854237c68571d333db0a2",
+      "shape": [
+        64,
+        4
+      ]
+    },
+    "improper_mask": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "improper_mask.bin",
+      "rtol": 0.0,
+      "sha256": "636d77c95b94ddd149d02d8ea45760bfcba72c6dcb0d90596f99198cc8fd5152",
+      "shape": [
+        64
+      ]
+    },
+    "inverse": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "inverse.bin",
+      "rtol": 0.0,
+      "sha256": "4b5af99a2efccf0591accb1af43200b29913027ed9da68885594327dbdcb2f88",
+      "shape": [
+        64,
+        4
+      ]
+    },
+    "om2qu": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "om2qu.bin",
+      "rtol": 0.0,
+      "sha256": "efbbbef54535a8c5e1ba102cc4cdf5702baa232fd400673ab39009b3a7235a55",
+      "shape": [
+        64,
+        4
+      ]
+    },
+    "outer": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "outer.bin",
+      "rtol": 0.0,
+      "sha256": "b791726438c3fe61578c5709778702073d8c0b2fb3e417776564bb84e45f5f08",
+      "shape": [
+        4,
+        3,
+        4
+      ]
+    },
+    "outer_vectors": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "outer_vectors.bin",
+      "rtol": 0.0,
+      "sha256": "9e87116f9ce04f300289d48a892c4249a7bd0f58d5f75b0e0a3f4803587528dc",
+      "shape": [
+        4,
+        5,
+        3
+      ]
+    },
+    "product": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "product.bin",
+      "rtol": 0.0,
+      "sha256": "0bf933a930a7dfbd88bed7103b2d3716eac398b9c1c4d9ef1e2d4905d1607916",
+      "shape": [
+        32,
+        4
+      ]
+    },
+    "product_improper": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "product_improper.bin",
+      "rtol": 0.0,
+      "sha256": "1ea4efcd877798575ad81374f8a497a0cb7d1332d2fe16bed19699c430ec4579",
+      "shape": [
+        32
+      ]
+    },
+    "qu": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "qu.bin",
+      "rtol": 0.0,
+      "sha256": "61550b8a410136f2c531bf47d5998eca7c06ee0bdd6cd159bfa4c620ebae5439",
+      "shape": [
+        64,
+        4
+      ]
+    },
+    "qu2ax": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "qu2ax.bin",
+      "rtol": 0.0,
+      "sha256": "bc48203eac5993884a8d596fc10885eab7551f428be05d873d5d8da4f66cdf98",
+      "shape": [
+        64,
+        4
+      ]
+    },
+    "qu2eu": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "qu2eu.bin",
+      "rtol": 0.0,
+      "sha256": "f152975a496309a0a8cc9b86a19c9fd975013b5770eb4458bbe2324fbfdf354b",
+      "shape": [
+        64,
+        3
+      ]
+    },
+    "qu2ho": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "qu2ho.bin",
+      "rtol": 0.0,
+      "sha256": "d95df3976bb00c6d755279fb538d982fff78631d62e72f8ccd9aaf7025f4373a",
+      "shape": [
+        64,
+        3
+      ]
+    },
+    "qu2om": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "qu2om.bin",
+      "rtol": 0.0,
+      "sha256": "3d16df21654ecf537734b20de95a5fdfcbcc770bc4c8eeabcc7646d75f66a0e3",
+      "shape": [
+        64,
+        3,
+        3
+      ]
+    },
+    "ro": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "ro.bin",
+      "rtol": 1e-07,
+      "sha256": "e8bb94797e2947fa3a0885804e26ea6a407b40457cc8950eeb26adc3c18d6a1a",
+      "shape": [
+        62,
+        3
+      ]
+    },
+    "ro2qu": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "ro2qu.bin",
+      "rtol": 0.0,
+      "sha256": "ea96c55edab0d656a5c87c35ba218df00c5309683ef90958dcaa0af74b3a5869",
+      "shape": [
+        62,
+        4
+      ]
+    },
+    "ro_frank": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "ro_frank.bin",
+      "note": "ro_frank: rows at 180 degrees hold +inf (ax2ro), compared as equal infinities",
+      "rtol": 1e-07,
+      "sha256": "61c149105dcc78a25b284cd65012483e4af6b1bcf9e017af21c1a917bf7dbfec",
+      "shape": [
+        64,
+        4
+      ]
+    },
+    "rotated": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "rotated.bin",
+      "rtol": 0.0,
+      "sha256": "2e10fe4389445dc71c75488695a18296210c71e1de2506cb43a4e8b1fda7a1db",
+      "shape": [
+        64,
+        3
+      ]
+    },
+    "rotated_improper": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "rotated_improper.bin",
+      "rtol": 0.0,
+      "sha256": "fbc060a629789af6d1ded8ae9a63bac6a550ffaade79f4b8923e4adbfe14c6f1",
+      "shape": [
+        64,
+        3
+      ]
+    },
+    "unique_index": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "unique_index.bin",
+      "rtol": 0.0,
+      "sha256": "23c379d6c0f22ef64cdef873fd530df1f1419b4a3935e9323d5f1d82ca697b6a",
+      "shape": [
+        10
+      ]
+    },
+    "unique_input": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "unique_input.bin",
+      "rtol": 0.0,
+      "sha256": "49068bfd8c694a9f8bae9cd611e1e2b2ed7a6861925ac4147538df68694e8fc9",
+      "shape": [
+        15,
+        4
+      ]
+    },
+    "unique_inverse": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "unique_inverse.bin",
+      "rtol": 0.0,
+      "sha256": "3c463a8d816392ea1cc8164318517e905735b6da399c1623ca40474090b5f6af",
+      "shape": [
+        15
+      ]
+    },
+    "vectors": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "vectors.bin",
+      "rtol": 0.0,
+      "sha256": "0e4bd55d392e95759118e2f9150761f858d19e48fe3da77292e8206cd451b499",
+      "shape": [
+        64,
+        3
+      ]
+    }
+  },
+  "case": "m3/rotation-conversions",
+  "inputs": [
+    {
+      "path": "fixtures/orientation_inputs.json",
+      "sha256": "faf36e30d99e1b9261c4075804a15488762c97ff16d5ac9a7c53b5e4da479f23"
+    }
+  ],
+  "milestone": 3,
+  "reference": {
+    "function": "orix.quaternion.Rotation (to_/from_ conversions, *, ~, angle_with, outer, unique)",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "rodrigues_rows": [
+      0,
+      1,
+      3,
+      4,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63
+    ],
+    "rows": 64,
+    "special_rows": [
+      "identity",
+      "90 deg about z",
+      "180 deg about x",
+      "120 deg about [111]",
+      "1e-5 rad about y",
+      "180 deg about [110]",
+      "270 deg about z written with a < 0"
+    ]
+  }
+}
