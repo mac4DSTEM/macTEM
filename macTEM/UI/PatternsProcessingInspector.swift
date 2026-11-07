@@ -1,7 +1,7 @@
 //
 //  PatternsProcessingInspector.swift
 //  Role: the Patterns room's processing sections (docs/sem/design/pattern-processing.md §3), between Virtual images and Pattern Display:
-//        Static background, Dynamic background, Intensity and Size, in dependency order, each with its stage's state on the title row
+//        Static background, Dynamic background, Intensity, Size and NLPAR, in dependency order, each with its stage's state on the title row
 //        (the EELS room's glyphs: not run, current, stale). The first row picks what the pattern pane shows, raw or processed; a change
 //        to any row re-draws a processed pattern at once and stales the scan's run from that stage on; the toolbar's Process runs it.
 //        Presentation only: the settings are `PatternPipeline`'s (TEMCore), the state `EBSDSession`'s (TEMSession).
@@ -37,6 +37,33 @@ struct PatternsProcessingSections: View {
         dynamicSection
         intensitySection
         sizeSection
+        nlparSection
+    }
+
+    private var nlparSection: some View {
+        let s = status(.nlpar)
+        return InspectorSection("NLPAR", status: s.word, statusGlyph: s.glyph, startsExpanded: false) {
+            InspectorRow("Average") {
+                Toggle("Non-local pattern averaging", isOn: Binding(get: { pipeline.nlpar.isOn }, set: { v in session.editPipeline { $0.nlpar.isOn = v } }))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .help("Average each pattern with its similar neighbours, weighted by their noise-normalised distance (pyebsdindex NLPAR)")
+                    .accessibilityIdentifier("patterns.nlpar.on")
+            }
+            InspectorRow("Radius") {
+                OptionalNumericField(title: "Search radius", value: Double(pipeline.nlpar.searchRadius),
+                                     format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0)), unit: "px",
+                                     prompt: "\(NLPAR.defaultSearchRadius)") { v in session.editPipeline { $0.nlpar.searchRadius = max(1, Int(v.rounded())) } }
+                    .disabled(!pipeline.nlpar.isOn)
+                    .help("The neighbourhood searched around each scan point: (2 r + 1) × (2 r + 1) patterns")
+                    .accessibilityIdentifier("patterns.nlpar.radius")
+            }
+            refusalNote(.nlpar)
+            if let lambda = session.nlparLambda, session.stageState(.nlpar) == .current {
+                InspectorValueRow("λ", String(format: "%.3f", lambda))
+                    .accessibilityIdentifier("patterns.nlpar.lambda")
+            }
+            InspectorNote("λ is chosen from the scan's noise (opt_lambda, the median of three). NLPAR needs the neighbours, so it shows on the pattern once Process has run.")
+        }
     }
 
     private var staticSection: some View {

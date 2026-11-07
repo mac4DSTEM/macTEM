@@ -1,0 +1,77 @@
+{
+  "arrays": {
+    "euler": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "euler.bin",
+      "note": "Bunge angles in radians as orix read them, the input of the colours",
+      "rtol": 0.0,
+      "sha256": "1fd1f1ffb6514e2edf6a81ce3eaa051c56e0fdac04017b47cd036ff49f793a5c",
+      "shape": [
+        4125,
+        3
+      ]
+    },
+    "ipf_z_rgb": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "ipf_z_rgb.bin",
+      "rtol": 0.0,
+      "sha256": "b14922bc1e880aadf272dc66cd1f393c8018b232a98c8a68ff42e4b2740531bd",
+      "shape": [
+        4125,
+        3
+      ]
+    },
+    "phase_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "phase_id.bin",
+      "rtol": 0.0,
+      "sha256": "88d0e4fd08db2ba867068d0e42ecbfbef69566332aca5de4538738b1353571de",
+      "shape": [
+        4125
+      ]
+    }
+  },
+  "case": "m3/ipf-nickel-ebsd-large",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    }
+  ],
+  "milestone": 3,
+  "reference": {
+    "function": "orix.plot.IPFColorKeyTSL.orientation2color per phase",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "phases": {
+      "0": {
+        "name": "ni",
+        "point_group": "m-3m"
+      }
+    },
+    "shape": [
+      55,
+      75
+    ]
+  }
+}
