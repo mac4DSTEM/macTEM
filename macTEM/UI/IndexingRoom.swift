@@ -332,9 +332,9 @@ private struct IndexingLegend: View {
                     .allowsHitTesting(false)
                 if let masked {
                     Text(masked)
-                        .font(.caption2).foregroundStyle(.white.opacity(0.85))
-                        .padding(.horizontal, 7).padding(.vertical, 3)
-                        .background(Color.black.opacity(0.48), in: RoundedRectangle(cornerRadius: 4))
+                        .font(.caption2).foregroundStyle(.secondary)
+                        .padding(4)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
                         .accessibilityLabel(masked.replacingOccurrences(of: "grey:", with: "grey marks points"))
                 }
             }
