@@ -13,6 +13,10 @@ Planted, deterministic, small, committed under fixtures/ with the hand-written t
 * `oxford_h5oina_patterns.h5oina` and `bruker_h5ebsd_patterns.h5`: kikuchipy's own dummy writers
   (`kikuchipy.data._dummy_files`), which build a 3 x 3 file around the Ni small dataset. Regenerated here so a
   kikuchipy change in the writers is a visible diff, never a silent one.
+* `planted_emsoft_tkd_master_pattern.h5` and `planted_emsoft_ecp_master_pattern.h5`: EMsoft TKD and ECP master pattern
+  files as kikuchipy's own test fixtures build them (`kikuchipy/conftest.py`, `emsoft_tkd_master_pattern_file` and
+  `emsoft_ecp_master_pattern_file`: 13 x 13 Lambert and stereographic patterns at 11 energies, 10 to 20 kV, of the
+  Al2Cu test phase). kikuchipy ships no TKD or ECP master pattern file, so these are the readers' fixtures for those two.
 * `orientation_inputs.json`: the inputs of the orientation-maths bundles (m3): seeded unit quaternions with seven
   special rotations, Bunge angles, cubochoric points, vectors, seeded m-3m orientations, the point-group names orix
   defines, and the Bunge angles of the first 2000 rows of orix-data's `Ti_orientations.ctf` (CC BY 4.0, the head
@@ -20,6 +24,10 @@ Planted, deterministic, small, committed under fixtures/ with the hand-written t
 * `ipf_inputs.json`: the inputs of the vector, projection and colour-key bundle (m3/ipf-color-keys): seeded directions
   with the inverse-pole-figure corners, stereographic points, lattices from triclinic to hexagonal with Miller indices,
   seeded rotations for the Euler colour key. `--ipf-only` writes just this file.
+
+* `grain_inputs.json`: the input of the grain bundle `m5/grains-ti`: a 90 x 120 corner of orix-data's
+  `Ti_orientations.ctf` (hcp titanium, CC BY 4.0), the file's own Bunge angles in degrees, read from the fetched dataset
+  (fetch-data.sh first). `--grain-only` writes just this file.
 
 Run with `python -I -B`.
 """
@@ -100,6 +108,62 @@ def write_kikuchipy_dummies() -> None:
     bruker.create_dummy_bruker_h5ebsd_file(FIXTURES / "bruker_h5ebsd_patterns.h5")
 
 
+def write_emsoft_master_pattern(path: Path, diffraction_type: str) -> None:
+    """kikuchipy's conftest fixture of the same name, for "TKD" or "ECP" (the two differ in the energy dataset's name,
+    the Monte Carlo name list's and the names in it, and ECP has no BetheParameters)."""
+    import h5py
+    import numpy as np
+
+    import kikuchipy as kp
+    from kikuchipy.io.plugins._h5ebsd import _dict2hdf5group
+
+    npx = 6
+    signal_shape = (npx * 2 + 1,) * 2
+    energies = np.linspace(10, 20, 11, dtype=np.float32)
+    data_shape = (len(energies),) + signal_shape
+    mp_lam_upper = np.ones((1,) + data_shape, dtype=np.float32) * energies.reshape((1, 11, 1, 1))
+    mp_lam_lower = mp_lam_upper
+    circle = kp.filters.Window(shape=signal_shape).astype(np.float32)
+    mp_sph_upper = mp_lam_upper.squeeze() * circle
+    mp_sph_lower = mp_sph_upper
+    crystal = {
+        "AtomData": np.array([[0.1587, 0], [0.6587, 0], [0, 0.25], [1, 1], [0.005, 0.005]], dtype=np.float32),
+        "Atomtypes": np.array([13, 29], dtype=np.int32),
+        "CrystalSystem": 2,
+        "LatticeParameters": np.array([0.5949, 0.5949, 0.5821, 90, 90, 90]),
+        "Natomtypes": 2,
+        "Source": "Su Y.C., Yan J., Lu P.T., Su J.T.: Thermodynamic...",
+        "SpaceGroupNumber": 140,
+        "SpaceGroupSetting": 1,
+    }
+    mc = {"Ebinsize": energies[1] - energies[0], "Ehistmin": np.min(energies), "EkeV": np.max(energies), "MCmode": "CSDA",
+          "dataname": "crystal_data/al2cu/al2cu_mc_mp_20kv.h5", "depthmax": 100.0, "depthstep": 1.0, "numsx": npx,
+          "totnum_el": 2000000000}
+    if diffraction_type == "ECP":
+        master = {"EkeV": np.linspace(10, 20, 11, dtype=np.float32), "mLPNH": mp_lam_upper, "masterSPNH": mp_sph_upper,
+                  "masterSPSH": mp_sph_lower, "numset": 1}
+        mc.update({"mode": "bse1", "sigend": 10.0, "sigstart": 0.0, "sigstep": 2.0})
+        mc_name = "MCCLNameList"
+    else:
+        master = {"BetheParameters": np.array([4, 8, 50, 1], dtype=np.float32),
+                  "EkeVs": np.linspace(10, 20, 11, dtype=np.float32), "mLPNH": mp_lam_upper, "masterSPNH": mp_sph_upper,
+                  "masterSPSH": mp_sph_lower, "numEbins": len(energies), "numset": 1}
+        mc.update({"sig": -20.0})
+        mc_name = "MCCLfoilNameList"
+    program = f"EM{diffraction_type}master.f90".encode()
+    data = {
+        "CrystalData": crystal,
+        "EMData": {f"{diffraction_type}master": master},
+        "NMLparameters": {f"{diffraction_type}MasterNameList": {"dmin": 0.05, "npx": npx}, mc_name: mc,
+                          "BetheList": {"c1": 4.0, "c2": 8.0, "c3": 50.0, "sgdbdiff": 1.0}},
+        "EMheader": {f"{diffraction_type}master": {"ProgramName": np.array([program], dtype=f"S{len(program)}")}},
+    }
+    with h5py.File(path, mode="w") as f:
+        _dict2hdf5group(dictionary=data, group=f["/"])
+        f[f"EMData/{diffraction_type}master"].create_dataset("mLPSH", data=mp_lam_lower, chunks=True)
+        f["CrystalData"].create_dataset("CreationTime", data=b"12:30:13.559 PM\xf0\x14\x1e\xc8\xbcU")
+
+
 def write_orientation_inputs() -> None:
     import numpy as np
     from orix.quaternion import Rotation, symmetry
@@ -172,11 +236,40 @@ def write_ipf_inputs() -> None:
     (FIXTURES / "ipf_inputs.json").write_text(json.dumps(out) + "\n", encoding="utf-8")
 
 
+# The grain input (m5): rows 0-89, columns 0-119 of orix-data's Ti_orientations.ctf, so the Swift test of the grain
+# port runs without the 29 MB download (the whole map is figure F11's bundle, which skips without it).
+GRAIN_TI_CROP = (0, 0, 90, 120)  # row, column, height, width of the 381 x 507 map
+
+
+def write_grain_inputs() -> None:
+    import numpy as np
+
+    path = HERE.parent.parent.parent / "References" / "sem-data" / "orix" / "Ti_orientations.ctf"
+    ti = np.loadtxt(path, skiprows=1)
+    assert ti.shape == (381 * 507, 13), ti.shape
+    r0, c0, h, w = GRAIN_TI_CROP
+    eu = ti[:, :3].reshape(381, 507, 3)[r0:r0 + h, c0:c0 + w].reshape(-1, 3)
+    out = {
+        "note": "Input of tools/parity/sem bundle m5/grains-ti: rows 0-89, columns 0-119 of orix-data Ti_orientations.ctf "
+                "(CC BY 4.0), Bunge angles in degrees as written, rows first.",
+        "ti": {"shape": [h, w], "crop_row_column": [r0, c0], "step_um": 0.25, "euler_degrees": eu.tolist()},
+    }
+    (FIXTURES / "grain_inputs.json").write_text(json.dumps(out) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--orientation-only", action="store_true", help="write orientation_inputs.json only")
     ap.add_argument("--ipf-only", action="store_true", help="write ipf_inputs.json only")
+
+
+    ap.add_argument("--grain-only", action="store_true", help="write grain_inputs.json only (needs fetch-data.sh)")
     args = ap.parse_args()
+    if args.grain_only:
+        FIXTURES.mkdir(exist_ok=True)
+        write_grain_inputs()
+        print("make_fixtures.py: grain_inputs.json written")
+        return 0
     FIXTURES.mkdir(exist_ok=True)
     write_ipf_inputs()
     if args.ipf_only:
@@ -189,6 +282,12 @@ def main() -> int:
     write_ctf()
     write_kikuchipy_dummies()
     print("make_fixtures.py: planted_oxford.ctf, oxford_h5oina_patterns.h5oina, bruker_h5ebsd_patterns.h5, orientation_inputs.json, ipf_inputs.json written")
+
+
+    write_emsoft_master_pattern(FIXTURES / "planted_emsoft_tkd_master_pattern.h5", "TKD")
+    write_emsoft_master_pattern(FIXTURES / "planted_emsoft_ecp_master_pattern.h5", "ECP")
+    print("make_fixtures.py: planted_oxford.ctf, oxford_h5oina_patterns.h5oina, bruker_h5ebsd_patterns.h5, "
+          "planted_emsoft_tkd_master_pattern.h5, planted_emsoft_ecp_master_pattern.h5, orientation_inputs.json, ipf_inputs.json written")
     return 0
 
 

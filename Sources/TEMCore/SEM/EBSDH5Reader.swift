@@ -57,7 +57,7 @@ package nonisolated enum EBSDH5Reader {
             case .brukerH5EBSD: dataset = try readBruker(file, scan: group)
             case .edaxH5EBSD: dataset = try readEDAX(file, scan: group)
             case .oxfordH5OINA: dataset = try readOxford(file, scan: group, version: top.version)
-            case .generated: throw EBSDReadError(text: "\(url.lastPathComponent) is not an h5ebsd file.")
+            case .generated, .oxfordBinary, .edaxBinary, .nordif: throw EBSDReadError(text: "\(url.lastPathComponent) is not an h5ebsd file.")
             }
             dataset.manufacturer = top.manufacturer; dataset.version = top.version; dataset.scanGroups = top.scanGroups
             return dataset
@@ -231,9 +231,9 @@ package nonisolated enum EBSDH5Reader {
         let wd = try semGroup.double("working_distance")
         let microscope = try semGroup.string("microscope")
         let sem = EBSDSEMHeader(beamEnergyKeV: beam, magnification: magnification, workingDistanceMM: wd, microscope: microscope)
-        var crystalMap: EBSDCrystalMapData?
+        var crystalMap: CrystalMap?
         if try file.reader.exists("/\(scan)/EBSD/CrystalMap/crystal_map") {
-            crystalMap = try readCrystalMap(file, path: "/\(scan)/EBSD/CrystalMap/crystal_map")
+            crystalMap = try readCrystalMap(file, path: "/\(scan)/EBSD/CrystalMap/crystal_map", scan: (ny, nx), steps: (dy, dx))
         }
         let background = try header.array("static_background")
         return EBSDDataset(format: .kikuchipyH5EBSD, manufacturer: "", version: "", scanGroup: scan, scanGroups: [], scanRows: ny, scanColumns: nx,
@@ -241,8 +241,9 @@ package nonisolated enum EBSDH5Reader {
                            staticBackground: background, sem: sem, crystalMap: crystalMap, patterns: source)
     }
 
-    /// orix's `dict2crystalmap` fields: Euler angles, phase ids, the phases of the header, every other column as a property.
-    static func readCrystalMap(_ file: H5File, path: String) throws -> EBSDCrystalMapData {
+    /// orix's `dict2crystalmap`: Euler angles, phase ids, the phases of the header by id, every other column as a property, x and
+    /// y from the file or, where it writes none, from the scan grid (orix's `create_coordinate_arrays` with the scan's steps).
+    static func readCrystalMap(_ file: H5File, path: String, scan: (rows: Int, columns: Int), steps: (dy: Double, dx: Double)) throws -> CrystalMap {
         let data = try H5Group(file, path + "/data")
         let header = try H5Group(file, path + "/header")
         let phi1 = try data.doubles("phi1")
@@ -255,7 +256,7 @@ package nonisolated enum EBSDH5Reader {
         let euler = (0..<n).map { SIMD3(phi1[$0], Phi[$0], phi2[$0]) }
         let phaseColumn = try data.doubles("phase_id") ?? [Double](repeating: 0, count: n)
         let phaseIDs = phaseColumn.map { Int($0) }
-        var phases: [EBSDPhase] = []
+        var phases: [(id: Int, phase: CrystalPhase)] = []
         if let list = try header.subgroup("phases") {
             for id in list.names.sorted(by: { (Int($0) ?? 0) < (Int($1) ?? 0) }) {
                 guard let phase = try list.subgroup(id) else { continue }
@@ -266,7 +267,8 @@ package nonisolated enum EBSDH5Reader {
                 let name = try phase.string("name") ?? ""
                 let spaceGroup = try phase.int("space_group")
                 let pointGroup = try phase.string("point_group")
-                phases.append(EBSDPhase(name: name, spaceGroup: spaceGroup, pointGroup: pointGroup, lattice: lattice))
+                let color = try phase.string("color") ?? PhaseList.tableau[phases.count % PhaseList.tableau.count]
+                phases.append((Int(id) ?? phases.count, CrystalPhase(name: name, spaceGroup: spaceGroup, pointGroup: pointGroup, lattice: lattice, color: color)))
             }
         }
         var properties: [String: [Double]] = [:]
@@ -274,7 +276,15 @@ package nonisolated enum EBSDH5Reader {
         for name in data.names where !standard.contains(name) {
             if let values = try data.doubles(name), values.count == n { properties[name] = values }
         }
-        return EBSDCrystalMapData(euler: euler, phaseIDs: phaseIDs, phases: phases, properties: properties)
+        var x = try data.doubles("x").flatMap { $0.count == n ? $0 : nil }
+        var y = try data.doubles("y").flatMap { $0.count == n ? $0 : nil }
+        if x == nil, y == nil, scan.rows * scan.columns == n {
+            let grid = CrystalMap.coordinates(shape: scan, steps: steps)
+            x = grid.x
+            y = scan.rows > 1 ? grid.y : nil
+        }
+        return try CrystalMap(euler: euler, phaseIDs: Array(phaseIDs.prefix(n)), x: x, y: y, phaseList: phases.isEmpty ? nil : PhaseList(phases),
+                              properties: properties)
     }
 
     // MARK: - Bruker Nano

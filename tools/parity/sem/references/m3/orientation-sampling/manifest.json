@@ -1,0 +1,245 @@
+{
+  "arrays": {
+    "full_grid": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "full_grid.bin",
+      "rtol": 0.0,
+      "sha256": "820fc15c2ed14d9d98d192e5933980d18ceeb9f117661bed3eb8e68e31f27cc5",
+      "shape": [
+        216,
+        4
+      ]
+    },
+    "fundamental_00": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "fundamental_00.bin",
+      "rtol": 0.0,
+      "sha256": "814a62b204ce4c38f1979db685b2fe88c08458c68a5696954a293be68f415276",
+      "shape": [
+        1493,
+        4
+      ]
+    },
+    "fundamental_01": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "fundamental_01.bin",
+      "rtol": 0.0,
+      "sha256": "80eb69d8a3646441921830e2c9a96818ccf9bcfa4e1d53dcf346676b393e2c1e",
+      "shape": [
+        1499,
+        4
+      ]
+    },
+    "fundamental_02": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "fundamental_02.bin",
+      "rtol": 0.0,
+      "sha256": "c374254f702b159b607c773ab772fbe523c21a3b2103538d730f8f2073f31159",
+      "shape": [
+        1493,
+        4
+      ]
+    },
+    "fundamental_03": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "fundamental_03.bin",
+      "rtol": 0.0,
+      "sha256": "ede6783ba594c60e40f01229d39655870d4dbcee78007040ebf95095a17993fb",
+      "shape": [
+        1489,
+        4
+      ]
+    },
+    "fundamental_04": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "fundamental_04.bin",
+      "rtol": 0.0,
+      "sha256": "33c5b76bb216baf0f3c7fd8dbafebd6174d551bee57b834b2ac7cca1cba6fe45",
+      "shape": [
+        1317,
+        4
+      ]
+    },
+    "fundamental_05": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "fundamental_05.bin",
+      "rtol": 0.0,
+      "sha256": "8dfb18e75047dd7c9db4632a3ff5754771d6c4f2fd350c4768940ef8dff107ee",
+      "shape": [
+        1462,
+        4
+      ]
+    },
+    "fundamental_06": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "fundamental_06.bin",
+      "rtol": 0.0,
+      "sha256": "219fe136e17763578889c1454e2a92d18657e35eaa8c60a5f4e18fda0c1e57b9",
+      "shape": [
+        1459,
+        4
+      ]
+    },
+    "local_00": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "local_00.bin",
+      "rtol": 0.0,
+      "sha256": "d9c247f0a1be472d25aa5cbdc7d4d6c9650ffbc2324dc7ebfc6750110b924cab",
+      "shape": [
+        729,
+        4
+      ]
+    },
+    "local_01": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "local_01.bin",
+      "rtol": 0.0,
+      "sha256": "6f7b1f3f5491f61ae0d6be80b63072f03faef988d46bca6c4287bf9d0c05857f",
+      "shape": [
+        729,
+        4
+      ]
+    },
+    "local_02": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "local_02.bin",
+      "rtol": 0.0,
+      "sha256": "cd0547b771338e9f92fb3e351b40590fb7e84d6a94514222484408a8698ae51e",
+      "shape": [
+        1331,
+        4
+      ]
+    }
+  },
+  "case": "m3/orientation-sampling",
+  "inputs": [
+    {
+      "path": "fixtures/sampling_inputs.json",
+      "sha256": "73e297600b6bedd700a3b7a80d4d54756048ee8bfd6aa44bc20f96077a5fcfb1"
+    }
+  ],
+  "milestone": 3,
+  "reference": {
+    "function": "orix.sampling.get_sample_fundamental / get_sample_local (cubochoric)",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "fundamental": [
+      {
+        "count": 11935,
+        "point_group": "m-3m",
+        "resolution": 4.0,
+        "stride": 8
+      },
+      {
+        "count": 100347,
+        "point_group": "m-3m",
+        "resolution": 2.0,
+        "stride": 67
+      },
+      {
+        "count": 243129,
+        "point_group": "m-3m",
+        "resolution": 1.5,
+        "stride": 163
+      },
+      {
+        "count": 23809,
+        "point_group": "6/mmm",
+        "resolution": 4.0,
+        "stride": 16
+      },
+      {
+        "count": 6579,
+        "point_group": "432",
+        "resolution": 5.0,
+        "stride": 5
+      },
+      {
+        "count": 11685,
+        "point_group": "mmm",
+        "resolution": 7.5,
+        "stride": 8
+      },
+      {
+        "count": 5832,
+        "point_group": "1",
+        "resolution": 15.0,
+        "stride": 4
+      }
+    ],
+    "local": [
+      {
+        "count": 729,
+        "grid_width": 10.0,
+        "resolution": 2.0,
+        "stride": 1
+      },
+      {
+        "count": 729,
+        "grid_width": 5.0,
+        "resolution": 1.0,
+        "stride": 1
+      },
+      {
+        "count": 1331,
+        "grid_width": 20.0,
+        "resolution": 3.0,
+        "stride": 1
+      }
+    ],
+    "semi_edge_resolutions": [
+      0.5,
+      1.0,
+      1.5,
+      2.0,
+      2.5,
+      3.0,
+      4.0,
+      5.0,
+      7.5,
+      10.0,
+      15.0
+    ],
+    "semi_edge_steps": [
+      285,
+      137,
+      90,
+      67,
+      54,
+      45,
+      33,
+      27,
+      18,
+      13,
+      9
+    ]
+  }
+}
