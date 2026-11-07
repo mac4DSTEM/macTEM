@@ -147,13 +147,16 @@ extension AppState {
         // for the source's life (it is read long after this open).
         if request.bookmark == nil, ["tif", "tiff"].contains(url.pathExtension.lowercased()),
            let stack = try ImageStackSource.open(path: url.path, hold: ScopeHold(url: url)) {
-            let first = try stack.frame(0)
+            // An SEM vendor record calibrates a stack's frames (a Zeiss series); the databar is not cut from a stack.
+            let sem = SEMImageMetadata.read(path: url.path)
+            let frame0 = try stack.frame(0)
+            let first = sem?.calibrated(frame0) ?? frame0
             let canvas = canvas(for: first)
             return OpenedImage(image: first, canvas: canvas, metadata: AcquisitionMetadata.read(path: url.path), url: url,
                                thumbnail: Thumbnail.make(normalized: canvas.normalized, width: canvas.width, height: canvas.height, maxSide: Thumbnail.defaultMaxSide),
-                               bookmark: nil, stack: stack)
+                               bookmark: nil, stack: stack, sem: sem)
         }
-        let (image, canvas, metadata) = try await read(url)
+        let (image, canvas, metadata, sem) = try await read(url)
         try Task.checkCancellation()
         // The identity of the pixels just read (what saved marks describe), and — for a file's first read only; a cold
         // item's re-read never restores — what the sidecar beside it makes of it. Inside the live scope.
@@ -169,7 +172,7 @@ extension AppState {
         let bookmark = try? SecurityScopedBookmark.make(for: url)
         return OpenedImage(image: image, canvas: canvas, metadata: metadata, url: url,
                            thumbnail: thumbnail, bookmark: bookmark, identity: identity, sidecar: sidecar,
-                           hasGrant: SessionGrants.bookmark(forSource: url) != nil)
+                           hasGrant: SessionGrants.bookmark(forSource: url) != nil, sem: sem)
     }
 
     /// One frame of an open stack: the page's pixels and the canvas, off the main actor. The stack holds its own scope.
@@ -177,25 +180,30 @@ extension AppState {
     nonisolated static func readFrame(_ stack: ImageStackSource, _ frame: Int) async throws -> OpenedImage {
         let interval = Signposts.begin("stack.frame"); defer { Signposts.end(interval) }
         try Task.checkCancellation()
-        let image = try stack.frame(frame)
+        let sem = SEMImageMetadata.read(path: stack.url.path)
+        let page = try stack.frame(frame)
+        let image = sem?.calibrated(page) ?? page
         try Task.checkCancellation()
         let canvas = canvas(for: image)
         // The sidebar's thumbnail follows the frame shown (it was the first frame's before).
         let thumbnail = Thumbnail.make(normalized: canvas.normalized, width: canvas.width, height: canvas.height, maxSide: Thumbnail.defaultMaxSide)
-        return OpenedImage(image: image, canvas: canvas, metadata: AcquisitionMetadata(), url: stack.url, thumbnail: thumbnail, bookmark: nil)
+        return OpenedImage(image: image, canvas: canvas, metadata: AcquisitionMetadata(), url: stack.url, thumbnail: thumbnail, bookmark: nil, sem: sem)
     }
 
     /// The whole read: the file (the sandbox scope is held only while it is read; a 2D image is read whole), what the
     /// same file records about the acquisition (inside the same scope; it never throws, an unreadable record is
-    /// empty), then the pixels the canvas uploads.
+    /// empty), the SEM vendor record applied to the image (a Zeiss or Tescan pixel size the TIFF reader left out; the
+    /// databar cut off when `SEMImageSettings.cropDatabar`), then the pixels the canvas uploads.
     @concurrent
-    nonisolated static func read(_ url: URL) async throws -> (CalibratedImage, CanvasPixels, AcquisitionMetadata) {
+    nonisolated static func read(_ url: URL) async throws -> (CalibratedImage, CanvasPixels, AcquisitionMetadata, SEMImageMetadata?) {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let interval = Signposts.begin("open.image"); defer { Signposts.end(interval) }
-        let opened = try ImageOpening.openNow(path: url.path)
+        var opened = try ImageOpening.openNow(path: url.path)
         let metadata = AcquisitionMetadata.read(path: url.path)
-        return (opened, canvas(for: opened), metadata)
+        let sem = SEMImageMetadata.read(path: url.path)
+        if let sem { opened = sem.applied(to: opened, cropDatabar: SEMImageSettings.cropDatabar()) }
+        return (opened, canvas(for: opened), metadata, sem)
     }
 
     /// The pixels the canvas uploads, normalised over the image's finite range, and the histogram of the raw pixels.

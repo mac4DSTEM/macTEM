@@ -163,11 +163,14 @@ nonisolated enum AcquisitionRows {
 
 // MARK: The section
 
-/// The Info tab's Acquisition section: nine rows (a second copy adds one), a note beneath its row.
+/// The Info tab's Acquisition section: nine rows (a second copy adds one), a note beneath its row; for an SEM TIFF the vendor's rows
+/// and the "Vendor fields" disclosure beneath them (ImageRoomSEM.swift, design §5).
 struct AcquisitionSection: View {
     let metadata: AcquisitionMetadata
     /// The open file's extension ("emd"), for the placeholder of a field its format's reader cannot read yet.
     let formatExtension: String
+    /// The SEM vendor record of a Thermo, Zeiss or Tescan TIFF; nil for a TEM file.
+    var sem: SEMImageMetadata? = nil
 
     var body: some View {
         let rows = AcquisitionRows.rows(metadata, formatExtension: formatExtension)
@@ -175,6 +178,7 @@ struct AcquisitionSection: View {
             ForEach(rows) { row in
                 AcquisitionRowView(row: row)
             }
+            if let sem { SEMAcquisitionRows(sem: sem) }
         }
     }
 }
