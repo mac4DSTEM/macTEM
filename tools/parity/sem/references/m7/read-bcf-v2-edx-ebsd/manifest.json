@@ -1,0 +1,154 @@
+{
+  "arrays": {
+    "signal1_sum_spectrum": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal1_sum_spectrum.bin",
+      "rtol": 0.0,
+      "sha256": "0c0abd1377b742c8988896fc4a637c1125eb8c0c562cf558a0dd2eb31b25026e",
+      "shape": [
+        2048
+      ]
+    }
+  },
+  "case": "m7/read-bcf-v2-edx-ebsd",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/bruker/bcf-edx-ebsd.bcf",
+      "sha256": "ffbc663fde128439bfe636120aebd3028f73fa97ae15e478836e9e081f17dce7"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.bruker.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "signal0_pixel_sum": {
+      "atol": 0.0,
+      "rtol": 0.0,
+      "value": 244489440.0
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signal0_pixels": {
+      "dtype": "uint16",
+      "sha256": "12ae8c8920cff52848a9ce2f1bef8bfc61cc364bb5b2f6a0fbc1b03016b6c3f5",
+      "shape": [
+        87,
+        100
+      ]
+    },
+    "signal1_nonzero": {
+      "count": 14402,
+      "index_sha256": "0b3a57999fb3d9b9042b33268bcfc9970ea9a068affbae78bfb38d6f39a1a977",
+      "value_sha256": "1e4a9a05ebf6266a811b3109dd24ebf3779718aa289bf32a37ab0c43b59316df"
+    },
+    "signal1_pixel_totals": {
+      "dtype": "int64",
+      "sha256": "d703c8969ab6c820f72b74dd6c212f6745af659254b6f0e4c3d11872c627620e",
+      "shape": [
+        8700
+      ]
+    },
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "height",
+            "offset": 0.0,
+            "scale": 0.4168974972,
+            "size": 87,
+            "units": "µm"
+          },
+          {
+            "name": "width",
+            "offset": 0.0,
+            "scale": 0.4145152257,
+            "size": 100,
+            "units": "µm"
+          }
+        ],
+        "dtype": "uint16",
+        "kind": "image",
+        "metadata": {
+          "beam_energy": 20.0,
+          "magnification": 5000.0,
+          "mode": "SEM",
+          "original_filename": "bcf-edx-ebsd.bcf",
+          "sample_name": "Undefined",
+          "title": "Ch 0"
+        },
+        "shape": [
+          87,
+          100
+        ]
+      },
+      {
+        "axes": [
+          {
+            "name": "height",
+            "offset": 0.0,
+            "scale": 0.4168974972,
+            "size": 87,
+            "units": "µm"
+          },
+          {
+            "name": "width",
+            "offset": 0.0,
+            "scale": 0.4168974972,
+            "size": 100,
+            "units": "µm"
+          },
+          {
+            "name": "Energy",
+            "offset": -0.472130085,
+            "scale": 0.009989,
+            "size": 2048,
+            "units": "keV"
+          }
+        ],
+        "dtype": "uint8",
+        "kind": "spectrum_image",
+        "metadata": {
+          "azimuth_angle": 29.5,
+          "beam_energy": 20.0,
+          "date": "2018-01-21",
+          "detector_type": "XFlash 6|60",
+          "elements": [],
+          "elevation_angle": 35.0,
+          "magnification": 5000.0,
+          "mode": "SEM",
+          "original_filename": "bcf-edx-ebsd.bcf",
+          "real_time": 2.2496,
+          "sample_name": "Undefined",
+          "signal_type": "EDS_SEM",
+          "time": "21:17:47",
+          "title": "EDX",
+          "xray_lines": []
+        },
+        "shape": [
+          87,
+          100,
+          2048
+        ]
+      }
+    ]
+  }
+}

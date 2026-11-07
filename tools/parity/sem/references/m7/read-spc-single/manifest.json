@@ -1,0 +1,85 @@
+{
+  "arrays": {
+    "signal0_counts": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal0_counts.bin",
+      "rtol": 0.0,
+      "sha256": "b3bee74fad9d74621ded04d726863130ded272d4441a06486dde0aaf55ec0e92",
+      "shape": [
+        4096
+      ]
+    }
+  },
+  "case": "m7/read-spc-single",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/edax/single_spect.spc",
+      "sha256": "ac990ce096a410043d35c26c6c45f4b67d9e8ac04c1ac4ebc153c00c4bf470e4"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.edax.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "Energy",
+            "offset": 0.0,
+            "scale": 0.01,
+            "size": 4096,
+            "units": "keV"
+          }
+        ],
+        "dtype": "uint32",
+        "kind": "spectrum",
+        "metadata": {
+          "azimuth_angle": 0.0,
+          "beam_energy": 22.0,
+          "elements": [
+            "Al",
+            "C",
+            "Ce",
+            "Cu",
+            "F",
+            "Ho",
+            "Mg",
+            "O"
+          ],
+          "elevation_angle": 34.0,
+          "energy_resolution_MnKa": 129.31298828125,
+          "live_time": 50.000003814697266,
+          "mode": "SEM",
+          "original_filename": "single_spect.spc",
+          "signal_type": "EDS_SEM",
+          "tilt_alpha": 0.0,
+          "title": "EDS Spectrum"
+        },
+        "shape": [
+          4096
+        ]
+      }
+    ]
+  }
+}

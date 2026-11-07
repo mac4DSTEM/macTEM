@@ -251,6 +251,15 @@ PC) and `np.allclose` defaults (coordinates).
   points, the out → in lines and the PC, kikuchipy's beside the one `testMovingScreenPCOfSiliconAsKikuchipy` prints
   (`F5 ours …` in the test log, passed with `--ours`).
 
+## SEM-EDS map readers (exact)
+
+| Function | Reference | Test | Tolerance | Notes |
+| --- | --- | --- | --- | --- |
+| `BrukerEDSReader.read` (`.bcf`: SFS container, header XML, images, hypermap; `.spx`) | `rsciio.bruker.file_reader` with `unbcf_fast` (RosettaSciIO 0.15.0) | `SEMEDSMapReaderTests` on every `m7/read-bcf-*` and `m7/read-spx-*` bundle | counts, axes, metadata, image pixels exact | the map's x axis takes the y resolution as upstream does (`DX` unused); counts held as UInt32 whatever dtype upstream reports (D-SEM-77); a file that is not SFS refused with a sentence where upstream raises |
+| `EDAXEDSReader.read` (`.spd` with `.spc` and `.ipr`, `.lsd` with `.csv`, `.spc`) | `rsciio.edax.file_reader` | `m7/read-spd-*`, `m7/read-lsd-line-scan-crop`, `m7/read-spc-single` | exact | elements sorted as upstream; an `.spd`/`.lsd` without its `.spc` refused at the EDS room's door (D-SEM-78) |
+| `JEOLEDSReader.read` (`.pts`, `.eds`, `.img`, `.map`, `.asw`) | `rsciio.jeol.file_reader` with `SI_dtype=uint32, read_em_image=True` | `m7/read-pts-*`, `m7/read-jeol-*`, `m7/read-asw-*` | exact | an incomplete last frame dropped as upstream; frames summed; an `.asw` whose view files are missing refused naming the file, where upstream raises `FileNotFoundError` |
+| `CSRSpectrumImage.sum`, `windowSums` | numpy sums over the dense cube | `testTheSparseStoreSumsExactly`, the summed spectrum of every map bundle | exact (UInt64) | the EDS room's spectrum image for these files (D-SEM-76) |
+
 ## SEM-EDS (exspy's window path)
 
 References: the bundles `m7/eds-lines-tm002` (F16) and `m7/eds-quant-tm002` (F17, with the X-ray line table as its `db_` arrays) in
