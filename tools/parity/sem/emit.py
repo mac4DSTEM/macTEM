@@ -15,7 +15,8 @@ processing (static and dynamic background, emitted now so phase-2 ports can star
 orientation maths (orix's rotations, point groups, fundamental zones, orientations and misorientations), m5 maps and
 grains (DefDAP's slip systems, Schmid factors, slip traces and GND density), m7 SEM-EDS line
 intensities, background windows and Cliff-Lorimer on the TM002 spectrum (figures F16, F17), m6 master patterns (EMsoft EBSD, TKD and ECP
-master pattern files read, the Ni 20 kV pattern projected onto a detector: figure F15).
+master pattern files read, the Ni 20 kV pattern projected onto a detector: figure F15), m4 dictionary indexing against
+that pattern (figure F9, dictionary_cases.py).
 
 Run with `python -I -B` from outside this folder: a fixture is data, never code.
 """
@@ -40,6 +41,8 @@ from detector_cases import (  # noqa: E402,F401  (milestone 2 detector geometry 
     case_m2_detector_tkd_geometry, case_m2_pc_moving_screen_si)
 from hough_cases import (  # noqa: E402,F401  (milestone 4 Hough indexing and figure F8)
     case_m4_hough_indexing_nickel_large, case_m4_hough_library, case_m4_hough_nickel_block)
+from dictionary_cases import (  # noqa: E402,F401  (milestone 4 dictionary indexing, figure F9)
+    case_m4_dictionary_indexing_nickel_large, case_m4_dictionary_indexing_small)
 from writer_cases import (  # noqa: E402,F401  (milestone 8 .ang and .ctf writers and figure F18)
     case_m8_write_ang_sdss, case_m8_write_ang_sdss_ferrite, case_m8_write_ang_sdss_window, case_m8_write_ang_ti,
     case_m8_write_ctf_sdss, case_m8_write_ctf_sdss_ferrite, case_m8_write_ctf_sdss_window, case_m8_write_ctf_ti)

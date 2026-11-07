@@ -42,7 +42,7 @@ package nonisolated enum KernelAverageMisorientation {
     private static func defdap(_ map: GrainMap) -> [Double] {
         let (h, w) = (map.rows, map.columns)
         let q = map.quaternions
-        func d(_ i: Int, _ j: Int) -> Double { DefDAPSymmetry.absDot(q[i], q[j]) }
+        func d(_ i: Int, _ j: Int) -> Double { DefDAPQuat.absDot(q[i], q[j]) }
         var kam = [Double](repeating: 0, count: h * w)
         // Rows: the first and last with their one neighbour row, the others the mean of both; clipped at 1.
         for c in 0..<w {
@@ -90,8 +90,8 @@ package nonisolated enum KernelAverageMisorientation {
                     guard rr >= 0, rr < h, cc >= 0, cc < w else { continue }
                     let j = rr * w + cc
                     guard phase[j] == p else { continue }
-                    var best = DefDAPSymmetry.absDot(q[j], q[i])
-                    for s in ops.dropFirst() { best = max(best, DefDAPSymmetry.absDot(DefDAPSymmetry.equivalent(q[j], s), q[i])) }
+                    var best = DefDAPQuat.absDot(q[j], q[i])
+                    for s in ops.dropFirst() { best = max(best, DefDAPQuat.absDot(DefDAPQuat.symmetricEquivalent(q[j], s), q[i])) }
                     let a = 2 * acos(min(best, 1))
                     if let threshold, a > threshold { continue }
                     sum += a
@@ -141,7 +141,7 @@ package nonisolated struct GrainOrientationStatistics: Sendable, Equatable {
         var averages: [SIMD4<Double>] = [], grods: [[Double]] = [], axes: [[SIMD3<Double>]] = [], cosines: [Double] = []
         for grain in segmentation.grains {
             let ops = grain.phaseIndex.map { map.symmetries[$0] } ?? [SIMD4(1, 0, 0, 0)]
-            let eq = grain.points.map { DefDAPSymmetry.equivalents(map.quaternions[$0], ops) }
+            let eq = grain.points.map { DefDAPQuat.symmetricEquivalents(map.quaternions[$0], ops) }
             let ref = averageOrientation(eq)
             var angles: [Double] = [], axis: [SIMD3<Double>] = []
             angles.reserveCapacity(eq.count); axis.reserveCapacity(eq.count)
@@ -150,7 +150,7 @@ package nonisolated struct GrainOrientationStatistics: Sendable, Equatable {
             for e in eq {
                 var best = 0, bestDot = -1.0
                 for (s, qs) in e.enumerated() {
-                    let d = DefDAPSymmetry.absDot(qs, ref)
+                    let d = DefDAPQuat.absDot(qs, ref)
                     if d > bestDot { bestDot = d; best = s }
                 }
                 let m = e[best]
@@ -180,7 +180,7 @@ package nonisolated struct GrainOrientationStatistics: Sendable, Equatable {
         for e in equivalents.dropFirst() {
             var best = 0, bestDot = -1.0
             for (s, qs) in e.enumerated() {
-                let d = DefDAPSymmetry.absDot(qs, sum)
+                let d = DefDAPQuat.absDot(qs, sum)
                 if d > bestDot { bestDot = d; best = s }
             }
             sum += e[best]

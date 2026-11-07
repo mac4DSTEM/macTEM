@@ -26,6 +26,20 @@ package's own tests use, never stricter. References are pinned in `tools/parity/
 | `NORDIFBitmap.decode` (8-bit greyscale BMP) | `matplotlib.pyplot.imread` (Pillow mode L) | same | bit-exact | own decoder, not ImageIO; any other bitmap kind refused with a sentence |
 | `NORDIFOpening.open` (`Pattern.dat` as an `EBSDDataset`, read by record) | `kikuchipy.load("Pattern.dat")` through `NORDIFScan` | `NORDIFOpeningTests` | patterns bit-exact against `NORDIFScan` | a `.dat` routes only with a NORDIF `Setting.txt` beside it; a short file reads whole records and the rest as 0 with a note (upstream keeps the bytes of an incomplete last pattern; `NORDIFScan` keeps that for the parity) |
 
+
+## SEM images (TIFF)
+
+| Function | Reference | Test | Tolerance | State |
+|---|---|---|---|---|
+| `SEMImageMetadata.read` (Thermo/FEI tags 34680/34682) | RosettaSciIO 0.15.0 `_axes_fei`, `mapping_fei`; tifffile 2026.9.20 `read_fei_metadata` | `SEMImageMetadataTests` on the five Helios test files' tags | axes rtol 1e-4 (RosettaSciIO's `test_read_FEI_navcam_metadata`); metadata numbers 1e-9 relative, texts exact (its tests: 7 places) | live; matched upstream except one quirk: RosettaSciIO's `_order_axes_by_name` puts the x scale (HFW / ResolutionX) on the height axis and the y scale on the width axis. macTEM keeps each on its own axis; on the one non-square test file (navcam, 2.5e-6 apart) the difference is inside upstream's tolerance |
+| `SEMImageMetadata.read` (Zeiss tag 34118) | RosettaSciIO `_axes_zeiss`, `mapping_cz_sem`; tifffile `read_cz_sem` | the same, on the three Zeiss test files' tags | the same | live |
+| `SEMImageMetadata.read` (Tescan tag 50431) | NexusLIMS `tescan_tif` (keys and units); no RosettaSciIO branch | planted header | exact | live, marked unvalidated in the room |
+| Databar rows (Thermo `DatabarHeight`, Tescan `ImageStripSize`) | tifffile's parse of the same bytes; no reader maps it | the five Helios files (29 and 39 rows) and a plant | exact | live; Zeiss never cropped (D-SEM-63) |
+| Spot, chamber pressure, Thermo detector | tifffile's parse; RosettaSciIO does not map them | the same files | exact | live, noted in the room |
+
+The two files #130 commits are also held to its bundles `m1/read-sem-tiff-fei-helios` and `m1/read-sem-tiff-zeiss` (`SEMImageMetadataTests.testTheHarnessBundlesReadAsTheirReference`). Other references: `macTEMTests/Fixtures/sem-tiff/sem-tiff-reference.json`, written by `tools/parity/sem/sem-image/reference.py`
+from RosettaSciIO's `tiff_FEI_Helios.zip` and `tiff_Zeiss_SEM.zip` (commit 049e7d70's test data, GPL-3.0-or-later).
+
 ## Pattern processing
 
 References: `tools/parity/sem/background_reference.py` (kikuchipy 0.13.1, numpy 2.5.4, scipy 1.18.1) on `nickel_ebsd_large`
@@ -129,7 +143,7 @@ and F12, the whole 381 x 507 Ti map, fetched; skips without it). DefDAP runs as 
 
 | Function | Reference | Test | Tolerance | Notes |
 | --- | --- | --- | --- | --- |
-| `GrainMap` (`init(map:)` from a `CrystalMap`, `init(euler:)`), `DefDAPSymmetry` (`cubic`, `hexagonal`, `operators(for:)`, `quaternion(euler:)`, `equivalents`) | `Quat.create_many_quats`, `Quat.calc_sym_eqvs`, `crystal.crystalStructures` | `testGrainsOfTheTiCornerMatchDefDAP`, `testGrainsOfTheTwoPhaseSteelMatchDefDAP`, `testSymmetryOperatorsByPointGroup` | quaternions atol 1e-10; tables exact | DefDAP knows m-3m and 6/mmm Laue groups only; any other group takes its Laue group's proper rotations from the orientation core (no DefDAP reference) |
+| `GrainMap` (`init(map:)` from a `CrystalMap`, `init(euler:)`), `DefDAPCrystalStructure` (`cubic`, `hexagonal`, `init(pointGroup:)`, `operators(for:)`), `DefDAPQuat` (`fromEuler`, `symmetricEquivalents`, `absDot`), shared with the slip analysis | `Quat.create_many_quats`, `Quat.calc_sym_eqvs`, `crystal.crystalStructures` | `testGrainsOfTheTiCornerMatchDefDAP`, `testGrainsOfTheTwoPhaseSteelMatchDefDAP`, `testSymmetryOperatorsByPointGroup` | quaternions atol 1e-10; tables exact | DefDAP knows m-3m and 6/mmm Laue groups only; any other group takes its Laue group's proper rotations from the orientation core (no DefDAP reference) |
 | `GrainBoundaries.find` (misorientation with the right and lower neighbour, grain and phase boundary images) | `ebsd.Map.find_boundaries` (Humphreys 2001) | as above | images exact; angles atol 1e-7 | each pair takes its own phase's symmetry where DefDAP takes the primary phase's (equal on both parity maps, all phases share one structure); the closest neighbour angle to the 10° threshold is 2.4e-3 rad (Ti) and 8.3e-3 rad (steel), so exact images are a fair claim. DefDAP's `BoundarySet.image` of an empty set marks every point (`image[()] = True`); the reference draws the phase-boundary images from the point sets |
 | `GrainSegmentation.find` (flood fill, minimum size, `sizes`, `areas`, `equivalentCircleDiameters`), `neighbourNetwork` | `ebsd.Map.find_grains`, `_accelerated.flood_fill`, `build_neighbour_network` | as above, `testFiguresF11AndF12GrainsKAMAndGOSOfTheTiMap` | grain map, points in flood order, sizes, phases and network exact | the brief allowed labels up to relabelling; the port keeps DefDAP's seed and stack order, so labels and each grain's point order are equal (the average orientation depends on that order). F11: 62 grains, 494 points in regions under 10 points; the whole map's labels compared by their sha256 |
 | `KernelAverageMisorientation.map(.defdap)` | `ebsd.Map.calc_kam` (3 x 3 kernel, no symmetry) | as above | atol 1e-6 rad | DefDAP's own docstring: crystal symmetry not considered, so neighbours stored as equivalent quaternions read up to 90° apart (F12: mean 4.1° against 2.4° with symmetry) |
@@ -206,6 +220,33 @@ patterns bit for bit on all three projection bundles (2026-11-06).
 - D-SEM-34 (2026-11-06): the GPU path's bound (1e-3 on -1 to 1) is ours, not upstream's: kikuchipy has no float32 projection.
 - Figure F15 (`docs/sem/north-star.md`): `tools/parity/sem/master_pattern_figure.py` draws the reference patterns beside the ones
   `testFigureF15NickelMasterPatternOnTheNorthStarDetector` writes to `$TMPDIR/macTEM-F15-ours.u8` (and prints as base64).
+
+## Dictionary indexing (figure F9)
+
+References: `tools/parity/sem/dictionary_cases.py` (kikuchipy 0.13.1, orix 0.15.0), bundles `m4/dictionary-indexing-*`, tests in
+`SEMDictionaryIndexingParityTests`. Method: Chen et al. (2015), Microsc. Microanal. 21, 739; Jackson et al. (2019), Integr.
+Mater. Manuf. Innov. 8, 226. kikuchipy matches in float32 by default (`da.einsum`, BLAS) and in float64 on request; TEMCore's
+reference path prepares and multiplies in float64, the GPU path multiplies in float32. Upstream's tests state no score
+tolerance; the brief's rtol 1e-4 holds for float32 runs, `np.allclose`'s rtol 1e-5 for float64 runs. A float64 numpy mirror
+of the Swift steps matched every bundle: float32 runs within 2.3e-6, the float64 run within 1e-14, every index in order
+(2026-11-07).
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `DictionaryIndexing.prepare` (NCC: centre, unit norm; NDP: unit norm) | `NormalizedCrossCorrelationMetric` / `NormalizedDotProductMetric.prepare_experimental`, `prepare_dictionary` | through every run | — | the signal mask drops pixels before the normalisation; a flat pattern's values are NaN, as kikuchipy's |
+| `DictionaryIndexing.index` (dictionary in memory; CPU float64) | `EBSD.dictionary_indexing` (`_dictionary_indexing`, `_match_chunk`) | `testNCCMatchesKikuchipyInFloat32AndFloat64`, `testNDPMatchesKikuchipy`, `testSignalAndNavigationMasksMatchKikuchipy`, `testChunksGiveTheSameResult` | scores rtol 1e-4 (float32 runs), 1e-5 (float64); indices exact where scores do not tie | ties ranked by the lower simulation index (D-SEM-72), so any chunking gives the same result; `keepN` clamped to the dictionary |
+| `DictionaryIndexing.index` (master pattern, chunk by chunk) | `get_patterns(dtype_out=float32)` then `dictionary_indexing` | `testProjectingTheDictionaryInChunksMatchesTheDictionaryInMemory`, `testFigureF9…` | equal to the in-memory dictionary; F9 as below | the dictionary is never held whole |
+| `DictionaryIndexing.Result.crystalMap` | the returned `CrystalMap` (`rotations`, `prop`, `create_coordinate_arrays`) | `testCrystalMapOfTheResult` | quaternions atol 1e-7, Euler 1e-6, coordinates exact | the app's `CrystalMap` with `isInData` false where the navigation mask leaves a point out (its score NaN, index -1; kikuchipy: `np.empty`); the best score and index as properties |
+| `DictionaryIndexingMetal` (float32 GPU product) | the CPU float64 product | `testTheMetalPathMatchesTheCPUReference` (skipped without a Metal device) | 1e-5 absolute on scores; against kikuchipy rtol 1e-4, with the GPU-projected dictionary 1e-3 | automatic from 10⁹ products (patterns x dictionary x pixels) |
+| F9 whole scan | `m4/dictionary-indexing-nickel-ebsd-large` | `testFigureF9WholeScanIndexedAgainstTheNickelDictionary`, `testTheCorrectedBlockMatchesKikuchipy` | best match ≥ 99.5 % equal, best scores rtol 1e-2; block rtol 1e-4 | D-SEM-73 |
+
+### Known limits and decisions
+
+- D-SEM-72 (2026-11-07): ties ranked by the lower simulation index; masked points carry NaN and -1.
+- D-SEM-73 (2026-11-07): F9's dictionary and its chain tolerance.
+- Figure F9 (`docs/sem/north-star.md`): `tools/parity/sem/dictionary_figure.py` draws kikuchipy's IPF-Z map beside the one from
+  the indices `testFigureF9WholeScanIndexedAgainstTheNickelDictionary` writes to `$TMPDIR/macTEM-F9-ours.i32` (and prints as
+  base64), the score map and the points whose best match differs.
 
 ## Pattern quality
 
