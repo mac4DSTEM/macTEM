@@ -86,8 +86,9 @@ nonisolated final class MapsRoomTests: XCTestCase {
         XCTAssertTrue((OrientationMaps.keySide...(OrientationMaps.keySide + 1)).contains(max(image.width, image.height)), "\(image.width) × \(image.height)")
         XCTAssertEqual(Set(labels.map(\.text)), ["[001]", "[101]", "[111]"])
         for label in labels {
-            XCTAssertTrue((-1...Double(image.width)).contains(label.column), "\(label)")
-            XCTAssertTrue((-1...Double(image.height)).contains(label.row), "\(label)")
+            // A corner on the sector's far edge sits on the image's last pixel boundary (to rounding).
+            XCTAssertTrue((-1...Double(image.width) + 1e-6).contains(label.column), "\(label)")
+            XCTAssertTrue((-1...Double(image.height) + 1e-6).contains(label.row), "\(label)")
         }
         XCTAssertEqual(OrientationMaps.directionLabel(SIMD3(0, 0, 1)), "[001]")
         XCTAssertNil(OrientationMaps.directionLabel(SIMD3(0.3, 0.7, 1)))
