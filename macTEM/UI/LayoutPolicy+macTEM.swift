@@ -41,6 +41,8 @@ extension LayoutPolicy {
     static let diffractionReadoutHeight: CGFloat = 170
     /// The colour dot before a region's name in the Table tab.
     static let regionSwatchSize: CGFloat = 9
+    /// The Indexing room's IPF colour key in the map pane's footer: legible beside the scale bar, small enough not to hide the map.
+    static let indexingKeyHeight: CGFloat = 56
     /// The Maps room's colour key in the bottom pane: one phase's key image this wide (its own aspect sets the height).
     static let mapsKeyWidth: CGFloat = 150
     /// The Maps room's bottom pane under the map: the keys' height plus their titles (rule 4).

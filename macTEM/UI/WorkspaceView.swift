@@ -20,7 +20,7 @@ struct WorkspaceView: View {
         switch appState.navigation.workspaceArea {
         case .edx: appState.edx.hasImage
         case .eels: appState.eels.hasImage
-        case .patterns: appState.ebsd.hasDataset
+        case .patterns, .indexing: appState.ebsd.hasDataset
         case .maps: appState.maps.hasMap
         default: appState.hasImage && !appState.imageSession.isLoading
         }
@@ -44,6 +44,7 @@ struct WorkspaceView: View {
         case .edx: appState.edxRoom.readout
         case .eels: appState.eelsRoom.readout
         case .patterns: appState.patternsRoom.readout
+        case .indexing: appState.indexingRoom.readout
         // The live pattern pane is the Patterns room's own (it writes that room's readout); the map's words otherwise.
         case .maps: appState.mapsRoom.readout ?? appState.patternsRoom.readout
         case .image: appState.imageRoomTools.readout
@@ -89,6 +90,8 @@ struct WorkspaceView: View {
             EELSRoom()
         } else if appState.navigation.workspaceArea == .patterns {
             PatternsRoom()
+        } else if appState.navigation.workspaceArea == .indexing {
+            IndexingRoom()
         } else if appState.navigation.workspaceArea == .maps {
             MapsRoom()
         } else if let item = appState.openItems.selected {

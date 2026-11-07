@@ -6,7 +6,7 @@
 //
 //  Owners: `navigation` (rooms and panes, App/), `openItems` (the files open in the window, each with its own
 //  session, presentation, marks and viewport, TEMSession), `activityLog` (the Output pane, App/), `imageRoomTools`
-//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/). `imageSession`, `presentation` and `measurements` are the selected
+//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession). `imageSession`, `presentation` and `measurements` are the selected
 //  item's, forwarded, so the views that read them did not change with V1-13.
 //
 
@@ -30,8 +30,11 @@ final class AppState {
     let semEDS = SEMEDSState()
     let eels = EELSSession()
     /// The Patterns room's dataset, position and pictures (TEMSession) and its view state (App/).
-    let ebsd = EBSDSession()
+    let ebsd: EBSDSession
     let patternsRoom = PatternsRoomState()
+    /// The Indexing room's phases, settings and run on the Patterns room's dataset (TEMSession) and its view state (App/).
+    let indexing: IndexingSession
+    let indexingRoom = IndexingRoomState()
     /// The Maps room's orientation map, layer and pictures (TEMSession) and its view state (App/).
     let maps = OrientationMapSession()
     let mapsRoom = MapsRoomState()
@@ -41,7 +44,7 @@ final class AppState {
         let name: String? = switch navigation.workspaceArea {
         case .edx: edx.fileName
         case .eels: eels.fileName
-        case .patterns: ebsd.fileName
+        case .patterns, .indexing: ebsd.fileName
         case .maps: maps.fileName
         default: imageSession.image?.fileName
         }
@@ -103,6 +106,9 @@ final class AppState {
 
     init(launch: LaunchOptions = LaunchOptions()) {
         self.launch = launch
+        let ebsd = EBSDSession()
+        self.ebsd = ebsd
+        indexing = IndexingSession(patterns: ebsd)
         // The spectrum rooms follow the selected file through the list's own callback (a view's observation did not fire on screen, drive 6).
         openItems.onSelect = { [weak self] _ in self?.spectrumRoomsFollowSelection() }
         openItems.onReadFailure = { [weak self] _, error in self?.present(error) }
@@ -114,17 +120,23 @@ final class AppState {
         ebsd.onFailure = { [weak self] in self?.present($0) }
         maps.onEvent = { [weak self] in self?.statusText = $0 }
         maps.onFailure = { [weak self] in self?.present($0) }
-        // The Maps room follows the Patterns room's dataset: its crystal map is shown with the patterns beside; a map opened on its own
-        // gives way to it, and a map that came with a dataset goes when the dataset does.
+        // Every dataset the Patterns room binds: the Indexing room starts over on it, and the Maps room shows its crystal map with the
+        // patterns beside (a map opened on its own gives way to it); both go back when the dataset closes, a map opened on its own stays.
         ebsd.onBind = { [weak self] document in
             guard let self else { return }
+            self.indexing.bind(document)
             if let mapDocument = OrientationMapSession.patternsDocument(fileName: document.fileName, url: document.url, dataset: document.dataset) {
                 self.maps.bind(mapDocument)
             } else {
                 self.maps.patternsClosed()
             }
         }
-        ebsd.onClose = { [weak self] in self?.maps.patternsClosed() }
+        ebsd.onClose = { [weak self] in
+            self?.indexing.close()
+            self?.maps.patternsClosed()
+        }
+        indexing.onEvent = { [weak self] in self?.statusText = $0 }
+        indexing.onFailure = { [weak self] in self?.present($0) }
         applyLaunchOptions(launch)
     }
 

@@ -1,7 +1,7 @@
 //
 //  PatternsProcessingInspector.swift
 //  Role: the Patterns room's processing sections (docs/sem/design/pattern-processing.md §3), between Virtual images and Pattern Display:
-//        Static background, Dynamic background, Intensity, Size and NLPAR, in dependency order, each with its stage's state on the title row
+//        Static background, Dynamic background, Intensity (with Equalise), FFT filter, Size, Average neighbours and NLPAR, in dependency order, each with its stage's state on the title row
 //        (the EELS room's glyphs: not run, current, stale). The first row picks what the pattern pane shows, raw or processed; a change
 //        to any row re-draws a processed pattern at once and stales the scan's run from that stage on; the toolbar's Process runs it.
 //        Presentation only: the settings are `PatternPipeline`'s (TEMCore), the state `EBSDSession`'s (TEMSession).
@@ -36,8 +36,89 @@ struct PatternsProcessingSections: View {
         staticSection
         dynamicSection
         intensitySection
+        fftSection
         sizeSection
+        averagingSection
         nlparSection
+    }
+
+    private static let integer = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0))
+
+    private var fftSection: some View {
+        let s = status(.fftFilter)
+        let f = pipeline.fftFilter
+        return InspectorSection("FFT filter", status: s.word, statusGlyph: s.glyph, startsExpanded: false) {
+            InspectorRow("Filter") {
+                Toggle("FFT filter", isOn: Binding(get: { f.isOn }, set: { v in session.editPipeline { $0.fftFilter.isOn = v } }))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .help("Multiply each pattern's centred spectrum by a transfer function (kikuchipy fft_filter, frequency domain, shift)")
+                    .accessibilityIdentifier("patterns.fft.on")
+            }
+            SegmentedPicker(label: "Pass", items: PatternPipeline.FFTPass.allCases.map { p in
+                (p, .title(p.title, help: p == .low ? "Keep the low frequencies: smooths the noise (lowpass)"
+                           : p == .high ? "Keep the high frequencies: removes the slow background (highpass)"
+                           : "Lowpass × highpass, the guide's band (kikuchipy's pattern-processing guide)"))
+            }, selection: Binding(get: { f.pass }, set: { v in session.editPipeline { $0.fftFilter.pass = v } }))
+                .disabled(!f.isOn)
+                .accessibilityIdentifier("patterns.fft.pass")
+            if f.usesLowpass {
+                InspectorRow("Low cutoff") {
+                    OptionalNumericField(title: "Lowpass cutoff", value: f.lowCutoff, format: Self.number, unit: "px", prompt: "22") { v in
+                        session.editPipeline { $0.fftFilter.lowCutoff = v }
+                    }
+                        .disabled(!f.isOn)
+                        .help("Frequencies within this distance of the spectrum's centre are kept")
+                        .accessibilityIdentifier("patterns.fft.lowCutoff")
+                }
+                InspectorRow("Low width") {
+                    OptionalNumericField(title: "Lowpass width", value: f.lowWidth, format: Self.number, unit: "px", prompt: "10") { v in
+                        session.editPipeline { $0.fftFilter.lowWidth = v }
+                    }
+                        .disabled(!f.isOn)
+                        .help("The Gaussian roll-off beyond the lowpass cutoff (kikuchipy cutoff_width)")
+                        .accessibilityIdentifier("patterns.fft.lowWidth")
+                }
+            }
+            if f.usesHighpass {
+                InspectorRow("High cutoff") {
+                    OptionalNumericField(title: "Highpass cutoff", value: f.highCutoff, format: Self.number, unit: "px", prompt: "3") { v in
+                        session.editPipeline { $0.fftFilter.highCutoff = v }
+                    }
+                        .disabled(!f.isOn)
+                        .help("Frequencies beyond this distance of the spectrum's centre are kept")
+                        .accessibilityIdentifier("patterns.fft.highCutoff")
+                }
+                InspectorRow("High width") {
+                    OptionalNumericField(title: "Highpass width", value: f.highWidth, format: Self.number, unit: "px", prompt: "2") { v in
+                        session.editPipeline { $0.fftFilter.highWidth = v }
+                    }
+                        .disabled(!f.isOn)
+                        .help("The Gaussian roll-off inside the highpass cutoff (kikuchipy cutoff_width)")
+                        .accessibilityIdentifier("patterns.fft.highWidth")
+                }
+            }
+            refusalNote(.fftFilter)
+        }
+    }
+
+    private var averagingSection: some View {
+        let s = status(.averaging)
+        let a = pipeline.averaging
+        return InspectorSection("Average neighbours", status: s.word, statusGlyph: s.glyph, startsExpanded: false) {
+            InspectorRow("Average") {
+                Toggle("Average neighbour patterns", isOn: Binding(get: { a.isOn }, set: { v in session.editPipeline { $0.averaging.isOn = v } }))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .help("Average each pattern with its neighbours in the scan, weighted by the window (kikuchipy average_neighbour_patterns)")
+                    .accessibilityIdentifier("patterns.average.on")
+            }
+            SegmentedPicker(label: "Window", items: PatternPipeline.AveragingWindow.allCases.map { w in
+                (w, .title(w.title, help: w == .gaussian3 ? "3 × 3 Gaussian weights, std 1" : "\(w.title) circular window, every neighbour weighted 1"))
+            }, selection: Binding(get: { a.window }, set: { v in session.editPipeline { $0.averaging.window = v } }))
+                .disabled(!a.isOn)
+                .accessibilityIdentifier("patterns.average.window")
+            refusalNote(.averaging)
+            InspectorNote("Averaging needs the neighbours, so it shows on the pattern once Process has run.")
+        }
     }
 
     private var nlparSection: some View {
@@ -190,6 +271,28 @@ struct PatternsProcessingSections: View {
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
                         .help("Also divide by the square root of the pattern's pixel count (kikuchipy divide_by_square_root)")
                         .accessibilityIdentifier("patterns.intensity.sqrt")
+                }
+            }
+            InspectorRow("Equalise") {
+                Toggle("Equalise", isOn: Binding(get: { pipeline.intensity.equalize }, set: { v in session.editPipeline { $0.intensity.equalize = v } }))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .help("Contrast-limited adaptive histogram equalisation of each pattern (kikuchipy adaptive_histogram_equalization)")
+                    .accessibilityIdentifier("patterns.intensity.equalize")
+            }
+            if pipeline.intensity.equalize {
+                InspectorRow("Kernel") {
+                    OptionalNumericField(title: "Equalisation kernel", value: pipeline.intensity.equalizeKernel.map(Double.init), format: Self.integer,
+                                         unit: "px", prompt: "\(dataset.patternColumns / 4)") { v in
+                        session.editPipeline { $0.intensity.equalizeKernel = max(1, Int(v.rounded())) }
+                    }
+                        .help("The side of each contextual region; empty is kikuchipy's default, a quarter of the pattern")
+                        .accessibilityIdentifier("patterns.intensity.kernel")
+                }
+                InspectorRow("Clip limit") {
+                    OptionalNumericField(title: "Clip limit", value: pipeline.intensity.clipLimit, format: Self.number, unit: nil,
+                                         prompt: "0") { v in session.editPipeline { $0.intensity.clipLimit = v } }
+                        .help("Limits the contrast each region may gain, 0 to 1; 0 limits nothing (scikit-image clip_limit)")
+                        .accessibilityIdentifier("patterns.intensity.clipLimit")
                 }
             }
             refusalNote(.intensity)

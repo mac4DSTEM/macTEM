@@ -50,6 +50,12 @@ private struct InspectorSettingsTab: View {
                     .environment(\.inspectorScope, "settings.patterns")
             }
             .environment(\.inspectorScope, "settings")
+        } else if appState.navigation.workspaceArea == .indexing {
+            InspectorScrollColumn {
+                IndexingRoomSettings()
+                    .environment(\.inspectorScope, "settings.indexing")
+            }
+            .environment(\.inspectorScope, "settings")
         } else if appState.navigation.workspaceArea == .maps {
             InspectorScrollColumn {
                 MapsRoomSettings()
@@ -77,7 +83,7 @@ private struct InspectorSettingsTab: View {
                             DiffractionRoomSettings(image: image, item: item)
                                 .environment(\.inspectorScope, "settings.diffraction")
                         }
-                    case .edx, .eels, .patterns, .maps:
+                    case .edx, .eels, .patterns, .indexing, .maps:
                         // The document rooms are answered above.
                         EmptyView()
                     }
@@ -114,6 +120,11 @@ private struct InspectorInfoTab: View {
         } else if appState.navigation.workspaceArea == .patterns {
             InspectorScrollColumn {
                 PatternsRoomInfo()
+            }
+            .environment(\.inspectorScope, "info")
+        } else if appState.navigation.workspaceArea == .indexing {
+            InspectorScrollColumn {
+                IndexingRoomInfo()
             }
             .environment(\.inspectorScope, "info")
         } else if appState.navigation.workspaceArea == .maps {

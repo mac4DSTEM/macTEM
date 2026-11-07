@@ -232,7 +232,8 @@ package final class EBSDSession {
             let mb = Double(result.bytes.count) / 1_000_000
             let nlpar = run.nlpar.isOn ? nlparLambda.map { " · NLPAR λ \(String(format: "%.3f", $0))" } ?? "" : ""
             onEvent?("Processed \(result.dataset.patternCount) patterns in \(String(format: "%.1f", seconds)) s · \(String(format: "%.1f", mb)) MB in memory" + nlpar)
-            setPatternDisplay(.processed)
+            // Already showing Processed: re-draw, so the pane trades the one-pattern preview for the run (the whole-scan stages show).
+            if patternDisplay == .processed { showPattern(at: shown) } else { setPatternDisplay(.processed) }
         } else if let failure {
             onEvent?("Error: \(failure)")
         }
@@ -276,7 +277,8 @@ package final class EBSDSession {
     /// The infobar's line for an event ("Opening…", "Opened…") and the alert for a failure (the window's `AppState` wires them).
     package var onEvent: ((String) -> Void)?
     package var onFailure: ((any Error) -> Void)?
-    /// A dataset was bound, and one was closed: the Maps room shows the dataset's crystal map beside its patterns (`OrientationMapSession`).
+    /// A dataset was bound, and one was closed: the Indexing room starts over on the dataset (`IndexingSession`), and the Maps room
+    /// shows the dataset's crystal map beside its patterns (`OrientationMapSession`).
     package var onBind: ((Document) -> Void)?
     package var onClose: (() -> Void)?
 

@@ -53,6 +53,12 @@ every unit test run without a download: a port passes there first. Milestone 1 a
 | Oxford `.ctf` (planted 4 x 5, one not-indexed point) | `m1/read-ctf-planted-oxford` | the same, properties bands, error, MAD, BC, BS |
 | Zeiss SmartSEM TIFF | `m1/read-sem-tiff-zeiss` | pixels exact (512 x 384 uint8, mean 149.59065), pixel size 1.1649976e-8 m, 5 kV, "50.00 K X", WD 3.9 mm, stage (x 62.9961, y 65.3168, z 44.678, rotation 245.8, tilt 0), date 2018-09-25 08:20:42, author LIBERATO |
 | Thermo/FEI Helios TIFF | `m1/read-sem-tiff-fei-helios` | pixels exact (512 x 471 uint8, mean 3.06674), pixel size 3.3724e-6 m, 5 kV, 6.25 nA, dwell 1e-5 s, WD 4.03466 mm, stage, date 2016-06-13 17:06:40 |
+| Thermo/FEI Helios TIFF, 16-bit (downloaded, `fetch-data.sh`) | `m1/read-sem-tiff-fei-helios-16bits` | pixels by fingerprint (471 x 512 uint16, mean 785.08493), pixel size 3.3724e-06 m, vendor tag bytes exact for the unit tests |
+| Thermo/FEI Helios Nav-Cam TIFF (downloaded, `fetch-data.sh`) | `m1/read-sem-tiff-fei-navcam` | pixels by fingerprint (551 x 768 uint8, mean 0), pixel size 0.00026397461 m, vendor tag bytes exact for the unit tests |
+| Thermo/FEI Nav-Cam TIFF without [IRBeam] (downloaded, `fetch-data.sh`) | `m1/read-sem-tiff-fei-navcam-no-irbeam` | pixels by fingerprint (551 x 768 uint8, mean 0), uncalibrated (no [Scan] and no [IRBeam]: RosettaSciIO finds no pixel size), vendor tag bytes exact for the unit tests |
+| Thermo/FEI Nav-Cam TIFF with unparseable floats (downloaded, `fetch-data.sh`) | `m1/read-sem-tiff-fei-navcam-bad-floats` | pixels by fingerprint (551 x 768 uint8, mean 0), uncalibrated (RosettaSciIO's mapping drops the bad floats), vendor tag bytes exact for the unit tests |
+| Zeiss SmartSEM TIFF, 1024 x 768 (downloaded, `fetch-data.sh`) | `m1/read-sem-tiff-zeiss-1k` | pixels by fingerprint (768 x 1024 uint8, mean 163.42735), pixel size 2.614514e-06 m, vendor tag bytes exact for the unit tests |
+| Zeiss SmartSEM two-page TIFF (downloaded, `fetch-data.sh`) | `m1/read-sem-tiff-zeiss-multipage` | pixels by fingerprint (2 x 1536 x 2048 uint8, mean 64.134872), pixel size 1.2326225e-08 m, vendor tag bytes exact for the unit tests |
 
 ### Figure 2 (milestone 2): pattern processing
 

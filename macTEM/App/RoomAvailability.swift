@@ -18,7 +18,7 @@ nonisolated struct RoomHoldings: Equatable, Sendable {
     var eds = false
     /// A spectrum image, or one opening, in the EELS room.
     var eels = false
-    /// An EBSD or TKD pattern dataset, or one opening, in the Patterns room.
+    /// An EBSD or TKD pattern dataset, or one opening, in the Patterns room (the Indexing room reads the same dataset).
     var ebsd = false
     /// An orientation map (an `.ang` or `.ctf` alone, or an EBSD dataset's crystal map), or one opening, in the Maps room.
     var maps = false
@@ -36,7 +36,7 @@ nonisolated enum RoomAvailability {
         switch area {
         case .edx: return holdings.eds ? nil : "No file open holds an EDS spectrum image"
         case .eels: return holdings.eels ? nil : "No file open holds an EELS spectrum image"
-        case .patterns: return holdings.ebsd ? nil : "No file open holds EBSD patterns"
+        case .patterns, .indexing: return holdings.ebsd ? nil : "No file open holds EBSD patterns"
         case .maps: return holdings.maps ? nil : "No file open holds an orientation map"
         case .diffraction:
             guard holdings.images else { return "No file open holds an image" }

@@ -52,7 +52,7 @@ extension AppState {
             // The Maps room holds one map: an `.ang` or `.ctf` opened on its own (a dataset's map comes through the Patterns room).
             if let first = mapBatch.first { maps.open(url: first) }
             switch landing {
-            case .patterns: selectWorkspace(.patterns)
+            case .patterns: if navigation.workspaceArea != .indexing { selectWorkspace(.patterns) }   // Indexing shows the scan too
             case .maps: selectWorkspace(.maps)
             case .eds: selectWorkspace(.edx)
             case .eels: selectWorkspace(.eels)
@@ -63,8 +63,8 @@ extension AppState {
                 return
             }
             openItems.open(urls: images)
-            // From a spectrum room the image is not shown: land on it. From an image room, stay where the person was.
-            if landing == .image, [.edx, .eels, .patterns, .maps].contains(navigation.workspaceArea) { selectWorkspace(.image) }
+            // From a spectrum or SEM room the image is not shown: land on it. From an image room, stay where the person was.
+            if landing == .image, [.edx, .eels, .patterns, .indexing, .maps].contains(navigation.workspaceArea) { selectWorkspace(.image) }
             await openItems.settled()
             if let image = imageSession.image {
                 let suffix = openItems.selected.map(Self.sessionSuffix(of:)) ?? ""

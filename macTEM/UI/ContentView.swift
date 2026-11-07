@@ -38,6 +38,7 @@ struct ContentView: View {
         .onChange(of: appState.edx.isBusy, initial: true) { appState.markBusy(.edx, appState.edx.isBusy) }
         .onChange(of: appState.eels.isBusy, initial: true) { appState.markBusy(.eels, appState.eels.isBusy) }
         .onChange(of: appState.ebsd.isBusy, initial: true) { appState.markBusy(.patterns, appState.ebsd.isBusy) }
+        .onChange(of: appState.indexing.isBusy, initial: true) { appState.markBusy(.indexing, appState.indexing.isBusy) }
         .onChange(of: appState.maps.isBusy, initial: true) { appState.markBusy(.maps, appState.maps.isBusy) }
         .fileImporter(
             isPresented: $showImporter,
@@ -97,6 +98,20 @@ struct ContentView: View {
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
             return .idle(file: session.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
+        case .indexing:
+            let session = appState.indexing
+            guard let dataset = session.patterns.dataset else { return nil }
+            if session.isBusy {
+                // "Hough · 2 340 of 4 125": the points indexed so far (whole rows land at once); "Dictionary · 1 of 3 chunks · NCC": the
+                // dictionary's chunks every block runs through (design §3).
+                let done = (session.result?.rowsDone ?? 0) * dataset.scanColumns
+                let operation = session.result?.method == .dictionary
+                    ? "Dictionary · \(session.chunksDone) of \(session.chunksTotal) chunks · \(session.result?.scoreTitle ?? "NCC")"
+                    : "Hough · \(done.formatted()) of \(dataset.patternCount.formatted())"
+                return .busy(operation: operation, progress: RoomProgress.fraction(room: room, appState: appState),
+                             metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
+            }
+            return .idle(file: session.patterns.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
         case .maps:
             let session = appState.maps
             if session.isOpening {

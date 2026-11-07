@@ -1,7 +1,7 @@
 // macTEM's rooms, in the shape of mac4DSTEM's `WorkspaceArea`, conforming to the shell's `WorkspaceRoom`. Added (EDX room, owner 2026-10-21): a sixth room, `edx`, last so ⌘1…⌘5 keep their rooms. Added (EELS room, 2026-10-21): a seventh, `eels`, after it (⌘7).
 // Added (SEM program, 2026-11-06, design D1): `patterns` before Results, so Results moves to ⌘7 now and to ⌘9 once Indexing and Maps are built.
-// Added (P3-04, 2026-11-07): `maps` after Patterns, where Indexing will sit before it; Maps and Results take the plan's fixed keys ⌘8 and
-// ⌘9 now, ⌘7 waits for Indexing (D-SEM-80).
+// Added (SEM program, 2026-11-07, D-SEM-84): `indexing` after Patterns (⌘7); Results keeps ⌘9 from here on, the digit the Maps room leaves it.
+// Added (P3-04, 2026-11-07, D-SEM-80): `maps` after Indexing (⌘8), Results keeps ⌘9.
 import ShellLayout
 import SwiftUI
 
@@ -14,6 +14,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
     case eels
     case diffraction
     case patterns
+    case indexing
     case maps
     case results
 
@@ -28,6 +29,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .edx: "EDS"
         case .eels: "EELS"
         case .patterns: "Patterns"
+        case .indexing: "Indexing"
         case .maps: "Maps"
         }
     }
@@ -41,6 +43,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .edx: "Spectrum images: elements, maps, spectrum and composition"
         case .eels: "Low-loss spectrum images: thickness (t/λ) maps"
         case .patterns: "EBSD and TKD patterns: the scan, its mean-intensity map and the live pattern"
+        case .indexing: "Hough indexing of the scan: orientation maps, the solution at each point and its bands"
         case .maps: "Orientation maps: IPF and phase maps, the colour key and the pattern or unit cell at each point"
         }
     }
@@ -54,6 +57,7 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .edx: "waveform.path.ecg"
         case .eels: "chart.xyaxis.line"
         case .patterns: "square.grid.3x3.square"
+        case .indexing: "scope"
         case .maps: "map"
         }
     }
@@ -68,11 +72,10 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
     /// going, and cannot be entered.
     var isBuilt: Bool { true }
 
-    /// The Go to <room> shortcut: ⌘1…⌘6 in list order up to Patterns, then the SEM plan's fixed keys (D-SEM-80): Indexing ⌘7 (its
-    /// room is the next to land), Maps ⌘8, Results ⌘9, so the keys do not move again when Indexing arrives.
+    /// The Go to <room> shortcut, ⌘1…⌘8 in list order (Patterns ⌘6, Indexing ⌘7, Maps ⌘8), and ⌘9 for Results (design D1: the SEM
+    /// rooms take ⌘6 to ⌘8, so Results keeps the digit it ends on). Derived, so the menu and the list cannot disagree.
     var shortcutDigit: Character {
         switch self {
-        case .maps: "8"
         case .results: "9"
         default: Character(String((Self.allCases.firstIndex(of: self) ?? 0) + 1))
         }
