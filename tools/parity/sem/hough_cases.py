@@ -231,6 +231,14 @@ def case_m4_hough_indexing_nickel_large(ctx):
     pid = np.asarray(xmap.phase_id, dtype=np.int32)
     b.value("indexed", int((pid >= 0).sum()))
     b.value("points", int(pid.size))
+    b.value("xmap", {
+        "shape": [int(n) for n in xmap.shape], "dy": float(xmap.dy), "dx": float(xmap.dx), "scan_unit": str(xmap.scan_unit),
+        "phase_ids": [int(i) for i in xmap.phases.ids], "phase_names": list(xmap.phases.names),
+        "point_groups": [None if p.point_group is None else p.point_group.name for _, p in xmap.phases],
+        "space_groups": [None if p.space_group is None else int(p.space_group.number) for _, p in xmap.phases],
+        "colors": list(xmap.phases.colors), "properties": sorted(xmap.prop.keys()),
+        "x_last": float(xmap.x[-1]), "y_last": float(xmap.y[-1]),
+    })
     b.array("phase", pid.reshape(nav), **EXACT)
     b.array("quaternion", np.asarray(xmap.rotations.data, dtype=np.float64).reshape(*nav, 4), **LOOSE,
             note="orix Rotation data (KIKUCHIPY frame); the test holds the symmetry-reduced misorientation < 1 degree")
