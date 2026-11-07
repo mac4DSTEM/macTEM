@@ -222,6 +222,9 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         // Staleness per method: a Hough edit leaves the dictionary result current, a dictionary edit stales it; picking Hough does not.
         indexing.editSettings { $0.bands = 9 }
         XCTAssertFalse(indexing.isStale)
+        indexing.setReflectors(.bcc, named: "ni")
+        XCTAssertFalse(indexing.isStale, "the reflector list is Hough's: it leaves a dictionary result current")
+        indexing.setReflectors(.fcc, named: "ni")
         indexing.editDictionarySettings { $0.keep = 3 }
         XCTAssertTrue(indexing.isStale)
         XCTAssertTrue(indexing.verbHelp.hasSuffix("the inputs changed since the last run"), indexing.verbHelp)

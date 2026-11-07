@@ -345,6 +345,7 @@ private struct IndexingDictionarySection: View {
             InspectorValueRow("Chunk", chunkRow)
                 .help("The dictionary patterns simulated and compared at once, as the memory budget holds them; the scan is read in blocks of rows")
                 .accessibilityIdentifier("indexing.dictionary.chunk")
+                .accessibilityValue(chunkRow)
             InspectorActionRow {
                 Button("Reset Dictionary") { session.resetDictionarySettings() }
                     .disabled(settings == defaults)
