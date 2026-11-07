@@ -52,6 +52,51 @@ Upstream's own tests compare hand-written 3 x 3 uint8 answers exactly (`test_rem
 - Figure F2 (`docs/sem/north-star.md`): `tools/parity/sem/background_figure.py` draws the reference pattern beside the one the
   unit test `testFigureF2PatternZeroAfterStaticAndDynamicBackground` writes to `$TMPDIR/macTEM-F2-ours.u8` (and prints as base64).
 
+## Orientation maths
+
+orix 0.15.0's quaternion package ported into `Sources/TEMCore/SEM/Orientation/` (P3-01): conventions of Rowenhorst et al.
+(2015), "Consistent representations of and conversions between 3D rotations" (unit quaternions scalar first, passive,
+P = -1, Bunge Euler angles lab to crystal). Bundles from `tools/parity/sem/emit.py`, inputs in
+`tools/parity/sem/fixtures/orientation_inputs.json`, tests in `SEMOrientationParityTests`.
+
+| Function | Reference | Test | Tolerance | Notes |
+| --- | --- | --- | --- | --- |
+| `RotationConversions` (eu2qu, qu2eu, om2qu, qu2om, ax2qu, qu2ax, qu2ho, ho2ax, ax2ro, ro2ax, ho2ro, cu2ho, cu2ro, pyramid) | `orix.quaternion._conversions` (Rowenhorst et al. 2015; cubochoric: Roşca et al. 2014) | `testConversionsFromQuaternionsMatchOrix`, `testEulerAndCubochoricConversionsMatchOrix` | atol 1e-7 | orix has no qu2cu, so neither does the port; Rodrigues-Frank lengths within 1e-3 of a two-fold rotation are +∞ as orix writes them |
+| `Rotation` (`*`, `inverse`, `angle`, `axis`, `angle(with:)`, `absDot`, `angleOuter`, `outer`, `unique`, `fromEuler`/`fromMatrix`/`fromAxisAngle`/`fromHomochoric`/`fromRodrigues` and back) | `orix.quaternion.Rotation`, `Quaternion` | `testCompositionVectorsOuterProductsAndUniqueMatchOrix` | atol 1e-7; `unique` indices exact | products renormalised as orix's constructor does; `angle(with:)` rounds the dot product to 15 decimals and `unique` keys on 12-decimal differentiators, as orix |
+| `PointGroup` (the 38 groups and 2, m, 32; `fromGenerators`, `subgroups`, `properSubgroup`, `laue`, `laueProperSubgroup`, `system`, `eulerFundamentalRegion`, `fundamentalSectorNormals`, `fundamentalZoneNormals`) | `orix.quaternion.symmetry` | `testPointGroupsMatchOrixElementForElement` | elements and normals 1e-10, in orix's order; names exact | rotation axes grouped by their 10-decimal rounding in `axisOrders` where orix compares exactly (D-SEM-35); orix's `fundamental_sector` spells "6m2" for the rotated case, so "-6m2" is not rotated, kept |
+| `OrientationRegion.fromSymmetry`, `contains`, `vertices` | `orix.quaternion.OrientationRegion` | `testOrientationRegionsMatchOrix` | normals 1e-10 | a pair of improper groups without inversion throws as orix raises |
+| `Orientations` (`reduced`, `angles(with:)`, `misorientations(from:)`, `anglesOuter`, `distanceMatrix`), `Misorientations` (`reduced`, `angles`, `distanceMatrix`) | `Orientation.reduce`, `angle_with`, `__sub__`, `angle_with_outer`/`get_distance_matrix` (numba kernels), `Misorientation.reduce`, `get_distance_matrix(lazy=False)` | `testTiOrientationsReduceAndDisorientationsMatchOrix`, `testCubicOrientationsReduceAndDisorientationsMatchOrix` | atol 1e-7 | `reduce` keeps orix's loop (first `end · M · start` inside the zone of (start, end)); for two different groups that is not always the smallest angle (DiffractoKit's pins document the case), the same as orix; float64 loops, not Accelerate (D-SEM-35) |
+| `OrientationSampling` (`semiEdgeSteps`, `cubochoricGrid`, `fundamental`, `local`) | `orix.sampling.get_sample_fundamental`, `get_sample_local`, `_cubochoric_sampling` (cubochoric grid: Roşca, Morawiec and De Graef 2014; resolution to N: Singh and De Graef 2016, eq. 9) | `SEMOrientationSamplingParityTests` (bundle `m3/orientation-sampling`) | counts and N exact; rotations atol 1e-7 in orix's order | orix states no tolerance for sampling, so counts are exact and rows take the orientation core's 1e-7; the bundle keeps every stride-th row of a large sample (D-SEM-37); m-3m 4°/2°/1.5° = 11 935 / 100 347 / 243 129, 6/mmm 4° = 23 809 |
+
+## Patterns room
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `EBSDBrowsing.meanIntensityMap` (the navigation map) | `EBSD.mean(axis=(2, 3))` (numpy's float64 mean over the two pattern axes) | `PatternsRoomTests` on a planted 2 x 3 scan of uint16 patterns and on the first and last pattern of `ebsd-kikuchipy-h5ebsd.h5` | float64 sum and division, exact to the map's `Float` rounding | read one scan row per slab; the demo dataset (`DemoDocuments.ebsd`) is generated, so it has no reference |
+
+## Pattern quality
+
+References: `tools/parity/sem/emit.py` cases `m2/quality-kikuchipy-h5ebsd` and `m2/quality-nickel-ebsd-large` (kikuchipy
+0.13.1, numpy 2.5.4, scipy 1.18.1; north-star figure F3); tests in `SEMQualityParityTests`. kikuchipy computes in float32
+(the FFT of the float32 pattern, numba fastmath sums, dot products in the float32 output type); TEMCore in float64. The
+bundles hold rtol 1e-5, the float32 bound.
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `PatternQuality.frequencyVectors` | `pattern._pattern.fft_frequency_vectors` | `testFrequencyVectors…` | exact | |
+| `PatternQuality.ImageQuality` / `imageQuality` / `imageQualityMap` (`normalize` on, off) | `get_image_quality`, `_get_image_quality`, `EBSD.get_image_quality` (Krieger Lassen 1994) | `testImageQuality…`, `testWholeRawScan…`, `testBlockOfCorrected…` | 1e-5 relative (measured 8.5e-8; 2.6e-6 unnormalised) | ImagoKit's `FFT2DDouble` for the transform; one plan per pattern shape |
+| `PatternQuality.averageNeighbourDotProductMap` (window rectangular or circular of any size, `zeroMean`, `normalize`) | `EBSD.get_average_neighbour_dot_product_map`, `_map_helper._neighbour_dot_products` (Brewick, Wright & Rowenhorst 2019) | `testAverageDotProduct…`, `testWholeRawScan…`, `testBlockOfCorrected…` | 1e-5 relative (measured 5.6e-7) | edge rule: cells outside the map are no neighbours (SciPy `generic_filter`, constant −1); NaN dot products skipped as `np.nanmean` |
+| F3 end to end (the app's background removal, then both maps) | kikuchipy's docs chain, whole scan | `testFigureF3…` | IQ 1e-2 relative, ADP 5e-3 relative | inherits D-SEM-18's one-grey-level background differences, decision D-SEM-36 |
+
+### Known limits and decisions
+
+- D-SEM-36 (2026-11-06): the quality maps are held to rtol 1e-5 on kikuchipy's own input patterns (raw scan, a 6 x 6 block
+  and the 3 x 3 fixture of its corrected patterns); the end-to-end F3 chain on the app's corrected patterns to rtol 1e-2 (IQ)
+  and 5e-3 (ADP). Reason: the image quality is a ratio of spectrum sums that moves by about 5e-4 relative when 0.2 % of the
+  pixels shift by one grey level (measured), so D-SEM-18's background differences propagate; a float64 replica of the chain
+  measured 5.3e-3 (IQ) and 1.1e-3 (ADP) at worst. Both maps run on the CPU in float64: the 4125 nickel patterns take well
+  under a second, so a Metal path does not pay (D16).
+
 ## Detector geometry and projection-centre calibration
 
 References: `tools/parity/sem/detector_cases.py` (kikuchipy 0.13.1), bundles `m2/detector-*` and `m2/pc-moving-screen-si`,
@@ -63,10 +108,10 @@ PC) and `np.allclose` defaults (coordinates).
 |---|---|---|---|---|
 | `EBSDDetectorGeometry.Convention(kikuchipyName:)`, `init(…, convention:)`, `brukerCenter`, `center(_:in:)`, `centers(in:)` | `EBSDDetector(pc, convention)`, `pc_tsl`, `pc_oxford`, `pc_emsoft(4/5)` | `testEveryConventionName…`, `testBrukerWritten…`, `testConventionRoundTrip…` | rtol 1e-7, atol 1e-12; round trip 1e-12 | aliases edax/amatek → TSL, aztec → Oxford, emsoft = emsoft5 |
 | `height`, `width`, `binnedPixelSize`, `unbinnedShape`, `specimenScintillatorDistance` | same names | `testSizesGnomonicBounds…` | rtol 1e-7 | |
-| `gnomonicBounds`, `gnomonicScale`, `rMax` | `gnomonic_bounds`, `x_scale`/`y_scale`, `r_max` (Britton et al. 2016) | `testSizesGnomonicBounds…` | rtol 1e-7 | `rMax` keeps kikuchipy's corner list (D-SEM-28) |
+| `gnomonicBounds`, `gnomonicScale`, `rMax` | `gnomonic_bounds`, `x_scale`/`y_scale`, `r_max` (Britton et al. 2016) | `testSizesGnomonicBounds…` | rtol 1e-7 | `rMax` keeps kikuchipy's corner list (D-SEM-38) |
 | `gnomonic(pixel:pc:)`, `pixel(gnomonic:pc:)` | `to_gnomonic_coords`, `to_pixel_coords` | `testPixelToGnomonicAndBack…` | rtol 1e-7, atol 1e-12 | (y, x) order as kikuchipy |
 | `sampleToDetector`, `detectorToSample`, `FrameRotation` | `sample_to_detector` (`_sample_to_detector_matrix`) | `testSampleToDetector…`, `testAzimuthalTurnsAboutDetectorY` | rtol 1e-7, atol 1e-12 | the matrix, rows = detector axes in sample coordinates; quaternions come with the orientation core (P3-01) |
-| TKD set-ups | `EBSDDetector` with TKD angles | `testTKDGeometryAsKikuchipy` | rtol 1e-7, atol 1e-12 | D-SEM-29 |
+| TKD set-ups | `EBSDDetector` with TKD angles | `testTKDGeometryAsKikuchipy` | rtol 1e-7, atol 1e-12 | D-SEM-39 |
 | `PCCalibrationMovingScreen` (Hjelen et al. 1991) | `PCCalibrationMovingScreen` | `testMovingScreenPCOfSiliconAsKikuchipy` (figure F5) | rtol 1e-5 | line crossings in closed form where kikuchipy calls `np.linalg.det`; `standardDeviation` is numpy's `std` of `pc_all` |
 
 - Figure F5 (`docs/sem/north-star.md`): `tools/parity/sem/detector_figure.py` draws si_in and si_out5mm with the marked

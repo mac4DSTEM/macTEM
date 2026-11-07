@@ -11,8 +11,9 @@ stack, a fixture or this script that moves a number is red until the bundle is r
 (`emit.py --out references`) and committed with the reason.
 
 Milestones (docs/sem/north-star.md): m1 data in and seen (readers, pattern browser values, virtual BSE), m2 pattern
-processing (static and dynamic background, emitted now so phase-2 ports can start from a committed reference), m7
-SEM-EDS line intensities on the TM002 spectrum (the numbers behind the EDS figure).
+processing (static and dynamic background, emitted now so phase-2 ports can start from a committed reference), m3
+orientation maths (orix's rotations, point groups, fundamental zones, orientations and misorientations), m7 SEM-EDS line
+intensities on the TM002 spectrum (the numbers behind the EDS figure).
 
 Run with `python -I -B` from outside this folder: a fixture is data, never code.
 """
@@ -348,6 +349,334 @@ def case_m2_background_nickel_large(ctx):
     p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
     if ctx.have(p, "m2/background-nickel-ebsd-large"):
         _background_bundle(ctx, "m2/background-nickel-ebsd-large", p, "sem-data/nickel_ebsd_large/patterns_v2.h5")
+
+
+# ------------------------------------------------------------------------------------------- orientation maths (m3)
+# orix 0.15.0's quaternion package: the conversions of Rowenhorst et al. (2015), the point groups built from orix's
+# generator lists, the orientation regions (fundamental zones) and the symmetry-reduced orientation and misorientation
+# angles. Every input is in fixtures/orientation_inputs.json (make_fixtures.py: seeded rotations, the point-group names,
+# the Ti head of orix-data). Angles and components within atol 1e-7 (the brief's bound; orix's own tests use numpy's
+# allclose defaults); symmetry elements and region normals within 1e-10 (products of exact generators).
+
+ORI = {"rtol": 0.0, "atol": 1e-7}
+SYM = {"rtol": 0.0, "atol": 1e-10}
+ORIENTATION_INPUTS = FIXTURES / "orientation_inputs.json"
+
+
+def _orientation_inputs() -> dict:
+    import json
+
+    return json.loads(ORIENTATION_INPUTS.read_text(encoding="utf-8"))
+
+
+def _with_inf_note(name: str) -> str:
+    return f"{name}: rows at 180 degrees hold +inf (ax2ro), compared as equal infinities"
+
+
+def case_m3_rotation_conversions(ctx):
+    """Every conversion of orix.quaternion._conversions through the public Rotation API, composition, inverse, angles,
+    vector rotation (proper and improper), outer products and unique."""
+    from orix.quaternion import Rotation, _conversions as cv
+    from orix.vector import Vector3d
+
+    inp = _orientation_inputs()
+    qu = np.asarray(inp["quaternions"], dtype=np.float64)
+    b = Bundle("m3/rotation-conversions", 3, "orix", "orix.quaternion.Rotation (to_/from_ conversions, *, ~, angle_with, outer, unique)", ctx.out)
+    b.input(ORIENTATION_INPUTS, "fixtures/orientation_inputs.json")
+    b.value("rows", int(qu.shape[0]))
+    b.value("special_rows", inp["special_rows"])
+    b.array("qu", qu, **EXACT)
+    R = Rotation(qu)
+    b.array("qu2eu", R.to_euler(), **ORI)
+    b.array("qu2om", R.to_matrix(), **ORI)
+    ax = np.concatenate(cv.qu2ax(R.data), axis=-1)
+    b.array("qu2ax", ax, **ORI)
+    b.array("axangle", R.to_axes_angles().data, **ORI)
+    b.array("qu2ho", R.to_homochoric().data, **ORI)
+    b.array("angle", R.angle, **ORI)
+    b.array("axis", R.axis.data, **ORI)
+    finite = np.abs(R.angle - np.pi) > 1e-3
+    b.value("rodrigues_rows", [int(i) for i in np.flatnonzero(finite)])
+    b.array("ro", R[finite].to_rodrigues().data, rtol=1e-7, atol=1e-7)
+    b.array("ro_frank", R.to_rodrigues(frank=True), rtol=1e-7, atol=1e-7, note=_with_inf_note("ro_frank"))
+    b.array("om2qu", Rotation.from_matrix(R.to_matrix()).data, **ORI)
+    b.array("ho2ax", cv.ho2ax(R.to_homochoric().data), **ORI)
+    b.array("ho2qu", Rotation.from_homochoric(R.to_homochoric().data).data, **ORI)
+    b.array("ro2qu", Rotation.from_rodrigues(R[finite].to_rodrigues().data).data, **ORI)
+    b.array("ax2qu", Rotation.from_axes_angles(ax[:, :3], ax[:, 3]).data, **ORI)
+    eu = np.asarray(inp["euler_radians"], dtype=np.float64)
+    b.array("eu", eu, **EXACT)
+    b.array("eu2qu", Rotation.from_euler(eu).data, **ORI)
+    b.array("eu2qu_crystal2lab", Rotation.from_euler(eu, direction="crystal2lab").data, **ORI)
+    b.array("eu_roundtrip", Rotation.from_euler(eu).to_euler(), **ORI)
+    cu = np.asarray(inp["cubochoric"], dtype=np.float64)
+    b.array("cu", cu, **EXACT)
+    b.array("cu_pyramid", cv.get_pyramid(cu).astype(np.int64), **EXACT)
+    b.array("cu2ho", cv.cu2ho(cu), **ORI)
+    b.array("cu2ro", cv.cu2ro(cu), rtol=1e-7, atol=1e-7, note=_with_inf_note("cu2ro"))
+    R1, R2 = Rotation(qu[:32]), Rotation(qu[32:])
+    b.array("product", (R1 * R2).data, **ORI)
+    b.array("inverse", (~R).data, **ORI)
+    b.array("angle_with", R1.angle_with(R2), **ORI)
+    v = np.asarray(inp["vectors"], dtype=np.float64)
+    b.array("vectors", v, **EXACT)
+    b.array("rotated", (R * Vector3d(v)).data, **ORI)
+    Ri = Rotation(qu)
+    improper = np.arange(qu.shape[0]) % int(inp["improper_every"]) == 0
+    Ri.improper = improper
+    b.array("improper_mask", improper.astype(np.uint8), **EXACT)
+    b.array("rotated_improper", (Ri * Vector3d(v)).data, **ORI)
+    b.array("product_improper", (Ri[:32] * Ri[32:]).improper.astype(np.uint8), **EXACT)
+    b.array("outer", R[:4].outer(R[4:7]).data, **ORI)
+    b.array("outer_vectors", R[:4].outer(Vector3d(v[:5])).data, **ORI)
+    b.array("dot_outer", Rotation(qu[:8]).dot_outer(Rotation(qu[8:16])), **ORI)
+    b.array("angle_with_outer", Rotation(qu[:8]).angle_with_outer(Rotation(qu[8:16])), **ORI)
+    dup = Rotation(np.concatenate([qu[:10], -qu[3:6], qu[:2]]))
+    _, idx, inv = dup.unique(return_index=True, return_inverse=True)
+    b.array("unique_input", dup.data, **EXACT)
+    b.array("unique_index", idx.astype(np.int64), **EXACT)
+    b.array("unique_inverse", inv.astype(np.int64), **EXACT)
+    b.write()
+    ctx.done("m3/rotation-conversions")
+
+
+def _point_groups(names: list[str]):
+    from orix.quaternion import symmetry as S
+
+    table = {g.name: g for g in list(S._groups) + [S.C2, S.Cs]}
+    return [table[n] for n in names]
+
+
+def case_m3_point_groups(ctx):
+    """The 38 point-group objects orix defines (32 point groups, the axis variants 211/121/112, m11/1m1/11m and 321/312)
+    and the aliases 2, m, 32: elements in orix's order, improper flags, proper subgroup, Laue group, its proper subgroup,
+    inversion, crystal system, Euler fundamental region, subgroups, the fundamental sector normals (inverse pole figure)
+    and the fundamental zone normals."""
+    names = _orientation_inputs()["point_groups"]
+    groups = _point_groups(names)
+    b = Bundle("m3/point-groups", 3, "orix", "orix.quaternion.symmetry (Symmetry.from_generators and the group table)", ctx.out)
+    b.input(ORIENTATION_INPUTS, "fixtures/orientation_inputs.json")
+    b.value("names", [g.name for g in groups])
+    rows = []
+    for i, g in enumerate(groups):
+        b.array(f"elements_{i:02d}", g.data, **SYM)
+        b.array(f"improper_{i:02d}", g.improper.astype(np.uint8), **EXACT)
+        fs = g.fundamental_sector
+        b.array(f"sector_{i:02d}", fs.data.reshape(-1, 3), **SYM)
+        b.array(f"zone_{i:02d}", g.fundamental_zone().data.reshape(-1, 3), **SYM)
+        rows.append({
+            "name": g.name,
+            "order": int(g.order),
+            "is_proper": bool(g.is_proper),
+            "contains_inversion": bool(g.contains_inversion),
+            "proper_subgroup": g.proper_subgroup.name,
+            "laue": g.laue.name,
+            "laue_order": int(g.laue.order),
+            "laue_proper_subgroup": g.laue_proper_subgroup.name,
+            "system": g.system,
+            "euler_fundamental_region": list(g.euler_fundamental_region),
+            "subgroups": [h.name for h in g.subgroups],
+            "sector_center": None if fs._center is None else [float(x) for x in fs._center.data.ravel()],
+        })
+    b.value("groups", rows)
+    b.write()
+    ctx.done("m3/point-groups")
+
+
+def case_m3_orientation_regions(ctx):
+    """OrientationRegion.from_symmetry: the orientation fundamental zone of each point group (one symmetry) and the
+    misorientation zone of each pair (G, G), as the unit-quaternion normals of its bounding planes, in orix's order."""
+    from orix.quaternion.orientation_region import OrientationRegion
+
+    names = _orientation_inputs()["point_groups"]
+    groups = _point_groups(names)
+    b = Bundle("m3/orientation-regions", 3, "orix", "orix.quaternion.OrientationRegion.from_symmetry", ctx.out)
+    b.input(ORIENTATION_INPUTS, "fixtures/orientation_inputs.json")
+    b.value("names", [g.name for g in groups])
+    pair_ok = []
+    for i, g in enumerate(groups):
+        b.array(f"orientation_{i:02d}", OrientationRegion.from_symmetry(g).data.reshape(-1, 4), **SYM)
+        try:
+            region = OrientationRegion.from_symmetry(g, g)
+        except NotImplementedError:
+            pair_ok.append(False)
+            continue
+        pair_ok.append(True)
+        b.array(f"misorientation_{i:02d}", region.data.reshape(-1, 4), **SYM)
+    b.value("misorientation_defined", pair_ok)
+    b.write()
+    ctx.done("m3/orientation-regions")
+
+
+def case_m3_ti_disorientations(ctx):
+    """The Ti orientations (orix-data Ti_orientations.ctf, first 2000 rows, point group 622) and a seeded m-3m set (the
+    Ni symmetry): orientations reduced into the fundamental zone, neighbour angles with symmetry, disorientation angles
+    of neighbours (Orientation subtraction, the reduced misorientation), the orientation distance matrix and the
+    misorientation distance matrix."""
+    from orix.quaternion import Orientation
+    from orix.quaternion.symmetry import D6, Oh
+
+    inp = _orientation_inputs()
+    assert inp["ti_point_group"] == D6.name and inp["cubic_point_group"] == Oh.name
+    eu = np.asarray(inp["ti_euler_degrees"], dtype=np.float64)
+    b = Bundle("m3/ti-disorientations", 3, "orix", "orix.quaternion.Orientation / Misorientation (reduce, angle_with, -, get_distance_matrix)", ctx.out)
+    b.input(ORIENTATION_INPUTS, "fixtures/orientation_inputs.json")
+    b.value("point_group", D6.name)
+    b.array("euler_degrees", eu, **EXACT)
+    O = Orientation.from_euler(eu, symmetry=D6, degrees=True)
+    b.array("quaternions", O.data, **ORI)
+    b.array("reduced", O.reduce().data, **ORI)
+    b.array("angle_with_next", O[1:].angle_with(O[:-1]), **ORI)
+    M = O[1:] - O[:-1]
+    b.array("disorientation_next", M.angle, **ORI)
+    b.array("misorientation_next", M.data, **ORI)
+    b.array("distance_matrix_150", O[:150].get_distance_matrix(), **ORI)
+    b.array("misorientation_distance_matrix_40", M[:40].get_distance_matrix(lazy=False), **ORI)
+
+    C = Orientation(np.asarray(inp["cubic_quaternions"], dtype=np.float64), symmetry=Oh)
+    b.value("cubic_point_group", Oh.name)
+    b.array("cubic_quaternions", C.data, **EXACT)
+    b.array("cubic_reduced", C.reduce().data, **ORI)
+    Mc = C[1:] - C[:-1]
+    b.array("cubic_disorientation_next", Mc.angle, **ORI)
+    b.array("cubic_misorientation_next", Mc.data, **ORI)
+    b.array("cubic_distance_matrix", C.get_distance_matrix(), **ORI)
+    b.array("cubic_misorientation_distance_matrix_30", Mc[:30].get_distance_matrix(lazy=False), **ORI)
+    b.write()
+    ctx.done("m3/ti-disorientations")
+
+# Pattern quality maps (m2, figure F3): float32 in kikuchipy, float64 in the port; rtol 1e-5 is the float32 bound the brief
+# states (measured: the float64 port is within 1e-7 of kikuchipy for IQ and 6e-7 for ADP on the same patterns).
+F32Q = {"rtol": 1e-5, "atol": 0.0}
+
+
+def _quality_maps(s, prefix: str, b, note: str = "") -> None:
+    """kikuchipy's image quality (Krieger Lassen 1994, normalize=True) and average neighbour dot product map (default
+    window: 3 x 3 circular, the four nearest neighbours; zero_mean and normalize True) of signal `s`."""
+    b.array(f"{prefix}iq", np.asarray(s.get_image_quality(show_progressbar=False), dtype=np.float32), **F32Q, note=note or None)
+    b.array(f"{prefix}adp", np.asarray(s.get_average_neighbour_dot_product_map(show_progressbar=False), dtype=np.float32),
+            **F32Q, note=note or None)
+
+
+def _corrected(s):
+    """kikuchipy's docs chain: static background (from the file) then dynamic background, both subtracted, uint8."""
+    c = s.deepcopy()
+    c.remove_static_background(operation="subtract")
+    c.remove_dynamic_background(operation="subtract", filter_domain="frequency", truncate=4.0)
+    return c
+
+
+def case_m2_quality_small(ctx):
+    """Every option of both maps on the 3 x 3 nickel fixture: corrected patterns as the input array (so the port is fed
+    exactly kikuchipy's uint8 patterns), IQ with and without normalisation, ADP under the default, a rectangular 3 x 3,
+    a circular 5 x 5 and a 1 x 3 window, without zero mean and without normalisation; the raw patterns' maps too."""
+    import kikuchipy as kp
+    from kikuchipy.filters import Window
+
+    path = FIXTURES / "kikuchipy_h5ebsd_patterns.h5"
+    s = kp.load(str(path))
+    b = Bundle("m2/quality-kikuchipy-h5ebsd", 2, "kikuchipy",
+               "kikuchipy.signals.EBSD.get_image_quality / get_average_neighbour_dot_product_map", ctx.out)
+    b.input(path, "fixtures/kikuchipy_h5ebsd_patterns.h5")
+    sy, sx = s.axes_manager.signal_shape[::-1]
+    b.array("frequency_vectors", kp.pattern.fft_frequency_vectors((sy, sx)).astype(np.float64), **EXACT)
+    _quality_maps(s, "raw_", b)
+    c = _corrected(s)
+    b.array("corrected_patterns", np.asarray(c.data), **EXACT, note="static then dynamic background, kikuchipy's uint8")
+    _quality_maps(c, "", b)
+    b.array("iq_unnormalized", np.asarray(c.get_image_quality(normalize=False, show_progressbar=False), dtype=np.float32), **F32Q)
+    windows = {"rect3": Window("rectangular", shape=(3, 3)), "circ5": Window("circular", shape=(5, 5)),
+               "rect1x3": Window("rectangular", shape=(1, 3))}
+    b.value("windows", {k: np.asarray(w).astype(int).tolist() for k, w in windows.items()})
+    for k, w in windows.items():
+        b.array(f"adp_{k}", np.asarray(c.get_average_neighbour_dot_product_map(window=w, show_progressbar=False), dtype=np.float32), **F32Q)
+    b.array("adp_no_zero_mean", np.asarray(c.get_average_neighbour_dot_product_map(zero_mean=False, show_progressbar=False), dtype=np.float32), **F32Q)
+    b.array("adp_no_normalize", np.asarray(c.get_average_neighbour_dot_product_map(normalize=False, show_progressbar=False), dtype=np.float32), **F32Q)
+    b.write()
+    ctx.done("m2/quality-kikuchipy-h5ebsd")
+
+
+QUALITY_BLOCK = (slice(20, 26), slice(30, 36))
+
+
+def case_m2_quality_nickel_large(ctx):
+    """North-star figure F3: the IQ and ADP maps of nickel_ebsd_large after kikuchipy's static and dynamic background
+    (its docs' chain), whole map. The raw patterns' maps (input = the shipped file, exact through the reader) and a 6 x 6
+    block of corrected patterns with the block's own maps let the port be checked on kikuchipy's exact input."""
+    import kikuchipy as kp
+
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    if not ctx.have(p, "m2/quality-nickel-ebsd-large"):
+        return
+    s = kp.load(str(p))
+    b = Bundle("m2/quality-nickel-ebsd-large", 2, "kikuchipy",
+               "kikuchipy.signals.EBSD.get_image_quality / get_average_neighbour_dot_product_map", ctx.out)
+    b.input(p, "sem-data/nickel_ebsd_large/patterns_v2.h5")
+    _quality_maps(s, "raw_", b, "raw patterns, no background removed")
+    c = _corrected(s)
+    _quality_maps(c, "", b, "figure F3: after static and dynamic background")
+    r, k = QUALITY_BLOCK
+    b.value("block", {"rows": [r.start, r.stop], "cols": [k.start, k.stop]})
+    blk = c.inav[k, r]
+    b.array("block_corrected_patterns", np.asarray(blk.data), **EXACT, note="scan rows 20..25, cols 30..35, kikuchipy's uint8")
+    _quality_maps(blk, "block_", b, "the 6 x 6 block as its own signal (edges at the block border)")
+    b.write()
+    ctx.done("m2/quality-nickel-ebsd-large")
+
+
+SAMPLING_INPUTS = FIXTURES / "sampling_inputs.json"
+
+
+def _strided_rows(a: np.ndarray, rows: int) -> tuple[int, np.ndarray]:
+    """Every stride-th row of a sample in orix's order and the last one, stride = ceil(count / rows): the rows a
+    bundle keeps of a large sample (the count is exact on its own)."""
+    n = a.shape[0]
+    stride = max(1, -(-n // rows))
+    idx = np.arange(0, n, stride)
+    if idx[-1] != n - 1:
+        idx = np.append(idx, n - 1)
+    return stride, a[idx]
+
+
+def case_m3_orientation_sampling(ctx):
+    """orix.sampling with the cubochoric method (Rosca et al. 2014; Singh & De Graef 2016): resolution to semi-edge
+    steps, the full grid S000(N) for a small N, get_sample_fundamental for m-3m at 4, 2 and 1.5 degrees, 6/mmm at 4
+    degrees and three more groups, and get_sample_local around the identity and two centres. Counts exact; rotations in
+    orix's order within atol 1e-7 (every stride-th row and the last of a large sample, see sampling_inputs.json)."""
+    import json
+
+    from orix.quaternion import Rotation
+    from orix.sampling import get_sample_fundamental, get_sample_local
+    from orix.sampling._cubochoric_sampling import cubochoric_sampling, resolution_to_semi_edge_steps
+
+    inp = json.loads(SAMPLING_INPUTS.read_text(encoding="utf-8"))
+    rows = int(inp["rows_per_case"])
+    b = Bundle("m3/orientation-sampling", 3, "orix", "orix.sampling.get_sample_fundamental / get_sample_local (cubochoric)", ctx.out)
+    b.input(SAMPLING_INPUTS, "fixtures/sampling_inputs.json")
+    res = [float(x) for x in inp["semi_edge_resolutions"]]
+    b.value("semi_edge_resolutions", res)
+    b.value("semi_edge_steps", [int(resolution_to_semi_edge_steps(x)) for x in res])
+    n = int(inp["full_grid_semi_edge_steps"])
+    b.array("full_grid", cubochoric_sampling(semi_edge_steps=n).data, **ORI)
+    fundamental = []
+    for i, c in enumerate(inp["fundamental"]):
+        (g,) = _point_groups([c["point_group"]])
+        R = get_sample_fundamental(float(c["resolution"]), point_group=g)
+        stride, kept = _strided_rows(R.data, rows)
+        fundamental.append({"point_group": g.name, "resolution": float(c["resolution"]), "count": int(R.size), "stride": stride})
+        b.array(f"fundamental_{i:02d}", kept, **ORI)
+    b.value("fundamental", fundamental)
+    local = []
+    for i, c in enumerate(inp["local"]):
+        eu = c["center_euler_degrees"]
+        center = None if eu is None else Rotation.from_euler(np.asarray(eu, dtype=np.float64), degrees=True)
+        R = get_sample_local(float(c["resolution"]), center=center, grid_width=float(c["grid_width"]))
+        stride, kept = _strided_rows(R.data, rows)
+        local.append({"resolution": float(c["resolution"]), "grid_width": float(c["grid_width"]), "count": int(R.size), "stride": stride})
+        b.array(f"local_{i:02d}", kept, **ORI)
+    b.value("local", local)
+    b.write()
+    ctx.done("m3/orientation-sampling")
 
 
 # --------------------------------------------------------------------------------------------- SEM-EDS (m1 read, m7)

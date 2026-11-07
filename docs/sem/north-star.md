@@ -61,6 +61,17 @@ Kikuchipy *Pattern processing*: the static and dynamic background figures above 
 the FFT filters, and the moving-screen projection-centre estimate on `si_in.h5` (bundles to be emitted with the
 phase, same stack).
 
+Plan figure F3, the image quality and average neighbour dot product maps of the corrected scan (kikuchipy *Feature maps*):
+
+| Part | Reference | Bundle | Arrays and tolerance |
+| --- | --- | --- | --- |
+| Image quality map after static then dynamic background (Krieger Lassen, `normalize=True`) | `EBSD.get_image_quality` | `m2/quality-nickel-ebsd-large` | `iq` float32 [55, 75], rtol 1e-5 (range 0.0957 to 0.2237); `raw_iq` on the raw patterns; `block_iq` on the 6 x 6 block of corrected patterns `block_corrected_patterns` (rows 20..25, cols 30..35) |
+| Average neighbour dot product map (3 x 3 circular window, zero mean, normalised) | `EBSD.get_average_neighbour_dot_product_map` | same | `adp` float32 [55, 75], rtol 1e-5 (range 0.1598 to 0.7322); `raw_adp`, `block_adp` as above |
+
+On the 3 x 3 cut, `m2/quality-kikuchipy-h5ebsd` holds every option: the frequency vectors (exact), IQ with and without
+normalisation, ADP under the default, rectangular 3 x 3, circular 5 x 5 and 1 x 3 windows, without zero mean and without
+normalisation.
+
 Figure F5 and the detector geometry under it (`tools/parity/sem/detector_cases.py`, no download needed: the
 calibration reads only the marked points and the 480 x 480 shape):
 
@@ -77,6 +88,16 @@ calibration reads only the marked points and the 480 x 480 shape):
 orix: rotations, quaternions, the m-3m symmetry of Ni, misorientation and IPF colour keys on the file's crystal map.
 Reference `orix.plot.IPFColorKeyTSL` colours of the 4125 orientations and the pairwise misorientation of the first
 16 points, rtol 1e-7 (bundles with the phase).
+
+The orientation core underneath it (P3-01), on inputs that need no download (`fixtures/orientation_inputs.json`):
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| Every conversion of Rowenhorst et al. (2015) (Euler, matrix, axis-angle, Rodrigues and Rodrigues-Frank, homochoric, cubochoric), composition, inverse, angles, vector action (proper and improper), outer products, `unique` on 64 rotations with seven special ones | `orix.quaternion.Rotation`, `_conversions` | `m3/rotation-conversions` | atol 1e-7; indices exact; +∞ two-fold Rodrigues-Frank lengths equal |
+| The 38 point-group objects (32 groups with their axis settings) and the aliases 2, m, 32: elements in orix's order, improper flags, proper subgroup, Laue group and its proper subgroup, system, Euler region, subgroups, inverse-pole-figure sector, fundamental zone | `orix.quaternion.symmetry` | `m3/point-groups` | elements and normals 1e-10; names and flags exact |
+| The orientation fundamental zone of each group and the misorientation zone of each pair (G, G) | `OrientationRegion.from_symmetry` | `m3/orientation-regions` | normals 1e-10 |
+| The first 2000 Ti orientations of orix-data (622) and 100 seeded m-3m orientations (the Ni symmetry): reduced orientations, neighbour angles, disorientations of neighbours, orientation and misorientation distance matrices | `Orientation.reduce`, `angle_with`, `-`, `get_distance_matrix` | `m3/ti-disorientations` | atol 1e-7 |
+| Cubochoric orientation sampling for dictionary indexing: N from the resolution, the grid S000(3), the fundamental-zone sample of m-3m at 4°, 2° and 1.5°, 6/mmm at 4°, 432 at 5°, mmm at 7.5°, 1 at 15°, and local samples around the identity and two centres (`fixtures/sampling_inputs.json`) | `orix.sampling.get_sample_fundamental`, `get_sample_local` | `m3/orientation-sampling` | counts exact; rotations atol 1e-7 in orix's order |
 
 ### Figure 4 (milestone 4): the indexed map
 

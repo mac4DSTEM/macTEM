@@ -30,9 +30,10 @@ extension AppState {
             let inventories = await Self.inventories(urls)
             var images: [URL] = []
             var landing: FileInventory.Landing?
-            var edsBatch: [URL] = [], eelsBatch: [URL] = []
+            var edsBatch: [URL] = [], eelsBatch: [URL] = [], ebsdBatch: [URL] = []
             for (url, inventory) in inventories {
                 if let why = inventory.refusal { present(OpenRefusal(text: why)); continue }
+                if inventory.ebsdPatterns { ebsdBatch.append(url) }
                 if inventory.image { images.append(url) }
                 if inventory.image, inventory.opensInEDS || inventory.eelsSpectrumImage { spectrumCompanionImages.insert(url) }
                 if let scan = inventory.scan { spectrumScans[url] = scan }
@@ -45,18 +46,21 @@ extension AppState {
             // are reached by selecting their row (`spectrumRoomsFollowSelection`).
             if let first = edsBatch.first { edx.open(url: first) }
             if let first = eelsBatch.first { eels.open(url: first) }
+            // The Patterns room holds one dataset, as the spectrum rooms do; the batch's first is it.
+            if let first = ebsdBatch.first { ebsd.open(url: first) }
             switch landing {
+            case .patterns: selectWorkspace(.patterns)
             case .eds: selectWorkspace(.edx)
             case .eels: selectWorkspace(.eels)
             case .image, nil: break   // the image is selected below, once its item exists
             }
             guard !images.isEmpty else {
-                if landing == .eds || landing == .eels { statusText = "" }
+                if landing == .eds || landing == .eels || landing == .patterns { statusText = "" }
                 return
             }
             openItems.open(urls: images)
             // From a spectrum room the image is not shown: land on it. From an image room, stay where the person was.
-            if landing == .image, navigation.workspaceArea == .edx || navigation.workspaceArea == .eels { selectWorkspace(.image) }
+            if landing == .image, [.edx, .eels, .patterns].contains(navigation.workspaceArea) { selectWorkspace(.image) }
             await openItems.settled()
             if let image = imageSession.image {
                 let suffix = openItems.selected.map(Self.sessionSuffix(of:)) ?? ""
@@ -196,15 +200,7 @@ extension AppState {
 
     /// The pixels the canvas uploads, normalised over the image's finite range, and the histogram of the raw pixels.
     nonisolated static func canvas(for image: CalibratedImage) -> CanvasPixels {
-        let floatImage = FloatImage(width: image.width, height: image.height, pixels: image.pixels)
-        let normalized = floatImage.normalized()
-        // `minMax` answers 0…1 for an image with no finite value; that is not a range the file holds.
-        let range: ClosedRange<Float>? = image.pixels.contains(where: \.isFinite)
-            ? floatImage.minMax.0...floatImage.minMax.1 : nil
-        return CanvasPixels(
-            width: image.width, height: image.height, normalized: normalized,
-            contentVersion: MetalImageView.contentVersion(of: normalized, width: image.width, height: image.height),
-            rawRange: range, histogram: IntensityHistogram.compute(image.pixels))
+        CanvasPixels.make(width: image.width, height: image.height, pixels: image.pixels)
     }
 
     /// "Opened Au_rings.dm4 — 2048 × 2048 px, 0.0123 nm/px" (a metre axis in nm, µm or mm: `DisplaySampling`).

@@ -19,6 +19,7 @@ enum RoomProgress {
         switch room {
         case .edx: appState.edx.isOpening ? appState.edx.openProgress : nil
         case .eels: appState.eels.isComputing ? min(max(appState.eels.progress, 0), 1) : nil
+        case .patterns: appState.ebsd.isMapping ? min(max(appState.ebsd.mapProgress, 0), 1) : nil
         default: nil
         }
     }
@@ -71,6 +72,7 @@ enum RoomPrimaryAction {
         switch appState.navigation.workspaceArea {
         case .edx: appState.edx.stop()
         case .eels: appState.eels.stop()
+        case .patterns: appState.ebsd.stop()
         case .diffraction: appState.openItems.selected?.diffraction.stop()
         default: break
         }
@@ -81,6 +83,7 @@ enum RoomPrimaryAction {
         switch appState.navigation.workspaceArea {
         case .edx: appState.edx.isBusy
         case .eels: appState.eels.isBusy
+        case .patterns: appState.ebsd.isBusy
         case .diffraction: appState.openItems.selected?.diffraction.isFitting ?? false
         default: false
         }

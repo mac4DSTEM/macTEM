@@ -27,12 +27,16 @@ final class AppState {
     let edx = EDXSession(host: .macTEM)
     let edxRoom = EDXRoomState()
     let eels = EELSSession()
+    /// The Patterns room's dataset, position and pictures (TEMSession) and its view state (App/).
+    let ebsd = EBSDSession()
+    let patternsRoom = PatternsRoomState()
 
     /// The window's title: the file of the room that is shown (the spectrum image in the EDX and EELS rooms, the image elsewhere).
     var windowTitle: String {
         let name: String? = switch navigation.workspaceArea {
         case .edx: edx.fileName
         case .eels: eels.fileName
+        case .patterns: ebsd.fileName
         default: imageSession.image?.fileName
         }
         if let name, !name.isEmpty { return name }
@@ -100,6 +104,8 @@ final class AppState {
         edx.onFailure = { [weak self] in self?.present($0) }
         eels.onEvent = { [weak self] in self?.statusText = $0 }
         eels.onFailure = { [weak self] in self?.present($0) }
+        ebsd.onEvent = { [weak self] in self?.statusText = $0 }
+        ebsd.onFailure = { [weak self] in self?.present($0) }
         applyLaunchOptions(launch)
     }
 
@@ -118,6 +124,9 @@ final class AppState {
         if launch.demoEELS, let loaded = try? DemoDocuments.eels() {
             eels.bind(loaded)
             if launch.demoRegions { DemoDocuments.drawRegions(on: eels) }
+        }
+        if launch.demoEBSD, let document = try? DemoDocuments.ebsd() {   // the generated set: planted numbers for the journey
+            ebsd.bind(document); navigation.workspaceArea = .patterns
         }
         if !launch.openFiles.isEmpty { open(urls: launch.openFiles) }   // `--open`: the path a drop takes
         reconcileRoom()
