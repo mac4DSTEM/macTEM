@@ -7,8 +7,9 @@
 //          Thermo Fisher / FEI (xT, Helios): tag 34682 (or 34680, SFEG), an INI text of `[Section]` and `Key=Value` lines.
 //          Zeiss (SmartSEM): tag 34118 `CZ_SEM`, an upper-case key line followed by a `Name = value unit` line, and unnamed
 //            numeric lines before the first key.
-//          Tescan (MIRA, VEGA): tag 50431, an INI text with `[MAIN]` and `[SEM]`, as NexusLIMS's public `tescan_tif`
-//            extractor reads it (RosettaSciIO has no Tescan branch; every Tescan value carries `tescanNote`).
+//          Tescan (MIRA, VEGA, AMBER): tag 50431, a binary thumbnail then an INI text, `[MAIN]` and `[SEM]` headers often left
+//            out, read as NexusLIMS's public `tescan_tif` extractor reads it (RosettaSciIO has no Tescan branch; the instrument row
+//            carries `tescanNote`). Checked on NexusLIMS's own test file (D-SEM-89).
 //        SEM-only. A TEM TIFF (Velox, Digital Micrograph, ImageJ) reads nil here; `AcquisitionMetadata.read(path:)` (FormatoKit's
 //        rules) stays the Acquisition section's source, and this type adds what SEM files record beyond it.
 //
@@ -319,21 +320,22 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
 
     // MARK: Tescan
 
-    /// NexusLIMS `tescan_tif`: the INI from the first `[MAIN]` marker, NULs removed, `[MAIN]` and `[SEM]` sections of `Key=Value`
-    /// lines (configparser, keys case-preserved). Pixel sizes, WD, spot and stage in metres, HV in volts, dwell in seconds,
-    /// pressure in pascals; `ImageStripSize` the rows of the info strip under the scan.
+    /// NexusLIMS `tescan_tif` (`_extract_embedded_hdr`): the INI text in tag 50431, which a Tescan file stores after a binary
+    /// thumbnail and without section headers. Pixel sizes, WD, spot and stage in metres, HV in volts, dwell in seconds,
+    /// pressure in pascals, predicted beam current in amperes (NexusLIMS's factors 1e9, 1e3, 1e9, 1e-3, 1e6, 1e3, 1e12);
+    /// `ImageStripSize` the rows of the info strip under the scan. A tag NexusLIMS cannot parse gives a record with no fields.
     package static func tescan(_ tag: TIFFTag, width: Int, height: Int) -> SEMImageMetadata {
-        var header = pythonText(tag.raw)
-        if let main = header.range(of: "[MAIN]") { header = String(header[main.lowerBound...]) }
         var sections: [String: [String: String]] = [:]
-        for (name, body) in feiSections(header) { sections[name, default: [:]].merge(body) { _, new in new } }
+        var order: [(String, [(String, String)])] = []
+        if let parsed = tescanSections([UInt8](tag.raw)) {
+            order = parsed
+            for (name, body) in parsed { sections[name] = Dictionary(body, uniquingKeysWith: { _, new in new }) }
+        }
         func value(_ section: String, _ key: String) -> String? { sections[section]?[key] }
         func number(_ section: String, _ key: String) -> Double? { value(section, key).flatMap(pythonNumber) }
 
         var m = SEMImageMetadata(vendor: .tescan, imageWidth: width, imageHeight: height, stageUnit: "m")
-        m.rawFields = sections.sorted { $0.key < $1.key }.flatMap { name, body in
-            body.sorted { $0.key < $1.key }.map { RawField(key: "\(name).\($0.key)", value: $0.value) }
-        }
+        m.rawFields = order.flatMap { name, body in body.map { RawField(key: "\(name).\($0.0)", value: $0.1) } }
         if let x = number("MAIN", "PixelSizeX"), let y = number("MAIN", "PixelSizeY") { m.pixelSizeX = x; m.pixelSizeY = y }
         m.beamEnergyKV = finite((number("SEM", "HV") ?? number("SEM", "AcceleratorVoltage")).map { $0 * 1e-3 })
         m.workingDistanceMM = finite(number("SEM", "WD").map { $0 * 1e3 })
@@ -343,7 +345,7 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
         m.spotSize = finite(number("SEM", "SpotSize"))
         if m.spotSize != nil { m.spotSizeUnit = "m" }
         m.chamberPressurePa = finite(number("SEM", "ChamberPressure"))
-        m.beamCurrentNA = finite(number("SEM", "PredictedBeamCurrent").map { $0 * 1e-3 })   // picoamperes there
+        m.beamCurrentNA = finite(number("SEM", "PredictedBeamCurrent").map { $0 * 1e9 })    // amperes there (NexusLIMS: 1e12 to pA)
         m.stageX = finite(number("SEM", "StageX"))
         m.stageY = finite(number("SEM", "StageY"))
         m.stageZ = finite(number("SEM", "StageZ"))
@@ -357,6 +359,110 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
             m.databarRows = Int(strip)
         }
         return m
+    }
+
+    /// NexusLIMS's five steps on the tag's bytes: from the first of `[MAIN]`, `AccFrames=`, `AccType=`, `Company=`, `Date=` (the
+    /// first key found, wherever it sits), NULs dropped and UTF-8 decoded ignoring errors, then only printable ASCII and tab, line
+    /// feed, carriage return kept (the two together keep exactly the bytes 0x20...0x7E, 9, 10, 13: an invalid UTF-8 byte never
+    /// takes an ASCII byte with it); `[MAIN]` added before the text and `[SEM]` before the line of the earliest SEM key when the
+    /// text names neither; then Python's `configparser` (`tescanINI`). nil where configparser raises, as NexusLIMS then has none.
+    package static func tescanSections(_ raw: [UInt8]) -> [(String, [(String, String)])]? {
+        var start = 0
+        for key in ["[MAIN]", "AccFrames=", "AccType=", "Company=", "Date="] {
+            if let at = find(Array(key.utf8), in: raw) { start = at; break }
+        }
+        let kept = raw[start...].filter { (0x20...0x7E).contains($0) || $0 == 9 || $0 == 10 || $0 == 13 }
+        var text = String(decoding: kept, as: UTF8.self)
+        if !text.contains("[MAIN]"), !text.contains("[SEM]") {
+            let semKeys = ["AcceleratorVoltage=", "ApertureDiameter=", "ApertureOptimization=", "ChamberPressure=", "CrossFree=", "HV="]
+            let at = semKeys.compactMap { text.range(of: $0)?.lowerBound }.min()
+            if let at {
+                // Python's `rfind("\n")` looks for the code point: in Swift "\r\n" is one Character, so search the UTF-8 bytes.
+                let lineStart = text.utf8[..<at].lastIndex(of: UInt8(ascii: "\n")).map { text.utf8.index(after: $0) } ?? text.startIndex
+                text = "[MAIN]\n" + text[..<lineStart] + "[SEM]\n" + text[lineStart...]
+            } else {
+                text = "[MAIN]\n" + text
+            }
+        }
+        return tescanINI(text)
+    }
+
+    /// Python's `configparser.ConfigParser` (defaults: `=` or `:`, full-line `#` and `;` comments, indented continuation lines,
+    /// empty lines inside values, strict, BasicInterpolation) with keys as written (`optionxform` the identity), reading sections in
+    /// file order. nil where it raises: text before the first section, a repeated section or key, a line without a delimiter, a
+    /// key that is empty, or a `%` that BasicInterpolation refuses (`%(name)s` is refused too: no Tescan header uses it). A
+    /// `[DEFAULT]` section, which configparser folds into every section and no Tescan header has, is refused as well.
+    package static func tescanINI(_ text: String) -> [(String, [(String, String)])]? {
+        let lines = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        var sections: [(String, [(String, [String])])] = []
+        var option: String?
+        var indent = 0
+        func strip(_ s: String) -> String { s.trimmingCharacters(in: .whitespaces) }
+        for line in lines {
+            let stripped = strip(line)
+            if stripped.hasPrefix("#") || stripped.hasPrefix(";") || stripped.isEmpty {
+                // A comment or empty line: inside a value it is an empty line of that value (empty_lines_in_values).
+                if option != nil, stripped.isEmpty, var last = sections.popLast() {
+                    last.1[last.1.count - 1].1.append("")
+                    sections.append(last)
+                }
+                continue
+            }
+            let lineIndent = line.prefix { $0 == " " || $0 == "\t" }.count
+            if option != nil, lineIndent > indent, var last = sections.popLast() {
+                last.1[last.1.count - 1].1.append(stripped)
+                sections.append(last)
+                continue
+            }
+            indent = lineIndent
+            if stripped.hasPrefix("["), let close = stripped.lastIndex(of: "]"), close > stripped.index(after: stripped.startIndex) {
+                let name = String(stripped[stripped.index(after: stripped.startIndex)..<close])
+                guard !sections.contains(where: { $0.0 == name }), name != "DEFAULT" else { return nil }
+                sections.append((name, []))
+                option = nil
+                continue
+            }
+            guard var last = sections.popLast() else { return nil }
+            guard let delimiter = stripped.firstIndex(where: { $0 == "=" || $0 == ":" }) else { return nil }
+            let key = String(stripped[..<delimiter]).trimmingCharacters(in: .whitespaces)
+            let value = strip(String(stripped[stripped.index(after: delimiter)...]))
+            guard !key.isEmpty, !last.1.contains(where: { $0.0 == key }) else { return nil }
+            last.1.append((key, [value]))
+            sections.append(last)
+            option = key
+        }
+        var out: [(String, [(String, String)])] = []
+        for (name, body) in sections {
+            var items: [(String, String)] = []
+            for (key, parts) in body {
+                var parts = parts
+                while parts.count > 1, parts.last == "" { parts.removeLast() }
+                guard let value = interpolated(parts.joined(separator: "\n")) else { return nil }
+                items.append((key, value))
+            }
+            out.append((name, items))
+        }
+        return out
+    }
+
+    /// BasicInterpolation as `config.items()` applies it: `%%` is `%`; any other `%` raises (a `%(name)s` reference is refused).
+    private static func interpolated(_ value: String) -> String? {
+        guard value.contains("%") else { return value }
+        var out = ""
+        var chars = value.makeIterator()
+        while let c = chars.next() {
+            guard c == "%" else { out.append(c); continue }
+            guard chars.next() == "%" else { return nil }
+            out.append("%")
+        }
+        return out
+    }
+
+    private static func find(_ needle: [UInt8], in hay: [UInt8]) -> Int? {
+        guard !needle.isEmpty, hay.count >= needle.count else { return nil }
+        for i in 0...(hay.count - needle.count) where hay[i] == needle[0] && Array(hay[i..<(i + needle.count)]) == needle { return i }
+        return nil
     }
 
     // MARK: Values

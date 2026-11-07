@@ -1,0 +1,537 @@
+{
+  "arrays": {
+    "p0_0_lines_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "p0_0_lines_gnomonic.bin",
+      "note": "x1, y1, x2, y2 on the r_max circle",
+      "rtol": 1e-07,
+      "sha256": "b2f6501c53db7e184a76a25ec67123aafedb2c0cb0db92f947f379685b8ee2d9",
+      "shape": [
+        22,
+        4
+      ]
+    },
+    "p0_0_lines_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "p0_0_lines_hkl.bin",
+      "note": "the visible reflectors whose line meets the r_max circle, in reflector order",
+      "rtol": 0.0,
+      "sha256": "068a0ee6b1b921caa2bfdcfd20716d28ca6132de0723272c2c2badc918d6fdb1",
+      "shape": [
+        22,
+        3
+      ]
+    },
+    "p0_0_lines_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "p0_0_lines_px.bin",
+      "note": "x1, y1, x2, y2 in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "85e9c8567ccd0a85d72f7b7a0fc5e6f869545c65eeca56b251fedaf0aa3891ce",
+      "shape": [
+        22,
+        4
+      ]
+    },
+    "p0_0_zone_axes_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "p0_0_zone_axes_gnomonic.bin",
+      "rtol": 1e-07,
+      "sha256": "8892d4b0e65f28ec201fc59aa74ec311b30d3379fa718c8a937dc0727027f2f4",
+      "shape": [
+        25,
+        2
+      ]
+    },
+    "p0_0_zone_axes_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "p0_0_zone_axes_px.bin",
+      "note": "x, y in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "26003ec6a30e5bb5cb9fbf13bcff8748d35a0f98fddf1a05c430888046b54da7",
+      "shape": [
+        25,
+        2
+      ]
+    },
+    "p0_0_zone_axes_uvw": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "p0_0_zone_axes_uvw.bin",
+      "note": "sorted by u, then v, then w",
+      "rtol": 0.0,
+      "sha256": "2a59568b1313dd4b2f9cb33e46e9ff899b7f12f79b0a4b0d7b6e6dfa613ceb66",
+      "shape": [
+        25,
+        3
+      ]
+    },
+    "p20_30_lines_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "p20_30_lines_gnomonic.bin",
+      "note": "x1, y1, x2, y2 on the r_max circle",
+      "rtol": 1e-07,
+      "sha256": "ebedcd8c3dcd4cbae8d900cbc11205b1c9d0eee45cbc0b591d188b50550d1c20",
+      "shape": [
+        22,
+        4
+      ]
+    },
+    "p20_30_lines_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "p20_30_lines_hkl.bin",
+      "note": "the visible reflectors whose line meets the r_max circle, in reflector order",
+      "rtol": 0.0,
+      "sha256": "ac93f1bbe1c53e9e05330417256288aaed1f75c9e50db486056c81165234593b",
+      "shape": [
+        22,
+        3
+      ]
+    },
+    "p20_30_lines_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "p20_30_lines_px.bin",
+      "note": "x1, y1, x2, y2 in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "ca90a7e67436670d030ee7d60e3acffd7851253cd2a00f745a27accdd6650023",
+      "shape": [
+        22,
+        4
+      ]
+    },
+    "p20_30_zone_axes_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "p20_30_zone_axes_gnomonic.bin",
+      "rtol": 1e-07,
+      "sha256": "7f7f6543c6a4a95e8dff27930a1caff5a2ec9e7f52cefcd1e9d43c72aca35f80",
+      "shape": [
+        26,
+        2
+      ]
+    },
+    "p20_30_zone_axes_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "p20_30_zone_axes_px.bin",
+      "note": "x, y in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "4842487674c68cc221477f70a7156f978e017ac3d9b12cb2a3c2c3b423b3f815",
+      "shape": [
+        26,
+        2
+      ]
+    },
+    "p20_30_zone_axes_uvw": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "p20_30_zone_axes_uvw.bin",
+      "note": "sorted by u, then v, then w",
+      "rtol": 0.0,
+      "sha256": "64f42d4b3ac8ae35be6f3a354c53c7d6e03c847a2c00bded7f91db3a9376aca4",
+      "shape": [
+        26,
+        3
+      ]
+    },
+    "p27_37_lines_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "p27_37_lines_gnomonic.bin",
+      "note": "x1, y1, x2, y2 on the r_max circle",
+      "rtol": 1e-07,
+      "sha256": "c99e374692b27185e1ded48f815a8dede4d8e8ab01538b46b43dd80b71fe1b64",
+      "shape": [
+        22,
+        4
+      ]
+    },
+    "p27_37_lines_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "p27_37_lines_hkl.bin",
+      "note": "the visible reflectors whose line meets the r_max circle, in reflector order",
+      "rtol": 0.0,
+      "sha256": "ac93f1bbe1c53e9e05330417256288aaed1f75c9e50db486056c81165234593b",
+      "shape": [
+        22,
+        3
+      ]
+    },
+    "p27_37_lines_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "p27_37_lines_px.bin",
+      "note": "x1, y1, x2, y2 in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "53812d34eff51d692785b7646534b320364837974f98670c0b60fbbed32c7d8e",
+      "shape": [
+        22,
+        4
+      ]
+    },
+    "p27_37_zone_axes_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "p27_37_zone_axes_gnomonic.bin",
+      "rtol": 1e-07,
+      "sha256": "19cffca0b49d5ff7df9a9c37841631fe04a4bc75d53761d4a871cac70f1058f5",
+      "shape": [
+        26,
+        2
+      ]
+    },
+    "p27_37_zone_axes_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "p27_37_zone_axes_px.bin",
+      "note": "x, y in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "fb8cfbe5bcea0394cd67a66322e5388e4500da8d0fb37fdec79fc35441747afe",
+      "shape": [
+        26,
+        2
+      ]
+    },
+    "p27_37_zone_axes_uvw": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "p27_37_zone_axes_uvw.bin",
+      "note": "sorted by u, then v, then w",
+      "rtol": 0.0,
+      "sha256": "64f42d4b3ac8ae35be6f3a354c53c7d6e03c847a2c00bded7f91db3a9376aca4",
+      "shape": [
+        26,
+        3
+      ]
+    },
+    "p54_74_lines_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "p54_74_lines_gnomonic.bin",
+      "note": "x1, y1, x2, y2 on the r_max circle",
+      "rtol": 1e-07,
+      "sha256": "08d0393b37ea27842238c765010217b10daa809fb7d8d56faf6fb911cd2bb253",
+      "shape": [
+        23,
+        4
+      ]
+    },
+    "p54_74_lines_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "p54_74_lines_hkl.bin",
+      "note": "the visible reflectors whose line meets the r_max circle, in reflector order",
+      "rtol": 0.0,
+      "sha256": "22fcc96e88b25e1942647c0918968c605cbbd2604dc41ad2b92d2c3a37bdaeea",
+      "shape": [
+        23,
+        3
+      ]
+    },
+    "p54_74_lines_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "p54_74_lines_px.bin",
+      "note": "x1, y1, x2, y2 in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "70f45567cf390b3672e8e5e77d450072d22f880201b9b6a495f3bf1447b3e94d",
+      "shape": [
+        23,
+        4
+      ]
+    },
+    "p54_74_zone_axes_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "p54_74_zone_axes_gnomonic.bin",
+      "rtol": 1e-07,
+      "sha256": "462894dccee9416297363a4102965e5751e0b06e257ef4d6671f49d5e2b5a422",
+      "shape": [
+        22,
+        2
+      ]
+    },
+    "p54_74_zone_axes_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "p54_74_zone_axes_px.bin",
+      "note": "x, y in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "ec26a2a855cabd9270613fabc6fcb94636f8dcc6a15389b10093346773ce8fd9",
+      "shape": [
+        22,
+        2
+      ]
+    },
+    "p54_74_zone_axes_uvw": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "p54_74_zone_axes_uvw.bin",
+      "note": "sorted by u, then v, then w",
+      "rtol": 0.0,
+      "sha256": "6665bda9b5c3426f39ba2e3147ac77a3eaf73302ebc6ac14736a677bb0911293",
+      "shape": [
+        22,
+        3
+      ]
+    },
+    "pcs": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pcs.bin",
+      "note": "point, (PCx, PCy, PCz) Bruker",
+      "rtol": 0.0,
+      "sha256": "d3dc72bd96aeff598b19c120a1e0633cbae1bdb762877c17788450f449dd0cb1",
+      "shape": [
+        4,
+        3
+      ]
+    },
+    "reflectors_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "reflectors_hkl.bin",
+      "note": "the symmetrised families in diffsims' order (the simulator's input)",
+      "rtol": 0.0,
+      "sha256": "5988c6fb69722afd558877d57d4b5fce5946b639a47767be7c0f55acb7d5ac3c",
+      "shape": [
+        50,
+        3
+      ]
+    },
+    "rotations": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "rotations.bin",
+      "note": "point, (a, b, c, d) of the crystal map",
+      "rtol": 0.0,
+      "sha256": "3fd490daa17196e568cd0fb235c2af5e23b6ec332300c528c571a5c6d8a8111d",
+      "shape": [
+        4,
+        4
+      ]
+    }
+  },
+  "case": "m6/geometrical-simulation-nickel",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    },
+    {
+      "path": "fixtures/simulation_cases.json",
+      "sha256": "53ac4cc181b31ba459c94fc5ee11e78f387778d1e297fc3b86110759dc02b0dd"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "kikuchipy.simulations.KikuchiPatternSimulator.on_detector / GeometricalKikuchiPatternSimulation.lines_coordinates / zone_axes_coordinates",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {
+    "max_r_gnomonic": {
+      "atol": 0.0,
+      "rtol": 1e-07,
+      "value": 2.0580661127983166
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "detector": {
+      "azimuthal": 0.0,
+      "binning": 8,
+      "px_size": 1.0,
+      "sample_tilt": 70.0,
+      "shape": [
+        60,
+        60
+      ],
+      "tilt": 0.0,
+      "twist": 0.0
+    },
+    "families": [
+      [
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        2,
+        2,
+        0
+      ],
+      [
+        3,
+        1,
+        1
+      ]
+    ],
+    "figure": "F14",
+    "lattice": [
+      0.35236,
+      0.35236,
+      0.35236,
+      90.0,
+      90.0,
+      90.0
+    ],
+    "p0_0_zone_axes_labels": [
+      "-2-5-1",
+      "-2-51",
+      "-2-3-3",
+      "-1-5-2",
+      "-1-52",
+      "-1-4-1",
+      "-1-41",
+      "-1-30",
+      "-1-2-1",
+      "-1-21",
+      "0-3-1",
+      "0-31",
+      "0-1-1",
+      "0-10",
+      "1-5-2",
+      "1-52",
+      "1-4-1",
+      "1-41",
+      "1-30",
+      "1-2-1",
+      "1-21",
+      "1-1-1",
+      "2-5-1",
+      "2-51",
+      "2-3-3"
+    ],
+    "p20_30_zone_axes_labels": [
+      "-5-1-2",
+      "-51-2",
+      "-52-1",
+      "-521",
+      "-41-1",
+      "-411",
+      "-30-1",
+      "-310",
+      "-32-3",
+      "-33-2",
+      "-21-5",
+      "-21-1",
+      "-211",
+      "-23-3",
+      "-25-1",
+      "-10-1",
+      "-100",
+      "-11-4",
+      "-11-2",
+      "-11-1",
+      "-110",
+      "-12-5",
+      "-12-1",
+      "-14-1",
+      "-15-2",
+      "03-1"
+    ],
+    "p27_37_zone_axes_labels": [
+      "-5-1-2",
+      "-51-2",
+      "-52-1",
+      "-521",
+      "-41-1",
+      "-411",
+      "-30-1",
+      "-310",
+      "-32-3",
+      "-33-2",
+      "-21-5",
+      "-21-1",
+      "-211",
+      "-23-3",
+      "-25-1",
+      "-10-1",
+      "-100",
+      "-11-4",
+      "-11-2",
+      "-11-1",
+      "-110",
+      "-12-5",
+      "-12-1",
+      "-14-1",
+      "-15-2",
+      "03-1"
+    ],
+    "p54_74_zone_axes_labels": [
+      "1-2-1",
+      "1-1-2",
+      "1-1-1",
+      "1-10",
+      "10-1",
+      "100",
+      "2-5-1",
+      "2-3-3",
+      "2-1-5",
+      "2-1-1",
+      "3-3-2",
+      "3-2-3",
+      "3-10",
+      "30-1",
+      "301",
+      "4-1-1",
+      "4-11",
+      "5-2-1",
+      "5-21",
+      "5-1-2",
+      "5-12",
+      "51-2"
+    ],
+    "point_group": "m-3m",
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        20,
+        30
+      ],
+      [
+        54,
+        74
+      ],
+      [
+        27,
+        37
+      ]
+    ],
+    "scan_shape": [
+      55,
+      75
+    ]
+  }
+}

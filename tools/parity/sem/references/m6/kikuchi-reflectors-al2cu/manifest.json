@@ -1,0 +1,297 @@
+{
+  "arrays": {
+    "dspacing": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "dspacing.bin",
+      "rtol": 1e-07,
+      "sha256": "bdaa95d19801b9edf74faf5b511067f8c555f7c3a49014b96c891d1a34c3e067",
+      "shape": [
+        32
+      ]
+    },
+    "min_dspacing_allowed": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "min_dspacing_allowed.bin",
+      "rtol": 0.0,
+      "sha256": "de45284aa43d7fcde516aeefe8f89eed93d0b2bb3af03826eb7b9772c050fb48",
+      "shape": [
+        274
+      ]
+    },
+    "min_dspacing_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "min_dspacing_hkl.bin",
+      "note": "diffsims' order (the index product reversed, (000) removed, d >= min)",
+      "rtol": 0.0,
+      "sha256": "02b4dd691aac7fe7f5cd828c48813d36ab3696a2bd5a6491edabc05c27be96a5",
+      "shape": [
+        274,
+        3
+      ]
+    },
+    "multiplicity": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "multiplicity.bin",
+      "rtol": 0.0,
+      "sha256": "86707da4b95d65b491a818f2d6052a281d0be9cb4588efe8582485f77f076b90",
+      "shape": [
+        4
+      ]
+    },
+    "structure_factor_abs": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "structure_factor_abs.bin",
+      "rtol": 1e-07,
+      "sha256": "be1a21d5c5155d23ab5e9fc6d43d1b992f6210f514eb71961f3f64e51310d2bd",
+      "shape": [
+        32
+      ]
+    },
+    "symmetrised_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "symmetrised_hkl.bin",
+      "note": "diffsims' order: family by family, orix's operation order",
+      "rtol": 0.0,
+      "sha256": "82444d1ad21c4fcbda89221592141216222d7e92961b6abeb955e997188bb94a",
+      "shape": [
+        32,
+        3
+      ]
+    },
+    "symmetrised_hkl_float": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "symmetrised_hkl_float.bin",
+      "rtol": 1e-07,
+      "sha256": "5fe31d222a9ee1d69b1678303439a41f7944f7e9d2e8c86921f1832628f119e9",
+      "shape": [
+        32,
+        3
+      ]
+    },
+    "theta": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "theta.bin",
+      "note": "voltage, reflector (symmetrised_hkl), radians",
+      "rtol": 1e-07,
+      "sha256": "cefa1d8a26870ac14bb342201dda6445d00631e58bf3bce97d350ea2559d405a",
+      "shape": [
+        3,
+        32
+      ]
+    },
+    "wavelength_nm": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "wavelength_nm.bin",
+      "note": "refraction-corrected, per voltage",
+      "rtol": 1e-07,
+      "sha256": "34734b814ed3a2249931d742f912c73c15500c8f9e639766833bc7e1f24c1224",
+      "shape": [
+        3
+      ]
+    }
+  },
+  "case": "m6/kikuchi-reflectors-al2cu",
+  "inputs": [
+    {
+      "path": "fixtures/simulation_cases.json",
+      "sha256": "53ac4cc181b31ba459c94fc5ee11e78f387778d1e297fc3b86110759dc02b0dd"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "diffsims.crystallography.ReciprocalLatticeVector symmetrise / from_min_dspacing / allowed / dspacing / calculate_structure_factor / calculate_theta",
+    "package": "diffsims",
+    "version": "0.7.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "cell_atoms": [
+      [
+        "Al",
+        [
+          0.1581,
+          0.6581,
+          0.0
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Al",
+        [
+          0.8419,
+          0.3419,
+          0.0
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Al",
+        [
+          0.3419,
+          0.1581,
+          0.0
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Al",
+        [
+          0.6581,
+          0.8419,
+          0.0
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Al",
+        [
+          0.8419,
+          0.6581,
+          0.49999999999999994
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Al",
+        [
+          0.1581,
+          0.3419,
+          0.49999999999999994
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Al",
+        [
+          0.6581,
+          0.1581,
+          0.49999999999999994
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Al",
+        [
+          0.3419,
+          0.8419,
+          0.49999999999999994
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Cu",
+        [
+          0.0,
+          0.0,
+          0.24999999999999994
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Cu",
+        [
+          0.0,
+          0.0,
+          0.7499999999999999
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Cu",
+        [
+          0.5,
+          0.5,
+          0.7499999999999999
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Cu",
+        [
+          0.5,
+          0.5,
+          0.24999999999999997
+        ],
+        1.0,
+        0.0
+      ]
+    ],
+    "centering": "I",
+    "diffsims": "0.7.0",
+    "families": [
+      [
+        1,
+        1,
+        0
+      ],
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        2,
+        1,
+        1
+      ],
+      [
+        3,
+        1,
+        0
+      ]
+    ],
+    "first_orbit_element": "Al",
+    "first_orbit_size": 8,
+    "lattice": [
+      6.067,
+      6.067,
+      4.877,
+      90.0,
+      90.0,
+      90.0
+    ],
+    "min_dspacing": 1.4,
+    "phase": "al2cu",
+    "point_group": "4/mmm",
+    "space_group": 140,
+    "voltages": [
+      10000.0,
+      20000.0,
+      30000.0
+    ]
+  }
+}

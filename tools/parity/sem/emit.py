@@ -24,12 +24,22 @@ Run with `python -I -B` from outside this folder: a fixture is data, never code.
 from __future__ import annotations
 
 import argparse
+import os
+import platform
 import re
 import sys
 import warnings
 from pathlib import Path
 
-import numpy as np
+# numpy dispatches some ufuncs (arctan2 among them) to AVX-512 kernels on CPUs that have them, and those differ from the
+# AVX2 kernels in the last bit. GitHub's runners come with and without AVX-512, so a vector on a bin edge (the Ti map's
+# basal poles sit exactly on 1 degree azimuth edges) changed bins from one runner to the next and the drift gate failed
+# on m5/texture-ti-full. Every x86-64 emit runs the AVX2 (x86-64-v3) kernels, which every runner has; set before numpy
+# loads, an explicit setting wins.
+if platform.machine().lower() in ("x86_64", "amd64") and "NPY_DISABLE_CPU_FEATURES" not in os.environ:
+    os.environ.setdefault("NPY_ENABLE_CPU_FEATURES", "X86_V3")
+
+import numpy as np  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
@@ -51,6 +61,10 @@ from writer_cases import (  # noqa: E402,F401  (milestone 8 .ang and .ctf writer
     case_m8_write_ang_sdss, case_m8_write_ang_sdss_ferrite, case_m8_write_ang_sdss_window, case_m8_write_ang_ti,
     case_m8_write_ctf_sdss, case_m8_write_ctf_sdss_ferrite, case_m8_write_ctf_sdss_window, case_m8_write_ctf_ti)
 from grain_cases import case_m5_grains_sdss, case_m5_grains_ti, case_m5_grains_ti_full  # noqa: E402,F401  (m5, F11 and F12)
+from simulation_cases import (  # noqa: E402,F401  (milestone 6 Kikuchi simulation and figure F14)
+    case_m6_geometrical_simulation_nickel, case_m6_geometrical_simulation_tilted, case_m6_kikuchi_lattice,
+    case_m6_kikuchi_reflectors_al2cu, case_m6_kikuchi_reflectors_ni, case_m6_kikuchi_reflectors_ti,
+    case_m6_kikuchi_scattering_tables, case_m6_kinematic_master_pattern_ni)
 from texture_cases import case_m5_texture_cubic, case_m5_texture_ti, case_m5_texture_ti_full  # noqa: E402,F401  (m5, F13)
 
 warnings.filterwarnings("ignore")
