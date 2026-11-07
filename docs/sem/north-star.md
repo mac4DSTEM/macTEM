@@ -61,6 +61,18 @@ Kikuchipy *Pattern processing*: the static and dynamic background figures above 
 the FFT filters, and the moving-screen projection-centre estimate on `si_in.h5` (bundles to be emitted with the
 phase, same stack).
 
+Intensity and size stages of the Patterns room's Processing sections (P2-01), each on kikuchipy's own corrected
+patterns (static then dynamic subtract) so a stage is checked alone:
+
+| Part | Reference | Bundle | Arrays and tolerance |
+| --- | --- | --- | --- |
+| Rescale to the dtype range, without and with percentiles (2, 98) | `EBSD.rescale_intensity` | `m2/intensity-nickel-ebsd-large` | `rescaled`, `rescaled_percentiles` uint8 [3, 3, 60, 60], atol 1; input `corrected` exact |
+| Normalise to zero mean (`num_std` 1; 2 with `divide_by_square_root`) on float32 | `EBSD.normalize_intensity` | same | `normalized`, `normalized_std2_sqrt` float32, rtol 1e-5 |
+| Downsample by 2 and 3 (bin sums rescaled to uint8) | `EBSD.downsample` | same | `downsampled_2` [3, 3, 30, 30], `downsampled_3` [3, 3, 20, 20] uint8, atol 1 |
+| The room's default run: static, dynamic, rescale 2 to 98 %, bin 2 | the chain above | same | `chain` uint8 [3, 3, 30, 30], atol 1 |
+
+The fixture's nine patterns carry the same arrays in `m2/intensity-kikuchipy-h5ebsd`.
+
 Plan figure F3, the image quality and average neighbour dot product maps of the corrected scan (kikuchipy *Feature maps*):
 
 | Part | Reference | Bundle | Arrays and tolerance |
@@ -83,6 +95,14 @@ calibration reads only the marked points and the 480 x 480 shape):
 | Sample-to-detector rotation, kikuchipy's test angles and a grid | `sample_to_detector` | `m2/detector-sample-to-detector` | rtol 1e-7, atol 1e-12 |
 | TKD set-ups (sample tilt −20° to 10°, detector tilt −20° to 5°) | `EBSDDetector` with TKD angles | `m2/detector-tkd-geometry` | rtol 1e-7, atol 1e-12 |
 
+NLPAR denoising (PyEBSDIndex 0.3.10.1, `opt_lambda` then `calcnlpar`, search radius 3, automask, saturation protection):
+
+| Part | Reference | Bundle | Arrays and tolerance |
+| --- | --- | --- | --- |
+| Noise estimate σ per pattern and the normalised distances to the 3 x 3 neighbours | `NLPAR.calcsigma_cpu(nn=1)` | `m2/nlpar-nickel-ebsd-large`, `m2/nlpar-kikuchipy-h5ebsd` | `sigma` float32 [55, 75] and `distances` [55, 75, 9], rtol 1e-5 (distances atol 1e-5); mask uint8 [60, 60] and both tilings exact |
+| λ for the target weights 0.5, 0.34, 0.25 and their median | `NLPAR.opt_lambda` | same | `lambdas` (0.70977, 1.09844, 2.25186 on the nickel set), `lambda` 1.0984375, rtol 1e-4 |
+| The denoised set | `NLPAR.calcnlpar` | `m2/nlpar-nickel-ebsd-large` | `denoised_corner` [3, 3, 60, 60] and `denoised_seam` (rows 26..28, columns 33..39, across the tile seam) float32, rtol 1e-5 atol 1e-4; `denoised_mean` [55, 75] rtol 1e-5; the whole set's sha256 in values |
+
 ### Figure 3 (milestone 3): orientation maths
 
 orix: rotations, quaternions, the m-3m symmetry of Ni, misorientation and IPF colour keys on the file's crystal map.
@@ -98,6 +118,16 @@ The orientation core underneath it (P3-01), on inputs that need no download (`fi
 | The orientation fundamental zone of each group and the misorientation zone of each pair (G, G) | `OrientationRegion.from_symmetry` | `m3/orientation-regions` | normals 1e-10 |
 | The first 2000 Ti orientations of orix-data (622) and 100 seeded m-3m orientations (the Ni symmetry): reduced orientations, neighbour angles, disorientations of neighbours, orientation and misorientation distance matrices | `Orientation.reduce`, `angle_with`, `-`, `get_distance_matrix` | `m3/ti-disorientations` | atol 1e-7 |
 | Cubochoric orientation sampling for dictionary indexing: N from the resolution, the grid S000(3), the fundamental-zone sample of m-3m at 4°, 2° and 1.5°, 6/mmm at 4°, 432 at 5°, mmm at 7.5°, 1 at 15°, and local samples around the identity and two centres (`fixtures/sampling_inputs.json`) | `orix.sampling.get_sample_fundamental`, `get_sample_local` | `m3/orientation-sampling` | counts exact; rotations atol 1e-7 in orix's order |
+
+The crystal map model (P3-03) and figure F7, the misorientation angle distribution of the Ti orientations: on the map's grid,
+every horizontal and every vertical pair of neighbours, `O[:, 1:] - O[:, :-1]` and `O[1:, :] - O[:-1, :]` (622, reduced),
+their disorientation angles binned at 1° from 0° to 94° with `numpy.histogram` (622's largest disorientation is 93.84°).
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| F7 on a committed map: the first three rows (3 × 507) of the Ti orientations, the 1518 horizontal and 1014 vertical neighbour misorientations, their angles and the histogram | `Orientation.__sub__`, `Misorientation.angle`, `numpy.histogram` | `m3/ti-neighbour-misorientations` | misorientations and angles atol 1e-7; counts and edges exact |
+| **F7**: the whole 381 × 507 Ti map (`Ti_orientations.ctf`, fetched): 385 446 neighbour angles, the histogram (25 104 zero angles, 11 050 above 7°), every 997th angle | `orix.data.ti_orientations`, `Orientation.__sub__`, `numpy.histogram` | `m3/ti-neighbour-misorientations-full` | counts and edges exact (closest angle to a bin edge 6.5e-7°); sampled angles atol 1e-7 |
+| orix's `CrystalMap` on the two-phase `sdss_ferrite_austenite.ang` (100 × 117): phase list, slices by phase, by "indexed" and by rows and columns, `row`, `col`, `id`, `get_map_data` with NaN outside a slice, one phase's orientations | `orix.crystal_map.CrystalMap` | `m3/crystal-map-sdss` | exact; orientations atol 1e-7 |
 
 ### Figure 4 (milestone 4): the indexed map
 
@@ -123,6 +153,16 @@ rotations); experimental patterns after kikuchipy's static then dynamic backgrou
 
 orix on the indexed map: KAM, GOS, grain segmentation at 5°, grain size statistics, ODF. Reference arrays from orix
 on the same map, rtol 1e-7 for angles, exact for grain ids after relabelling by size.
+
+Grains, KAM and GOS (P5-01) are DefDAP 1.3.1's (orix has no grain segmentation), first on orix-data's Ti map, so F11 and
+F12 stand before the indexed nickel map exists; the same functions run on the indexed map once phase 4 lands. DefDAP's
+defaults: boundaries at 10°, grains of at least 10 points; the symmetric KAM at 5°.
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| Boundaries, grains, network, KAM (DefDAP's and symmetric), grain average orientation, GROD, GOS on a committed 90 × 120 corner of the Ti map (`fixtures/grain_inputs.json`) | `ebsd.Map.find_boundaries`, `find_grains`, `build_neighbour_network`, `calc_kam`; `Grain.calc_average_ori`, `calc_grod` | `m5/grains-ti` | images, grains, sizes, network exact; KAM, GROD, GOS atol 1e-6 rad; average orientation 1e-10 |
+| The same on the two-phase steel (austenite and ferrite, phase boundaries) | as above | `m5/grains-sdss` | as above |
+| **F11** grain map with sizes of the whole 381 × 507 Ti map (62 grains, the largest 78 515 points) and **F12** KAM and GOS maps (GOS up to 4.95°, mean 0.90°; mean KAM 4.14° DefDAP's, 2.39° symmetric, 0.81° at 5°) | as above | `m5/grains-ti-full` | grain map exact (sha256), sizes exact; KAM and GROD every 37th value atol 1e-6; GOS atol 1e-6 |
 
 ### Figure 6 (milestone 6): geometrical simulation
 
@@ -173,6 +213,18 @@ tutorial does it) follows in the same milestone once the k-factors it uses are r
 
 The `.ang` and `.ctf` writers round-trip the indexed map through orix (exact after the writers' decimal places),
 and the exported figures carry scale bars.
+
+F18, the writers (P8-01): each map is written by the reference, compared byte for byte with ours, and read back by
+orix (`emit.py` asserts the round trip: same shape, steps, phases and indexed points, rotations within the written
+precision). orix 0.15.0 writes `.ang`; nothing in the pinned stack writes `.ctf`, so `tools/parity/sem/ctf_writer.py`
+states AZtec's layout once on orix's `CrystalMap` and orix's `.ctf` reader is the judge. Maps: orix-data's
+`sdss_ferrite_austenite.ang` (100 × 117, two phases), its ferrite points alone (austenite written as not indexed), its
+rows 10-19 × columns 5-14, and the first three rows of the Ti orientations (3 × 507, 622).
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| `.ang` of the sdss map, its ferrite points, its window and the Ti head | `orix.io.plugins.ang.file_writer`, read back by `orix.io.load` | `m8/write-ang-sdss`, `m8/write-ang-sdss-ferrite`, `m8/write-ang-sdss-window`, `m8/write-ang-ti` | bytes exact (sha256 of the file); read back: rotations within 2e-5 rad (three angles at 5 decimals; 9.4e-6 rad on the Ti head, 0 on the sdss map, which the file already holds at 5 decimals) |
+| `.ctf` of the same four maps | `tools/parity/sem/ctf_writer.py`, read back by `orix.io.plugins.ctf.file_reader` | `m8/write-ctf-sdss`, `m8/write-ctf-sdss-ferrite`, `m8/write-ctf-sdss-window`, `m8/write-ctf-ti` | bytes exact; read back: rotations within 3e-6 rad in the Swift round trip (three angles at 4 decimals of degrees; 1.9e-6 rad at most) |
 
 ## Tolerances, the rule
 

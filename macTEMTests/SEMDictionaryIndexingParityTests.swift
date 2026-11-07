@@ -174,15 +174,22 @@ nonisolated final class SEMDictionaryIndexingParityTests: XCTestCase {
         if let m = SEMParityCompare.mismatch(name: "best_quaternions", actual: quaternions, expected: try ref.array("ncc_best_quaternions").values,
                                              rtol: 0, atol: 1e-7) { XCTFail(m.description) }
         let steps = try XCTUnwrap(ref.values["step_sizes"] as? [Double])
-        let map = r.crystalMap(phase: EBSDPhase(id: 0, name: "ni", spaceGroup: 225, pointGroup: "m-3m"), stepSizes: steps)
-        if let m = SEMParityCompare.mismatch(name: "best_euler", actual: map.euler.flatMap { [$0.x, $0.y, $0.z] },
+        let map = try r.crystalMap(phase: CrystalPhase(name: "ni", spaceGroup: 225, pointGroup: "m-3m"), stepSizes: steps, scanUnit: "um")
+        if let m = SEMParityCompare.mismatch(name: "best_euler", actual: map.eulerInData.flatMap { [$0.x, $0.y, $0.z] },
                                              expected: try ref.array("ncc_best_euler").values, rtol: 0, atol: 1e-6) { XCTFail(m.description) }
         SEMAssertParity(try XCTUnwrap(map.x), try ref.array("ncc_x"))
         SEMAssertParity(try XCTUnwrap(map.y), try ref.array("ncc_y"))
         XCTAssertEqual(map.phaseIDs, Array(repeating: 0, count: 9))
-        XCTAssertEqual(map.properties["scores"], r.bestScores)
-        XCTAssertEqual(map.properties["simulation_indices"], r.bestSimulationIndices.map(Double.init))
-        XCTAssertEqual(map.coordinateShape, [3, 3])
+        XCTAssertEqual(map.phases[id: 0]?.name, "ni")
+        XCTAssertEqual(map.property("scores"), r.bestScores)
+        XCTAssertEqual(map.property("simulation_indices"), r.bestSimulationIndices.map(Double.init))
+        XCTAssertEqual(map.shape, [3, 3])
+        // A masked point is not in the map's data.
+        let masked = try DictionaryIndexing.index(experimental: exp, navigationShape: [3, 3], dictionary: d.patterns, rotations: d.rotations,
+                                                  pixels: d.pixels, options: .init(keepN: 2, navigationMask: [false, false, false, false, true, false, false, false, false], backend: .cpu))
+        let maskedMap = try masked.crystalMap(phase: CrystalPhase(name: "ni"), stepSizes: steps)
+        XCTAssertEqual(maskedMap.size, 8)
+        XCTAssertEqual(maskedMap.originalShape, [3, 3])
     }
 
     /// The dictionary projected chunk by chunk from the master pattern gives what the dictionary in memory gives.

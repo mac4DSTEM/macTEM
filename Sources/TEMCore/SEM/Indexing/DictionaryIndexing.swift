@@ -100,21 +100,20 @@ package nonisolated enum DictionaryIndexing {
         package var bestSimulationIndices: [Int] { stride(from: 0, to: simulationIndices.count, by: keepN).map { simulationIndices[$0] } }
         package var bestRotations: [SIMD4<Double>] { stride(from: 0, to: rotations.count, by: keepN).map { rotations[$0] } }
 
-        /// The result as the app's crystal map: the best match's Bunge Euler angles (orix's `to_euler`), the phase's id where the
-        /// point is in the data and -1 (orix's `not_indexed`) where it is not, the best score and simulation index as properties,
-        /// and orix's `create_coordinate_arrays` from the step sizes (dy, dx).
-        package func crystalMap(phase: EBSDPhase, stepSizes: [Double]) -> EBSDCrystalMapData {
+        /// The result as the app's `CrystalMap`, as kikuchipy builds it: the best match's rotation per point (the identity where the
+        /// navigation mask left the point out, which is then not in the data), the dictionary's phase as id 0, orix's
+        /// `create_coordinate_arrays` from the step sizes (dy, dx), and the best score and simulation index as the properties
+        /// `scores` and `simulation_indices` (kikuchipy keeps all keep_n columns; the app's map holds one value per point, the
+        /// full ranking stays in this result).
+        package func crystalMap(phase: CrystalPhase, stepSizes: [Double], scanUnit: String = "px") throws -> CrystalMap {
             let rows = navigationShape.count == 2 ? navigationShape[0] : 1
             let columns = navigationShape.last ?? 0
             let dy = stepSizes.count == 2 ? stepSizes[0] : 1, dx = stepSizes.last ?? 1
-            var x = [Double](), y = [Double]()
-            x.reserveCapacity(pointCount); y.reserveCapacity(pointCount)
-            for r in 0 ..< rows { for c in 0 ..< columns { x.append(Double(c) * dx); y.append(Double(r) * dy) } }
-            let id = phase.id ?? 0
-            return EBSDCrystalMapData(euler: bestRotations.map(RotationConversions.qu2eu),
-                                      phaseIDs: isInData.map { $0 ? id : -1 }, phases: [phase],
-                                      properties: ["scores": bestScores, "simulation_indices": bestSimulationIndices.map(Double.init)],
-                                      x: x, y: navigationShape.count == 2 ? y : nil)
+            let (x, y) = CrystalMap.coordinates(shape: (rows, columns), steps: (dy, dx))
+            return try CrystalMap(rotations: bestRotations, x: x, y: navigationShape.count == 2 ? y : nil,
+                                  phaseList: PhaseList([(id: 0, phase: phase)]),
+                                  properties: ["scores": bestScores, "simulation_indices": bestSimulationIndices.map(Double.init)],
+                                  scanUnit: scanUnit, isInData: isInData)
         }
     }
 

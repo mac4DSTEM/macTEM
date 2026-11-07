@@ -69,13 +69,14 @@ nonisolated final class ANGReaderTests: XCTestCase {
         return out
     }
 
-    private func column(_ name: String, of map: ANGMap) -> [Double]? {
+    private func column(_ name: String, of file: ANGMap) -> [Double]? {
+        let map = file.map
         switch name {
         case "euler1": return map.euler.map(\.x)
         case "euler2": return map.euler.map(\.y)
         case "euler3": return map.euler.map(\.z)
-        case "x": return map.x
-        case "y": return map.y
+        case "x": return map.allX
+        case "y": return map.allY
         case "phase_id": return map.phaseIDs.map(Double.init)
         default: return map.properties[name]
         }
@@ -96,9 +97,9 @@ nonisolated final class ANGReaderTests: XCTestCase {
             XCTAssertEqual(map.columnNames, expected.columns, "\(name) columns")
             XCTAssertEqual(map.pointCount, expected.nRows, "\(name) rows")
             XCTAssertEqual(map.columnNames.count, expected.nColumns, "\(name) column count")
-            XCTAssertEqual(map.euler.count, expected.nRows, name)
-            XCTAssertEqual(map.quaternions.count, expected.nRows, name)
-            XCTAssertEqual(map.phaseIDs.count, expected.nRows, name)
+            XCTAssertEqual(map.map.euler.count, expected.nRows, name)
+            XCTAssertEqual(map.map.rotations.count, expected.nRows, name)
+            XCTAssertEqual(map.map.phaseIDs.count, expected.nRows, name)
             // The header fields orix leaves in the file.
             XCTAssertEqual(map.header.grid, expected.headerFields["GRID"], "\(name) grid")
             func field(_ key: String) throws -> String { try XCTUnwrap(expected.headerFields[key], "\(name): no \(key) in the truth") }
@@ -118,23 +119,24 @@ nonisolated final class ANGReaderTests: XCTestCase {
             try assertClose(pixelsPerMicron, try field("TEM_PIXperUM"), "\(name) TEM_PIXperUM")
             XCTAssertEqual(map.header.lines.count, map.header.lines.filter { $0.hasPrefix("#") }.count, "\(name): header lines start with #")
             // The map as CrystalMap holds it.
-            XCTAssertEqual(map.shape, expected.shape, "\(name) shape")
-            try assertClose(map.dx, expected.dx, "\(name) dx")
-            try assertClose(map.dy, expected.dy, "\(name) dy")
-            XCTAssertEqual(map.scanUnit, expected.scanUnit, "\(name) scan unit")
-            XCTAssertEqual(map.phases.map(\.id), expected.phaseIDs, "\(name) phase ids")
-            XCTAssertEqual(map.phases.map(\.name), expected.phaseNames, "\(name) phase names")
-            XCTAssertEqual(map.phases.map(\.pointGroup), expected.pointGroups, "\(name) point groups")
-            XCTAssertEqual(map.phases.count, expected.lattices.count, "\(name) lattices")
-            for (phase, lattice) in zip(map.phases, expected.lattices) {
-                XCTAssertEqual(phase.lattice.count, lattice.count, "\(name) \(phase.name) lattice")
-                for (value, text) in zip(phase.lattice, lattice) { try assertClose(value, text, "\(name) \(phase.name) lattice") }
+            XCTAssertEqual(map.map.shape, expected.shape, "\(name) shape")
+            try assertClose(map.map.dx, expected.dx, "\(name) dx")
+            try assertClose(map.map.dy, expected.dy, "\(name) dy")
+            XCTAssertEqual(map.map.scanUnit, expected.scanUnit, "\(name) scan unit")
+            XCTAssertEqual(map.map.phases.ids, expected.phaseIDs, "\(name) phase ids")
+            XCTAssertEqual(map.map.phases.names, expected.phaseNames, "\(name) phase names")
+            XCTAssertEqual(map.map.phases.pointGroupNames, expected.pointGroups, "\(name) point groups")
+            XCTAssertEqual(map.map.phases.count, expected.lattices.count, "\(name) lattices")
+            for (phase, lattice) in zip(map.map.phases.phases, expected.lattices) {
+                let ours = phase.lattice ?? []
+                XCTAssertEqual(ours.count, lattice.count, "\(name) \(phase.name) lattice")
+                for (value, text) in zip(ours, lattice) { try assertClose(value, text, "\(name) \(phase.name) lattice") }
             }
             for (columnName, sha) in expected.columnSHA256 {
                 let values = try XCTUnwrap(column(columnName, of: map), "\(name): no column \(columnName)")
                 XCTAssertEqual(EDAXBinaryReaderTests.sha256(bytes(values)), sha, "\(name) column \(columnName), bit for bit")
             }
-            XCTAssertEqual(Set(map.properties.keys), Set(expected.propNames), "\(name) properties")
+            XCTAssertEqual(Set(map.map.properties.keys), Set(expected.propNames), "\(name) properties")
             let first = map.columnNames.map { column($0, of: map)![0] }
             let last = map.columnNames.map { column($0, of: map)![map.pointCount - 1] }
             // The first and last row as written (phase_id as written: orix's -1 is checked through the column sha and the counts).
@@ -143,12 +145,12 @@ nonisolated final class ANGReaderTests: XCTestCase {
                 try assertClose(last[i], expected.lastRow[i], "\(name) last row \(columnName)")
             }
             var counts: [String: Int] = [:]
-            for id in map.phaseIDs { counts[String(id), default: 0] += 1 }
+            for id in map.map.phaseIDs { counts[String(id), default: 0] += 1 }
             XCTAssertEqual(counts, expected.phaseIDCounts, "\(name) phase id counts")
             XCTAssertEqual(map.notIndexedCount, expected.notIndexed, "\(name) not indexed")
             XCTAssertEqual(expected.rotationSample.count, expected.rotationSampleRows.count * 4, "\(name) truth rotations")
             for (k, row) in expected.rotationSampleRows.enumerated() {
-                let q = map.quaternions[row]
+                let q = map.map.rotations[row]
                 for (j, component) in [q.x, q.y, q.z, q.w].enumerated() {
                     try assertClose(component, expected.rotationSample[4 * k + j], "\(name) rotation of row \(row), component \(j)")
                 }
@@ -179,16 +181,17 @@ nonisolated final class ANGReaderTests: XCTestCase {
         """
         let map = try ANGReader.read(text: text, url: URL(fileURLWithPath: "/tmp/a.ang"))
         XCTAssertEqual(map.vendor, .tsl)
-        XCTAssertEqual(map.phases.map(\.id), [-1, 0])
-        XCTAssertEqual(map.phases.map(\.name), ["not_indexed", "AB"], "one formula per phase: the name becomes the formula")
-        XCTAssertEqual(map.phases.map(\.pointGroup), [nil, "622"], "orix's alias of EDAX's 62")
-        XCTAssertEqual(map.phases[1].lattice, [2.95, 2.95, 4.68, 90, 90, 120])
-        XCTAssertEqual(map.phaseIDs, [0, -1], "confidence index -1 is not indexed")
-        XCTAssertEqual(map.shape, [2], "one row of points: y does not vary")
-        XCTAssertEqual(map.dx, 1)
-        XCTAssertEqual(map.dy, 0)
+        XCTAssertEqual(map.map.phases.ids, [-1, 0])
+        XCTAssertEqual(map.map.phases.names, ["not_indexed", "AB"], "one formula per phase: the name becomes the formula")
+        XCTAssertEqual(map.map.phases.pointGroupNames, [nil, "622"], "orix's alias of EDAX's 62")
+        XCTAssertEqual(map.map.phases[id: 0]?.lattice, [2.95, 2.95, 4.68, 90, 90, 120])
+        XCTAssertEqual(map.map.phases[id: 0]?.formula, "AB")
+        XCTAssertEqual(map.map.phaseIDs, [0, -1], "confidence index -1 is not indexed")
+        XCTAssertEqual(map.map.shape, [2], "one row of points: y does not vary")
+        XCTAssertEqual(map.map.dx, 1)
+        XCTAssertEqual(map.map.dy, 0)
         let noFormula = text.replacingOccurrences(of: "# Formula   AB\n", with: "")
-        XCTAssertEqual(try ANGReader.read(text: noFormula, url: URL(fileURLWithPath: "/tmp/b.ang")).phases.map(\.name), ["not_indexed", "Alpha Beta"])
+        XCTAssertEqual(try ANGReader.read(text: noFormula, url: URL(fileURLWithPath: "/tmp/b.ang")).map.phases.names, ["not_indexed", "Alpha Beta"])
         let unknownSymmetry = text.replacingOccurrences(of: "# Symmetry  62", with: "# Symmetry  99")
         XCTAssertThrowsError(try ANGReader.read(text: unknownSymmetry, url: URL(fileURLWithPath: "/tmp/c.ang"))) { error in
             XCTAssertTrue(((error as? ANGReadError)?.text ?? "").contains("'99'"), String(describing: error))
@@ -204,8 +207,8 @@ nonisolated final class ANGReaderTests: XCTestCase {
         let map = try ANGReader.read(text: text, url: URL(fileURLWithPath: "/tmp/f.ang"))
         XCTAssertEqual(map.vendor, .unknown, "11 columns match no EDAX variant")
         XCTAssertEqual(map.columnNames, ["euler1", "euler2", "euler3", "x", "y", "unknown1", "unknown2", "phase_id", "unknown3", "unknown4", "unknown5"])
-        XCTAssertEqual(map.properties["unknown5"], [11, 11])
-        XCTAssertEqual(map.phaseIDs, [1, 1], "no not-indexed convention for an unknown vendor")
-        XCTAssertEqual(map.phases.map(\.name), ["Ni"], "no formula: the material name stays")
+        XCTAssertEqual(map.map.properties["unknown5"], [11, 11])
+        XCTAssertEqual(map.map.phaseIDs, [1, 1], "no not-indexed convention for an unknown vendor")
+        XCTAssertEqual(map.map.phases.names, ["Ni"], "no formula: the material name stays")
     }
 }
