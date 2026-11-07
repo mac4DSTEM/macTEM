@@ -35,8 +35,8 @@ package nonisolated struct CrystalPhase: Sendable, Equatable {
     /// orix's `Phase.color_rgb` for the colours a phase list hands out: 0...1 per channel.
     package var colorRGB: SIMD3<Double>? { PhaseList.rgb[color] }
 
-    /// `PhaseList.add_not_indexed`'s phase.
-    package static let notIndexed = CrystalPhase(name: PhaseList.notIndexedName, color: "white")
+    /// `PhaseList.add_not_indexed`'s phase: no point group, white, orix's default lattice (1, 1, 1, 90°, 90°, 90°).
+    package static let notIndexed = CrystalPhase(name: PhaseList.notIndexedName, lattice: [1, 1, 1, 90, 90, 90], color: "white")
 }
 
 /// orix's `PhaseList`: phases by id in ascending order.

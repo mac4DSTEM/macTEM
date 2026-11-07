@@ -14,8 +14,9 @@
 //        numpy and attaches the 622 point group by hand; this reader keeps every column under its name and leaves the
 //        phase list to the caller (D-SEM-19).
 //
-//        The result is the dataset's `EBSDCrystalMapData` (Euler angles in radians as orix holds them, the file's phase ids with
-//        -1 for not indexed, the coordinates, the vendor's columns by name) with the vendor and the header lines beside it.
+//        The result is the dataset's `CrystalMap` (Euler angles in radians as orix holds them, the file's phase ids with -1 for
+//        not indexed and orix's `not_indexed` phase, the coordinates, the vendor's columns by name) with the vendor and the
+//        header lines beside it.
 //
 //        The parity test reads the files orix's own tests write and the head of Ti_orientations.ctf at 1e-12
 //        (macTEMTests/Fixtures/sem/oxford, from tools/parity/sem-readers/make_oxford_fixtures.py).
@@ -63,7 +64,7 @@ package nonisolated enum CTFReader {
 
     /// One `.ctf` file: the map, who wrote it, and its header.
     package struct File: Sendable, Equatable {
-        package var map: EBSDCrystalMapData
+        package var map: CrystalMap
         package var vendor: Vendor
         /// The header lines above the data, verbatim.
         package var header: [String]
@@ -127,18 +128,18 @@ package nonisolated enum CTFReader {
 
         if vendor == .astar { fixASTARCoordinates(header: header, x: &x, y: &y) }
 
-        let map = EBSDCrystalMapData(euler: euler, phaseIDs: phaseID, phases: phases, properties: properties, x: x, y: y)
+        let map = try CrystalMap(euler: euler, phaseIDs: phaseID, x: x, y: y, phaseList: phases, properties: properties, scanUnit: "um")
         return File(map: map, vendor: vendor, header: header, propertyNames: names)
     }
 
     // MARK: - The header
 
     /// `_get_phases_from_header`.
-    static func phasesFromHeader(_ header: [String]) throws -> [EBSDPhase] {
+    static func phasesFromHeader(_ header: [String]) throws -> PhaseList {
         guard let phasesLine = header.firstIndex(where: { $0.hasPrefix("Phases") }) else { throw Refusal.noPhases }
         let fields = header[phasesLine].split(separator: "\t", omittingEmptySubsequences: false)
         guard fields.count > 1, let count = Int(fields[1].trimmingCharacters(in: .whitespaces)) else { throw Refusal.noPhases }
-        var phases: [EBSDPhase] = []
+        var phases: [CrystalPhase] = []
         for i in 0..<count {
             let lineNumber = phasesLine + 1 + i
             guard lineNumber < header.count else { throw Refusal.phase(line: lineNumber + 1, "the header ends before it") }
@@ -155,10 +156,11 @@ package nonisolated enum CTFReader {
             guard let spaceGroup = Int(parts[4].trimmingCharacters(in: .whitespaces)) else {
                 throw Refusal.phase(line: lineNumber + 1, "its space group `\(parts[4])` is not a number")
             }
-            phases.append(EBSDPhase(id: i + 1, name: parts[2], spaceGroup: spaceGroup == 0 ? nil : spaceGroup, pointGroup: group,
-                                    lattice: constants.map { $0! }))
+            phases.append(CrystalPhase(name: parts[2], spaceGroup: spaceGroup == 0 ? nil : spaceGroup, pointGroup: group,
+                                       lattice: constants.map { $0! }))
         }
-        return phases
+        // orix's `PhaseList(**phases)`: ids 1, 2, ... in header order, colours in matplotlib's Tableau order.
+        return PhaseList(ids: (0..<count).map { $0 + 1 }, phases: phases, assignColors: true)
     }
 
     /// `XCells`/`YCells` and `XStep`/`YStep` from the header (a comma as the decimal mark is read as a point).
@@ -173,7 +175,7 @@ package nonisolated enum CTFReader {
     /// `_fix_astar_coords`: when the coordinates' decimals round to another extent than the header's cells, the
     /// coordinates are regenerated from the header's steps (orix compares the x slice with the y cells; kept as is).
     static func fixASTARCoordinates(header: [String], x: inout [Double], y: inout [Double]) {
-        let slices = EBSDCrystalMapData.dataSlices(coordinates: [x, y], steps: [EBSDCrystalMapData.stepSize(x), EBSDCrystalMapData.stepSize(y)])
+        let slices = CrystalMap.dataSlices(coordinates: [x, y], steps: [CrystalMap.stepSize(x), CrystalMap.stepSize(y)])
         guard slices.count == 2,
               let cellsX = headerValue(header, key: "XCells"), let cellsY = headerValue(header, key: "YCells"),
               let stepX = headerValue(header, key: "XStep"), let stepY = headerValue(header, key: "YStep") else { return }
@@ -234,7 +236,7 @@ package nonisolated enum CTFReader {
         let taken: Set<String> = ["phi1", "Phi", "phi2", "phase", "x", "y"]
         let propertyNames = names.filter { !taken.contains($0) }
         let properties = Dictionary(uniqueKeysWithValues: propertyNames.map { ($0, column($0)!) })
-        let map = EBSDCrystalMapData(euler: euler, phaseIDs: phaseID, phases: [], properties: properties, x: column("x"), y: column("y"))
+        let map = try CrystalMap(euler: euler, phaseIDs: phaseID, x: column("x"), y: column("y"), properties: properties, scanUnit: "um")
         return File(map: map, vendor: .orientationTable, header: [String(lines[nameLine])], propertyNames: propertyNames)
     }
 }

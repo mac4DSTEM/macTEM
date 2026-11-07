@@ -386,9 +386,24 @@ package nonisolated enum DemoDocuments {
                                   scanRows: rows, scanColumns: columns, patternRows: side, patternColumns: side, dataType: .uint8,
                                   stepY: Truth.ebsdStepUm, stepX: Truth.ebsdStepUm, detector: detector,
                                   sem: EBSDSEMHeader(beamEnergyKeV: Truth.ebsdBeamKeV, magnification: 200, workingDistanceMM: 24.7, microscope: "generated demo"),
-                                  crystalMap: EBSDCrystalMapData(euler: [], phaseIDs: [], phases: [EBSDPhase(name: "Ni", spaceGroup: 225, pointGroup: "m-3m", lattice: [3.524, 3.524, 3.524, 90, 90, 90])]),
+                                  crystalMap: try demoCrystalMap(rows: rows, columns: columns),
                                   patterns: EBSDPatternSource(url: ebsdURL, datasetPath: "", fileShape: [rows, columns, side, side], dataType: .uint8))
         let access = try EBSDMemoryPatterns(dataset: dataset, bytes: bytes)
         return EBSDSession.Document(fileName: "Demo EBSD", url: nil, dataset: dataset, access: access)
+    }
+
+    /// The generated scan's crystal map: one Ni phase, each grain turned about z by the angle its bands are drawn at (not data:
+    /// the planted truth the room's tests and journeys read back).
+    private static func demoCrystalMap(rows: Int, columns: Int) throws -> CrystalMap {
+        var euler: [SIMD3<Double>] = []
+        for row in 0..<rows {
+            for column in 0..<columns {
+                euler.append(SIMD3(Double(Truth.ebsdGrain(row: row, column: column)) * .pi / 6 + 0.3, 0, 0))
+            }
+        }
+        let grid = CrystalMap.coordinates(shape: (rows, columns), steps: (Truth.ebsdStepUm, Truth.ebsdStepUm))
+        let ni = CrystalPhase(name: "Ni", spaceGroup: 225, pointGroup: "m-3m", lattice: [3.524, 3.524, 3.524, 90, 90, 90])
+        return try CrystalMap(euler: euler, phaseIDs: Array(repeating: 0, count: euler.count), x: grid.x, y: grid.y,
+                              phaseList: PhaseList([(0, ni)]), scanUnit: "um")
     }
 }

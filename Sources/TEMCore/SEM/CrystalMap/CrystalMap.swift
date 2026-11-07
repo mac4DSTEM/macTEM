@@ -133,6 +133,9 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
 
     // MARK: Points in data
 
+    /// Every point of the map, in data or not (the readers' row count).
+    package var pointCount: Int { allPhaseIDs.count }
+
     /// The indices of the points in data (orix's `id`).
     package var ids: [Int] { isInData.indices.filter { isInData[$0] } }
     /// orix's `size`.
@@ -274,10 +277,14 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
     /// orix `_data_slices_from_coordinates`: per axis with coordinates and a non-zero step, `round(min / step) ..< round(max /
     /// step + 1)` (numpy's round half to even).
     package func slices(onlyInData: Bool) -> [(start: Int, stop: Int)] {
+        CrystalMap.dataSlices(coordinates: coordinateArrays(onlyInData: onlyInData).map { $0 ?? [] }, steps: [dy, dx])
+    }
+
+    /// orix `_data_slices_from_coordinates` on coordinate arrays and their steps (an empty array or a zero step is skipped).
+    package static func dataSlices(coordinates: [[Double]], steps: [Double]) -> [(start: Int, stop: Int)] {
         var out: [(start: Int, stop: Int)] = []
-        for (coords, step) in zip(coordinateArrays(onlyInData: onlyInData), [dy, dx]) {
-            guard let coords, !coords.isEmpty, step != 0 else { continue }
-            let lo = coords.min()!, hi = coords.max()!
+        for (coords, step) in zip(coordinates, steps) {
+            guard let lo = coords.min(), let hi = coords.max(), step != 0 else { continue }
             out.append((Int((lo / step).rounded(.toNearestOrEven)), Int((hi / step + 1).rounded(.toNearestOrEven))))
         }
         return out

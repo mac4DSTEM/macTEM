@@ -71,18 +71,11 @@ nonisolated final class CrystalMapParityTests: XCTestCase {
         Self.writeFigureF7(histogram)
     }
 
-    /// orix-data's Ti table as `orix.data.ti_orientations` reads it: columns phi1, Phi, phi2 (degrees), x and y.
+    /// orix-data's Ti table read by `CTFReader` (the orientation-table form), 622 attached as `orix.data.ti_orientations` does.
     static func tiMap(url: URL) throws -> CrystalMap {
-        let text = try String(contentsOf: url, encoding: .utf8)
-        var euler: [SIMD3<Double>] = [], x: [Double] = [], y: [Double] = []
-        for line in text.split(separator: "\n").dropFirst() {
-            let f = line.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\r" }).compactMap { Double($0) }
-            guard f.count >= 11 else { continue }
-            euler.append(SIMD3(f[0], f[1], f[2]) * (.pi / 180))
-            x.append(f[9]); y.append(f[10])
-        }
-        return try CrystalMap(euler: euler, phaseIDs: Array(repeating: 1, count: euler.count), x: x, y: y, phaseList: PhaseList([(1, ti)]),
-                              scanUnit: "um")
+        var map = try CTFReader.read(path: url.path).map
+        map.phases = PhaseList([(1, ti)])
+        return map
     }
 
     /// The figure's numbers as text beside the reference figure (`$TMPDIR/macTEM-F7-ours.txt`): edge, count per bin.
@@ -96,12 +89,24 @@ nonisolated final class CrystalMapParityTests: XCTestCase {
     private static let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures")
 
     private func sdssMap() throws -> CrystalMap {
-        let ang = try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang"))
-        let list = PhaseList(ids: ang.phases.filter { $0.id != -1 }.map(\.id),
-                             phases: ang.phases.filter { $0.id != -1 }.map { CrystalPhase(name: $0.name, formula: $0.formula, pointGroup: $0.pointGroup, lattice: $0.lattice) },
-                             assignColors: true)
-        return try CrystalMap(rotations: ang.quaternions, euler: ang.euler, phaseIDs: ang.phaseIDs, x: ang.x, y: ang.y, phaseList: list,
-                              properties: ang.properties, scanUnit: ang.scanUnit)
+        try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map
+    }
+
+    /// The reader's map is the model's map: the head of orix-data's Ti table read by `CTFReader` into a `CrystalMap`, its first
+    /// three rows kept by a mask, 622 attached, gives the committed F7 numbers.
+    func testTheCTFReaderHandsTheF7MapThrough() throws {
+        let ref = try SEMParityReference.load("m3/ti-neighbour-misorientations")
+        var map = try CTFReader.read(path: Self.fixtures.appendingPathComponent("sem/oxford/ti_orientations_head.ctf").path).map
+        XCTAssertEqual(map.pointCount, 2000)
+        map.phases = PhaseList([(1, Self.ti)])
+        let head = map.masked((0..<map.size).map { $0 < 3 * 507 })
+        XCTAssertEqual(head.shape, [3, 507])
+        XCTAssertEqual(head.ids, Array(0..<(3 * 507)))
+        let (h, v) = try NeighbourMisorientation.misorientations(of: head)
+        SEMAssertParity(h.angles, try ref.array("horizontal_angles"))
+        SEMAssertParity(v.angles, try ref.array("vertical_angles"))
+        let histogram = AngleHistogram(values: try NeighbourMisorientation.anglesDegrees(of: head), edges: NeighbourMisorientation.f7Edges)
+        SEMAssertParity(histogram.counts.map(Double.init), try ref.array("counts"))
     }
 
     func testTheTwoPhaseMapSlicesAsOrix() throws {
