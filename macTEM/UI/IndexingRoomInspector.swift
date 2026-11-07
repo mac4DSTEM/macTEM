@@ -6,7 +6,8 @@
 //        Pattern Display (the pattern pane's own contrast), Phases (the list indexed
 //        against, each with its colour and its switch; a preset or a CIF added), Method (Hough or Dictionary, D-SEM-91), then the
 //        method's own section: Hough (pyEBSDindex's `EBSDIndexer` parameters) or Dictionary (the master pattern, kikuchipy's
-//        `dictionary_indexing` settings and orix's sampling), and Export (the map, the results, the method). Info: the dataset's rows
+//        `dictionary_indexing` settings and orix's sampling), and Export (the map, the results, the method; `Open in Maps` hands the
+//        run to the Maps room, D-SEM-99). Info: the dataset's rows
 //        (Patterns › Info) and the run's. Presentation only: the state is `IndexingSession`'s (TEMSession), the phases
 //        `IndexingPhase`'s and the dictionary's `DictionaryIndexingPlan`'s (TEMCore).
 //
@@ -504,6 +505,12 @@ private struct IndexingExportSection: View {
                     .help(reason ?? (isDictionary ? "Every input of the run in kikuchipy's and orix's names, to redo it in Python"
                                      : "Every input of the run in pyEBSDindex's and kikuchipy's names, to redo it in Python"))
                     .accessibilityIdentifier("indexing.export.method")
+            }
+            InspectorActionRow {
+                Button("Open in Maps") { appState.openIndexingInMaps() }
+                    .disabled(session.openInMapsRefusal != nil)
+                    .help(session.openInMapsRefusal ?? "The run's map in the Maps room without a file, at the pinned pattern, with its phase colours and the scan's steps")
+                    .accessibilityIdentifier("indexing.openInMaps")
             }
         }
     }

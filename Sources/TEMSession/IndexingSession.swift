@@ -145,7 +145,9 @@ package final class IndexingSession {
     /// Bumped by every dataset bound or closed (a pattern or a key that lands for another dataset is dropped) and by every run (a row
     /// that lands for an earlier run is dropped).
     @ObservationIgnored private var generation = 0
-    @ObservationIgnored private var runGeneration = 0
+    /// Which run the result is: bumped by every run and every dataset (a row that lands for an earlier run is dropped). Observed: the
+    /// Maps room names a run it shows by it and says when a later one replaced it (D-SEM-99).
+    package private(set) var runGeneration = 0
     @ObservationIgnored private var palette: IndexingPalette?
     /// The band detector of the current settings, kept between hovers and handed to the run.
     @ObservationIgnored private var probe: (key: ProbeKey, probe: IndexingProbe)?
@@ -860,6 +862,39 @@ package final class IndexingSession {
         bestMatchKey = nil
         bestMatchPosition = nil
         bestMatchFailure = nil
+    }
+
+    // MARK: - The Maps room
+
+    /// Why `Open in Maps` cannot hand the result over now (D-SEM-99): nothing indexed yet, or a run still going (Maps shows a result
+    /// as it stands, and a run's map grows row by row). nil when it can.
+    package var openInMapsRefusal: String? {
+        if isIndexing { return "Stop the run or let it finish first" }
+        guard let result, result.reachedCount > 0 else { return "Index first" }
+        return nil
+    }
+
+    /// The last run as the Maps room shows it (D-SEM-99): its crystal map (`crystalMap()`, the one the .ang and .ctf exports are
+    /// written from: the rows reached, the room's phase colours, the scan's steps and unit, the run's values) under the pattern file's
+    /// name, its source this run of its method. nil while `openInMapsRefusal` holds.
+    package func mapsDocument() throws -> OrientationMapSession.Document? {
+        guard openInMapsRefusal == nil, let result, let document = patterns.document, let map = try crystalMap() else { return nil }
+        return OrientationMapSession.Document(fileName: document.fileName, url: document.url, map: map,
+                                              source: .indexing(run: runGeneration, method: result.method),
+                                              format: "Indexing room · \(result.method.title)")
+    }
+
+    /// What the Maps room says of run `run` of this room it shows: nil while it is the last run and its inputs stand; else that a later
+    /// run replaced it (and to hand that one over when it can be), or which inputs changed since (`isStale`): the Patterns room's
+    /// processing, or this room's phases or method settings.
+    package func staleness(ofRun run: Int) -> String? {
+        if run != runGeneration {
+            return openInMapsRefusal == nil ? "Stale: the Indexing room has run again since. Open in Maps again to show the new run."
+                : "Stale: the Indexing room has started another run since."
+        }
+        guard isStale else { return nil }
+        if resultInputs?.pipeline != patterns.pipeline { return "Stale: the Patterns room's processing changed since this run." }
+        return "Stale: the Indexing room's phases or settings changed since this run."
     }
 
     // MARK: - Export

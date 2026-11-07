@@ -1,9 +1,10 @@
 //
 //  MapsRoomInspector.swift
 //  Role: the Maps room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the design's map-room order
-//        (orientation-maps-room.md §4, the first slice's sections): Maps (which layer the map draws), Phases (the phases with their colours
-//        and point groups), Display (a property layer's colormap, window and gamma) and Export (the map with its key as PNG). Info: what the
-//        map is and how its colours are made (§5). Presentation only: the rows are `MapsRoomFormat`'s, the state `OrientationMapSession`'s.
+//        (orientation-maps-room.md §4, the first slice's sections): Maps (which result the map is, a Source pop-up when the room holds
+//        several, D-SEM-99, and which layer it draws), Phases (the phases with their colours and point groups), Display (a property
+//        layer's colormap, window and gamma) and Export (the map with its key as PNG). Info: what the map is and how its colours are made
+//        (§5). Presentation only: the rows are `MapsRoomFormat`'s, the state `OrientationMapSession`'s.
 //
 
 import ShellControls
@@ -20,8 +21,24 @@ struct MapsRoomSettings: View {
         let session = appState.maps
         if let document = session.document {
             InspectorSection("Maps") {
-                InspectorValueRow("Source", document.source == .patterns ? "The pattern file's map" : "The map file")
-                    .accessibilityIdentifier("maps.source")
+                if session.sources.count > 1 {
+                    InspectorRow("Source") {
+                        Picker("Source", selection: Binding(get: { document.id }, set: { appState.showMapsSource($0) })) {
+                            ForEach(session.sources, id: \.id) { held in
+                                Text(MapsRoomFormat.sourceTitle(held)).tag(held.id)
+                            }
+                        }
+                        .labelsHidden()
+                        .help("Which result the map shows: a map file, the pattern file's own indexing, or the Indexing room's run")
+                        .accessibilityIdentifier("maps.source")
+                    }
+                } else {
+                    InspectorValueRow("Source", MapsRoomFormat.sourceWords(document.source))
+                        .accessibilityIdentifier("maps.source")
+                }
+                if let stale = appState.mapsStaleness {
+                    InspectorNote(stale).accessibilityIdentifier("maps.source.stale")
+                }
                 InspectorRow("Map") {
                     Picker("Map", selection: Binding(get: { session.layer }, set: { session.setLayer($0) })) {
                         ForEach(session.layers) { layer in
@@ -94,9 +111,7 @@ struct MapsRoomInfo: View {
                 ForEach(MapsRoomFormat.infoRows(document)) { row in
                     InspectorValueRow(row.label, row.value)
                 }
-                InspectorNote(document.source == .patterns
-                              ? "The vendor's or kikuchipy's indexing as the file stores it; the patterns are the Patterns room's."
-                              : "The indexing as the file stores it; no patterns came with it, so the pane beside the map draws each point's unit cell.")
+                InspectorNote(MapsRoomFormat.sourceNote(document.source))
             }
         } else {
             ContentUnavailableView("No orientation map open", systemImage: "map",
