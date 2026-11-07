@@ -108,10 +108,10 @@ PC) and `np.allclose` defaults (coordinates).
 |---|---|---|---|---|
 | `EBSDDetectorGeometry.Convention(kikuchipyName:)`, `init(…, convention:)`, `brukerCenter`, `center(_:in:)`, `centers(in:)` | `EBSDDetector(pc, convention)`, `pc_tsl`, `pc_oxford`, `pc_emsoft(4/5)` | `testEveryConventionName…`, `testBrukerWritten…`, `testConventionRoundTrip…` | rtol 1e-7, atol 1e-12; round trip 1e-12 | aliases edax/amatek → TSL, aztec → Oxford, emsoft = emsoft5 |
 | `height`, `width`, `binnedPixelSize`, `unbinnedShape`, `specimenScintillatorDistance` | same names | `testSizesGnomonicBounds…` | rtol 1e-7 | |
-| `gnomonicBounds`, `gnomonicScale`, `rMax` | `gnomonic_bounds`, `x_scale`/`y_scale`, `r_max` (Britton et al. 2016) | `testSizesGnomonicBounds…` | rtol 1e-7 | `rMax` keeps kikuchipy's corner list (D-SEM-38) |
+| `gnomonicBounds`, `gnomonicScale`, `rMax` | `gnomonic_bounds`, `x_scale`/`y_scale`, `r_max` (Britton et al. 2016) | `testSizesGnomonicBounds…` | rtol 1e-7 | `rMax` keeps kikuchipy's corner list (D-SEM-46) |
 | `gnomonic(pixel:pc:)`, `pixel(gnomonic:pc:)` | `to_gnomonic_coords`, `to_pixel_coords` | `testPixelToGnomonicAndBack…` | rtol 1e-7, atol 1e-12 | (y, x) order as kikuchipy |
 | `sampleToDetector`, `detectorToSample`, `FrameRotation` | `sample_to_detector` (`_sample_to_detector_matrix`) | `testSampleToDetector…`, `testAzimuthalTurnsAboutDetectorY` | rtol 1e-7, atol 1e-12 | the matrix, rows = detector axes in sample coordinates; quaternions come with the orientation core (P3-01) |
-| TKD set-ups | `EBSDDetector` with TKD angles | `testTKDGeometryAsKikuchipy` | rtol 1e-7, atol 1e-12 | D-SEM-39 |
+| TKD set-ups | `EBSDDetector` with TKD angles | `testTKDGeometryAsKikuchipy` | rtol 1e-7, atol 1e-12 | D-SEM-47 |
 | `PCCalibrationMovingScreen` (Hjelen et al. 1991) | `PCCalibrationMovingScreen` | `testMovingScreenPCOfSiliconAsKikuchipy` (figure F5) | rtol 1e-5 | line crossings in closed form where kikuchipy calls `np.linalg.det`; `standardDeviation` is numpy's `std` of `pc_all` |
 
 - Figure F5 (`docs/sem/north-star.md`): `tools/parity/sem/detector_figure.py` draws si_in and si_out5mm with the marked
