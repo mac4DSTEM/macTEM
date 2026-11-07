@@ -153,6 +153,20 @@ orix 0.15.0 ported into `Sources/TEMCore/SEM/Texture/` (P5-02). Tests in `SEMTex
 | `OrientationDensity.values` / `section` (kernel density on SO(3), φ2 sections) | the closed form of Hielscher and Schaeben (2008) with MTEX's de la Vallee Poussin kernel, on orix's rotations and proper symmetry elements (`texture_cases.odf_values`); orix has no ODF | `testTiODFSectionsMatchTheKernelDensity`, `testCubicODFSectionAndItsNormalisation`, `testFigureF13OnTheTiMap` | rtol 1e-4 (brief P5-02) | half-width 10° (MTEX's default), every orientation counted (no cut-off); checks that do not rest on the formula: the mean over orix's uniform 3° m-3m sample is 1.00025 mrd, the identity's peak is C(κ) / 24 |
 | `TextureRaster.stereographic`, `.section` | none (drawing) | `testRastersDrawTheBinsTheyFallIn` | each pixel the value of its bin | values, not colours: the Maps room colours them with the shared colormap (D-SEM-68) |
 
+## Slip analysis and GND density
+
+DefDAP 1.3.1 (Apache-2.0) ported into `Sources/TEMCore/SEM/Deformation/` (P5-03): DefDAP's own quaternion conventions and
+symmetry lists (`DefDAPQuat`, `DefDAPCrystalStructure`; passive, northern hemisphere, its element order), its six slip-system
+files verbatim, the per-grain slip analysis and the Nye tensor. Bundles `m5/slip-ti` and `m5/slip-sdss` from
+`tools/parity/sem/emit.py`, inputs in `tools/parity/sem/fixtures/slip_inputs.json`, tests in `SEMSlipParityTests`.
+
+| Function | Reference | Test | Tolerance | Notes |
+| --- | --- | --- | --- | --- |
+| `SlipSystemSet.load`/`parse`, `SlipPhase` (files, plane grouping, colours, hexagonal orthonormalisation in the Oxford convention) | `defdap.crystal.SlipSystem.load`, `group`, `Phase`; `crystal_utils.create_l_matrix`, `create_q_matrix`, `convert_idc` | `testSlipSystemsAreDefDAPs`, `testEverySlipSystemFileLoadsAndOnlyDefDAPsBCCFileHoldsSystemsOutOfTheirPlane` | indices exact; unit vectors 1e-12 | 12 of the 24 {123}<111> rows in `cubic_bcc` put the direction out of the plane; the parity reads them as DefDAP does, the app analyses `analysisSlipSystems` without them (D-SEM-75) |
+| `DefDAPQuat.fromEuler`, `averageOrientation` | `Quat.create_many_quats`, `Quat.calc_sym_eqvs`, `Quat.calc_average_ori` | `testQuaternionsFromEulerAnglesAreDefDAPs`, `testGrainAveragesSchmidFactorsAndTracesMatchDefDAP` | 1e-12; grain averages 1e-10 | the average is DefDAP's running sum in its point order, so a grain's points go in in DefDAP's order (`grain_points`); grain segmentation itself is P5-01's |
+| `SlipTraceAnalysis.schmidFactors`, `traces` | `Grain.calc_average_schmid_factors`, `calc_slip_traces` (Schmid & Boas 1935) | `testGrainAveragesSchmidFactorsAndTracesMatchDefDAP`, `testPerOrientationSchmidFactorsAndTracesMatchDefDAP`, `testSchmidFactorAndTraceOfTheCubeOrientationByHand` | atol 1e-6 | the load is not normalised, as in DefDAP; trace angle from +y counter-clockwise in [0, π], NaN for a plane parallel to the map |
+| `NyeTensor.compute` (`.separate`, `.defdap131`) | `defdap.ebsd.Map.calc_nye` (Pantleon 2008; L1 norm of the nine components, Ruggles & Fullwood 2013) | `testNyeTensorAndGNDMatchDefDAPBothWays`, `testAUniformMapHasNoDislocationContent` | rtol 1e-5, atol 1e6 m⁻² | DefDAP aliases its two derivative arrays (`betadery = betaderx`); `.separate` is the default and matches DefDAP's code with that line corrected (D-SEM-74); Burgers vector 1.4 Å; the last row and column are zero as in DefDAP; float64 loops, no symmetry table held in memory |
+
 ## Patterns room
 
 | Function | Reference | Test | Tolerance | Notes |
@@ -306,6 +320,7 @@ Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST),
 | `HoughBandDetector.detect`, `normals` | `find_bands`, `rdn_local_max`, `band_label_numba`, `Radon.radon2pole` ("KIKUCHIPY") | `testBandsOfTheBlock…` | peak cells exact; sub-pixel peaks and rho 1e-3 px; theta and normals 1e-4; peak values rtol 1e-5; the bands of a pattern with a flipped plan pixel within 1 px and 1° | brief bound 1 px / 1° |
 | `HoughIndexer.tripletVote` | `BandIndexer._tripvote_numba` | `testTripletVote…` | counts and families exact; weighted votes and ranks rtol 1e-5 (atol 1e-3) | fed the reference normals |
 | `HoughIndexer.index` (`assignBands`, `quest`, confidence) | `bandindex`, `_assign_bands_nb2`, `_calc_quest_weights`, `_orientation_quest_nb`, `_calc_cm`, `EBSDIndexer._indexbandsphase` | `testBlockIsIndexed…` | matched bands, phase, total votes exact; fit atol 2e-3° (float32 arccos near 1), CM, PQ rtol 1e-5, IQ 1e-4 (one flipped-pixel pattern within 0.01 / 1 / 0.01); orientation < 0.01° (m-3m) | the matched variant compared by family, D-SEM-70 |
+| `HoughIndexer.crystalMap` | kikuchipy `_hough_indexing.xmap_from_hough_indexing_data` | `testCrystalMapOfTheIndexedScan…` | grid, steps, unit, phase list, property names exact; rotations and properties at the bundle's tolerances | D-SEM-81 |
 | F8 end to end: `HoughIndexer.indexMap` on the app's corrected demo scan | `EBSD.hough_indexing` on kikuchipy's corrected scan | `testFigureF8…` | indexed count within 1; 99 % of points under 1°; matched-band count equal on 95 % | a float64 replica on kikuchipy's exact patterns: 4124 of 4124 within 1.3e-5°, every matched-band count equal |
 
 ### Known limits and decisions
@@ -320,8 +335,8 @@ Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST),
   Apple's differ in the last ulp, so a line whose pixel rounding sits on a half takes the neighbouring pixel (2 of 16200
   lines of the first block pattern on the CI Mac; counts stay exact). The tests allow these lines and what follows from
   them within the brief's 1 px and 1°.
-- D-SEM-71 (2026-11-07): the result of a scan is `HoughIndexer.Map` (rotations as orix takes them, fit, CM, PQ, matched
-  bands per point) until the orix `CrystalMap` port (P3-03) is on main; carrying it into a `CrystalMap` is its own issue.
+- D-SEM-81 (2026-11-07): `HoughIndexer.crystalMap(_:steps:scanUnit:)` turns the scan's `HoughIndexer.Map` (which keeps
+  the per-band detail) into the `CrystalMap` kikuchipy's `hough_indexing` returns; supersedes D-SEM-71's interim.
 - Speed: the CPU path indexes in parallel over a scan row; the F8 test prints the time of the 4125 patterns. The brief's
   Metal path for the Radon transform is due only if a release build takes over 5 s on the 55 x 75 scan.
 - Figure F8: `tools/parity/sem/hough_figure.py` draws the reference IPF-Z map beside the one

@@ -181,6 +181,14 @@ families (the m-3m case); for hcp Ti the families are {0001}, {10-10}, {11-20}, 
 | Pole figures {100}, {110}, {111}, IPF-Z density (m-3m), ODF φ2 = 45° of the 100 seeded cubic orientations; the ODF's mean over SO(3) and its peak | as above | `m5/texture-cubic` | as above |
 | **F13** pole figures of the whole Ti map ({0001} max 108.0 mrd, {10-10} 44.9, {11-20} 33.2), IPF-Z density (max 24.0 mrd) and the ODF φ2 = 30° section of every tenth point (max 2.29 mrd; φ2 = 0° peaks at 51.5 mrd at φ1 30°, Φ 85°) | as above | `m5/texture-ti-full` | as above |
 
+Slip analysis and dislocation content (P5-03), DefDAP 1.3.1 on inputs that need no download
+(`fixtures/slip_inputs.json`: a 90 x 120 corner of orix-data's Ti map and the whole sdss map):
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| hcp Ti (`hexagonal_withca`, 24 systems in 10 plane groups): slip-system vectors, DefDAP quaternions, Nye tensor and GND density (DefDAP as shipped and with separate x and y derivatives, D-SEM-74), grains at 10° (13), their average orientations, Schmid factors for a load along x, slip-trace angles and inclinations, and the same per orientation for every 37th point under loads along x and y | `defdap.ebsd.Map.calc_nye`, `find_grains`; `Grain.calc_average_ori`, `calc_average_schmid_factors`, `calc_slip_traces`; `crystal.SlipSystem.load` | `m5/slip-ti` | Schmid factors and angles atol 1e-6; GND and Nye rtol 1e-5 (atol 1e6 m⁻²); vectors and quaternions 1e-12; grain averages 1e-10; indices exact |
+| The duplex steel: fcc austenite (`cubic_fcc`, 12 systems) and bcc ferrite (`cubic_bcc`, 48 rows in 30 plane groups), the same quantities, 102 grains | as above | `m5/slip-sdss` | as above |
+
 ### Figure 6 (milestone 6): geometrical simulation
 
 Kikuchipy *Geometrical EBSD simulations*: Kikuchi bands and zone axes of the indexed orientation drawn on the
