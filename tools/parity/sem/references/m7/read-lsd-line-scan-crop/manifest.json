@@ -1,0 +1,110 @@
+{
+  "arrays": {
+    "signal0_sum_spectrum": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "signal0_sum_spectrum.bin",
+      "rtol": 0.0,
+      "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479",
+      "shape": [
+        4096
+      ]
+    }
+  },
+  "case": "m7/read-lsd-line-scan-crop",
+  "inputs": [
+    {
+      "path": "fixtures/rsciio/edax/line_scan_crop.lsd",
+      "sha256": "c19940a8680b197eae12ded690cad2913f18518750cd57f8e7d148908f44d2ac"
+    },
+    {
+      "path": "fixtures/rsciio/edax/line_scan_crop.spc",
+      "sha256": "a9b4ca02088ee0e69a8a125ba515bdce05f264082f6aa2e14ecc375c1404df25"
+    },
+    {
+      "path": "fixtures/rsciio/edax/line_scan_crop.csv",
+      "sha256": "6649ef2b669b94c2d9b51dddd52ddf549af82e323593ca2e46886ec35cd2e44e"
+    }
+  ],
+  "milestone": 7,
+  "reference": {
+    "function": "rsciio.edax.file_reader",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "refusal": null,
+    "signal0_nonzero": {
+      "count": 0,
+      "index_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "value_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "signal0_pixel_totals": {
+      "dtype": "int64",
+      "sha256": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+      "shape": [
+        3
+      ]
+    },
+    "signals": [
+      {
+        "axes": [
+          {
+            "name": "x",
+            "offset": 0.0,
+            "scale": 212.0,
+            "size": 3,
+            "units": "nm"
+          },
+          {
+            "name": "Energy",
+            "offset": 0.0,
+            "scale": 0.01,
+            "size": 4096,
+            "units": "keV"
+          }
+        ],
+        "dtype": "uint32",
+        "kind": "spectrum_image",
+        "metadata": {
+          "azimuth_angle": 0.0,
+          "beam_energy": 300.0,
+          "elements": [
+            "C",
+            "Co",
+            "Cu",
+            "Fe",
+            "Ga"
+          ],
+          "elevation_angle": 0.0,
+          "energy_resolution_MnKa": 127.810302734375,
+          "live_time": 0.05999999865889549,
+          "mode": "SEM",
+          "original_filename": "line_scan_crop.lsd",
+          "signal_type": "EDS_SEM",
+          "tilt_alpha": 15.0,
+          "title": "EDS Line Scan"
+        },
+        "shape": [
+          3,
+          4096
+        ]
+      }
+    ]
+  }
+}

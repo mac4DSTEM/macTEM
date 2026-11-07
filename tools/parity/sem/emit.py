@@ -1230,6 +1230,105 @@ def case_m7_eds_lines_tm002(ctx):
     ctx.done("m7/eds-lines-tm002")
 
 
+# ------------------------------------------------------------------------------------- SEM-EDS map readers (m7)
+
+RSCIIO = FIXTURES / "rsciio"
+# The keyword arguments the app reads JEOL files with (decision in docs/decisions.md): every count kept (uint32 instead
+# of rsciio's uint8 default, which raises on the 255th X-ray in a channel) and the S(T)EM image of a .pts returned too.
+JEOL_APP_KWARGS = {"SI_dtype": np.uint32, "read_em_image": True}
+
+
+def _eds_metadata(md: dict) -> dict:
+    """The metadata fields the app maps, flattened, present only where rsciio states them."""
+    out = {}
+    g = md.get("General", {})
+    for k in ("original_filename", "title", "date", "time"):
+        if k in g:
+            out[k] = str(g[k])
+    sig = md.get("Signal", {})
+    if "signal_type" in sig:
+        out["signal_type"] = str(sig["signal_type"])
+    ai = md.get("Acquisition_instrument", {})
+    if ai:
+        mode = next(iter(ai))
+        out["mode"] = mode
+        inst = ai[mode]
+        for k in ("beam_energy", "magnification"):
+            if k in inst:
+                out[k] = float(inst[k])
+        eds = inst.get("Detector", {}).get("EDS", {})
+        for k in ("azimuth_angle", "elevation_angle", "energy_resolution_MnKa", "live_time", "real_time"):
+            if k in eds:
+                out[k] = float(eds[k])
+        if "detector_type" in eds:
+            out["detector_type"] = str(eds["detector_type"])
+        if "tilt_alpha" in inst.get("Stage", {}):
+            out["tilt_alpha"] = float(inst["Stage"]["tilt_alpha"])
+    sample = md.get("Sample", {})
+    if "name" in sample:
+        out["sample_name"] = str(sample["name"])
+    for k in ("elements", "xray_lines"):
+        if k in sample:
+            out[k] = [str(x) for x in sample[k]]
+    return out
+
+
+def _eds_kind(d: dict) -> str:
+    data = np.asarray(d["data"])
+    eds = str(d["metadata"].get("Signal", {}).get("signal_type", "")).startswith("EDS")
+    if data.ndim == 1:
+        return "spectrum"
+    if eds:
+        return "spectrum_image"
+    return "image"
+
+
+def _eds_bundle(ctx, case: str, path: Path, label: str, function: str, read, extra_inputs=()) -> None:
+    """What RosettaSciIO hands an app for one SEM-EDS file, signal by signal in its own order: kind, shape, dtype, axes,
+    the mapped metadata, and the data exact (spectra as arrays; a spectrum image as its nonzero entries' flat C-order
+    indices and counts, fingerprinted, with the summed spectrum as an array and the per-pixel total fingerprinted;
+    images fingerprinted in their own dtype). A file rsciio refuses records the exception's class."""
+    b = Bundle(case, 7, "rsciio", function, ctx.out)
+    b.input(path, label)
+    for p, l in extra_inputs:
+        b.input(p, l)
+    try:
+        signals = read(str(path))
+    except Exception as e:  # noqa: BLE001 - the refusal is the reference
+        b.value("refusal", type(e).__name__)
+        b.value("signals", [])
+        b.write()
+        ctx.done(case)
+        return
+    b.value("refusal", None)
+    entries = []
+    for i, d in enumerate(signals):
+        data = np.asarray(d["data"])
+        kind = _eds_kind(d)
+        entries.append({
+            "kind": kind, "shape": list(data.shape), "dtype": data.dtype.name,
+            "axes": [{"name": str(a.get("name")), "size": int(a["size"]) if "size" in a else int(data.shape[j]),
+                      "scale": float(a["scale"]), "offset": float(a["offset"]),
+                      "units": None if a.get("units") is None else str(a["units"])} for j, a in enumerate(d["axes"])],
+            "metadata": _eds_metadata(d["metadata"]),
+        })
+        if kind == "spectrum":
+            b.array(f"signal{i}_counts", data.astype(np.int64), **EXACT)
+        elif kind == "spectrum_image":
+            flat = data.reshape(-1)
+            nz = np.flatnonzero(flat).astype(np.int64)
+            b.value(f"signal{i}_nonzero", {"count": int(nz.size), "index_sha256": _sha(nz),
+                                           "value_sha256": _sha(flat[nz].astype(np.int64))})
+            b.array(f"signal{i}_sum_spectrum", data.reshape(-1, data.shape[-1]).sum(axis=0, dtype=np.int64), **EXACT)
+            b.fingerprint(f"signal{i}_pixel_totals", data.reshape(-1, data.shape[-1]).sum(axis=1, dtype=np.int64))
+        else:
+            b.fingerprint(f"signal{i}_pixels", data)
+            b.scalar(f"signal{i}_pixel_sum", float(data.astype(np.float64).sum()), **EXACT)
+    b.value("signals", entries)
+    b.write()
+    ctx.done(case)
+
+
 # k-factors for F17. exspy ships no SEM k-factors and the TM002 layer has no certified composition, so the
 # quantification parity runs on two stated sets (D-SEM-59): unit factors (composition = intensity fractions) and a
 # planted set with distinct values, so every ratio of the Cliff-Lorimer chain is exercised. Neither is a measurement.
@@ -1376,6 +1475,101 @@ def case_m6_read_master_pattern_ni(ctx):
     b.value("point_groups", {str(n): _point_group(n) for n in range(1, 231)})
     b.write()
     ctx.done(case)
+
+
+def _sha(a: np.ndarray) -> str:
+    from refbundle import sha256_of_array
+
+    return sha256_of_array(a)
+
+
+def _bruker(name):
+    def read(p):
+        from rsciio.bruker import file_reader
+
+        return file_reader(p)
+    return read
+
+
+def _edax(p):
+    from rsciio.edax import file_reader
+
+    return file_reader(p)
+
+
+def _jeol(p):
+    from rsciio.jeol import file_reader
+
+    return file_reader(p, **JEOL_APP_KWARGS)
+
+
+BRUKER_FIXTURES = {
+    "m7/read-bcf-16x16-12bit": "16x16_12bit_packed_8bit.bcf",
+    "m7/read-bcf-30x30-zlib": "30x30_instructively_packed_16bit_compressed.bcf",
+    "m7/read-bcf-p45-bse-se": "P45_the_default_job.bcf",
+    "m7/read-bcf-tem": "test_TEM.bcf",
+    "m7/read-bcf-over16bit": "over16bit.bcf",
+    "m7/read-bcf-not-sfs": "Nope.bcf",
+    "m7/read-bcf-v2-edx-ebsd": "bcf-edx-ebsd.bcf",
+    "m7/read-spx-m6-jetstream": "bruker_m6_jetstream_file_example.spx",
+    "m7/read-spx-nano": "bruker_nano.spx",
+    "m7/read-spx-extracted": "extracted_from_bcf.spx",
+}
+BRUKER_DATA = {"m7/read-bcf-hitachi": "Hitachi_TM3030Plus.bcf", "m7/read-bcf-v2-50x50-zlib": "bcf_v2_50x50px.bcf"}
+EDAX_FIXTURES = {
+    "m7/read-spd-map-crop8": "spd_map_crop8.spd",
+    "m7/read-spd-xrf-crop8": "spc0_61-ipr333_xrf_crop8.spd",
+    "m7/read-lsd-line-scan-crop": "line_scan_crop.lsd",
+    "m7/read-spc-single": "single_spect.spc",
+}
+EDAX_COMPANIONS = {
+    "spd_map_crop8.spd": ["spd_map_crop8.spc", "Live Map 2_Img.ipr"],
+    "spc0_61-ipr333_xrf_crop8.spd": ["spc0_61-ipr333_xrf_crop8.spc", "Garnet1_Img.ipr"],
+    "line_scan_crop.lsd": ["line_scan_crop.spc", "line_scan_crop.csv"],
+}
+JEOL_FIXTURES = {
+    "m7/read-pts-4frames": "View000_0000006_4frames.pts",
+    "m7/read-pts-incomplete-frame": "View000_0000006_2.5frames.pts",
+    "m7/read-pts-interrupted-first-sweep": "InvalidFrame/Dummy-Data_0000007.pts",
+    "m7/read-pts-interrupted-second-sweep": "InvalidFrame/Dummy-Data_0000015.pts",
+    "m7/read-pts-stopped-after-sweep": "InvalidFrame/Dummy-Data_0000023.pts",
+    "m7/read-jeol-img": "InvalidFrame/Dummy-Data_0000000.img",
+    "m7/read-jeol-eds-met03": "met03.EDS",
+    "m7/read-asw-seq-eds": "seq/1.ASW",
+    "m7/read-asw-shift-jis-missing-views": "181019-BN.ASW",
+}
+JEOL_DATA = {"m7/read-asw-rawdata": "rawdata.ASW", "m7/read-pts-full": "Sample/00_View000/View000_0000006.pts"}
+
+
+def case_m7_read_bruker(ctx):
+    for case, name in BRUKER_FIXTURES.items():
+        p = RSCIIO / "bruker" / name
+        _eds_bundle(ctx, case, p, f"fixtures/rsciio/bruker/{name}", "rsciio.bruker.file_reader", _bruker(name))
+    for case, name in BRUKER_DATA.items():
+        p = ctx.data / "rsciio" / "bruker" / name
+        if ctx.have(p, case):
+            _eds_bundle(ctx, case, p, f"sem-data/rsciio/bruker/{name}", "rsciio.bruker.file_reader", _bruker(name))
+
+
+def case_m7_read_edax(ctx):
+    for case, name in EDAX_FIXTURES.items():
+        p = RSCIIO / "edax" / name
+        extra = [(RSCIIO / "edax" / c, f"fixtures/rsciio/edax/{c}") for c in EDAX_COMPANIONS.get(name, [])]
+        _eds_bundle(ctx, case, p, f"fixtures/rsciio/edax/{name}", "rsciio.edax.file_reader", _edax, extra)
+
+
+def case_m7_read_jeol(ctx):
+    for case, name in JEOL_FIXTURES.items():
+        p = RSCIIO / "jeol" / name
+        extra = []
+        if name == "seq/1.ASW":
+            extra = [(q, "fixtures/rsciio/jeol/seq/Sample/00_View002/" + q.name)
+                     for q in sorted((RSCIIO / "jeol" / "seq" / "Sample" / "00_View002").iterdir())]
+        _eds_bundle(ctx, case, p, f"fixtures/rsciio/jeol/{name}", "rsciio.jeol.file_reader", _jeol, extra)
+    for case, name in JEOL_DATA.items():
+        p = ctx.data / "rsciio" / "jeol" / name
+        if ctx.have(p, case):
+            _eds_bundle(ctx, case, p, f"sem-data/rsciio/jeol/{name}", "rsciio.jeol.file_reader", _jeol)
 
 
 def _point_group(number: int) -> dict:
