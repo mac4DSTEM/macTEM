@@ -34,6 +34,8 @@ struct ResultsRoom: View {
         let rows = appState.resultRows(of: item)
         let sections = state.sections(rows)
         let shown = sections.reduce(0) { $0 + $1.rows.count }
+        // The SEM session's rows, under the image's when the window holds both (D-SEM-103).
+        let sessionRows = SEMSessionLedger.rows(of: appState)
         VStack(spacing: 0) {
             ResultsHeader(fileName: image.fileName, shown: shown, hidden: rows.count - shown,
                           session: ExportSnapshot.sessionSentence(of: item))
@@ -46,6 +48,10 @@ struct ResultsRoom: View {
                                        description: Text(ResultsFormat.allHiddenDetail))
             } else {
                 ResultsTable(image: image, sections: sections, state: state)
+            }
+            if !sessionRows.isEmpty {
+                Divider()
+                ResultsSessionPane(rows: sessionRows, state: state)
             }
         }
         .onChange(of: item.id, initial: true) { state.attach(to: item.id) }

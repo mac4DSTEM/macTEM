@@ -61,6 +61,16 @@ final class IndexingRoomState {
     var exporting: IndexingExportKind?
     private(set) var exportLayer = IndexingLayer.ipfZ
     private(set) var exportData = Data()
+    /// The export the save panel is writing, as the session record keeps it once the panel says where (`didWrite`).
+    @ObservationIgnored private(set) var pendingRecord: SEMExportedFile?
+    /// Told of every file the room writes (`AppState` keeps it in the session record for the Results room and the report).
+    @ObservationIgnored var onWritten: ((SEMExportedFile) -> Void)?
+
+    /// The save panel wrote the export to `url`.
+    func didWrite(to url: URL) {
+        if let pendingRecord { onWritten?(pendingRecord.written(to: url, at: Date())) }
+        pendingRecord = nil
+    }
 
     /// Makes the bytes of `kind` from the session and opens the save panel, or, with `directory` (the UI journeys' export folder), writes the
     /// file there; says why when there is nothing to write.
@@ -94,19 +104,84 @@ final class IndexingRoomState {
             report("Export failed: \(error.localizedDescription)"); return
         }
         exportLayer = session.layer
+        let record = Self.record(kind, data: data, layer: exportLayer, method: result.method, fileName: document.fileName)
         if let directory {
             let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(layer: exportLayer)
             let url = directory.appendingPathComponent(name).appendingPathExtension(kind.fileExtension)
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 try data.write(to: url)
+                onWritten?(record.written(to: url, at: Date()))
                 report("Exported \(url.lastPathComponent)")
             } catch {
                 report("Export failed: \(error.localizedDescription)")
             }
             return
         }
+        pendingRecord = record
         exportData = data
         exporting = kind
+    }
+
+    /// The export as the session record keeps it: what it is, the layer a map is of, the methods that made it, the PNG's bytes.
+    nonisolated static func record(_ kind: IndexingExportKind, data: Data, layer: IndexingLayer, method: IndexingMethod,
+                                   fileName: String) -> SEMExportedFile {
+        let indexing: SEMMethod = method == .hough ? .houghIndexing : .dictionaryIndexing
+        let methods: [SEMMethod]
+        var fields: [SEMSessionField] = []
+        switch kind {
+        case .mapPNG:
+            fields.append(SEMSessionField("Layer", layer.title))
+            methods = layer.direction != nil ? [indexing, .ipfColours] : [indexing]
+        case .resultsCSV, .methodJSON: methods = [indexing]
+        case .ang: methods = [indexing, .angWriter]
+        case .ctf: methods = [indexing, .ctfWriter]
+        }
+        return SEMExportedFile(room: "Indexing", what: SEMExportedFile.what(kind.title), source: fileName, fields: fields, methods: methods,
+                               png: kind == .mapPNG ? data : nil)
+    }
+}
+
+// MARK: - Words
+
+/// The Indexing room's Info words, one wording for the inspector's Info tab, the Results room's session rows and the session report.
+enum IndexingInfoFormat {
+    /// "Hough (pyEBSDindex 0.3.10.1)", "Dictionary (kikuchipy 0.13.1)".
+    nonisolated static func method(_ method: IndexingMethod) -> String {
+        method == .hough ? "Hough (pyEBSDindex 0.3.10.1)" : "Dictionary (kikuchipy 0.13.1)"
+    }
+
+    /// "4,125 of 4,125".
+    nonisolated static func indexed(_ result: IndexingResult) -> String {
+        "\(result.indexedCount.formatted()) of \(result.pointCount.formatted())"
+    }
+
+    /// "3,812 points".
+    nonisolated static func points(_ count: Int) -> String { "\(count.formatted()) points" }
+
+    /// "(0.4215, 0.2163, 0.5323) · mean of the file's".
+    nonisolated static func projectionCentre(_ pc: SIMD3<Double>) -> String {
+        "(\(UnitDisplay.number(pc.x, digits: 4)), \(UnitDisplay.number(pc.y, digits: 4)), \(UnitDisplay.number(pc.z, digits: 4))) · mean of the file's"
+    }
+
+    /// "Ni.h5 · Ni · 20 kV · Lambert · 401 × 401".
+    nonisolated static func master(_ plan: DictionaryIndexingPlan) -> String { "\(plan.master.fileName) · \(plan.master.summary)" }
+
+    /// "10,000 patterns at 4° · NCC · keep 20".
+    nonisolated static func dictionary(_ plan: DictionaryIndexingPlan) -> String {
+        "\(plan.rotations.count.formatted()) patterns at \(UnitDisplay.number(plan.settings.resolution))° · \(plan.settings.metric.title) · keep \(min(plan.settings.keep, plan.rotations.count))"
+    }
+
+    /// "1.234 s".
+    nonisolated static func time(_ seconds: Double) -> String { "\(UnitDisplay.number(seconds, digits: 3)) s" }
+
+    /// The run's state: running, stopped, stale or current.
+    static func state(_ result: IndexingResult, session: IndexingSession) -> String {
+        if session.isIndexing, result.method == .dictionary {
+            return "Indexing, chunk \(session.chunksDone) of \(session.chunksTotal) · row \(result.rowsDone) of \(result.scanRows)"
+        }
+        if session.isIndexing { return "Indexing, row \(result.rowsDone) of \(result.scanRows)" }
+        if session.wasStopped { return "Stopped at row \(result.rowsDone) of \(result.scanRows)" }
+        return session.isStale ? "Stale: the patterns, phases or settings changed" : "Current"
     }
 }

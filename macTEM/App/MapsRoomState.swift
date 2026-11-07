@@ -27,6 +27,16 @@ final class MapsRoomState {
     var isExporting = false
     private(set) var exportData = Data()
     private(set) var exportName = ""
+    /// The export the save panel is writing, as the session record keeps it once the panel says where (`didWrite`).
+    @ObservationIgnored private(set) var pendingRecord: SEMExportedFile?
+    /// Told of every file the room writes (`AppState` keeps it in the session record for the Results room and the report).
+    @ObservationIgnored var onWritten: ((SEMExportedFile) -> Void)?
+
+    /// The save panel wrote the export to `url`.
+    func didWrite(to url: URL) {
+        if let pendingRecord { onWritten?(pendingRecord.written(to: url, at: Date())) }
+        pendingRecord = nil
+    }
 
     func requestImport() { importRequest &+= 1 }
 
@@ -44,17 +54,22 @@ final class MapsRoomState {
         } catch {
             report("Export failed: \(error.localizedDescription)"); return
         }
+        let layer = session.layer
+        let record = SEMExportedFile(room: "Maps", what: "Map PNG", source: document.fileName, fields: [SEMSessionField("Layer", layer.title)],
+                                     methods: layer.isColour && layer != .phase ? [.orientationMap, .ipfColours] : [.orientationMap], png: data)
         if let directory {
             let url = directory.appendingPathComponent(name).appendingPathExtension("png")
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 try data.write(to: url)
+                onWritten?(record.written(to: url, at: Date()))
                 report("Exported \(url.lastPathComponent)")
             } catch {
                 report("Export failed: \(error.localizedDescription)")
             }
             return
         }
+        pendingRecord = record
         exportData = data
         exportName = name
         isExporting = true

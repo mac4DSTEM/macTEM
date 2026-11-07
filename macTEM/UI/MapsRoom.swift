@@ -91,7 +91,9 @@ struct MapsRoom: View {
         .fileExporter(isPresented: Binding(get: { state.isExporting }, set: { state.isExporting = $0 }),
                       document: PatternsExportFile(data: state.exportData), contentType: .png, defaultFilename: state.exportName) { result in
             switch result {
-            case .success(let url): appState.statusText = "Exported \(url.lastPathComponent)"
+            case .success(let url):
+                appState.statusText = "Exported \(url.lastPathComponent)"
+                state.didWrite(to: url)
             case .failure(let error): appState.present(error)
             }
         }

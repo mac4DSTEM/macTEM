@@ -24,6 +24,7 @@ struct ExportCommands: Commands {
         // Read once: both items follow the same state, and a second read of the focused value is a second dependency.
         let availability = appState.map(ExportSnapshot.availability(of:))
         let fft = appState.map(ExportSnapshot.fftAvailability(of:))
+        let session = appState.map(SEMSessionLedger.hasRows(_:))
         CommandGroup(after: .saveItem) {
             Divider()
             Button("Export Image…") {
@@ -58,6 +59,11 @@ struct ExportCommands: Commands {
             }
             .keyboardShortcut("e", modifiers: [.command, .option, .shift])
             .disabled(availability?.results != true)
+            // The SEM session as one report (D-SEM-103): enabled wherever the SEM rooms hold a result; no key.
+            Button("Export Session Report…") {
+                if let appState { ExportPanels.exportSessionReport(appState: appState) }
+            }
+            .disabled(session != true)
         }
     }
 }

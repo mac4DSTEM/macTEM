@@ -94,6 +94,9 @@ struct WorkspaceView: View {
             IndexingRoom()
         } else if appState.navigation.workspaceArea == .maps {
             MapsRoom()
+        } else if appState.navigation.workspaceArea == .results, appState.openItems.selected == nil, SEMSessionLedger.hasRows(appState) {
+            // The Results room with no image open: the SEM session's rows alone (D-SEM-103); with nothing open, the welcome door.
+            ResultsSessionRoom()
         } else if let item = appState.openItems.selected {
             if let image = item.session.image, let canvas = item.presentation.canvas {
                 // Keyed by the item: switching items is a new pane, which starts from the item's own committed zoom

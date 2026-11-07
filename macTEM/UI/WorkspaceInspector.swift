@@ -62,6 +62,13 @@ private struct InspectorSettingsTab: View {
                     .environment(\.inspectorScope, "settings.maps")
             }
             .environment(\.inspectorScope, "settings")
+        } else if appState.navigation.workspaceArea == .results, appState.imageSession.image == nil, SEMSessionLedger.hasRows(appState) {
+            // The Results room with no image: the SEM session's Report (D-SEM-103).
+            InspectorScrollColumn {
+                ResultsSessionSettings()
+                    .environment(\.inspectorScope, "settings.results")
+            }
+            .environment(\.inspectorScope, "settings")
         } else if let image = appState.imageSession.image {
             InspectorScrollColumn {
                     switch appState.navigation.workspaceArea {
@@ -78,6 +85,8 @@ private struct InspectorSettingsTab: View {
                             ResultsRoomSettings(image: image, item: item)
                                 .environment(\.inspectorScope, "settings.results")
                         }
+                        ResultsSessionSettings()
+                            .environment(\.inspectorScope, "settings.results")
                     case .diffraction:
                         if let item = appState.openItems.selected {
                             DiffractionRoomSettings(image: image, item: item)
@@ -132,6 +141,11 @@ private struct InspectorInfoTab: View {
                 MapsRoomInfo()
             }
             .environment(\.inspectorScope, "info")
+        } else if appState.navigation.workspaceArea == .results, appState.imageSession.image == nil, SEMSessionLedger.hasRows(appState) {
+            InspectorScrollColumn {
+                ResultsSessionInfo()
+            }
+            .environment(\.inspectorScope, "info")
         } else if let image = appState.imageSession.image {
             InspectorScrollColumn {
                     // The room switch: the FFT room says first what it transforms.
@@ -143,6 +157,10 @@ private struct InspectorInfoTab: View {
                         ResultsRoomInfo(image: image, item: item)
                     } else {
                         ImageInfoSection(image: image, canvas: appState.presentation.canvas)
+                    }
+                    // The SEM session's selected row, under the image's (D-SEM-103).
+                    if appState.navigation.workspaceArea == .results {
+                        ResultsSessionInfo()
                     }
             }
             .environment(\.inspectorScope, "info")
