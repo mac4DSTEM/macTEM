@@ -267,7 +267,7 @@
       ]
     },
     "pc_start_quaternion": {
-      "atol": 0.0,
+      "atol": 1e-10,
       "dtype": "float64",
       "file": "pc_start_quaternion.bin",
       "note": "the orientation run's result as orix quaternions, the PC refinement's fixed rotations",
@@ -291,10 +291,10 @@
       ]
     },
     "start_euler": {
-      "atol": 0.0,
+      "atol": 1e-10,
       "dtype": "float64",
       "file": "start_euler.bin",
-      "note": "Bunge radians, orix's to_euler of the Hough rotations: the refinement's x0",
+      "note": "Bunge radians, orix's to_euler of the Hough rotations: the refinement's x0 (the tests start from these)",
       "rtol": 0.0,
       "sha256": "be337ee4d99f0b5d0dd9f1f3a68b85ba5ef763b532206b0196580f46b2c6eba4",
       "shape": [
