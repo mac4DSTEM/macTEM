@@ -229,7 +229,7 @@ package nonisolated enum OrientationMaps {
 
     /// "[101]" for a direction whose components are small whole multiples of its smallest non-zero one (a bar over a negative index
     /// is written as a minus); nil otherwise.
-    static func directionLabel(_ v: SIMD3<Double>) -> String? {
+    package static func directionLabel(_ v: SIMD3<Double>) -> String? {
         let parts = [v.x, v.y, v.z]
         guard let smallest = parts.map(abs).filter({ $0 > 1e-9 }).min() else { return nil }
         var digits: [String] = []
