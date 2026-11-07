@@ -153,6 +153,17 @@ defaults: boundaries at 10°, grains of at least 10 points; the symmetric KAM at
 | The same on the two-phase steel (austenite and ferrite, phase boundaries) | as above | `m5/grains-sdss` | as above |
 | **F11** grain map with sizes of the whole 381 × 507 Ti map (62 grains, the largest 78 515 points) and **F12** KAM and GOS maps (GOS up to 4.95°, mean 0.90°; mean KAM 4.14° DefDAP's, 2.39° symmetric, 0.81° at 5°) | as above | `m5/grains-ti-full` | grain map exact (sha256), sizes exact; KAM and GROD every 37th value atol 1e-6; GOS atol 1e-6 |
 
+Pole figures and the ODF (P5-02) are orix 0.15.0's `pole_density_function` and the kernel density estimate of
+Hielscher and Schaeben (2008), first on orix-data's Ti map like F11 and F12. The brief's {100}, {110}, {111} are the cubic
+families (the m-3m case); for hcp Ti the families are {0001}, {10-10}, {11-20}, and the ODF sections are φ2 = 0°, 30°
+(hexagonal's usual sections) and the brief's 45°. The reference figure is drawn by `texture_figure.py`.
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| Pole figures {0001}, {10-10}, {11-20}, IPF-Z density (6/mmm), ODF φ2 = 0°, 30°, 45° of the 2000 committed Ti orientations | `orix.measure.pole_density_function`; the de la Vallee Poussin kernel density | `m5/texture-ti` | counts exact up to edge vectors; densities atol 1e-7; ODF rtol 1e-4 |
+| Pole figures {100}, {110}, {111}, IPF-Z density (m-3m), ODF φ2 = 45° of the 100 seeded cubic orientations; the ODF's mean over SO(3) and its peak | as above | `m5/texture-cubic` | as above |
+| **F13** pole figures of the whole Ti map ({0001} max 108.0 mrd, {10-10} 44.9, {11-20} 33.2), IPF-Z density (max 24.0 mrd) and the ODF φ2 = 30° section of every tenth point (max 2.29 mrd; φ2 = 0° peaks at 51.5 mrd at φ1 30°, Φ 85°) | as above | `m5/texture-ti-full` | as above |
+
 ### Figure 6 (milestone 6): geometrical simulation
 
 Kikuchipy *Geometrical EBSD simulations*: Kikuchi bands and zone axes of the indexed orientation drawn on the
