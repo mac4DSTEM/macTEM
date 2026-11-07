@@ -25,9 +25,9 @@
       "atol": 0.0,
       "dtype": "float64",
       "file": "ferrite_iq_map.bin",
-      "note": "NaN where the point is not ferrite; compared as equal NaNs",
+      "note": "-1 where the point is not ferrite (get_map_data fill_value; a bundle holds no NaN)",
       "rtol": 0.0,
-      "sha256": "100721fdd198d1829547792be18abde06704920dc6d32a05d42b187a2498dd39",
+      "sha256": "40998b657828e3a28c69a4f33b5b40c59579194ee5e2c92a2f7fe0de2b90507e",
       "shape": [
         100,
         117

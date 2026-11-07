@@ -136,7 +136,7 @@ nonisolated final class CrystalMapParityTests: XCTestCase {
         SEMAssertParity(try XCTUnwrap(window.mapData(named: "iq")), try ref.array("window_iq"))
 
         let ferrite = map[phase: try XCTUnwrap(ref.values["ferrite_name"] as? String)]
-        SEMAssertParity(try XCTUnwrap(ferrite.mapData(named: "iq")), try ref.array("ferrite_iq_map"))
+        SEMAssertParity(try XCTUnwrap(ferrite.mapData(named: "iq", fill: -1)), try ref.array("ferrite_iq_map"))
         SEMAssertParity(ferrite.row.map(Double.init), try ref.array("ferrite_row"))
         SEMAssertParity(ferrite.col.map(Double.init), try ref.array("ferrite_col"))
         SEMAssertParity(try XCTUnwrap(map.mapData(named: "phase_id")), try ref.array("phase_id_map"))

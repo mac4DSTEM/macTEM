@@ -25,7 +25,7 @@
       "dtype": "float64",
       "file": "sample_angles.bin",
       "rtol": 0.0,
-      "sha256": "a91b20cef067d168030bb00475d663eefb98be3522362b59947b4458af1f9122",
+      "sha256": "34f1f54fe8d442c2b24dc1e64cc9d2096a1cbf589e4ce7e61759add44d1e2dd3",
       "shape": [
         387
       ]

@@ -545,6 +545,24 @@ TI_MAP_COLUMNS = 507  # orix-data's Ti map is 381 x 507 (x varies fastest)
 F7_EDGES = np.arange(0.0, 95.0, 1.0)  # 1 degree bins to 94, above 622's largest disorientation (93.84 degrees)
 
 
+def _neighbour_pairs(O, rows):
+    """Horizontal (right, left) and vertical (below, above) neighbour pairs of a row-major map as flat Orientation arrays.
+    Taken flat on purpose: in orix 0.15.0, `O2[:, 1:] - O2[:, :-1]` on a 2D-shaped Orientation returns the right angles in a
+    permuted order (a pair of identical orientations comes out at 90 degrees; the histogram is unchanged), while the same pairs taken flat agree
+    with `angle_with` on the 2D arrays; D-SEM-37."""
+    from orix.quaternion import Orientation
+
+    q = O.data.reshape(rows, TI_MAP_COLUMNS, 4)
+    g = O.symmetry
+    flat = lambda a: Orientation(np.ascontiguousarray(a).reshape(-1, 4), symmetry=g)  # noqa: E731
+    h = flat(q[:, 1:]) - flat(q[:, :-1])
+    v = flat(q[1:, :]) - flat(q[:-1, :])
+    O2 = O.reshape(rows, TI_MAP_COLUMNS)
+    check = np.concatenate([O2[:, 1:].angle_with(O2[:, :-1]).ravel(), O2[1:, :].angle_with(O2[:-1, :]).ravel()])
+    assert np.allclose(np.concatenate([h.angle, v.angle]), check, atol=1e-7), "flat pairs disagree with angle_with"
+    return h, v
+
+
 def case_m3_ti_neighbour_misorientations(ctx):
     """Figure F7 on a committed map: the first three rows (3 x 507) of orix-data's Ti orientations (point group 622), the
     misorientations of horizontal and vertical neighbours (Orientation subtraction, reduced into the (622, 622) zone),
@@ -556,9 +574,8 @@ def case_m3_ti_neighbour_misorientations(ctx):
     assert inp["ti_point_group"] == D6.name
     rows = 3
     eu = np.asarray(inp["ti_euler_degrees"], dtype=np.float64)[: rows * TI_MAP_COLUMNS]
-    O = Orientation.from_euler(eu, symmetry=D6, degrees=True).reshape(rows, TI_MAP_COLUMNS)
-    h = (O[:, 1:] - O[:, :-1]).flatten()
-    v = (O[1:, :] - O[:-1, :]).flatten()
+    O = Orientation.from_euler(eu, symmetry=D6, degrees=True)
+    h, v = _neighbour_pairs(O, rows)
     angles = np.rad2deg(np.concatenate([h.angle, v.angle]))
     counts, edges = np.histogram(angles, F7_EDGES)
     b = Bundle("m3/ti-neighbour-misorientations", 3, "orix",
@@ -593,9 +610,8 @@ def case_m3_ti_neighbour_misorientations_full(ctx):
     table = np.loadtxt(p, skiprows=1)
     rows = len(np.unique(table[:, 10]))
     assert len(np.unique(table[:, 9])) == TI_MAP_COLUMNS and rows * TI_MAP_COLUMNS == table.shape[0]
-    O = Orientation.from_euler(np.deg2rad(table[:, :3]), D6).reshape(rows, TI_MAP_COLUMNS)
-    h = (O[:, 1:] - O[:, :-1]).flatten()
-    v = (O[1:, :] - O[:-1, :]).flatten()
+    O = Orientation.from_euler(np.deg2rad(table[:, :3]), D6)
+    h, v = _neighbour_pairs(O, rows)
     rad = np.concatenate([h.angle, v.angle])
     angles = np.rad2deg(rad)
     counts, edges = np.histogram(angles, F7_EDGES)
@@ -654,8 +670,8 @@ def case_m3_crystal_map_sdss(ctx):
     first, second = xm.phases.names  # orix autogenerates "austenite/austenite", "ferrite/ferrite" (name/formula)
     b.value("ferrite_name", second)
     ferrite = xm[second]
-    b.array("ferrite_iq_map", ferrite.get_map_data("iq").astype(np.float64), **EXACT,
-            note="NaN where the point is not ferrite; compared as equal NaNs")
+    b.array("ferrite_iq_map", ferrite.get_map_data("iq", fill_value=-1).astype(np.float64), **EXACT,
+            note="-1 where the point is not ferrite (get_map_data fill_value; a bundle holds no NaN)")
     b.array("ferrite_row", ferrite.row.astype(np.int64), **EXACT)
     b.array("ferrite_col", ferrite.col.astype(np.int64), **EXACT)
     b.array("phase_id_map", xm.get_map_data("phase_id").astype(np.float64), **EXACT)

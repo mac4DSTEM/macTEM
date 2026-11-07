@@ -36,7 +36,7 @@
       "dtype": "float64",
       "file": "horizontal_angles.bin",
       "rtol": 0.0,
-      "sha256": "c871bb392a0250777f575fbdce693b2ab746cf957cbb31c145318456d134ce92",
+      "sha256": "be2bca0251818e7e46d018b9a6e1437f431f3fbf4c2954e194af6eee169fd40c",
       "shape": [
         1518
       ]
@@ -46,7 +46,7 @@
       "dtype": "float64",
       "file": "horizontal_misorientations.bin",
       "rtol": 0.0,
-      "sha256": "ef8a9df071e07ba0726fdd5cbc791442b8ad0a730af6f9bf193c610e0cb4db84",
+      "sha256": "68791df2e37be1d2d3c5958bcfd902a5270c7e4c66c94fb3309b7285f008529d",
       "shape": [
         1518,
         4
@@ -57,7 +57,7 @@
       "dtype": "float64",
       "file": "vertical_angles.bin",
       "rtol": 0.0,
-      "sha256": "f679ffb0aeeab077e44c52768a68ca8d1335a7032283d99c91a8219edc5e76f9",
+      "sha256": "f982a905b78c42921dcd16e51ed26ad5fc42c8c1563bd7ba290e0c7e2a947323",
       "shape": [
         1014
       ]
@@ -67,7 +67,7 @@
       "dtype": "float64",
       "file": "vertical_misorientations.bin",
       "rtol": 0.0,
-      "sha256": "a73f9d913e3abd33f46cf6dd02c43e70728399fe7b6394241955d37bc28be36d",
+      "sha256": "8d67f68e71da09478c931daa898931bfdec59b073b874fdb62fb270163e20c65",
       "shape": [
         1014,
         4
