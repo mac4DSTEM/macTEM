@@ -1,0 +1,416 @@
+{
+ "about": "Inputs of tools/parity/sem/detector_cases.py (milestone 2 detector geometry, figure F5): detector shapes, projection centres, angles and the moving-screen zone-axis points kikuchipy 0.13.1's tutorial and tests mark on si_ebsd_moving_screen in (0 mm) and out (5 mm). Points from kikuchipy's tests/test_detectors/test_calibration.py and doc/tutorials/pc_calibration_moving_screen_technique.ipynb (GPL-3.0-or-later); the rest chosen for the SEM program.",
+ "detectors": [
+  {
+   "shape": [
+    60,
+    60
+   ],
+   "px_size": 1.0,
+   "binning": 1
+  },
+  {
+   "shape": [
+    60,
+    80
+   ],
+   "px_size": 59.2,
+   "binning": 8
+  },
+  {
+   "shape": [
+    480,
+    640
+   ],
+   "px_size": 70.0,
+   "binning": 2
+  },
+  {
+   "shape": [
+    1,
+    1
+   ],
+   "px_size": 1.0,
+   "binning": 1
+  },
+  {
+   "shape": [
+    1024,
+    1244
+   ],
+   "px_size": 6.5,
+   "binning": 1
+  },
+  {
+   "shape": [
+    240,
+    200
+   ],
+   "px_size": 30.0,
+   "binning": 4
+  },
+  {
+   "shape": [
+    510,
+    510
+   ],
+   "px_size": 2.5,
+   "binning": 1
+  }
+ ],
+ "conventions": [
+  "bruker",
+  "tsl",
+  "edax",
+  "amatek",
+  "oxford",
+  "aztec",
+  "emsoft",
+  "emsoft4",
+  "emsoft5"
+ ],
+ "pcs_fraction": [
+  [
+   [
+    0.421,
+    0.7794,
+    0.5049
+   ],
+   [
+    0.4214844,
+    0.21500351,
+    0.50201974
+   ],
+   [
+    0.5,
+    0.5,
+    0.5
+   ]
+  ],
+  [
+   [
+    0.42088203,
+    0.2165417,
+    0.50079336
+   ],
+   [
+    0.3,
+    0.8,
+    0.7
+   ],
+   [
+    0.62,
+    0.15,
+    0.48
+   ]
+  ]
+ ],
+ "pcs_emsoft": [
+  [
+   [
+    64.0,
+    144.0,
+    17049.6
+   ],
+   [
+    -12.5,
+    30.25,
+    15000.0
+   ],
+   [
+    0.0,
+    0.0,
+    12000.0
+   ]
+  ],
+  [
+   [
+    3.75,
+    -88.0,
+    21000.0
+   ],
+   [
+    120.0,
+    10.0,
+    9000.0
+   ],
+   [
+    -40.0,
+    -40.0,
+    18000.0
+   ]
+  ]
+ ],
+ "rotation_angles": [
+  [
+   0.0,
+   0.0,
+   0.0,
+   90.0
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   70.0
+  ],
+  [
+   8.3,
+   4.7,
+   -1.02,
+   70.0
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  [
+   40.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  [
+   40.0,
+   20.0,
+   0.0,
+   70.0
+  ],
+  [
+   40.0,
+   -40.0,
+   0.0,
+   70.0
+  ],
+  [
+   -5.0,
+   2.0,
+   3.0,
+   65.0
+  ],
+  [
+   10.0,
+   0.0,
+   15.0,
+   75.0
+  ]
+ ],
+ "tkd_angles": [
+  [
+   0.0,
+   0.0,
+   0.0,
+   -20.0
+  ],
+  [
+   -10.0,
+   0.0,
+   0.0,
+   -20.0
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  [
+   5.0,
+   3.0,
+   -2.0,
+   -10.0
+  ],
+  [
+   -20.0,
+   0.0,
+   0.0,
+   10.0
+  ]
+ ],
+ "tkd_pcs": [
+  [
+   0.5,
+   0.35,
+   0.65
+  ],
+  [
+   0.48,
+   0.42,
+   0.55
+  ],
+  [
+   0.5,
+   0.5,
+   0.8
+  ],
+  [
+   0.52,
+   0.3,
+   0.6
+  ],
+  [
+   0.45,
+   0.6,
+   0.7
+  ]
+ ],
+ "coords_pc": [
+  [
+   [
+    0.4214844,
+    0.21500351,
+    0.50201974
+   ],
+   [
+    0.42414583,
+    0.21014019,
+    0.50104439
+   ]
+  ],
+  [
+   [
+    0.42088203,
+    0.2165417,
+    0.50079336
+   ],
+   [
+    0.42725023,
+    0.21450546,
+    0.49996293
+   ]
+  ]
+ ],
+ "coords_pixel": [
+  [
+   12.7,
+   36.2
+  ],
+  [
+   43.7,
+   2.5
+  ],
+  [
+   27.7,
+   8.2
+  ],
+  [
+   0.0,
+   0.0
+  ],
+  [
+   59.0,
+   59.0
+  ]
+ ],
+ "moving_screen": {
+  "shape": [
+   480,
+   480
+  ],
+  "delta_z_mm": 5.0,
+  "points_in": [
+   [
+    109,
+    131
+   ],
+   [
+    390,
+    139
+   ],
+   [
+    246,
+    232
+   ],
+   [
+    129,
+    228
+   ],
+   [
+    364,
+    237
+   ]
+  ],
+  "points_out": [
+   [
+    77,
+    146
+   ],
+   [
+    424,
+    156
+   ],
+   [
+    246,
+    269
+   ],
+   [
+    104,
+    265
+   ],
+   [
+    392,
+    276
+   ]
+  ],
+  "cases": [
+   {
+    "label": "tutorial-3-tsl",
+    "n_points": 3,
+    "px_size_mm": 0.09,
+    "binning": 1,
+    "convention": "tsl"
+   },
+   {
+    "label": "tutorial-3-mm",
+    "n_points": 3,
+    "px_size_mm": null,
+    "binning": 1,
+    "convention": "tsl"
+   },
+   {
+    "label": "tests-3-tsl",
+    "n_points": 3,
+    "px_size_mm": 0.09055118110236221,
+    "binning": 1,
+    "convention": "tsl"
+   },
+   {
+    "label": "tests-4-tsl",
+    "n_points": 4,
+    "px_size_mm": 0.09055118110236221,
+    "binning": 1,
+    "convention": "tsl"
+   },
+   {
+    "label": "tests-5-tsl",
+    "n_points": 5,
+    "px_size_mm": 0.09055118110236221,
+    "binning": 1,
+    "convention": "tsl"
+   },
+   {
+    "label": "tests-5-bruker",
+    "n_points": 5,
+    "px_size_mm": 0.09055118110236221,
+    "binning": 1,
+    "convention": "bruker"
+   },
+   {
+    "label": "tests-5-mm",
+    "n_points": 5,
+    "px_size_mm": null,
+    "binning": 1,
+    "convention": "tsl"
+   },
+   {
+    "label": "tests-5-binned",
+    "n_points": 5,
+    "px_size_mm": 0.045275590551181105,
+    "binning": 2,
+    "convention": "tsl"
+   }
+  ]
+ }
+}

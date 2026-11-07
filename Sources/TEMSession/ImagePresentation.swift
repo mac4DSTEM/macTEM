@@ -37,6 +37,18 @@ package nonisolated struct CanvasPixels: Sendable, Equatable {
         self.rawRange = rawRange
         self.histogram = histogram
     }
+
+    /// The canvas of raw `pixels`: normalised over their finite range, the version, the raw range and the histogram. Built off the
+    /// main actor at open (`AppState.canvas(for:)`, the Patterns room's map and pattern).
+    package static func make(width: Int, height: Int, pixels: [Float]) -> CanvasPixels {
+        let floatImage = FloatImage(width: width, height: height, pixels: pixels)
+        let normalized = floatImage.normalized()
+        // `minMax` answers 0…1 for an image with no finite value; that is not a range the data holds.
+        let range: ClosedRange<Float>? = pixels.contains(where: \.isFinite) ? floatImage.minMax.0...floatImage.minMax.1 : nil
+        return CanvasPixels(width: width, height: height, normalized: normalized,
+                            contentVersion: MetalImageView.contentVersion(of: normalized, width: width, height: height),
+                            rawRange: range, histogram: IntensityHistogram.compute(pixels))
+    }
 }
 
 /// The contrast window the shader takes: fractions of the canvas's raw range, since the canvas is normalised over it.

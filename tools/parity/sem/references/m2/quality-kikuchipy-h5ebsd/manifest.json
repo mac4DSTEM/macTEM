@@ -1,0 +1,232 @@
+{
+  "arrays": {
+    "adp": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "adp.bin",
+      "rtol": 1e-05,
+      "sha256": "c3bc7143bc90dcf56a0ebf074f59c8915ae3432f37fb5a66b7531b9a3e37ad59",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "adp_circ5": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "adp_circ5.bin",
+      "rtol": 1e-05,
+      "sha256": "5501e24c10bc1a9912f30be2aebf1f65311d72aca6771c6c57e0f0d163541351",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "adp_no_normalize": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "adp_no_normalize.bin",
+      "rtol": 1e-05,
+      "sha256": "a4b776bab105eb46ec934c814b0aa1e4557c6bdee9cedcd8a93be93bb321a9b6",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "adp_no_zero_mean": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "adp_no_zero_mean.bin",
+      "rtol": 1e-05,
+      "sha256": "1ff33cc4ca7510ac4e435a3452d4be601e64faf695e13661f72b70808d8aca08",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "adp_rect1x3": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "adp_rect1x3.bin",
+      "rtol": 1e-05,
+      "sha256": "91c2abadaed5a65aa7fb1b578b44fefdf9e808cb8e395b435638f2942154808e",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "adp_rect3": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "adp_rect3.bin",
+      "rtol": 1e-05,
+      "sha256": "d8d422c68b3d640b0c99942cef24edd9d0b4594526be23bb081c3c96fdec15a9",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "corrected_patterns": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "corrected_patterns.bin",
+      "note": "static then dynamic background, kikuchipy's uint8",
+      "rtol": 0.0,
+      "sha256": "7532416df1b665d7e35b8cc874ee33de6d3135a65293a9684e6152b6d875cacd",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "frequency_vectors": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "frequency_vectors.bin",
+      "rtol": 0.0,
+      "sha256": "aa892a899f0ae59e4be8da5e4c0153e841514a7bf96adae76b7be2cd9872240e",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "iq": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "iq.bin",
+      "rtol": 1e-05,
+      "sha256": "fd4ae664c011601ae7dca6dae5de6fd25e1a32705da54af4ae1d60b778a73599",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "iq_unnormalized": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "iq_unnormalized.bin",
+      "rtol": 1e-05,
+      "sha256": "46616bd16036ebfb3e9f924aa3b106e000eabcba39fb3ff452d1deb13eea99db",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "raw_adp": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "raw_adp.bin",
+      "rtol": 1e-05,
+      "sha256": "1fe6f3d812719abc9333a38e5c67e4214a33db4c4775a33cb0d03cea2e940b23",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "raw_iq": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "raw_iq.bin",
+      "rtol": 1e-05,
+      "sha256": "6fec18ffd3347536ca69635010a4832fe0103f0bc58896fe8e96d1deca0d41a9",
+      "shape": [
+        3,
+        3
+      ]
+    }
+  },
+  "case": "m2/quality-kikuchipy-h5ebsd",
+  "inputs": [
+    {
+      "path": "fixtures/kikuchipy_h5ebsd_patterns.h5",
+      "sha256": "8f46638f5affa21c08db447b7b472b9a8d02e9e1e70fe11488dc5a50c2b8ee67"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.get_image_quality / get_average_neighbour_dot_product_map",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "windows": {
+      "circ5": [
+        [
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          1,
+          1,
+          0
+        ],
+        [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          0,
+          1,
+          1,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0
+        ]
+      ],
+      "rect1x3": [
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "rect3": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ]
+    }
+  }
+}

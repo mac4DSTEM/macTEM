@@ -1,0 +1,1596 @@
+{
+  "arrays": {
+    "data_lambert_both_all": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_both_all.bin",
+      "rtol": 0.0,
+      "sha256": "79438f968d961afafcd5317d95d79c266b3bd1e339b31686757c061fdacdf635",
+      "shape": [
+        2,
+        11,
+        13,
+        13
+      ]
+    },
+    "data_lambert_both_nearest_15_4": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_both_nearest_15_4.bin",
+      "rtol": 0.0,
+      "sha256": "554c47d08bab46417c4246694db52750445c40bb6c3e1fb5dcc6dbd03f5fee90",
+      "shape": [
+        2,
+        13,
+        13
+      ]
+    },
+    "data_lambert_both_nearest_25": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_both_nearest_25.bin",
+      "rtol": 0.0,
+      "sha256": "25baeb68a1bd06a7afdf08c9219e23bb9366c2a2c3d52e5ea55367b0821bb420",
+      "shape": [
+        2,
+        13,
+        13
+      ]
+    },
+    "data_lambert_both_range_12_16": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_both_range_12_16.bin",
+      "rtol": 0.0,
+      "sha256": "0635c914c362969fb5c9e1c0a7f3b58f24c515e976459d264309a44046391c0b",
+      "shape": [
+        2,
+        5,
+        13,
+        13
+      ]
+    },
+    "data_lambert_lower_all": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_lower_all.bin",
+      "rtol": 0.0,
+      "sha256": "0e2d65eaeefeabc56bc1e7cdbe27be178d48e112b0f7692521dcba93bf7abc36",
+      "shape": [
+        11,
+        13,
+        13
+      ]
+    },
+    "data_lambert_lower_nearest_15_4": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_lower_nearest_15_4.bin",
+      "rtol": 0.0,
+      "sha256": "08a07ef9d6afef8b0f80387d6124239864f678204623e84224e34500776f0745",
+      "shape": [
+        13,
+        13
+      ]
+    },
+    "data_lambert_lower_nearest_25": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_lower_nearest_25.bin",
+      "rtol": 0.0,
+      "sha256": "ae53c073739ef1965c0ce6fc6080afd6a99a18e994e2286f35ed10c4f92604a2",
+      "shape": [
+        13,
+        13
+      ]
+    },
+    "data_lambert_lower_range_12_16": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_lower_range_12_16.bin",
+      "rtol": 0.0,
+      "sha256": "ce31245195c1877bdef65633849a7b038f4991b9201331561b0e7a97efeaa37e",
+      "shape": [
+        5,
+        13,
+        13
+      ]
+    },
+    "data_lambert_upper_all": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_upper_all.bin",
+      "rtol": 0.0,
+      "sha256": "0e2d65eaeefeabc56bc1e7cdbe27be178d48e112b0f7692521dcba93bf7abc36",
+      "shape": [
+        11,
+        13,
+        13
+      ]
+    },
+    "data_lambert_upper_nearest_15_4": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_upper_nearest_15_4.bin",
+      "rtol": 0.0,
+      "sha256": "08a07ef9d6afef8b0f80387d6124239864f678204623e84224e34500776f0745",
+      "shape": [
+        13,
+        13
+      ]
+    },
+    "data_lambert_upper_nearest_25": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_upper_nearest_25.bin",
+      "rtol": 0.0,
+      "sha256": "ae53c073739ef1965c0ce6fc6080afd6a99a18e994e2286f35ed10c4f92604a2",
+      "shape": [
+        13,
+        13
+      ]
+    },
+    "data_lambert_upper_range_12_16": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_lambert_upper_range_12_16.bin",
+      "rtol": 0.0,
+      "sha256": "ce31245195c1877bdef65633849a7b038f4991b9201331561b0e7a97efeaa37e",
+      "shape": [
+        5,
+        13,
+        13
+      ]
+    },
+    "data_stereographic_both_all": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_both_all.bin",
+      "rtol": 0.0,
+      "sha256": "be13706765a076ad4ee93f168dbd268eebbe92223da034b60af3bcacc04a269e",
+      "shape": [
+        2,
+        11,
+        13,
+        13
+      ]
+    },
+    "data_stereographic_both_nearest_15_4": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_both_nearest_15_4.bin",
+      "rtol": 0.0,
+      "sha256": "cb3b737a5edf6fa0562a80e83a4c0b0d226f71e0fc6a17d03fad2ac269d5b871",
+      "shape": [
+        2,
+        13,
+        13
+      ]
+    },
+    "data_stereographic_both_nearest_25": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_both_nearest_25.bin",
+      "rtol": 0.0,
+      "sha256": "9820307fab6fc8ba73b38fee59101d1926f047fdbddae4d7d4dc745a5b5886d7",
+      "shape": [
+        2,
+        13,
+        13
+      ]
+    },
+    "data_stereographic_both_range_12_16": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_both_range_12_16.bin",
+      "rtol": 0.0,
+      "sha256": "e0828244059f0ec55ce05d76bec85a4a95030097fcc455b0446d752fba30e88b",
+      "shape": [
+        2,
+        5,
+        13,
+        13
+      ]
+    },
+    "data_stereographic_lower_all": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_lower_all.bin",
+      "rtol": 0.0,
+      "sha256": "d3811c948d40d241b51156a7d29f89f34096d5b0043644512c086f2629d8a1de",
+      "shape": [
+        11,
+        13,
+        13
+      ]
+    },
+    "data_stereographic_lower_nearest_15_4": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_lower_nearest_15_4.bin",
+      "rtol": 0.0,
+      "sha256": "b0ce79ffc272090228646cde934c27622d3e9699b9a0f2b6848b41af81336c23",
+      "shape": [
+        13,
+        13
+      ]
+    },
+    "data_stereographic_lower_nearest_25": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_lower_nearest_25.bin",
+      "rtol": 0.0,
+      "sha256": "4085067df64756cdd3a7ad6a7b78f65dabd0f8cce56ac3e0856b6b9ee1eb7726",
+      "shape": [
+        13,
+        13
+      ]
+    },
+    "data_stereographic_lower_range_12_16": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_lower_range_12_16.bin",
+      "rtol": 0.0,
+      "sha256": "3e4699c2dd9a91f9873e9beb6154d0c6b192212118b94b2aa4cdf10cd56e4782",
+      "shape": [
+        5,
+        13,
+        13
+      ]
+    },
+    "data_stereographic_upper_all": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_upper_all.bin",
+      "rtol": 0.0,
+      "sha256": "d3811c948d40d241b51156a7d29f89f34096d5b0043644512c086f2629d8a1de",
+      "shape": [
+        11,
+        13,
+        13
+      ]
+    },
+    "data_stereographic_upper_nearest_15_4": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_upper_nearest_15_4.bin",
+      "rtol": 0.0,
+      "sha256": "b0ce79ffc272090228646cde934c27622d3e9699b9a0f2b6848b41af81336c23",
+      "shape": [
+        13,
+        13
+      ]
+    },
+    "data_stereographic_upper_nearest_25": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_upper_nearest_25.bin",
+      "rtol": 0.0,
+      "sha256": "4085067df64756cdd3a7ad6a7b78f65dabd0f8cce56ac3e0856b6b9ee1eb7726",
+      "shape": [
+        13,
+        13
+      ]
+    },
+    "data_stereographic_upper_range_12_16": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "data_stereographic_upper_range_12_16.bin",
+      "rtol": 0.0,
+      "sha256": "3e4699c2dd9a91f9873e9beb6154d0c6b192212118b94b2aa4cdf10cd56e4782",
+      "shape": [
+        5,
+        13,
+        13
+      ]
+    }
+  },
+  "case": "m6/read-master-pattern-tkd",
+  "inputs": [
+    {
+      "path": "fixtures/planted_emsoft_tkd_master_pattern.h5",
+      "sha256": "18ecb1ce8032b48680ce2accebdc8220da32fbeda4aa86ff24799b3c597d0c5b"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "kikuchipy.io.plugins.emsoft_tkd_master_pattern.file_reader",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "readings": {
+      "lambert_both_all": {
+        "axes": [
+          {
+            "name": "hemisphere",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 2,
+            "units": ""
+          },
+          {
+            "name": "energy",
+            "offset": 10.0,
+            "scale": 1.0,
+            "size": 11,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "both",
+        "kwargs": {
+          "hemisphere": "both",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          2,
+          11,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_both_nearest_15_4": {
+        "axes": [
+          {
+            "name": "hemisphere",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 2,
+            "units": ""
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "both",
+        "kwargs": {
+          "energy": 15.4,
+          "hemisphere": "both",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          2,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_both_nearest_25": {
+        "axes": [
+          {
+            "name": "hemisphere",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 2,
+            "units": ""
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "both",
+        "kwargs": {
+          "energy": 25,
+          "hemisphere": "both",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          2,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_both_range_12_16": {
+        "axes": [
+          {
+            "name": "hemisphere",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 2,
+            "units": ""
+          },
+          {
+            "name": "energy",
+            "offset": 12.0,
+            "scale": 1.0,
+            "size": 5,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "both",
+        "kwargs": {
+          "energy": [
+            12,
+            16
+          ],
+          "hemisphere": "both",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          2,
+          5,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_lower_all": {
+        "axes": [
+          {
+            "name": "energy",
+            "offset": 10.0,
+            "scale": 1.0,
+            "size": 11,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "lower",
+        "kwargs": {
+          "hemisphere": "lower",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          11,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_lower_nearest_15_4": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "lower",
+        "kwargs": {
+          "energy": 15.4,
+          "hemisphere": "lower",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_lower_nearest_25": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "lower",
+        "kwargs": {
+          "energy": 25,
+          "hemisphere": "lower",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_lower_range_12_16": {
+        "axes": [
+          {
+            "name": "energy",
+            "offset": 12.0,
+            "scale": 1.0,
+            "size": 5,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "lower",
+        "kwargs": {
+          "energy": [
+            12,
+            16
+          ],
+          "hemisphere": "lower",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          5,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_upper_all": {
+        "axes": [
+          {
+            "name": "energy",
+            "offset": 10.0,
+            "scale": 1.0,
+            "size": 11,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "upper",
+        "kwargs": {
+          "hemisphere": "upper",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          11,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_upper_nearest_15_4": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "upper",
+        "kwargs": {
+          "energy": 15.4,
+          "hemisphere": "upper",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_upper_nearest_25": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "upper",
+        "kwargs": {
+          "energy": 25,
+          "hemisphere": "upper",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "lambert_upper_range_12_16": {
+        "axes": [
+          {
+            "name": "energy",
+            "offset": 12.0,
+            "scale": 1.0,
+            "size": 5,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "upper",
+        "kwargs": {
+          "energy": [
+            12,
+            16
+          ],
+          "hemisphere": "upper",
+          "projection": "lambert"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "lambert",
+        "shape": [
+          5,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_both_all": {
+        "axes": [
+          {
+            "name": "hemisphere",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 2,
+            "units": ""
+          },
+          {
+            "name": "energy",
+            "offset": 10.0,
+            "scale": 1.0,
+            "size": 11,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "both",
+        "kwargs": {
+          "hemisphere": "both",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          2,
+          11,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_both_nearest_15_4": {
+        "axes": [
+          {
+            "name": "hemisphere",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 2,
+            "units": ""
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "both",
+        "kwargs": {
+          "energy": 15.4,
+          "hemisphere": "both",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          2,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_both_nearest_25": {
+        "axes": [
+          {
+            "name": "hemisphere",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 2,
+            "units": ""
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "both",
+        "kwargs": {
+          "energy": 25,
+          "hemisphere": "both",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          2,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_both_range_12_16": {
+        "axes": [
+          {
+            "name": "hemisphere",
+            "offset": 0.0,
+            "scale": 1.0,
+            "size": 2,
+            "units": ""
+          },
+          {
+            "name": "energy",
+            "offset": 12.0,
+            "scale": 1.0,
+            "size": 5,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "both",
+        "kwargs": {
+          "energy": [
+            12,
+            16
+          ],
+          "hemisphere": "both",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          2,
+          5,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_lower_all": {
+        "axes": [
+          {
+            "name": "energy",
+            "offset": 10.0,
+            "scale": 1.0,
+            "size": 11,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "lower",
+        "kwargs": {
+          "hemisphere": "lower",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          11,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_lower_nearest_15_4": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "lower",
+        "kwargs": {
+          "energy": 15.4,
+          "hemisphere": "lower",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_lower_nearest_25": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "lower",
+        "kwargs": {
+          "energy": 25,
+          "hemisphere": "lower",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_lower_range_12_16": {
+        "axes": [
+          {
+            "name": "energy",
+            "offset": 12.0,
+            "scale": 1.0,
+            "size": 5,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "lower",
+        "kwargs": {
+          "energy": [
+            12,
+            16
+          ],
+          "hemisphere": "lower",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          5,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_upper_all": {
+        "axes": [
+          {
+            "name": "energy",
+            "offset": 10.0,
+            "scale": 1.0,
+            "size": 11,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "upper",
+        "kwargs": {
+          "hemisphere": "upper",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          11,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_upper_nearest_15_4": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "upper",
+        "kwargs": {
+          "energy": 15.4,
+          "hemisphere": "upper",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_upper_nearest_25": {
+        "axes": [
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "upper",
+        "kwargs": {
+          "energy": 25,
+          "hemisphere": "upper",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      },
+      "stereographic_upper_range_12_16": {
+        "axes": [
+          {
+            "name": "energy",
+            "offset": 12.0,
+            "scale": 1.0,
+            "size": 5,
+            "units": "keV"
+          },
+          {
+            "name": "height",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          },
+          {
+            "name": "width",
+            "offset": -7.0,
+            "scale": 1.0,
+            "size": 13,
+            "units": "px"
+          }
+        ],
+        "dtype": "float32",
+        "hemisphere": "upper",
+        "kwargs": {
+          "energy": [
+            12,
+            16
+          ],
+          "hemisphere": "upper",
+          "projection": "stereographic"
+        },
+        "phase": {
+          "atoms": 2,
+          "inversion": true,
+          "lattice": [
+            0.5949,
+            0.5949,
+            0.5821,
+            90.0,
+            90.0,
+            90.0
+          ],
+          "name": "None",
+          "point_group": "4/mmm",
+          "space_group": 140
+        },
+        "projection": "stereographic",
+        "shape": [
+          5,
+          13,
+          13
+        ],
+        "signal_type": "EBSDMasterPattern"
+      }
+    }
+  }
+}
