@@ -342,6 +342,16 @@ private struct IndexingExportSection: View {
                     .accessibilityIdentifier("indexing.export.csv")
             }
             InspectorActionRow {
+                Button(IndexingExportKind.ang.title) { export(.ang) }
+                    .disabled(reason != nil)
+                    .help(reason ?? "The orientations as an EDAX .ang: Euler angles, IQ from the pattern quality, CI, fit (the rows reached)")
+                    .accessibilityIdentifier("indexing.export.ang")
+                Button(IndexingExportKind.ctf.title) { export(.ctf) }
+                    .disabled(reason != nil)
+                    .help(reason ?? "The orientations as an Oxford .ctf: Euler angles, matched bands, MAD from the fit (the rows reached)")
+                    .accessibilityIdentifier("indexing.export.ctf")
+            }
+            InspectorActionRow {
                 Button(IndexingExportKind.methodJSON.title) { export(.methodJSON) }
                     .disabled(reason != nil)
                     .help(reason ?? "Every input of the run in pyEBSDindex's and kikuchipy's names, to redo it in Python")

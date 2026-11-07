@@ -116,6 +116,39 @@ package nonisolated struct IndexingResult: Sendable {
         phases.indices.contains(s.phase) ? phases[s.phase] : nil
     }
 
+    /// The rows landed as orix's crystal map, as kikuchipy builds it from pyEBSDindex's result (`HoughIndexer.crystalMap`, D-SEM-81):
+    /// the whole scan once the run is complete, rows 0..<rowsDone of a stopped run (the rows it reached, on their own grid), steps
+    /// `steps` (dy, dx) in `scanUnit`; the phases keep the room's colours. `indexer` is the run's (its phases are `phases`). nil before a
+    /// row has landed.
+    package func crystalMap(indexer: HoughIndexer, steps: (dy: Double, dx: Double), scanUnit: String) throws -> CrystalMap? {
+        guard rowsDone > 0 else { return nil }
+        let landed = solutions.prefix(rowsDone * scanColumns).map { $0 ?? HoughIndexer.Solution() }
+        var map = try indexer.crystalMap(HoughIndexer.Map(scanRows: rowsDone, scanColumns: scanColumns, solutions: landed),
+                                         steps: steps, scanUnit: scanUnit)
+        map.phases = PhaseList(map.phases.entries.map { entry -> (id: Int, phase: CrystalPhase) in
+            var phase = entry.phase
+            if phases.indices.contains(entry.id) { phase.color = phases[entry.id].color }
+            return (id: entry.id, phase: phase)
+        })
+        return map
+    }
+
+    /// The .ang columns of a Hough crystal map (D-SEM-84): image quality from `pq` (pyEBSDindex's mean Radon peak of the bands, as
+    /// EDAX's IQ is the mean Hough peak), confidence index from `cm` (its vote confidence after EDAX's voting CI), fit from `fit`.
+    package static let angOptions = ANGWriter.Options(imageQuality: "pq", confidenceIndex: "cm", patternFit: "fit")
+
+    /// A Hough crystal map with the columns an Oxford .ctf reads by name (D-SEM-84): Bands from the matched bands (`nmatch`) and MAD
+    /// from the fit (`fit`, pyEBSDindex's mean angular deviation; 0 where not indexed, as AZtec writes it).
+    package static func ctfColumns(_ map: CrystalMap) throws -> CrystalMap {
+        var properties = map.properties
+        if let matched = properties["nmatch"] { properties["bands"] = matched }
+        if let fit = properties["fit"] {
+            properties["mad"] = zip(fit, map.allPhaseIDs).map { $1 == PhaseList.notIndexedID ? 0 : $0 }
+        }
+        return try CrystalMap(rotations: map.rotations, phaseIDs: map.allPhaseIDs, x: map.allX, y: map.allY, phaseList: map.phases,
+                              properties: properties, scanUnit: map.scanUnit, isInData: map.isInData)
+    }
+
     /// orix's Bunge Euler angles (φ₁, Φ, φ₂) of a solution's orientation, degrees, φ₁ and φ₂ in [0, 360).
     package static func eulerDegrees(_ s: HoughIndexer.Solution) -> SIMD3<Double> {
         Rotation(unit: s.quaternion).euler * (180 / Double.pi)
@@ -159,6 +192,13 @@ package nonisolated struct IndexingResult: Sendable {
         package let patternQuality: Double
 
         package var position: EBSDPosition { EBSDPosition(row: row, column: column) }
+
+        /// Sort keys of the columns a point not indexed leaves NaN: NaN last, so a sorted column stays in order.
+        package var phi1Key: Double { phi1.isFinite ? phi1 : .infinity }
+        package var capitalPhiKey: Double { capitalPhi.isFinite ? capitalPhi : .infinity }
+        package var phi2Key: Double { phi2.isFinite ? phi2 : .infinity }
+        package var fitKey: Double { fit.isFinite ? fit : .infinity }
+        package var patternQualityKey: Double { patternQuality.isFinite ? patternQuality : .infinity }
     }
 
     /// The reached points, in map order. Not indexed: phase "not indexed", the Euler angles and fit NaN, CI 0.
@@ -260,9 +300,9 @@ package nonisolated enum IndexingRaster {
     /// every row, so the caller repaints all of it).
     package static func paint(_ rgba: inout [UInt8], result: IndexingResult, palette: IndexingPalette, backdrop: [Float]?, rows: Range<Int>) {
         let columns = result.scanColumns
-        let clamped = max(rows.lowerBound, 0)..<min(rows.upperBound, result.scanRows)
-        guard rgba.count == result.pointCount * 4, !clamped.isEmpty else { return }
-        let start = clamped.lowerBound * columns, end = clamped.upperBound * columns
+        let lo = max(rows.lowerBound, 0), hi = min(rows.upperBound, result.scanRows)
+        guard rgba.count == result.pointCount * 4, lo < hi else { return }
+        let start = lo * columns, end = hi * columns
         let slice = Array(result.solutions[start..<end])
         let colors = palette.layer.isPointwise ? palette.pointColors(slice) : []
         let scalar = palette.layer.isPointwise ? nil : scalarRange(result, layer: palette.layer)
@@ -327,9 +367,11 @@ package nonisolated struct IndexedBand: Sendable, Identifiable, Equatable {
     package let peak: Double
     package let width: Double
     package let isValid: Bool
-    /// The matched reflector family ("{111}") and the angle between the band's normal and it after the fit (degrees); nil when the
-    /// band was not matched or the point is not indexed.
+    /// The matched reflector family ("{111}"); nil when the assignment did not match the band (outside the angle tolerance) or the
+    /// point is not indexed.
     package let family: String?
+    /// The angle (degrees) between the band's normal and its pole after the QUEST fit, for the (at most six) matched bands the fit
+    /// weighed; nil for the others.
     package let fitDegrees: Double?
     /// The band's centre line on the pattern, (column, row) with pixel centres at integers and row 0 at the top; nil when it misses.
     package let start: SIMD2<Double>?
@@ -344,12 +386,13 @@ package nonisolated struct IndexedBand: Sendable, Identifiable, Equatable {
         let library: HoughReflectorLibrary? = solution.flatMap { libraries.indices.contains($0.phase) ? libraries[$0.phase] : nil }
         return bands.enumerated().map { k, band in
             var family: String?, fit: Double?
-            if let solution, let library, solution.bandMatch.indices.contains(k) {
+            if let solution, let library, solution.bandMatch.indices.contains(k),
+               solution.bandMatched.indices.contains(k), solution.bandMatched[k] {
                 let variant = solution.bandMatch[k]
                 if variant >= 0, library.familyID.indices.contains(variant) {
                     let f = library.familyID[variant]
                     if library.poleFamilies.indices.contains(f) { family = familyLabel(library.poleFamilies[f]) }
-                    if solution.bandFit.indices.contains(k) { fit = solution.bandFit[k] }
+                    if solution.bandFit.indices.contains(k), solution.bandFit[k] < 180 { fit = solution.bandFit[k] }
                 }
             }
             let line = band.valid ? segment(rho: band.rho, theta: band.theta, rows: rows, columns: columns) : nil

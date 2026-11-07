@@ -102,7 +102,7 @@ struct IndexingRoom: View {
 
 /// A file the save panel writes: the bytes `IndexingRoomState.export` made (the map PNG, the results CSV or the method JSON).
 struct IndexingExportFile: FileDocument {
-    static var readableContentTypes: [UTType] { [.png, .json, .commaSeparatedText] }
+    static var readableContentTypes: [UTType] { [.png, .json, .commaSeparatedText] + [IndexingExportKind.ang, .ctf].map { $0.contentType } }
     var data: Data
 
     init(data: Data) { self.data = data }
@@ -408,6 +408,7 @@ struct IndexedPatternPane: View {
             }
             .frame(width: box.width, height: box.height)
             .clipped()
+            .contentShape(Rectangle())   // the image and the overlay take no hits: the pane itself pans, zooms and fits
             .border(Color.white.opacity(0.08))
             .zoomPan(zoomModel, box: box)
             .zoomPanWheel(zoomModel, box: box)
@@ -521,13 +522,13 @@ struct IndexingResultsTable: View {
                 TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
                 TableColumn("Col", value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
                 TableColumn("Phase", value: \.phase)
-                TableColumn("φ₁ °", value: \.phi1) { Text(Self.angle($0.phi1)).monospacedDigit() }
-                TableColumn("Φ °", value: \.capitalPhi) { Text(Self.angle($0.capitalPhi)).monospacedDigit() }
-                TableColumn("φ₂ °", value: \.phi2) { Text(Self.angle($0.phi2)).monospacedDigit() }
+                TableColumn("φ₁ °", value: \.phi1Key) { Text(Self.angle($0.phi1)).monospacedDigit() }
+                TableColumn("Φ °", value: \.capitalPhiKey) { Text(Self.angle($0.capitalPhi)).monospacedDigit() }
+                TableColumn("φ₂ °", value: \.phi2Key) { Text(Self.angle($0.phi2)).monospacedDigit() }
                 TableColumn("CI", value: \.confidence) { Text(Self.fraction($0.confidence)).monospacedDigit() }
-                TableColumn("Fit °", value: \.fit) { Text(Self.angle($0.fit, digits: 2)).monospacedDigit() }
+                TableColumn("Fit °", value: \.fitKey) { Text(Self.angle($0.fit, digits: 2)).monospacedDigit() }
                 TableColumn("Bands", value: \.bands) { Text(verbatim: "\($0.bands)").monospacedDigit() }
-                TableColumn("PQ", value: \.patternQuality) { Text(Self.number($0.patternQuality)).monospacedDigit() }
+                TableColumn("PQ", value: \.patternQualityKey) { Text(Self.number($0.patternQuality)).monospacedDigit() }
             }
             .overlay {
                 if session.result == nil {

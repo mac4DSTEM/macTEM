@@ -410,6 +410,7 @@ package final class IndexingSession {
         case .success(let s):
             source = s
         case .failure(let refusal):
+            patternTask?.cancel()   // a request still loading would land over the refusal
             shownKey = nil
             patternFailure = refusal.sentence
             return Task {}
@@ -487,6 +488,13 @@ package final class IndexingSession {
     }
 
     // MARK: - Export
+
+    /// The last run as orix's crystal map (`IndexingResult.crystalMap`, the rows it reached on the scan's steps): what the .ang and
+    /// .ctf exports write. nil before a row has landed.
+    package func crystalMap() throws -> CrystalMap? {
+        guard let runPlan, let result, let dataset = patterns.document?.dataset else { return nil }
+        return try result.crystalMap(indexer: runPlan.indexer, steps: (dy: dataset.stepY, dx: dataset.stepX), scanUnit: dataset.scanUnit)
+    }
 
     /// The method record of the last run (every input, in pyEBSDindex's and kikuchipy's names); nil before a run has its plan.
     package func methodJSON() throws -> Data? {

@@ -63,6 +63,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertFalse(indexing.isIndexing)
         XCTAssertTrue(indexing.wasStopped)
         XCTAssertEqual(indexing.result?.rowsDone, 0, "no row lands after Stop")
+        XCTAssertNil(try indexing.crystalMap(), "no crystal map before a row has landed")
 
         var events: [String] = []
         indexing.onEvent = { events.append($0) }
@@ -127,6 +128,8 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         let matched = indexing.detectedBands.filter(\.isMatched)
         XCTAssertFalse(matched.isEmpty)
         XCTAssertTrue(matched.allSatisfy { ["{002}", "{111}", "{022}", "{113}"].contains($0.family ?? "") }, "\(matched.map(\.family))")
+        XCTAssertEqual(matched.count, solutions[first].matchedBands, "the overlay names the bands the solution counts, no more")
+        XCTAssertLessThanOrEqual(matched.filter { $0.fitDegrees != nil }.count, 6, "QUEST weighs at most six bands")
         XCTAssertTrue(indexing.detectedBands.filter(\.isValid).allSatisfy { $0.start != nil && $0.end != nil }, "a valid band crosses its pattern")
 
         // The exports, written where a journey writes them.
@@ -135,7 +138,29 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         var reports: [String] = []
         for kind in IndexingExportKind.allCases { state.export(kind, from: indexing, directory: directory) { reports.append($0) } }
-        XCTAssertEqual(reports, ["Exported patterns_v2 indexed IPF-Z.png", "Exported patterns_v2 indexing results.csv", "Exported patterns_v2 indexing method.json"])
+        XCTAssertEqual(reports, ["Exported patterns_v2 indexed IPF-Z.png", "Exported patterns_v2 indexing results.csv",
+                                 "Exported patterns_v2 indexed.ang", "Exported patterns_v2 indexed.ctf", "Exported patterns_v2 indexing method.json"])
+
+        // The run as orix's crystal map, as kikuchipy builds it (D-SEM-81) with the room's colours; the .ang and .ctf read back as it.
+        let xmap = try XCTUnwrap(try indexing.crystalMap())
+        XCTAssertEqual(xmap.pointCount, result.pointCount)
+        XCTAssertEqual(xmap.isIndexed.filter { $0 }.count, result.indexedCount)
+        XCTAssertEqual(xmap.phases.entries.filter { $0.id != PhaseList.notIndexedID }.map(\.phase.name), ["ni"])
+        XCTAssertEqual(xmap.phases[id: 0]?.color, indexing.phases[0].color)
+        XCTAssertEqual(xmap.property("nmatch"), solutions.map { Double($0.matchedBands) })
+        XCTAssertEqual(xmap.scanUnit, patterns.document?.dataset.scanUnit)
+        let ang = try ANGReader.read(url: directory.appendingPathComponent("patterns_v2 indexed.ang")).map
+        let ctf = try CTFReader.read(path: directory.appendingPathComponent("patterns_v2 indexed.ctf").path)
+        XCTAssertEqual(ctf.map.property("bands"), xmap.property("nmatch"), "the .ctf's Bands are the matched bands")
+        for (format, back, bound) in [("ang", ang, 2.0e-5), ("ctf", ctf.map, 3.0e-6)] {
+            XCTAssertEqual(back.shape, [result.scanRows, result.scanColumns], format)
+            XCTAssertEqual(back.isIndexed, xmap.isIndexed, format)
+            var worst = 0.0
+            for (i, q) in back.rotationsInData.enumerated() where xmap.isIndexed[i] {
+                worst = max(worst, Rotation(q).angle(with: Rotation(xmap.rotations[i])))
+            }
+            XCTAssertLessThan(worst, bound, "\(format): largest rotation difference \(worst) rad")
+        }
         let method = try JSONSerialization.jsonObject(with: Data(contentsOf: directory.appendingPathComponent("patterns_v2 indexing method.json"))) as? [String: Any]
         XCTAssertEqual(method?["indexed"] as? Int, indexed)
         XCTAssertEqual(method?["patterns"] as? String, IndexingSource.Kind.perPattern.title)
@@ -184,11 +209,13 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertNotNil(hcpOnCubic.refusal)
         XCTAssertFalse(IndexingPhase.Reflectors.hcp.fits(spaceGroup: 225))
 
-        // The generated demo has no crystal map: Index asks for a phase; added presets take the next colours under unique names.
+        // The generated demo without its crystal map: Index asks for a phase; added presets take the next colours under unique names.
         let patterns = EBSDSession()
         let indexing = IndexingSession(patterns: patterns)
         patterns.onBind = { indexing.bind($0) }
-        await patterns.bind(try DemoDocuments.ebsd()).value
+        var demo = try DemoDocuments.ebsd()
+        demo.dataset.crystalMap = nil
+        await patterns.bind(demo).value
         XCTAssertTrue(indexing.phases.isEmpty)
         XCTAssertEqual(indexing.refusal, "Add a phase first: from the file, a preset or a CIF.")
         XCTAssertFalse(indexing.canIndex)
@@ -221,7 +248,9 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(min(column.start.y, column.end.y), -0.5, accuracy: 1e-9)
         XCTAssertEqual(max(column.start.y, column.end.y), 59.5, accuracy: 1e-9)
         let diagonal = try XCTUnwrap(IndexedBand.segment(rho: 0, theta: .pi / 4, rows: 60, columns: 60))
-        XCTAssertEqual(diagonal.start.x + diagonal.start.y, 59, accuracy: 1e-9, "x = y through the centre: the anti-diagonal of the image")
+        XCTAssertEqual(diagonal.start.x, diagonal.start.y, accuracy: 1e-9, "x = −y through the centre with y up: the main diagonal (row = column)")
+        let antiDiagonal = try XCTUnwrap(IndexedBand.segment(rho: 0, theta: 3 * .pi / 4, rows: 60, columns: 60))
+        XCTAssertEqual(antiDiagonal.start.x + antiDiagonal.start.y, 59, accuracy: 1e-9, "x = y through the centre with y up: the anti-diagonal")
         XCTAssertNil(IndexedBand.segment(rho: 100, theta: 0, rows: 60, columns: 60), "a line beyond the pattern is not drawn")
         XCTAssertEqual(IndexedBand.familyLabel([1, 1, 1]), "{111}")
         XCTAssertEqual(IndexedBand.familyLabel([1, 0, -1, 1]), "{10-11}")
@@ -268,11 +297,13 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         state.selectWorkspace(.indexing)
         XCTAssertEqual(state.navigation.workspaceArea, .indexing, "with nothing open every room can be entered")
         XCTAssertNil(RoomPrimaryAction.current(state), "no verb before a dataset")
-        state.ebsd.bind(try DemoDocuments.ebsd())
+        var demo = try DemoDocuments.ebsd()
+        demo.dataset.crystalMap = nil
+        state.ebsd.bind(demo)
         XCTAssertNotNil(state.indexing.patterns.document, "the window's Indexing room follows the Patterns room's dataset")
         let verb = RoomPrimaryAction.current(state)
         XCTAssertEqual(verb?.title, "Index")
-        XCTAssertEqual(verb?.isEnabled, false, "no phase in the generated demo")
+        XCTAssertEqual(verb?.isEnabled, false, "no phase once the demo's crystal map is gone")
         XCTAssertEqual(verb?.help, "Add a phase first: from the file, a preset or a CIF.")
         XCTAssertEqual(BusyOperation.name(room: .indexing, appState: state), nil)
     }
