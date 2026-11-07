@@ -68,10 +68,11 @@ package nonisolated enum DictionaryIndexingMetal {
 
         /// `experimental`: `count` prepared patterns of `length` values each, row-major.
         init(experimental values: [Double], count: Int, length: Int) throws {
-            p = try DictionaryIndexingMetal.pipeline.get()
+            let pipeline = try DictionaryIndexingMetal.pipeline.get()
+            p = pipeline
             guard values.count <= Int(UInt32.max) else { throw Error.tooLarge(values.count) }
             let floats = values.map { Float($0) }
-            guard let buffer = floats.withUnsafeBytes({ p.device.makeBuffer(bytes: $0.baseAddress!, length: max($0.count, 4), options: .storageModeShared) }) else {
+            guard let buffer = floats.withUnsafeBytes({ pipeline.device.makeBuffer(bytes: $0.baseAddress!, length: max($0.count, 4), options: .storageModeShared) }) else {
                 throw Error.metal("could not allocate \(floats.count * 4) bytes on the GPU")
             }
             experimental = buffer
