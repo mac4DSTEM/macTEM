@@ -132,9 +132,9 @@ struct SEMDatabarPicker: View {
         @Bindable var appState = appState
         SegmentedPicker(label: "Databar", items: [(true, .title("Hide")), (false, .title("Show"))], selection: $appState.cropsDatabar)
             .accessibilityIdentifier("image.sem.databar")
-            .help("Hide the \(sem.databarRows ?? 0)-row databar the microscope drew under the scan, or show the whole frame")
+            .help("Hide the \(sem.databarRows ?? 0)-row databar the microscope drew under the scan, or show it as a strip under the picture")
         InspectorNote(appState.cropsDatabar
                       ? "Databar hidden: the \(sem.databarRows ?? 0) rows under the scan are cut; lengths and exports are of the scan."
-                      : "Databar shown: the whole frame, \(sem.imageHeight) rows.")
+                      : "Databar shown under the picture: its \(sem.databarRows ?? 0) rows are not part of the image; lengths and exports are of the scan.")
     }
 }

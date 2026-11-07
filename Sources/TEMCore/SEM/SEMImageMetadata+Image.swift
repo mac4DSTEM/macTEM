@@ -30,6 +30,16 @@ nonisolated extension SEMImageMetadata {
                                notes: image.notes)
     }
 
+    /// The rows `cropped` cuts off `image`, as an image of their own (the image's width, `databarRows` rows, its axes): the
+    /// strip the room draws under the picture when the databar is shown. nil exactly where `cropped` cuts nothing.
+    package func databar(of image: CalibratedImage) -> CalibratedImage? {
+        guard let rows = databarRows, rows > 0, image.height == imageHeight, image.height - rows > 0 else { return nil }
+        let keep = image.height - rows
+        return CalibratedImage(width: image.width, height: rows, pixels: Array(image.pixels[(image.width * keep)...]),
+                               x: image.x, y: image.y, fileName: image.fileName, source: image.source, voltage: image.voltage,
+                               notes: image.notes)
+    }
+
     /// Both, in the order the app applies them: the axes, then the crop when `cropDatabar`.
     package func applied(to image: CalibratedImage, cropDatabar: Bool) -> CalibratedImage {
         let calibrated = calibrated(image)

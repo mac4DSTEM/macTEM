@@ -53,8 +53,22 @@ struct ImagePane: View {
         VStack(spacing: 6) {
             header
             GeometryReader { geometry in
-                content(in: geometry.size)
+                if let strip = appState.cropsDatabar ? nil : item.databar {
+                    // The databar shown (design §3): a strip under the picture, outside the zoom container, as wide as the
+                    // picture; the picture keeps the scan's rows, so every measurement and export stays on the scan.
+                    let split = DatabarLayout.split(geometry.size, width: canvas.width, height: canvas.height,
+                                                    stripWidth: strip.width, stripRows: strip.height)
+                    VStack(spacing: 0) {
+                        content(in: split.picture)
+                            .frame(width: split.picture.width, height: split.picture.height)
+                        DatabarStrip(strip: strip)
+                            .frame(width: split.strip.width, height: split.strip.height)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    content(in: geometry.size)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
         .padding(8)
@@ -278,5 +292,51 @@ enum ImageScaleBar {
     /// Physical units per screen point: at zoom 1 the box's width spans the image's `imageWidth` pixels.
     static func unitsPerPoint(perPixel: Double, imageWidth: Int, boxWidth: CGFloat, zoom: CGFloat) -> Double {
         perPixel * Double(imageWidth) / Double(boxWidth) / Double(zoom)
+    }
+}
+
+/// Where the picture and the databar strip under it sit in the pane: fitted together at their pixel aspect (the strip has the
+/// picture's width in pixels), the picture above, the strip below at the same on-screen width. Pure, so a test pins it.
+nonisolated enum DatabarLayout {
+    static func split(_ size: CGSize, width: Int, height: Int, stripWidth: Int, stripRows: Int) -> (picture: CGSize, strip: CGSize) {
+        guard width > 0, height > 0, stripWidth > 0, stripRows > 0 else {
+            return (LayoutPolicy.fitted(in: size, aspect: CGFloat(max(width, 1)) / CGFloat(max(height, 1))), .zero)
+        }
+        // The strip's rows in the picture's pixel units (equal widths, so equal per-pixel scale on screen).
+        let rows = CGFloat(stripRows) * CGFloat(width) / CGFloat(stripWidth)
+        let whole = LayoutPolicy.fitted(in: size, aspect: CGFloat(width) / (CGFloat(height) + rows))
+        let stripHeight = whole.height * rows / (CGFloat(height) + rows)
+        return (CGSize(width: whole.width, height: whole.height - stripHeight), CGSize(width: whole.width, height: stripHeight))
+    }
+}
+
+/// The vendor's databar rows as they are stored, in grey over their own range (the vendor draws them in black and white; the
+/// image's colormap and display range are for the scan). Drawn by SwiftUI from a small grey `CGImage`, not through Metal: it
+/// never zooms, and it is never measured on.
+struct DatabarStrip: View, Equatable {
+    let strip: CanvasPixels
+
+    var body: some View {
+        Group {
+            if let picture = Self.picture(strip) {
+                Image(decorative: picture, scale: 1).resizable().interpolation(.medium)
+            } else {
+                Color.black
+            }
+        }
+        .accessibilityElement()
+        .accessibilityIdentifier("image.sem.databarStrip")
+        .accessibilityLabel("Databar")
+        .accessibilityValue("\(strip.height) rows under the scan")
+    }
+
+    /// 8-bit grey of `normalized` (0...1; a non-finite pixel is black).
+    nonisolated static func picture(_ strip: CanvasPixels) -> CGImage? {
+        guard strip.width > 0, strip.height > 0, strip.normalized.count == strip.width * strip.height else { return nil }
+        let bytes = strip.normalized.map { v -> UInt8 in v.isFinite ? UInt8((min(max(v, 0), 1) * 255).rounded()) : 0 }
+        guard let provider = CGDataProvider(data: Data(bytes) as CFData) else { return nil }
+        return CGImage(width: strip.width, height: strip.height, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: strip.width,
+                       space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+                       provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
     }
 }

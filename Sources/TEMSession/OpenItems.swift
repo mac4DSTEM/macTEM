@@ -132,6 +132,9 @@ package nonisolated struct OpenedImage: Sendable {
     package let metadata: AcquisitionMetadata
     /// The SEM vendor record of a Thermo, Zeiss or Tescan TIFF, already applied to `image` (axes, databar crop); nil otherwise.
     package let sem: SEMImageMetadata?
+    /// The canvas of the databar rows cut off `image` (`SEMImageMetadata.databar(of:)`), which the pane draws under the picture when
+    /// the databar is shown; nil when nothing was cut.
+    package let databar: CanvasPixels?
     /// The file that was read: the request's URL, or where its bookmark resolved to when the file has moved since
     /// (the item then follows it, so opening the file at its new path selects the item instead of making another).
     package let url: URL
@@ -155,8 +158,9 @@ package nonisolated struct OpenedImage: Sendable {
     package init(image: CalibratedImage, canvas: CanvasPixels, metadata: AcquisitionMetadata,
                  url: URL, thumbnail: Thumbnail?, bookmark: Data?,
                  identity: SessionSourceIdentity? = nil, sidecar: SidecarOutcome = .none, stack: ImageStackSource? = nil,
-                 hasGrant: Bool? = nil, sem: SEMImageMetadata? = nil) {
+                 hasGrant: Bool? = nil, sem: SEMImageMetadata? = nil, databar: CanvasPixels? = nil) {
         self.sem = sem
+        self.databar = databar
         self.stack = stack
         self.hasGrant = hasGrant
         self.identity = identity
@@ -282,6 +286,8 @@ package final class OpenItem: Identifiable {
     package fileprivate(set) var residency = Residency.reading
     /// Nil until the first read has answered.
     package fileprivate(set) var summary: ImageSummary?
+    /// The databar rows the read cut off the picture (an SEM TIFF's vendor strip), drawn under it when shown; nil otherwise.
+    package fileprivate(set) var databar: CanvasPixels?
     /// The image stack this item reads on demand (a multi-page TIFF), and the frame shown now (from 0); nil for a single image.
     package fileprivate(set) var stack: ImageStackSource?
     package fileprivate(set) var frame = 0
@@ -420,6 +426,7 @@ package final class OpenItem: Identifiable {
             fileIdentity = movedTo
         }
         presentation.show(opened.canvas)
+        databar = opened.databar
         measurements.refresh(on: opened.image)
         // The session record: only a file's first read restores — a re-read of a cold item never swaps the marks —
         // and only the read that is still the current one reaches here (`finishOpen`'s token above).
@@ -459,6 +466,7 @@ package final class OpenItem: Identifiable {
         sessionToken = session.beginOpen()
         guard session.finishOpen(sessionToken, image: opened.image, url: opened.url, metadata: opened.metadata, sem: opened.sem) else { return }
         presentation.show(opened.canvas)
+        databar = opened.databar
         measurements.refresh(on: opened.image)
         summary = ImageSummary(opened.image, thumbnail: opened.thumbnail ?? summary?.thumbnail)
         frame = n
@@ -494,6 +502,7 @@ package final class OpenItem: Identifiable {
         session = ImageSession()
         presentation = ImagePresentation()
         presentation.keepSettings(of: kept)
+        databar = nil
         residency = .cold
     }
 }
@@ -681,19 +690,6 @@ package final class OpenItems {
             queue.insert(item, at: 0)
         case .resident:
             break
-        }
-    }
-
-    /// Reads `item` again from its file, ahead of any read waiting: for a setting the read applies (the SEM databar crop). A
-    /// resident item keeps showing its image until the new read answers; an item already reading is moved to the front.
-    package func reread(_ item: OpenItem) {
-        guard items.contains(where: { $0 === item }) else { return }
-        if item.residency == .reading {
-            guard let index = queue.firstIndex(where: { $0 === item }), index > 0 else { return }
-            queue.remove(at: index)
-            queue.insert(item, at: 0)
-        } else {
-            enqueue(item, atFront: true)
         }
     }
 
