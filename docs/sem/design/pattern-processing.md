@@ -76,7 +76,10 @@ neighbours` switch with `Window` pop-up `3 × 3 · 5 × 5 · Gaussian`.
 **Apply to** (a row at the top of Static background, once): segmented `Scan · Region`, with the region named in the
 caption when `Region`. Regions and the Tools section arrive with this phase (Tools under Display).
 
-The dependency order is Static → Dynamic → Intensity → FFT filter → Size; a change in one stales it and every later
+As built (D-SEM-82): the FFT filter's `Pass` is `Low · High · Band` with cutoff and width fields (kikuchipy's lowpass and
+highpass), not a window pop-up; `Average neighbours` is its own section after Size, run by Process over the scan.
+
+The dependency order is Static → Dynamic → Intensity → FFT filter → Size → Average neighbours → NLPAR; a change in one stales it and every later
 stage; the title glyphs say so and `Process`'s help names the first stale stage (`Run the stages that are not current,
 starting with Dynamic background`).
 
