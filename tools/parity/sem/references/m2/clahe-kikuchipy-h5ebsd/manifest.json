@@ -1,0 +1,110 @@
+{
+  "arrays": {
+    "default": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "default.bin",
+      "rtol": 0.0,
+      "sha256": "35008a5111c10b31c53c27a0a319ed0d64c2e58b43000d505e9078d8a5950a21",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "k10x12_clip0p01_nbins64": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "k10x12_clip0p01_nbins64.bin",
+      "rtol": 0.0,
+      "sha256": "3c973011f63cdbc342f91b120fbd2c21af25818faa0ffc7da456e8822a7d1ade",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "k7_clip0p05_nbins256": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "k7_clip0p05_nbins256.bin",
+      "rtol": 0.0,
+      "sha256": "fcff00ec0fd2e640366462fda7b1d1e205c3004860e4aed68e4cd6d1c4f27ad0",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "patterns": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "patterns.bin",
+      "note": "the input patterns",
+      "rtol": 0.0,
+      "sha256": "ffab6bc6c2f20015338e95270c6379c5aaf6be5a2b9c58106622ae31b0673fdd",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    }
+  },
+  "case": "m2/clahe-kikuchipy-h5ebsd",
+  "inputs": [
+    {
+      "path": "fixtures/kikuchipy_h5ebsd_patterns.h5",
+      "sha256": "8f46638f5affa21c08db447b7b472b9a8d02e9e1e70fe11488dc5a50c2b8ee67"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.adaptive_histogram_equalization (skimage.exposure.equalize_adapthist)",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "runs": {
+      "default": {
+        "clip_limit": 0.0,
+        "kernel_size": "pattern shape // 4",
+        "nbins": 128
+      },
+      "k10x12_clip0p01_nbins64": {
+        "clip_limit": 0.01,
+        "kernel_size": [
+          10,
+          12
+        ],
+        "nbins": 64
+      },
+      "k7_clip0p05_nbins256": {
+        "clip_limit": 0.05,
+        "kernel_size": [
+          7,
+          7
+        ],
+        "nbins": 256
+      }
+    }
+  }
+}

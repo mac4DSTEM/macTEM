@@ -1,0 +1,110 @@
+{
+  "arrays": {
+    "default": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "default.bin",
+      "rtol": 0.0,
+      "sha256": "0e54b7de987a7c4967ac43d855880aac5e9dfc89066b2cfc74008a06df33380e",
+      "shape": [
+        1,
+        1,
+        60,
+        60
+      ]
+    },
+    "k10x12_clip0p01_nbins64": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "k10x12_clip0p01_nbins64.bin",
+      "rtol": 0.0,
+      "sha256": "543acc80c8cc77b24ec5d3c691800b7d88645dd0435c477b2b928d8224db883d",
+      "shape": [
+        1,
+        1,
+        60,
+        60
+      ]
+    },
+    "k7_clip0p05_nbins256": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "k7_clip0p05_nbins256.bin",
+      "rtol": 0.0,
+      "sha256": "d8403c7dff03aedb959856dd869e9fd449fee6d8e1ce252710b9e1252122a695",
+      "shape": [
+        1,
+        1,
+        60,
+        60
+      ]
+    },
+    "patterns": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "patterns.bin",
+      "note": "the input patterns (pattern (0, 0) only)",
+      "rtol": 0.0,
+      "sha256": "0f79895ee889fa655291cf634f704612f588da8bc5ceda8bdc7238d3224d2f06",
+      "shape": [
+        1,
+        1,
+        60,
+        60
+      ]
+    }
+  },
+  "case": "m2/clahe-nickel-ebsd-large",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.adaptive_histogram_equalization (skimage.exposure.equalize_adapthist)",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "runs": {
+      "default": {
+        "clip_limit": 0.0,
+        "kernel_size": "pattern shape // 4",
+        "nbins": 128
+      },
+      "k10x12_clip0p01_nbins64": {
+        "clip_limit": 0.01,
+        "kernel_size": [
+          10,
+          12
+        ],
+        "nbins": 64
+      },
+      "k7_clip0p05_nbins256": {
+        "clip_limit": 0.05,
+        "kernel_size": [
+          7,
+          7
+        ],
+        "nbins": 256
+      }
+    }
+  }
+}
