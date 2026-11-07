@@ -44,13 +44,7 @@ nonisolated final class SEMGrainParityTests: XCTestCase {
     }
 
     private func sdss() throws -> GrainMap {
-        let ang = try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang"))
-        let indexed = ang.phases.filter { $0.id != -1 }
-        let list = PhaseList(ids: indexed.map(\.id),
-                             phases: indexed.map { CrystalPhase(name: $0.name, formula: $0.formula, pointGroup: $0.pointGroup, lattice: $0.lattice) },
-                             assignColors: true)
-        let map = try CrystalMap(rotations: ang.quaternions, euler: ang.euler, phaseIDs: ang.phaseIDs, x: ang.x, y: ang.y, phaseList: list,
-                                 properties: ang.properties, scanUnit: ang.scanUnit)
+        let map = try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map
         return try GrainMap(map: map)
     }
 
