@@ -51,9 +51,9 @@ package nonisolated struct GrainBoundaries: Sendable, Equatable {
             let p = phase[i] > 0 ? phase[i] : (phase[j] > 0 ? phase[j] : 1)
             let ops = map.symmetries.isEmpty ? [SIMD4<Double>(1, 0, 0, 0)] : map.symmetries[p - 1]
             let a = q[i], b = q[j]
-            var best = min(DefDAPSymmetry.absDot(a, b), 1)
+            var best = min(DefDAPQuat.absDot(a, b), 1)
             for s in ops.dropFirst() {
-                best = max(best, min(DefDAPSymmetry.absDot(a, DefDAPSymmetry.equivalent(b, s)), 1))
+                best = max(best, min(DefDAPQuat.absDot(a, DefDAPQuat.symmetricEquivalent(b, s)), 1))
             }
             return 2 * acos(best)
         }

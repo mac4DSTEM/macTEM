@@ -155,6 +155,18 @@ points, and the score arrays within rtol 1e-5 (the pattern matching runs in floa
 | Every stage on a 6 x 6 block of the corrected scan (rows 20 to 25, columns 30 to 35; kikuchipy's uint8 patterns stored): line plan, Radon mask, kernel, the Radon transform and its convolution of pattern (20, 30), the band table of all 36 patterns, band normals, the triplet vote, the indexing result | `radon_fast.Radon`, `band_detect.BandDetect`, `Radon.radon2pole`, `BandIndexer.bandindex`, `EBSDIndexer.index_pats` (CPU), vendor "KIKUCHIPY", nBands 10, tSigma 2, rSigma 2 | `m4/hough-nickel-block` | plan, mask, peak cells, valid flags, vote counts and families, matched-band counts exact; Radon arrays rtol 1e-5 (atol 1e-4, 2e-3); peaks 1e-3 px; theta and normals 1e-4; fit, CM, PQ rtol 1e-5; orientations under 1e-3° (symmetry-reduced) |
 | F8: the Hough-indexed IPF-Z map of the whole scan (Ni, PC the file's mean, kikuchipy's docs background chain) | `EBSD.hough_indexing` | `m4/hough-indexing-nickel-large` | 4124 of 4125 points indexed; the app's chain: indexed count within one point, 99 % of points under 1° (symmetry-reduced), matched-band counts equal on 95 % |
 
+Figure F9 (milestone 4): the dictionary-indexed map, kikuchipy's `EBSD.dictionary_indexing` (Chen et al. 2015; Jackson
+et al. 2019). Dictionary: kikuchipy's in-package uint8 Ni 20 kV master pattern (D-SEM-32) projected onto the F15 detector
+(60 x 60, PC (0.4214, 0.2142, 0.5013) Bruker, sample tilt 70°) for orix's cubochoric sample of m-3m at 4° (11 935
+rotations); experimental patterns after kikuchipy's static then dynamic background; figure script
+`tools/parity/sem/dictionary_figure.py` (IPF-Z by orix's `IPFColorKeyTSL`).
+
+| Part | Bundle | Arrays and tolerance |
+| --- | --- | --- |
+| The 3 x 3 nickel cut on kikuchipy's corrected patterns: NCC (float32, keep_n 20), NCC in float64, NDP, NCC with a circular signal mask and two points masked out, NCC in chunks of 1000 | `m4/dictionary-indexing-kikuchipy-h5ebsd` | scores rtol 1e-4 (float32 runs), 1e-5 (float64); simulation indices exact except ranks whose scores tie within the tolerance; the crystal map's best rotations atol 1e-7 and Euler angles 1e-6 (orix's sample against the port's) |
+| F9: the whole 55 x 75 scan through the app's own background chain, keep_n 5; a 6 x 6 block of kikuchipy's corrected patterns | `m4/dictionary-indexing-nickel-ebsd-large` | whole scan: best match equal at 99.5 % of points or more, best scores rtol 1e-2 (D-SEM-18's one-grey-level background differences, the first CI run measured 6.1e-3 at worst on a point scoring 0.099; a random 0.2 % perturbation had moved them 1.04e-3 and 2 of 4125 best matches); block: as the cut |
+| The orientation similarity map of the F9 scan and of a synthetic map in five settings; the merge of three synthetic dictionary maps (two phases, an equal and a renamed repeat, mean of best 3, lowest 2, navigation masks) | `m4/orientation-similarity-map`, `m4/merge-crystal-maps` | exact |
+
 ### Figure 5 (milestone 5): maps and grains
 
 orix on the indexed map: KAM, GOS, grain segmentation at 5°, grain size statistics, ODF. Reference arrays from orix
@@ -170,10 +182,47 @@ defaults: boundaries at 10°, grains of at least 10 points; the symmetric KAM at
 | The same on the two-phase steel (austenite and ferrite, phase boundaries) | as above | `m5/grains-sdss` | as above |
 | **F11** grain map with sizes of the whole 381 × 507 Ti map (62 grains, the largest 78 515 points) and **F12** KAM and GOS maps (GOS up to 4.95°, mean 0.90°; mean KAM 4.14° DefDAP's, 2.39° symmetric, 0.81° at 5°) | as above | `m5/grains-ti-full` | grain map exact (sha256), sizes exact; KAM and GROD every 37th value atol 1e-6; GOS atol 1e-6 |
 
+Pole figures and the ODF (P5-02) are orix 0.15.0's `pole_density_function` and the kernel density estimate of
+Hielscher and Schaeben (2008), first on orix-data's Ti map like F11 and F12. The brief's {100}, {110}, {111} are the cubic
+families (the m-3m case); for hcp Ti the families are {0001}, {10-10}, {11-20}, and the ODF sections are φ2 = 0°, 30°
+(hexagonal's usual sections) and the brief's 45°. The reference figure is drawn by `texture_figure.py`.
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| Pole figures {0001}, {10-10}, {11-20}, IPF-Z density (6/mmm), ODF φ2 = 0°, 30°, 45° of the 2000 committed Ti orientations | `orix.measure.pole_density_function`; the de la Vallee Poussin kernel density | `m5/texture-ti` | counts exact up to edge vectors; densities atol 1e-7; ODF rtol 1e-4 |
+| Pole figures {100}, {110}, {111}, IPF-Z density (m-3m), ODF φ2 = 45° of the 100 seeded cubic orientations; the ODF's mean over SO(3) and its peak | as above | `m5/texture-cubic` | as above |
+| **F13** pole figures of the whole Ti map ({0001} max 108.0 mrd, {10-10} 44.9, {11-20} 33.2), IPF-Z density (max 24.0 mrd) and the ODF φ2 = 30° section of every tenth point (max 2.29 mrd; φ2 = 0° peaks at 51.5 mrd at φ1 30°, Φ 85°) | as above | `m5/texture-ti-full` | as above |
+
+Slip analysis and dislocation content (P5-03), DefDAP 1.3.1 on inputs that need no download
+(`fixtures/slip_inputs.json`: a 90 x 120 corner of orix-data's Ti map and the whole sdss map):
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| hcp Ti (`hexagonal_withca`, 24 systems in 10 plane groups): slip-system vectors, DefDAP quaternions, Nye tensor and GND density (DefDAP as shipped and with separate x and y derivatives, D-SEM-74), grains at 10° (13), their average orientations, Schmid factors for a load along x, slip-trace angles and inclinations, and the same per orientation for every 37th point under loads along x and y | `defdap.ebsd.Map.calc_nye`, `find_grains`; `Grain.calc_average_ori`, `calc_average_schmid_factors`, `calc_slip_traces`; `crystal.SlipSystem.load` | `m5/slip-ti` | Schmid factors and angles atol 1e-6; GND and Nye rtol 1e-5 (atol 1e6 m⁻²); vectors and quaternions 1e-12; grain averages 1e-10; indices exact |
+| The duplex steel: fcc austenite (`cubic_fcc`, 12 systems) and bcc ferrite (`cubic_bcc`, 48 rows in 30 plane groups), the same quantities, 102 grains | as above | `m5/slip-sdss` | as above |
+
 ### Figure 6 (milestone 6): geometrical simulation
 
-Kikuchipy *Geometrical EBSD simulations*: Kikuchi bands and zone axes of the indexed orientation drawn on the
-experimental pattern (0, 0); band and zone-axis detector coordinates rtol 1e-7.
+Figure F14 (milestone 6): kikuchipy's *Geometrical EBSD simulations* tutorial, the {111}, {200}, {220} and {311} bands
+and their zone axes of the orientation the file's crystal map holds, drawn on the experimental pattern (0, 0) of
+`nickel_ebsd_large` with that pattern's projection centre (`KikuchiPatternSimulator.on_detector` over the whole scan, so the
+lines end on the circle of the scan's largest r_max, 2.0581 in gnomonic units). The app draws it as the Patterns room's
+Simulation overlay; `SEMKikuchiSimulationParityTests.testOverlayOnTheDemoNickelIsFigureF14` takes the app's own path from
+the shipped file to the numbers. Done when band and zone-axis pixel coordinates match within atol 1e-6 px and the
+kinematic master pattern within rtol 1e-5.
+
+| Part | Bundle | Arrays and tolerance |
+| --- | --- | --- |
+| Lattices in diffpy's frame and orix's (x ∥ a, z ∥ c*): five cells from cubic to triclinic, bases, volumes, reciprocal lengths | `m6/kikuchi-lattice` | rtol 1e-7, atol 1e-12 on the bases |
+| diffsims' scattering tables (X-ray, Doyle and Turner) and the physical constants | `m6/kikuchi-scattering-tables` | exact |
+| Reflectors of Ni (Fm-3m), Ti (P6₃/mmc) and Al2Cu (I4/mcm): `symmetrise` (hkl and multiplicity), `from_min_dspacing`, `allowed`, spacings, \|F\| (`calculate_structure_factor`, xtables), refraction-corrected wavelength and Bragg angles at 10, 20 and 30 kV | `m6/kikuchi-reflectors-ni`, `m6/kikuchi-reflectors-ti`, `m6/kikuchi-reflectors-al2cu` | indices, multiplicity and `allowed` exact; spacings, \|F\|, wavelength and θ rtol 1e-7 |
+| **F14**: the nickel at points (0, 0), (20, 30), (54, 74) and (27, 37), each with its own orientation and PC: line hkl, line ends in pixels and gnomonic units, zone axes [uvw], their positions and labels | `m6/geometrical-simulation-nickel` | hkl, [uvw], labels exact; pixel coordinates rtol 1e-7 and atol 1e-6 px; gnomonic rtol 1e-7 |
+| A non-square 48 x 64 detector (sample tilt 68°, tilt 10°, azimuthal 2.5°, twist 1.2°) with Ti and three orientations | `m6/geometrical-simulation-tilted` | as F14 |
+| The kinematic master pattern of Ni at 20 kV (`calculate_master_pattern`, stereographic, 201 x 201, both hemispheres) with linear, square and no scaling | `m6/kinematic-master-pattern-ni` | rtol 1e-5, atol 1e-8 (`np.allclose`, kikuchipy's own tests); θ and \|F\| rtol 1e-7 |
+
+Measured on 2026-11-07 with a numpy port of the Swift steps: line ends within 1e-9 px, zone axes within 1e-14, every
+master pattern equal to kikuchipy's. Figure script: `tools/parity/sem/simulation_figure.py` draws the reference lines over
+the pattern beside the ones the F14 test prints.
 
 Figure F15 (milestone 6): the Ni 20 kV master pattern projected onto a detector, kikuchipy's
 `EBSDMasterPattern.get_patterns`. The master pattern is kikuchipy's in-package uint8 copy of the EMsoft Ni pattern

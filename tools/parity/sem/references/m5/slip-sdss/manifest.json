@@ -1,0 +1,1208 @@
+{
+  "arrays": {
+    "gnd": {
+      "atol": 1000000.0,
+      "dtype": "float64",
+      "file": "gnd.bin",
+      "note": "calc_nye with the x and y derivatives kept apart",
+      "rtol": 1e-05,
+      "sha256": "f1026d2de7f2e88fa3194e3f1c5d6d9a798df7f8cb6d0cf9e5fd0485f0db5e97",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "gnd_defdap_1_3_1": {
+      "atol": 1000000.0,
+      "dtype": "float64",
+      "file": "gnd_defdap_1_3_1.bin",
+      "note": "calc_nye as DefDAP 1.3.1 runs it (y derivative in both arrays)",
+      "rtol": 1e-05,
+      "sha256": "537a71116c80b87a7289f685280627bec279cd6b4d1eb58f011ea83e1729aa58",
+      "shape": [
+        100,
+        117
+      ]
+    },
+    "grain_average_orientation": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "grain_average_orientation.bin",
+      "rtol": 0.0,
+      "sha256": "542f0fff6f2439df7e06f16f788c4fdabf6f1d62d9a33e5274a6db042f71129f",
+      "shape": [
+        102,
+        4
+      ]
+    },
+    "grain_offsets": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "grain_offsets.bin",
+      "rtol": 0.0,
+      "sha256": "212d993898a37f6f0fcacb7e33020d20ec03717595316dc213739ec6ce85a356",
+      "shape": [
+        103
+      ]
+    },
+    "grain_phase": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "grain_phase.bin",
+      "note": "index into phases",
+      "rtol": 0.0,
+      "sha256": "12e480ebd5ec5e779d6378eb323a803d21654223be8a82d4c3c3b66c0e3bca31",
+      "shape": [
+        102
+      ]
+    },
+    "grain_points": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "grain_points.bin",
+      "note": "row * width + column, each grain's points in DefDAP's order",
+      "rtol": 0.0,
+      "sha256": "93c11e9c26c067aac3cedb0be69369febb1fac8f53bf1d6db921d880dff68095",
+      "shape": [
+        11568
+      ]
+    },
+    "grain_schmid_x_0": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "grain_schmid_x_0.bin",
+      "rtol": 0.0,
+      "sha256": "9a3b72695538241901b88890b19a8bf488dc43e1799f64a93e599f0feec4480b",
+      "shape": [
+        75,
+        12
+      ]
+    },
+    "grain_schmid_x_1": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "grain_schmid_x_1.bin",
+      "rtol": 0.0,
+      "sha256": "e679e2dcb582cc0d90af92910d15def432eaf186f3a5a4669ebebd8c81c90f36",
+      "shape": [
+        27,
+        48
+      ]
+    },
+    "grain_trace_angles_0": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "grain_trace_angles_0.bin",
+      "rtol": 0.0,
+      "sha256": "a5b345c82d2513113d348c3f4998654f0da9b226a937e4d349757368b604adb6",
+      "shape": [
+        75,
+        4
+      ]
+    },
+    "grain_trace_angles_1": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "grain_trace_angles_1.bin",
+      "rtol": 0.0,
+      "sha256": "d13a7a347df373732d85a2cc47f00af9e15c8101885557be966722692b838099",
+      "shape": [
+        27,
+        30
+      ]
+    },
+    "grain_trace_inclinations_0": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "grain_trace_inclinations_0.bin",
+      "rtol": 0.0,
+      "sha256": "86409fd4984765ab5b26423800154115ccfb0d6d7280c4d44e5cde78a98588bf",
+      "shape": [
+        75,
+        4
+      ]
+    },
+    "grain_trace_inclinations_1": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "grain_trace_inclinations_1.bin",
+      "rtol": 0.0,
+      "sha256": "79234d6329cf14221a0fc37785beb15f2aca5e2863b4e70e60235942c20ebdd7",
+      "shape": [
+        27,
+        30
+      ]
+    },
+    "nye_defdap_1_3_1_window": {
+      "atol": 1000000.0,
+      "dtype": "float64",
+      "file": "nye_defdap_1_3_1_window.bin",
+      "note": "alpha[i, j, row, col], rows 0-29, columns 0-39",
+      "rtol": 1e-05,
+      "sha256": "39b87bdb6645c31905dd92b59ff07b17c1fa4be1996c201de6456213b9f6cad3",
+      "shape": [
+        3,
+        3,
+        30,
+        40
+      ]
+    },
+    "nye_window": {
+      "atol": 1000000.0,
+      "dtype": "float64",
+      "file": "nye_window.bin",
+      "note": "alpha[i, j, row, col], rows 0-29, columns 0-39",
+      "rtol": 1e-05,
+      "sha256": "d1c7e1b3f4835544027d261e8d711b93739f3bcae88103d8a006de260088ba9b",
+      "shape": [
+        3,
+        3,
+        30,
+        40
+      ]
+    },
+    "quaternions": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "quaternions.bin",
+      "note": "DefDAP Quat.create_many_quats, northern hemisphere",
+      "rtol": 0.0,
+      "sha256": "741ebc649cabe3829987b644a807617fdbe807755991c8aa9f1c7116239f0869",
+      "shape": [
+        100,
+        117,
+        4
+      ]
+    },
+    "sample_points": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "sample_points.bin",
+      "note": "row * width + column",
+      "rtol": 0.0,
+      "sha256": "4850b41a8b64bcbcc97ef1ccd7748cb3a6e4ee4ee36559d9998569d2a619497e",
+      "shape": [
+        317
+      ]
+    },
+    "sample_points_0": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "sample_points_0.bin",
+      "rtol": 0.0,
+      "sha256": "d32c8d70a819184ec7efaf800bee507c9d2dfdd04e2e4d6cad0c36c77efe0340",
+      "shape": [
+        150
+      ]
+    },
+    "sample_points_1": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "sample_points_1.bin",
+      "rtol": 0.0,
+      "sha256": "2fb6b9e5a46769aabf0c5d5f4e7915cc288297569ad9b7710152dda50345e117",
+      "shape": [
+        167
+      ]
+    },
+    "sample_schmid_x_0": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "sample_schmid_x_0.bin",
+      "rtol": 0.0,
+      "sha256": "239b4ca4f9d685b927cbc002abe174089544ec8feeac89b060cca7beaa6e2cc7",
+      "shape": [
+        150,
+        12
+      ]
+    },
+    "sample_schmid_x_1": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "sample_schmid_x_1.bin",
+      "rtol": 0.0,
+      "sha256": "05322cf00cfa07fcc3b12bcaad85c778d80532e8103d753867b9ffa00b67fde0",
+      "shape": [
+        167,
+        48
+      ]
+    },
+    "sample_schmid_y_0": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "sample_schmid_y_0.bin",
+      "rtol": 0.0,
+      "sha256": "ff04491536e80044657139b8a50c1ee95c11b05ddae10fd3fc9c050f85194454",
+      "shape": [
+        150,
+        12
+      ]
+    },
+    "sample_schmid_y_1": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "sample_schmid_y_1.bin",
+      "rtol": 0.0,
+      "sha256": "f7c4a17d7336938ee089e4749c6fdec5cff3a8731bf2a0e89a5f8dd1b02f0ef5",
+      "shape": [
+        167,
+        48
+      ]
+    },
+    "sample_trace_angles_0": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "sample_trace_angles_0.bin",
+      "rtol": 0.0,
+      "sha256": "cad256d9cc00b4c3f2ab6625a371751b0d6a69280cbd3767fb396850717c334b",
+      "shape": [
+        150,
+        4
+      ]
+    },
+    "sample_trace_angles_1": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "sample_trace_angles_1.bin",
+      "rtol": 0.0,
+      "sha256": "c47cd8a3c64934bf6b6ef5ecbeff74d8cd96d78f058bca76573f8aa506e5ec5f",
+      "shape": [
+        167,
+        30
+      ]
+    },
+    "sample_trace_inclinations_0": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "sample_trace_inclinations_0.bin",
+      "rtol": 0.0,
+      "sha256": "56b5cb9d263e4adf41f2d12f1846d17b072d79dec27b369907b7a4f4d770aa15",
+      "shape": [
+        150,
+        4
+      ]
+    },
+    "sample_trace_inclinations_1": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "sample_trace_inclinations_1.bin",
+      "rtol": 0.0,
+      "sha256": "6094931d0ead614401949c6ced19c8ad2beadc55160bbd51b2847cbb8b9b6bc5",
+      "shape": [
+        167,
+        30
+      ]
+    },
+    "slip_directions_0": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "slip_directions_0.bin",
+      "rtol": 0.0,
+      "sha256": "bc3647c629de122554b7ecf0450c90fcc98c73b2fad2057beea170e5853ac5ca",
+      "shape": [
+        12,
+        3
+      ]
+    },
+    "slip_directions_1": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "slip_directions_1.bin",
+      "rtol": 0.0,
+      "sha256": "fb0734c92d4f10c78b1b5a2d307aa03d8ced923c7d268664cd00372f76270ae3",
+      "shape": [
+        48,
+        3
+      ]
+    },
+    "slip_planes_0": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "slip_planes_0.bin",
+      "rtol": 0.0,
+      "sha256": "f95efb81091903067f4aa391d81c009c5a103f7991acb965bfc6ec6de5723fd6",
+      "shape": [
+        12,
+        3
+      ]
+    },
+    "slip_planes_1": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "slip_planes_1.bin",
+      "rtol": 0.0,
+      "sha256": "4f7a2829967059075eb050d6a6a03bec4911405fff03c5e4a8c9082dbc00a59f",
+      "shape": [
+        48,
+        3
+      ]
+    }
+  },
+  "case": "m5/slip-sdss",
+  "inputs": [
+    {
+      "path": "fixtures/slip_inputs.json",
+      "sha256": "0be9c833b6431525b9e4d9fadc60d51db1d04ca2db94129f43297202af0b9d80"
+    }
+  ],
+  "milestone": 5,
+  "reference": {
+    "function": "defdap.ebsd.Map.calc_nye, find_grains; Grain.calc_average_ori, calc_average_schmid_factors, calc_slip_traces; crystal.SlipSystem.load",
+    "package": "defdap",
+    "version": "1.3.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "grain_count": 102,
+    "note": "orix-data sdss_ferrite_austenite.ang, the whole 100 x 117 map; phase 1 austenite (fcc), 2 ferrite (bcc)",
+    "phases": [
+      {
+        "c_over_a": null,
+        "crystal_structure": "cubic",
+        "groups": [
+          [
+            {
+              "direction": [
+                0,
+                1,
+                -1
+              ],
+              "plane": [
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "direction": [
+                -1,
+                0,
+                1
+              ],
+              "plane": [
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "direction": [
+                1,
+                -1,
+                0
+              ],
+              "plane": [
+                1,
+                1,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                0,
+                1,
+                1
+              ],
+              "plane": [
+                1,
+                1,
+                -1
+              ]
+            },
+            {
+              "direction": [
+                -1,
+                0,
+                -1
+              ],
+              "plane": [
+                1,
+                1,
+                -1
+              ]
+            },
+            {
+              "direction": [
+                1,
+                -1,
+                0
+              ],
+              "plane": [
+                1,
+                1,
+                -1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                0,
+                1,
+                -1
+              ],
+              "plane": [
+                -1,
+                1,
+                1
+              ]
+            },
+            {
+              "direction": [
+                1,
+                0,
+                1
+              ],
+              "plane": [
+                -1,
+                1,
+                1
+              ]
+            },
+            {
+              "direction": [
+                -1,
+                -1,
+                0
+              ],
+              "plane": [
+                -1,
+                1,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                0,
+                -1,
+                -1
+              ],
+              "plane": [
+                1,
+                -1,
+                1
+              ]
+            },
+            {
+              "direction": [
+                -1,
+                0,
+                1
+              ],
+              "plane": [
+                1,
+                -1,
+                1
+              ]
+            },
+            {
+              "direction": [
+                1,
+                1,
+                0
+              ],
+              "plane": [
+                1,
+                -1,
+                1
+              ]
+            }
+          ]
+        ],
+        "laue_group": 11,
+        "name": "austenite",
+        "slip_system_file": "cubic_fcc",
+        "space_group": 225,
+        "trace_colours": [
+          "blue",
+          "green",
+          "red",
+          "white"
+        ]
+      },
+      {
+        "c_over_a": null,
+        "crystal_structure": "cubic",
+        "groups": [
+          [
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                0,
+                1,
+                -1
+              ]
+            },
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                0,
+                1,
+                -1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                -1,
+                0,
+                1
+              ]
+            },
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                -1,
+                0,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                1,
+                -1,
+                0
+              ]
+            },
+            {
+              "direction": [
+                1,
+                1,
+                -1
+              ],
+              "plane": [
+                1,
+                -1,
+                0
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                -1
+              ],
+              "plane": [
+                0,
+                1,
+                1
+              ]
+            },
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                0,
+                -1,
+                -1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                -1
+              ],
+              "plane": [
+                -1,
+                0,
+                -1
+              ]
+            },
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                1,
+                0,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                -1,
+                -1,
+                0
+              ]
+            },
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                1,
+                1,
+                0
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                -2,
+                1,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                1,
+                -2,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                1,
+                1,
+                -2
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                -1,
+                -1,
+                1
+              ],
+              "plane": [
+                2,
+                -1,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                -1,
+                -1,
+                1
+              ],
+              "plane": [
+                -1,
+                2,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                -1,
+                -1,
+                1
+              ],
+              "plane": [
+                1,
+                1,
+                2
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                2,
+                1,
+                -1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                1,
+                2,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                -1,
+                1,
+                2
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                2,
+                1,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                1,
+                2,
+                -1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                1,
+                -1,
+                2
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                -1
+              ],
+              "plane": [
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                1,
+                2,
+                3
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                -1
+              ],
+              "plane": [
+                2,
+                1,
+                3
+              ]
+            },
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                2,
+                1,
+                3
+              ]
+            },
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                2,
+                1,
+                3
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                -1
+              ],
+              "plane": [
+                3,
+                2,
+                1
+              ]
+            },
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                3,
+                2,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                -1
+              ],
+              "plane": [
+                2,
+                3,
+                1
+              ]
+            },
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                2,
+                3,
+                1
+              ]
+            },
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                2,
+                3,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                -1
+              ],
+              "plane": [
+                -1,
+                3,
+                2
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                1,
+                -1
+              ],
+              "plane": [
+                3,
+                -1,
+                2
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                1,
+                3,
+                2
+              ]
+            },
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                1,
+                3,
+                2
+              ]
+            },
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                1,
+                3,
+                2
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                3,
+                1,
+                2
+              ]
+            },
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                3,
+                1,
+                2
+              ]
+            },
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                3,
+                1,
+                2
+              ]
+            },
+            {
+              "direction": [
+                1,
+                1,
+                1
+              ],
+              "plane": [
+                3,
+                1,
+                2
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                -1,
+                2,
+                3
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                1,
+                -1,
+                1
+              ],
+              "plane": [
+                3,
+                2,
+                -1
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                2,
+                -1,
+                3
+              ]
+            }
+          ],
+          [
+            {
+              "direction": [
+                -1,
+                1,
+                1
+              ],
+              "plane": [
+                2,
+                3,
+                -1
+              ]
+            }
+          ]
+        ],
+        "laue_group": 11,
+        "name": "ferrite",
+        "slip_system_file": "cubic_bcc",
+        "space_group": 229,
+        "trace_colours": [
+          "green",
+          "green",
+          "green",
+          "green",
+          "red",
+          "red",
+          "red",
+          "red",
+          "blue",
+          "blue",
+          "blue",
+          "blue"
+        ]
+      }
+    ],
+    "shape": [
+      100,
+      117
+    ],
+    "step_um": 1.5
+  }
+}

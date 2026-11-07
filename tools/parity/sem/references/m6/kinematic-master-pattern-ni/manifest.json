@@ -1,0 +1,111 @@
+{
+  "arrays": {
+    "master_pattern_linear": {
+      "atol": 1e-08,
+      "dtype": "float64",
+      "file": "master_pattern_linear.bin",
+      "note": "hemisphere (upper, lower), row, column; stereographic, x and y from -1 to 1",
+      "rtol": 1e-05,
+      "sha256": "0a474ad0b25eb9122cd7688e164d1d0ad281e735ac82964b0dc3a7669c8671c9",
+      "shape": [
+        2,
+        201,
+        201
+      ]
+    },
+    "master_pattern_none": {
+      "atol": 1e-08,
+      "dtype": "float64",
+      "file": "master_pattern_none.bin",
+      "note": "hemisphere (upper, lower), row, column; stereographic, x and y from -1 to 1",
+      "rtol": 1e-05,
+      "sha256": "4193f10c561cb95796f84a64b17f4a72e20a314357facb4a08281afe5bef16a5",
+      "shape": [
+        2,
+        201,
+        201
+      ]
+    },
+    "master_pattern_square": {
+      "atol": 1e-08,
+      "dtype": "float64",
+      "file": "master_pattern_square.bin",
+      "note": "hemisphere (upper, lower), row, column; stereographic, x and y from -1 to 1",
+      "rtol": 1e-05,
+      "sha256": "496ee5508552ce88cbb0f2056035e6d23b152ca6bf5aea7bb24ee9a715aca3f4",
+      "shape": [
+        2,
+        201,
+        201
+      ]
+    },
+    "reflectors_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "reflectors_hkl.bin",
+      "rtol": 0.0,
+      "sha256": "5988c6fb69722afd558877d57d4b5fce5946b639a47767be7c0f55acb7d5ac3c",
+      "shape": [
+        50,
+        3
+      ]
+    },
+    "structure_factor_abs": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "structure_factor_abs.bin",
+      "rtol": 1e-07,
+      "sha256": "a149223ba8072e73e5bea8d5a86265187558631bafe8ba2cb89a2e8d47448535",
+      "shape": [
+        50
+      ]
+    },
+    "theta": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "theta.bin",
+      "rtol": 1e-07,
+      "sha256": "7afa37efb820176384d6529c9ee6f72e62c4b49b9d394f2598eedf4cee562e24",
+      "shape": [
+        50
+      ]
+    }
+  },
+  "case": "m6/kinematic-master-pattern-ni",
+  "inputs": [
+    {
+      "path": "fixtures/simulation_cases.json",
+      "sha256": "53ac4cc181b31ba459c94fc5ee11e78f387778d1e297fc3b86110759dc02b0dd"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "kikuchipy.simulations.KikuchiPatternSimulator.calculate_master_pattern",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "half_size": 100,
+    "scalings": [
+      "linear",
+      "square",
+      null
+    ],
+    "voltage": 20000.0
+  }
+}

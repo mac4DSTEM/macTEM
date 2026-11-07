@@ -5,8 +5,8 @@
 //        `ImageOpening.openNow` and `AcquisitionMetadata.read(path:)`); this owner only publishes its result, and
 //        only the result of the latest open: an earlier, slower read that finishes second is dropped, never shown
 //        over the newer image, and its failure is not reported over it either. The image and what its file records
-//        about the acquisition are published together under the one token, so the metadata held
-//        is always the held image's own. Nothing reads `metadata` yet: the panel is a later slice.
+//        about the acquisition (and, for an SEM TIFF, its vendor record) are published together under the one token, so the
+//        metadata held is always the held image's own.
 //
 
 import Foundation
@@ -20,6 +20,9 @@ package final class ImageSession {
     /// What the file of `image` records about how it was acquired; empty ("not recorded" in every
     /// field) when there is no image or the file records nothing. Set with `image`, by the same open, never apart.
     package private(set) var metadata = AcquisitionMetadata()
+    /// What the file records as an SEM image (vendor tag, pixel size, working distance, databar); nil for a TEM file. Set with
+    /// `image`, by the same open, never apart.
+    package private(set) var sem: SEMImageMetadata?
     /// The file the image came from (the sandbox granted it by the open panel or Finder).
     package private(set) var url: URL?
     package private(set) var isLoading = false
@@ -38,11 +41,12 @@ package final class ImageSession {
     /// false, changing nothing, when a later open superseded it. `metadata` has no default: an open that forgets it
     /// would leave the previous file's values under the new image.
     @discardableResult
-    package func finishOpen(_ token: Int, image: CalibratedImage, url: URL, metadata: AcquisitionMetadata) -> Bool {
+    package func finishOpen(_ token: Int, image: CalibratedImage, url: URL, metadata: AcquisitionMetadata, sem: SEMImageMetadata?) -> Bool {
         guard token == latestOpen else { return false }
         self.image = image
         self.url = url
         self.metadata = metadata
+        self.sem = sem
         isLoading = false
         return true
     }

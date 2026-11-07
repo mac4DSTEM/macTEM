@@ -1,0 +1,1484 @@
+0
+0
+0
+2.614514e-006
+1.045845e+002
+6
+2.500000e+004
+2.310000e+000
+1.000000e-009
+1.480786e-002
+1
+2.614514e-006
+1.045845e+002
+6
+2.500000e+004
+2.310000e+000
+1.000000e-009
+1.480786e-002
+2
+2.614514e-006
+1.045845e+002
+6
+2.000000e+004
+2.310000e+000
+2.608917e-010
+1.870894e-002
+3
+2.614514e-006
+1.045845e+002
+6
+2.000000e+004
+2.310000e+000
+2.608917e-010
+1.870894e-002
+724
+DP_VENT_INVALID_REASON
+Vent inhibit = Beam Present
+DP_OPTIMODE
+OptiBeam Mode = Resolution
+DP_FIXED_APERTURE
+VP Aperture = No
+DP_INPUT_LUT_MODE
+Input LUT Mode = Transparent
+DP_BSD_AUTOLEVEL_MODE
+BSD Autolevel Mode = Normal
+DP_RECIPE
+Recipe = Idle
+DP_IMPLIED_DETECTOR
+Signal B = InLens
+DP_4QBSD_VISIBLE
+BSD Fast = No
+DP_OPT_APERTURE
+Opt.Aperture = 2
+DP_TRACK_Z
+Track Z = On
+DP_EPSE_ELECTRODE
+EPSE Electrode = Ring
+DP_C3_ROT_CORRECTION
+C3 Rot Corrn. = On
+DP_FISHEYE_MODE
+Fisheye Mode = Off
+DP_STAGE_TILTED
+Stage Tilt = in X
+DP_AR_GUN
+Argon Gun = Absent
+DP_COLUMN_ISOLATED
+Column Isolated = No
+DP_MIXING
+Mixing = On
+DP_FIB_FG_MODE_TARGET
+Flood Gun Mode Target = Low Energy Mode
+DP_STEM_GAIN
+STEM Gain = Low
+DP_HIGH_CURRENT
+High Current = Off
+DP_DWELL_TIME
+Dwell Time = 50 ns
+DP_SI_NOISE_REDUCTION
+SmartImage Noise Reduction = Off
+DP_RIGHT_FROZEN
+Right Frozen = Yes
+DP_FIB_FG_BLANKED
+Flood Gun Blanked = No
+DP_FAST_MODE
+Fast Mode = Off
+DP_COMPUCENTRIC_MODE
+Compuc. Mode = Off
+DP_ANODE_APERTURE_CHANGER
+Anode Aperture Changer = Absent
+DP_GIS_SHUTDOWN_STATE
+GIS Shutdown State = Normal
+DP_FIB_COLUMN
+FIB Column = None
+DP_TILTED
+Stage Tilted = No
+DP_FIB_SUPPRESSOR
+FIB Suppressor is = Absent
+DP_VPSE
+VPSE detector = Absent
+DP_CROSSHAIRS
+Crosshairs = Off
+DP_DOUBLE_DEFLECTION_STATE
+Double Deflection State = Both On
+DP_GATE_VALVE_POSITION
+WDX Gate Valve posn = OK
+DP_HESE2_FITTED
+HE-SE2 Fitted = Yes
+DP_EP_MODE
+EP Gas = Air
+DP_CONDENSER
+Condenser Normal = Normal
+DP_IMPLIED_INVERT
+Invert B = Off
+DP_4QBSD_GAIN
+BSD Gain = High
+DP_FIB_GUN_VALVE
+FIB Gun Valve = Closed
+DP_APERTURE_STATE
+Aperture = Clean
+DP_ELECTRON_COUNTING
+Electron Counting = Off
+DP_SATURATE_AT
+Saturate at = Second peak
+DP_STAGE_ANGLE
+Stage Angle corrn. = On
+DP_IMAGE_STORE
+Store resolution = 1024 * 768
+DP_FIELD_MODE
+Field Mode = Off
+DP_COOLSTAGE_TYPE
+CoolStage Type = Cold
+DP_BEST_APERTURE
+Best Aperture = Yes
+DP_FIB_FG_MODE_ACTUAL
+Flood Gun Actual Mode = Low Energy Mode
+DP_STEM_AUTO
+STEM Auto = Off
+DP_STAGE_INIT
+Stage Initialised = Yes
+DP_CC_ON_GIS_CHANNEL
+GIS Channel with CC = None
+DP_CHANNEL
+Display = 1
+DP_FIB_FG_FITTED
+Flood Gun Fitted = No
+DP_BSD_MODE
+BSD Mode = Compo
+DP_FIB_MODE
+FIB Mode = Imaging
+DP_NANO_TIPS
+Nano Tips = Absent
+DP_BSD_N_ON_P
+BSD Invert = No
+DP_MGS_EVAC_STATE
+MGS Evacuation State = Off
+DP_USE_EPD
+Use End Point Detection = No
+DP_MAINS_SYNC
+Mains Sync = Single Edge
+DP_FIB_PNEUMATIC_PREP_STATE
+FIB preparation for pneumatic = FIB ready for system vent
+DP_FROZEN
+Image = Frozen
+DP_FILAMENT_TYPE
+Filament Type = FE FEI
+DP_SAMPLE_HOLDER
+Sample Holder = Carousel 9x9mm
+DP_FIB_SCAN
+FIB Scan = Continuous
+DP_BEAM_BLANKED
+Beam Blanked = Yes
+DP_CC_TYPE
+CC Type = Stand Alone
+DP_4QBSD
+BSD = Present
+DP_IMAGE_SAVED
+Image saved = No
+DP_MAG_RANGE
+Mag Range = 1
+DP_USER_ALIGN
+User Align = Off
+DP_ZONE
+Zone = 1
+DP_FIL_BLOWN
+Filament blown = No
+DP_HUMIDITY_VALVE
+Humidity Valve = Closed
+DP_PELTIER_PHOTO
+Peltier Photo = Off
+DP_MAIN_DETECTOR
+Control = Signal A
+DP_INVERT
+Invert A = Off
+DP_FIB_FG_REMOTING_TARGET
+Remoting Target = Flood Gun Normal
+DP_STAGE_IS
+Stage Is = Idle
+DP_FIB_PRESENT
+FIB Present = No
+DP_PELTIER_TYPE
+Peltier Type = Deben
+DP_SIGNALAZ0
+Signal A Z0 = HE-SE2
+DP_FREEZE_ON
+Freeze on = Command
+DP_FIB_BLANKED
+FIB Blanked = No
+DP_STAGE_BIAS_HIGH
+Beam deceleration = Off
+DP_EPSE_GAIN
+EPSE Gain = Low
+DP_END_DETECTION
+End Detection = Off
+DP_VAC_COMMS_FAIL
+Vac comms fail = No
+DP_BSD_AUTO
+BSD Auto Range = Off
+DP_PNEUMATIC_DEVICE_IN_USE
+Pneumatic Device in use = None
+DP_FIB_WIDE_VIEW
+FIB Wide View = Off
+DP_ANODE
+Anode Spacer = High KV
+DP_USE_REF_MAG
+Reference Mag = Out Dev.
+DP_STAGE_BIAS_NSE
+Stage Bias = On
+DP_USER_MAG_CAL
+User Calibration = Off
+DP_SAFE_STEM_VALID
+Safe STEM Valid = Yes
+DP_4QBSD_Q5
+Q5 = Off
+DP_SCD_GAIN
+SCD Gain = Low
+DP_ALL_ZONES
+All Zones = Off
+DP_DETECTOR_CHANNEL
+Signal A = HE-SE2
+DP_EHT_TRIPPED
+EHT tripped = No
+DP_FLOOD_STATE
+Flood State = Idle
+DP_EXTRACTOR_TRIP
+Extractor Trip = No
+DP_BSD_FAST_SCAN
+BSD Fast Scan = Off
+DP_INLENS_DUO_MODE
+InlensDuo Mode = SE
+DP_AUTO_VIDEO
+Auto BC = Off
+DP_FIB_FG_REMOTING_ACTUAL
+Flood Gun Remoting Actual = Flood Gun Normal
+DP_SIGNALAZ1
+Signal A Z1 = AsB4 Ch1
+DP_STAGE_BIAS_HV_FITTED
+Variable stage bias fitted = No
+DP_EPSE_AUTO
+EPSE Auto Range = Off
+DP_STAGE_COMMS_FAIL
+Stage comms fail = No
+DP_OPTIPROBE
+OptiProbe = Off
+DP_CLS_VALVE
+C.L.S.Valve = Closed
+DP_NEWFILAMENT
+New Filament = No
+DP_IMAGE_DETECT
+Image Detect = Black
+DP_CUSTOM_HOLDER
+Custom Holder = No
+DP_ZOOM
+Zoom = Off
+DP_SCD_AUTO
+SCD Auto Range = On
+DP_EXT_SCAN_CONTROL
+Ext.Scan Control = Off
+DP_DETECTOR_TYPE
+Detector = HE-SE2
+DP_EHT_RESET
+EHT spurious reset = No
+DP_STEM_Q4
+STEM Q4 = Off
+DP_FIB_FG_EXTRACTOR_TARGET
+Extractor Target State = Off
+DP_JAZZ_GAIN
+Jazz Gain = Low
+DP_MONITOR
+Monitor = 19/21 inch
+DP_FREEZE_STATUS
+Freeze = Idle
+DP_FIB_EXTRACTOR_CONFLICT
+FIB Extractor Conflict = No
+DP_STAGE_BIAS_CARASSEL_FITTED
+Beam deceleration carousel = No
+DP_EPSE_BANDWIDTH
+EPSE Bandwidth = DC
+DP_STAGE_BIAS
+Stage bias low voltage = On
+DP_STIGBALANCE
+Stig Balance = Off
+DP_FRAME_GRABBER
+Frame Grabber = SVSEM
+DP_VPSE2
+VPSE-G3 Fitted = Absent
+DP_4QBSD_Q1
+Q1 = Normal
+DP_FIB_LOCK_MAG
+FIB Lock Mags = No
+DP_FREEZE_BLANKS
+Freeze Blanks = Yes
+DP_WINDOWING
+Windowing = Off
+DP_PARTIAL_VENT
+Partial Vent on Standby = No
+DP_SCD_BANDWIDTH
+SCD Bandwidth = DC
+DP_CALIBRATION
+Calibration = Disabled
+DP_STEM_Q1
+STEM Q1 = Normal
+DP_EHT_VAC_READY
+EHT Vac ready = Yes
+DP_STEM_Q5
+STEM Q5 = Off
+DP_FIB_FG_EXTRACTOR_ACTUAL
+Flood Gun Extractor Actual State = Off
+DP_BAKEOUT_FULL
+full service bakeout = No
+DP_WATER_OK
+Water OK = Yes
+DP_LOW_MAG
+Low Mag = Off
+DP_VENT_INHIBITED
+Venting inhibited = Yes
+DP_FIB_PROBE
+FIB Probe = Undefined
+DP_LUT_MODE
+Display LUT mode = Normal
+DP_OPTIBEAM
+OptiBeam Is = Off
+DP_SCANGEN_TYPE
+ScanGen Type = SVSEM
+DP_FINAL_LENS
+Final Lens = 1500: Gemini
+DP_EHTCOMMSFAIL
+EHT Comms Fail = No
+DP_SCANGEN
+Scan Gen = Present
+DP_NUM_REGIONS
+Num. Regions = 0
+DP_FIB_ERROR
+FIB Error = None
+DP_GIS_HEATING_STATUS_1
+GIS Heating Status Channel 1 = GIS Not Heating
+DP_QUATTRO_BANDWIDTH
+BSD Bandwidth = DC
+DP_4QBSD_Q2
+Q2 = Normal
+DP_DYNFOCUS
+Dyn.Focus = Off
+DP_SUPERVISOR
+Supervisor = Disabled
+DP_COLOUR_MODE
+Colour Mode = Off
+DP_TILT_CORRECTION
+Tilt Corrn. = Off
+DP_SPOT
+Spot = Off
+DP_FIXED_APERTURE2
+EP Aperture = None fitted
+DP_DETECTOR_FAST_SCAN
+Noise reduction for fast scanspeeds = No
+DP_ION_DETECTOR_MODE
+SESI Mode = SE
+DP_FISHEYE_FITTED
+Fish-Eye Fitted = Yes
+DP_STEM_Q2
+STEM Q2 = Off
+DP_PIXEL_SIZE
+Pix Size state = calibrated
+DP_EBBU_MODE
+Beam Blanker Mode = Blanked
+DP_FIB_IMAGE_PROBE
+FIB Image Probe = Undefined
+DP_AR_MILL
+Argon Mill = Off
+DP_FIB_MAG_RANGE
+FIB Mag Range = 0
+DP_USER_LEVEL
+User Level = Expert
+DP_AR_SCAN
+Argon Scan = Off
+DP_HP_STATUS
+Chamber Status = Evactron ready
+DP_COLUMN_TYPE
+Column = Merlin
+DP_LARGE_BEAMSHIFT
+Large Beam Shift = Off
+DP_AR_MFCVALVE
+Argon MFC Valve = Closed
+DP_CONTRAST_ENHANCEMENT
+Contrast Enhanced = No
+DP_4QBSD_Q3
+Q3 = Normal
+DP_SCAN_ROT
+Scan Rot = Off
+DP_DC_SEM_STATE
+Sem drift status = Not Available
+DP_LINE_SCAN
+Line Scan = Off
+DP_SIGNALAZ2
+Signal A Z2 = InLens
+DP_SCM_RANGE
+SCM range = 3->10 pA
+DP_FIB_FG_FLOODGUN_TYPE
+Flood Gun Type = Flood Gun Unknown Type
+DP_STEM_Q3
+STEM Q3 = Off
+DP_MAG_CAL
+Mag State = calibrated
+DP_HV_AT_SHUTDOWN
+Go to HV @ Shutdown = No
+DP_SCM_STATUS
+SCM Status = Valid
+DP_SI_SOURCE
+SI source-hidden = 0
+DP_CONJUGATE
+OptiBeam conjugate = Off
+DP_FIB_FG_STATUS
+Flood Gun Status = Off
+DP_VP_OPTIBEAM
+VP Optibeam = Off
+DP_CONDENSER_REVERSED
+Condenser Reversed = No
+DP_Z0
+Zone 0 = Frozen
+DP_FIB_MILL_PROBE
+FIB Milling Probe = Undefined
+DP_SCINT
+Scint. = Off
+DP_OPTIRESMODE
+OptiBeam Res Mode = manual
+DP_JAZZ_BANDWIDTH
+Jazz Bandwidth = Low
+DP_IGP_ENABLED
+IGP Enabled = Yes
+DP_GATE_VALVE
+WDX Gate valve = Closed
+DP_PELTIER
+Peltier = Off
+DP_OUTPUT_REDUCTION
+Output Reduction = 1
+DP_4QBSD_Q4
+Q4 = Normal
+DP_APERTURE
+Aperture No. = 1
+DP_SEM
+Sem = Merlin
+DP_SCAN_ORTHOG
+Scan Orthog = On
+DP_DISPLAY_CHANNELS
+Channels = 2
+DP_DUAL_MONITOR
+Dual Monitor = On
+DP_SIGNALAZ3
+Signal A Z3 = InLens
+DP_C3_ROT_SIGN
+C3 Rotn Sign = +
+DP_STEM_FAST
+STEM Fast = No
+DP_OUT_DEV
+Output dev = 19/21 inch display
+DP_USER
+User = Idle
+DP_FIB_TRACK_WD
+FIB Tracking WD = Off
+DP_FIB_FG_INTERLOCK
+Flood Gun Interlock = No
+DP_LOW_KV_LENS
+Low KV Lens = Absent
+DP_Z1
+Zone 1 = Frozen
+DP_CC_STATUS
+CC Status = Off
+DP_FIB_GUN_STATE
+FIB Gun State = Off
+DP_AR_GUN_STATE
+Argon Gun is = Off
+DP_OUT_TYPE
+Output To = Display/File
+DP_COLUMN_CHAMBER_VALVE
+Column Chamber valve = Open
+DP_COLUMN_PUMPING
+Column pumping = Ready
+DP_SCANRATE
+Scan Speed = 10
+DP_LEFT_FROZEN
+All Frozen = Yes
+DP_OPERATING_MODE
+Operating Mode = Normal
+DP_GIS_CHANNEL
+GIS Channel = None
+DP_FIB_IMAGING
+FIB Imaging = SEM
+DP_C3REVERSAL
+C3 Reversal = Normal
+DP_VAC_MODE
+Vacuum Mode = High Vacuum
+DP_COLUMN_MODE
+Column Mode = Analytic
+DP_STEM_SEG_MODE
+STEM Seg. Mode = Off
+DP_CALMODE
+Cal Mode = Off
+DP_RUNUPSTATE
+Beam State = Beam On
+DP_NOISE_REDUCTION
+Noise Reduction = Frame Avg
+DP_OPTIBEAM_STATE
+OptiBeam = Off
+DP_VACSTATUS
+Vac Status = Ready
+AP_FIB_FG_EMISSION_TARGET
+Flood Gun Emission target =    0.0 µA
+AP_FIB_SHIFT_CORRECTION_Y
+FIB Shift Correction Y = 0.00 nm
+AP_MAG
+Mag =    105 X
+AP_LINE_TIME
+Line Time = 52.70 ms
+AP_FIB_MAG_FINE_GAIN_Y
+FIB Mag fine gain Y = 0.0000
+AP_SPOT_POSN_Y
+Spot at Y = 192   
+AP_SCANORTHOG_LOWER
+Orthogonality Lower =   0.0 °
+AP_ANGULAR_3
+Aa 4 = 0.000 kV
+AP_STAGE_VECTOR_X
+Stage vector X =   0.0 %
+AP_AR_CONDENSER
+Argon Condenser =     0 V
+AP_MINMAG
+Min Mag =     69 X
+AP_STAGE_GOTO_R
+Stage goto R =  10.6 °
+AP_HP_TARGET
+VP Target =     10 Pa
+AP_EHT_CAL_100
+EHT Cal@0.1KV =   100 V
+AP_PPA_6
+Pa 7 = 0.00 nm
+AP_V_3
+V 4 = 0.00 nm
+AP_STAGE_DELTA_R
+Stage Delta R =   0.0 °
+AP_FILE_NUMBER
+File No = 611     
+AP_ESD_LOWER_Y
+ESD Lower Y =   0.0 %
+AP_FREE_WD
+Free WD = 14.8 mm
+AP_BRIGHTNESSZ3
+Brightness D =  51.0 %
+AP_FM_QUADRITURE
+Field Mode Quadriture = 1000  
+AP_TILT_ANGLE
+Tilt Angle =  70.0 °
+AP_MILL_LIST_ELAPSED_TIME
+Mill List Elapsed Time = 0    ms
+AP_STIG_X
+Stigmation X =   2.5 %
+AP_PPB_2
+Pb 3 =   0.0 °
+AP_MAGCAL_UPPER_Y
+Calibrate Mag Upper Y = 0.0000
+AP_RADIAL_1
+Da 2 = 0.00 nm
+AP_REDUCED_RASTER_WIDTH
+Reduced Raster Width = 512   
+AP_VPSE2_BIAS
+VPSE G3 Bias =  60.0 %
+AP_STAGE_LOW_Z
+Stage low Z =  0.000 mm
+AP_AR_MAG
+Argon Magnification =      0 X
+AP_AR_SHIFT_RATIO_Y
+Argon Shift Ratio Y = 0.0000
+AP_SCAN_OFFSET_X
+Scan X cal. = 0     
+AP_STAGE_HIGH_T
+Stage high T =  70.0 °
+AP_PROFILE_TOP
+Profile Top = 300   
+AP_MAG_GAIN_X
+Mag Gain Cal X = 1029.00
+AP_H_7
+H 8 = 0.00 nm
+AP_SPACER_THICKNESS
+Spacer Thickness =  0.000 mm
+AP_STAGE_HIGH_R
+Stage high R = 380.0 °
+AP_FIB_CONDENSER
+FIB Condenser =     0 V
+AP_FIB_FG_FIL_CURRENT_TARGET
+Flood Gun Filament Target =      0 µA
+AP_DC_SHIFT_X
+Aperture Align X =   0.0 %
+AP_SEM_LEVEL_AT_TILT
+SEM Level @ =   0.0 °
+AP_VAC_READY_AT
+Vac Ready @ = 5.00e-005 mbar
+AP_C1REM
+C1 Rem = 0.0105
+AP_FIB_SLICE_WIDTH
+Slice Width = 0.00 nm
+AP_BEAMSHIFT_Y
+Beam Shift Y =   0.0 %
+AP_PPA_0
+Pa 1 = 346.0 µm
+AP_TILT_ALIGN_X
+Tilt Align X =   0.0 %
+AP_STAGE_XM_R
+Stage X+M Rotation =   0.0 °
+AP_SI_TOPOGRAPHY
+SmartImage Topography =   0.0 %
+AP_STAGE_AT_FIELD_Y
+Stage at field Y = 1     
+AP_AR_ANGLE
+Argon Column Angle =   0.0 °
+AP_TEST_N
+Test No. = 0     
+AP_H_1
+H 2 = 0.00 nm
+AP_RADIAL_AREA_0
+Db 1 =     0. nm²
+AP_OPT_SEMIANGLE
+Opt. Semi Angle = 0.00 µrad
+AP_FIB_APERTURE_ALIGN_X
+FIB Aper.Align X = 0     
+AP_FIB_FIL_I_TARGET
+FIB Fil I Target =      0 µA
+AP_DC_MAX_PIX_ERROR
+Drift Max.Pix.Error = 1     
+AP_INLENS_DUO_GRID_ACTUAL
+InlensDuo Grid is =     0 V
+AP_FISHEYE_ANGLE
+Fisheye Angle = 102.0 °
+AP_CONTRASTZ0
+Contrast A =  23.3 %
+AP_DUAL_MAG_OFFSET_Y
+Dual Mag Offset Y = 0.0000
+AP_MAG_DECL
+Mag scaling decel = 1.0000
+AP_MAG_GAIN_UPPER_X
+Shift Amp Upper Gain X = 0.0000
+AP_HOLDER_LENGTH
+Holder Length =  0.000 mm
+AP_STAGE_FIELDS_Y
+Stage fields Y = 1     
+AP_FIB_SOURCE_LIFETIME
+FIB Source Lifetime =   0.00 µAh
+AP_AR_GAS_FLOW_ACTUAL
+Argon Gas Flow is =   0.0 %
+AP_GAIN
+Gain A = 100.0 %
+AP_CONJUGATE
+Conjugate posn. = -164.00 mm
+AP_MAG_SHIFT_X
+Mag Shift Cal X =  32.00
+AP_JAZZ_BACK_GRID
+Back Grid =     0 V
+AP_ACTUALSUPP
+Suppressor V =   300 V
+AP_APERTURE_ALIGN_X
+Aperture Align X = -82.6 %
+AP_PPB_5
+Pb 6 =   0.0 °
+AP_V_8
+V 9 = 0.00 nm
+AP_PROF2_X2
+Profile 2 X2 = 0     
+AP_FIB_MAGNIFICATION
+FIB Mag =      0 X
+AP_FIB_FG_EMISSION_ACTUAL
+Flood Gun Emission Actual =    0.0 µA
+AP_FIB_SHIFT_CORRECTION_X
+FIB Shift Correction X = 0.00 nm
+AP_IPROBE
+I Probe =    1.0 nA
+AP_FCF_TILT
+FCF Tilt Angle =   0.0 °
+AP_FIB_MAG_FINE_GAIN_X
+FIB Mag fine gain X = 0.0000
+AP_STAGE_XM_ANGLE
+Stage X+M Angle =   8.0 °
+AP_SPOT_POSN_X
+Spot at X = 256   
+AP_SCANORTHOG_UPPER
+Orthogonality Upper =   0.0 °
+AP_ANGULAR_2
+Aa 3 = 0.000 kV
+AP_STAGE_GOTO_Z
+Stage goto Z = 25.193 mm
+AP_AR_DISCHARGE_CURRENT
+Argon Discharge I is =    0.0 µA
+AP_SPOTSIZE
+Spot Size = 1     
+AP_PPA_5
+Pa 6 = 0.00 nm
+AP_V_2
+V 3 = 0.00 nm
+AP_STAGE_DELTA_T
+Stage Delta T =   0.0 °
+AP_SPECIMEN_HEIGHT
+Specimen Height =    5 mm
+AP_ESD_LOWER_X
+ESD Lower X =   0.0 %
+AP_FIB_EMISSION_CURRENT
+FIB Emission I =    0.0 µA
+AP_FIB_STIG_Y_CENTRE_Y
+FIB Stig Y Centre Y = 0.0000
+AP_BRIGHTNESSZ2
+Brightness C =  51.0 %
+AP_FM_ORTHOG
+Field Mode Orthog =  -1.0 °
+AP_TILT_AXIS
+Tilt Axis =  90.0 °
+AP_MILL_LIST_TOTAL_TIME
+Mill List Total Time = 0    ms
+AP_APERTUREPOSN_Y
+Aperture Posn Y =  1.000 mm
+AP_PPB_1
+Pb 2 =   0.0 °
+AP_MAGCAL_UPPER_X
+Calibrate Mag Upper X = 0.0000
+AP_RADIAL_0
+Da 1 = 0.00 nm
+AP_EPSE_BIAS
+EPSE Bias =   0.0 %
+AP_PROFILE_W
+Profile width = 3.200 µm
+AP_STAGE_LOW_Y
+Stage low Y =  0.000 mm
+AP_AR_BEAM_SHIFT_Y
+Argon Beam Shift Y = 0.00 nm
+AP_AR_SHIFT_RATIO_X
+Argon Shift Ratio X = 0.0000
+AP_XTALK21
+Xtalk21 = 0.0000
+AP_MIN_EXT
+Min Extractor V =  3.00 kV
+AP_H_6
+H 7 = 0.00 nm
+AP_STAGE_CENTRE_Y
+Stage Centre Y = 65.000 mm
+AP_BEAM_CURRENT_MONITOR
+Beam I Monitor =   13.0 µA
+AP_FIB_SCAN_SIZE
+FIB Scan Size = 0.00 nm
+AP_STIG_CAL_Y
+Stig. Cal Y =  -5.0 %
+AP_FIB_EXT_ACTUAL
+FIB Extractor = 0.000 kV
+AP_FIB_FG_ENERGY_ACTUAL
+Flood Gun Energy Actual =  0.00 V
+AP_FIB_STIG_X_CENTRE_Y
+FIB Stig X Centre Y = 0.0000
+AP_PIEZO_GOTO_Y
+Piezo Goto Y = 0.000 µm
+AP_FIB_TILT_COMP
+FIB Tilt Comp =   0.0 °
+AP_C1CAL
+C1 Cal = 0.9890
+AP_FIB_SLICE_Y
+Slice Y = 0.00 nm
+AP_BEAMSHIFT_X
+Beam Shift X =   0.0 %
+AP_RED_RASTER_H
+Red.Raster Height = 360   
+AP_MAGCAL_BASE
+Calibrate Mag Base = 50000.00
+AP_FIB_NUDGE_STEP
+FIB Nudge Step = 0.00 nm
+AP_PIEZO_EXCHANGE_Y
+Piezo Exchange Y = 0.000 µm
+AP_STAGE_AT_FIELD_X
+Stage at field X = 1     
+AP_AR_ACC_I
+Argon Acc I is =    0.0 µA
+AP_AR_MILL_PROGRESS
+Argon Mill Progress =   0.0 %
+AP_AREA_FRACTION
+Area Fraction =   0.0 %
+AP_NOMINALFIL
+Nominal Fil I =  2.310 A
+AP_GUN_Y
+Gun at Y =  20.0 %
+AP_STAGE_VECTOR_M
+Stage Vector M =   0.0 %
+AP_H_0
+H 1 = 0.00 nm
+AP_SEMIANGLE
+Semi Angle = 0.00 µrad
+AP_FIB_SCAN_ROTATION
+FIB Scan Rot =   0.0 °
+AP_FIB_FIL_V
+FIB Fil Voltage =   0.0 V
+AP_STAGEANGLE
+Stage Angle = -133.9 °
+AP_INLENS_DUO_GRID
+InlensDuo Grid =     0 V
+AP_MANUALCURRENT
+Fil I Target =  2.310 A
+AP_BRIGHTNESSZ1
+Brightness B =  45.5 %
+AP_DUAL_MAG_OFFSET_X
+Dual Mag Offset X = 0.0000
+AP_MAG_SHIFT_LOWER_Y
+Shift Amp Lower Offset Y = 0.0000
+AP_HOLDER_WIDTH
+Holder Width =  0.000 mm
+AP_SI_FACTOR
+SmartImage Sharpening =   0.0 %
+AP_STAGE_FIELDS_X
+Stage fields X = 1     
+AP_FIB_PROBE_CURRENT_ACTUAL
+FIB Probe Current Actual =    0.0 pA
+AP_AR_GAS_FLOW
+Argon Gas Flow =   0.0 %
+AP_GAMMA
+Gamma = 1.0000
+AP_JAZZ_FRONT_GRID
+Front Grid =     0 V
+AP_ACTUALEXT
+Extractor V =  3.93 kV
+AP_GUNALIGN_Y
+Gun Align Y =   0.0 %
+AP_MAX_EXTRACTOR_V
+Max Extractor V =  5.00 kV
+AP_PPB_4
+Pb 5 =   0.0 °
+AP_V_7
+V 8 = 0.00 nm
+AP_PROF2_X1
+Profile 2 X1 = 0     
+AP_FIB_OBJECTIVE_POTENTIAL
+FIB Objective =     0 V
+AP_FIB_FG_EXTRACTOR_VOLTAGE
+Flood Gun Extractor Voltage =     0 V
+AP_PIEZO_AT_Y
+Piezo at Y = 0.000 µm
+AP_EMISSIONZOOM
+Emission Zoom = 100   
+AP_ZOOM_FACTOR
+Zoom factor =  2.000
+AP_FIB_WORKING_DISTANCE
+FIB Working Distance =  0.0 mm
+AP_LINETOFRAME_LOWER
+Line To Frame Lower = 0.0000
+AP_ANGULAR_1
+Aa 2 =   0.0 °
+AP_STAGE_GOTO_Y
+Stage goto Y = 60.490 mm
+AP_AR_DISCHARGE_ACTUAL
+Argon Discharge is =     0 V
+AP_K2
+Mix Signal = 0.0000
+AP_CC_PRESSURE
+CC Pressure =   0.0 %
+AP_NR_COEFF
+N = 1     
+AP_PPA_4
+Pa 5 = 0.00 nm
+AP_V_1
+V 2 = 0.00 nm
+AP_STAGE_DELTA_Z
+Stage Delta Z = -5.000 mm
+AP_ESD_UPPER_Y
+ESD Upper Y =   0.0 %
+AP_FIB_ABS_DELTA_BEAM_SHIFT_Y
+FIB Abs Beam Shift Y = 0.00 nm
+AP_FIB_SUPPRESSOR_TARGET
+FIB Suppressor Target =     0 V
+AP_FIB_STIG_Y_CENTRE_X
+FIB Stig Y Centre X = 0.0000
+AP_PURGE_MIN
+Purge Min =    133 Pa
+AP_FIB_COLUMN_PRESSURE
+FIB Column Pressure = 0.00e+000 mbar
+AP_FM_ANGLE
+Field Mode Angle  =  -1.0 °
+AP_C3REM
+C3 Rem = 0.0137
+AP_FIB_PIXEL_SIZE
+FIB Pixel Size = 0.0 fm
+AP_APERTUREPOSN_X
+Aperture Posn X =  5.000 mm
+AP_PPB_0
+Pb 1 =  53.3 °
+AP_C3_SAVE
+C3 saved for beam decel =      0 µA
+AP_ESB_GRID_IS
+ESB Grid is =  1283 V
+AP_EHT_SET_MAX
+EHT set maximum = 30.00 kV
+AP_STAGE_LOW_X
+Stage low X =  0.000 mm
+AP_AR_BEAM_SHIFT_X
+Argon Beam Shift X = 0.00 nm
+AP_AR_XY_RATIO
+Argon XY Ratio = 0.0000
+AP_FRAME_AMPL
+Frame Ampl Cal. = 0     
+AP_XTALK12
+Xtalk12 = 0.0000
+AP_MANUALLENS
+Liner Target = 0.000 kV
+AP_H_5
+H 6 = 0.00 nm
+AP_STAGE_CENTRE_X
+Stage Centre X = 65.000 mm
+AP_STIG_CAL_X
+Stig. Cal X =  -0.0 %
+AP_FIB_EXT_TARGET
+FIB Extr.Target = 0.000 kV
+AP_FIB_FG_ENERGY_TARGET
+Flood Gun Energy Target =  0.00 V
+AP_FIB_STIG_X_CENTRE_X
+FIB Stig X Centre X = 0.0000
+AP_PIEZO_GOTO_X
+Piezo Goto X = 0.000 µm
+AP_C2
+C2 Lens I =  1.098 A
+AP_MAG_COMP_OFFSET
+Mag Comp. Offset = 2075  
+AP_FIB_SLICE_X
+Slice X = 0.00 nm
+AP_GUNTILT_Y
+Gun Tilt Y =   0.0 %
+AP_RED_RASTER_W
+Red.Raster Width = 400   
+AP_SCAN_ROTATION_OFFSET_LOWER
+Scan Rotation Offset Lower =   0.0 °
+AP_PIEZO_EXCHANGE_X
+Piezo Exchange X = 0.000 µm
+AP_STAGE_GOTO_FIELD_Y
+Stage goto field Y = 1     
+AP_AR_EXTRACTOR_ACTUAL
+Argon Extractor is =     0 V
+AP_AUTO_CONTRAST
+Auto C Target =  50.0 %
+AP_IMPLIED_OFFSET
+Offset B =   0.0 %
+AP_ALIGN1_Y
+Align 1 Y =  16.8 %
+AP_BEAM_OFFSET_Y
+Beam Offset Y = 0.00 nm
+AP_WHITE_DETECT
+White Threshold = 100.0 %
+AP_GUN_X
+Gun at X =  80.5 %
+AP_WATER_TEMP_LIMIT
+EO Temp Limit =  35.0 °C
+AP_SPOT_X_CAL
+Spot X Cal = 0 
+AP_FIB_BEAM_SHIFT_Y
+FIB Beam Shift Y = 0.00 nm
+AP_FIB_FIL_I
+FIB Fil Current =      0 µA
+AP_SCANORTHOG
+Scan Orth corrn =   0.2 °
+AP_MANUALKV
+EHT Target = 25.00 kV
+AP_MAGCALHEIGHT
+Mag Cal Actual Height = 0.00 nm
+AP_BRIGHTNESSZ0
+Brightness A =  50.0 %
+AP_C3_DECL
+Decl cal 2 = 1.0000
+AP_MAG_SHIFT_LOWER_X
+Shift Amp Lower Offset X = 0.0000
+AP_HOLDER_DIAMETER
+Holder Diameter = 50.000 mm
+AP_SI_THRESHOLD
+SmartImage Threshold =   0.0 %
+AP_STAGE_SCAN_ANGLE
+Stage scan angle =   0.0 °
+AP_FIB_OBJECTIVE_ACTUAL
+FIB Objective Actual =     0 V
+AP_AR_OBJECTIVE_ACTUAL
+Argon Objective is =     0 V
+AP_LINE_INT_COUNT
+Line int. count = 0     
+AP_FILAMENT_AGE
+Filament Age = 11314.83 Hours
+AP_DUAL_MAG_Y_SLOPE
+Dual Mag Gain Y = 300.00
+AP_STAGE_VECTOR_T
+Stage vector T =   0.0 %
+AP_HCSTAGE_TEMP
+Peltier Temp =  20.0 °C
+AP_GUNALIGN_X
+Gun Align X =   0.0 %
+AP_EHT_CAL_30KV
+EHT Cal@30KV = 30.00 kV
+AP_PPA_9
+Pa 10 = 0.00 nm
+AP_V_6
+V 7 = 0.00 nm
+AP_PROF1_X2
+Profile 1 X2 = 56    
+AP_STAGE_BIAS_VOLTAGE
+Stage bias Low Volts =   0.0 V
+AP_VP_LIMIT
+VP LaB6 Limit =    275 Pa
+AP_FIB_EHT_ACTUAL
+FIB EHT = 0.000 kV
+AP_HUMIDITY_TARGET
+Humidity Target =   0.0 %
+AP_PIEZO_AT_X
+Piezo at X = 0.000 µm
+AP_LINETOFRAME_UPPER
+Line To Frame Upper = 0.0000
+AP_ANGULAR_0
+Aa 1 =   0.0 °
+AP_REDUCED_RASTER_Y
+Reduced Raster Y = 192   
+AP_LASER_FINDER_ILLUM
+Laser Illumination =   0.0 %
+AP_STAGE_GOTO_X
+Stage goto X = 75.644 mm
+AP_COLUMN_VAC
+Gun Vacuum = 8.69e-010 mbar
+AP_AR_DISCHARGE
+Argon Discharge =     0 V
+AP_K1
+Signal = 1.0000
+AP_LINE_AVERAGE_COUNT
+Line Avg.Count = 4     
+AP_BEAM_TIME
+Beam Time = 2283.28 Hours
+AP_CURSOR_HEIGHT
+Cursor Height = 0.00 nm
+AP_PROFILE_W2
+Profile Width 2 = 0.00 nm
+AP_V_0
+V 1 = 0.00 nm
+AP_STAGE_DELTA_Y
+Stage Delta Y =  0.000 mm
+AP_POLARIS_PROBE_CAL
+Probe Cal Factor = 1.0000
+AP_ESD_UPPER_X
+ESD Upper X =   0.0 %
+AP_FIB_ABS_DELTA_BEAM_SHIFT_X
+FIB Abs Beam Shift X = 0.00 nm
+AP_FIB_DRIFT_Y
+FIB Drift Y = 0.00 nm
+AP_PURGE_MAX
+Purge Max =   1066 Pa
+AP_FIB_HEATING_LIMIT
+FIB Heating Limit =      0 µA
+AP_C3CAL
+C3 Cal =  1.012
+AP_LINE_COUNTER
+Line Counter = 692   
+AP_APERTURESIZE
+Aperture Size = 30.00 µm
+AP_PPA_3
+Pa 4 = 0.00 nm
+AP_WD_SAVE
+wd saved for beam decel = 10.0 mm
+AP_LINER_CAL_AT_10KV
+Liner Cal @ 10KV = 10000 V
+AP_BEAM_CURRENT
+Beam Current =   80.0 µA
+AP_STAGE_HIGH_Z
+Stage high Z = 50.000 mm
+AP_ION_CONVERTOR_VOLTAGE
+Convertor Voltage = 0.000 kV
+AP_AR_MAG_FACTOR
+Argon Mag Factor = 0.00 nm
+AP_MAG1
+Mag Z1 = 1.0000
+AP_MANUALSUPP
+Suppressor V Target =   300 V
+AP_H_4
+H 5 = 0.00 nm
+AP_SAMPLE_HEIGHT
+Compu. Height =  0.000 mm
+AP_FIB_APER_Y_ACTUAL
+FIB Aperture Y Actual = 0     
+AP_FIB_EMISSION_TARGET
+FIB Emission Target =    0.0 µA
+AP_C1
+C1 Lens I = 819.48 mA
+AP_MAG_COMP_AMPL
+Mag Comp. Amplitude =  37.0 %
+AP_FIB_SLICE_INDEX
+Slice Index = 0     
+AP_GUNTILT_X
+Gun Tilt X =   0.0 %
+AP_RED_RASTER_POSN_Y
+Red.Raster Posn Y = 259   
+AP_MAG_GAIN_LOWER_Y
+Shift Amp Lower Gain Y = 0.0000
+AP_HOLDER_HEIGHT
+Holder Height = 16.200 mm
+AP_SPECIMEN_DIAMETER
+Specimen Diameter =   50 mm
+AP_STAGE_GOTO_FIELD_X
+Stage goto field X = 1     
+AP_AR_EXTRACTOR
+Argon Extractor =     0 V
+AP_AUTO_BRIGHT
+Auto B Target =  50.0 %
+AP_IMPLIED_GAIN
+Gain B = 100.0 %
+AP_ALIGN1_X
+Align 1 X =  37.3 %
+AP_BEAM_OFFSET_X
+Beam Offset X = 0.00 nm
+AP_BLACK_DETECT
+Black Threshold =   0.0 %
+AP_NOMINALEXT
+Nominal extractor V =  3.94 kV
+AP_APERTURE_Y
+Aperture at Y =   0.0 %
+AP_STAGE_HIGH_M
+Stage high M =  0.000 mm
+AP_WATER_TEMP
+EO Temp =   0.0 °C
+AP_USER_MAX_EHT
+User Max EHT = 30.00 kV
+AP_CCD_ILLUMINATION
+CCD Illum. =  85.0 %
+AP_FIB_BEAM_SHIFT_X
+FIB Beam Shift X = 0.00 nm
+AP_SCANROTATION
+Scan Rotation = 145.6 °
+AP_FIB_FOCUS
+FIB Focus =   0.0 
+AP_USERMAXCURRENT
+Fil I (Usermax) =  4.000 A
+AP_MAGCALWIDTH
+Mag Cal Actual Width = 0.00 nm
+AP_DEFECT_ID
+Defect ID = 0       
+AP_WD_DECL
+Decl cal 1 = 0.0000
+AP_MAG_SHIFT_UPPER_Y
+Shift Amp Upper Offset Y = 0.0000
+AP_SI_ENHANCEMENT
+SmartImage Contrast =   0.0 %
+AP_STAGE_VECTOR_Z
+Stage vector Z =   0.0 %
+AP_AR_OBJECTIVE
+Argon Objective =     0 V
+AP_FRAME_INT_COUNT
+Frames to Int. = 0     
+AP_ALIAS_WD
+Focus = 14.808 mm
+AP_STAGE_VECTOR_R
+Stage vector R =   0.0 %
+AP_EHT_CAL_24KV
+EHT Cal@24KV = 24.00 kV
+AP_PPA_8
+Pa 9 = 0.00 nm
+AP_V_5
+V 6 = 0.00 nm
+AP_PROF1_X1
+Profile 1 X1 = 52    
+AP_HRRU_NUMBER
+HRRU No. = 0       
+AP_FIB_EHT_TARGET
+FIB EHT Target = 0.000 kV
+AP_HUMIDITY
+Humidity =   0.0 %
+AP_ESB_GRID_MAX
+ESB Grid Max =  1500 V
+AP_CONTRASTZ3
+Contrast D =  72.6 %
+AP_MILL_ITEM_ELAPSED_TIME
+Mill Item Elapsed Time = 0    ms
+AP_STAGE_BIAS_VOLTAGE_HIGH
+Beam deceleration Volts =     0 V
+AP_MAGCAL_LOWER_Y
+Calibrate Mag Lower Y = 0.0000
+AP_RADIAL_3
+Da 4 = 0.00 nm
+AP_FIB_CONDENSER_ACTUAL
+FIB Condenser actual =     0 V
+AP_AR_ACC_ACTUAL
+Argon Energy is =     0 V
+AP_SCM
+Specimen I = -412.0 pA
+AP_PHOTO_NUMBER
+Photo No. = 1595  
+AP_FIELD_OVERLAP
+Field Overlap =   0.0 %
+AP_SPOT
+Spot signal = 0     
+AP_CURSOR_WIDTH
+Cursor Width = 0.00 nm
+AP_PROFILE_W1
+Profile Width 1 = 36.85 nm
+AP_H_9
+H 10 = 0.00 nm
+AP_STAGE_DELTA_X
+Stage Delta X =  0.000 mm
+AP_COMPU_TILT_ERROR
+Compu. Tilt Error = 0.0000
+AP_FIB_DRIFT_X
+FIB Drift X = 0.00 nm
+AP_PURGE_CYCLES
+Purge cycles = 2 
+AP_C3
+C3 Lens I = 947.88 mA
+AP_EPD_LOW
+EPD Low Limit = 0     
+AP_C2REM
+C2 Rem = 0.0318
+AP_FIB_SLICE_ANGLE
+Slice Angle =   0.0 °
+AP_ZOOMPOS_Y
+Zoom Posn Y = 192   
+AP_PPA_2
+Pa 3 = 0.00 nm
+AP_CLIP_LIMIT
+Clip Limit = 0     
+AP_LINER_CAL_AT_100V
+Liner cal @ 100V =   100 V
+AP_PIXEL_SIZE
+Pixel Size = 2.615 µm
+AP_STAGE_HIGH_Y
+Stage high Y = 130.000 mm
+AP_ION_COLLECTOR_VOLTAGE
+Collector Voltage = 0.000 kV
+AP_AR_PIXEL_SIZE
+Argon Pixel Size = 0.0 fm
+AP_MAG0
+Mag Z0 = 1.0000
+AP_MIN_WD
+Focus scan min =    1 mm
+AP_MANUALEXT
+Extractor V Target =  3.94 kV
+AP_H_3
+H 4 = 0.00 nm
+AP_IMAGE_PIXEL_SIZE
+Image Pixel Size = 2.615 µm
+AP_FIB_APER_X_ACTUAL
+FIB Aperture X Actual = 0     
+AP_FIB_SUPPRESSOR
+FIB Suppressor =     0 V
+AP_DC_MAX_ATTEMPTS
+Drift Max Tries = 10
+AP_BEAM_SHIFT_ALIGN_Y
+Beam Shift Align Y = 6.221 µm
+AP_BRIGHTNESS
+Brightness =  50.0 %
+AP_FISHEYE_QUADRITURE
+Fisheye quadriture = 1000  
+AP_GUNSHIFT_Y
+Gun Shift Y =   0.0 %
+AP_RED_RASTER_POSN_X
+Red.Raster Posn X = 424   
+AP_MAG_GAIN_LOWER_X
+Shift Amp Lower Gain X = 0.0000
+AP_STAGE_FIELD_SIZE_Y
+Stage field size Y =  0.000 mm
+AP_AR_V_INT_ACTUAL
+Argon V Int is =     0 V
+AP_CONTRAST
+Contrast =  23.3 %
+AP_HEIGHT
+Height = 2.008 mm
+AP_EHT_SET_MIN
+EHT Set minimum = 0.010 kV
+AP_EXTCURRENT
+Ext I Monitor =  153.3 µA
+AP_APERTURE_X
+Aperture at X =   0.0 %
+AP_STAGE_LOW_M
+Stage low M =  0.000 mm
+AP_FCF_SETTING
+FCF Setting =   3.0 %
+AP_RADIAL_AREA_3
+Db 4 =     0. nm²
+AP_FIB_STIGMATOR_Y
+FIB Stig Y =   0.0 %
+AP_FRAME_COUNTER
+Frame Counter = 291880
+AP_FIB_FG_FIL_CURRENT_ACTUAL
+Flood Gun Filament Actual =      0 µA
+AP_EP_TARGET
+EP Target =     10 Pa
+AP_WD
+WD = 14.808 mm
+AP_HSYNC_DELAY
+HSync delay = 1000.00 ms
+AP_FRAME_TIME
+Cycle Time = 40.5 Secs
+AP_FIB_GUN_PRESSURE
+FIB Gun Pressure = 0.00e+000 mbar
+AP_MAG_SHIFT_UPPER_X
+Shift Amp Upper Offset X = 0.0000
+AP_COMPU_TILT_OFFSET
+Compu. Tilt Offset =  0.000 mm
+AP_STAGE_VECTOR_Y
+Stage vector Y =   0.0 %
+AP_AR_CONDENSER_ACTUAL
+Argon Condenser is =     0 V
+AP_FRAME_AVERAGE_COUNT
+Frames to average = 1     
+AP_DUAL_MAG_SLOPE
+Dual Mag Gain X = 200.00
+AP_STAGE_GOTO_T
+Stage goto T =  -0.0 °
+AP_CHAMBER_PRESSURE
+Chamber = 1.87e-004 Pa
+AP_EHT_CAL_10KV
+EHT Cal@10KV = 10.00 kV
+AP_PPA_7
+Pa 8 = 0.00 nm
+AP_V_4
+V 5 = 0.00 nm
+AP_STAGE_DELTA_M
+Stage Delta M =  0.000 mm
+AP_PRINT_NUMBER
+Print No. = 0       
+AP_ESD_EXCITATION
+ESD Excitation =   0.0 %
+AP_PELTIER_TARGET
+Peltier Target =  20.0 °C
+AP_ESB_GRID
+ESB Grid =  1283 V
+AP_CONTRASTZ2
+Contrast C =  72.6 %
+AP_MILL_ITEM_TOTAL_TIME
+Mill Item Total Time = 0    ms
+AP_STIG_Y
+Stigmation Y =   2.0 %
+AP_PPB_3
+Pb 4 =   0.0 °
+AP_MAGCAL_LOWER_X
+Calibrate Mag Lower X = 0.0000
+AP_RADIAL_2
+Da 3 = 0.00 nm
+AP_SYSTEM_VAC
+System Vacuum = 1.87e-006 mbar
+AP_AR_ACC
+Argon Energy =     0 V
+AP_SCAN_OFFSET_Y
+Scan Y cal. = 0     
+AP_STAGE_LOW_T
+Stage low T =  -4.0 °
+AP_MAG_GAIN_Y
+Mag Gain Cal Y = 1028.00
+AP_H_8
+H 9 = 0.00 nm
+AP_STAGE_LOW_R
+Stage low R = -380.0 °
+AP_DC_SHIFT_Y
+Aperture Align Y =   0.0 %
+AP_FIB_SEM_ANGLE
+FIB SEM Angle =  54.0 °
+AP_EPD_HIGH
+EPD High Limit = 0     
+AP_C2CAL
+C2 Cal = 0.9851
+AP_FIB_SLICE_HEIGHT
+Slice Height = 0.00 nm
+AP_ZOOMPOS_X
+Zoom Posn X = 128   
+AP_PPA_1
+Pa 2 = 0.00 nm
+AP_TILT_ALIGN_Y
+Tilt Align Y =   0.0 %
+AP_FIB_MIN_AUTOHEAT_CURRENT
+FIB Min. Autoheat Current =      0 µA
+AP_CHAMBER_PRESSURE_DETAILED
+Chamber Pressure Detailed = 1.87e-004 Pa
+AP_STAGE_HIGH_X
+Stage high X = 130.000 mm
+AP_COLLECTOR_BIAS
+Collector Bias =   300 V
+AP_MAX_WD
+Focus scan max =   40 mm
+AP_TEST_VAL
+Test Val = 0.0000
+AP_H_2
+H 3 = 0.00 nm
+AP_RADIAL_AREA_1
+Db 2 =     0. nm²
+AP_FIB_APERTURE_ALIGN_Y
+FIB Aper.Align Y = 0     
+AP_FIB_FIL_V_TARGET
+FIB Fil V target =   0.0 V
+AP_DC_MIN_CONF
+Drift Min Conf =  50.0 %
+AP_BEAM_SHIFT_ALIGN_X
+Beam Shift Align X = -7.50  µm
+AP_FISHEYE_ORTHOG
+Fisheye Orthog = 180.0 °
+AP_GUNSHIFT_X
+Gun Shift X =   0.0 %
+AP_CONTRASTZ1
+Contrast B =  73.2 %
+AP_FOCUS_ROTATION_COMP
+Focus Rotation comp. = -0.009 kV
+AP_MAG_GAIN_UPPER_Y
+Shift Amp Upper Gain Y = 0.0000
+AP_FIB_TRACK_WD_DELTA
+FIB Track WD Delta = 0.00 nm
+AP_STAGE_FIELD_SIZE_X
+Stage field size X =  0.000 mm
+AP_AR_V_INT
+Argon V Int =     0 V
+AP_OFFSET
+Offset A =   0.0 %
+AP_WIDTH
+Width = 2.677 mm
+AP_MAG_SHIFT_Y
+Mag Shift Cal Y =  12.00
+AP_PIRANI_PRESSURE
+Pirani Pressure = 0.00e+000 mbar
+AP_ACTUALLENS
+Liner Tube = 0.000 kV
+AP_APERTURE_ALIGN_Y
+Aperture Align Y =   3.5 %
+AP_STAGE_GOTO_M
+Stage goto M =  0.000 mm
+AP_PPB_6
+Pb 7 =   0.0 °
+AP_V_9
+V 10 = 0.00 nm
+AP_RADIAL_AREA_2
+Db 3 =     0. nm²
+AP_FIB_FG_SERIAL_NUMBER
+Flood Gun Serial Number = 0     
+AP_FIB_STIGMATOR_X
+FIB Stig X =   0.0 %
+AP_STAGE_AT_M
+Stage at M =  0.000 mm
+AP_STAGE_AT_Z
+Stage at Z = 25.193 mm
+AP_STAGE_AT_Y
+Stage at Y = 60.4901 mm
+AP_ACTUALCURRENT
+Fil I =  2.310 A
+AP_STAGE_AT_X
+Stage at X = 75.6442 mm
+AP_ACTUALKV
+EHT = 25.00 kV
+AP_STAGE_AT_T
+Stage at T =  -0.0 °
+AP_SAMPLE_AT_Y
+Sample at Y = 0.0000
+AP_STAGE_AT_R
+Stage at R =  10.2 °
+AP_SAMPLE_AT_X
+Sample at X = 0.0000
+AP_TIME
+Time :9:40:32
+AP_DATE
+Date :23 Dec 2015
+SV_VERSION
+Version = V05.07.00.00 : 08-Jul-14
+SV_USER_TEXT
+User Text = 
+SV_FILE_NAME
+File Name = 20151223_800H_FeHe001.tif
+SV_IMAGE_PATH
+Images = d:\images\joven\800h_fehe\20151223_fehe\
+SV_USER_NAME
+User Name = LIM
+SV_SAMPLE_ID
+Sample ID = 
+SV_SERIAL_NUMBER
+Serial No. = Merlin-61-08
+SV_OPERATOR
+Operator = 
+  

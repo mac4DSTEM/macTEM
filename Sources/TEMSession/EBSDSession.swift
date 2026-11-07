@@ -87,6 +87,18 @@ package final class EBSDSession {
     /// The lower pane with every tile (the inspector's "Show the tiles").
     package var showsTiles = false
 
+    // MARK: The simulation overlay (docs/sem/design/simulation-overlay.md)
+
+    /// Whether the pattern pane draws the geometrical Kikuchi simulation of the shown position's orientation (`overlay`).
+    package internal(set) var overlayOn = false
+    /// Which bands, and whether the zone axes and the labels are drawn.
+    package internal(set) var overlaySettings = KikuchiOverlay.Settings()
+    /// The bands per phase id for the current minimum spacing, and the scan's largest r_max (both per dataset).
+    @ObservationIgnored var overlayBands: [Int: KikuchiOverlay.Bands?] = [:]
+    @ObservationIgnored var overlayMaxR: Double?
+    /// The last overlay made, by position and spacing (the pane asks on every draw).
+    @ObservationIgnored var overlayMemo: (position: EBSDPosition, minD: Double, value: Result<KikuchiOverlay.Pattern, KikuchiOverlay.Absence>)?
+
     // MARK: Processing
 
     /// What the pattern pane shows: the pattern as stored, or through the current pipeline.
@@ -438,6 +450,7 @@ package final class EBSDSession {
         patternPosition = nil; meanIntensities = nil; mapFailure = nil; mapProgress = 0
         virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
         qualityTask?.cancel(); imageQualityMap = nil; dotProductMap = nil; isQualityMapping = false; qualityProgress = 0
+        resetOverlay()
         resetProcessing()
         onEvent?("Opened \(document.fileName) — \(EBSDBrowsing.capsuleDetail(document.dataset)), step \(UnitDisplay.number(document.dataset.stepX)) \(EBSDBrowsing.unitLabel(document.dataset.scanUnit))")
         startMap(document)
@@ -475,6 +488,7 @@ package final class EBSDSession {
         processed = nil; processedWith = nil; isProcessing = false; processProgress = 0; nlparLambda = nil
         scanMeanBackground = nil; isComputingMean = false; patternIsProcessed = false; previewFailure = nil
         patternDisplay = .raw; pipeline = .roomDefault
+        resetOverlay()
     }
 
     // MARK: The map

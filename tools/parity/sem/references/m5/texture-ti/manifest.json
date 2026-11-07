@@ -1,0 +1,264 @@
+{
+  "arrays": {
+    "counts_0001": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "counts_0001.bin",
+      "rtol": 0.0,
+      "sha256": "32a03d766d36d912293ee1d57bb9e55bc25b522b65a1d372c8258b1e448004e3",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "counts_10-10": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "counts_10-10.bin",
+      "rtol": 0.0,
+      "sha256": "ae42beb6a67e673c9ae1cf1ea96ad43012250600d6ac3d2549b3ff2d9fac4c84",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "counts_11-20": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "counts_11-20.bin",
+      "rtol": 0.0,
+      "sha256": "202b360279b58de72ceb88a71dc71ca31f3ffa7177fc24b2732cd45280c443ca",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "euler_degrees": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "euler_degrees.bin",
+      "rtol": 0.0,
+      "sha256": "1ed039b854b016a70b5799ec1458db9e2d9aeda3b5f56e895913e37e261d54be",
+      "shape": [
+        2000,
+        3
+      ]
+    },
+    "ipf_z_counts": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "ipf_z_counts.bin",
+      "rtol": 0.0,
+      "sha256": "0301d5d98cfddc12c72a615629da36b399f4807abdbfc77bbdded68f4daa7206",
+      "shape": [
+        720,
+        180
+      ]
+    },
+    "ipf_z_density": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "ipf_z_density.bin",
+      "rtol": 0.0,
+      "sha256": "a380b90fecb423d7c5776832b6ce7bc0f6a6c4962edbc434a162ff71bac2e6e0",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "ipf_z_mask": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "ipf_z_mask.bin",
+      "rtol": 0.0,
+      "sha256": "3e2b8e1c3848ffa77731a857c4a27970d75a6153ca0928a84f40d20fd40e3f66",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "odf_phi2_0": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "odf_phi2_0.bin",
+      "rtol": 0.0001,
+      "sha256": "2481327cf0c5ddf2bd9b4fc1be2fdfa7f7cac20d931729d1cf5e8e78b6f31cfc",
+      "shape": [
+        72,
+        19
+      ]
+    },
+    "odf_phi2_30": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "odf_phi2_30.bin",
+      "rtol": 0.0001,
+      "sha256": "564b47f7c2548a01d483fe90eb7a2be7eb934c80eda1973e10c95c0dc57d4870",
+      "shape": [
+        72,
+        19
+      ]
+    },
+    "odf_phi2_45": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "odf_phi2_45.bin",
+      "rtol": 0.0001,
+      "sha256": "a714f6a4de5f773484a2e4b81521b4d2f0b49bcbe44a503f37175445d8901ab9",
+      "shape": [
+        72,
+        19
+      ]
+    },
+    "pdf_0001": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "pdf_0001.bin",
+      "rtol": 0.0,
+      "sha256": "cfa08759c869513d8f25ebecff12c58a8f7bd24e74e7b6a788dee7324addbaa9",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "pdf_10-10": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "pdf_10-10.bin",
+      "rtol": 0.0,
+      "sha256": "f959a0d94b74cdb0e5dfe260ec8476a60ba06fa8d0d2837981e974fb22d97451",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "pdf_11-20": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "pdf_11-20.bin",
+      "rtol": 0.0,
+      "sha256": "b300464925bd85bd9acabf3e6b347cd44eff87be8ce5fb4dad18eb566c5ff02f",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "poles_0001": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "poles_0001.bin",
+      "rtol": 0.0,
+      "sha256": "081461215c663086a953125f30cfb374ecbba2d1dfe40cce0e784e762a962876",
+      "shape": [
+        2,
+        3
+      ]
+    },
+    "poles_10-10": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "poles_10-10.bin",
+      "rtol": 0.0,
+      "sha256": "e18556781e04601a387a7cb466692f14f49b1ab81d15b6be1348b5dcc2c1a5de",
+      "shape": [
+        6,
+        3
+      ]
+    },
+    "poles_11-20": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "poles_11-20.bin",
+      "rtol": 0.0,
+      "sha256": "cdf5fec16a20fb50d6fc2a749497fb52b6419b76e3702be2709b8c457e2e08dc",
+      "shape": [
+        6,
+        3
+      ]
+    }
+  },
+  "case": "m5/texture-ti",
+  "inputs": [
+    {
+      "path": "fixtures/orientation_inputs.json",
+      "sha256": "faf36e30d99e1b9261c4075804a15488762c97ff16d5ac9a7c53b5e4da479f23"
+    }
+  ],
+  "milestone": 5,
+  "reference": {
+    "function": "orix.measure.pole_density_function of (~O).outer(Miller.symmetrise); ODF kernel density (de la Vallee Poussin)",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "odf_kappa": {
+      "atol": 0.0,
+      "rtol": 1e-12,
+      "value": 90.90310599315451
+    },
+    "odf_kernel_constant": {
+      "atol": 0.0,
+      "rtol": 1e-12,
+      "value": 1555.2194465068656
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "ambiguous_0001": 16,
+    "ambiguous_10-10": 0,
+    "ambiguous_11-20": 0,
+    "family_0001": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "family_10-10": [
+      1,
+      0,
+      -1,
+      0
+    ],
+    "family_11-20": [
+      1,
+      1,
+      -2,
+      0
+    ],
+    "ipf_symmetry": "6/mmm",
+    "ipf_z_ambiguous": 5,
+    "lattice": [
+      2.951,
+      2.951,
+      4.684,
+      90.0,
+      90.0,
+      120.0
+    ],
+    "odf_half_width_degrees": 10.0,
+    "odf_section_shape": [
+      72,
+      19
+    ],
+    "odf_sections_phi2_degrees": [
+      0.0,
+      30.0,
+      45.0
+    ],
+    "odf_step_degrees": 5.0,
+    "point_group": "622"
+  }
+}

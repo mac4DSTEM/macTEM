@@ -1,0 +1,186 @@
+{
+  "arrays": {
+    "base": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "base.bin",
+      "note": "lattice, row (a, b, c), Cartesian (x, y, z)",
+      "rtol": 1e-07,
+      "sha256": "0d2c9b0e180ee039261db448df0067235121414eaabbb0a0366f40be33d3fed5",
+      "shape": [
+        5,
+        3,
+        3
+      ]
+    },
+    "orix_base": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "orix_base.bin",
+      "note": "the same lattice as an orix Phase holds it: rows a, b, c with x along a and z along c* (rounded to 12 decimals)",
+      "rtol": 1e-07,
+      "sha256": "d7e331be92dde3238e27b6cf66a53f599d0562e2d7962ed5cdefd823c523fb41",
+      "shape": [
+        5,
+        3,
+        3
+      ]
+    },
+    "orix_recbase": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "orix_recbase.bin",
+      "rtol": 1e-07,
+      "sha256": "68fa38332798d989c36200f9b4c1d88513de41425e6b8d9742af3aba89a5367e",
+      "shape": [
+        5,
+        3,
+        3
+      ]
+    },
+    "recbase": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "recbase.bin",
+      "note": "lattice, Cartesian row, column (a*, b*, c*); the inverse of base",
+      "rtol": 1e-07,
+      "sha256": "e3aada2de075760241a12045c7d4b930209a63e512e86083addeb42f69b6c9fb",
+      "shape": [
+        5,
+        3,
+        3
+      ]
+    },
+    "rnorm": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "rnorm.bin",
+      "note": "lattice, hkl (values['hkl'])",
+      "rtol": 1e-07,
+      "sha256": "d5b8244025cbc6739d3941d73515c7a43362a9f7c82a5ffef3e77dace3338aae",
+      "shape": [
+        5,
+        7
+      ]
+    },
+    "volume": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "volume.bin",
+      "rtol": 1e-07,
+      "sha256": "d93497bd18b7d8d713f04eac812e30ebbcbb7285416600441c6186027b455222",
+      "shape": [
+        5
+      ]
+    }
+  },
+  "case": "m6/kikuchi-lattice",
+  "inputs": [
+    {
+      "path": "fixtures/simulation_cases.json",
+      "sha256": "53ac4cc181b31ba459c94fc5ee11e78f387778d1e297fc3b86110759dc02b0dd"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "diffpy.structure.Lattice base / recbase / volume / rnorm",
+    "package": "diffpy.structure",
+    "version": "3.5.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "hkl": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        1
+      ],
+      [
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        -2,
+        3
+      ],
+      [
+        2,
+        0,
+        -1
+      ],
+      [
+        -3,
+        1,
+        4
+      ]
+    ],
+    "lattices": [
+      [
+        3.5236,
+        3.5236,
+        3.5236,
+        90.0,
+        90.0,
+        90.0
+      ],
+      [
+        2.9508,
+        2.9508,
+        4.6855,
+        90.0,
+        90.0,
+        120.0
+      ],
+      [
+        3.0,
+        4.0,
+        5.0,
+        80.0,
+        95.0,
+        105.0
+      ],
+      [
+        5.43,
+        6.1,
+        7.2,
+        90.0,
+        101.3,
+        90.0
+      ],
+      [
+        4.1,
+        4.1,
+        4.1,
+        60.0,
+        60.0,
+        60.0
+      ]
+    ]
+  }
+}

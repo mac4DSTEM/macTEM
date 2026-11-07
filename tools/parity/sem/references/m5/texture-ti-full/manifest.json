@@ -1,0 +1,223 @@
+{
+  "arrays": {
+    "counts_0001": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "counts_0001.bin",
+      "rtol": 0.0,
+      "sha256": "1fde39c222eeb0788154223f601ab4e8653031aef81c2b0daa187e9d2b1f56f4",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "counts_10-10": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "counts_10-10.bin",
+      "rtol": 0.0,
+      "sha256": "1d4addc4bfe6ad1cc448adbdac31a8bbbfee4eb4d674eb0d7ce1617a17b2de85",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "counts_11-20": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "counts_11-20.bin",
+      "rtol": 0.0,
+      "sha256": "1528e5de0298505143631e077d3866bc6f7e09f912f6121f390b5dd84793e97e",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "ipf_z_counts": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "ipf_z_counts.bin",
+      "rtol": 0.0,
+      "sha256": "056b30fe842c62954a8daa89dfd9f7468d98a9861a316164e437af1c3a0f2b84",
+      "shape": [
+        720,
+        180
+      ]
+    },
+    "ipf_z_density": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "ipf_z_density.bin",
+      "rtol": 0.0,
+      "sha256": "745769d28420555b22c24501bf54c99a7710e7461a36eceeb0927473d86715a6",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "ipf_z_mask": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "ipf_z_mask.bin",
+      "rtol": 0.0,
+      "sha256": "3e2b8e1c3848ffa77731a857c4a27970d75a6153ca0928a84f40d20fd40e3f66",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "odf_phi2_30": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "odf_phi2_30.bin",
+      "rtol": 0.0001,
+      "sha256": "bb3b718b499ee8801faed0ca3b46eb0d03687983a85e2bb20dd3926d8fded426",
+      "shape": [
+        72,
+        19
+      ]
+    },
+    "pdf_0001": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "pdf_0001.bin",
+      "rtol": 0.0,
+      "sha256": "74d8b3a4dcc98c9e5a253f0e5d7498ee63db4cde86bbc2200caa823b08c01c53",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "pdf_10-10": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "pdf_10-10.bin",
+      "rtol": 0.0,
+      "sha256": "48489176a53f088bec4f751b3a73cf8b15d0e3a36d923d7bb036a097a36cfece",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "pdf_11-20": {
+      "atol": 1e-07,
+      "dtype": "float64",
+      "file": "pdf_11-20.bin",
+      "rtol": 0.0,
+      "sha256": "9e82f5658b086ca9ed5951ff16ec25256a355e36bde78e74f4b25c80bd2b5621",
+      "shape": [
+        360,
+        90
+      ]
+    },
+    "poles_0001": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "poles_0001.bin",
+      "rtol": 0.0,
+      "sha256": "081461215c663086a953125f30cfb374ecbba2d1dfe40cce0e784e762a962876",
+      "shape": [
+        2,
+        3
+      ]
+    },
+    "poles_10-10": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "poles_10-10.bin",
+      "rtol": 0.0,
+      "sha256": "e18556781e04601a387a7cb466692f14f49b1ab81d15b6be1348b5dcc2c1a5de",
+      "shape": [
+        6,
+        3
+      ]
+    },
+    "poles_11-20": {
+      "atol": 1e-10,
+      "dtype": "float64",
+      "file": "poles_11-20.bin",
+      "rtol": 0.0,
+      "sha256": "cdf5fec16a20fb50d6fc2a749497fb52b6419b76e3702be2709b8c457e2e08dc",
+      "shape": [
+        6,
+        3
+      ]
+    }
+  },
+  "case": "m5/texture-ti-full",
+  "inputs": [
+    {
+      "path": "sem-data/orix/Ti_orientations.ctf",
+      "sha256": "d8228c58af45ed70f3617b8865c13878bb1fc40b3d60163042be4b761105dcde"
+    }
+  ],
+  "milestone": 5,
+  "reference": {
+    "function": "orix.data.ti_orientations; pole_density_function; ODF kernel density (de la Vallee Poussin)",
+    "package": "orix",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "odf_kappa": {
+      "atol": 0.0,
+      "rtol": 1e-12,
+      "value": 90.90310599315451
+    },
+    "odf_kernel_constant": {
+      "atol": 0.0,
+      "rtol": 1e-12,
+      "value": 1555.2194465068656
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "ambiguous_0001": 1197,
+    "ambiguous_10-10": 0,
+    "ambiguous_11-20": 0,
+    "family_0001": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "family_10-10": [
+      1,
+      0,
+      -1,
+      0
+    ],
+    "family_11-20": [
+      1,
+      1,
+      -2,
+      0
+    ],
+    "ipf_symmetry": "6/mmm",
+    "ipf_z_ambiguous": 393,
+    "odf_half_width_degrees": 10.0,
+    "odf_section_shape": [
+      72,
+      19
+    ],
+    "odf_sections_phi2_degrees": [
+      30.0
+    ],
+    "odf_step_degrees": 5.0,
+    "odf_stride": 10,
+    "point_group": "622",
+    "points": 193167
+  }
+}

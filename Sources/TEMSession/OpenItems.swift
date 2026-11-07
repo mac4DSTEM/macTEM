@@ -130,6 +130,8 @@ package nonisolated struct OpenedImage: Sendable {
     /// The display-normalised pixels the canvas uploads.
     package let canvas: CanvasPixels
     package let metadata: AcquisitionMetadata
+    /// The SEM vendor record of a Thermo, Zeiss or Tescan TIFF, already applied to `image` (axes, databar crop); nil otherwise.
+    package let sem: SEMImageMetadata?
     /// The file that was read: the request's URL, or where its bookmark resolved to when the file has moved since
     /// (the item then follows it, so opening the file at its new path selects the item instead of making another).
     package let url: URL
@@ -153,7 +155,8 @@ package nonisolated struct OpenedImage: Sendable {
     package init(image: CalibratedImage, canvas: CanvasPixels, metadata: AcquisitionMetadata,
                  url: URL, thumbnail: Thumbnail?, bookmark: Data?,
                  identity: SessionSourceIdentity? = nil, sidecar: SidecarOutcome = .none, stack: ImageStackSource? = nil,
-                 hasGrant: Bool? = nil) {
+                 hasGrant: Bool? = nil, sem: SEMImageMetadata? = nil) {
+        self.sem = sem
         self.stack = stack
         self.hasGrant = hasGrant
         self.identity = identity
@@ -411,7 +414,7 @@ package final class OpenItem: Identifiable {
     /// Publishes a read's answer. `movedTo` is the identity of `opened.url` when the read found the file somewhere other
     /// than `url`; the item then follows it.
     fileprivate func publish(_ opened: OpenedImage, movedTo: FileIdentity?) {
-        guard session.finishOpen(sessionToken, image: opened.image, url: opened.url, metadata: opened.metadata) else { return }
+        guard session.finishOpen(sessionToken, image: opened.image, url: opened.url, metadata: opened.metadata, sem: opened.sem) else { return }
         if let movedTo {
             url = opened.url
             fileIdentity = movedTo
@@ -454,7 +457,7 @@ package final class OpenItem: Identifiable {
     fileprivate func publishFrame(_ opened: OpenedImage, frame n: Int, generation: Int) {
         guard generation == frameGeneration else { return }
         sessionToken = session.beginOpen()
-        guard session.finishOpen(sessionToken, image: opened.image, url: opened.url, metadata: opened.metadata) else { return }
+        guard session.finishOpen(sessionToken, image: opened.image, url: opened.url, metadata: opened.metadata, sem: opened.sem) else { return }
         presentation.show(opened.canvas)
         measurements.refresh(on: opened.image)
         summary = ImageSummary(opened.image, thumbnail: opened.thumbnail ?? summary?.thumbnail)
@@ -678,6 +681,19 @@ package final class OpenItems {
             queue.insert(item, at: 0)
         case .resident:
             break
+        }
+    }
+
+    /// Reads `item` again from its file, ahead of any read waiting: for a setting the read applies (the SEM databar crop). A
+    /// resident item keeps showing its image until the new read answers; an item already reading is moved to the front.
+    package func reread(_ item: OpenItem) {
+        guard items.contains(where: { $0 === item }) else { return }
+        if item.residency == .reading {
+            guard let index = queue.firstIndex(where: { $0 === item }), index > 0 else { return }
+            queue.remove(at: index)
+            queue.insert(item, at: 0)
+        } else {
+            enqueue(item, atFront: true)
         }
     }
 
