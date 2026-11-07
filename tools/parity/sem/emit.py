@@ -37,6 +37,8 @@ sys.path.append(str(HERE))
 from detector_cases import (  # noqa: E402,F401  (milestone 2 detector geometry and figure F5; emit collects case_ names)
     case_m2_detector_gnomonic, case_m2_detector_pc_conventions, case_m2_detector_sample_to_detector,
     case_m2_detector_tkd_geometry, case_m2_pc_moving_screen_si)
+from hough_cases import (  # noqa: E402,F401  (milestone 4 Hough indexing and figure F8)
+    case_m4_hough_indexing_nickel_large, case_m4_hough_library, case_m4_hough_nickel_block)
 from writer_cases import (  # noqa: E402,F401  (milestone 8 .ang and .ctf writers and figure F18)
     case_m8_write_ang_sdss, case_m8_write_ang_sdss_ferrite, case_m8_write_ang_sdss_window, case_m8_write_ang_ti,
     case_m8_write_ctf_sdss, case_m8_write_ctf_sdss_ferrite, case_m8_write_ctf_sdss_window, case_m8_write_ctf_ti)
