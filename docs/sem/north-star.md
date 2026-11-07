@@ -149,6 +149,17 @@ indexed Euler angles, the normalised cross-correlation scores and the orientatio
 tutorials state none; the misorientation between our map and the reference is held under 1° per point for 99 % of
 points, and the score arrays within rtol 1e-5 (the pattern matching runs in float32).
 
+Figure F9 (milestone 4): the dictionary-indexed map, kikuchipy's `EBSD.dictionary_indexing` (Chen et al. 2015; Jackson
+et al. 2019). Dictionary: kikuchipy's in-package uint8 Ni 20 kV master pattern (D-SEM-32) projected onto the F15 detector
+(60 x 60, PC (0.4214, 0.2142, 0.5013) Bruker, sample tilt 70°) for orix's cubochoric sample of m-3m at 4° (11 935
+rotations); experimental patterns after kikuchipy's static then dynamic background; figure script
+`tools/parity/sem/dictionary_figure.py` (IPF-Z by orix's `IPFColorKeyTSL`).
+
+| Part | Bundle | Arrays and tolerance |
+| --- | --- | --- |
+| The 3 x 3 nickel cut on kikuchipy's corrected patterns: NCC (float32, keep_n 20), NCC in float64, NDP, NCC with a circular signal mask and two points masked out, NCC in chunks of 1000 | `m4/dictionary-indexing-kikuchipy-h5ebsd` | scores rtol 1e-4 (float32 runs), 1e-5 (float64); simulation indices exact except ranks whose scores tie within the tolerance; the crystal map's best rotations atol 1e-7 and Euler angles 1e-6 (orix's sample against the port's) |
+| F9: the whole 55 x 75 scan through the app's own background chain, keep_n 5; a 6 x 6 block of kikuchipy's corrected patterns | `m4/dictionary-indexing-nickel-ebsd-large` | whole scan: best match equal at 99.5 % of points or more, best scores rtol 2e-3 (D-SEM-18's one-grey-level background differences, measured 1.04e-3 and 2 of 4125 best matches); block: as the cut |
+
 ### Figure 5 (milestone 5): maps and grains
 
 orix on the indexed map: KAM, GOS, grain segmentation at 5°, grain size statistics, ODF. Reference arrays from orix
