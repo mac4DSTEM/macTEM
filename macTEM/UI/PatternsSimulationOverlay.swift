@@ -3,7 +3,8 @@
 //  Role: the geometrical Kikuchi simulation over the Patterns room's pattern (docs/sem/design/simulation-overlay.md §2, §4) and its
 //        inspector section (§3): the bands' centre lines in the accent colour, each family's {hkl} where the line leaves the pattern,
 //        the zone axes as small rings with [uvw]. Drawn through the pane's `MarkGeometry`, so the lines keep their place on the bands
-//        at any zoom; redrawn with the solution (the shown position), not with the pattern's pixels. The design puts the layer in the
+//        at any zoom; with `Band width`, each band's two edges at ±θ (the Bragg angle for the file's beam energy) as thinner arcs;
+//        redrawn with the solution (the shown position), not with the pattern's pixels. The design puts the layer in the
 //        Indexing room's pattern pane and, once a solution exists, the Patterns room's: a dataset whose file carries its orientations
 //        (the demo nickel's crystal map) has one already. Presentation only: the numbers are `KikuchiOverlay`'s (TEMCore), the state
 //        `EBSDSession`'s (TEMSession).
@@ -28,22 +29,6 @@ struct KikuchiOverlayLayer: View {
          geometry.panePoint(of: ImagePoint(x: line.pixel[2], y: line.pixel[3])))
     }
 
-    /// The part of a line inside `rect` (Liang–Barsky), nil when it misses.
-    static func clipped(_ a: CGPoint, _ b: CGPoint, to rect: CGRect) -> (CGPoint, CGPoint)? {
-        var t0: CGFloat = 0, t1: CGFloat = 1
-        let dx = b.x - a.x, dy = b.y - a.y
-        for (p, q) in [(-dx, a.x - rect.minX), (dx, rect.maxX - a.x), (-dy, a.y - rect.minY), (dy, rect.maxY - a.y)] {
-            if p == 0 {
-                if q < 0 { return nil }
-            } else {
-                let r = q / p
-                if p < 0 { t0 = max(t0, r) } else { t1 = min(t1, r) }
-                if t0 > t1 { return nil }
-            }
-        }
-        return (CGPoint(x: a.x + t0 * dx, y: a.y + t0 * dy), CGPoint(x: a.x + t1 * dx, y: a.y + t1 * dy))
-    }
-
     var body: some View {
         let rect = CGRect(origin: .zero, size: size)
         let accent = Color.accentColor
@@ -51,12 +36,27 @@ struct KikuchiOverlayLayer: View {
             var halo = Path(), lines = Path()
             for line in pattern.simulation.lines {
                 let (a, b) = ends(line)
-                guard let (p, q) = Self.clipped(a, b, to: rect) else { continue }
+                guard let (p, q) = KikuchiOverlayExport.clipped(a, b, to: rect) else { continue }
                 halo.move(to: p); halo.addLine(to: q)
                 lines.move(to: p); lines.addLine(to: q)
             }
             context.stroke(halo, with: .color(.black.opacity(0.55)), lineWidth: 2.5)
             context.stroke(lines, with: .color(accent), lineWidth: 1.2)
+            if settings.bandWidth {
+                // The band edges: each visible arc of the two small circles at π/2 ∓ θ, thinner than the centre line.
+                var edges = Path()
+                for line in pattern.simulation.lines {
+                    for edge in line.edges {
+                        for run in edge.pixelRuns {
+                            edges.addLines(run.map { geometry.panePoint(of: ImagePoint(x: $0.x, y: $0.y)) })
+                        }
+                    }
+                }
+                var clipped = context
+                clipped.clip(to: Path(rect))
+                clipped.stroke(edges, with: .color(.black.opacity(0.45)), lineWidth: 1.8)
+                clipped.stroke(edges, with: .color(accent.opacity(0.85)), lineWidth: 0.8)
+            }
             if settings.zoneAxes {
                 for axis in pattern.simulation.zoneAxes {
                     let c = geometry.panePoint(of: ImagePoint(x: axis.pixel.x, y: axis.pixel.y))
@@ -75,7 +75,7 @@ struct KikuchiOverlayLayer: View {
                 let inner = rect.insetBy(dx: 14, dy: 8)
                 for (line, label) in zip(pattern.simulation.lines, pattern.lineLabels) {
                     let (a, b) = ends(line)
-                    guard let (_, q) = Self.clipped(a, b, to: rect) else { continue }
+                    guard let (_, q) = KikuchiOverlayExport.clipped(a, b, to: rect) else { continue }
                     let at = CGPoint(x: min(max(q.x, inner.minX), inner.maxX), y: min(max(q.y, inner.minY), inner.maxY))
                     context.draw(Text(label).font(.caption2.weight(.semibold)).foregroundStyle(accent), at: at)
                 }
@@ -88,6 +88,11 @@ struct KikuchiOverlayLayer: View {
         .accessibilityChildren {
             ForEach(Array(pattern.lineLabels.enumerated()), id: \.offset) { _, label in
                 Text(label).accessibilityIdentifier("patterns.overlay.line")
+            }
+            if settings.bandWidth {
+                ForEach(Array(pattern.simulation.lines.enumerated()), id: \.offset) { k, line in
+                    if !line.edges.isEmpty { Text(pattern.lineLabels[k]).accessibilityIdentifier("patterns.overlay.edge") }
+                }
             }
             if settings.zoneAxes {
                 ForEach(Array(pattern.simulation.zoneAxes.enumerated()), id: \.offset) { _, axis in
@@ -120,6 +125,14 @@ struct PatternsSimulationSection: View {
                     .disabled(!session.overlayOn)
                     .help("Bands of every family the lattice centring allows down to this spacing, one per direction")
                     .accessibilityIdentifier("patterns.overlay.minD")
+            }
+            InspectorRow("Band width") {
+                Toggle("Draw the band edges", isOn: Binding(get: { settings.bandWidth }, set: { v in var s = settings; s.bandWidth = v; session.setOverlaySettings(s) }))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .disabled(!session.overlayOn || !session.canDrawBandWidth)
+                    .help(session.canDrawBandWidth ? "The two edges of each band, at the Bragg angle for the file's beam energy"
+                                                   : "The file states no beam energy, so the Bragg angles are unknown")
+                    .accessibilityIdentifier("patterns.overlay.bandWidth")
             }
             InspectorRow("Zone axes") {
                 Toggle("Draw the zone axes", isOn: Binding(get: { settings.zoneAxes }, set: { v in var s = settings; s.zoneAxes = v; session.setOverlaySettings(s) }))

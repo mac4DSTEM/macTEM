@@ -100,7 +100,7 @@ struct PatternsVirtualImagesSection: View {
     }
 }
 
-/// Export (closed until opened, as the image rooms'): the pattern on screen and the header.
+/// Export (closed until opened, as the image rooms'): the pattern on screen, the Kikuchi overlay over it, and the header.
 struct PatternsExportSection: View {
     @Environment(AppState.self) private var appState
     let session: EBSDSession
@@ -117,6 +117,14 @@ struct PatternsExportSection: View {
                     .disabled(session.patternPresentation.canvas == nil)
                     .help("The pattern on screen as a PNG, one pixel per detector pixel, with its colormap and contrast")
                     .accessibilityIdentifier("patterns.export.pattern")
+                Button(PatternsExportKind.overlayPNG.title) { export(.overlayPNG) }
+                    .disabled(!session.overlayOn || session.overlayCSV == nil || session.patternPresentation.canvas == nil)
+                    .help("The pattern with the Kikuchi overlay as drawn (bands, edges, zone axes and labels), enlarged so the labels read")
+                    .accessibilityIdentifier("patterns.export.overlayPNG")
+                Button(PatternsExportKind.overlayCSV.title) { export(.overlayCSV) }
+                    .disabled(!session.overlayOn || session.overlayCSV == nil)
+                    .help("The overlay's band lines (hkl, ends in detector pixels, θ) and zone axes (uvw, position) as CSV, for a figure made elsewhere")
+                    .accessibilityIdentifier("patterns.export.overlayCSV")
                 Button(PatternsExportKind.metadataJSON.title) { export(.metadataJSON) }
                     .help("The scan, pattern and detector header as the reader holds it, as JSON")
                     .accessibilityIdentifier("patterns.export.metadata")

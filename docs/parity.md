@@ -283,13 +283,16 @@ International Tables' X-ray parameters and the refraction-corrected wavelength w
 | `KikuchiWavelength.refractionCorrected` | `diffsims.utils.sim_utils.get_refraction_corrected_wavelength` | same, at 10, 20, 30 kV | rtol 1e-7 | the mean inner potential over the first asymmetric atom's orbit, as diffsims takes it |
 | `GeometricalKikuchiSimulation.simulate` | `KikuchiPatternSimulator.on_detector` (`lines_coordinates`, `zone_axes_coordinates`, `_zone_axes_labels`) | `testFigureF14…`, `testTiltedTitaniumDetectorAsKikuchipy`, `testOverlayOnTheDemoNickelIsFigureF14` | hkl, [uvw], labels exact; pixels rtol 1e-7, atol 1e-6 px; gnomonic rtol 1e-7 | the line ends lie on the circle of `maxRGnomonic`: kikuchipy takes the largest r_max of the detector it is given, the whole scan's for F14 |
 | `GeometricalKikuchiSimulation.roundIndices` | orix `Miller.round` (`_round_indices`, max index 20) | `testRoundIndicesAsOrix` and the zone axes above | exact | |
+| `GeometricalKikuchiSimulation.Line.edges` (band edges, #201) | `KikuchiPatternSimulator.plot(mode="bands")`: orix `Vector3d.get_circle` at π/2 ∓ θ about `vector_detector`, put on the detector by `on_detector`'s formula | `testBandEdgesAsKikuchipyBands` (`m6/geometrical-band-edges-nickel`) | rtol 1e-5, atol 1e-8 (orix's own `get_circle` tests, np.allclose defaults), visibility exact | θ from the bundle; the overlay's own θ is checked within 0.1 % (`testOverlayBandEdgesOnTheDemoNickel`, D-SEM-94) |
 | `KinematicMasterPattern.calculate` | `KikuchiPatternSimulator.calculate_master_pattern` (stereographic, `_get_pattern`) | `testKinematicMasterPatternOfNickelAsKikuchipy` | rtol 1e-5, atol 1e-8 | emitted with numba on one thread: kikuchipy's parallel loop adds into shared pixels |
 
 ### Known limits and decisions
 
 - D-SEM-93 (2026-11-07): the overlay draws the geometrical simulation in the Patterns room from the file's crystal map; see
-  docs/decisions.md. Only kikuchipy's lines and zone axes are drawn (no band edges at ±θ, no Kikuchi line pairs); the
+  docs/decisions.md. kikuchipy's lines and zone axes are drawn, and the band edges with `Band width` (D-SEM-94); the
   kinematic master pattern is computed in TEMCore and not yet shown in a room.
+- D-SEM-94 (2026-11-07): the overlay's Bragg angles use the relativistic wavelength without diffsims' mean inner potential
+  (a file's phase carries no atoms the app reads): θ is 0.07 % larger at 20 kV than diffsims' (0.15 % at 10 kV).
 
 ## Pattern quality
 
