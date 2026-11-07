@@ -13,7 +13,7 @@ stack, a fixture or this script that moves a number is red until the bundle is r
 Milestones (docs/sem/north-star.md): m1 data in and seen (readers, pattern browser values, virtual BSE), m2 pattern
 processing (static and dynamic background, emitted now so phase-2 ports can start from a committed reference), m3
 orientation maths (orix's rotations, point groups, fundamental zones, orientations and misorientations), m7 SEM-EDS line
-intensities on the TM002 spectrum (the numbers behind the EDS figure), m6 master patterns (EMsoft EBSD, TKD and ECP
+intensities, background windows and Cliff-Lorimer on the TM002 spectrum (figures F16, F17), m6 master patterns (EMsoft EBSD, TKD and ECP
 master pattern files read, the Ni 20 kV pattern projected onto a detector: figure F15).
 
 Run with `python -I -B` from outside this folder: a fixture is data, never code.
@@ -1229,6 +1229,94 @@ def case_m7_eds_lines_tm002(ctx):
     b.array("intensity_background_subtracted", np.asarray([float(np.asarray(i.data).ravel()[0]) for i in sub], dtype=np.float64), **F64)
     b.write()
     ctx.done("m7/eds-lines-tm002")
+
+
+# k-factors for F17. exspy ships no SEM k-factors and the TM002 layer has no certified composition, so the
+# quantification parity runs on two stated sets (D-SEM-59): unit factors (composition = intensity fractions) and a
+# planted set with distinct values, so every ratio of the Cliff-Lorimer chain is exercised. Neither is a measurement.
+TM002_KFACTORS_PLANTED = {"Al_Ka": 1.0, "C_Ka": 2.5, "Cu_La": 1.5, "Mn_La": 1.25, "Zr_La": 2.0}
+
+
+def _tm002(beam_energy=None):
+    import hyperspy.api as hs
+
+    s = hs.load(str(FIXTURES / "exspy_EDS_SEM_TM002.hspy"), file_format="hspy")
+    s.set_signal_type("EDS_SEM")
+    if beam_energy is not None:
+        s.set_microscope_parameters(beam_energy=beam_energy)
+    return s
+
+
+def case_m7_eds_quant_tm002(ctx):
+    """F17: exspy's Cliff-Lorimer (`quantification_cliff_lorimer`, as `EDSTEMSpectrum.quantification(method="CL")`
+    calls it, times 100, no absorption correction) on F16's background-subtracted intensities, weight and atomic
+    percent (`exspy.material.weight_to_atomic`), with the unit and the planted k-factors; the take-off angle; each
+    line's FWHM; the default background windows (line_width [2, 2]) and their intensities; the lines exspy picks at
+    5, 20 and 30 kV."""
+    from exspy._misc.eds import utils as utils_eds
+    from exspy.material import weight_to_atomic
+
+    p = FIXTURES / "exspy_EDS_SEM_TM002.hspy"
+    s = _tm002()
+    b = Bundle("m7/eds-quant-tm002", 7, "exspy", "exspy._misc.eds.utils.quantification_cliff_lorimer", ctx.out)
+    b.input(p, "fixtures/exspy_EDS_SEM_TM002.hspy")
+    s.add_lines()
+    lines = list(s.metadata.Sample.xray_lines)
+    elements = [ln.split("_")[0] for ln in lines]
+    b.value("xray_lines", lines)
+    b.value("kfactors_planted", [TM002_KFACTORS_PLANTED[ln] for ln in lines])
+    b.scalar("take_off_angle_deg", s.get_take_off_angle(), **F64)
+    fwhm = [s._get_line_energy(ln, FWHM_MnKa="auto")[1] for ln in lines]
+    b.array("line_fwhm_keV", np.asarray(fwhm, dtype=np.float64), **F64)
+    iw = s.estimate_integration_windows(windows_width=2.0)
+    bw = s.estimate_background_windows(line_width=[5.0, 2.0])
+    sub = s.get_lines_intensity(xray_lines=lines, integration_windows=iw, background_windows=bw)
+    for name, k in (("unit", [1.0] * len(lines)), ("planted", [TM002_KFACTORS_PLANTED[ln] for ln in lines])):
+        stack = np.asarray([np.asarray(i.data, dtype=np.float64).reshape(1) for i in sub])
+        wt = utils_eds.quantification_cliff_lorimer(stack, k) * 100.0
+        at = weight_to_atomic(wt, elements)
+        b.array(f"weight_percent_{name}", wt.reshape(-1).astype(np.float64), **F64)
+        b.array(f"atomic_percent_{name}", np.asarray(at, dtype=np.float64).reshape(-1), **F64)
+    bw22 = s.estimate_background_windows()
+    b.array("background_windows_default_keV", np.asarray(bw22, dtype=np.float64), **F64)
+    sub22 = s.get_lines_intensity(xray_lines=lines, integration_windows=iw, background_windows=bw22)
+    b.array("intensity_background_default", np.asarray([float(np.asarray(i.data).ravel()[0]) for i in sub22]), **F64)
+    iw21 = s.estimate_integration_windows(windows_width=2.1)
+    raw21 = s.get_lines_intensity(xray_lines=lines, integration_windows=iw21)
+    b.array("intensity_raw_width_2_1", np.asarray([float(np.asarray(i.data).ravel()[0]) for i in raw21]), **F64)
+    b.value("xray_lines_by_beam_energy", {str(kv): list(_lines_at(kv)) for kv in (5.0, 20.0, 30.0)})
+    _xray_database(b)
+    b.write()
+    ctx.done("m7/eds-quant-tm002")
+
+
+def _xray_database(b):
+    """exspy's element database as the quantification above reads it: every element's Z and atomic weight and every X-ray
+    line's energy and weight, in the database's own order, exact (Sources/TEMCore/EDX/XrayLineDatabase.swift is generated
+    from the same dict by make_xray_database.py and must equal these arrays)."""
+    from exspy._misc.elements import elements as db
+
+    symbols, names, energies, weights, z, aw = [], [], [], [], [], []
+    for el in db:
+        symbols.append(el)
+        z.append(int(db[el]["General_properties"]["Z"]))
+        aw.append(float(db[el]["General_properties"]["atomic_weight"]))
+        for ln, d in db[el]["Atomic_properties"].get("Xray_lines", {}).items():
+            names.append(f"{el}_{ln}")
+            energies.append(float(d["energy (keV)"]))
+            weights.append(float(d["weight"]))
+    b.value("db_elements", symbols)
+    b.value("db_xray_lines", names)
+    b.array("db_z", np.asarray(z, dtype=np.int64), **EXACT)
+    b.array("db_atomic_weight", np.asarray(aw, dtype=np.float64), **EXACT)
+    b.array("db_line_energy_keV", np.asarray(energies, dtype=np.float64), **EXACT)
+    b.array("db_line_weight", np.asarray(weights, dtype=np.float64), **EXACT)
+
+
+def _lines_at(kv):
+    t = _tm002(beam_energy=kv)
+    t.add_lines()
+    return t.metadata.Sample.xray_lines
 
 
 # ------------------------------------------------------------------------------- master patterns and projection (m6)

@@ -198,8 +198,27 @@ background windows `estimate_background_windows(line_width=[5.0, 2.0])`:
 | Mn Lα | 0.6332 | 0.5720 to 0.6943 | 96700 | 85734.00 |
 | Zr Lα | 2.0423 | 1.9571 to 2.1275 | 99075 | 82215.86 |
 
-Tolerance rtol 1e-7 on the intensities and the window edges. Quantification (Cliff-Lorimer with k-factors, as the
-tutorial does it) follows in the same milestone once the k-factors it uses are recorded with their source.
+Tolerance rtol 1e-7 on the intensities and the window edges. The line table exspy reads is held exact by
+the `db_` arrays of `m7/eds-quant-tm002` (every element's atomic weight, every line's energy and weight).
+
+### Figure 7b (milestone 7, F17): quantification
+
+Bundle `m7/eds-quant-tm002`: exspy's Cliff-Lorimer (`quantification_cliff_lorimer`, as `quantification(method="CL")`
+calls it, no absorption correction, times 100) on the background-subtracted intensities above, then
+`exspy.material.weight_to_atomic`. exspy publishes no SEM k-factors and TM002 has no certified layer composition, so the
+k-factors are stated (D-SEM-59): unit factors and a planted set (Al Kα 1.0, C Kα 2.5, Cu Lα 1.5, Mn Lα 1.25, Zr Lα 2.0).
+
+| Line | wt% (unit k) | at% (unit k) | wt% (planted k) | at% (planted k) |
+| --- | --- | --- | --- | --- |
+| Al Kα | 17.37 | 20.03 | 10.48 | 10.49 |
+| C Kα | 19.48 | 50.46 | 29.38 | 66.08 |
+| Cu Lα | 21.03 | 10.30 | 19.04 | 8.09 |
+| Mn Lα | 21.50 | 12.18 | 16.21 | 7.97 |
+| Zr Lα | 20.62 | 7.03 | 24.88 | 7.37 |
+
+The same bundle holds the take-off angle (37.0°, `get_take_off_angle`), each line's FWHM at 130 eV Mn Kα, the default
+background windows (`line_width` [2, 2]) with their intensities, the raw intensities of 2.1-FWHM windows and the lines
+exspy picks at 5, 20 and 30 kV. Tolerance rtol 1e-7 throughout.
 
 ### Figure 8 (milestone 8): export
 

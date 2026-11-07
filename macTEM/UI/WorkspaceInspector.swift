@@ -4,6 +4,7 @@ import SwiftUI
 import TEMCore
 import TEMSession
 import ShellEDXModel
+import SpectroCore
 import ShellSpectroscopy
 
 /// The inspector: the window's right column, in two tabs. **Settings** is the room's readiness first, then
@@ -32,6 +33,8 @@ private struct InspectorSettingsTab: View {
         if appState.navigation.workspaceArea == .edx {
             InspectorScrollColumn {
                 EDXRoomSettings(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions)
+                    .environment(\.inspectorScope, "settings.edx")
+                SEMEDSSettings(state: appState.semEDS, path: appState.edx.source?.metadata.filePath)
                     .environment(\.inspectorScope, "settings.edx")
             }
             .environment(\.inspectorScope, "settings")
@@ -100,6 +103,7 @@ private struct InspectorInfoTab: View {
         if appState.navigation.workspaceArea == .edx {
             InspectorScrollColumn {
                 EDXRoomInfo(session: appState.edx)
+                SEMEDSInfo(state: appState.semEDS)
             }
             .environment(\.inspectorScope, "info")
         } else if appState.navigation.workspaceArea == .eels {
