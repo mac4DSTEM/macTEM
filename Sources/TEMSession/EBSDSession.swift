@@ -5,7 +5,7 @@
 //        intensity of every pattern, one pass over the scan) and how the two pictures are drawn (`ImagePresentation` each, so the
 //        map and the pattern keep their own contrast). The room's views read it; they hold none of it.
 //
-//  Nothing here makes a number: the mean map and the virtual images are `VirtualBSEImaging` (TEMCore), the patterns are the readers'. This
+//  Nothing here makes a number: the mean map and the virtual images are `VirtualBSEImaging`, the quality maps `PatternQuality` (TEMCore), the patterns the readers'. This
 //  owner decides WHEN to read: the map in one detached pass that lands only if no newer dataset was bound meanwhile (`generation`),
 //  the hovered pattern in a task that is cancelled by the next hover, so a fast sweep over the map reads the pattern the pointer
 //  rests on, not every one it passed. Patterns read once stay in a bounded cache by map index.
@@ -66,6 +66,10 @@ package final class EBSDSession {
         case tile(VirtualBSETile)
         /// The colour mix of `mixTiles` (kikuchipy's `get_rgb_image`).
         case mix
+        /// The image quality of every pattern (Krieger Lassen; `PatternQuality`), of the patterns as stored.
+        case imageQuality
+        /// The average dot product of every pattern with its four nearest neighbours (`PatternQuality`), of the patterns as stored.
+        case dotProduct
     }
     package private(set) var mapChoice = MapChoice.mean
     /// The tiles of the colour mix: red, green, blue; nil until picked.
@@ -73,6 +77,13 @@ package final class EBSDSession {
     /// The colour mix as RGBA bytes for the Metal view, once the three tiles are picked and the pass has landed; its version for the view.
     package private(set) var mixRGBA: [UInt8]?
     package private(set) var mixVersion = 0
+    /// The quality maps (north star F3), made by their own pass the first time one is picked: image quality and average dot product in
+    /// map order, nil until that pass lands.
+    package private(set) var imageQualityMap: [Float]?
+    package private(set) var dotProductMap: [Float]?
+    /// The quality pass: running, and how far (0...1).
+    package private(set) var isQualityMapping = false
+    package private(set) var qualityProgress = 0.0
     /// The lower pane with every tile (the inspector's "Show the tiles").
     package var showsTiles = false
 
@@ -245,6 +256,7 @@ package final class EBSDSession {
 
     @ObservationIgnored private var openTask: Task<Void, Never>?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
+    @ObservationIgnored private var qualityTask: Task<Void, Never>?
     @ObservationIgnored private var patternTask: Task<Void, Never>?
     @ObservationIgnored private var processTask: Task<Void, Never>?
     @ObservationIgnored private var meanTask: Task<Void, Never>?
@@ -258,7 +270,7 @@ package final class EBSDSession {
 
     package var fileName: String { document?.fileName ?? "" }
     package var hasDataset: Bool { document != nil }
-    package var isBusy: Bool { isOpening || isMapping || isProcessing }
+    package var isBusy: Bool { isOpening || isMapping || isQualityMapping || isProcessing }
     package var dataset: EBSDDataset? { document?.dataset }
 
     /// The mean intensity at `position`, once the map has landed.
@@ -275,6 +287,8 @@ package final class EBSDSession {
         switch mapChoice {
         case .bse: label = "BSE"
         case .tile(let tile): label = tile.label
+        case .imageQuality: label = "IQ"
+        case .dotProduct: label = "ADP"
         case .mean, .mix: return nil
         }
         return (label, image[position.index(columns: dataset.scanColumns)])
@@ -282,13 +296,24 @@ package final class EBSDSession {
 
     /// The sum image `mapChoice` names, once landed.
     package var chosenImage: [Float]? {
+        if mapChoice == .imageQuality || mapChoice == .dotProduct { return qualityImage }
         guard let virtualImages else { return nil }
         switch mapChoice {
         case .bse: return virtualImages.first
         case .tile(let tile):
             let k = virtualGrid.index(of: tile) + 1
             return k < virtualImages.count ? virtualImages[k] : nil
+        case .imageQuality, .dotProduct: return qualityImage
         case .mean, .mix: return nil
+        }
+    }
+
+    /// The quality map `mapChoice` names, once its pass has landed.
+    private var qualityImage: [Float]? {
+        switch mapChoice {
+        case .imageQuality: imageQualityMap
+        case .dotProduct: dotProductMap
+        default: nil
         }
     }
 
@@ -316,6 +341,7 @@ package final class EBSDSession {
     /// Shows `choice` on the scan map (nothing changes until its image has landed; the mix needs its three tiles).
     package func showMap(_ choice: MapChoice) {
         mapChoice = choice
+        if choice == .imageQuality || choice == .dotProduct, imageQualityMap == nil, !isQualityMapping, let document { startQuality(document) }
         remakeMap()
     }
 
@@ -350,7 +376,7 @@ package final class EBSDSession {
         let pixels: [Float]?
         switch mapChoice {
         case .mean, .mix: pixels = meanIntensities
-        case .bse, .tile: pixels = chosenImage
+        case .bse, .tile, .imageQuality, .dotProduct: pixels = chosenImage
         }
         if let pixels { mapPresentation.show(CanvasPixels.make(width: dataset.scanColumns, height: dataset.scanRows, pixels: pixels)) }
     }
@@ -399,6 +425,7 @@ package final class EBSDSession {
         pinned = .origin; hovered = nil
         patternPosition = nil; meanIntensities = nil; mapFailure = nil; mapProgress = 0
         virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
+        qualityTask?.cancel(); imageQualityMap = nil; dotProductMap = nil; isQualityMapping = false; qualityProgress = 0
         resetProcessing()
         onEvent?("Opened \(document.fileName) — \(EBSDBrowsing.capsuleDetail(document.dataset)), step \(UnitDisplay.number(document.dataset.stepX)) \(EBSDBrowsing.unitLabel(document.dataset.scanUnit))")
         startMap(document)
@@ -409,6 +436,7 @@ package final class EBSDSession {
     package func stop() {
         if isOpening { openTask?.cancel(); isOpening = false; onEvent?("Stopped opening") }
         if isMapping { mapTask?.cancel(); isMapping = false; mapFailure = "The map's pass was stopped." }
+        if isQualityMapping { qualityTask?.cancel(); isQualityMapping = false; onEvent?("Stopped the quality maps") }
         if isProcessing { processTask?.cancel(); isProcessing = false; onEvent?("Stopped processing; the last complete run stays") }
     }
 
@@ -429,7 +457,8 @@ package final class EBSDSession {
         isOpening = false; isMapping = false
         document = nil; cache = [:]; cacheOrder = []
         meanIntensities = nil; mapFailure = nil; patternPosition = nil; hovered = nil; pinned = .origin
-        virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean; showsTiles = false
+        virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
+        qualityTask?.cancel(); imageQualityMap = nil; dotProductMap = nil; isQualityMapping = false; qualityProgress = 0; showsTiles = false
         processTask?.cancel(); meanTask?.cancel()
         processed = nil; processedWith = nil; isProcessing = false; processProgress = 0
         scanMeanBackground = nil; isComputingMean = false; patternIsProcessed = false; previewFailure = nil
@@ -463,6 +492,45 @@ package final class EBSDSession {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 await self?.landMap(nil, images: nil, failure: words, generation: gen)
             }
+        }
+    }
+
+    /// The quality pass (`PatternQuality.maps`): both maps in one detached task that lands only for the dataset it started on.
+    private func startQuality(_ document: Document) {
+        let gen = generation
+        isQualityMapping = true
+        qualityProgress = 0
+        let access = document.access
+        qualityTask = Task.detached(priority: .userInitiated) { [weak self] in
+            do {
+                let maps = try await PatternQuality.maps(of: access, progress: { f in
+                    Task { @MainActor in self?.landQualityProgress(f, generation: gen) }
+                })
+                await self?.landQuality(maps.imageQuality.map(Float.init), maps.dotProduct.map(Float.init), failure: nil, generation: gen)
+            } catch is CancellationError {
+                return
+            } catch {
+                let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                await self?.landQuality(nil, nil, failure: words, generation: gen)
+            }
+        }
+    }
+
+    private func landQualityProgress(_ f: Double, generation gen: Int) {
+        guard gen == generation, isQualityMapping else { return }
+        qualityProgress = f
+    }
+
+    private func landQuality(_ iq: [Float]?, _ adp: [Float]?, failure: String?, generation gen: Int) {
+        guard gen == generation else { return }
+        isQualityMapping = false
+        if let iq, let adp {
+            imageQualityMap = iq
+            dotProductMap = adp
+            qualityProgress = 1
+            remakeMap()
+        } else if let failure {
+            onEvent?("Error: \(failure)")
         }
     }
 

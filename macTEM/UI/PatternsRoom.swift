@@ -178,6 +178,10 @@ struct ScanMapPane: View {
                 ProgressView(value: session.mapProgress).progressViewStyle(.linear).frame(width: LayoutPolicy.paneHeaderProgressWidth)
                     .accessibilityLabel("Reading the scan")
                     .accessibilityIdentifier("patterns.map.progress")
+            } else if session.isQualityMapping {
+                ProgressView(value: session.qualityProgress).progressViewStyle(.linear).frame(width: LayoutPolicy.paneHeaderProgressWidth)
+                    .accessibilityLabel("Computing the quality maps")
+                    .accessibilityIdentifier("patterns.map.progress")
             } else if let why = session.mapFailure {
                 Text(why).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
@@ -195,6 +199,8 @@ struct ScanMapPane: View {
         case .bse: "Scan map · BSE (whole detector)"
         case .tile(let tile): "Scan map · tile \(tile.label)"
         case .mix: "Scan map · colour mix " + session.mixTiles.compactMap { $0?.label }.joined(separator: " + ")
+        case .imageQuality: "Scan map · image quality (raw patterns)"
+        case .dotProduct: "Scan map · average dot product (raw patterns)"
         }
     }
 
