@@ -26,7 +26,7 @@ struct IndexingSimulationSection: View {
 
     var body: some View {
         let patterns = session.patterns
-        SimulationOverlayControls(prefix: "indexing", isOn: session.showsSimulation, setOn: { session.showsSimulation = $0 },
+        SimulationOverlayControls(ids: .indexing, isOn: session.showsSimulation, setOn: { session.showsSimulation = $0 },
                                   settings: patterns.overlaySettings, setSettings: { patterns.setOverlaySettings($0) },
                                   canOverlay: session.result != nil, canDrawBandWidth: patterns.canDrawBandWidth, masterPicture: nil,
                                   unavailable: "Index the scan first: the overlay draws the run's solution at each point.",

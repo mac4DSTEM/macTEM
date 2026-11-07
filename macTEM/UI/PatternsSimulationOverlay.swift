@@ -23,8 +23,8 @@ struct KikuchiOverlayLayer: View {
     let settings: KikuchiOverlay.Settings
     let geometry: MarkGeometry
     let size: CGSize
-    /// The room's accessibility prefix (`patterns.pattern.overlay`, `indexing.pattern.overlay`).
-    var prefix = "patterns"
+    /// The room's accessibility identifiers.
+    var ids = OverlayIdentifiers.patterns
 
     /// A line's ends in pane points.
     private func ends(_ line: GeometricalKikuchiSimulation.Line) -> (CGPoint, CGPoint) {
@@ -106,20 +106,20 @@ struct KikuchiOverlayLayer: View {
         .accessibilityLabel("Kikuchi simulation of \(pattern.phase)")
         .accessibilityChildren {
             ForEach(Array(pattern.lineLabels.enumerated()), id: \.offset) { _, label in
-                Text(label).accessibilityIdentifier("\(prefix).overlay.line")
+                Text(label).accessibilityIdentifier(ids.line)
             }
             if settings.bandWidth {
                 ForEach(Array(pattern.simulation.lines.enumerated()), id: \.offset) { k, line in
-                    if !line.edges.isEmpty { Text(pattern.lineLabels[k]).accessibilityIdentifier("\(prefix).overlay.edge") }
+                    if !line.edges.isEmpty { Text(pattern.lineLabels[k]).accessibilityIdentifier(ids.edge) }
                 }
             }
             if settings.zoneAxes {
                 ForEach(Array(pattern.simulation.zoneAxes.enumerated()), id: \.offset) { _, axis in
-                    Text(KikuchiOverlay.millerText(axis.uvw, brackets: "[]")).accessibilityIdentifier("\(prefix).overlay.zoneAxis")
+                    Text(KikuchiOverlay.millerText(axis.uvw, brackets: "[]")).accessibilityIdentifier(ids.zoneAxis)
                 }
             }
         }
-        .accessibilityIdentifier("\(prefix).pattern.overlay")
+        .accessibilityIdentifier(ids.layer)
     }
 }
 
@@ -143,7 +143,7 @@ struct PatternsSimulationSection: View {
             guard session.overlayOn, case .success(let p)? = session.overlay else { return nil }
             return "\(p.phase): \(p.simulation.lines.count) bands, \(p.simulation.zoneAxes.count) zone axes on this pattern, from the orientation and projection centre the file stores here."
         }()
-        SimulationOverlayControls(prefix: "patterns", isOn: session.overlayOn, setOn: { session.setOverlayOn($0) },
+        SimulationOverlayControls(ids: .patterns, isOn: session.overlayOn, setOn: { session.setOverlayOn($0) },
                                   settings: session.overlaySettings, setSettings: { session.setOverlaySettings($0) },
                                   canOverlay: session.canOverlay, canDrawBandWidth: session.canDrawBandWidth,
                                   masterPicture: session.overlayMasterPicture,
@@ -153,10 +153,9 @@ struct PatternsSimulationSection: View {
 }
 
 /// The Simulation section's controls (simulation-overlay.md §3) for a room's overlay: its own on or off, and the settings both rooms share
-/// (Min d, Band width, Zone axes, Labels, Kinematical and Blend). `prefix` names the accessibility identifiers (`patterns.overlay…`,
-/// `indexing.overlay…`).
+/// (Min d, Band width, Zone axes, Labels, Kinematical and Blend). `ids` are the room's accessibility identifiers.
 struct SimulationOverlayControls: View {
-    let prefix: String
+    let ids: OverlayIdentifiers
     let isOn: Bool
     let setOn: (Bool) -> Void
     let settings: KikuchiOverlay.Settings
@@ -181,18 +180,18 @@ struct SimulationOverlayControls: View {
                 setOn(v != 0)
             }))
                 .disabled(!canOverlay)
-                .accessibilityIdentifier("\(prefix).overlay")
+                .accessibilityIdentifier(ids.picker)
             if isOn && settings.kinematical {
                 AdjustmentSlider("Blend", value: Binding(get: { settings.blend }, set: { v in var s = settings; s.blend = v; setSettings(s) }),
                                  in: 0...1, format: .number.precision(.fractionLength(2)), defaultValue: 0.5)
-                    .accessibilityIdentifier("\(prefix).overlay.blend")
+                    .accessibilityIdentifier(ids.blend)
                 if let picture = masterPicture, let image = PatternsSimulationSection.greyImage(picture.values, width: picture.side, height: picture.side) {
                     InspectorRow("Master") {
                         Image(decorative: image, scale: 1).resizable().interpolation(.medium).aspectRatio(1, contentMode: .fit)
                             .frame(maxWidth: LayoutPolicy.overlayMasterPictureWidth)
                             .help("The kinematical master pattern of \(picture.phase), upper hemisphere, stereographic: every band down to Min d at the file's beam energy, each of intensity 1")
                             .accessibilityLabel("Kinematical master pattern of \(picture.phase)")
-                            .accessibilityIdentifier("\(prefix).overlay.master")
+                            .accessibilityIdentifier(ids.master)
                     }
                 } else if !canDrawBandWidth {
                     InspectorNote("The file states no beam energy, so the Bragg angles of the kinematical simulation are unknown.")
@@ -204,7 +203,7 @@ struct SimulationOverlayControls: View {
                 }), format: Self.number, unit: "Å")
                     .disabled(!isOn)
                     .help("Bands of every family the lattice centring allows down to this spacing, one per direction")
-                    .accessibilityIdentifier("\(prefix).overlay.minD")
+                    .accessibilityIdentifier(ids.minD)
             }
             InspectorRow("Band width") {
                 Toggle("Draw the band edges", isOn: Binding(get: { settings.bandWidth }, set: { v in var s = settings; s.bandWidth = v; setSettings(s) }))
@@ -212,26 +211,57 @@ struct SimulationOverlayControls: View {
                     .disabled(!isOn || !canDrawBandWidth)
                     .help(canDrawBandWidth ? "The two edges of each band, at the Bragg angle for the file's beam energy"
                                            : "The file states no beam energy, so the Bragg angles are unknown")
-                    .accessibilityIdentifier("\(prefix).overlay.bandWidth")
+                    .accessibilityIdentifier(ids.bandWidth)
             }
             InspectorRow("Zone axes") {
                 Toggle("Draw the zone axes", isOn: Binding(get: { settings.zoneAxes }, set: { v in var s = settings; s.zoneAxes = v; setSettings(s) }))
                     .labelsHidden().toggleStyle(.switch).controlSize(.small)
                     .disabled(!isOn)
-                    .accessibilityIdentifier("\(prefix).overlay.zoneAxes")
+                    .accessibilityIdentifier(ids.zoneAxes)
             }
             InspectorRow("Labels") {
                 Toggle("Label the bands and zone axes", isOn: Binding(get: { settings.labels }, set: { v in var s = settings; s.labels = v; setSettings(s) }))
                     .labelsHidden().toggleStyle(.switch).controlSize(.small)
                     .disabled(!isOn)
-                    .accessibilityIdentifier("\(prefix).overlay.labels")
+                    .accessibilityIdentifier(ids.labels)
             }
             if !canOverlay {
                 InspectorNote(unavailable)
             } else if let summary {
                 InspectorNote(summary)
-                    .accessibilityIdentifier("\(prefix).overlay.summary")
+                    .accessibilityIdentifier(ids.summary)
             }
         }
     }
+}
+
+/// The overlay's accessibility identifiers in one room, written out so the journeys' identifier check finds each one.
+struct OverlayIdentifiers {
+    let picker, blend, master, minD, bandWidth, zoneAxes, labels, summary, layer, line, edge, zoneAxis: String
+    static let patterns = OverlayIdentifiers(
+        picker: "patterns.overlay",
+        blend: "patterns.overlay.blend",
+        master: "patterns.overlay.master",
+        minD: "patterns.overlay.minD",
+        bandWidth: "patterns.overlay.bandWidth",
+        zoneAxes: "patterns.overlay.zoneAxes",
+        labels: "patterns.overlay.labels",
+        summary: "patterns.overlay.summary",
+        layer: "patterns.pattern.overlay",
+        line: "patterns.overlay.line",
+        edge: "patterns.overlay.edge",
+        zoneAxis: "patterns.overlay.zoneAxis")
+    static let indexing = OverlayIdentifiers(
+        picker: "indexing.overlay",
+        blend: "indexing.overlay.blend",
+        master: "indexing.overlay.master",
+        minD: "indexing.overlay.minD",
+        bandWidth: "indexing.overlay.bandWidth",
+        zoneAxes: "indexing.overlay.zoneAxes",
+        labels: "indexing.overlay.labels",
+        summary: "indexing.overlay.summary",
+        layer: "indexing.pattern.overlay",
+        line: "indexing.overlay.line",
+        edge: "indexing.overlay.edge",
+        zoneAxis: "indexing.overlay.zoneAxis")
 }
