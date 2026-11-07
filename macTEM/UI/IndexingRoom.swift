@@ -180,11 +180,13 @@ struct IndexingMapPane: View {
         return "Indexed map · \(result.method.title) · \(session.layer.title)" + (session.isStale ? " · stale" : "")
     }
 
-    /// "4 120 of 4 125 indexed", "1 875 of 4 125 reached" while it runs (a dictionary run's chunk first), "stopped at row 12 of 55".
+    /// "4 120 of 4 125 indexed", "1 875 of 4 125 reached" while it runs (a dictionary run's chunk first, and the phase matching when it
+    /// runs against several, D-SEM-98), "stopped at row 12 of 55".
     private var count: String? {
         guard let result = session.result else { return nil }
         if session.isIndexing, result.method == .dictionary {
-            return "chunk \(session.chunksDone) of \(session.chunksTotal) · \(result.reachedCount.formatted()) of \(result.pointCount.formatted()) reached"
+            let phase = session.chunkPhase.map { " · \($0)" } ?? ""
+            return "chunk \(session.chunksDone) of \(session.chunksTotal)\(phase) · \(result.reachedCount.formatted()) of \(result.pointCount.formatted()) reached"
         }
         if session.isIndexing { return "\(result.reachedCount.formatted()) of \(result.pointCount.formatted()) reached" }
         if session.wasStopped { return "stopped at row \(result.rowsDone) of \(result.scanRows) · \(result.indexedCount.formatted()) indexed" }
@@ -702,10 +704,14 @@ struct IndexingBestMatchPane: View {
         guard let position = session.bestMatchPosition, let result = session.result, let solution = result.solution(at: position) else {
             return "Best match"
         }
-        var words = "Best match · row \(position.row) · col \(position.column) · \(result.scoreTitle) \(IndexingTableFormat.fraction(solution.confidence))"
+        var words = "Best match · row \(position.row) · col \(position.column)"
+        // Against several phases the point's phase, whose dictionary the simulation index counts in (D-SEM-98).
+        if result.phases.count > 1, let phase = result.phase(of: solution) { words += " · \(phase.name)" }
+        words += " · \(result.scoreTitle) \(IndexingTableFormat.fraction(solution.confidence))"
         if let index = result.simulationIndex(at: position) {
             words += " · simulation \(index)"
-            if let size = session.dictionaryPlan?.rotations.count { words += " of \(size.formatted())" }
+            let plans = session.dictionaryPlans
+            if plans.indices.contains(solution.phase) { words += " of \(plans[solution.phase].rotations.count.formatted())" }
         }
         return words
     }

@@ -205,10 +205,16 @@ enum SEMSessionLedger {
         }
         fields.append(SEMSessionField("Patterns", run.source.title))
         if let pc = run.projectionCenter { fields.append(SEMSessionField("PC", IndexingInfoFormat.projectionCentre(pc))) }
-        if result.method == .dictionary, let plan = run.dictionaryPlan {
+        if result.method == .dictionary, run.dictionaryPlans.count == 1, let plan = run.dictionaryPlans.first {
             fields.append(SEMSessionField("Master", IndexingInfoFormat.master(plan)))
             fields.append(SEMSessionField("Energy", plan.energyWords))
             fields.append(SEMSessionField("Dictionary", IndexingInfoFormat.dictionary(plan)))
+        } else if result.method == .dictionary, !run.dictionaryPlans.isEmpty {
+            // A run against several phases (D-SEM-98): each phase's master pattern and energy, then the dictionaries.
+            for plan in run.dictionaryPlans {
+                fields.append(SEMSessionField("\(plan.phase.name) master", IndexingInfoFormat.phaseMaster(plan)))
+            }
+            fields.append(SEMSessionField("Dictionary", IndexingInfoFormat.dictionaries(run.dictionaryPlans)))
         } else if result.method == .hough {
             fields += houghFields(run.inputs.settings)
         }

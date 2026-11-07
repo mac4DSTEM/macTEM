@@ -13,6 +13,8 @@
 //  no atoms, which kikuchipy also compares. kikuchipy's not-indexed step is a no-op with navigation masks (it assigns into a
 //  copy) and dictionary results are always indexed, so it is left out. A single map, a single point, or a point out of
 //  data in every map is refused (kikuchipy raises or squeezes the arrays to another shape).
+//  `chosenMaps` and `picked` are its per-point steps; the Indexing room lands each block of a run against several phases with them
+//  (D-SEM-98), on the scores as the run made them (float64 on the CPU, float32 on the GPU), where `merge` takes them as float32.
 //
 
 import Foundation
@@ -78,48 +80,17 @@ package nonisolated enum DictionaryMapMerge {
         guard maps.allSatisfy({ $0.result.navigationShape == shape && $0.result.keepN == keepN }) else { throw Error.shapes }
         let m = maps[0].result.pointCount, k = maps.count
         guard m >= 2 else { throw Error.tooFewMaps }
+        let (sign, _) = try ordering(meanNBest: meanNBest, greaterIsBetter: greaterIsBetter, keepN: keepN)
 
-        let sign: Float
-        var meanN = meanNBest
-        if let greaterIsBetter {
-            sign = greaterIsBetter ? 1 : -1
-        } else {
-            sign = meanNBest < 0 ? -1 : 1
-            meanN = abs(meanNBest)
-        }
-        // `[:, :mean_n_best]`: a negative stop counts from the end.
-        let taken = meanN >= 0 ? min(meanN, keepN) : max(keepN + meanN, 0)
-        guard taken > 0 else { throw Error.meanNBest(meanNBest) }
-
-        // Scores as float32 (kikuchipy's dtype), NaN out of data.
-        func score(_ map: Int, _ point: Int, _ n: Int) -> Float {
-            let r = maps[map].result
-            return r.isInData[point] ? Float(r.scores[point * keepN + n]) : .nan
-        }
-
+        let choice = try chosenMaps(maps, meanNBest: meanNBest, greaterIsBetter: greaterIsBetter, float32: true)
         var phaseIDs = [Int](repeating: 0, count: m)
         for p in 0 ..< m {
-            var best: Float = .nan, bestMap = -1
-            for i in 0 ..< k {
-                var v: Float
-                if taken == 1 {
-                    v = score(i, p, 0)
-                } else {
-                    var sum: Float = 0, count = 0
-                    for n in 0 ..< taken { let s = score(i, p, n); if !s.isNaN { sum += s; count += 1 } }
-                    v = count > 0 ? sum / Float(count) : .nan
-                }
-                v *= sign
-                if !v.isNaN, bestMap < 0 || v > best { best = v; bestMap = i }
-            }
-            guard bestMap >= 0 else { throw Error.noScoreAt(point: p) }
-            phaseIDs[p] = bestMap
+            guard let i = choice[p] else { throw Error.noScoreAt(point: p) }
+            phaseIDs[p] = i
         }
+        let best = picked(maps, choice: choice, float32: true)
 
         var phaseList = PhaseList()
-        var rotations = [SIMD4<Double>](repeating: SIMD4(0, 0, 0, 0), count: m * keepN)
-        var scores = [Double](repeating: 0, count: m * keepN)
-        var indices = [Int](repeating: 0, count: m * keepN)
         let chosen = phaseIDs
         for i in 0 ..< k {
             let points = (0 ..< m).filter { chosen[$0] == i }
@@ -134,14 +105,6 @@ package nonisolated enum DictionaryMapMerge {
                 }
             } else {
                 phaseList.set(phase, id: (phaseList.ids.max() ?? -1) + 1)
-            }
-            let r = maps[i].result
-            for p in points {
-                for n in 0 ..< keepN {
-                    rotations[p * keepN + n] = r.rotations[p * keepN + n]
-                    scores[p * keepN + n] = Double(Float(r.scores[p * keepN + n]))
-                    indices[p * keepN + n] = r.simulationIndices[p * keepN + n]
-                }
             }
         }
 
@@ -166,7 +129,7 @@ package nonisolated enum DictionaryMapMerge {
             entries.reserveCapacity(width)
             for n in 0 ..< keepN {
                 for i in 0 ..< k {
-                    let s = score(i, p, n)
+                    let s: Float = score(maps, i, p, n, keepN: keepN)
                     entries.append((sign * -s, s, shifted[i][p * keepN + n]))
                 }
             }
@@ -183,8 +146,94 @@ package nonisolated enum DictionaryMapMerge {
         }
 
         return Merged(navigationShape: shape, keepN: keepN, mapCount: k, phaseIDs: phaseIDs, phaseList: phaseList,
-                      rotations: rotations, scores: scores, simulationIndices: indices, mergedScores: mergedScores,
-                      mergedSimulationIndices: mergedIndices)
+                      rotations: best.rotations, scores: best.scores, simulationIndices: best.simulationIndices,
+                      mergedScores: mergedScores, mergedSimulationIndices: mergedIndices)
+    }
+
+    /// Each point's map: `np.nanargmax` of sign × the mean of each map's best `meanNBest` scores (`np.nanmean`), the first map on a
+    /// tie; nil where no map scores the point (out of every map's data, or NaN in each), where kikuchipy raises. `float32` takes the
+    /// scores and their mean as float32 (`merge`, kikuchipy's dtype for the bundles' maps); else as they are, float64, which is
+    /// kikuchipy's comparison for float64 maps (the Indexing room's CPU runs; a GPU run's scores are float32 values already). A
+    /// point's choice reads only its own scores, so a block of rows gets the choice the whole scan gives it (D-SEM-98).
+    package static func chosenMaps(_ maps: [Input], meanNBest: Int = 1, greaterIsBetter: Bool? = nil, float32: Bool) throws -> [Int?] {
+        guard let first = maps.first else { throw Error.tooFewMaps }
+        let shape = first.result.navigationShape, keepN = first.result.keepN
+        guard maps.allSatisfy({ $0.result.navigationShape == shape && $0.result.keepN == keepN && $0.result.scores.count == $0.result.pointCount * keepN })
+        else { throw Error.shapes }
+        let (sign, taken) = try ordering(meanNBest: meanNBest, greaterIsBetter: greaterIsBetter, keepN: keepN)
+        return float32 ? choose(maps, sign: sign, taken: taken, keepN: keepN)
+            : choose(maps, sign: Double(sign), taken: taken, keepN: keepN)
+    }
+
+    /// The chosen map's keep_n rotations, scores and simulation indices at each point, as `merge` hands them to the merged map (scores
+    /// as float32 with `float32`, else as they are); a point without a choice keeps the first map's. `isInData` is the chosen map's.
+    package static func picked(_ maps: [Input], choice: [Int?], float32: Bool) -> DictionaryIndexing.Result {
+        guard let first = maps.first?.result else {
+            return DictionaryIndexing.Result(navigationShape: [0], keepN: 1, isInData: [], scores: [], simulationIndices: [], rotations: [])
+        }
+        let keepN = first.keepN
+        var best = first
+        for p in 0 ..< min(first.pointCount, choice.count) {
+            let i = choice[p] ?? 0
+            guard maps.indices.contains(i) else { continue }
+            let r = maps[i].result
+            best.isInData[p] = r.isInData[p]
+            for n in 0 ..< keepN {
+                let j = p * keepN + n
+                best.rotations[j] = r.rotations[j]
+                best.scores[j] = r.scores[j]
+                best.simulationIndices[j] = r.simulationIndices[j]
+            }
+        }
+        if float32 { best.scores = best.scores.map { Double(Float($0)) } }
+        return best
+    }
+
+    /// kikuchipy's sign and the count of best scores the choice averages (`greater_is_better`, `mean_n_best`; a negative stop counts
+    /// from the end, as `[:, :mean_n_best]` does).
+    private static func ordering(meanNBest: Int, greaterIsBetter: Bool?, keepN: Int) throws -> (sign: Float, taken: Int) {
+        let sign: Float
+        var meanN = meanNBest
+        if let greaterIsBetter {
+            sign = greaterIsBetter ? 1 : -1
+        } else {
+            sign = meanNBest < 0 ? -1 : 1
+            meanN = abs(meanNBest)
+        }
+        let taken = meanN >= 0 ? min(meanN, keepN) : max(keepN + meanN, 0)
+        guard taken > 0 else { throw Error.meanNBest(meanNBest) }
+        return (sign, taken)
+    }
+
+    /// A map's score at a point in `T` (Float: kikuchipy's float32 dtype); NaN out of the data.
+    private static func score<T: BinaryFloatingPoint>(_ maps: [Input], _ map: Int, _ point: Int, _ n: Int, keepN: Int) -> T {
+        let r = maps[map].result
+        return r.isInData[point] ? T(r.scores[point * keepN + n]) : .nan
+    }
+
+    private static func choose<T: BinaryFloatingPoint>(_ maps: [Input], sign: T, taken: Int, keepN: Int) -> [Int?] {
+        let m = maps[0].result.pointCount
+        var out = [Int?](repeating: nil, count: m)
+        for p in 0 ..< m {
+            var best: T = .nan, bestMap = -1
+            for i in maps.indices {
+                var v: T
+                if taken == 1 {
+                    v = score(maps, i, p, 0, keepN: keepN)
+                } else {
+                    var sum: T = 0, count = 0
+                    for n in 0 ..< taken {
+                        let s: T = score(maps, i, p, n, keepN: keepN)
+                        if !s.isNaN { sum += s; count += 1 }
+                    }
+                    v = count > 0 ? sum / T(count) : .nan
+                }
+                v *= sign
+                if !v.isNaN, bestMap < 0 || v > best { best = v; bestMap = i }
+            }
+            out[p] = bestMap >= 0 ? bestMap : nil
+        }
+        return out
     }
 
     /// kikuchipy's `_equal_phase` on what the app's phases carry: name, space group, point group, lattice (`np.allclose`).

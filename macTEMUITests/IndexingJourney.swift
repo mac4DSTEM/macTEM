@@ -93,7 +93,8 @@ nonisolated final class IndexingJourney: Journey {
             let method = waitFor("indexing.method", timeout: 10)
             try requireFrontmost()
             (method.radioButtons["Dictionary"].exists ? method.radioButtons["Dictionary"] : method.buttons["Dictionary"]).click()
-            waitWords("indexing.dictionary.summary", timeout: 60) { $0.contains("401 × 401") }
+            waitFor("indexing.dictionary.master.ni", timeout: 30)
+            waitWords("indexing.dictionary.summary.ni", timeout: 60) { $0.contains("401 × 401") }
             waitWords("indexing.dictionary.size", timeout: 120) { $0.contains("patterns at 4°") }
             let verb = waitFor("workspace.primaryAction", timeout: 10)
             let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == true"), object: verb)

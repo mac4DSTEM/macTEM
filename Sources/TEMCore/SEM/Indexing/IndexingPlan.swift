@@ -146,12 +146,14 @@ package nonisolated struct IndexingInputs: Sendable, Equatable {
     package var method: IndexingMethod
     /// The Hough settings (the room's defaults for a dictionary run).
     package var settings: HoughIndexingSettings
-    /// The dictionary settings and the master pattern's file (the defaults and nil for a Hough run).
+    /// The dictionary settings and each phase's master pattern file, in `phases` order (D-SEM-98; the defaults and none for a Hough
+    /// run): a pick, or a newly opened file a phase now takes, stales a dictionary run.
     package var dictionary: DictionaryIndexingSettings
-    package var masterID: String?
+    package var masterIDs: [String?]
 
+    /// `masterIDs`: each phase's master pattern file by phase name (`IndexingPhase.id`).
     package init(pipeline: PatternPipeline, phases: [IndexingPhase], settings: HoughIndexingSettings, method: IndexingMethod = .hough,
-                 dictionary: DictionaryIndexingSettings = .roomDefault, masterID: String? = nil) {
+                 dictionary: DictionaryIndexingSettings = .roomDefault, masterIDs: [String: String] = [:]) {
         self.pipeline = pipeline
         self.phases = phases.filter(\.isOn)
         self.method = method
@@ -159,7 +161,7 @@ package nonisolated struct IndexingInputs: Sendable, Equatable {
         case .hough:
             self.settings = settings
             self.dictionary = .roomDefault
-            self.masterID = nil
+            self.masterIDs = []
         case .dictionary:
             // A phase's reflector list is the Hough library's; a dictionary run never reads it, so an edit to it leaves the run current.
             self.phases = self.phases.map { phase in
@@ -169,7 +171,7 @@ package nonisolated struct IndexingInputs: Sendable, Equatable {
             }
             self.settings = .roomDefault
             self.dictionary = dictionary
-            self.masterID = masterID
+            self.masterIDs = self.phases.map { masterIDs[$0.id] }
         }
     }
 }

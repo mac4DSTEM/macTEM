@@ -97,7 +97,7 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         await indexing.index().value
         indexing.setMethod(.dictionary)
         indexing.editDictionarySettings { $0.resolution = 10 }
-        for _ in 0..<6000 where indexing.currentMaster == nil || indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        for _ in 0..<6000 where indexing.masterPatterns.isEmpty || indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
         XCTAssertNil(indexing.refusal, indexing.refusal ?? "")
         await indexing.index().value
         XCTAssertEqual(indexing.result?.method, .dictionary)

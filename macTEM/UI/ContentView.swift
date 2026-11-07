@@ -103,10 +103,12 @@ struct ContentView: View {
             guard let dataset = session.patterns.dataset else { return nil }
             if session.isBusy {
                 // "Hough · 2 340 of 4 125": the points indexed so far (whole rows land at once); "Dictionary · 1 of 3 chunks · NCC": the
-                // dictionary's chunks every block runs through (design §3).
+                // dictionary's chunks every block runs through (design §3); "Dictionary · Al · 23 of 40 chunks · NCC" against several
+                // phases, the dictionary matching named (D-SEM-98).
                 let done = (session.result?.rowsDone ?? 0) * dataset.scanColumns
+                let phase = session.chunkPhase.map { "\($0) · " } ?? ""
                 let operation = session.result?.method == .dictionary
-                    ? "Dictionary · \(session.chunksDone) of \(session.chunksTotal) chunks · \(session.result?.scoreTitle ?? "NCC")"
+                    ? "Dictionary · \(phase)\(session.chunksDone) of \(session.chunksTotal) chunks · \(session.result?.scoreTitle ?? "NCC")"
                     : "Hough · \(done.formatted()) of \(dataset.patternCount.formatted())"
                 return .busy(operation: operation, progress: RoomProgress.fraction(room: room, appState: appState),
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })

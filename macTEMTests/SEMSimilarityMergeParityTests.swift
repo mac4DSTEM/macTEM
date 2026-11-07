@@ -7,7 +7,9 @@
 //    footprint, an even 2 x 2 footprint and a footprint whose centre index is a corner; and figure F9's whole 55 x 75 scan
 //    from the committed dictionary-indexing bundle. Exact (float32).
 //  - merge-crystal-maps: three synthetic 6 x 7 maps (keep_n 5, tied float32 scores): two phases, an equal repeated phase
-//    with the mean of the best 3, a different phase of the same name (renamed), the lowest 2, navigation masks. Exact.
+//    with the mean of the best 3, a different phase of the same name (renamed), the lowest 2, navigation masks, the best match
+//    alone (keep_n 1); and kikuchipy's OSM of each merge without masks on its merged simulation indices (the Indexing room's OSM
+//    of several phases, D-SEM-98). Exact.
 //  Red before the port: no `OrientationSimilarityMap` or `DictionaryMapMerge`. Red after: the origin of an even footprint at
 //  0 instead of size // 2, counting shared indices with repeats, an unstable merge sort (ties change order), the increment
 //  taken from the unshifted previous map, equal phases kept twice.
@@ -110,6 +112,9 @@ nonisolated final class SEMSimilarityMergeParityTests: XCTestCase {
     private func check(_ name: String, _ ref: SEMParityReference, _ inputs: MergeInputs) throws {
         let run = try XCTUnwrap(inputs.runs[name])
         let keys = try XCTUnwrap(run["maps"] as? [String])
+        // keep_n 1: each map's best match alone (column 0 of its five).
+        let keep = run["keep_n"] as? Int ?? 5
+        let first = { (a: [Double]) in keep == 5 ? a : stride(from: 0, to: a.count, by: 5).map { a[$0] } }
         let options = run["options"] as? [String: Any] ?? [:]
         // masked_points: per map, the (row, column) of each point out of its data, or null.
         let masked = run["masked_points"] as? [Any] ?? []
@@ -118,9 +123,11 @@ nonisolated final class SEMSimilarityMergeParityTests: XCTestCase {
             if i < masked.count, let points = masked[i] as? [[Int]] {
                 for p in points { inData[p[0] * 7 + p[1]] = false }
             }
+            let columns = { (n: Int) in keep == 5 ? Array(0 ..< n) : Array(stride(from: 0, to: n, by: 5)) }(inputs.scores[i].count)
             return DictionaryMapMerge.Input(
-                result: DictionaryIndexing.Result(navigationShape: [6, 7], keepN: 5, isInData: inData, scores: inputs.scores[i],
-                                                  simulationIndices: inputs.indices[i], rotations: inputs.rotations[i]),
+                result: DictionaryIndexing.Result(navigationShape: [6, 7], keepN: keep, isInData: inData, scores: first(inputs.scores[i]),
+                                                  simulationIndices: columns.map { inputs.indices[i][$0] },
+                                                  rotations: columns.map { inputs.rotations[i][$0] }),
                 phase: try XCTUnwrap(inputs.phases[key]))
         }
         let merged = try DictionaryMapMerge.merge(maps, meanNBest: options["mean_n_best"] as? Int ?? 1,
@@ -139,13 +146,22 @@ nonisolated final class SEMSimilarityMergeParityTests: XCTestCase {
             XCTAssertEqual(map.phases[id: Int(id)!]?.name, p["name"], "\(name) phase \(id)")
             XCTAssertEqual(map.phases[id: Int(id)!]?.color, p["color"], "\(name) phase \(id)")
         }
-        XCTAssertEqual(map.property("scores"), stride(from: 0, to: merged.scores.count, by: 5).map { merged.scores[$0] })
+        XCTAssertEqual(map.property("scores"), stride(from: 0, to: merged.scores.count, by: keep).map { merged.scores[$0] })
+
+        // kikuchipy's OSM of the merged map on its merged simulation indices, every merged match (D-SEM-98).
+        if run["masked_points"] == nil {
+            let osm = try OrientationSimilarityMap.compute(simulationIndices: merged.mergedSimulationIndices.map { Int($0) },
+                                                           keepN: keep * keys.count, rows: 6, columns: 7)
+            SEMAssertParity(osm.maps[0].map(Double.init), try ref.array("\(name)_osm"))
+        } else {
+            XCTAssertNil(ref.manifest.arrays["\(name)_osm"], name)
+        }
     }
 
     func testMergeMatchesKikuchipy() throws {
         let ref = try SEMParityReference.load("m4/merge-crystal-maps")
         let inputs = try mergeInputs(ref)
-        XCTAssertEqual(inputs.runs.count, 5)
+        XCTAssertEqual(inputs.runs.count, 6)
         for name in inputs.runs.keys.sorted() { try check(name, ref, inputs) }
     }
 

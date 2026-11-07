@@ -1,5 +1,84 @@
 {
   "arrays": {
+    "best_merged_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "best_merged_scores.bin",
+      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order); -1 for NaN",
+      "rtol": 0.0,
+      "sha256": "2e9b13a2ea88ce502be7df7c0082ac5a5a7f41607149ab6317cac745b9e629ab",
+      "shape": [
+        42,
+        3
+      ]
+    },
+    "best_merged_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "best_merged_simulation_indices.bin",
+      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; -1 for NaN",
+      "rtol": 0.0,
+      "sha256": "dbb1f7dc3c52d94a1d24eb8524475ef651dd26f6d89480b951711eb2717fc985",
+      "shape": [
+        42,
+        3
+      ]
+    },
+    "best_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "best_osm.bin",
+      "note": "orientation_similarity_map(merged, simulation_indices_prop='merged_simulation_indices') with its defaults (n_best = keep_n x maps, not normalised, the four nearest neighbours): the Indexing room's OSM of several phases",
+      "rtol": 0.0,
+      "sha256": "4076ac1d45faa1bf792afc617f59dbfd11d8ab6702d9f1a9c7079a5f515e92fa",
+      "shape": [
+        6,
+        7
+      ]
+    },
+    "best_phase_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "best_phase_id.bin",
+      "rtol": 0.0,
+      "sha256": "dbec5851c7cac9cc9dd3753df2d267122592df29b076d10722ab400937ee6ee8",
+      "shape": [
+        42
+      ]
+    },
+    "best_rotations": {
+      "atol": 1e-15,
+      "dtype": "float64",
+      "file": "best_rotations.bin",
+      "note": "orix normalises the chosen map's quaternions again in the merged map",
+      "rtol": 0.0,
+      "sha256": "592f034b1e2a8af0b0508d89e1057722f29edba82fb21545c70a3ab6990fb38d",
+      "shape": [
+        42,
+        1,
+        4
+      ]
+    },
+    "best_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "best_scores.bin",
+      "rtol": 0.0,
+      "sha256": "29aeff1b7e4991a8fc341985b602fa3c8227330f0def437a971fe88ab0cbd59f",
+      "shape": [
+        42
+      ]
+    },
+    "best_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "best_simulation_indices.bin",
+      "rtol": 0.0,
+      "sha256": "f1f40c82a1dec895dd9d3c66124cbf3bf4ab7171ea28797e53c33a86ebb84c92",
+      "shape": [
+        42
+      ]
+    },
     "equal_merged_scores": {
       "atol": 0.0,
       "dtype": "float32",
@@ -22,6 +101,18 @@
       "shape": [
         42,
         15
+      ]
+    },
+    "equal_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "equal_osm.bin",
+      "note": "orientation_similarity_map(merged, simulation_indices_prop='merged_simulation_indices') with its defaults (n_best = keep_n x maps, not normalised, the four nearest neighbours): the Indexing room's OSM of several phases",
+      "rtol": 0.0,
+      "sha256": "ef42ba5b2547b53c42155afd652ad45f5d267584ef3a350e175984ccec1ed44e",
+      "shape": [
+        6,
+        7
       ]
     },
     "equal_phase_id": {
@@ -91,6 +182,18 @@
       "shape": [
         42,
         10
+      ]
+    },
+    "lowest_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "lowest_osm.bin",
+      "note": "orientation_similarity_map(merged, simulation_indices_prop='merged_simulation_indices') with its defaults (n_best = keep_n x maps, not normalised, the four nearest neighbours): the Indexing room's OSM of several phases",
+      "rtol": 0.0,
+      "sha256": "a51cd3fd9dfb2104d525020ac90c4a3f09bbc003c233afc26e4ca98c54d73c7d",
+      "shape": [
+        6,
+        7
       ]
     },
     "lowest_phase_id": {
@@ -336,6 +439,18 @@
         15
       ]
     },
+    "renamed_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "renamed_osm.bin",
+      "note": "orientation_similarity_map(merged, simulation_indices_prop='merged_simulation_indices') with its defaults (n_best = keep_n x maps, not normalised, the four nearest neighbours): the Indexing room's OSM of several phases",
+      "rtol": 0.0,
+      "sha256": "ef42ba5b2547b53c42155afd652ad45f5d267584ef3a350e175984ccec1ed44e",
+      "shape": [
+        6,
+        7
+      ]
+    },
     "renamed_phase_id": {
       "atol": 0.0,
       "dtype": "int32",
@@ -405,6 +520,18 @@
         10
       ]
     },
+    "two_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "two_osm.bin",
+      "note": "orientation_similarity_map(merged, simulation_indices_prop='merged_simulation_indices') with its defaults (n_best = keep_n x maps, not normalised, the four nearest neighbours): the Indexing room's OSM of several phases",
+      "rtol": 0.0,
+      "sha256": "a51cd3fd9dfb2104d525020ac90c4a3f09bbc003c233afc26e4ca98c54d73c7d",
+      "shape": [
+        6,
+        7
+      ]
+    },
     "two_phase_id": {
       "atol": 0.0,
       "dtype": "int32",
@@ -455,7 +582,7 @@
   "inputs": [
     {
       "path": "fixtures/similarity_inputs.json",
-      "sha256": "0b47d7c048391615cf301cb94fe7160fe6f46f3662586c3d25646fac5f12327e"
+      "sha256": "282607ba454ee45f805da39f5991c2d88ad19f41cf0255d256251ea55d815615"
     }
   ],
   "milestone": 4,
@@ -480,6 +607,20 @@
     "scipy": "1.18.1"
   },
   "values": {
+    "best_phases": {
+      "0": {
+        "color": "tab:blue",
+        "name": "ni"
+      },
+      "1": {
+        "color": "tab:orange",
+        "name": "al"
+      },
+      "2": {
+        "color": "tab:green",
+        "name": "ni2"
+      }
+    },
     "equal_phases": {
       "0": {
         "color": "tab:blue",

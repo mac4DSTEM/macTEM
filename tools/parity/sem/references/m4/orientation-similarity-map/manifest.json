@@ -90,7 +90,7 @@
   "inputs": [
     {
       "path": "fixtures/similarity_inputs.json",
-      "sha256": "0b47d7c048391615cf301cb94fe7160fe6f46f3662586c3d25646fac5f12327e"
+      "sha256": "282607ba454ee45f805da39f5991c2d88ad19f41cf0255d256251ea55d815615"
     }
   ],
   "milestone": 4,

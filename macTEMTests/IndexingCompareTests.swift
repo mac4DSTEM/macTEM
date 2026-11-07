@@ -37,7 +37,7 @@ nonisolated final class IndexingCompareTests: XCTestCase {
     @MainActor private func pickDictionary(_ indexing: IndexingSession) async throws {
         indexing.setMethod(.dictionary)
         indexing.editDictionarySettings { $0.resolution = 10 }
-        for _ in 0..<6000 where indexing.currentMaster == nil || indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        for _ in 0..<6000 where indexing.masterPatterns.isEmpty || indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
         XCTAssertNil(indexing.refusal, indexing.refusal ?? "")
     }
 
@@ -78,11 +78,11 @@ nonisolated final class IndexingCompareTests: XCTestCase {
         XCTAssertEqual(indexing.layer, .ipfZ, "Score is not a Hough layer")
         XCTAssertNotNil(try indexing.crystalMap())
         XCTAssertNotNil(try indexing.methodJSON())
-        XCTAssertNil(indexing.dictionaryPlan, "the plan on screen is the Hough run's")
+        XCTAssertTrue(indexing.dictionaryPlans.isEmpty, "the plan on screen is the Hough run's")
         XCTAssertEqual(indexing.otherRun?.method, .dictionary)
         indexing.setMethod(.dictionary)
         XCTAssertEqual(indexing.result?.method, .dictionary)
-        XCTAssertNotNil(indexing.dictionaryPlan)
+        XCTAssertEqual(indexing.dictionaryPlans.count, 1)
 
         // Staleness is each run's own.
         indexing.editSettings { $0.bands = 9 }

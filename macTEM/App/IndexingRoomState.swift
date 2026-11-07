@@ -179,13 +179,28 @@ enum IndexingInfoFormat {
         "\(plan.rotations.count.formatted()) patterns at \(UnitDisplay.number(plan.settings.resolution))° · \(plan.settings.metric.title) · keep \(min(plan.settings.keep, plan.rotations.count))"
     }
 
+    /// A run against several phases (D-SEM-98), one phase's master pattern: "Ni.h5 · 20 kV, the master pattern's one energy".
+    nonisolated static func phaseMaster(_ plan: DictionaryIndexingPlan) -> String { "\(plan.master.fileName) · \(plan.energyWords)" }
+
+    /// The dictionaries of a run: one plan's as `dictionary(_:)`; several, each phase's size: "10,000 + 10,000 patterns at 4° · NCC ·
+    /// keep 5".
+    nonisolated static func dictionaries(_ plans: [DictionaryIndexingPlan]) -> String {
+        guard let first = plans.first else { return "–" }
+        guard plans.count > 1 else { return dictionary(first) }
+        let sizes = plans.map { $0.rotations.count.formatted() }.joined(separator: " + ")
+        let keep = plans.map { min(first.settings.keep, $0.rotations.count) }.min() ?? first.settings.keep
+        return "\(sizes) patterns at \(UnitDisplay.number(first.settings.resolution))° · \(first.settings.metric.title) · keep \(keep)"
+    }
+
     /// "1.234 s".
     nonisolated static func time(_ seconds: Double) -> String { "\(UnitDisplay.number(seconds, digits: 3)) s" }
 
     /// The run's state: running, stopped, stale or current.
     static func state(_ result: IndexingResult, session: IndexingSession) -> String {
         if session.isIndexing, result.method == .dictionary {
-            return "Indexing, chunk \(session.chunksDone) of \(session.chunksTotal) · row \(result.rowsDone) of \(result.scanRows)"
+            // With several phases, the phase whose dictionary is being matched (D-SEM-98).
+            let phase = session.chunkPhase.map { " · \($0)" } ?? ""
+            return "Indexing, chunk \(session.chunksDone) of \(session.chunksTotal)\(phase) · row \(result.rowsDone) of \(result.scanRows)"
         }
         if session.isIndexing { return "Indexing, row \(result.rowsDone) of \(result.scanRows)" }
         if session.wasStopped { return "Stopped at row \(result.rowsDone) of \(result.scanRows)" }
