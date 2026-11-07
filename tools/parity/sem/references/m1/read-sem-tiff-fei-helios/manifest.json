@@ -10,6 +10,17 @@
         471,
         512
       ]
+    },
+    "vendor_tag": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "vendor_tag.bin",
+      "note": "the vendor tag's bytes as stored, planted by SEMImageMetadataTests",
+      "rtol": 0.0,
+      "sha256": "b4e08a0afd8d1190dfb3728be8d97782829a73d9d900223bcced720fdee24c8e",
+      "shape": [
+        3233
+      ]
     }
   },
   "case": "m1/read-sem-tiff-fei-helios",
@@ -70,6 +81,14 @@
       "original_filename": "rsciio_FEI_Helios_Ebeam_8bits.tif",
       "time": "17:06:40"
     },
+    "image": {
+      "height": 471,
+      "pages": 1,
+      "tag": 34682,
+      "tag_type": 2,
+      "vendor": "fei",
+      "width": 512
+    },
     "sem_metadata": {
       "Stage": {
         "rotation": -2.3611,
@@ -87,6 +106,34 @@
     "shape": [
       471,
       512
-    ]
+    ],
+    "tifffile_fei": {
+      "ChPressure": 0.000584097,
+      "DatabarHeight": 29,
+      "DetectorName": "ETD",
+      "ResolutionY": 442,
+      "Spot": 1,
+      "sections": [
+        "Accessories",
+        "Beam",
+        "Detectors",
+        "EBeam",
+        "EBeamDeceleration",
+        "EScan",
+        "ETD",
+        "GIS",
+        "GIS1",
+        "GIS2",
+        "HiResIllumination",
+        "Image",
+        "PrivateFei",
+        "Scan",
+        "Specimen",
+        "Stage",
+        "System",
+        "User",
+        "Vacuum"
+      ]
+    }
   }
 }

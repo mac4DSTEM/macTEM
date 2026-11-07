@@ -3,13 +3,15 @@
 //  Role: the float32 GPU twin of `MasterPatternProjection.project` for many patterns at once (a dictionary): one thread per pattern
 //        pixel turns the pixel's direction cosine by the pattern's quaternion, maps it to the square Lambert projection and
 //        interpolates the master pattern bilinearly, exactly the steps of the CPU path in float32 with precise (not fast) math; each
-//        pattern is then rescaled to -1 ... 1 on the CPU. The kernel is compiled from the source below at first use (no .metal
+//        pattern is then rescaled to -1 ... 1 on the CPU unless the master pattern is float32 already (the CPU path's rule,
+//        `get_patterns`' `rescale = dtype_out != self.data.dtype`; EMsoft writes float32). The kernel is compiled from the source below at first use (no .metal
 //        file: the app target's shader library stays the shell's). Same ports and licences as MasterPatternProjection.swift.
 //        Checked against the float64 CPU path in macTEMTests/MasterPatternParityTests.swift within `tolerance` (decision in
 //        docs/decisions.md: float32 Lambert coordinates on a 401 px master pattern move an interpolation weight by ~1e-5).
 //
 
 import Foundation
+import FormatoCore
 import Metal
 
 package nonisolated enum MasterPatternProjectionMetal {
@@ -42,7 +44,8 @@ package nonisolated enum MasterPatternProjectionMetal {
         }
     }()
 
-    /// The patterns rescaled to -1 ... 1 as float32, `rotations.count` × rows × columns, row-major.
+    /// The patterns as float32, `rotations.count` × rows × columns, row-major: rescaled to -1 ... 1 per pattern, or as stored when the
+    /// master pattern is float32 (as `MasterPatternProjection.project` with float32 output).
     package static func project(master: EBSDMasterPattern, rotations: [SIMD4<Double>], detector: EBSDDetectorGeometry,
                                 energy: Double? = nil) throws -> [Float] {
         try MasterPatternProjection.checkSuitable(master)
@@ -92,7 +95,9 @@ package nonisolated enum MasterPatternProjectionMetal {
 
         var out = [Float](repeating: 0, count: rotations.count * pixels)
         out.withUnsafeMutableBytes { $0.copyMemory(from: UnsafeRawBufferPointer(start: outBuffer.contents(), count: outputBytes)) }
-        // `_rescale_with_min_max` to -1 ... 1, per pattern.
+        // `_rescale_with_min_max` to -1 ... 1, per pattern, only when the master pattern is not float32 already (`get_patterns`:
+        // `rescale = dtype_out != self.data.dtype`, as `MasterPatternProjection.project`).
+        guard master.dataType != .float32 else { return out }
         for n in 0 ..< rotations.count {
             let range = n * pixels ..< (n + 1) * pixels
             guard let lowest = out[range].min(), let highest = out[range].max(), highest > lowest else {

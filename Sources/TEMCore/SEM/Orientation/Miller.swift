@@ -1,83 +1,13 @@
 //
 //  Miller.swift
 //  orix 0.15.0's `orix.vector.Miller` (crystal directions [uvw] and [UVTW], plane normals (hkl) and (hkil), their
-//  Cartesian vectors in the crystal frame, lengths and MTEX's index rounding) on a lattice aligned as orix's `Phase`
-//  aligns it (x ∥ a, z ∥ c*, diffpy.structure's base rounded to 12 decimals). GPL-3.0 (orix is GPL-3.0-or-later), see
+//  Cartesian vectors in the crystal frame, lengths and MTEX's index rounding) on a `CrystalLattice` (CrystalLattice.swift),
+//  aligned as orix's `Phase` aligns it (x ∥ a, z ∥ c*, diffpy.structure's base rounded to 12 decimals). GPL-3.0 (orix is GPL-3.0-or-later), see
 //  NOTICE. Parity: `tools/parity/sem` bundle `m3/ipf-color-keys`, bases within 1e-10, vectors within 1e-7, rounded
 //  indices exact.
 //
 
 import Foundation
-
-/// A crystal lattice from its six parameters, as orix's `Phase.structure.lattice` holds it.
-package nonisolated struct CrystalLattice: Sendable, Equatable {
-    package let a: Double, b: Double, c: Double
-    /// α, β, γ in degrees.
-    package let alpha: Double, beta: Double, gamma: Double
-    /// The structure matrix: the rows are a, b, c in Cartesian coordinates (x ∥ a, z ∥ c*).
-    package let base: [SIMD3<Double>]
-    /// Its inverse (`Lattice.recbase`): the columns are the reciprocal base vectors a*, b*, c*.
-    package let recbase: [SIMD3<Double>]
-
-    package init(a: Double, b: Double, c: Double, alpha: Double, beta: Double, gamma: Double) {
-        self.a = a; self.b = b; self.c = c
-        self.alpha = alpha; self.beta = beta; self.gamma = gamma
-        let ca = CrystalLattice.cosd(alpha), cb = CrystalLattice.cosd(beta), cg = CrystalLattice.cosd(gamma)
-        let sg = CrystalLattice.sind(gamma)
-        let volumeFactor = (1 - ca * ca - cb * cb - cg * cg + 2 * ca * cb * cg).squareRoot()
-        let rows = [SIMD3(a, 0, 0),
-                    SIMD3(b * cg, b * sg, 0),
-                    SIMD3(c * cb, c * (ca - cb * cg) / sg, c * volumeFactor / sg)]
-        let base = rows.map { SIMD3(Rotation.round($0.x, decimals: 12), Rotation.round($0.y, decimals: 12), Rotation.round($0.z, decimals: 12)) }
-        self.base = base
-        self.recbase = CrystalLattice.inverse(base)
-    }
-
-    /// orix's default lattice of a crystal system: 1, 1, 1 with 90° angles, γ 120° for trigonal and hexagonal.
-    package static func defaultLattice(system: String?) -> CrystalLattice {
-        let hexagonal = system == "trigonal" || system == "hexagonal"
-        return CrystalLattice(a: 1, b: 1, c: 1, alpha: 90, beta: 90, gamma: hexagonal ? 120 : 90)
-    }
-
-    /// diffpy.structure's `cosd`: exact at multiples of 90°.
-    static func cosd(_ x: Double) -> Double {
-        if x.truncatingRemainder(dividingBy: 90) == 0 {
-            return [1.0, 0, -1, 0][((Int(x / 90) % 4) + 4) % 4]
-        }
-        return cos(x * Double.pi / 180)
-    }
-
-    /// diffpy.structure's `sind` (cos(90° − x)).
-    static func sind(_ x: Double) -> Double { cosd(90 - x) }
-
-    /// The inverse of a 3x3 matrix given by rows (adjugate over determinant).
-    static func inverse(_ m: [SIMD3<Double>]) -> [SIMD3<Double>] {
-        let r0 = m[0], r1 = m[1], r2 = m[2]
-        let c0 = Vector3.cross(r1, r2), c1 = Vector3.cross(r2, r0), c2 = Vector3.cross(r0, r1)
-        let det = Vector3.dot(r0, c0)
-        // Columns of the inverse are c0, c1, c2 over det; return its rows.
-        return [SIMD3(c0.x, c1.x, c2.x) / det, SIMD3(c0.y, c1.y, c2.y) / det, SIMD3(c0.z, c1.z, c2.z) / det]
-    }
-
-    /// v · M (row vector times matrix given by rows).
-    static func times(_ v: SIMD3<Double>, _ m: [SIMD3<Double>]) -> SIMD3<Double> {
-        v.x * m[0] + v.y * m[1] + v.z * m[2]
-    }
-
-    /// v · Mᵀ.
-    static func timesTransposed(_ v: SIMD3<Double>, _ m: [SIMD3<Double>]) -> SIMD3<Double> {
-        SIMD3(Vector3.dot(v, m[0]), Vector3.dot(v, m[1]), Vector3.dot(v, m[2]))
-    }
-
-    /// `_transform_space` "d" → "c": xyz = uvw · A.
-    package func cartesian(uvw: SIMD3<Double>) -> SIMD3<Double> { CrystalLattice.times(uvw, base) }
-    /// "r" → "c": xyz = hkl · (A⁻¹)ᵀ.
-    package func cartesian(hkl: SIMD3<Double>) -> SIMD3<Double> { CrystalLattice.timesTransposed(hkl, recbase) }
-    /// "c" → "d": uvw = xyz · A⁻¹.
-    package func uvw(cartesian xyz: SIMD3<Double>) -> SIMD3<Double> { CrystalLattice.times(xyz, recbase) }
-    /// "c" → "r": hkl = xyz · Aᵀ.
-    package func hkl(cartesian xyz: SIMD3<Double>) -> SIMD3<Double> { CrystalLattice.timesTransposed(xyz, base) }
-}
 
 /// Crystal directions or plane normals in a lattice: Cartesian vectors in the crystal frame with the index notation they
 /// were given in (orix's `coordinate_format`).

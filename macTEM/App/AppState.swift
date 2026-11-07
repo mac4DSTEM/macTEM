@@ -6,7 +6,7 @@
 //
 //  Owners: `navigation` (rooms and panes, App/), `openItems` (the files open in the window, each with its own
 //  session, presentation, marks and viewport, TEMSession), `activityLog` (the Output pane, App/), `imageRoomTools`
-//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/). `imageSession`, `presentation` and `measurements` are the selected
+//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession). `imageSession`, `presentation` and `measurements` are the selected
 //  item's, forwarded, so the views that read them did not change with V1-13.
 //
 
@@ -30,15 +30,18 @@ final class AppState {
     let semEDS = SEMEDSState()
     let eels = EELSSession()
     /// The Patterns room's dataset, position and pictures (TEMSession) and its view state (App/).
-    let ebsd = EBSDSession()
+    let ebsd: EBSDSession
     let patternsRoom = PatternsRoomState()
+    /// The Indexing room's phases, settings and run on the Patterns room's dataset (TEMSession) and its view state (App/).
+    let indexing: IndexingSession
+    let indexingRoom = IndexingRoomState()
 
     /// The window's title: the file of the room that is shown (the spectrum image in the EDX and EELS rooms, the image elsewhere).
     var windowTitle: String {
         let name: String? = switch navigation.workspaceArea {
         case .edx: edx.fileName
         case .eels: eels.fileName
-        case .patterns: ebsd.fileName
+        case .patterns, .indexing: ebsd.fileName
         default: imageSession.image?.fileName
         }
         if let name, !name.isEmpty { return name }
@@ -99,6 +102,9 @@ final class AppState {
 
     init(launch: LaunchOptions = LaunchOptions()) {
         self.launch = launch
+        let ebsd = EBSDSession()
+        self.ebsd = ebsd
+        indexing = IndexingSession(patterns: ebsd)
         // The spectrum rooms follow the selected file through the list's own callback (a view's observation did not fire on screen, drive 6).
         openItems.onSelect = { [weak self] _ in self?.spectrumRoomsFollowSelection() }
         openItems.onReadFailure = { [weak self] _, error in self?.present(error) }
@@ -108,6 +114,11 @@ final class AppState {
         eels.onFailure = { [weak self] in self?.present($0) }
         ebsd.onEvent = { [weak self] in self?.statusText = $0 }
         ebsd.onFailure = { [weak self] in self?.present($0) }
+        // The Indexing room starts over on every dataset the Patterns room binds, and goes back to its door when it closes.
+        ebsd.onBind = { [weak self] in self?.indexing.bind($0) }
+        ebsd.onClose = { [weak self] in self?.indexing.close() }
+        indexing.onEvent = { [weak self] in self?.statusText = $0 }
+        indexing.onFailure = { [weak self] in self?.present($0) }
         applyLaunchOptions(launch)
     }
 

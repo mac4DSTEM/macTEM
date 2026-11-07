@@ -1,0 +1,143 @@
+{
+  "arrays": {
+    "vendor_tag": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "vendor_tag.bin",
+      "note": "the vendor tag's bytes as stored, planted by SEMImageMetadataTests",
+      "rtol": 0.0,
+      "sha256": "ca3e0fb4ce936604bfc6f5328eeb2f72da4c8a0981b05486728e21778fa367fb",
+      "shape": [
+        2696
+      ]
+    }
+  },
+  "case": "m1/read-sem-tiff-fei-navcam-bad-floats",
+  "inputs": [
+    {
+      "path": "sem-data/rsciio/tiff/tiff_FEI_Helios.zip",
+      "sha256": "eb9e82342152ffd55024356cefdfeffc6c37159172e99e320132e9228f8c5e82"
+    }
+  ],
+  "milestone": 1,
+  "reference": {
+    "function": "hyperspy.api.load (rsciio.tiff)",
+    "package": "rsciio",
+    "version": "0.15.0"
+  },
+  "scalars": {
+    "mean": {
+      "atol": 0.0,
+      "rtol": 1e-07,
+      "value": 0.0
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "axes": [
+      {
+        "name": "width",
+        "offset": 0.0,
+        "scale": 1.0,
+        "size": 768,
+        "units": null
+      },
+      {
+        "name": "height",
+        "offset": 0.0,
+        "scale": 1.0,
+        "size": 551,
+        "units": null
+      }
+    ],
+    "dtype": "uint8",
+    "general": {
+      "authors": "user",
+      "date": "2022-05-17",
+      "original_filename": "FEI-Helios-navcam-with-no-IRBeam-bad-floats.tif",
+      "time": "09:07:08"
+    },
+    "image": {
+      "height": 551,
+      "pages": 1,
+      "tag": 34682,
+      "tag_type": 2,
+      "vendor": "fei",
+      "width": 768
+    },
+    "pixels": {
+      "dtype": "uint8",
+      "sha256": "154d2171b24dd55ad09ff126acf83212d2bed6a9cc1a919201fb29bd087feb2f",
+      "shape": [
+        551,
+        768
+      ]
+    },
+    "sem_metadata": {
+      "Stage": {
+        "rotation": 1.07874,
+        "tilt": 6.54498e-06,
+        "x": 0.0699197,
+        "y": 0.000811186,
+        "z": 0
+      },
+      "microscope": "Helios NanoLab\" 660"
+    },
+    "shape": [
+      551,
+      768
+    ],
+    "tifffile_fei": {
+      "ChPressure": "",
+      "DatabarHeight": 39,
+      "DetectorName": "Nav-Cam",
+      "ResolutionY": 512,
+      "Spot": "",
+      "sections": [
+        "Accessories",
+        "Beam",
+        "Detectors",
+        "EBeamDeceleration",
+        "GIS",
+        "GIS1",
+        "GIS2",
+        "GIS3",
+        "GIS4",
+        "HiResIllumination",
+        "Image",
+        "MultiGIS",
+        "MultiGISGas1",
+        "MultiGISGas2",
+        "MultiGISGas3",
+        "MultiGISGas4",
+        "MultiGISGas5",
+        "MultiGISGas6",
+        "MultiGISUnit1",
+        "Nav-Cam",
+        "PrivateFei",
+        "Specimen",
+        "Stage",
+        "System",
+        "User",
+        "Vacuum"
+      ]
+    },
+    "zip_member": {
+      "name": "FEI-Helios-navcam-with-no-IRBeam-bad-floats.tif",
+      "sha256": "4720e21736fe80832d893918cf3cda028adb752267c4b232b0fced2f6bc570b2"
+    }
+  }
+}

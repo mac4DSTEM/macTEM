@@ -289,7 +289,8 @@ struct ScanMapPane: View {
 }
 
 /// The crosshair at the pinned scan point: a box one scan pixel wide and two arms, in the accent colour with a dark halo so it reads on any map.
-private struct ScanMarker: View {
+/// The Indexing room draws it too.
+struct ScanMarker: View {
     let center: CGPoint
     let pointsPerPixel: CGFloat
 

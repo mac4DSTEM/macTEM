@@ -43,7 +43,7 @@ import numpy as np  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
-from refbundle import Bundle  # noqa: E402
+from refbundle import Bundle, sha256_of_file  # noqa: E402
 
 sys.path.append(str(HERE))
 from detector_cases import (  # noqa: E402,F401  (milestone 2 detector geometry and figure F5; emit collects case_ names)
@@ -248,31 +248,74 @@ def case_m1_read_ctf_planted(ctx):
 # ------------------------------------------------------------------------------------------ SEM images (TIFF; m1)
 
 
-def _sem_tiff_bundle(ctx, case: str, path: Path, label: str) -> None:
-    """What RosettaSciIO's TIFF reader hands an app for a vendor SEM image: pixels (exact), the calibrated axes, and the
-    SEM metadata it parses from the vendor tag (Zeiss SmartSEM CZ_SEM, FEI/Thermo FEI_HELIOS)."""
-    import hyperspy.api as hs
+def _sem_tiff_bundle(ctx, case: str, path: Path, label: str, member: str | None = None) -> None:
+    """What RosettaSciIO's TIFF reader hands an app for a vendor SEM image: the calibrated axes and the SEM metadata it
+    parses from the vendor tag (Zeiss SmartSEM CZ_SEM, FEI/Thermo FEI_HELIOS), the pixels (exact for a committed fixture,
+    a fingerprint for a downloaded file), plus what tifffile parses from the same tag that RosettaSciIO does not
+    map (databar height, spot, chamber pressure, detector), and the vendor tag's own bytes, so the Swift unit tests plant
+    the tag into a TIFF of the file's size and run on CI without the file. `member` names the file inside the zip at
+    `path` (RosettaSciIO ships its TIFF test files zipped)."""
+    import tempfile
+    import zipfile
 
-    # Through HyperSpy, not rsciio.tiff.file_reader alone: the vendor-tag parse (CZ_SEM, FEI_HELIOS) into
-    # Acquisition_instrument.SEM happens on the HyperSpy load path (rsciio 0.15.0), and the app's Info shows that.
-    s = hs.load(str(path))
-    b = Bundle(case, 1, "rsciio", "hyperspy.api.load (rsciio.tiff)", ctx.out)
-    b.input(path, label)
-    data = np.asarray(s.data)
-    b.value("shape", list(data.shape))
-    b.value("dtype", data.dtype.name)
-    b.value("axes", [{"name": a.name, "size": int(a.size), "scale": float(a.scale), "offset": float(a.offset),
-                      "units": str(a.units)} for a in s.axes_manager.signal_axes])
-    md = s.metadata.as_dictionary()
-    sem = md.get("Acquisition_instrument", {}).get("SEM", {})
-    if not sem:
-        raise RuntimeError(f"{case}: no SEM metadata parsed from the vendor tag")
-    b.value("sem_metadata", sem)
-    gen = md.get("General", {})
-    b.value("general", {k: gen[k] for k in ("authors", "date", "time", "original_filename") if k in gen})
-    b.array("pixels", data, **EXACT)
-    b.scalar("mean", data.astype(np.float64).mean(), **F64)
-    b.write()
+    import hyperspy.api as hs
+    import tifffile
+    from traits.api import Undefined
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tif = path
+        if member is not None:
+            with zipfile.ZipFile(path) as z:
+                tif = Path(z.extract(member, tmp))
+        # Through HyperSpy, not rsciio.tiff.file_reader alone: the vendor-tag parse (CZ_SEM, FEI_HELIOS) into
+        # Acquisition_instrument.SEM happens on the HyperSpy load path (rsciio 0.15.0), and the app's Info shows that.
+        s = hs.load(str(tif))
+        b = Bundle(case, 1, "rsciio", "hyperspy.api.load (rsciio.tiff)", ctx.out)
+        b.input(path, label)
+        if member is not None:
+            b.value("zip_member", {"name": member, "sha256": sha256_of_file(tif)})
+        data = np.asarray(s.data)
+        b.value("shape", list(data.shape))
+        b.value("dtype", data.dtype.name)
+        b.value("axes", [{"name": a.name, "size": int(a.size), "scale": float(a.scale), "offset": float(a.offset),
+                          "units": None if a.units is Undefined else str(a.units)} for a in s.axes_manager.signal_axes])
+        md = s.metadata.as_dictionary()
+        sem = md.get("Acquisition_instrument", {}).get("SEM", {})
+        if not sem:
+            raise RuntimeError(f"{case}: no SEM metadata parsed from the vendor tag")
+        b.value("sem_metadata", sem)
+        gen = md.get("General", {})
+        b.value("general", {k: gen[k] for k in ("authors", "date", "time", "original_filename") if k in gen})
+
+        with tifffile.TiffFile(str(tif)) as t:
+            page = t.pages[0]
+            code = next(c for c in (34682, 34680, 34118) if c in page.tags)
+            tag = page.tags[code]
+            with open(tif, "rb") as fh:
+                fh.seek(tag.valueoffset)
+                raw = fh.read(tag.count)
+            b.value("image", {"width": int(page.imagewidth), "height": int(page.imagelength), "pages": len(t.pages),
+                              "vendor": "zeiss" if code == 34118 else "fei", "tag": code, "tag_type": int(tag.dtype)})
+            b.array("vendor_tag", np.frombuffer(raw, dtype=np.uint8), **EXACT,
+                    note="the vendor tag's bytes as stored, planted by SEMImageMetadataTests")
+            if code == 34118:
+                cz = t.sem_metadata
+                b.value("tifffile_cz_sem", {k: cz.get(k) for k in ("ap_spotsize", "ap_chamber_pressure", "ap_line_counter",
+                                                                     "dp_image_store")} | {"keys": len(cz)})
+            else:
+                fei = t.fei_metadata
+                b.value("tifffile_fei", {"DatabarHeight": fei.get("PrivateFei", {}).get("DatabarHeight"),
+                                         "ResolutionY": fei.get("Image", {}).get("ResolutionY"),
+                                         "Spot": fei.get("Beam", {}).get("Spot"),
+                                         "ChPressure": fei.get("Vacuum", {}).get("ChPressure"),
+                                         "DetectorName": fei.get("Detectors", {}).get("Name"),
+                                         "sections": sorted(fei.keys())})
+        if member is None:
+            b.array("pixels", data, **EXACT)
+        else:   # a downloaded file's pixels stay out of the repo too: their sha256, compared exactly by check.py
+            b.fingerprint("pixels", data)
+        b.scalar("mean", data.astype(np.float64).mean(), **F64)
+        b.write()
     ctx.done(case)
 
 
@@ -282,6 +325,25 @@ def case_m1_read_sem_tiff_zeiss(ctx):
 
 def case_m1_read_sem_tiff_fei(ctx):
     _sem_tiff_bundle(ctx, "m1/read-sem-tiff-fei-helios", FIXTURES / "rsciio_FEI_Helios_Ebeam_8bits.tif", "fixtures/rsciio_FEI_Helios_Ebeam_8bits.tif")
+
+
+# RosettaSciIO 0.15.0's other six SEM test TIFFs, from its zips (fetch-data.sh): the 16-bit Helios frame, the three navcam
+# frames (one without [IRBeam], one with unparseable floats), the 1k Zeiss frame and the two-page Zeiss stack.
+SEM_TIFF_ZIPPED = [
+    ("m1/read-sem-tiff-fei-helios-16bits", "tiff_FEI_Helios.zip", "FEI-Helios-Ebeam-16bits.tif"),
+    ("m1/read-sem-tiff-fei-navcam", "tiff_FEI_Helios.zip", "FEI-Helios-navcam.tif"),
+    ("m1/read-sem-tiff-fei-navcam-no-irbeam", "tiff_FEI_Helios.zip", "FEI-Helios-navcam-with-no-IRBeam.tif"),
+    ("m1/read-sem-tiff-fei-navcam-bad-floats", "tiff_FEI_Helios.zip", "FEI-Helios-navcam-with-no-IRBeam-bad-floats.tif"),
+    ("m1/read-sem-tiff-zeiss-1k", "tiff_Zeiss_SEM.zip", "test_tiff_Zeiss_SEM_1k.tif"),
+    ("m1/read-sem-tiff-zeiss-multipage", "tiff_Zeiss_SEM.zip", "ZEISS_SEM_multipage.tif"),
+]
+
+
+def case_m1_read_sem_tiff_zipped(ctx):
+    for case, zip_name, member in SEM_TIFF_ZIPPED:
+        p = ctx.data / "rsciio" / "tiff" / zip_name
+        if ctx.have(p, case):
+            _sem_tiff_bundle(ctx, case, p, f"sem-data/rsciio/tiff/{zip_name}", member)
 
 
 # ------------------------------------------------------------------------------------ virtual BSE imaging (m1)

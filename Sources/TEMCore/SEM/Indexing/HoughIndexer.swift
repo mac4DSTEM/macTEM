@@ -46,9 +46,12 @@ package nonisolated struct HoughIndexer: Sendable {
         package var matchAttempts = SIMD4<Int>(-1, -1, -1, -1)
         /// Matched bands whose library family agrees with the band's voted family.
         package var totalVotes = 0
-        /// Per band: the matched library variant (-1 none) and the angle (degrees) to it after the fit (180 none).
+        /// Per band: the nearest library variant under the winning trial rotation (-1 none) and the angle (degrees) to it after
+        /// the fit, for the bands the QUEST fit weighed (180 elsewhere).
         package var bandMatch: [Int] = []
         package var bandFit: [Double] = []
+        /// Per band: whether the assignment matched it (within the angle tolerance of its variant); `matchedBands` counts them.
+        package var bandMatched: [Bool] = []
 
         /// The not-indexed solution.
         package init() {}
@@ -120,6 +123,7 @@ package nonisolated struct HoughIndexer: Sendable {
             s.imageQuality = iq
             s.bandMatch = [Int](repeating: -100, count: bands.count)
             s.bandFit = [Double](repeating: 180, count: bands.count)
+            s.bandMatched = [Bool](repeating: false, count: bands.count)
             if bestMatched < earlyExitBands {
                 let r = Self.indexBands(library: library, normals: normals, intensity: intensity)
                 if r.matched >= 3 {
@@ -132,6 +136,7 @@ package nonisolated struct HoughIndexer: Sendable {
                     s.totalVotes = r.totalVotes
                     s.bandMatch = r.match
                     s.bandFit = r.bandFit
+                    s.bandMatched = r.bandMatched
                 }
                 bestMatched = max(bestMatched, s.matchedBands)
             }
@@ -180,6 +185,8 @@ package nonisolated struct HoughIndexer: Sendable {
         package var totalVotes = 0
         package var match: [Int] = []
         package var bandFit: [Double] = []
+        /// The assignment's matched bands (`_assign_bands_nb2`'s valid flags).
+        package var bandMatched: [Bool] = []
         package var vote: Vote
     }
 
@@ -194,6 +201,7 @@ package nonisolated struct HoughIndexer: Sendable {
         result.matched = a.matched
         result.attempts = a.attempts
         result.match = a.match
+        result.bandMatched = a.valid
         let fams = library.familyID
         result.totalVotes = (0..<nb).filter { a.valid[$0] && fams[max(a.match[$0], 0)] == vote.family[$0] }.count
         // _calc_quest_weights (simpleqweights False): the six best-supported matched bands, weighted by intensity.

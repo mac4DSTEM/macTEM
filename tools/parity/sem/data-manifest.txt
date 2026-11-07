@@ -22,3 +22,7 @@ rsciio/jeol/Sample/00_View000/View000_0000003.map	d581c24433a8cebfd7a9840d072bd1
 rsciio/jeol/Sample/00_View000/View000_0000004.map	9413be064e40ad08bae3618a50768f2f9607baee710a51034fbb291df0eb0324	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/jeol/Sample/00_View000/View000_0000004.map
 rsciio/jeol/Sample/00_View000/View000_0000005.map	6f7416ddbb627f4e64df745cdf28be0477fb77811c323095b4c06757df8b477a	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/jeol/Sample/00_View000/View000_0000005.map
 rsciio/jeol/Sample/00_View000/View000_0000006.pts	b4e0d56248f334274106a93ada7f61ca5347bb4932e5fa34b9f3fabab00dec92	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/jeol/Sample/00_View000/View000_0000006.pts
+# RosettaSciIO 0.15.0's SEM TIFF test files (GPL-3.0-or-later, tag v0.15.0, sha256 from its tests/registry.txt): emit.py
+# reads the six that are not committed fixtures from inside the zips (m1/read-sem-tiff-*).
+rsciio/tiff/tiff_FEI_Helios.zip	eb9e82342152ffd55024356cefdfeffc6c37159172e99e320132e9228f8c5e82	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/tiff/tiff_FEI_Helios.zip
+rsciio/tiff/tiff_Zeiss_SEM.zip	a4b4532fef22e9222682429dbe4723fff62e82bcaf17ad5142122c9999217950	https://raw.githubusercontent.com/hyperspy/rosettasciio/v0.15.0/rsciio/tests/data/tiff/tiff_Zeiss_SEM.zip
