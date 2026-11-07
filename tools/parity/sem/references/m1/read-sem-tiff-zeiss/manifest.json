@@ -10,6 +10,17 @@
         384,
         512
       ]
+    },
+    "vendor_tag": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "vendor_tag.bin",
+      "note": "the vendor tag's bytes as stored, planted by SEMImageMetadataTests",
+      "rtol": 0.0,
+      "sha256": "21e886fa451d38c28e1a6a61752b00804762680148cfdc9baba92646c0833e68",
+      "shape": [
+        2980
+      ]
     }
   },
   "case": "m1/read-sem-tiff-zeiss",
@@ -70,6 +81,14 @@
       "original_filename": "rsciio_Zeiss_SEM_512pix.tif",
       "time": "08:20:42"
     },
+    "image": {
+      "height": 384,
+      "pages": 1,
+      "tag": 34118,
+      "tag_type": 2,
+      "vendor": "zeiss",
+      "width": 512
+    },
     "sem_metadata": {
       "Stage": {
         "rotation": 245.8,
@@ -86,6 +105,13 @@
     "shape": [
       384,
       512
-    ]
+    ],
+    "tifffile_cz_sem": {
+      "ap_chamber_pressure": null,
+      "ap_line_counter": null,
+      "ap_spotsize": null,
+      "dp_image_store": null,
+      "keys": 68
+    }
   }
 }
