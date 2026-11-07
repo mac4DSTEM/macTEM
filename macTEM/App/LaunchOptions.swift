@@ -8,6 +8,7 @@
 //          --demo-diffraction-fixture open the generated "Demo Au pattern" (a ring pattern with planted centre and scale) in the Diffraction room
 //          --demo-spectrum-fixture open the generated "Demo EDX" spectrum image in the EDX room
 //          --demo-eels-fixture     open the generated "Demo EELS" spectrum image in the EELS room
+//          --demo-ebsd-fixture     open the generated "Demo EBSD" pattern dataset in the Patterns room (the menu opens the shipped nickel scan)
 //          --demo-regions          with the EDX fixture: two rectangles (4 x 4 and 8 x 8 pixels) and a line across the maps, as if drawn
 //          --demo-stack-fixture    open the generated "Demo stack" (24 frames, a multi-page TIFF written to the temporary folder)
 //          --demo-msa-fixture      open the demo EDX spectrum as an .msa file through the app's Open (routed by content to the EDX room)
@@ -25,6 +26,7 @@ struct LaunchOptions: Equatable {
     var demoPattern = false
     var demoSpectrum = false
     var demoEELS = false
+    var demoEBSD = false
     var demoStack = false
     var demoSpectrumFile = false
     var demoSEMSpectrum = false
@@ -44,6 +46,7 @@ struct LaunchOptions: Equatable {
         demoPattern = arguments.contains("--demo-diffraction-fixture")
         demoSpectrum = arguments.contains("--demo-spectrum-fixture")
         demoEELS = arguments.contains("--demo-eels-fixture")
+        demoEBSD = arguments.contains("--demo-ebsd-fixture")
         demoRegions = arguments.contains("--demo-regions")
         demoStack = arguments.contains("--demo-stack-fixture")
         demoSpectrumFile = arguments.contains("--demo-msa-fixture")

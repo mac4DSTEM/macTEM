@@ -1,0 +1,109 @@
+{
+  "arrays": {
+    "angles_deg": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "angles_deg.bin",
+      "note": "(tilt, azimuthal, twist, sample_tilt)",
+      "rtol": 1e-07,
+      "sha256": "2f7742646cf5eb3bc38fcecca98ab7e897e776dfe540220ab4cd2bb9fd348ab8",
+      "shape": [
+        5,
+        4
+      ]
+    },
+    "gnomonic_bounds": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "gnomonic_bounds.bin",
+      "rtol": 1e-07,
+      "sha256": "26b31f4776e5cc17d5eb99b7243ecb5c1af2a2c825e57e59d19b22bba6c7923e",
+      "shape": [
+        5,
+        4
+      ]
+    },
+    "matrix": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "matrix.bin",
+      "rtol": 1e-07,
+      "sha256": "16643d85e008d8e9595640029b51027e5c9e97dd59a2f739fa8b62bea4abc5e7",
+      "shape": [
+        5,
+        3,
+        3
+      ]
+    },
+    "pc_emsoft": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "pc_emsoft.bin",
+      "rtol": 1e-07,
+      "sha256": "b6977f573b0f2183e689f1b7705d9c06205d7f452b7315d66a18aecdb3a26d7d",
+      "shape": [
+        5,
+        3
+      ]
+    },
+    "pcs_bruker": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "pcs_bruker.bin",
+      "rtol": 1e-07,
+      "sha256": "a310beaf13e1797ece3fc819ea44f0d291bb93be0a4a528aa89128bbe644e404",
+      "shape": [
+        5,
+        3
+      ]
+    },
+    "r_max": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "r_max.bin",
+      "rtol": 1e-07,
+      "sha256": "30a96e72d66bd7f8d0fcf399d70c11b8ce777947997b8490b8660330d6605809",
+      "shape": [
+        5
+      ]
+    }
+  },
+  "case": "m2/detector-tkd-geometry",
+  "inputs": [
+    {
+      "path": "fixtures/detector_geometry_cases.json",
+      "sha256": "575c1eb80bdd45c888ee9f972af39cd4d3d0c19be2007459ced1c038c57a0066"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.detectors.EBSDDetector (TKD angles)",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "detector": {
+      "binning": 2,
+      "px_size": 70.0,
+      "shape": [
+        480,
+        640
+      ]
+    }
+  }
+}

@@ -20,6 +20,7 @@ struct WorkspaceView: View {
         switch appState.navigation.workspaceArea {
         case .edx: appState.edx.hasImage
         case .eels: appState.eels.hasImage
+        case .patterns: appState.ebsd.hasDataset
         default: appState.hasImage && !appState.imageSession.isLoading
         }
     }
@@ -41,6 +42,7 @@ struct WorkspaceView: View {
         switch appState.navigation.workspaceArea {
         case .edx: appState.edxRoom.readout
         case .eels: appState.eelsRoom.readout
+        case .patterns: appState.patternsRoom.readout
         case .image: appState.imageRoomTools.readout
         case .diffraction: appState.diffractionReadout
         default: nil
@@ -82,6 +84,8 @@ struct WorkspaceView: View {
             EDXRoom(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions, openExtensions: EDXOpening.readableExtensions)
         } else if appState.navigation.workspaceArea == .eels {
             EELSRoom()
+        } else if appState.navigation.workspaceArea == .patterns {
+            PatternsRoom()
         } else if let item = appState.openItems.selected {
             if let image = item.session.image, let canvas = item.presentation.canvas {
                 // Keyed by the item: switching items is a new pane, which starts from the item's own committed zoom

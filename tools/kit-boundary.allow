@@ -10,3 +10,4 @@
 
 # Tests of the display pipeline and the harness's crystal geometry.
 macTEMTests/ImageExportGPUTests.swift	Metal	GPU image export vs CPU rendering
+Sources/TEMCore/SEM/MasterPattern/MasterPatternProjectionMetal.swift	Metal	SEM master pattern projection: the float32 GPU path of a numeric port that lives in TEMCore because the SEM program changes no kit; checked against the float64 CPU path
