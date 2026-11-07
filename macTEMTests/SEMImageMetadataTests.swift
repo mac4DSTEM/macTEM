@@ -149,7 +149,7 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
         let header = "\u{0}\u{0}garbage before\r\n[MAIN]\r\nDevice=MIRA3 LMU\r\nUserName=paul\r\nDate=2026-11-06\r\nTime=12:34:56\r\n"
             + "PixelSizeX=2.5e-08\r\nPixelSizeY=2.5e-08\r\nMagnification=5000\r\nImageStripSize=72\r\n"
             + "[SEM]\r\nHV=15000\r\nWD=0.0098\r\nDetector=SE\r\nDwellTime=3.2e-06\r\nSpotSize=1.1e-08\r\nChamberPressure=0.009\r\n"
-            + "StageX=0.001\r\nStageY=0.002\r\nStageZ=0.03\r\nStageRotation=12.5\r\nStageTilt=0\r\nPredictedBeamCurrent=300\r\n"
+            + "StageX=0.001\r\nStageY=0.002\r\nStageZ=0.03\r\nStageRotation=12.5\r\nStageTilt=0\r\nPredictedBeamCurrent=3e-10\r\n"
         // NexusLIMS starts at the first [MAIN]; the bytes before it (NULs included) are not the header. The plant keeps them
         // after the NUL-free marker so the TIFF text survives tifffile's bytes2str rule as well.
         let bytes = Array(header.replacingOccurrences(of: "\u{0}", with: " ").utf8) + [0]
@@ -169,7 +169,7 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
         assertClose(got.spotSize, 1.1e-8, "metres as stored")
         XCTAssertEqual(got.spotSizeUnit, "m")
         assertClose(got.chamberPressurePa, 0.009, "pascals as stored")
-        assertClose(got.beamCurrentNA, 0.3, "pA → nA")
+        assertClose(got.beamCurrentNA, 0.3, "A → nA (NexusLIMS: amperes, ×1e12 to pA)")
         XCTAssertEqual(got.stageUnit, "m")
         assertClose(got.stageX, 0.001, "metres as stored")
         assertClose(got.stageRotationDeg, 12.5, "degrees")
@@ -178,6 +178,68 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
         XCTAssertEqual(got.scanRows, 768)
         let tooTall = SEMImageMetadata.read(data: PlantedSEMTIFF(width: 1024, height: 72, tag: 50431, bytes: bytes).build())
         XCTAssertNil(tooTall?.databarRows, "a strip as tall as the image is no strip")
+    }
+
+    func testARealTescanTagReadsAsNexusLIMSReadsIt() throws {
+        // NexusLIMS's own test file (tescan-pfib_dataZeroed.tif, MIT): tag 50431 opens with a binary thumbnail and has no
+        // section headers. tools/parity/sem/sem-image/tescan_reference.py wrote the sections NexusLIMS parses from it.
+        let url = try XCTUnwrap(Bundle(for: SEMImageMetadataTests.self).url(forResource: "tescan-reference", withExtension: "json"))
+        let ref = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let want = try XCTUnwrap(ref["sections"] as? [String: [String: String]])
+        let width = try XCTUnwrap(ref["width"] as? Int), height = try XCTUnwrap(ref["height"] as? Int)
+        let bytes = try Self.fixture(try XCTUnwrap(ref["tagBytes"] as? String))
+        XCTAssertTrue(bytes.contains(0) && !bytes.starts(with: Array("[MAIN]".utf8)), "the real tag, binary prefix and all")
+        let got = try XCTUnwrap(SEMImageMetadata.read(data: PlantedSEMTIFF(width: width, height: height, tag: 50431, bytes: bytes).build()))
+        XCTAssertEqual(got.vendor, .tescan)
+
+        var sections: [String: [String: String]] = [:]
+        for field in got.rawFields {
+            let dot = try XCTUnwrap(field.key.firstIndex(of: "."))
+            let name = String(field.key[..<dot]), key = String(field.key[field.key.index(after: dot)...])
+            XCTAssertNil(sections[name]?[key], "\(field.key) once")
+            sections[name, default: [:]][key] = field.value
+        }
+        XCTAssertEqual(sections, want, "every section and key exactly as NexusLIMS's configparser reads them")
+
+        // NexusLIMS's field table on those values: V, m, s, Pa, A as stored, converted only for display.
+        let sem = want["SEM"]!, main = want["MAIN"]!
+        func n(_ s: String?) -> Double? { s.flatMap(Double.init) }
+        assertClose(got.beamEnergyKV, n(sem["HV"]).map { $0 * 1e-3 }, "HV V → kV")
+        assertClose(got.workingDistanceMM, n(sem["WD"]).map { $0 * 1e3 }, "WD m → mm")
+        assertClose(got.beamCurrentNA, n(sem["PredictedBeamCurrent"]).map { $0 * 1e9 }, "PredictedBeamCurrent A → nA")
+        assertClose(got.beamCurrentNA, 0.3003, "300.3 pA, as NexusLIMS's own test reads it")
+        assertClose(got.spotSize, n(sem["SpotSize"]), "SpotSize m")
+        assertClose(got.dwellS, n(sem["DwellTime"]), "DwellTime s")
+        assertClose(got.chamberPressurePa, n(sem["ChamberPressure"]), "ChamberPressure Pa")
+        assertClose(got.stageX, n(sem["StageX"]), "StageX m")
+        assertClose(got.stageY, n(sem["StageY"]), "StageY m")
+        assertClose(got.stageZ, n(sem["StageZ"]), "StageZ m")
+        assertClose(got.stageRotationDeg, n(sem["StageRotation"]), "StageRotation")
+        assertClose(got.stageTiltDeg, n(sem["StageTilt"]), "StageTilt")
+        assertClose(got.pixelSizeX, n(main["PixelSizeX"]), "PixelSizeX m")
+        assertClose(got.magnification, n(main["Magnification"]), "Magnification")
+        XCTAssertEqual(got.detector, sem["Detector"])
+        XCTAssertEqual(got.instrument, main["Device"])
+        XCTAssertEqual(got.user, main["FullUserName"])
+        XCTAssertEqual(got.date, "2025-12-03")
+        XCTAssertEqual(got.time, "17:19:26")
+        XCTAssertEqual(got.databarRows, 298)
+        XCTAssertEqual(got.scanRows, 1280)
+        XCTAssertEqual(got.pixelSizeSource, "Tescan PixelSizeX")
+    }
+
+    func testATescanHeaderConfigparserRefusesHasNoFields() {
+        // NexusLIMS: configparser raises on a repeated key or a line without a delimiter, and the tag then gives nothing.
+        XCTAssertNil(SEMImageMetadata.tescanSections(Array("[MAIN]\nDate=1\nDate=2\n".utf8)), "repeated key")
+        XCTAssertNil(SEMImageMetadata.tescanSections(Array("[MAIN]\nno delimiter here\n".utf8)), "no delimiter")
+        XCTAssertNil(SEMImageMetadata.tescanSections(Array("[MAIN]\nA=1\n[MAIN]\nB=2\n".utf8)), "repeated section")
+        XCTAssertNil(SEMImageMetadata.tescanSections(Array("[MAIN]\nA=50%\n".utf8)), "a lone % fails interpolation")
+        let ok = SEMImageMetadata.tescanSections(Array("\u{1}\u{2}Date=2025-12-03\r\nDevice=X\r\nHV=15000\r\nWD : 0.005\r\n".utf8))
+        XCTAssertEqual(ok?.map(\.0), ["MAIN", "SEM"], "headers added: [MAIN] first, [SEM] at the line of the first SEM key")
+        XCTAssertEqual(ok?[0].1.map(\.0), ["Date", "Device"])
+        XCTAssertEqual(ok?[1].1.map { "\($0.0)=\($0.1)" }, ["HV=15000", "WD=0.005"], "= or : with spaces stripped")
+        let percent = SEMImageMetadata.tescanSections(Array("[MAIN]\nA=50%%\n".utf8))
+        XCTAssertEqual(percent?[0].1.first?.1, "50%")
     }
 
     func testAZeissValueIsConvertedWithItsUnitAndRoundedAsRosettaSciIORoundsIt() {
