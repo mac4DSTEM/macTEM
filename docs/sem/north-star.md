@@ -73,6 +73,15 @@ patterns (static then dynamic subtract) so a stage is checked alone:
 
 The fixture's nine patterns carry the same arrays in `m2/intensity-kikuchipy-h5ebsd`.
 
+The filters of the guide (plan figure F4 is the first row), each bundle also on the committed 3 x 3 cut
+(`m2/fft-filter-kikuchipy-h5ebsd`, `m2/clahe-kikuchipy-h5ebsd`, `m2/average-neighbours-kikuchipy-h5ebsd`):
+
+| Part | Reference | Bundle | Arrays and tolerance |
+| --- | --- | --- | --- |
+| Pattern (0, 0) through the Gaussian lowpass (cutoff 22, width 10) x highpass (cutoff 3, width 2) transfer function, `shift=True` | `EBSD.fft_filter(function_domain="frequency")` | `m2/fft-filter-nickel-ebsd-large` | `frequency_shift` uint8 [1, 1, 60, 60], atol 1; `frequency_shift_values` rtol 1e-5, atol 1e-3; the windows rtol 1e-12; the same with `shift=False`, a 5 x 5 Gaussian (std 1) and a 3 x 4 asymmetric kernel in the spatial domain |
+| Pattern (0, 0) after CLAHE: kikuchipy's default (kernel 15 x 15, clip 0, 128 bins), (10, 12) / 0.01 / 64, (7, 7) / 0.05 / 256 | `EBSD.adaptive_histogram_equalization` | `m2/clahe-nickel-ebsd-large` | uint8 [1, 1, 60, 60], exact |
+| The scan's 3 x 3 corner averaged with its neighbours: circular 3 x 3 (default), Gaussian 3 x 3 (std 1), rectangular 1 x 3 | `EBSD.average_neighbour_patterns` | `m2/average-neighbours-nickel-ebsd-large` | uint8 [3, 3, 60, 60], atol 1; values rtol 1e-5, atol 1e-4; window sums exact |
+
 Plan figure F3, the image quality and average neighbour dot product maps of the corrected scan (kikuchipy *Feature maps*):
 
 | Part | Reference | Bundle | Arrays and tolerance |
