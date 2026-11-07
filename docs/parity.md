@@ -240,6 +240,7 @@ Lorimer 1975 for the k-factor ratio); SpectroKit's model-fit quantification is u
 | `Conditions.takeOffAngleDeg` | `get_take_off_angle` / `take_off_angle` | `testTM002Conditions…` | rtol 1e-7 | exspy's defaults (130 eV, 35°, 0°, 0°) for what a file leaves out |
 
 ## Pattern filters (FFT filter, CLAHE, neighbour averaging)
+
 References: the `m2/fft-filter-*`, `m2/clahe-*` and `m2/average-neighbours-*` bundles of `tools/parity/sem/emit.py` (kikuchipy
 0.13.1, scikit-image 0.26.0, scipy 1.18.1) on the committed 3 x 3 cut and on `nickel_ebsd_large` (pattern (0, 0) for the
 per-pattern filters, the scan's 4 x 4 corner for averaging); each bundle carries its input patterns. Tests in
