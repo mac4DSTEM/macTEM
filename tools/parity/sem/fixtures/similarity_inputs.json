@@ -31,6 +31,7 @@
    "equal": {"maps": ["ni", "al", "ni"], "options": {"mean_n_best": 3}},
    "renamed": {"maps": ["ni", "al", "ni_other"], "options": {}},
    "lowest": {"maps": ["ni", "al"], "options": {"mean_n_best": -2}},
+   "best": {"maps": ["ni", "al", "ni_other"], "options": {}, "keep_n": 1},
    "masked": {"maps": ["ni", "al", "ni_other"], "options": {"greater_is_better": true},
               "masked_points": [[[0, 0], [0, 1], [0, 2], [0, 3], [3, 2]], null, [[5, 0], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [0, 1]]]}
   }

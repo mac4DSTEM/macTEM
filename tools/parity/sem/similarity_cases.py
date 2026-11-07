@@ -14,7 +14,11 @@ OSM of figure F9's whole 55 x 75 scan from the committed `m4/dictionary-indexing
 `m4/merge-crystal-maps`: three synthetic 6 x 7 maps with keep_n 5 (float32 scores on 40 levels, so scores tie across maps
 and the stable merge sort and nanargmax's first maximum are exercised): two phases by the best score, three maps whose
 third repeats the first phase (equal: one phase; different lattice: renamed with the map's index), the mean of the best 3,
-the lowest 2 (a negative mean_n_best), and navigation masks.
+the lowest 2 (a negative mean_n_best), navigation masks, and the three maps' best match alone (keep_n 1: one score and index
+per point, the 1-D properties kikuchipy's merge takes). Each merge without navigation masks also holds kikuchipy's
+orientation similarity map on its merged simulation indices (`orientation_similarity_map(merged,
+simulation_indices_prop="merged_simulation_indices")` with its defaults: every merged match, not normalised, the four nearest
+neighbours), the Indexing room's OSM of a run against several phases (D-SEM-98).
 
 A reference holds no NaN (SEMParityHarnessTests): kikuchipy's NaN (an OSM point without neighbours, a merged score or
 index out of a map's data) is stored as -1, which no OSM value, score or index takes.
@@ -90,6 +94,7 @@ def _merge_run(b: Bundle, name: str, inputs, cfg: dict, run: dict) -> None:
 
     shape = tuple(cfg["shape"])
     keys = run["maps"]
+    keep_n = run.get("keep_n", cfg["keep_n"])
     masks = None
     if "masked_points" in run:
         masks = []
@@ -104,6 +109,9 @@ def _merge_run(b: Bundle, name: str, inputs, cfg: dict, run: dict) -> None:
     xmaps = []
     for i, key in enumerate(keys):
         scores, indices, q = inputs[i]
+        if keep_n == 1:
+            # The best match alone, as 1-D properties (kikuchipy's merge takes one score per point only so).
+            scores, indices, q = scores[:, 0], indices[:, 0], q[:, 0]
         keep = np.ones(scores.shape[0], dtype=bool) if masks is None or masks[i] is None else ~masks[i].ravel()
         coords, _ = create_coordinate_arrays(shape, step_sizes=(1.0, 1.0))
         coords = {k: v[keep] for k, v in coords.items()}
@@ -112,7 +120,7 @@ def _merge_run(b: Bundle, name: str, inputs, cfg: dict, run: dict) -> None:
     merged = merge_crystal_maps(xmaps, simulation_indices_prop="simulation_indices", navigation_masks=masks, **run["options"])
     b.value(f"{name}_phases", {str(i): {"name": p.name, "color": p.color} for i, p in merged.phases})
     b.array(f"{name}_phase_id", np.asarray(merged.phase_id, dtype=np.int32), **EXACT)
-    b.array(f"{name}_rotations", np.asarray(merged.rotations.data, dtype=np.float64).reshape(-1, cfg["keep_n"], 4), **ROTATIONS,
+    b.array(f"{name}_rotations", np.asarray(merged.rotations.data, dtype=np.float64).reshape(-1, keep_n, 4), **ROTATIONS,
             note="orix normalises the chosen map's quaternions again in the merged map")
     b.array(f"{name}_scores", np.asarray(merged.prop["scores"], dtype=np.float32), **EXACT)
     b.array(f"{name}_merged_scores", _no_nan(np.asarray(merged.prop["merged_scores"], dtype=np.float32)), **EXACT,
@@ -121,6 +129,14 @@ def _merge_run(b: Bundle, name: str, inputs, cfg: dict, run: dict) -> None:
     b.array(f"{name}_merged_simulation_indices",
             _no_nan(np.asarray(merged.prop["merged_simulation_indices"], dtype=np.float64)), **EXACT,
             note="each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; -1 for NaN")
+    if masks is None:
+        from kikuchipy.indexing import orientation_similarity_map
+
+        osm = np.asarray(orientation_similarity_map(merged, simulation_indices_prop="merged_simulation_indices"), dtype=np.float32)
+        b.array(f"{name}_osm", _no_nan(osm), **EXACT,
+                note="orientation_similarity_map(merged, simulation_indices_prop='merged_simulation_indices') with its defaults "
+                     "(n_best = keep_n x maps, not normalised, the four nearest neighbours): the Indexing room's OSM of several "
+                     "phases")
 
 
 def case_m4_merge_crystal_maps(ctx):
