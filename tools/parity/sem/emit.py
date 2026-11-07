@@ -24,12 +24,22 @@ Run with `python -I -B` from outside this folder: a fixture is data, never code.
 from __future__ import annotations
 
 import argparse
+import os
+import platform
 import re
 import sys
 import warnings
 from pathlib import Path
 
-import numpy as np
+# numpy dispatches some ufuncs (arctan2 among them) to AVX-512 kernels on CPUs that have them, and those differ from the
+# AVX2 kernels in the last bit. GitHub's runners come with and without AVX-512, so a vector on a bin edge (the Ti map's
+# basal poles sit exactly on 1 degree azimuth edges) changed bins from one runner to the next and the drift gate failed
+# on m5/texture-ti-full. Every x86-64 emit runs the AVX2 (x86-64-v3) kernels, which every runner has; set before numpy
+# loads, an explicit setting wins.
+if platform.machine().lower() in ("x86_64", "amd64") and "NPY_DISABLE_CPU_FEATURES" not in os.environ:
+    os.environ.setdefault("NPY_ENABLE_CPU_FEATURES", "X86_V3")
+
+import numpy as np  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
