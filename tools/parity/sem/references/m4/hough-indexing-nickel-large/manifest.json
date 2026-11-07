@@ -1,0 +1,130 @@
+{
+  "arrays": {
+    "cm": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "cm.bin",
+      "rtol": 1e-05,
+      "sha256": "a08071c84bcf1dd0ff37411ce61ed006f88dd57a05f2613e592538afd095195e",
+      "shape": [
+        55,
+        75
+      ]
+    },
+    "euler": {
+      "atol": 0.02,
+      "dtype": "float64",
+      "file": "euler.bin",
+      "note": "Bunge, radians",
+      "rtol": 0.0,
+      "sha256": "01c45ab6149ee4d2064a93d46add22450f9305a49d68d4c8b9ea792995891e71",
+      "shape": [
+        55,
+        75,
+        3
+      ]
+    },
+    "fit": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "fit.bin",
+      "rtol": 1e-05,
+      "sha256": "2b325e9e8d3bc136e498286e1bc00b2a6cb7d8ab979895d4577dfbd41c226c51",
+      "shape": [
+        55,
+        75
+      ]
+    },
+    "nmatch": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "nmatch.bin",
+      "rtol": 0.0,
+      "sha256": "a14bd616acb074955d54a6fd9e3ce089b0df93dabf00c3c81b64180febbe966e",
+      "shape": [
+        55,
+        75
+      ]
+    },
+    "phase": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "phase.bin",
+      "rtol": 0.0,
+      "sha256": "3f8d074ae843d3f6e60c246c598ba8811f6ac0ef956242f46b9a68a43ff27ed3",
+      "shape": [
+        55,
+        75
+      ]
+    },
+    "pq": {
+      "atol": 1e-06,
+      "dtype": "float32",
+      "file": "pq.bin",
+      "rtol": 1e-05,
+      "sha256": "23d5dfc9d5afcb0e428ea427ee4d9819f34662249f957d3a252fd91ff54720d0",
+      "shape": [
+        55,
+        75
+      ]
+    },
+    "quaternion": {
+      "atol": 0.02,
+      "dtype": "float64",
+      "file": "quaternion.bin",
+      "note": "orix Rotation data (KIKUCHIPY frame); the test holds the symmetry-reduced misorientation < 1 degree",
+      "rtol": 0.0,
+      "sha256": "f6c7b0062a75eb72130fd3e5a11022a4e1eb37ff98e33a0a3ebd9e559d2c6946",
+      "shape": [
+        55,
+        75,
+        4
+      ]
+    }
+  },
+  "case": "m4/hough-indexing-nickel-large",
+  "inputs": [
+    {
+      "path": "fixtures/hough_inputs.json",
+      "sha256": "f6d77ae0b4ea6d23f336c29b575e9ef138280a59e1f0120188d37acc6eef907f"
+    },
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.hough_indexing (pyEBSDindex CPU)",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "indexed": 4124,
+    "navigation_shape_rc": [
+      55,
+      75
+    ],
+    "pc_bruker": [
+      0.4232600661596353,
+      0.2136332544638906,
+      0.5020740783903906
+    ],
+    "points": 4125
+  }
+}
