@@ -93,6 +93,12 @@ package nonisolated enum DictionaryIndexing {
         /// The dictionary's rotation (a, b, c, d) at each simulation index, point × keepN; the identity for a point not in the data.
         package var rotations: [SIMD4<Double>]
 
+        package init(navigationShape: [Int], keepN: Int, isInData: [Bool], scores: [Double], simulationIndices: [Int],
+                     rotations: [SIMD4<Double>]) {
+            self.navigationShape = navigationShape; self.keepN = keepN; self.isInData = isInData
+            self.scores = scores; self.simulationIndices = simulationIndices; self.rotations = rotations
+        }
+
         package var pointCount: Int { isInData.count }
 
         /// The best match of each point.

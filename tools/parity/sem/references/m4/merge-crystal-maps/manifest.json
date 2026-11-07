@@ -1,0 +1,633 @@
+{
+  "arrays": {
+    "equal_merged_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "equal_merged_scores.bin",
+      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order)",
+      "rtol": 0.0,
+      "sha256": "4869ea40d2045da2d7d6a84d9216d619417414dd1306952c58ce791f1a5a86a0",
+      "shape": [
+        42,
+        15
+      ]
+    },
+    "equal_merged_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "equal_merged_simulation_indices.bin",
+      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; NaN out of data",
+      "rtol": 0.0,
+      "sha256": "de27b19bc21e11664a15194bd6e05fc4dfe80a481919c32755f940627f6443d5",
+      "shape": [
+        42,
+        15
+      ]
+    },
+    "equal_phase_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "equal_phase_id.bin",
+      "rtol": 0.0,
+      "sha256": "57880f3e10ba25fabbcd3e04fce2538e8180ba229e3c810c26eefa94311c511b",
+      "shape": [
+        42
+      ]
+    },
+    "equal_rotations": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "equal_rotations.bin",
+      "rtol": 0.0,
+      "sha256": "c42006671a1474913d4b8509a437d5bb53f20259644928afdbea732046f15eea",
+      "shape": [
+        42,
+        5,
+        4
+      ]
+    },
+    "equal_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "equal_scores.bin",
+      "rtol": 0.0,
+      "sha256": "7e4d75057158cc8659bd02ae5c309cd33a50848d9cf2859e20f5e89c9bbf035e",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "equal_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "equal_simulation_indices.bin",
+      "rtol": 0.0,
+      "sha256": "681c3135817d5083eb2c990845a1c51f8f8fc16fab2d3eccb4c912dca30ac90b",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "lowest_merged_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "lowest_merged_scores.bin",
+      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order)",
+      "rtol": 0.0,
+      "sha256": "e5f9e6f0160f9f8b458452be5c46f3f4586f509a5f53bc21a1582c7919c0614f",
+      "shape": [
+        42,
+        10
+      ]
+    },
+    "lowest_merged_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "lowest_merged_simulation_indices.bin",
+      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; NaN out of data",
+      "rtol": 0.0,
+      "sha256": "9406f56c606621ae8e1c47c6eb24adac93d7b438a1230fc7217dcba182709d48",
+      "shape": [
+        42,
+        10
+      ]
+    },
+    "lowest_phase_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "lowest_phase_id.bin",
+      "rtol": 0.0,
+      "sha256": "bc6c1bb2f35dbd44e2ac34cc4937343681523144dcacaf0c48a0b688c62b4acb",
+      "shape": [
+        42
+      ]
+    },
+    "lowest_rotations": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "lowest_rotations.bin",
+      "rtol": 0.0,
+      "sha256": "3248f7c1eb1a108e7fb63a67b3ba7e97d1dcbee5424fa5a3836a8e6db32cd6bc",
+      "shape": [
+        42,
+        5,
+        4
+      ]
+    },
+    "lowest_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "lowest_scores.bin",
+      "rtol": 0.0,
+      "sha256": "38f3188351aa4bbbc8b6da55983fbe9e5bd58c462736879f8d6761b2c8cc1627",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "lowest_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "lowest_simulation_indices.bin",
+      "rtol": 0.0,
+      "sha256": "c46222c9345b392acf90dbef89a71469b44b2d0e755d5f47727c742ed59c3377",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "map0_rotations": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "map0_rotations.bin",
+      "rtol": 0.0,
+      "sha256": "dac386a3426f3ffac618be5412941958e2c5083c448e9c9265a93fcf7ce8508d",
+      "shape": [
+        42,
+        5,
+        4
+      ]
+    },
+    "map0_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "map0_scores.bin",
+      "note": "synthetic float32 scores, 40 levels, best first",
+      "rtol": 0.0,
+      "sha256": "698e5558c13f409d4f291d402fbba5e1e361f9667722a23f42ffc8cb3c95f714",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "map0_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "map0_simulation_indices.bin",
+      "rtol": 0.0,
+      "sha256": "dae460d39a5dcc701062b381f7e9e18d59396ec8ae7699fd5e8cd38297013ea5",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "map1_rotations": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "map1_rotations.bin",
+      "rtol": 0.0,
+      "sha256": "8298b335432248184e1227bc8ebe368c707f5ed632b9afc9515f8287f89c5006",
+      "shape": [
+        42,
+        5,
+        4
+      ]
+    },
+    "map1_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "map1_scores.bin",
+      "note": "synthetic float32 scores, 40 levels, best first",
+      "rtol": 0.0,
+      "sha256": "ee8db3f089713effbcef14106e53c9569dcbb07e338262fb33527485fe58264f",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "map1_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "map1_simulation_indices.bin",
+      "rtol": 0.0,
+      "sha256": "8b5eb0dee56b629849caec3949171b613bb45ab7e5b7d40a3ed458b33d79633f",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "map2_rotations": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "map2_rotations.bin",
+      "rtol": 0.0,
+      "sha256": "98d686740644dd697614d27327c51cb4f9d8f466e30c10b43e54612a4692daf5",
+      "shape": [
+        42,
+        5,
+        4
+      ]
+    },
+    "map2_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "map2_scores.bin",
+      "note": "synthetic float32 scores, 40 levels, best first",
+      "rtol": 0.0,
+      "sha256": "88481d5788387be07b3796d37c9b2859e5ed832f12043bc0d4ab46631e4a0ac0",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "map2_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "map2_simulation_indices.bin",
+      "rtol": 0.0,
+      "sha256": "63e0b75c883efc7657e6f903ef77f7c64fb8ce4f52637eaea20a3898e2f994d4",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "masked_mask0": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "masked_mask0.bin",
+      "note": "1 = point not in map 0",
+      "rtol": 0.0,
+      "sha256": "881b44a6c3393057a7da3fa52d77a42ab5455be324f267ea73c29ff3dc371bf6",
+      "shape": [
+        6,
+        7
+      ]
+    },
+    "masked_mask2": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "masked_mask2.bin",
+      "note": "1 = point not in map 2",
+      "rtol": 0.0,
+      "sha256": "6f295b4a4db22b76b1c56b60852fce186683acacc6cb738d5f5266be5253a863",
+      "shape": [
+        6,
+        7
+      ]
+    },
+    "masked_merged_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "masked_merged_scores.bin",
+      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order)",
+      "rtol": 0.0,
+      "sha256": "2c3bf62c01560f55144d3ca8319a1b8fbe4087d4561568a523cd1fc9098678ae",
+      "shape": [
+        42,
+        15
+      ]
+    },
+    "masked_merged_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "masked_merged_simulation_indices.bin",
+      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; NaN out of data",
+      "rtol": 0.0,
+      "sha256": "e4e35ba2d6565260a33c8d7d8eae896746b0dee81e6550e2a0dc15f15a687e06",
+      "shape": [
+        42,
+        15
+      ]
+    },
+    "masked_phase_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "masked_phase_id.bin",
+      "rtol": 0.0,
+      "sha256": "cdac2e41c865c85c60ff2e198560e84425f6c712091e8c352e99388768065e43",
+      "shape": [
+        42
+      ]
+    },
+    "masked_rotations": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "masked_rotations.bin",
+      "rtol": 0.0,
+      "sha256": "d793367b21b79830e2476cda7eed5bd2a1e79f6622ca0f4fbda08c3aebdda078",
+      "shape": [
+        42,
+        5,
+        4
+      ]
+    },
+    "masked_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "masked_scores.bin",
+      "rtol": 0.0,
+      "sha256": "db30d8d7345b77348131175bcb3d0f029b7601ecc006c5a5c57982ca8ff6ebe8",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "masked_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "masked_simulation_indices.bin",
+      "rtol": 0.0,
+      "sha256": "0562017dd52639af76aa2514720e033dfa2403c877bcb746839d0bc733f84b5a",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "renamed_merged_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "renamed_merged_scores.bin",
+      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order)",
+      "rtol": 0.0,
+      "sha256": "4869ea40d2045da2d7d6a84d9216d619417414dd1306952c58ce791f1a5a86a0",
+      "shape": [
+        42,
+        15
+      ]
+    },
+    "renamed_merged_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "renamed_merged_simulation_indices.bin",
+      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; NaN out of data",
+      "rtol": 0.0,
+      "sha256": "de27b19bc21e11664a15194bd6e05fc4dfe80a481919c32755f940627f6443d5",
+      "shape": [
+        42,
+        15
+      ]
+    },
+    "renamed_phase_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "renamed_phase_id.bin",
+      "rtol": 0.0,
+      "sha256": "dbec5851c7cac9cc9dd3753df2d267122592df29b076d10722ab400937ee6ee8",
+      "shape": [
+        42
+      ]
+    },
+    "renamed_rotations": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "renamed_rotations.bin",
+      "rtol": 0.0,
+      "sha256": "0136ed36272dbc2e283c80dcb70b3c4710a62ff52cfaad07719952406431d521",
+      "shape": [
+        42,
+        5,
+        4
+      ]
+    },
+    "renamed_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "renamed_scores.bin",
+      "rtol": 0.0,
+      "sha256": "794bd2b19900693fdd26217e004b32e9db487684276264bdf401ee81eca8f442",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "renamed_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "renamed_simulation_indices.bin",
+      "rtol": 0.0,
+      "sha256": "96f1d5c7a8e061da9992c803235e9cc8d2ee62e1652e097667bb48e855fcc79f",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "two_merged_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "two_merged_scores.bin",
+      "note": "every map's scores per point, merge-sorted best first (stable over n-major, map-minor order)",
+      "rtol": 0.0,
+      "sha256": "30b1c1460339205cae4ee0bf5346e4046337509194ae00138022df83a8a9d8a9",
+      "shape": [
+        42,
+        10
+      ]
+    },
+    "two_merged_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "two_merged_simulation_indices.bin",
+      "note": "each map's indices shifted past the previous map's (kikuchipy's increment), sorted as the scores; NaN out of data",
+      "rtol": 0.0,
+      "sha256": "6513d448c6b24e71af783ec1f6e5456be741d4c1134681e1d5ea1bee40759803",
+      "shape": [
+        42,
+        10
+      ]
+    },
+    "two_phase_id": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "two_phase_id.bin",
+      "rtol": 0.0,
+      "sha256": "0f85a947ef7f04b214cbeaef01984fb38bda24bdf8a5e930a477d005ac4f9a58",
+      "shape": [
+        42
+      ]
+    },
+    "two_rotations": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "two_rotations.bin",
+      "rtol": 0.0,
+      "sha256": "8e585ef5f31665575534a50f343188b0a52632a69bc4a79d12035ed6350ea73c",
+      "shape": [
+        42,
+        5,
+        4
+      ]
+    },
+    "two_scores": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "two_scores.bin",
+      "rtol": 0.0,
+      "sha256": "f3abea22b620d007ade350952e397d3d4af6e3ffcddc16805b5513bab0d2e6bd",
+      "shape": [
+        42,
+        5
+      ]
+    },
+    "two_simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "two_simulation_indices.bin",
+      "rtol": 0.0,
+      "sha256": "3c3aeace05082a4bef5ad0a95a9b16d5cd585d7c27ae36700073e021d50186f6",
+      "shape": [
+        42,
+        5
+      ]
+    }
+  },
+  "case": "m4/merge-crystal-maps",
+  "inputs": [],
+  "milestone": 4,
+  "reference": {
+    "function": "kikuchipy.indexing.merge_crystal_maps",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "equal_maps": [
+      "ni",
+      "al",
+      "ni"
+    ],
+    "equal_options": {
+      "mean_n_best": 3
+    },
+    "equal_phases": {
+      "0": {
+        "color": "tab:blue",
+        "name": "ni"
+      },
+      "1": {
+        "color": "tab:orange",
+        "name": "al"
+      }
+    },
+    "keep_n": 5,
+    "lowest_maps": [
+      "ni",
+      "al"
+    ],
+    "lowest_options": {
+      "mean_n_best": -2
+    },
+    "lowest_phases": {
+      "0": {
+        "color": "tab:blue",
+        "name": "ni"
+      },
+      "1": {
+        "color": "tab:orange",
+        "name": "al"
+      }
+    },
+    "masked_maps": [
+      "ni",
+      "al",
+      "ni_other"
+    ],
+    "masked_options": {
+      "greater_is_better": true
+    },
+    "masked_phases": {
+      "0": {
+        "color": "tab:blue",
+        "name": "ni"
+      },
+      "1": {
+        "color": "tab:orange",
+        "name": "al"
+      },
+      "2": {
+        "color": "tab:green",
+        "name": "ni2"
+      }
+    },
+    "phases": {
+      "al": {
+        "lattice": [
+          4.05,
+          4.05,
+          4.05,
+          90,
+          90,
+          90
+        ],
+        "name": "al",
+        "space_group": 225
+      },
+      "ni": {
+        "lattice": [
+          3.52,
+          3.52,
+          3.52,
+          90,
+          90,
+          90
+        ],
+        "name": "ni",
+        "space_group": 225
+      },
+      "ni_other": {
+        "lattice": [
+          3.6,
+          3.6,
+          3.6,
+          90,
+          90,
+          90
+        ],
+        "name": "ni",
+        "space_group": 225
+      }
+    },
+    "renamed_maps": [
+      "ni",
+      "al",
+      "ni_other"
+    ],
+    "renamed_options": {},
+    "renamed_phases": {
+      "0": {
+        "color": "tab:blue",
+        "name": "ni"
+      },
+      "1": {
+        "color": "tab:orange",
+        "name": "al"
+      },
+      "2": {
+        "color": "tab:green",
+        "name": "ni2"
+      }
+    },
+    "shape": [
+      6,
+      7
+    ],
+    "two_maps": [
+      "ni",
+      "al"
+    ],
+    "two_options": {},
+    "two_phases": {
+      "0": {
+        "color": "tab:blue",
+        "name": "ni"
+      },
+      "1": {
+        "color": "tab:orange",
+        "name": "al"
+      }
+    }
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "arrays": {
+    "corner_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "corner_osm.bin",
+      "note": "float32 as kikuchipy returns it; NaN where a point has no neighbour",
+      "rtol": 0.0,
+      "sha256": "5c675464e45c8bfc041cee6534fa137014060c86d99b1f73959694874f420244",
+      "shape": [
+        7,
+        9
+      ]
+    },
+    "default_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "default_osm.bin",
+      "note": "float32 as kikuchipy returns it; NaN where a point has no neighbour",
+      "rtol": 0.0,
+      "sha256": "a0a2e6bdb489d8b5257f49bc106b802dc442c9bab31c81ac60ee6789fbd6784d",
+      "shape": [
+        7,
+        9
+      ]
+    },
+    "even_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "even_osm.bin",
+      "note": "float32 as kikuchipy returns it; NaN where a point has no neighbour",
+      "rtol": 0.0,
+      "sha256": "aca5d69be0218a94ae47681c39b2831d3624e6b774a07c84434781fb1848ff3b",
+      "shape": [
+        7,
+        9
+      ]
+    },
+    "f9_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "f9_osm.bin",
+      "note": "float32 as kikuchipy returns it; NaN where a point has no neighbour",
+      "rtol": 0.0,
+      "sha256": "e4f77132aa725c829c610ff43865e91a423e7a78ab1c20263b304d89926e758d",
+      "shape": [
+        55,
+        75
+      ]
+    },
+    "range_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "range_osm.bin",
+      "note": "float32 as kikuchipy returns it; NaN where a point has no neighbour",
+      "rtol": 0.0,
+      "sha256": "cf243e292343171647c73ba91feb8a463495fac9e0a2e5a3c74d267fcbb6b7ea",
+      "shape": [
+        7,
+        9,
+        4
+      ]
+    },
+    "simulation_indices": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "simulation_indices.bin",
+      "note": "synthetic: keep_n 6 distinct of 0..15 per point, row-major",
+      "rtol": 0.0,
+      "sha256": "999d6db6ec828f4b8c9c520f9a63000b0eba4348a7bb4f27f9bcba21f20abd77",
+      "shape": [
+        63,
+        6
+      ]
+    },
+    "square_osm": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "square_osm.bin",
+      "note": "float32 as kikuchipy returns it; NaN where a point has no neighbour",
+      "rtol": 0.0,
+      "sha256": "46b6ed6c41c21f7595e24f0dcd0c997385a02d2b20eadf95b6972e927612dfb4",
+      "shape": [
+        7,
+        9
+      ]
+    }
+  },
+  "case": "m4/orientation-similarity-map",
+  "inputs": [
+    {
+      "path": "references/m4/dictionary-indexing-nickel-ebsd-large/ncc_simulation_indices.bin",
+      "sha256": "5710c4946b40c714c0d694288970013f6f3a2c4ccc8ea5211805f4ebd5ea3e29"
+    }
+  ],
+  "milestone": 4,
+  "reference": {
+    "function": "kikuchipy.indexing.orientation_similarity_map",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "corner_options": {
+      "center_index": 0,
+      "footprint": [
+        [
+          1,
+          1,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "default_options": {},
+    "even_options": {
+      "center_index": 3,
+      "footprint": [
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "n_best": 3
+    },
+    "f9_options": {},
+    "range_options": {
+      "from_n_best": 2,
+      "n_best": 5,
+      "normalize": true
+    },
+    "shape": [
+      7,
+      9
+    ],
+    "square_options": {
+      "center_index": 4,
+      "footprint": [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ]
+    }
+  }
+}

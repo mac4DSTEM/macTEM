@@ -106,6 +106,11 @@ The dictionary indexing in Sources/TEMCore/SEM/Indexing/ (DictionaryIndexing.swi
 of kikuchipy 0.13.1 (indexing/_dictionary_indexing.py, indexing/similarity_metrics/), Copyright (C) 2019-2026 the kikuchipy
 developers, GPL-3.0-or-later, taken under GPL-3.0; the method is Chen et al. (2015), Microsc. Microanal. 21, 739.
 
+The orientation similarity map and the merge of dictionary-indexed maps in Sources/TEMCore/SEM/Indexing/
+(OrientationSimilarityMap.swift, DictionaryMapMerge.swift) are ports of kikuchipy 0.13.1
+(indexing/_orientation_similarity_map.py, indexing/_merge_crystal_maps.py), same copyright and licence; the OSM is
+Marquardt et al. (2017), Microsc. Microanal. 23, 1144.
+
 ================================================================================
 PyEBSDIndex (NLPAR, derived and modified)
 ================================================================================
