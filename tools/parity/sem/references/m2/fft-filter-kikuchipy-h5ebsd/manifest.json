@@ -1,0 +1,264 @@
+{
+  "arrays": {
+    "frequency_noshift": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "frequency_noshift.bin",
+      "rtol": 0.0,
+      "sha256": "08c53ce8f48202c861862c5f66f3422c945f70be8d8dfaa0a013a57136291982",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "frequency_noshift_values": {
+      "atol": 0.001,
+      "dtype": "float32",
+      "file": "frequency_noshift_values.bin",
+      "note": "kikuchipy's filtered pattern rescaled to 0..255 before the uint8 cast",
+      "rtol": 1e-05,
+      "sha256": "026d9dab57ef97ed37298cd48d6509ee3e5c9ac19f900b84beb8efd43740b60d",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "frequency_shift": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "frequency_shift.bin",
+      "rtol": 0.0,
+      "sha256": "c4c5e0168cc5c22dff2554acb6bd084721841a081fd745833237b25dd2401d32",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "frequency_shift_values": {
+      "atol": 0.001,
+      "dtype": "float32",
+      "file": "frequency_shift_values.bin",
+      "note": "kikuchipy's filtered pattern rescaled to 0..255 before the uint8 cast",
+      "rtol": 1e-05,
+      "sha256": "15add0a37bbed02a03039d07118287bb858d5a28112e2800fd07b3c09b87446c",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "patterns": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "patterns.bin",
+      "note": "the input patterns",
+      "rtol": 0.0,
+      "sha256": "ffab6bc6c2f20015338e95270c6379c5aaf6be5a2b9c58106622ae31b0673fdd",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "spatial_asymmetric": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "spatial_asymmetric.bin",
+      "rtol": 0.0,
+      "sha256": "b1921791b3c8bf481e352474bf0b5017846ddbd8a7b1f1dc9418f116fd86aaba",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "spatial_asymmetric_values": {
+      "atol": 0.001,
+      "dtype": "float32",
+      "file": "spatial_asymmetric_values.bin",
+      "note": "kikuchipy's filtered pattern rescaled to 0..255 before the uint8 cast",
+      "rtol": 1e-05,
+      "sha256": "64a4ff1b220c99311622b0caf5845d2190a93903166be18cc012d81ed081c780",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "spatial_gaussian": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "spatial_gaussian.bin",
+      "rtol": 0.0,
+      "sha256": "cee24779b575b4257d187f803bc8adf3d8e9ee90b1eb4384a8edac35b10222e0",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "spatial_gaussian_values": {
+      "atol": 0.001,
+      "dtype": "float32",
+      "file": "spatial_gaussian_values.bin",
+      "note": "kikuchipy's filtered pattern rescaled to 0..255 before the uint8 cast",
+      "rtol": 1e-05,
+      "sha256": "e34595a556313bd7980e05b5988e256998946a0608a3c6db65c8f8dcf9f86515",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "transfer_function": {
+      "atol": 1e-15,
+      "dtype": "float64",
+      "file": "transfer_function.bin",
+      "rtol": 1e-12,
+      "sha256": "f18361fbfab2693ccebb21986fb28d8e6140e45903813dd65b71f56fbf478cdd",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "window_circular_5x7": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "window_circular_5x7.bin",
+      "rtol": 0.0,
+      "sha256": "1217a9589415e802c510943a81f9506deff490a57f19db60fa3620894381e735",
+      "shape": [
+        5,
+        7
+      ]
+    },
+    "window_gaussian_5x5_std1": {
+      "atol": 1e-15,
+      "dtype": "float64",
+      "file": "window_gaussian_5x5_std1.bin",
+      "rtol": 1e-12,
+      "sha256": "06b921ac1bf04af37a3b902f656ff00798873e1636b488c3b16a5da9d4efc4c3",
+      "shape": [
+        5,
+        5
+      ]
+    },
+    "window_highpass": {
+      "atol": 1e-15,
+      "dtype": "float64",
+      "file": "window_highpass.bin",
+      "rtol": 1e-12,
+      "sha256": "8dfd7582f2a0edb58a7d3bda0a1c3f6ea829961d064a989a967b365a266b87ff",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "window_lowpass": {
+      "atol": 1e-15,
+      "dtype": "float64",
+      "file": "window_lowpass.bin",
+      "rtol": 1e-12,
+      "sha256": "7f2796d76b83175e7563bcdc35e425a24a205a462cfc7a56e468b39dfc36fd64",
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "window_modified_hann_60": {
+      "atol": 1e-15,
+      "dtype": "float64",
+      "file": "window_modified_hann_60.bin",
+      "rtol": 1e-12,
+      "sha256": "44d7250c9184715637cb0d067e9add32744b9d3b0dcdd6c9586daad29544ca64",
+      "shape": [
+        60
+      ]
+    }
+  },
+  "case": "m2/fft-filter-kikuchipy-h5ebsd",
+  "inputs": [
+    {
+      "path": "fixtures/kikuchipy_h5ebsd_patterns.h5",
+      "sha256": "8f46638f5affa21c08db447b7b472b9a8d02e9e1e70fe11488dc5a50c2b8ee67"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.fft_filter; kikuchipy.filters.Window",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "frequency": {
+      "highpass": {
+        "cutoff": 3,
+        "cutoff_width": 2
+      },
+      "lowpass": {
+        "cutoff": 22,
+        "cutoff_width": 10
+      },
+      "shape": [
+        60,
+        60
+      ]
+    },
+    "spatial": {
+      "asymmetric": [
+        [
+          0.0,
+          1.0,
+          2.0,
+          3.0
+        ],
+        [
+          4.0,
+          5.0,
+          6.0,
+          7.0
+        ],
+        [
+          -1.0,
+          -2.0,
+          0.5,
+          1.5
+        ]
+      ],
+      "gaussian": {
+        "shape": [
+          5,
+          5
+        ],
+        "std": 1
+      }
+    }
+  }
+}

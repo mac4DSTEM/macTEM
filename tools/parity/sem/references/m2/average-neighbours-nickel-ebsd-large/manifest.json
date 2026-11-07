@@ -1,0 +1,219 @@
+{
+  "arrays": {
+    "circular_3x3": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "circular_3x3.bin",
+      "rtol": 0.0,
+      "sha256": "83ef378497ad1c050d28c401f9173afdcf626a8b89d0c9d842dd04e2163b8a7a",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "circular_3x3_values": {
+      "atol": 0.0001,
+      "dtype": "float32",
+      "file": "circular_3x3_values.bin",
+      "note": "kikuchipy's steps (float32 correlate, window sums, min-max) before the uint8 cast",
+      "rtol": 1e-05,
+      "sha256": "2edff8cda6fab9d8d9dbec434a62fe2337a4a30f3c35c5ba45e192f61f6e6527",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "gaussian_3x3_std1": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "gaussian_3x3_std1.bin",
+      "rtol": 0.0,
+      "sha256": "ed0d28cec57297df0d8b53b9efe8ab6e819a3a40f45cc70dd2cf6068a338066a",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "gaussian_3x3_std1_values": {
+      "atol": 0.0001,
+      "dtype": "float32",
+      "file": "gaussian_3x3_std1_values.bin",
+      "note": "kikuchipy's steps (float32 correlate, window sums, min-max) before the uint8 cast",
+      "rtol": 1e-05,
+      "sha256": "92cd1daa7c03b50120c24046c02baf993abc8a557912069635539d3243922c32",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "patterns": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "patterns.bin",
+      "note": "the input patterns (scan rows and columns 0..3)",
+      "rtol": 0.0,
+      "sha256": "c004e1517a5e6669d0e03897935d6c8ba535a2614b8424a8d1ecc194a19a3531",
+      "shape": [
+        4,
+        4,
+        60,
+        60
+      ]
+    },
+    "rectangular_1x3": {
+      "atol": 1.0,
+      "dtype": "uint8",
+      "file": "rectangular_1x3.bin",
+      "rtol": 0.0,
+      "sha256": "b0d075d3bcaa5f53a37aa0237a6699f0443adf477fc8bd40f626414e41c29b34",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "rectangular_1x3_values": {
+      "atol": 0.0001,
+      "dtype": "float32",
+      "file": "rectangular_1x3_values.bin",
+      "note": "kikuchipy's steps (float32 correlate, window sums, min-max) before the uint8 cast",
+      "rtol": 1e-05,
+      "sha256": "7f7bf96f8a9b8493ee0f4bc2c441e3d02a11f21a36ebbc72711b171db114c132",
+      "shape": [
+        3,
+        3,
+        60,
+        60
+      ]
+    },
+    "window_circular_3x3": {
+      "atol": 1e-15,
+      "dtype": "float64",
+      "file": "window_circular_3x3.bin",
+      "rtol": 1e-12,
+      "sha256": "fa92d0c830cdacb8294f05ae839c206e2e076e9beb226e57a9fe71d4fd5833f9",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "window_gaussian_3x3_std1": {
+      "atol": 1e-15,
+      "dtype": "float64",
+      "file": "window_gaussian_3x3_std1.bin",
+      "rtol": 1e-12,
+      "sha256": "e0686a852168f09862f74d927901657975e8d40927017fc32a8ab6b43baf122d",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "window_rectangular_1x3": {
+      "atol": 1e-15,
+      "dtype": "float64",
+      "file": "window_rectangular_1x3.bin",
+      "rtol": 1e-12,
+      "sha256": "cc143326a2646c605ea66139d7b440df7cbde18c050f1f8cf4dd30f42cfe7123",
+      "shape": [
+        1,
+        3
+      ]
+    },
+    "window_sums_circular_3x3": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "window_sums_circular_3x3.bin",
+      "rtol": 0.0,
+      "sha256": "df120a0ba1bfc3fcf4d801a569af92cbbe56b6ad7d3d38ba470e5f3a7a5bd8da",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "window_sums_gaussian_3x3_std1": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "window_sums_gaussian_3x3_std1.bin",
+      "rtol": 0.0,
+      "sha256": "81c0228ead7e22ca208eaccc9b7a9186946705c4f51d5d1f7758a46da2c7765b",
+      "shape": [
+        3,
+        3
+      ]
+    },
+    "window_sums_rectangular_1x3": {
+      "atol": 0.0,
+      "dtype": "int64",
+      "file": "window_sums_rectangular_1x3.bin",
+      "rtol": 0.0,
+      "sha256": "526ab5d1f012876eb7f28b5e071bdf3fcf0617b2fcf603b66ffa7ce187b77f08",
+      "shape": [
+        3,
+        3
+      ]
+    }
+  },
+  "case": "m2/average-neighbours-nickel-ebsd-large",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.average_neighbour_patterns",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "runs": {
+      "circular_3x3": {
+        "window": "circular",
+        "window_shape": [
+          3,
+          3
+        ]
+      },
+      "gaussian_3x3_std1": {
+        "std": 1,
+        "window": "gaussian",
+        "window_shape": [
+          3,
+          3
+        ]
+      },
+      "rectangular_1x3": {
+        "window": "rectangular",
+        "window_shape": [
+          1,
+          3
+        ]
+      }
+    }
+  }
+}
