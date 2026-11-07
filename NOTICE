@@ -129,6 +129,21 @@ Sources/TEMCore/EDX/XrayLineDatabase.swift holds eXSpy 0.3.2's element database 
 tools/parity/sem/make_xray_database.py, under the same licence.
 
 ================================================================================
+PyEBSDIndex (Hough indexing, derived and modified)
+================================================================================
+
+The Hough indexing in Sources/TEMCore/SEM/Indexing/ (HoughReflectorLibrary.swift, HoughBandDetection.swift,
+HoughIndexer.swift) is derived from PyEBSDIndex 0.3.10.1 (https://github.com/USNavalResearchLaboratory/PyEBSDIndex),
+modules radon_fast, band_detect, tripletvote, _ebsd_index_single, crystal_sym, crystallometry and rotlib, written by
+David Rowenhorst. PyEBSDIndex was developed by employees of the US Naval Research Laboratory (NRL), an agency of the
+Federal Government; pursuant to 17 USC 105 it is not subject to copyright protection in the United States and is in the
+public domain there, and NRL grants elsewhere the non-exclusive, irrevocable, royalty-free right to prepare and distribute
+derivative works. The US Naval Research Laboratory is acknowledged as the original source. Modification notice, as its
+licence asks: this is a modified derivative work, translated to Swift for macTEM in November 2026, computing in float64
+where PyEBSDIndex uses float32, with the CPU path only, the "KIKUCHIPY" vendor convention only and stable tie-breaking;
+each file's first lines say which functions it derives from and what changed.
+
+================================================================================
 SpectroKit (a Swift package the app is built with)
 ================================================================================
 
