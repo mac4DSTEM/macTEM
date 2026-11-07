@@ -252,3 +252,67 @@ Lorimer 1975 for the k-factor ratio); SpectroKit's model-fit quantification is u
 | `intensities` | `get_lines_intensity` | `testFigureF16…`, `testExspyDocstringIntensities` | rtol 1e-7 (measured bit-equal) | a window off the axis or narrower than one channel is refused where HyperSpy raises |
 | `cliffLorimer`, `weightToAtomic`, `quantify` | `quantification_cliff_lorimer` (× 100), `material.weight_to_atomic` | `testFigureF17…`, `testCliffLorimerFloor…` | rtol 1e-7 | no absorption correction; k-factors typed (D-SEM-7, D-SEM-59) |
 | `Conditions.takeOffAngleDeg` | `get_take_off_angle` / `take_off_angle` | `testTM002Conditions…` | rtol 1e-7 | exspy's defaults (130 eV, 35°, 0°, 0°) for what a file leaves out |
+
+## Pattern filters (FFT filter, CLAHE, neighbour averaging)
+
+References: the `m2/fft-filter-*`, `m2/clahe-*` and `m2/average-neighbours-*` bundles of `tools/parity/sem/emit.py` (kikuchipy
+0.13.1, scikit-image 0.26.0, scipy 1.18.1) on the committed 3 x 3 cut and on `nickel_ebsd_large` (pattern (0, 0) for the
+per-pattern filters, the scan's 4 x 4 corner for averaging); each bundle carries its input patterns. Tests in
+`SEMPatternFilterParityTests`. kikuchipy's FFTs run in float32 and its rescaling in float32 numba fastmath, so the float64 port agrees within one grey level where an upstream value
+lands on the other side of an integer, and exactly where upstream's arithmetic is reproduced (CLAHE).
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `PatternWindow.lowpass`, `.highpass`, `*` | `filters.window.lowpass_fft_filter`, `highpass_fft_filter`, `Window * Window` | `testWindowsMatchKikuchipy` | rtol 1e-12 | `cutoffWidth` defaults to `cutoff / 2`; distances from `shape // 2` |
+| `PatternWindow.gaussian`, `.modifiedHann`, `.rectangular`, `.circular`, custom | `scipy.signal.windows.gaussian` / `boxcar` (symmetric, `fftbins=False`), `filters.window.modified_hann`, `Window.make_circular` | `testWindowsMatchKikuchipy`, averaging tests | rtol 1e-12; circular exact | a 2D window is the outer product of the axes' 1D windows, as upstream; the other SciPy window names are not ported |
+| `PatternFilters.fftFilter` / `...Values`, frequency (`shift` on and off) | `EBSD.fft_filter(function_domain="frequency")`, `pattern._pattern.fft_filter` | `testFFTFilter…`, `testFigureF4…` | values 1e-5 relative or 1e-3 grey levels (measured 7.4e-6 relative); uint8 within one grey level on at most 1 % of the pixels, D-SEM-18's rule (measured 0.005 % of all 4125 patterns with the guide's filter, pattern (0, 0) exact; at most 0.22 % with the asymmetric spatial kernel) | full complex FFT on ImagoKit's `FFT2DDouble`; with `shift` the transfer function's centre multiplies the zero frequency |
+| `PatternFilters.fftFilter` / `...Values`, spatial | `EBSD.fft_filter(function_domain="spatial")`, `filters.fft_barnes._fft_filter` (Barnes et al. 2016) | `testFFTFilter…` | as frequency (measured 0.004 % of all patterns with the 5 x 5 Gaussian) | padded to pattern + kernel − 1 per axis, not SciPy's `next_fast_len` (the crop never reads the extra zeros); a 3 x 4 asymmetric kernel pins the flip and the even-size offsets |
+| `AdaptiveHistogramEqualization.equalize` / `equalizedUnit` | `EBSD.adaptive_histogram_equalization`, `skimage.exposure.equalize_adapthist` (Zuiderveld 1994) | `testCLAHE…` | exact (uint8) | 2¹⁴-level quantisation rounded half to even, reflect padding, clip-limit redistribution, mappings interpolated in float32 in scikit-image's order; default kernel `(columns / 4, rows / 4)` as (rows, columns), upstream's order |
+| `NeighbourAveraging.average` / `averageValues`, `windowSums` | `EBSD.average_neighbour_patterns`, `pattern.chunk._average_neighbour_patterns` (Wright et al. 2015) | `testNeighbourAveraging…` | window sums exact; values 1e-5 relative or 1e-4 grey levels; uint8 within one grey level on at most 0.2 % (Gaussian) or 2 % (integer-weight windows) of the pixels (measured on all patterns: 0.002 %, 0.14 %) | map borders read zeros; each sum divided by the in-map window weights truncated to an integer (SciPy's integer correlate); a 1 x 1 window changes nothing |
+
+### Known limits and decisions
+
+- D-SEM-67 (2026-11-06): the ports' choices — F4's input is the raw pattern; CLAHE keeps scikit-image's float32 accumulation; the
+  spatial FFT filter pads to the exact size; windows are 2D (`n x 1` for upstream's 1D shape); the averaging bound for integer
+  windows is 2 % of a pattern set. Full text in docs/decisions.md.
+- Figure F4 (plan.md): `tools/parity/sem/filter_figure.py` draws kikuchipy's filtered pattern (0, 0) beside the one the unit test
+  `testFigureF4PatternZeroAfterFFTFilter` writes to `$TMPDIR/macTEM-F4-ours.u8` (and prints as base64).
+
+## Hough indexing (figure F8)
+
+References: `tools/parity/sem/hough_cases.py` (pyEBSDindex 0.3.10.1 through kikuchipy 0.13.1, CPU path: pyopencl is not
+in the lock), bundles `m4/hough-library`, `m4/hough-nickel-block` and `m4/hough-indexing-nickel-large`, tests in
+`SEMHoughIndexingParityTests`. pyEBSDindex has no stated tolerance (its tests check that patterns index); it computes the
+Radon transform, the convolution, the votes and the trial rotations in float32 under numba fastmath, the reflector library
+and the QUEST fit in float64. TEMCore computes everything in float64 (D16); the line plan uses pyEBSDindex's float32
+angles so every Radon line holds the same pixels (exact counts). Methods: Krieger Lassen 1994 (Radon, band normals),
+Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST), Rowenhorst et al. 2024 (pyEBSDindex).
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `HoughReflectorLibrary` (pole families, variants, Cartesian normals, angle table, family pairs, triplet table; Laue codes and rotations) | `tripletvote.addphase`, `BandIndexer.build_trip_lib`, `crystal_sym`, `crystallometry.Crystal` | `testReflectorLibraries…`, `testLaueCodes…` | indices exact; poles and normals rtol 1e-7 (poles atol 1e-12); angles atol 1e-5° | triplet table ordered by (family key, angles), D-SEM-70 |
+| `HoughBandDetector` plan, mask, kernel, `radon`, `convolve` | `radon_fast.Radon.radon_plan_setup`, `radon_faster`; `band_detect.BandDetect.band_detect_setup`, `rdn_conv` | `testRadonPlanKernelAndTransform…` | counts, bins, mask exact; Radon rtol 1e-5 (atol 1e-4), convolution rtol 1e-5 (atol 2e-3); a flipped plan pixel (below) may move up to 6 lines and 1 % of the convolution, each within 5 grey levels | the stats window keeps pyEBSDindex's row bound (`shprdn[1]`), D-SEM-70 |
+| `HoughBandDetector.detect`, `normals` | `find_bands`, `rdn_local_max`, `band_label_numba`, `Radon.radon2pole` ("KIKUCHIPY") | `testBandsOfTheBlock…` | peak cells exact; sub-pixel peaks and rho 1e-3 px; theta and normals 1e-4; peak values rtol 1e-5; the bands of a pattern with a flipped plan pixel within 1 px and 1° | brief bound 1 px / 1° |
+| `HoughIndexer.tripletVote` | `BandIndexer._tripvote_numba` | `testTripletVote…` | counts and families exact; weighted votes and ranks rtol 1e-5 (atol 1e-3) | fed the reference normals |
+| `HoughIndexer.index` (`assignBands`, `quest`, confidence) | `bandindex`, `_assign_bands_nb2`, `_calc_quest_weights`, `_orientation_quest_nb`, `_calc_cm`, `EBSDIndexer._indexbandsphase` | `testBlockIsIndexed…` | matched bands, phase, total votes exact; fit atol 2e-3° (float32 arccos near 1), CM, PQ rtol 1e-5, IQ 1e-4 (one flipped-pixel pattern within 0.01 / 1 / 0.01); orientation < 0.01° (m-3m) | the matched variant compared by family, D-SEM-70 |
+| F8 end to end: `HoughIndexer.indexMap` on the app's corrected demo scan | `EBSD.hough_indexing` on kikuchipy's corrected scan | `testFigureF8…` | indexed count within 1; 99 % of points under 1°; matched-band count equal on 95 % | a float64 replica on kikuchipy's exact patterns: 4124 of 4124 within 1.3e-5°, every matched-band count equal |
+
+### Known limits and decisions
+
+- D-SEM-70 (2026-11-07): the port is float64 and orders ties stably where pyEBSDindex's float32 or quicksort order is
+  arbitrary; symmetry-equivalent trial rotations score equally, so the matched library variant may be another member of
+  the same family and the orientation another symmetry-equivalent quaternion: the tests hold families and
+  symmetry-reduced misorientations, not variant indices or raw quaternions. The vendor is fixed to "KIKUCHIPY" (Bruker
+  PCs in, the orix frame out), the one kikuchipy's `hough_indexing` uses; the rho mask fraction is limited to [0, 1)
+  (pyEBSDindex's erosion and circle modes above 1 and below 0 are refused, not ported).
+- The line plan rounds float32 sin and cos of the angle grid as pyEBSDindex does, but numpy's SIMD float32 sin/cos and
+  Apple's differ in the last ulp, so a line whose pixel rounding sits on a half takes the neighbouring pixel (2 of 16200
+  lines of the first block pattern on the CI Mac; counts stay exact). The tests allow these lines and what follows from
+  them within the brief's 1 px and 1°.
+- D-SEM-71 (2026-11-07): the result of a scan is `HoughIndexer.Map` (rotations as orix takes them, fit, CM, PQ, matched
+  bands per point) until the orix `CrystalMap` port (P3-03) is on main; carrying it into a `CrystalMap` is its own issue.
+- Speed: the CPU path indexes in parallel over a scan row; the F8 test prints the time of the 4125 patterns. The brief's
+  Metal path for the Radon transform is due only if a release build takes over 5 s on the 55 x 75 scan.
+- Figure F8: `tools/parity/sem/hough_figure.py` draws the reference IPF-Z map beside the one
+  `testFigureF8HoughIndexedMapOfTheDemoScan` prints (`F8 ours euler …` in the test log, passed with `--ours`) and their
+  misorientation.

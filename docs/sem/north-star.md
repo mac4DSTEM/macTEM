@@ -73,6 +73,15 @@ patterns (static then dynamic subtract) so a stage is checked alone:
 
 The fixture's nine patterns carry the same arrays in `m2/intensity-kikuchipy-h5ebsd`.
 
+The filters of the guide (plan figure F4 is the first row), each bundle also on the committed 3 x 3 cut
+(`m2/fft-filter-kikuchipy-h5ebsd`, `m2/clahe-kikuchipy-h5ebsd`, `m2/average-neighbours-kikuchipy-h5ebsd`):
+
+| Part | Reference | Bundle | Arrays and tolerance |
+| --- | --- | --- | --- |
+| Pattern (0, 0) through the Gaussian lowpass (cutoff 22, width 10) x highpass (cutoff 3, width 2) transfer function, `shift=True` | `EBSD.fft_filter(function_domain="frequency")` | `m2/fft-filter-nickel-ebsd-large` | `frequency_shift` uint8 [1, 1, 60, 60], atol 1; `frequency_shift_values` rtol 1e-5, atol 1e-3; the windows rtol 1e-12; the same with `shift=False`, a 5 x 5 Gaussian (std 1) and a 3 x 4 asymmetric kernel in the spatial domain |
+| Pattern (0, 0) after CLAHE: kikuchipy's default (kernel 15 x 15, clip 0, 128 bins), (10, 12) / 0.01 / 64, (7, 7) / 0.05 / 256 | `EBSD.adaptive_histogram_equalization` | `m2/clahe-nickel-ebsd-large` | uint8 [1, 1, 60, 60], exact |
+| The scan's 3 x 3 corner averaged with its neighbours: circular 3 x 3 (default), Gaussian 3 x 3 (std 1), rectangular 1 x 3 | `EBSD.average_neighbour_patterns` | `m2/average-neighbours-nickel-ebsd-large` | uint8 [3, 3, 60, 60], atol 1; values rtol 1e-5, atol 1e-4; window sums exact |
+
 Plan figure F3, the image quality and average neighbour dot product maps of the corrected scan (kikuchipy *Feature maps*):
 
 | Part | Reference | Bundle | Arrays and tolerance |
@@ -139,6 +148,12 @@ master pattern (`ni_mc_mp_20kv.h5`, manual fetch), and after orientation and PC 
 indexed Euler angles, the normalised cross-correlation scores and the orientation-similarity map. Tolerance: the
 tutorials state none; the misorientation between our map and the reference is held under 1° per point for 99 % of
 points, and the score arrays within rtol 1e-5 (the pattern matching runs in float32).
+
+| Part | Reference | Bundle | Arrays and tolerance |
+| --- | --- | --- | --- |
+| The reflector libraries of Ni (FCC, the default {002} {111} {022} {113}, early exit 10), a BCC and an HCP phase: variants, unit normals, family ids, the variant angle table, family-pair angles, the triplet table | `tripletvote.addphase`, `BandIndexer.build_trip_lib` | `m4/hough-library` | indices and hkl exact; normals rtol 1e-7; angles rtol 1e-7, atol 1e-5° (arccos at 1) |
+| Every stage on a 6 x 6 block of the corrected scan (rows 20 to 25, columns 30 to 35; kikuchipy's uint8 patterns stored): line plan, Radon mask, kernel, the Radon transform and its convolution of pattern (20, 30), the band table of all 36 patterns, band normals, the triplet vote, the indexing result | `radon_fast.Radon`, `band_detect.BandDetect`, `Radon.radon2pole`, `BandIndexer.bandindex`, `EBSDIndexer.index_pats` (CPU), vendor "KIKUCHIPY", nBands 10, tSigma 2, rSigma 2 | `m4/hough-nickel-block` | plan, mask, peak cells, valid flags, vote counts and families, matched-band counts exact; Radon arrays rtol 1e-5 (atol 1e-4, 2e-3); peaks 1e-3 px; theta and normals 1e-4; fit, CM, PQ rtol 1e-5; orientations under 1e-3° (symmetry-reduced) |
+| F8: the Hough-indexed IPF-Z map of the whole scan (Ni, PC the file's mean, kikuchipy's docs background chain) | `EBSD.hough_indexing` | `m4/hough-indexing-nickel-large` | 4124 of 4125 points indexed; the app's chain: indexed count within one point, 99 % of points under 1° (symmetry-reduced), matched-band counts equal on 95 % |
 
 ### Figure 5 (milestone 5): maps and grains
 
