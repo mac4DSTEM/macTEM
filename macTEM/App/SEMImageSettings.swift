@@ -1,9 +1,8 @@
 //
 //  SEMImageSettings.swift
-//  Role: the one document-independent switch of the SEM image reading: whether the vendor's databar is cut off the bottom of a
-//        Thermo or Tescan TIFF when it opens (on by default: the room shows the scan; off shows the whole frame, bar included).
-//        Kept in UserDefaults so it holds across launches, read by the reader off the main actor (`AppState.read`), set by the
-//        Calibration section's switch, which then reads the selected file again (`OpenItems.reread`).
+//  Role: the one document-independent switch of the SEM image display: whether the databar the vendor drew under a Thermo or
+//        Tescan scan is hidden (on by default) or shown as a strip under the picture (`ImagePane`). The picture itself is always
+//        the scan alone (`AppState.read`). Kept in UserDefaults so it holds across launches; set by Display's `Databar` control.
 //
 
 import Foundation

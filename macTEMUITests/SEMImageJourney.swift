@@ -2,7 +2,8 @@
 //  SEMImageJourney.swift
 //  The Image room on the demo SEM image (a Thermo-style TIFF, 512 x 471 with a 29-row databar; design §9): the Info tab's Acquisition
 //  section names the detector, the HV and the databar; the Display section's `Databar · Hide · Show` is on Hide and the Size row says the
-//  scan alone (442 rows); Show gives the whole frame (471 rows), Hide the scan again.
+//  scan alone (442 rows); Show draws the 29 rows as a strip under the picture while the image stays the scan (442 rows), Hide
+//  removes the strip again. Each step's screenshot is the record of the strip for the taste check.
 //
 
 import XCTest
@@ -36,17 +37,23 @@ nonisolated final class SEMImageJourney: Journey {
             XCTAssertTrue((waitFor("image.sem.databar").value as? String)?.contains("29 rows") == true)
             XCTAssertTrue(app.staticTexts["512 × 442 px"].firstMatch.waitForExistence(timeout: 10), "the Size row is the scan alone")
         }
-        try step("Show gives the whole frame") {
+        try step("Show draws the databar as a strip under the picture") {
             settingsTab()
             waitFor("image.sem.databar", timeout: 20).radioButtons["Show"].click()
+            let strip = waitFor("image.sem.databarStrip", timeout: 20)
+            let picture = waitFor("image.view")
+            XCTAssertEqual(strip.frame.width, picture.frame.width, accuracy: 1, "the strip is as wide as the picture")
+            XCTAssertEqual(strip.frame.minY, picture.frame.maxY, accuracy: 1, "the strip sits right under the picture")
+            XCTAssertGreaterThan(strip.frame.height, 0)
             infoTab()
-            XCTAssertTrue(app.staticTexts["512 × 471 px"].firstMatch.waitForExistence(timeout: 30), "the databar is back")
+            XCTAssertTrue(app.staticTexts["512 × 442 px"].firstMatch.waitForExistence(timeout: 10), "the image stays the scan alone")
         }
-        try step("Hide gives the scan again") {
+        try step("Hide removes the strip") {
             settingsTab()
             waitFor("image.sem.databar", timeout: 20).radioButtons["Hide"].click()
+            XCTAssertTrue(element("image.sem.databarStrip").waitForNonExistence(timeout: 10))
             infoTab()
-            XCTAssertTrue(app.staticTexts["512 × 442 px"].firstMatch.waitForExistence(timeout: 30))
+            XCTAssertTrue(app.staticTexts["512 × 442 px"].firstMatch.waitForExistence(timeout: 10))
         }
     }
 }
