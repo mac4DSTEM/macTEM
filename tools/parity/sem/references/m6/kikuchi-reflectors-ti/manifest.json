@@ -1,0 +1,293 @@
+{
+  "arrays": {
+    "dspacing": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "dspacing.bin",
+      "rtol": 1e-07,
+      "sha256": "c79d8c5ee2d15c24781dcc734cefa1021d50d552f234cdceba5ee2272061cf30",
+      "shape": [
+        38
+      ]
+    },
+    "min_dspacing_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "min_dspacing_hkl.bin",
+      "note": "diffsims' order (the index product reversed, (000) removed, d >= min)",
+      "rtol": 0.0,
+      "sha256": "b6197a0ad5896c445c802f6199b549dbe7a418ae770c47cd477148e8899fbedc",
+      "shape": [
+        96,
+        3
+      ]
+    },
+    "multiplicity": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "multiplicity.bin",
+      "rtol": 0.0,
+      "sha256": "48f7527a94a48e4cc14aef01e5836bafc83f1b286a4ee1cb7fa68a87e7a53449",
+      "shape": [
+        5
+      ]
+    },
+    "structure_factor_abs": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "structure_factor_abs.bin",
+      "rtol": 1e-07,
+      "sha256": "18404d30041e1aa43b9c70bdd9d18972eb3e33dded7bd22d34da15c6b66d7cc8",
+      "shape": [
+        38
+      ]
+    },
+    "symmetrised_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "symmetrised_hkl.bin",
+      "note": "diffsims' order: family by family, orix's operation order",
+      "rtol": 0.0,
+      "sha256": "32e9f5ac2e7e766f6af93ef0e4aa53b641464ea047c77f575c42853c83447153",
+      "shape": [
+        38,
+        3
+      ]
+    },
+    "symmetrised_hkl_float": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "symmetrised_hkl_float.bin",
+      "rtol": 1e-07,
+      "sha256": "c952253560d955ad97907f29890427282678c522e9f4299dcb47caaef5f17140",
+      "shape": [
+        38,
+        3
+      ]
+    },
+    "theta": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "theta.bin",
+      "note": "voltage, reflector (symmetrised_hkl), radians",
+      "rtol": 1e-07,
+      "sha256": "fcee7352149529786c3551e6454e984c45a506b0af3a8c22de2590b52fed7c8a",
+      "shape": [
+        3,
+        38
+      ]
+    },
+    "wavelength_nm": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "wavelength_nm.bin",
+      "note": "refraction-corrected, per voltage",
+      "rtol": 1e-07,
+      "sha256": "89b0bbbd785b19fab783a4e198db53c34435fe1f709af6ffec44147f847cbfd1",
+      "shape": [
+        3
+      ]
+    }
+  },
+  "case": "m6/kikuchi-reflectors-ti",
+  "inputs": [
+    {
+      "path": "fixtures/simulation_cases.json",
+      "sha256": "53ac4cc181b31ba459c94fc5ee11e78f387778d1e297fc3b86110759dc02b0dd"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "diffsims.crystallography.ReciprocalLatticeVector symmetrise / from_min_dspacing / allowed / dspacing / calculate_structure_factor / calculate_theta",
+    "package": "diffsims",
+    "version": "0.7.0"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "allowed": "diffsims raises NotImplementedError for a primitive hexagonal lattice",
+    "cell_atoms": [
+      [
+        "Ti",
+        [
+          0.5773502691896395,
+          0.5773502691896533,
+          0.24999999999999994
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ti",
+        [
+          0.42264973081034674,
+          0.9999999999999862,
+          0.24999999999999994
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ti",
+        [
+          1.3757152851550375e-14,
+          0.4226497308103605,
+          0.24999999999999994
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ti",
+        [
+          0.4226497308103605,
+          0.42264973081034674,
+          0.7499999999999999
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ti",
+        [
+          0.5773502691896533,
+          1.3766765505351941e-14,
+          0.7499999999999999
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ti",
+        [
+          0.9999999999999862,
+          0.5773502691896395,
+          0.7499999999999999
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ti",
+        [
+          0.5773502691896533,
+          0.5773502691896395,
+          0.7499999999999999
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ti",
+        [
+          0.9999999999999862,
+          0.42264973081034674,
+          0.7499999999999999
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ti",
+        [
+          0.4226497308103605,
+          1.3766765505351941e-14,
+          0.7499999999999999
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ti",
+        [
+          0.42264973081034674,
+          0.4226497308103605,
+          0.24999999999999997
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ti",
+        [
+          1.3753634376061215e-14,
+          0.5773502691896533,
+          0.24999999999999997
+        ],
+        1.0,
+        0.0
+      ],
+      [
+        "Ti",
+        [
+          0.5773502691896395,
+          0.9999999999999862,
+          0.24999999999999997
+        ],
+        1.0,
+        0.0
+      ]
+    ],
+    "centering": "P",
+    "diffsims": "0.7.0",
+    "families": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        2
+      ],
+      [
+        1,
+        0,
+        1
+      ],
+      [
+        1,
+        0,
+        2
+      ],
+      [
+        1,
+        1,
+        0
+      ]
+    ],
+    "first_orbit_element": "Ti",
+    "first_orbit_size": 12,
+    "lattice": [
+      2.9508,
+      2.9508,
+      4.6855,
+      90.0,
+      90.0,
+      120.0
+    ],
+    "min_dspacing": 1.2,
+    "phase": "ti",
+    "point_group": "6/mmm",
+    "space_group": 194,
+    "voltages": [
+      10000.0,
+      20000.0,
+      30000.0
+    ]
+  }
+}

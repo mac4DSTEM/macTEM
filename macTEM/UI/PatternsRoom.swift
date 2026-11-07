@@ -2,7 +2,8 @@
 //  PatternsRoom.swift
 //  Role: the Patterns room (docs/sem/design/ebsd-patterns-room.md §3, §6): the scan map on the left (the mean intensity of every pattern,
 //        one pixel per scan point, a crosshair at the pinned position, the scale bar from the step) and the live pattern pane on the right
-//        (the pattern under the pointer while it hovers the map, the pinned one otherwise), split by MacEMUI's `PaneSplit`. Each picture is
+//        (the pattern under the pointer while it hovers the map, the pinned one otherwise, with the simulation overlay when it is on), split by
+//        MacEMUI's `PaneSplit`. Each picture is
 //        a `MetalImageView` under the shell's `zoomPan` modifiers, drawn as the Image room draws its canvas (`ImagePane`): the Metal view stays pane-sized
 //        and the shader applies the zoom. The room has its own document, the dataset, held by `EBSDSession` (TEMSession); the
 //        Calibration, Display and Export sections are the inspector's (`PatternsRoomInspector.swift`). Presentation only: every number on
@@ -358,6 +359,10 @@ struct LivePatternPane: View {
                 .font(.headline).lineLimit(1)
                 .accessibilityIdentifier("patterns.pattern.title")
             Spacer(minLength: 8)
+            if case .failure(let absence)? = session.overlay {
+                Text(absence.sentence).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    .accessibilityIdentifier("patterns.overlay.absence")
+            }
             Text(verbatim: "\(dataset.patternColumns) × \(dataset.patternRows)")
                 .help("Pattern columns × rows, in detector pixels")
                 .font(.caption.monospaced()).foregroundStyle(.secondary).fixedSize()
@@ -384,6 +389,10 @@ struct LivePatternPane: View {
                 if session.virtualGrid.tileCount > 1 {
                     DetectorGridOverlay(grid: session.virtualGrid, dataset: dataset, geometry: geometry, mixTiles: session.mixTiles, shown: shownTile)
                         .allowsHitTesting(false)
+                }
+                // The geometrical Kikuchi simulation of the shown position's orientation (PatternsSimulationOverlay.swift).
+                if case .success(let overlay)? = session.overlay {
+                    KikuchiOverlayLayer(pattern: overlay, settings: session.overlaySettings, geometry: geometry, size: box)
                 }
             }
             .frame(width: box.width, height: box.height)
