@@ -2,8 +2,8 @@
 //  EBSDOpening.swift
 //  Role: what the Patterns room opens: the file extensions the Open panel offers, a drop takes and the app declares, and one call that
 //        reads a dataset with its pattern reader. The h5ebsd family is `EBSDH5Reader`'s; the vendors' binary pattern files go through
-//        their doors (`EDAXOpening` for `.up1`/`.up2` with the `.ang` beside them, `OxfordOpening` for `.ebsp` with the `.ctf`, `NORDIFOpening` for `Pattern.dat` with its `Setting.txt`), which pair the
-//        map next to the patterns by name. A map file opened on its own opens the patterns of the same name next to it, or is refused.
+//        their doors (`EDAXOpening` for `.up1`/`.up2` with the `.ang` beside them, `OxfordOpening` for `.ebsp` with the `.ctf`,
+//        `NORDIFOpening` for `Pattern.dat` with its `Setting.txt`), which pair the map or settings next to the patterns by name. A map file opened on its own opens the patterns of the same name next to it, or is refused.
 //
 
 import Foundation
