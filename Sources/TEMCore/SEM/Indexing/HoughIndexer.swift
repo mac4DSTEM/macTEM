@@ -49,6 +49,9 @@ package nonisolated struct HoughIndexer: Sendable {
         /// Per band: the matched library variant (-1 none) and the angle (degrees) to it after the fit (180 none).
         package var bandMatch: [Int] = []
         package var bandFit: [Double] = []
+
+        /// The not-indexed solution.
+        package init() {}
     }
 
     /// The vote of one pattern for one phase (`_tripvote_numba`), kept for the parity tests.
@@ -446,6 +449,10 @@ package nonisolated struct HoughIndexer: Sendable {
         package var scanRows: Int
         package var scanColumns: Int
         package var solutions: [Solution]
+
+        package init(scanRows: Int, scanColumns: Int, solutions: [Solution]) {
+            self.scanRows = scanRows; self.scanColumns = scanColumns; self.solutions = solutions
+        }
 
         /// The fraction of points indexed (phase >= 0).
         package var indexedFraction: Double {
