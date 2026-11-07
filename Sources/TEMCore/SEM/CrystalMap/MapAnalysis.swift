@@ -308,11 +308,18 @@ package nonisolated struct MapAnalysis: Sendable {
     }
 
     /// The outline of grain `number`: every edge between one of its points and a point that is not (the map's border included).
-    package func outline(of number: Int) -> [(SIMD2<Double>, SIMD2<Double>)] {
+    package func outline(of number: Int) -> [(SIMD2<Double>, SIMD2<Double>)] { outline(of: [number]) }
+
+    /// The outlines of several grains in one pass over the map: every edge between a point of one of them and a point of another grain
+    /// or of none (two selected neighbours keep the edge between them).
+    package func outline(of numbers: Set<Int>) -> [(SIMD2<Double>, SIMD2<Double>)] {
+        guard !numbers.isEmpty else { return [] }
         let g = grains.segmentation.grainMap
         var out: [(SIMD2<Double>, SIMD2<Double>)] = []
         for r in 0..<rows {
-            for c in 0..<columns where g[r * columns + c] == number {
+            for c in 0..<columns {
+                let number = g[r * columns + c]
+                guard numbers.contains(number) else { continue }
                 let x = Double(c), y = Double(r)
                 if c + 1 >= columns || g[r * columns + c + 1] != number { out.append((SIMD2(x + 0.5, y - 0.5), SIMD2(x + 0.5, y + 0.5))) }
                 if c == 0 || g[r * columns + c - 1] != number { out.append((SIMD2(x - 0.5, y - 0.5), SIMD2(x - 0.5, y + 0.5))) }
@@ -321,6 +328,47 @@ package nonisolated struct MapAnalysis: Sendable {
             }
         }
         return out
+    }
+
+    // MARK: Histograms (macTEM#239)
+
+    /// The Histogram tab's distributions: KAM per point (°), GOS per grain (°), equivalent circle diameter per grain (scan unit).
+    package enum HistogramKind: String, CaseIterable, Sendable, Hashable {
+        case kam = "KAM"
+        case gos = "GOS"
+        case grainSize = "Grain size"
+    }
+
+    /// The values a histogram counts: every finite KAM of the map, or one value per grain of the table.
+    package func histogramValues(_ kind: HistogramKind) -> [Double] {
+        switch kind {
+        case .kam: grains.kam.filter(\.isFinite).map { $0 * 180 / Double.pi }
+        case .gos: table.map(\.gosDegrees).filter(\.isFinite)
+        case .grainSize: table.map(\.diameter).filter(\.isFinite)
+        }
+    }
+
+    /// The value one grain contributes to a per-grain histogram (nil for KAM, which is per point).
+    package func histogramValue(_ kind: HistogramKind, of row: GrainRow) -> Double? {
+        switch kind {
+        case .kam: nil
+        case .gos: row.gosDegrees
+        case .grainSize: row.diameter
+        }
+    }
+
+    /// `numpy.histogram` of the values over `bins` equal bins: KAM from 0 to the KAM maximum (the values it can take), GOS and grain
+    /// size from 0 to their largest value (1 when every value is 0).
+    package func histogram(_ kind: HistogramKind, bins: Int = 40) -> AngleHistogram {
+        let values = histogramValues(kind)
+        let top: Double
+        switch kind {
+        case .kam: top = settings.kamMaxDegrees
+        case .gos, .grainSize: top = values.max().map { $0 > 0 ? $0 : 1 } ?? 1
+        }
+        let n = max(bins, 1)
+        let edges = (0...n).map { top * Double($0) / Double(n) }
+        return AngleHistogram(values: values, edges: edges)
     }
 
     // MARK: Slip
@@ -393,6 +441,26 @@ package nonisolated struct MapTexture: Sendable {
         package let raster: TextureRaster
         /// The figure's largest density (multiples of a random distribution).
         package let maximum: Double
+        /// A pole figure's crystal directions (the family's symmetry-equivalent poles); empty for the IPF density and an ODF section.
+        package var poles: [SIMD3<Double>] = []
+    }
+
+    /// Where `orientations` (lab to crystal) put a pole figure's poles, in the figure's unit square (0, 0 the top-left corner, as its
+    /// raster is drawn): each pole turned into the sample frame, folded onto the upper hemisphere (a pole is an axis) and projected as
+    /// `TextureRaster.stereographic` projects the unit disk. Empty for a figure without poles.
+    package static func poleMarkers(_ figure: Figure, orientations: [SIMD4<Double>]) -> [SIMD2<Double>] {
+        guard !figure.poles.isEmpty else { return [] }
+        var out: [SIMD2<Double>] = []
+        for q in orientations {
+            let inverse = Rotation(q).inverse
+            for p in figure.poles {
+                var v = inverse * p
+                if v.z < 0 { v = -v }
+                let xy = StereographicProjection.project(v, pole: -1)
+                out.append(SIMD2((xy.x + 1) / 2, (1 - xy.y) / 2))
+            }
+        }
+        return out
     }
 
     package let phaseID: Int
@@ -442,7 +510,8 @@ package nonisolated struct MapTexture: Sendable {
         for family in families(for: group) {
             let vectors = try PoleFigures.poles(family: family.indices, lattice: lattice, group: group)
             let density = PoleFigures.poleFigure(orientations, poles: vectors, sigma: sigma)
-            poles.append(Figure(title: family.title, raster: TextureRaster.stereographic(density, size: size), maximum: density.maximum))
+            poles.append(Figure(title: family.title, raster: TextureRaster.stereographic(density, size: size), maximum: density.maximum,
+                                poles: vectors))
         }
         let key = DirectionColorKeyTSL(group)
         let ipf = PoleFigures.inversePoleFigure(orientations, laue: group.laue, sigma: sigma)

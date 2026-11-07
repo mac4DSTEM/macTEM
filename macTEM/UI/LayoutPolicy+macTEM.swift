@@ -59,4 +59,7 @@ extension LayoutPolicy {
     static let mapsBoundaryLineWidth: CGFloat = 1
     static let mapsOutlineLineWidth: CGFloat = 2
     static let mapsTraceLineWidth: CGFloat = 1.5
+    /// A selected grain's pole on a pole figure: a ring this radius (points), and the room under the histogram's bars for the ticks.
+    static let mapsPoleMarkerRadius: CGFloat = 3.5
+    static let mapsHistogramTickHeight: CGFloat = 8
 }

@@ -271,4 +271,103 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         state.exportMap(from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported ebsd-sdss-ferrite-austenite map Grains.png"])
     }
+
+    // MARK: - macTEM#239: histograms, several grains, poles of the selection
+
+    func testTheHistogramsCountEveryKAMAndEveryGrain() throws {
+        let map = try ANGReader.read(url: Self.sdss).map
+        let analysis = try MapAnalysis.run(map, settings: Self.defdap)
+        let kam = analysis.histogram(.kam)
+        XCTAssertEqual(kam.edges.count, 41)
+        XCTAssertEqual(kam.edges.first, 0)
+        XCTAssertEqual(try XCTUnwrap(kam.edges.last), Self.defdap.kamMaxDegrees, accuracy: 1e-12)
+        // KAM drops neighbours above the maximum, so every finite KAM is within it and counted.
+        XCTAssertEqual(kam.counts.reduce(0, +), analysis.grains.kam.filter(\.isFinite).count)
+        let gos = analysis.histogram(.gos)
+        XCTAssertEqual(gos.counts.reduce(0, +), analysis.table.filter { $0.gosDegrees.isFinite }.count)
+        let size = analysis.histogram(.grainSize, bins: 10)
+        XCTAssertEqual(size.counts.count, 10)
+        XCTAssertEqual(size.counts.reduce(0, +), analysis.table.count)
+        XCTAssertEqual(try XCTUnwrap(size.edges.last), try XCTUnwrap(analysis.table.map(\.diameter).max()), accuracy: 1e-12)
+        let row = try XCTUnwrap(analysis.table.first)
+        XCTAssertEqual(analysis.histogramValue(.grainSize, of: row), row.diameter)
+        XCTAssertNil(analysis.histogramValue(.kam, of: row))
+        let csv = MapsRoomFormat.histogramCSV(.gos, histogram: gos, unit: "deg")
+        XCTAssertEqual(csv.split(separator: "\n").count, 1 + gos.counts.count)
+        XCTAssertTrue(csv.hasPrefix("gos_low_deg,gos_high_deg,count\n"))
+    }
+
+    func testTheOutlineOfSeveralGrainsIsOnePass() throws {
+        let map = try ANGReader.read(url: Self.sdss).map
+        let analysis = try MapAnalysis.run(map, settings: Self.defdap)
+        let ids = Array(analysis.table.prefix(3).map(\.id))
+        let together = analysis.outline(of: Set(ids))
+        let apart = ids.reduce(0) { $0 + analysis.outline(of: $1).count }
+        XCTAssertEqual(together.count, apart, "each grain's own edges, neighbours' shared edges kept on both sides")
+        XCTAssertTrue(analysis.outline(of: Set<Int>()).isEmpty)
+    }
+
+    func testTheSelectedGrainsPolesLandWhereTheProjectionPutsThem() throws {
+        let map = try ANGReader.read(url: Self.sdss).map
+        let phase = try XCTUnwrap(map.phases.entries.first { $0.id != PhaseList.notIndexedID })
+        let texture = try MapTexture.compute(map, phaseID: phase.id, size: 31)
+        let cube = try XCTUnwrap(texture.poleFigures.first)
+        XCTAssertEqual(cube.title, "{100}")
+        XCTAssertFalse(cube.poles.isEmpty)
+        // The identity orientation puts {100} on the centre (z) and the rim's right, left, top and bottom (x, y, folded up).
+        let markers = MapTexture.poleMarkers(cube, orientations: [SIMD4(1, 0, 0, 0)])
+        XCTAssertEqual(markers.count, cube.poles.count)
+        let expected: [SIMD2<Double>] = [SIMD2(0.5, 0.5), SIMD2(1, 0.5), SIMD2(0, 0.5), SIMD2(0.5, 0), SIMD2(0.5, 1)]
+        for m in markers {
+            XCTAssertTrue(expected.contains { (($0 - m) * ($0 - m)).sum() < 1e-18 }, "\(m)")
+        }
+        XCTAssertTrue(markers.contains { (($0 - SIMD2(0.5, 0.5)) * ($0 - SIMD2(0.5, 0.5))).sum() < 1e-18 })
+        // The IPF density and ODF sections carry no poles.
+        XCTAssertTrue(MapTexture.poleMarkers(try XCTUnwrap(texture.inversePoleFigure), orientations: [SIMD4(1, 0, 0, 0)]).isEmpty)
+    }
+
+    @MainActor func testCommandClickAndTheTableSelectSeveralGrains() async throws {
+        let session = OrientationMapSession()
+        await session.open(url: Self.sdss).value
+        session.setAnalysisSettings(Self.defdap)
+        await session.segment().value
+        let analysis = try XCTUnwrap(session.analysis)
+        let rows = Array(analysis.table.sorted { $0.points > $1.points }.prefix(3))
+        func point(of row: GrainRow) -> EBSDPosition {
+            let p = analysis.grains.segmentation.grains[row.id - 1].points[0]
+            return EBSDPosition(row: p / analysis.columns, column: p % analysis.columns)
+        }
+        session.pin(point(of: rows[0]))
+        XCTAssertEqual(session.selectedGrains, [rows[0].id])
+        session.toggleGrain(at: point(of: rows[1]))
+        XCTAssertEqual(session.selectedGrains, [rows[0].id, rows[1].id])
+        XCTAssertEqual(session.selectedGrain, rows[1].id, "the grain added is the one the Slip section shows")
+        XCTAssertEqual(session.selectedOutline.count, analysis.outline(of: Set([rows[0].id, rows[1].id])).count)
+        session.toggleGrain(at: point(of: rows[1]))
+        XCTAssertEqual(session.selectedGrains, [rows[0].id])
+        XCTAssertEqual(session.selectedGrain, rows[0].id)
+
+        session.selectGrains(Set(rows.map(\.id)))
+        XCTAssertEqual(session.selectedGrains, Set(rows.map(\.id)))
+        XCTAssertEqual(session.selectedRows.map(\.id), rows.map(\.id).sorted())
+        session.selectGrains([rows[2].id])
+        XCTAssertEqual(session.selectedGrains, [rows[2].id])
+        XCTAssertEqual(analysis.grain(atRow: session.pinned.row, column: session.pinned.column), rows[2].id, "one row pins its grain")
+        // A plain click goes back to one grain.
+        session.pin(point(of: rows[0]))
+        XCTAssertEqual(session.selectedGrains, [rows[0].id])
+    }
+
+    @MainActor func testTheHistogramExportsAsCSV() async throws {
+        let session = OrientationMapSession()
+        await session.open(url: Self.sdss).value
+        await session.segment().value
+        let state = MapsRoomState()
+        state.histogramKind = .gos
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("maps-histogram-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var reports: [String] = []
+        state.exportHistogram(from: session, directory: dir) { reports.append($0) }
+        XCTAssertEqual(reports, ["Exported ebsd-sdss-ferrite-austenite histogram GOS.csv"])
+    }
 }

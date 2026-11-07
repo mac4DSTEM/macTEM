@@ -32,6 +32,8 @@ final class MapsRoomState {
     private(set) var exportType = UTType.png
     /// The bottom pane's tab.
     var bottomTab = MapsBottomTab.key
+    /// What the Histogram tab counts.
+    var histogramKind = MapAnalysis.HistogramKind.kam
     /// The export the save panel is writing, as the session record keeps it once the panel says where (`didWrite`).
     @ObservationIgnored private(set) var pendingRecord: SEMExportedFile?
     /// Told of every file the room writes (`AppState` keeps it in the session record for the Results room and the report).
@@ -78,6 +80,26 @@ final class MapsRoomState {
         if !session.slip.isEmpty { fields.append(SEMSessionField("Load", "Sample \(session.loadDirection.rawValue.uppercased())")) }
         let record = SEMExportedFile(room: "Maps", what: "Grains CSV", source: document.fileName, fields: fields,
                                      methods: [.orientationMap, .grains, .gos] + (session.slip.isEmpty ? [] : [.schmid]))
+        write(Data(csv.utf8), name: name, type: .commaSeparatedText, record: record, directory: directory, report: report)
+    }
+
+    /// The Histogram tab's distribution as CSV.
+    @MainActor func exportHistogram(from session: OrientationMapSession, directory: URL? = nil, report: (String) -> Void) {
+        guard let document = session.document, let analysis = session.analysis else {
+            report("Nothing to export yet: segment the map first."); return
+        }
+        let kind = histogramKind
+        let unit = kind == .grainSize ? analysis.scanUnit : "deg"
+        let name = (document.fileName as NSString).deletingPathExtension + " histogram " + kind.rawValue
+        let csv = MapsRoomFormat.histogramCSV(kind, histogram: analysis.histogram(kind), unit: unit)
+        let methods: [SEMMethod] = switch kind {
+        case .kam: [.orientationMap, .kam]
+        case .gos: [.orientationMap, .grains, .gos]
+        case .grainSize: [.orientationMap, .grains]
+        }
+        let record = SEMExportedFile(room: "Maps", what: "Histogram CSV", source: document.fileName,
+                                     fields: [SEMSessionField("Histogram", kind.rawValue)] + MapsRoomFormat.analysisFields(analysis.settings),
+                                     methods: methods)
         write(Data(csv.utf8), name: name, type: .commaSeparatedText, record: record, directory: directory, report: report)
     }
 
@@ -274,6 +296,27 @@ nonisolated enum MapsRoomFormat {
         case .gnd: "Geometrically necessary dislocation density, log₁₀ m⁻²: DefDAP's Nye-tensor estimate from the primary phase's structure."
         case .schmid: "Each grain's largest Schmid factor for a load along sample \(load.rawValue.uppercased()), from its mean orientation and the Slip section's systems."
         }
+    }
+
+    /// "KAM · 11700 points · mean ≈ 0.62 ° · 40 bins": what the histogram counts and its centre.
+    static func histogramCaption(_ kind: MapAnalysis.HistogramKind, histogram: AngleHistogram, unit: String) -> String {
+        let n = histogram.counts.reduce(0, +)
+        let what = kind == .kam ? "points" : "grains"
+        guard n > 0 else { return "\(kind.rawValue) · no values" }
+        // The centre from the bins (each value at its bin's middle), the precision the bars show.
+        var sum = 0.0
+        for (k, c) in histogram.counts.enumerated() { sum += Double(c) * (histogram.edges[k] + histogram.edges[k + 1]) / 2 }
+        return "\(kind.rawValue) · \(n) \(what) · mean ≈ \(number(sum / Double(n))) \(unit) · \(histogram.counts.count) bins"
+    }
+
+    /// The histogram as CSV: one line per bin, its edges and its count.
+    static func histogramCSV(_ kind: MapAnalysis.HistogramKind, histogram: AngleHistogram, unit: String) -> String {
+        let name = kind.rawValue.lowercased().replacingOccurrences(of: " ", with: "_")
+        var lines = ["\(name)_low_\(unit),\(name)_high_\(unit),count"]
+        for (k, c) in histogram.counts.enumerated() {
+            lines.append(String(format: "%.6g,%.6g,%d", histogram.edges[k], histogram.edges[k + 1], c))
+        }
+        return lines.joined(separator: "\n") + "\n"
     }
 
     /// The texture tab's caption: the points it used and the kernel.
