@@ -8,6 +8,43 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). App
 - **Runs on macOS 26** (was macOS 27) on Apple silicon. MacEMUI 0.3.2. CI builds and runs the unit tests, on Xcode 26.6.
 - Exports no longer carry internal milestone ids: the `validation` and `lineage` text in PNG metadata, FFT CSVs and the line profile and measurement CSVs names what each number is checked against (numpy, scikit-image, ImagoKit's parity tests), without "V1-…" or "until V1-2".
 
+## [2.0.0](https://github.com/mac4DSTEM/macTEM/compare/v1.3.0...v2.0.0) (2026-11-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* every EBSD reader hands its orientation map over as CrystalMap ([#182](https://github.com/mac4DSTEM/macTEM/issues/182))
+
+### Features
+
+* crystal map model and the neighbour misorientation histogram (figure F7) against orix ([#167](https://github.com/mac4DSTEM/macTEM/issues/167)) ([5904d76](https://github.com/mac4DSTEM/macTEM/commit/5904d762371892b937255731b93f827781f9736e))
+* denoise EBSD patterns with NLPAR as pyebsdindex does ([#156](https://github.com/mac4DSTEM/macTEM/issues/156)) ([157047d](https://github.com/mac4DSTEM/macTEM/commit/157047d10c862739cb0b0c821963c580c86a7e1c))
+* denoise the scan with NLPAR as the last Process stage in the Patterns room ([#194](https://github.com/mac4DSTEM/macTEM/issues/194)) ([1d90c28](https://github.com/mac4DSTEM/macTEM/commit/1d90c28d3136d1c20aeb077a65edc68999335143))
+* EBSD and TKD detector geometry and the moving-screen projection centre against kikuchipy (figure F5) ([#152](https://github.com/mac4DSTEM/macTEM/issues/152)) ([94db1d5](https://github.com/mac4DSTEM/macTEM/commit/94db1d5a00d02f060f1f3a2396cfe806df196ed8))
+* every EBSD reader hands its orientation map over as CrystalMap ([#182](https://github.com/mac4DSTEM/macTEM/issues/182)) ([7bbbea0](https://github.com/mac4DSTEM/macTEM/commit/7bbbea0e3bda6ee8243113726801e213d53c1b2f))
+* filter EBSD patterns: FFT filters, CLAHE and neighbour averaging as kikuchipy does ([#158](https://github.com/mac4DSTEM/macTEM/issues/158)) ([8acb82e](https://github.com/mac4DSTEM/macTEM/commit/8acb82e68d3fc7b9943769fb17922b2ac7d49bbf))
+* grains, boundaries, neighbour network, KAM, GROD and GOS of EBSD maps against DefDAP 1.3.1 (figures F11, F12) ([#187](https://github.com/mac4DSTEM/macTEM/issues/187)) ([5f320aa](https://github.com/mac4DSTEM/macTEM/commit/5f320aa0528a9d9dcb5b95408878ed37cf98a08a))
+* image quality and average dot product maps in the Patterns room's Map picker (figure F3) ([#191](https://github.com/mac4DSTEM/macTEM/issues/191)) ([41dcc4e](https://github.com/mac4DSTEM/macTEM/commit/41dcc4e87694fcf5a3fc2375a302e737f9a4983f))
+* image quality and average neighbour dot product maps of EBSD scans (figure F3) ([#150](https://github.com/mac4DSTEM/macTEM/issues/150)) ([895f943](https://github.com/mac4DSTEM/macTEM/commit/895f943cd4799883d64823b65691306bcb195201))
+* open NORDIF Pattern.dat in the Patterns room ([#175](https://github.com/mac4DSTEM/macTEM/issues/175)) ([5bb3dac](https://github.com/mac4DSTEM/macTEM/commit/5bb3dac253ce9556274120e271bf0f1edf57d9a0))
+* open Oxford .ebsp/.ctf and EDAX .up1/.up2/.ang scans in the Patterns room as one EBSDDataset ([#161](https://github.com/mac4DSTEM/macTEM/issues/161)) ([6fd2189](https://github.com/mac4DSTEM/macTEM/commit/6fd218926b8806f39a0601f26606d300ecf7edc4))
+* orientation core (rotations, 32 point groups, fundamental zones, orientations and misorientations) against orix 0.15.0 ([#162](https://github.com/mac4DSTEM/macTEM/issues/162)) ([2a46109](https://github.com/mac4DSTEM/macTEM/commit/2a461092fb74f30d2f6cf4a082620b6ff245cba4))
+* Patterns room ⌘6 browses EBSD pattern datasets (scan map, live pattern pane, calibration) ([#144](https://github.com/mac4DSTEM/macTEM/issues/144)) ([0860add](https://github.com/mac4DSTEM/macTEM/commit/0860addee1e419f986907e8e254fa961458b0438))
+* process EBSD patterns in the Patterns room (static and dynamic background, rescale or normalise, binning) as kikuchipy does ([#190](https://github.com/mac4DSTEM/macTEM/issues/190)) ([13e7ccc](https://github.com/mac4DSTEM/macTEM/commit/13e7ccc939f24865495917b866ece4e03011087f))
+* read EDAX .up1/.up2 pattern files and .ang orientation maps in TEMCore ([#138](https://github.com/mac4DSTEM/macTEM/issues/138)) ([d515bc4](https://github.com/mac4DSTEM/macTEM/commit/d515bc478204d03ea4f317f34dcce51103df0efd))
+* read EMsoft master patterns and project them onto the EBSD detector as kikuchipy does (figure F15) ([#160](https://github.com/mac4DSTEM/macTEM/issues/160)) ([d18a5e7](https://github.com/mac4DSTEM/macTEM/commit/d18a5e7abaffab109fe5654a5735c1b3d9069234))
+* read h5ebsd EBSD pattern files (kikuchipy, Bruker, EDAX, Oxford H5OINA) in TEMCore ([#125](https://github.com/mac4DSTEM/macTEM/issues/125)) ([d7117b9](https://github.com/mac4DSTEM/macTEM/commit/d7117b9ccb0cdc5e13b380676fd21291e90a80cc))
+* read NORDIF EBSD acquisitions (Pattern.dat, Setting.txt, calibration patterns) as kikuchipy does ([#129](https://github.com/mac4DSTEM/macTEM/issues/129)) ([7d0f896](https://github.com/mac4DSTEM/macTEM/commit/7d0f89679c19a5829973364e309ad46b3c2761e4))
+* read Oxford .ebsp patterns and .ctf orientation maps against kikuchipy and orix ([#135](https://github.com/mac4DSTEM/macTEM/issues/135)) ([adeebf2](https://github.com/mac4DSTEM/macTEM/commit/adeebf265c993713cb1d049636a45c07fff4992f))
+* sample orientations on the cubochoric grid in a fundamental zone or around an orientation, against orix 0.15.0 ([#168](https://github.com/mac4DSTEM/macTEM/issues/168)) ([18302ef](https://github.com/mac4DSTEM/macTEM/commit/18302ef2aad39f58e36ba07285bf5dd4c0a357e0))
+* SEM parity harness, north-star data and reference bundles for milestone 1 ([#130](https://github.com/mac4DSTEM/macTEM/issues/130)) ([d2afafe](https://github.com/mac4DSTEM/macTEM/commit/d2afafed6f7d9e7fddf6db2a4f48f0ab50b7ab5b))
+* SEM-EDS line intensities with background windows and Cliff-Lorimer quantification against exspy (figures F16, F17) ([#155](https://github.com/mac4DSTEM/macTEM/issues/155)) ([73e2124](https://github.com/mac4DSTEM/macTEM/commit/73e21240c606a17e2b79f528bdc87990b4bcfe62))
+* ship the SEM demo data (Ni EBSD patterns, BAM TM002 spectrum) and open the spectrum from Try Demo Data ([#127](https://github.com/mac4DSTEM/macTEM/issues/127)) ([f95b7d9](https://github.com/mac4DSTEM/macTEM/commit/f95b7d99e74f28c97e3ff89f7a1f23a2a1927753))
+* static and dynamic background removal of EBSD patterns in TEMCore (figure F2) ([#133](https://github.com/mac4DSTEM/macTEM/issues/133)) ([eeb7660](https://github.com/mac4DSTEM/macTEM/commit/eeb7660a4a3bf0af783990a853f8d2c833568fef))
+* vectors, Miller indices, stereographic projection and IPF colour keys against orix 0.15.0 (figure F6) ([#172](https://github.com/mac4DSTEM/macTEM/issues/172)) ([71a6f40](https://github.com/mac4DSTEM/macTEM/commit/71a6f40b4d96b5f33861ea51ab65556c7e4ca7cf))
+* virtual BSE images in the Patterns room (detector grid, tiles, colour mix) reproduce north-star figure F1 ([#174](https://github.com/mac4DSTEM/macTEM/issues/174)) ([d6d497b](https://github.com/mac4DSTEM/macTEM/commit/d6d497b1f1800c81fb6e9413d24809bace88e463))
+* write EBSD crystal maps as .ang and .ctf that orix reads back (figure F18) ([#185](https://github.com/mac4DSTEM/macTEM/issues/185)) ([33ea462](https://github.com/mac4DSTEM/macTEM/commit/33ea462ff9886444d39782f052c0d57acb1877fa))
+
 ## [1.3.0](https://github.com/mac4DSTEM/macTEM/compare/v1.2.0...v1.3.0) (2026-11-05)
 
 
