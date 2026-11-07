@@ -9,6 +9,7 @@
 
 import Foundation
 import TEMCore
+import ShellLayout
 import TEMSession
 import XCTest
 @testable import macTEM
