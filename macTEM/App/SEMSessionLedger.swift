@@ -2,13 +2,14 @@
 //  SEMSessionLedger.swift
 //  Role: the Results room's SEM rows (design export-and-reports §3, D-SEM-103): what the window's SEM rooms hold now and what the session
 //        record kept, as `SEMSessionRow`s in the Results room's order: the pattern dataset and its calibration, the processing run, the
-//        scan maps, the indexing run, the orientation map, the SEM-EDS line intensities and composition, and every file the rooms
-//        exported. The session report sets the same rows (`SEMSessionReport`), so the report says nothing the room does not.
+//        scan maps, each indexing run (the one on screen, then the other method's), the orientation map, the SEM-EDS line intensities
+//        and composition, and every file the rooms exported. The session report sets the same rows (`SEMSessionReport`), so the report
+//        says nothing the room does not.
 //
 //        THE WORDS are the rooms': the Indexing room's Info words (`IndexingInfoFormat`), the Patterns room's Calibration rows
 //        (`EBSDBrowsing.calibrationRows`), the Maps room's Info rows (`MapsRoomFormat.infoRows`), the EDS room's SEM rows (`SEMEDSFormat`),
-//        the Output lines as logged. Two numbers are aggregates of what a run stored, never a second run: the indexed points' mean
-//        confidence index (or dictionary score), which the Results CSV holds point by point, and nothing else.
+//        the Output lines as logged. One number per run is an aggregate of what the run stored, never a second run: the indexed points'
+//        mean confidence index (or dictionary score), which the Results CSV holds point by point; nothing else is.
 //
 //        Read on every body that shows the rows (the record and the sessions are observed), as `ResultsLedger` is.
 //
@@ -40,7 +41,7 @@ enum SEMSessionLedger {
             if let row = processingRow(patterns, record: record) { rows.append(row) }
             if let row = scanMapsRow(patterns) { rows.append(row) }
         }
-        if let row = indexingRow(indexing, record: record, since: since) { rows.append(row) }
+        rows += indexingRows(indexing, record: record, since: since)
         if let row = mapRow(maps, record: record) { rows.append(row) }
         rows += compositionRows(eds)
         rows += exportRows(record)
@@ -170,10 +171,24 @@ enum SEMSessionLedger {
 
     // MARK: - Indexing
 
-    /// The indexing run on screen: the Indexing room's Info words, its settings, the mean score of the indexed points, the lines it
-    /// logged since the dataset opened.
-    static func indexingRow(_ session: IndexingSession, record: SEMSessionRecord, since: Date?) -> SEMSessionRow? {
-        guard let result = session.result, result.reachedCount > 0, let document = session.patterns.document else { return nil }
+    /// The Indexing room's runs, the one on screen first, then the other method's when it reached a point (Info's `Also held`).
+    static func indexingRows(_ session: IndexingSession, record: SEMSessionRecord, since: Date?) -> [SEMSessionRow] {
+        guard let shown = session.shownRun else { return [] }
+        var rows: [SEMSessionRow] = []
+        if let row = indexingRow(shown, id: "indexing", session: session, record: record, since: since) { rows.append(row) }
+        if let other = session.otherRun,
+           let row = indexingRow(other, id: "indexing.\(other.method.rawValue)", session: session, record: record, since: since) {
+            rows.append(row)
+        }
+        return rows
+    }
+
+    /// One indexing run: the Indexing room's Info words, its settings, the mean score of the indexed points, the lines it logged since
+    /// the dataset opened.
+    static func indexingRow(_ run: IndexingRun, id: String, session: IndexingSession, record: SEMSessionRecord,
+                            since: Date?) -> SEMSessionRow? {
+        let result = run.result
+        guard result.reachedCount > 0, let document = session.patterns.document else { return nil }
         var fields = [
             SEMSessionField("Method", IndexingInfoFormat.method(result.method)),
             SEMSessionField("Phases", result.phases.map(\.name).joined(separator: ", ")),
@@ -188,23 +203,25 @@ enum SEMSessionLedger {
             let mean = scores.reduce(0, +) / Double(scores.count)
             fields.append(SEMSessionField("Mean \(result.scoreTitle)", "\(UnitDisplay.number(mean, digits: 4)) over the indexed points"))
         }
-        if let source = session.resultSource { fields.append(SEMSessionField("Patterns", source.title)) }
-        if let pc = session.resultProjectionCenter { fields.append(SEMSessionField("PC", IndexingInfoFormat.projectionCentre(pc))) }
-        if result.method == .dictionary, let plan = session.dictionaryPlan {
+        fields.append(SEMSessionField("Patterns", run.source.title))
+        if let pc = run.projectionCenter { fields.append(SEMSessionField("PC", IndexingInfoFormat.projectionCentre(pc))) }
+        if result.method == .dictionary, let plan = run.dictionaryPlan {
             fields.append(SEMSessionField("Master", IndexingInfoFormat.master(plan)))
             fields.append(SEMSessionField("Energy", plan.energyWords))
             fields.append(SEMSessionField("Dictionary", IndexingInfoFormat.dictionary(plan)))
-        } else if let settings = session.resultInputs?.settings {
-            fields += houghFields(settings)
+        } else if result.method == .hough {
+            fields += houghFields(run.inputs.settings)
         }
-        fields.append(SEMSessionField("State", IndexingInfoFormat.state(result, session: session)))
-        if let seconds = session.lastRunSeconds { fields.append(SEMSessionField("Time", IndexingInfoFormat.time(seconds))) }
+        fields.append(SEMSessionField("State", IndexingInfoFormat.state(of: run, session: session)))
+        if let seconds = run.seconds { fields.append(SEMSessionField("Time", IndexingInfoFormat.time(seconds))) }
         let methods: [SEMMethod] = result.method == .hough
             ? [.houghIndexing, .orientationMap, .ipfColours]
             : [.dictionaryIndexing, .orientationSimilarity, .orientationMap, .ipfColours]
-        let log = record.lines(of: .indexing).filter { line in since.map { line.time >= $0 } ?? true }
-        let ended = record.lines(of: .indexing).last { $0.text.hasPrefix("Indexed ") || $0.text.hasPrefix("Stopped ") }
-        return SEMSessionRow(id: "indexing", kind: .indexing, label: "\(result.method.title) indexing",
+        let log = record.lines(of: .indexing).filter { line in
+            (since.map { line.time >= $0 } ?? true) && IndexingInfoFormat.isLine(line.text, of: result.method)
+        }
+        let ended = log.last { $0.text.hasPrefix("Indexed ") || $0.text.hasPrefix("Stopped ") }
+        return SEMSessionRow(id: id, kind: .indexing, label: "\(result.method.title) indexing",
                              value: "\(IndexingInfoFormat.indexed(result)) indexed · \(result.phases.map(\.name).joined(separator: ", "))",
                              source: "Indexing · \(document.fileName)", time: ended?.time, fields: fields, methods: methods, log: log)
     }

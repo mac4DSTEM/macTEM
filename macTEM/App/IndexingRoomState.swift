@@ -191,4 +191,23 @@ enum IndexingInfoFormat {
         if session.wasStopped { return "Stopped at row \(result.rowsDone) of \(result.scanRows)" }
         return session.isStale ? "Stale: the patterns, phases or settings changed" : "Current"
     }
+
+    /// `run`'s state in the same words: the run on screen as `state(_:session:)` says it, the other method's run stopped, stale or
+    /// current.
+    static func state(of run: IndexingRun, session: IndexingSession) -> String {
+        if session.shownRun?.id == run.id { return state(run.result, session: session) }
+        let result = run.result
+        if run.wasStopped { return "Stopped at row \(result.rowsDone) of \(result.scanRows)" }
+        return session.isStale(of: run.method) ? "Stale: the patterns, phases or settings changed" : "Current"
+    }
+
+    /// Whether an Output line of the room is about a run of `method`: its "Indexed … with <Method>" or its "Stopped …" line, and for
+    /// a dictionary run the master pattern it opened.
+    nonisolated static func isLine(_ text: String, of method: IndexingMethod) -> Bool {
+        if text.hasPrefix("Indexed ") { return text.contains(" with \(method.title) ") }
+        switch method {
+        case .hough: return text.hasPrefix("Stopped indexing ")
+        case .dictionary: return text.hasPrefix("Stopped dictionary indexing ") || text.hasPrefix("Opened the master pattern ")
+        }
+    }
 }

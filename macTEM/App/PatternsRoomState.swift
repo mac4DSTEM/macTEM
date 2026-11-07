@@ -169,8 +169,14 @@ final class PatternsRoomState {
             fields = [position, SEMSessionField("Pattern", session.patternDisplay.title)]
             methods = [.patternReading] + (session.patternDisplay == .raw ? [] : processing)
         case .overlayPNG, .overlayCSV:
-            fields = [position]
-            methods = [.kikuchiOverlay]
+            let overlay = session.overlaySettings
+            let drawsSimulation = kind == .overlayPNG && overlay.kinematical && session.canDrawBandWidth
+            // The Simulation section's words: Overlay, Blend, Min d, Band width.
+            fields = [position, SEMSessionField("Overlay", drawsSimulation ? "Kinematical" : "Geometrical")]
+            if drawsSimulation { fields.append(SEMSessionField("Blend", String(format: "%.2f", overlay.blend))) }
+            fields.append(SEMSessionField("Min d", "\(UnitDisplay.number(overlay.minDSpacing)) Å"))
+            fields.append(SEMSessionField("Band width", overlay.bandWidth && session.canDrawBandWidth ? "On" : "Off"))
+            methods = [.kikuchiOverlay] + (drawsSimulation ? [.kinematicalSimulation] : [])
         case .metadataJSON:
             methods = [.patternReading]
         case .methodJSON:

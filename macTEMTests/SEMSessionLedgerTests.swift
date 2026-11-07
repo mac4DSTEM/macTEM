@@ -86,6 +86,57 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         XCTAssertEqual(Array(pdf.prefix(5)), Array("%PDF-".utf8))
     }
 
+    /// Both of the Indexing room's runs are listed, the one on screen first, each with its own settings, state and Output lines; the
+    /// report sets both under Indexing and cites both methods. Red under: only the run on screen listed (a Dictionary run hid the Hough
+    /// run the room still holds); the Hough run's lines given to the Dictionary run.
+    @MainActor func testBothIndexingRunsAreListed() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.ebsd.bind(try DemoDocuments.ebsd()).value
+        try await waitIdle(state)
+        let indexing = state.indexing
+        await indexing.index().value
+        indexing.setMethod(.dictionary)
+        indexing.editDictionarySettings { $0.resolution = 10 }
+        for _ in 0..<6000 where indexing.currentMaster == nil || indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertNil(indexing.refusal, indexing.refusal ?? "")
+        await indexing.index().value
+        XCTAssertEqual(indexing.result?.method, .dictionary)
+        XCTAssertEqual(indexing.otherRun?.method, .hough)
+
+        let rows = SEMSessionLedger.rows(of: state).filter { $0.kind == .indexing }
+        XCTAssertEqual(rows.map(\.id), ["indexing", "indexing.hough"], "the run on screen, then the other method's")
+        XCTAssertEqual(rows.map(\.label), ["Dictionary indexing", "Hough indexing"])
+        let dictionary = rows[0], hough = rows[1]
+        XCTAssertEqual(dictionary.fields.first { $0.name == "Method" }?.value, "Dictionary (kikuchipy 0.13.1)")
+        XCTAssertNotNil(dictionary.fields.first { $0.name == "Dictionary" }, "the dictionary's size, step and metric")
+        XCTAssertNil(dictionary.fields.first { $0.name == "Bands" })
+        XCTAssertEqual(hough.fields.first { $0.name == "Bands" }?.value, "\(indexing.runs[.hough]?.inputs.settings.bands ?? -1)")
+        XCTAssertNil(hough.fields.first { $0.name == "Dictionary" })
+        XCTAssertEqual(dictionary.fields.first { $0.name == "State" }?.value, "Current")
+        XCTAssertEqual(hough.fields.first { $0.name == "State" }?.value, "Current")
+        XCTAssertTrue(dictionary.log.contains { $0.text.hasPrefix("Indexed ") && $0.text.contains(" with Dictionary ") }, "\(dictionary.log)")
+        XCTAssertFalse(dictionary.log.contains { $0.text.contains(" with Hough ") }, "\(dictionary.log)")
+        XCTAssertTrue(hough.log.contains { $0.text.hasPrefix("Indexed ") && $0.text.contains(" with Hough ") }, "\(hough.log)")
+        XCTAssertFalse(hough.log.contains { $0.text.contains(" with Dictionary ") }, "\(hough.log)")
+        XCTAssertEqual(hough.methods.first, .houghIndexing)
+        XCTAssertEqual(dictionary.methods.first, .dictionaryIndexing)
+
+        // A Hough setting changed: the Hough run is stale, the Dictionary run on screen is not.
+        indexing.editSettings { $0.bands += 1 }
+        let after = SEMSessionLedger.rows(of: state).filter { $0.kind == .indexing }
+        XCTAssertEqual(after.last?.fields.first { $0.name == "State" }?.value, "Stale: the patterns, phases or settings changed")
+        XCTAssertEqual(after.first?.fields.first { $0.name == "State" }?.value, "Current")
+
+        let all = SEMSessionLedger.rows(of: state)
+        let text = SEMReportMarkdown.text(of: SEMSessionReport.document(all, options: SEMSessionReport.Options(title: "Two runs", format: .markdown),
+                                                                       context: SEMSessionReport.Context(date: Date(), software: "macTEM")),
+                                          directory: nil)
+        for heading in ["### Dictionary indexing", "### Hough indexing", "### " + SEMMethod.houghIndexing.title,
+                        "### " + SEMMethod.dictionaryIndexing.title] {
+            XCTAssertTrue(text.contains("\n\(heading)\n"), heading)
+        }
+    }
+
     /// A panel's export is kept once the panel has written it, with the place and the time; a cancelled panel keeps nothing.
     @MainActor func testAPanelExportIsKeptOnceWritten() async throws {
         let state = AppState(launch: LaunchOptions(arguments: []))

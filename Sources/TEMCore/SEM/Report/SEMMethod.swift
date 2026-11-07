@@ -14,7 +14,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
     case patternReading
     case staticBackground, dynamicBackground, intensity, equalisation, fftFilter, binning, neighbourAveraging, nlpar
     case virtualBSE, imageQuality, averageDotProduct
-    case houghIndexing, dictionaryIndexing, orientationSimilarity, kikuchiOverlay
+    case houghIndexing, dictionaryIndexing, orientationSimilarity, kikuchiOverlay, kinematicalSimulation
     case orientationMap, ipfColours
     case angWriter, ctfWriter
     case edsLines, cliffLorimer
@@ -40,6 +40,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
         case .dictionaryIndexing: "Dictionary indexing"
         case .orientationSimilarity: "Orientation similarity map"
         case .kikuchiOverlay: "Kikuchi overlay"
+        case .kinematicalSimulation: "Kinematical simulation"
         case .orientationMap: "Crystal map"
         case .ipfColours: "IPF colour key"
         case .angWriter: "EDAX .ang writer"
@@ -84,6 +85,8 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
             "For each point, how many of its best dictionary matches its neighbours share, as kikuchipy's orientation_similarity_map does."
         case .kikuchiOverlay:
             "The Kikuchi bands of the point's indexed orientation drawn on its pattern, the band centres and the edges at the Bragg angle, as kikuchipy's KikuchiPatternSimulator draws a geometrical simulation."
+        case .kinematicalSimulation:
+            "The point's kinematical simulation under the bands: the phase's master pattern made by kikuchipy's band rule (get_pattern) at each direction of a square Lambert grid of both hemispheres, every band intensity 1, put on the detector for the point's orientation and projection centre as kikuchipy's get_patterns does, blended over the pattern."
         case .orientationMap:
             "The orientations, phases and properties of each point held as orix's CrystalMap, the Euler angles in Bunge's convention."
         case .ipfColours:
@@ -134,7 +137,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
              Self.kikuchipy]
         case .orientationSimilarity:
             ["Marquardt et al. 2017, as kikuchipy's orientation_similarity_map cites it", Self.kikuchipy]
-        case .kikuchiOverlay:
+        case .kikuchiOverlay, .kinematicalSimulation:
             [Self.kikuchipy]
         case .orientationMap:
             ["Rowenhorst et al. 2015, Modelling Simul. Mater. Sci. Eng. 23, 083501 (rotation conventions)", Self.orix]
@@ -163,6 +166,8 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
             SEMReferenceVersions.label("kikuchipy") + " and " + SEMReferenceVersions.label("orix")
         case .kikuchiOverlay:
             SEMReferenceVersions.label("kikuchipy") + " and " + SEMReferenceVersions.label("diffsims")
+        case .kinematicalSimulation:
+            SEMReferenceVersions.label("kikuchipy")
         case .orientationMap, .ipfColours, .angWriter, .ctfWriter:
             SEMReferenceVersions.label("orix")
         case .edsLines, .cliffLorimer:
