@@ -127,6 +127,45 @@ nonisolated final class PatternPipelineTests: XCTestCase {
         XCTAssertEqual(steps[3]["factor"] as? Int, 2)
     }
 
+    /// NLPAR as the pipeline's last stage: alone, it is `NLPAR.run` on the raw scan (the same numbers, bit for bit) and its λ is the
+    /// pyebsdindex bundle's; after the background stages it runs on their output; a scan smaller than the window is refused.
+    func testNLPARIsTheLastStageAndRunsOnTheProcessedScan() throws {
+        let (_, dataset, reader) = try opened()
+        var alone = PatternPipeline()
+        alone.staticStage.isOn = false; alone.dynamicStage.isOn = false
+        alone.nlpar.isOn = true; alone.nlpar.searchRadius = 1
+        var chosen: Double?
+        let processed = try XCTUnwrap(alone.process(reader, background: nil, lambda: { chosen = $0 }))
+        XCTAssertEqual(processed.dataset.dataType, .float32)
+        var raw: [Float] = []
+        for r in 0..<dataset.scanRows { raw += try reader.row(r).doubles().map { Float($0) } }
+        let scan = try NLPAR.Scan(rows: dataset.scanRows, columns: dataset.scanColumns, patternRows: dataset.patternRows,
+                                  patternColumns: dataset.patternColumns, values: raw)
+        let direct = try NLPAR.run(scan, searchRadius: 1)
+        let ours = try FormatoArray(dataType: .float32, shape: [processed.bytes.count / 4], bytes: processed.bytes).doubles().map { Float($0) }
+        XCTAssertEqual(ours, direct.denoised.values)
+        XCTAssertEqual(chosen, direct.lambda)
+        let ref = try SEMParityReference.load("m2/nlpar-kikuchipy-h5ebsd")
+        SEMAssertParity(try XCTUnwrap(chosen), ref, scalar: "lambda")
+
+        var chained = PatternPipeline.roomDefault
+        chained.nlpar.isOn = true; chained.nlpar.searchRadius = 1
+        XCTAssertEqual(chained.firstDifference(from: .roomDefault), .nlpar)
+        let corrected = try XCTUnwrap(PatternPipeline.roomDefault.process(reader, background: dataset.staticBackground))
+        let afterBackground = try XCTUnwrap(chained.process(reader, background: dataset.staticBackground))
+        let input = try NLPAR.Scan(rows: 3, columns: 3, patternRows: 60, patternColumns: 60,
+                                   values: PatternPipeline.unsigned(try FormatoArray(dataType: .uint8, shape: [corrected.bytes.count], bytes: corrected.bytes), as: UInt8.self).map { Float($0) })
+        XCTAssertEqual(try FormatoArray(dataType: .float32, shape: [afterBackground.bytes.count / 4], bytes: afterBackground.bytes).doubles().map { Float($0) },
+                       try NLPAR.run(input, searchRadius: 1).denoised.values)
+
+        var tooWide = alone
+        tooWide.nlpar.searchRadius = 2
+        XCTAssertEqual(tooWide.refusal(for: dataset, background: nil)?.sentence,
+                       "A search radius of 2 needs a scan of at least 5 × 5; this one is 3 × 3.")
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: alone.methodJSON(fileName: "x.h5", dataset: dataset)) as? [String: Any])
+        XCTAssertEqual((json["steps"] as? [[String: Any]])?.last?["method"] as? String, "pyebsdindex.nlpar.NLPAR")
+    }
+
     func testFloatDownsampleSpansMinusOneToOne() throws {
         let f: [Float] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
         // 2 x 2 blocks of a 4 x 4 ramp: sums 10, 18, 42, 50 -> (s - 10) / 40 * 2 - 1.
