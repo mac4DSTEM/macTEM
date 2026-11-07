@@ -193,6 +193,9 @@ nonisolated final class SEMOrientationParityTests: XCTestCase {
         let earlier = Orientations(quaternions: Array(c.quaternions.dropLast()), symmetry: c.symmetry)
         let m = try later.misorientations(from: earlier)
         SEMAssertParity(m.angles, try ref.array("cubic_disorientation_next"))
+        // `angle_with` (the Indexing room's Compare, D-SEM-97) is the same number for one point group, m-3m's improper elements
+        // included.
+        SEMAssertParity(later.angles(with: earlier), try ref.array("cubic_disorientation_next"))
         SEMAssertParity(flat(m.quaternions), try ref.array("cubic_misorientation_next"))
         SEMAssertParity(c.distanceMatrix(), try ref.array("cubic_distance_matrix"), shape: [100, 100])
         let m30 = Misorientations(quaternions: Array(m.quaternions.prefix(30)), start: m.start, end: m.end)

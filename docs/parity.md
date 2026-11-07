@@ -102,7 +102,7 @@ P = -1, Bunge Euler angles lab to crystal). Bundles from `tools/parity/sem/emit.
 | `Rotation` (`*`, `inverse`, `angle`, `axis`, `angle(with:)`, `absDot`, `angleOuter`, `outer`, `unique`, `fromEuler`/`fromMatrix`/`fromAxisAngle`/`fromHomochoric`/`fromRodrigues` and back) | `orix.quaternion.Rotation`, `Quaternion` | `testCompositionVectorsOuterProductsAndUniqueMatchOrix` | atol 1e-7; `unique` indices exact | products renormalised as orix's constructor does; `angle(with:)` rounds the dot product to 15 decimals and `unique` keys on 12-decimal differentiators, as orix |
 | `PointGroup` (the 38 groups and 2, m, 32; `fromGenerators`, `subgroups`, `properSubgroup`, `laue`, `laueProperSubgroup`, `system`, `eulerFundamentalRegion`, `fundamentalSectorNormals`, `fundamentalZoneNormals`) | `orix.quaternion.symmetry` | `testPointGroupsMatchOrixElementForElement` | elements and normals 1e-10, in orix's order; names exact | rotation axes grouped by their 10-decimal rounding in `axisOrders` where orix compares exactly (D-SEM-35); orix's `fundamental_sector` spells "6m2" for the rotated case, so "-6m2" is not rotated, kept |
 | `OrientationRegion.fromSymmetry`, `contains`, `vertices` | `orix.quaternion.OrientationRegion` | `testOrientationRegionsMatchOrix` | normals 1e-10 | a pair of improper groups without inversion throws as orix raises |
-| `Orientations` (`reduced`, `angles(with:)`, `misorientations(from:)`, `anglesOuter`, `distanceMatrix`), `Misorientations` (`reduced`, `angles`, `distanceMatrix`) | `Orientation.reduce`, `angle_with`, `__sub__`, `angle_with_outer`/`get_distance_matrix` (numba kernels), `Misorientation.reduce`, `get_distance_matrix(lazy=False)` | `testTiOrientationsReduceAndDisorientationsMatchOrix`, `testCubicOrientationsReduceAndDisorientationsMatchOrix` | atol 1e-7 | `reduce` keeps orix's loop (first `end · M · start` inside the zone of (start, end)); for two different groups that is not always the smallest angle (DiffractoKit's pins document the case), the same as orix; float64 loops, not Accelerate (D-SEM-35) |
+| `Orientations` (`reduced`, `angles(with:)`, `misorientations(from:)`, `anglesOuter`, `distanceMatrix`), `Misorientations` (`reduced`, `angles`, `distanceMatrix`) | `Orientation.reduce`, `angle_with`, `__sub__`, `angle_with_outer`/`get_distance_matrix` (numba kernels), `Misorientation.reduce`, `get_distance_matrix(lazy=False)` | `testTiOrientationsReduceAndDisorientationsMatchOrix`, `testCubicOrientationsReduceAndDisorientationsMatchOrix` | atol 1e-7 | `angles(with:)` gives 0 where the misorientation is not finite (a zero quaternion either side), as orix's `nan_to_num` does, under any group (an improper element would otherwise give π); `reduce` keeps orix's loop (first `end · M · start` inside the zone of (start, end)); for two different groups that is not always the smallest angle (DiffractoKit's pins document the case), the same as orix; float64 loops, not Accelerate (D-SEM-35) |
 | `Vector3.azimuth`, `polar`, `circle(about:)`; `StereographicProjection` (`vectorToXY`, `vectorToXYSplit`, `xyToVector`) | `Vector3d.azimuth`/`polar`/`get_circle`, `orix.projections.StereographicProjection`, `InverseStereographicProjection` | `testSphericalCoordinatesAndStereographicProjectionMatchOrix` | atol 1e-7 | the hemisphere's vectors only, as orix drops the others |
 | `CrystalLattice`, `Miller` (hkl, uvw, hkil, UVTW, `length`, `rounded`, `roundIndices`) | `orix.crystal_map.Phase` structure alignment (x ∥ a, z ∥ c*), `orix.vector.Miller`, `_round_indices` (MTEX) | `testLatticesAndMillerIndicesMatchOrix` | bases 1e-10; vectors 1e-7; rounded indices exact | the base from the six parameters with diffpy's exact `cosd`, rounded to 12 decimals as orix rounds it |
 | `FundamentalSector` (`vertices`, `center`, `edges`, `stereographicExtent`), `PointGroup.projectToFundamentalSector` | `orix.vector.FundamentalSector`, `Vector3d.in_fundamental_sector` (MTEX `project2FundamentalRegion`) | `testFundamentalSectorsAndProjectionIntoThemMatchOrix`, `testSectorEdgesMatchOrix` | vertices and centres 1e-10; edges 1e-9; projections 1e-7 | orix's sampled centre (four or more vertices, none stated) is reached by no group of its table, so it is not ported |
@@ -122,6 +122,7 @@ stay the truth; `testTheCTFReaderHandsTheF7MapThrough` takes the F7 head map thr
 | `OrientationMaps` (`raster` of IPF-X, IPF-Y, IPF-Z and phase layers on the map's grid, `gridShape`, `pointIndexGrid`, `readout`, `keyImage`, `unitCellEdges`), the Maps room (P3-04) | `CrystalMap.get_map_data` of `IPFColorKeyTSL.orientation2color` per phase along the sample direction, and of `phases.colors_rgb`, as `CrystalMap.plot` draws them | `MapsRoomTests` on `m3/maps-room-sdss` (the sdss map's three IPF maps and its phase map, 100 × 117 × 3) and `m3/ipf-sdss-ferrite-austenite` (F6) | IPF atol 1e-6; phase colours exact | matched upstream: not indexed points black in an IPF map and white in the phase map (orix's fill); the key image is the exact TSL colour per pixel (D-SEM-40); key corners labelled only for cubic groups, whose Cartesian axes are the crystal's (D-SEM-80); the unit cell drawn from the phase's lattice, else orix's default lattice of its system |
 | `MapAnalysis` (`run`: grain map, KAM, GOS, GND, grain table, mean lineal intercept and ASTM number, `boundaryEdges`, `outline`, `slip`), `MapTexture` (`compute`), the Maps room complete (P5-04, Segment) | DefDAP 1.3.1 `EbsdMap.find_grains`, `calc_kam`, `calc_nye`, `Grain.calc_average_ori`, `calc_grod`, `calc_average_schmid_factors`, `calc_slip_traces`; orix 0.15.0 `pole_density_function`, MTEX-style ODF sections (Hielscher and Schaeben 2008); ASTM E112 | `MapsAnalysisTests` on `m5/grains-sdss` (the room's Segment at DefDAP's settings) and on the ported functions it lays out | grain map and sizes exact; KAM and GOS atol 1e-6 (the bundle's); slip, GND and texture the ported functions' own (exact wiring) | the room's defaults are the design's (5°), the test runs DefDAP's (10°); Schmid factors and traces in the map's frame, without DefDAP's EDAX frame change (D-SEM-101); ODF from at most 5000 points (D-SEM-102) |
 | `NeighbourMisorientation` (`misorientations(of:)`, `anglesDegrees(of:)`), `AngleHistogram` | `Orientation.__sub__` of `O[:, 1:]`, `O[:, :-1]` and `O[1:, :]`, `O[:-1, :]`; `Misorientation.angle`; `numpy.histogram` | `testNeighbourMisorientationsOfTheTiHeadMatchOrix`, `testFigureF7NeighbourMisorientationHistogramOfTheTiMap` | misorientations and angles atol 1e-7; counts and edges exact | figure F7: 1° bins from 0° to 94° (D-SEM-48); the reference forms the pairs as flat arrays, since orix 0.15.0's subtraction on 2D-shaped orientations permutes its results (the histogram is the same, the pair per element is not); the closest angle to an edge is 6.5e-7°, far above the 1e-7 rad port difference, so the counts are exact. The whole map is a fetched dataset (skips without it); the committed 3 x 507 map holds the port on every PR |
+| `IndexingComparison` (the Indexing room's Compare: per-point disorientation of two results, its histogram, median and share over 2°), `PointGroup.disorientationBinsTop` | orix 0.15.0 `Orientation.angle_with` per (A phase, B phase) group (equal to `Misorientation.angle` for one group); `numpy.rad2deg`, `histogram` on `arange(0, top + 1)`, `median`, `mean(angle > 2)`; the bins top from `OrientationRegion.from_symmetry(G, G).vertices()` | `testPlantedComparisonMatchesOrix` (`m4/indexing-compare-planted`), `testTheDemoScanComparesAsOrixDoes` (`m4/indexing-compare-nickel-large`), `testFigureF8ThroughTheRoom` | outcomes, edges, counts and the share exact; angles atol 1e-7 rad (-1 in the bundle where not compared); the median atol 5.8e-6° (1e-7 rad) | Grimmer 1974, Morawiec 2004 (disorientation), Mackenzie 1958 (432's 62.8°). The pairing rule is the app's (D-SEM-97): one phase a side by Laue class, else by name within one; the phase index masks, never the quaternion. Every compared angle lies at least 1.46e-5° (2.5e-7 rad, Hough against the 4° dictionary) from a 1° edge and from 2°, above the port difference, so the counts and the share are exact; the planted case redraws any angle within 1e-3° of a whole degree. The demo scan reads 0.436° Hough against the file, 2.443° the 4° dictionary against the file, 2.373° Hough against the dictionary |
 
 ## Crystal map writers
 
@@ -258,6 +259,17 @@ of the Swift steps matched every bundle: float32 runs within 2.3e-6, the float64
 - D-SEM-92 (2026-11-07): the room runs the scan in blocks of rows against the whole dictionary; Stop keeps whole blocks; a NaN score
   (no contrast) is not indexed in the room and its files; the OSM layer is kikuchipy's map of the rows landed, a point not indexed
   showing none.
+- D-SEM-96 (2026-11-07): the room's Euler layer is `EulerColorKey` of the phase's point group (held by
+  `testEulerColourKeyMatchesOrixForEveryGroup`; through the room by `IndexingMapLayerTests` and `testFigureF8ThroughTheRoom`); the
+  scalar layers are drawn from their values (`IndexingRaster.scalarPixels`, NaN where a point has none) with the Map Display's
+  colormap and window, which change no number.
+- D-SEM-97 (2026-11-07): Compare's disorientation is orix's `angle_with` (not `__sub__`, whose reduce is first-hit across two
+  groups); `SEMOrientationParityTests` also holds `angles(with:)` to orix's cubic `Misorientation.angle`. `angles(with:)` now gives
+  orix's 0 for a zero quaternion under a group with improper elements (it gave π); no shipped caller fed it one. The room's runs
+  are kept per method, which changes no number.
+- D-SEM-99 (2026-11-07): `Open in Maps` shows the Indexing room's run in the Maps room as `IndexingSession.crystalMap()` builds it
+  for the .ang and .ctf exports (`IndexingMapsHandOffTests` holds the two equal), so the Maps room's layers of a run are the
+  room's own numbers; no new numerics.
 - Figure F9 (`docs/sem/north-star.md`): `tools/parity/sem/dictionary_figure.py` draws kikuchipy's IPF-Z map beside the one from
   the indices `testFigureF9WholeScanIndexedAgainstTheNickelDictionary` writes to `$TMPDIR/macTEM-F9-ours.i32` (and prints as
   base64), the score map and the points whose best match differs.
@@ -284,13 +296,20 @@ International Tables' X-ray parameters and the refraction-corrected wavelength w
 | `KikuchiWavelength.refractionCorrected` | `diffsims.utils.sim_utils.get_refraction_corrected_wavelength` | same, at 10, 20, 30 kV | rtol 1e-7 | the mean inner potential over the first asymmetric atom's orbit, as diffsims takes it |
 | `GeometricalKikuchiSimulation.simulate` | `KikuchiPatternSimulator.on_detector` (`lines_coordinates`, `zone_axes_coordinates`, `_zone_axes_labels`) | `testFigureF14…`, `testTiltedTitaniumDetectorAsKikuchipy`, `testOverlayOnTheDemoNickelIsFigureF14` | hkl, [uvw], labels exact; pixels rtol 1e-7, atol 1e-6 px; gnomonic rtol 1e-7 | the line ends lie on the circle of `maxRGnomonic`: kikuchipy takes the largest r_max of the detector it is given, the whole scan's for F14 |
 | `GeometricalKikuchiSimulation.roundIndices` | orix `Miller.round` (`_round_indices`, max index 20) | `testRoundIndicesAsOrix` and the zone axes above | exact | |
+| `GeometricalKikuchiSimulation.Line.edges` (band edges, #201) | `KikuchiPatternSimulator.plot(mode="bands")`: orix `Vector3d.get_circle` at π/2 ∓ θ about `vector_detector`, put on the detector by `on_detector`'s formula | `testBandEdgesAsKikuchipyBands` (`m6/geometrical-band-edges-nickel`) | rtol 1e-5, atol 1e-8 (orix's own `get_circle` tests, np.allclose defaults), visibility exact | θ from the bundle; the overlay's own θ is checked within 0.1 % (`testOverlayBandEdgesOnTheDemoNickel`, D-SEM-94) |
+| `KinematicMasterPattern.lambert`, `lambertVector` (the Kinematical overlay, #201) | kikuchipy `get_pattern` on `_lambert2vector` directions (normalised; the lower hemisphere with z negated), then `EBSDMasterPattern.get_patterns` | `testKinematicOverlayOfTheNickelAsKikuchipy` (`m6/kinematic-overlay-nickel`) | master pattern rtol 1e-5, atol 1e-8; patterns rtol 1e-6, atol 1e-5 (float32) | not kikuchipy's `as_lambert` (cubic spline of the stereographic pattern): D-SEM-95; the overlay's own path correlates above 0.95 (`testKinematicalOverlayOnTheDemoNickel`) |
 | `KinematicMasterPattern.calculate` | `KikuchiPatternSimulator.calculate_master_pattern` (stereographic, `_get_pattern`) | `testKinematicMasterPatternOfNickelAsKikuchipy` | rtol 1e-5, atol 1e-8 | emitted with numba on one thread: kikuchipy's parallel loop adds into shared pixels |
 
 ### Known limits and decisions
 
 - D-SEM-93 (2026-11-07): the overlay draws the geometrical simulation in the Patterns room from the file's crystal map; see
-  docs/decisions.md. Only kikuchipy's lines and zone axes are drawn (no band edges at ±θ, no Kikuchi line pairs); the
-  kinematic master pattern is computed in TEMCore and not yet shown in a room.
+  docs/decisions.md. kikuchipy's lines and zone axes are drawn, the band edges with `Band width` (D-SEM-94), and the
+  kinematical simulation with its master pattern with `Kinematical` (D-SEM-95).
+- D-SEM-94 (2026-11-07): the overlay's Bragg angles use the relativistic wavelength without diffsims' mean inner potential
+  (a file's phase carries no atoms the app reads): θ is 0.07 % larger at 20 kV than diffsims' (0.15 % at 10 kV).
+- D-SEM-95 (2026-11-07): the Kinematical overlay's master pattern is kikuchipy's band rule on the Lambert grid with every band
+  intensity 1 (no |F| without atoms), not `as_lambert`'s spline of the stereographic pattern. The design's Dynamical overlay
+  (an EMsoft master pattern of the phase) is not offered in the Patterns room.
 
 ## Pattern quality
 
@@ -429,3 +448,37 @@ Wright & Adams 1992 and Lassen 1994 (triplet voting), Shuster & Oh 1981 (QUEST),
 - Figure F8: `tools/parity/sem/hough_figure.py` draws the reference IPF-Z map beside the one
   `testFigureF8HoughIndexedMapOfTheDemoScan` prints (`F8 ours euler …` in the test log, passed with `--ours`) and their
   misorientation.
+
+## Refinement of orientations and projection centres (figure F10)
+
+References: `tools/parity/sem/refinement_cases.py` (kikuchipy 0.13.1's `EBSD.refine_orientation`,
+`refine_projection_center` and `refine_orientation_projection_center` with their default solver, SciPy 1.18.1's
+`minimize(method="Nelder-Mead")`), bundles `m4/nelder-mead` and `m4/refine-nickel-block` (a 10 x 10 block of the
+corrected Ni scan, rows 20 to 29 and columns 30 to 39, from kikuchipy's Hough orientations against the Ni 20 kV master
+pattern at 20 kV), tests in `SEMRefinementParityTests`. kikuchipy states no tolerance; the brief's bounds are 0.1° for
+orientations and rtol 1e-4 for PCs and scores. Methods: Nelder & Mead 1965 (simplex), Winkelmann et al. 2020 and Ånes et
+al. 2020 (pattern matching refinement), the NCC as kikuchipy computes it.
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `NelderMead.minimize` | `scipy.optimize._optimize._minimize_neldermead` | `testNelderMeadFollowsSciPyStepForStep` | x, fun, final simplex rtol 1e-12; nfev, nit, status exact | unbounded, bounded, zero start, start at a bound, maxfev, maxiter |
+| `EBSDRefinement.refineOrientations` (trust region, none, signal mask, pseudo-symmetry operators) | `EBSD.refine_orientation` | `testOrientationRefinement…`, `testPseudoSymmetry…` | every point within 0.1° (m-3m); scores rtol 1e-4; operator index exact; operator starts atol 1e-10 | a float64-NCC replica of kikuchipy: 0.005° and 4e-6 |
+| `EBSDRefinement.refineProjectionCenters` | `EBSD.refine_projection_center` | `testProjectionCentreRefinement…` | scores rtol 1e-4; PCs rtol 1e-4 on 95 % of values, all within 1e-3 | replica: median 0, largest 5e-4 |
+| `EBSDRefinement.refineOrientationsAndProjectionCenters` | `EBSD.refine_orientation_projection_center` | `testOrientationAndProjectionCentreRefinement…` | 90 % of points within 0.1°, all within 1°; 90 % of scores rtol 1e-4, all 1e-2, mean 1e-4; 90 % of PC values rtol 2e-3, all 5e-2 | D-SEM-87 |
+| `EBSDRefinement.refineOrientations(map:)` and the PC twin | `compute_refine_*_results` | `testCrystalMapInAndOut` | grid, unit, phase list, −1 and identity at points not indexed, `scores` and `num_evals` | the master pattern's phase at the refined id |
+| `refineOrientations(map:)` on a dictionary-indexed map (`DictionaryIndexing.Result.crystalMap`) | `dictionary_indexing` then `refine_orientation` (from `rotations[:, 0]`, the best match) | `testRefiningADictionaryIndexedMapMatchesKikuchipy` (`m4/refine-dictionary-nickel-block`) | under 0.1° (m-3m), scores rtol 1e-4; `is_in_data` and phase ids exact | F9's 6 x 6 corrected block, keep_n 5, two points masked out, F15 detector, trust region 1° (macTEM#213) |
+
+### Known limits and decisions
+
+- D-SEM-86 (2026-11-07): only kikuchipy's default solver is ported, SciPy's local Nelder-Mead with its default options;
+  NLopt's `LN_NELDERMEAD` and SciPy's global optimisers (basin hopping, differential evolution, dual annealing, SHGO)
+  are not. The refinement runs on the CPU, one pattern per core: each evaluation projects one pattern (3600 pixels for
+  the 60 x 60 detector), below the size at which the Metal projection pays (D16).
+- D-SEM-87 (2026-11-07): the NCC takes kikuchipy's float32 patterns and sums in float64 where kikuchipy sums in float32
+  under numba fastmath, so the simplex walks a slightly different path. Three-variable runs stay within the brief's
+  bounds on every point. The six-variable joint run is ill-conditioned (a PC shift mimics a small rotation): a few
+  points settle in a neighbouring optimum in either implementation, so it is held by the spread in the table, with the
+  north star's 1° on every point. The evaluation counts are stored for the record, not compared.
+- The orientation similarity map and the merging of crystal maps (kikuchipy's `_orientation_similarity_map`,
+  `_merge_crystal_maps`) need dictionary indexing's best matches per point; they follow when dictionary indexing (P4-02)
+  is on main, in its own PR (macTEM#213).

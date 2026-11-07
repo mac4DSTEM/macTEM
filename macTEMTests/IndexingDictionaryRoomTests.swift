@@ -96,7 +96,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertNil(indexing.refusal)
         XCTAssertTrue(indexing.canIndex)
         XCTAssertTrue(indexing.verbHelp.hasSuffix("patterns with Dictionary (ni)"), indexing.verbHelp)
-        XCTAssertEqual(indexing.availableLayers, [.ipfZ, .ipfX, .ipfY, .phase, .score, .osm])
+        XCTAssertEqual(indexing.availableLayers, [.ipfZ, .ipfX, .ipfY, .euler, .phase, .score, .osm])
 
         indexing.editDictionarySettings { $0.resolution = 10 }
         for _ in 0..<4000 where indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
@@ -152,18 +152,19 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(indexing.layer, .ipfZ, "a dictionary result has no fit")
         indexing.setLayer(.score)
         XCTAssertEqual(indexing.layer, .score)
-        let range = try XCTUnwrap(IndexingRaster.scalarRange(result, layer: .score))
-        XCTAssertEqual(range.lowerBound, dictionary.bestScores.min() ?? .nan)
-        XCTAssertEqual(range.upperBound, dictionary.bestScores.max() ?? .nan)
+        let range = try XCTUnwrap(indexing.mapPresentation.canvas?.rawRange, "the score layer is drawn through the Map Display")
+        let lowest = try XCTUnwrap(dictionary.bestScores.min()), highest = try XCTUnwrap(dictionary.bestScores.max())
+        XCTAssertEqual(range.lowerBound, Float(lowest))
+        XCTAssertEqual(range.upperBound, Float(highest))
 
         // The orientation similarity map: kikuchipy's of the run's matches (every kept match, the four nearest neighbours), as a layer.
         let osm = try dictionary.orientationSimilarityMap().maps[0]
         XCTAssertEqual(result.similarity, osm)
         indexing.setLayer(.osm)
         XCTAssertEqual(indexing.layer, .osm)
-        let osmRange = try XCTUnwrap(IndexingRaster.scalarRange(result, layer: .osm))
-        XCTAssertEqual(osmRange.lowerBound, Double(osm.min() ?? .nan))
-        XCTAssertEqual(osmRange.upperBound, Double(osm.max() ?? .nan))
+        let osmRange = try XCTUnwrap(indexing.mapPresentation.canvas?.rawRange)
+        let osmLowest = try XCTUnwrap(osm.min()), osmHighest = try XCTUnwrap(osm.max())
+        XCTAssertEqual(osmRange, osmLowest...osmHighest)
 
         // The status line, the rows and the CSV carry the score and the simulation index.
         let position = EBSDPosition(row: 10, column: 20)
@@ -230,7 +231,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertFalse(indexing.isStale)
         indexing.setMethod(.hough)
         XCTAssertFalse(indexing.isStale)
-        XCTAssertEqual(indexing.availableLayers, [.ipfZ, .ipfX, .ipfY, .phase, .score, .osm], "the result on screen keeps its layers")
+        XCTAssertEqual(indexing.availableLayers, [.ipfZ, .ipfX, .ipfY, .euler, .phase, .score, .osm], "the result on screen keeps its layers")
 
         patterns.close()
         XCTAssertNil(indexing.result)

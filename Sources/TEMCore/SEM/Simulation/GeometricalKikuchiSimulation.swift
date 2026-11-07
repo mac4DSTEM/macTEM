@@ -12,6 +12,9 @@
 //        GPL-3.0-or-later (see NOTICE); method: Britton et al. (2016) for the gnomonic projection, kikuchipy's geometrical simulation
 //        tutorial. Parity bundles `m6/geometrical-simulation-nickel` (figure F14) and `m6/geometrical-simulation-tilted`.
 //
+//  Band edges (#201): with Bragg angles, each line also gets the small circles at π/2 ∓ θ about its reflector, kikuchipy's
+//  `plot(mode="bands")` edges (orix's `get_circle`), put on the detector as the lines are. Parity bundle `m6/geometrical-band-edges-nickel`.
+//
 //  Pixel coordinates follow kikuchipy's on_detector: x = (x_g + PCx/PCz · aspect) / x_scale, y = (−y_g + PCy/PCz) / y_scale with
 //  kikuchipy's x_scale and y_scale (the gnomonic range over N − 1 pixels), so pixel 0 and N − 1 are the detector's gnomonic edges.
 //
@@ -27,6 +30,33 @@ package nonisolated struct GeometricalKikuchiSimulation: Sendable, Equatable {
         /// (x1, y1, x2, y2) on the gnomonic plane and in detector pixels.
         package var gnomonic: SIMD4<Double>
         package var pixel: SIMD4<Double>
+        /// The reflector in the detector frame (kikuchipy's `vector_detector`).
+        package var detector: SIMD3<Double>
+        /// The band's two edges, at π/2 − θ and π/2 + θ about the reflector; empty when no Bragg angles were given.
+        package var edges: [Edge] = []
+    }
+
+    /// One band edge: the small circle at an opening angle about the reflector (orix's `Vector3d.get_circle`, kikuchipy's
+    /// `plot(mode="bands")`), sampled at `steps` points; a point behind the screen (z ≤ 0) or outside the r_max circle is NaN, so the
+    /// visible arcs are the runs between NaNs.
+    package struct Edge: Sendable, Equatable {
+        package var gnomonic: [SIMD2<Double>]
+        package var pixel: [SIMD2<Double>]
+
+        /// The visible runs in detector pixels, each at least two points long (a drawing strokes each as a polyline).
+        package var pixelRuns: [[SIMD2<Double>]] {
+            var runs: [[SIMD2<Double>]] = [], run: [SIMD2<Double>] = []
+            for p in pixel {
+                if p.x.isNaN || p.y.isNaN {
+                    if run.count > 1 { runs.append(run) }
+                    run = []
+                } else {
+                    run.append(p)
+                }
+            }
+            if run.count > 1 { runs.append(run) }
+            return runs
+        }
     }
 
     /// One zone axis on the detector.
@@ -50,8 +80,10 @@ package nonisolated struct GeometricalKikuchiSimulation: Sendable, Equatable {
     /// The simulation for the crystal orientation `rotation` (orix's (a, b, c, d) as a crystal map holds it, Bunge from the EDAX TSL
     /// sample frame) on `detector` (its shape and angles) seen from the Bruker projection centre `pc`. `maxRGnomonic` is the circle the
     /// lines end on: kikuchipy's is the largest r_max over the detector's centres, so a whole scan passes its own; nil takes `pc`'s.
+    /// `braggAngles` (one per reflector, radians; `KikuchiReflectors.braggAngles`) adds each line's two band edges at `edgeSteps` points.
     package static func simulate(reflectors: KikuchiReflectors, rotation: SIMD4<Double>, detector: EBSDDetectorGeometry, pc: SIMD3<Double>,
-                                 maxRGnomonic: Double? = nil) -> GeometricalKikuchiSimulation {
+                                 maxRGnomonic: Double? = nil, braggAngles: [Double]? = nil, edgeSteps: Int = 360) -> GeometricalKikuchiSimulation {
+        precondition(braggAngles == nil || braggAngles!.count == reflectors.count, "one Bragg angle per reflector")
         let lattice = reflectors.lattice
         // u_os = U_o · U_sᵀ with U_s the sample-to-detector matrix (kikuchipy transposes `sample_to_detector.to_matrix()`).
         let uo = Rotation(rotation).matrix.rows
@@ -86,8 +118,23 @@ package nonisolated struct GeometricalKikuchiSimulation: Sendable, Equatable {
             let azimuth = Self.azimuth(d)
             let a1 = azimuth - Double.pi + alpha, a2 = azimuth - Double.pi - alpha
             let g = SIMD4(cos(a1), sin(a1), cos(a2), sin(a2)) * rMax
-            lines.append(Line(reflector: v.index, hkl: v.hkl, gnomonic: g,
-                              pixel: SIMD4(pixelX(g[0]), pixelY(g[1]), pixelX(g[2]), pixelY(g[3]))))
+            var line = Line(reflector: v.index, hkl: v.hkl, gnomonic: g,
+                            pixel: SIMD4(pixelX(g[0]), pixelY(g[1]), pixelX(g[2]), pixelY(g[3])), detector: d)
+            if let theta = braggAngles?[v.index] {
+                line.edges = [Double.pi / 2 - theta, Double.pi / 2 + theta].map { opening in
+                    var gn: [SIMD2<Double>] = [], px: [SIMD2<Double>] = []
+                    for p in Vector3.circle(about: d, openingAngle: opening, steps: edgeSteps) {
+                        let xg = p.x / p.z, yg = p.y / p.z
+                        if p.z > 0, (xg * xg + yg * yg).squareRoot() < rMax {
+                            gn.append(SIMD2(xg, yg)); px.append(SIMD2(pixelX(xg), pixelY(yg)))
+                        } else {
+                            gn.append(SIMD2(.nan, .nan)); px.append(SIMD2(.nan, .nan))
+                        }
+                    }
+                    return Edge(gnomonic: gn, pixel: px)
+                }
+            }
+            lines.append(line)
         }
 
         // Zone axes: every ordered pair's cross product (orix `Miller.cross`, the direct indices of g1 × g2), zero ones dropped,

@@ -97,7 +97,11 @@ package final class EBSDSession {
     @ObservationIgnored var overlayBands: [Int: KikuchiOverlay.Bands?] = [:]
     @ObservationIgnored var overlayMaxR: Double?
     /// The last overlay made, by position and spacing (the pane asks on every draw).
-    @ObservationIgnored var overlayMemo: (position: EBSDPosition, minD: Double, value: Result<KikuchiOverlay.Pattern, KikuchiOverlay.Absence>)?
+    @ObservationIgnored var overlayMemo: (position: EBSDPosition, minD: Double, bandWidth: Bool, kinematical: Bool,
+                                          value: Result<KikuchiOverlay.Pattern, KikuchiOverlay.Absence>)?
+    /// The kinematical master pattern (Lambert, for the simulation) and its stereographic picture per phase id, for the current bands.
+    @ObservationIgnored var overlayMasters: [Int: EBSDMasterPattern] = [:]
+    @ObservationIgnored var overlayPictures: [Int: [Double]] = [:]
 
     // MARK: Processing
 

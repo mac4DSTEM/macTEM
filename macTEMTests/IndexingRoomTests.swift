@@ -30,6 +30,17 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         return (patterns, indexing)
     }
 
+    /// Whether the detected band from `start` to `end` (pattern pixels) lies on the simulated `line`: parallel within 3° and its midpoint
+    /// within 3 px of the line.
+    private static func lies(from start: SIMD2<Double>, to end: SIMD2<Double>, on line: GeometricalKikuchiSimulation.Line) -> Bool {
+        func unit(_ v: SIMD2<Double>) -> SIMD2<Double> { v / (v.x * v.x + v.y * v.y).squareRoot() }
+        let a = SIMD2(line.pixel[0], line.pixel[1]), b = SIMD2(line.pixel[2], line.pixel[3])
+        let u = unit(b - a), d = unit(end - start), mid = (start + end) / 2 - a
+        let sine = abs(u.x * d.y - u.y * d.x)
+        let distance = abs(mid.x * u.y - mid.y * u.x)
+        return sine < sin(3 * Double.pi / 180) && distance < 3
+    }
+
     private func quaternions(_ values: [Double]) -> [SIMD4<Double>] {
         stride(from: 0, to: values.count, by: 4).map { SIMD4(values[$0], values[$0 + 1], values[$0 + 2], values[$0 + 3]) }
     }
@@ -132,6 +143,38 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertLessThanOrEqual(matched.filter { $0.fitDegrees != nil }.count, 6, "QUEST weighs at most six bands")
         XCTAssertTrue(indexing.detectedBands.filter(\.isValid).allSatisfy { $0.start != nil && $0.end != nil }, "a valid band crosses its pattern")
 
+        // The simulation overlay (#201): off by default; on, the run's solution here drawn on the pattern as indexed (kikuchipy's
+        // geometrical simulation at the run's mean PC), every band the solution matched lying on a simulated line, within 3° and 3 px.
+        // Red before: no overlay in the room; red with the conjugate rotation, or with the detector's y mirrored.
+        XCTAssertNil(indexing.simulationOverlay, "off by default")
+        indexing.showsSimulation = true
+        guard case .success(let overlay)? = indexing.simulationOverlay else {
+            return XCTFail("no overlay: \(String(describing: indexing.simulationOverlay))")
+        }
+        XCTAssertEqual(overlay.phase, "ni")
+        XCTAssertGreaterThanOrEqual(overlay.simulation.lines.count, 4)
+        XCTAssertTrue(Set(overlay.lineLabels).isSubset(of: ["{111}", "{200}", "{220}", "{311}"]), "\(overlay.lineLabels)")
+        for band in matched {
+            let s = try XCTUnwrap(band.start), e = try XCTUnwrap(band.end)
+            XCTAssertTrue(overlay.simulation.lines.contains { Self.lies(from: s, to: e, on: $0) },
+                          "the matched band \(band.family ?? "") has no simulated line on it")
+        }
+        var shared = patterns.overlaySettings
+        shared.kinematical = true
+        patterns.setOverlaySettings(shared)
+        guard case .success(let blended)? = indexing.simulationOverlay else { return XCTFail("no kinematical overlay") }
+        XCTAssertEqual(blended.simulated?.count, indexing.patternShape.rows * indexing.patternShape.columns,
+                       "the kinematical simulation on the indexed pattern's detector")
+        shared.kinematical = false
+        patterns.setOverlaySettings(shared)
+        if let missed = (0..<solutions.count).first(where: { solutions[$0].phase < 0 }) {
+            patterns.pin(EBSDPosition(row: missed / result.scanColumns, column: missed % result.scanColumns))
+            await indexing.showPattern().value
+            XCTAssertEqual(indexing.simulationOverlay, .failure(.notIndexed))
+        }
+        indexing.showsSimulation = false
+        XCTAssertNil(indexing.simulationOverlay)
+
         // The exports, written where a journey writes them.
         let state = IndexingRoomState()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("IndexingRoomTests-\(UUID().uuidString)")
@@ -165,10 +208,60 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(method?["indexed"] as? Int, indexed)
         XCTAssertEqual(method?["patterns"] as? String, IndexingSource.Kind.perPattern.title)
 
-        // A phase or processing change stales the result; undoing it makes it current again; a layer change never stales.
+        // Compare (#230, D-SEM-97): the run against the file's own indexing, the defaults. Each point indexed is compared as orix's
+        // `angle_with` of the two orientations (m-3m both), every other point is left out; 1° bins up to 63° (432's largest
+        // disorientation, 62.8°); the median under 1° (0.44° in the orix bundle `m4/indexing-compare-nickel-large`).
+        XCTAssertEqual(indexing.compareSources, [.hough, .dictionary, .file])
+        XCTAssertEqual(indexing.compareA, .hough)
+        XCTAssertEqual(indexing.compareB, .file)
+        indexing.setShowsCompare(true)
+        await indexing.refreshComparison().value
+        let comparison = try XCTUnwrap(indexing.comparison)
+        let fileMap = try XCTUnwrap(patterns.dataset?.crystalMap)
+        let fileRotations = OrientationMaps.pointIndexGrid(fileMap).map { $0 >= 0 ? fileMap.rotations[$0] : SIMD4<Double>(1, 0, 0, 0) }
+        let direct = Orientations(quaternions: ours, symmetry: PointGroup.oh)
+            .angles(with: Orientations(quaternions: fileRotations, symmetry: PointGroup.oh))
+        for i in 0..<result.pointCount {
+            if solutions[i].phase >= 0 {
+                XCTAssertEqual(comparison.angles[i], direct[i], accuracy: 1e-12, "point \(i)")
+            } else {
+                XCTAssertTrue(comparison.angles[i].isNaN, "point \(i) is not indexed")
+            }
+        }
+        XCTAssertEqual(comparison.comparedCount, indexed)
+        let median = try XCTUnwrap(comparison.medianDegrees)
+        print("F8 against the file's indexing: median \(median)° over \(comparison.comparedCount) points")
+        XCTAssertLessThan(median, 1)
+        let histogram = try XCTUnwrap(comparison.histogram)
+        XCTAssertEqual(histogram.counts.reduce(0, +), comparison.comparedCount)
+        XCTAssertEqual(histogram.edges.last, 63)
+        XCTAssertEqual(indexing.comparePictures?.a.count, result.pointCount * 4)
+        XCTAssertEqual(indexing.comparePictures?.b.count, result.pointCount * 4)
+        indexing.setShowsCompare(false)
+
+        // A scalar layer is its values through the Map Display (D-SEM-96): the canvas spans the indexed points' CI, the points not
+        // indexed are masked; its PNG is the pane's picture. The Euler layer is orix's Euler colour key of the orientation.
         XCTAssertFalse(indexing.isStale)
         indexing.setLayer(.confidence)
         XCTAssertFalse(indexing.isStale)
+        XCTAssertTrue(indexing.showsScalarMap)
+        XCTAssertNil(indexing.mapRGBA, "a scalar layer is not painted as RGBA")
+        let canvas = try XCTUnwrap(indexing.mapPresentation.canvas)
+        XCTAssertEqual([canvas.width, canvas.height], [result.scanColumns, result.scanRows])
+        let ci = solutions.filter { $0.phase >= 0 }.map { Float($0.confidence) }
+        let lowest = try XCTUnwrap(ci.min()), highest = try XCTUnwrap(ci.max())
+        XCTAssertEqual(canvas.rawRange, lowest...highest)
+        XCTAssertEqual(canvas.normalized.filter { $0 < 0 }.count, result.pointCount - indexed, "a point not indexed is masked")
+        reports = []
+        state.export(.mapPNG, from: indexing, directory: directory) { reports.append($0) }
+        XCTAssertEqual(reports, ["Exported patterns_v2 indexed Confidence index.png"])
+        indexing.setLayer(.euler)
+        XCTAssertFalse(indexing.showsScalarMap)
+        let euler = try XCTUnwrap(indexing.mapRGBA)
+        let eulerColour = EulerColorKey(PointGroup.oh).color(of: [solutions[first].quaternion])[0]
+        for c in 0..<3 { XCTAssertEqual(Double(euler[first * 4 + c]), (eulerColour[c] * 255).rounded(), accuracy: 1, "channel \(c)") }
+
+        // A phase or processing change stales the result; undoing it makes it current again; a layer change never stales.
         indexing.setPhase(named: "ni", isOn: false)
         XCTAssertTrue(indexing.isStale)
         XCTAssertEqual(indexing.refusal, "Turn a phase on to index against it.")

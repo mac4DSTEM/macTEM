@@ -11,7 +11,8 @@ import UniformTypeIdentifiers
 import TEMCore
 import TEMSession
 
-/// What the Indexing room's Export section writes (design §4): the map on screen as a PNG, the results as CSV, the orientations as EDAX
+/// What the Indexing room's Export section writes (design §4): the map on screen as a PNG (an orientation or phase layer one pixel per
+/// point; a scalar layer as the pane draws it, with its colormap, window and scale bar, D-SEM-96), the results as CSV, the orientations as EDAX
 /// .ang and Oxford .ctf (the run's crystal map: Hough's, D-SEM-81, or the dictionary's, D-SEM-92), the run's method as JSON.
 nonisolated enum IndexingExportKind: String, CaseIterable, Identifiable {
     case mapPNG, resultsCSV, ang, ctf, methodJSON
@@ -71,11 +72,17 @@ final class IndexingRoomState {
         do {
             switch kind {
             case .mapPNG:
-                guard let rgba = session.mapRGBA,
-                      let png = PatternsRoomState.mixPNG(rgba: rgba, width: result.scanColumns, height: result.scanRows) else {
-                    report("Export failed: the map could not be encoded."); return
+                if session.showsScalarMap, let canvas = session.mapPresentation.canvas {
+                    // A scalar layer as the pane shows it (colormap, window, gamma, scale bar), through the Image room's exporter.
+                    data = try PatternsRoomState.mapPNG(canvas: canvas, presentation: session.mapPresentation, dataset: document.dataset,
+                                                        fileName: document.fileName, map: "indexed \(session.layer.title)")
+                } else {
+                    guard let rgba = session.mapRGBA,
+                          let png = PatternsRoomState.mixPNG(rgba: rgba, width: result.scanColumns, height: result.scanRows) else {
+                        report("Export failed: the map could not be encoded."); return
+                    }
+                    data = png
                 }
-                data = png
             case .resultsCSV:
                 data = Data(result.csv(stepX: document.dataset.stepX, stepY: document.dataset.stepY).utf8)
             case .ang:
