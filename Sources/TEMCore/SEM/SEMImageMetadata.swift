@@ -33,7 +33,7 @@
 //  - The databar: Thermo's `[PrivateFei] DatabarHeight` is read only when `[Image] ResolutionY` plus it equals the TIFF's
 //    ImageLength (the three agree in every Helios file RosettaSciIO ships); Tescan's `[MAIN] ImageStripSize` only when it is
 //    below the ImageLength; a Zeiss file is never cropped: SmartSEM draws its data zone into the scan's own rows and records
-//    no height for it (decision D-SEM-60, docs/decisions.md).
+//    no height for it (decision D-SEM-63, docs/decisions.md).
 //
 
 import Foundation

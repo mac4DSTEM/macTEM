@@ -2,7 +2,9 @@
 //  PatternPipeline.swift
 //  The Patterns room's processing pipeline (docs/sem/design/pattern-processing.md §3): the stages in kikuchipy's dependency order
 //  — static background, dynamic background, intensity (rescale or normalise), size (bin) — as one Sendable value, applied to one
-//  pattern (the live preview) or to every pattern of a scan (the room's verb `Process`, into memory). Every number is
+//  pattern (the live preview) or to every pattern of a scan (the room's verb `Process`, into memory). NLPAR (`NLPAR`, pyebsdindex
+//  0.3.10.1) is the last stage and the only one over the whole scan at once: each pattern is averaged with its neighbours, so it
+//  runs only in `process`, after the per-pattern stages, and its output is float32 as pyebsdindex's. Every number is
 //  `PatternProcessing`'s, ported function by function from kikuchipy 0.13.1 and held by its parity tests; this file only chains
 //  the stages and keeps their parameters in kikuchipy's names (`methodJSON`), so a user reproduces the run in Python.
 //
@@ -76,6 +78,15 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
     /// The binning factor (`EBSD.downsample`): 1, 2, 4 or 8.
     package var binning = 1
 
+    /// NLPAR over the whole scan (Brewick, Wright and Rowenhorst 2019): λ from `opt_lambda` (the median of the three target weights).
+    package struct NLPARStage: Sendable, Equatable, Codable {
+        package var isOn = false
+        package var searchRadius = NLPAR.defaultSearchRadius
+        package init() {}
+    }
+
+    package var nlpar = NLPARStage()
+
     package static let binnings = [1, 2, 4, 8]
 
     package init() {}
@@ -86,7 +97,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
 
     /// The pipeline's stages in dependency order, for the stage glyphs.
     package enum Stage: Int, Sendable, CaseIterable, Identifiable, Comparable {
-        case staticBackground, dynamicBackground, intensity, size
+        case staticBackground, dynamicBackground, intensity, size, nlpar
         package var id: Int { rawValue }
         package var title: String {
             switch self {
@@ -94,6 +105,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             case .dynamicBackground: "Dynamic background"
             case .intensity: "Intensity"
             case .size: "Size"
+            case .nlpar: "NLPAR"
             }
         }
         package static func < (a: Stage, b: Stage) -> Bool { a.rawValue < b.rawValue }
@@ -106,6 +118,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         case .dynamicBackground: dynamicStage.isOn
         case .intensity: intensity.mode != .none
         case .size: binning > 1
+        case .nlpar: nlpar.isOn
         }
     }
 
@@ -115,6 +128,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         if dynamicStage != other.dynamicStage { return .dynamicBackground }
         if intensity != other.intensity { return .intensity }
         if binning != other.binning { return .size }
+        if nlpar != other.nlpar { return .nlpar }
         return nil
     }
 
@@ -164,15 +178,23 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         if binning > 1, dataset.patternRows % binning != 0 || dataset.patternColumns % binning != 0 {
             return Refusal(.size, "Bin \(binning) does not divide the \(dataset.patternRows) × \(dataset.patternColumns) px pattern.")
         }
+        if nlpar.isOn {
+            let window = 2 * nlpar.searchRadius + 1
+            guard nlpar.searchRadius >= 1 else { return Refusal(.nlpar, "The search radius must be at least 1.") }
+            guard window <= dataset.scanRows, window <= dataset.scanColumns else {
+                return Refusal(.nlpar, "A search radius of \(nlpar.searchRadius) needs a scan of at least \(window) × \(window); this one is \(dataset.scanRows) × \(dataset.scanColumns).")
+            }
+        }
         return nil
     }
 
     // MARK: - One pattern
 
     /// The pattern's type after the pipeline.
-    package func outputType(_ input: FormatoDataType) -> FormatoDataType { intensity.mode == .normalize ? .float32 : input }
+    package func outputType(_ input: FormatoDataType) -> FormatoDataType { intensity.mode == .normalize || nlpar.isOn ? .float32 : input }
 
-    /// One pattern (shape rows × columns, uint8 or uint16) through every active stage; the result's shape is binned.
+    /// One pattern (shape rows × columns, uint8 or uint16) through every active per-pattern stage; the result's shape is binned.
+    /// NLPAR needs the neighbours, so it is not applied here (`process` runs it).
     package func apply(_ pattern: FormatoArray, rows: Int, columns: Int, background: FormatoArray?) throws -> FormatoArray {
         switch pattern.dataType {
         case .uint8:
@@ -233,10 +255,12 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         return out
     }
 
-    /// Every pattern of the scan through the pipeline, row by row, into memory. `progress` gets the fraction done after each scan row;
+    /// Every pattern of the scan through the pipeline, row by row, into memory, then NLPAR over the result when it is on (`lambda` is
+    /// told the λ it chose). `progress` gets the fraction done after each scan row (the rows are the first half when NLPAR follows);
     /// returns nil when `isCancelled` says so between rows.
     package func process(_ access: any EBSDPatternAccess, background: FormatoArray?,
-                         progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }) throws -> EBSDMemoryPatterns? {
+                         progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false },
+                         lambda: (Double) -> Void = { _ in }) throws -> EBSDMemoryPatterns? {
         let dataset = access.dataset
         if let problem = refusal(for: dataset, background: background) { throw problem }
         let out = processedDataset(dataset)
@@ -251,9 +275,19 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
                                            bytes: slab.bytes.subdata(in: (column * inSize)..<((column + 1) * inSize)))
                 bytes.append(try apply(one, rows: dataset.patternRows, columns: dataset.patternColumns, background: background).bytes)
             }
-            progress(Double(row + 1) / Double(dataset.scanRows))
+            progress(Double(row + 1) / Double(dataset.scanRows) * (nlpar.isOn ? 0.5 : 1))
         }
-        return try EBSDMemoryPatterns(dataset: out, bytes: bytes)
+        guard nlpar.isOn else { return try EBSDMemoryPatterns(dataset: out, bytes: bytes) }
+        if isCancelled() { return nil }
+        let perPattern: FormatoDataType = intensity.mode == .normalize ? .float32 : dataset.dataType
+        let values = try FormatoArray(dataType: perPattern, shape: [bytes.count / perPattern.byteSize], bytes: bytes).doubles().map { Float($0) }
+        let scan = try NLPAR.Scan(rows: out.scanRows, columns: out.scanColumns, patternRows: out.patternRows, patternColumns: out.patternColumns,
+                                  values: values)
+        let result = try NLPAR.run(scan, searchRadius: nlpar.searchRadius)
+        lambda(result.lambda)
+        progress(1)
+        let denoised = try Self.array(result.denoised.values, rows: result.denoised.values.count, columns: 1)
+        return try EBSDMemoryPatterns(dataset: out, bytes: denoised.bytes)
     }
 
     /// The mean of every pattern of the scan cast to the pattern type by truncation (`PatternProcessing.meanBackground`'s numbers, summed
@@ -312,6 +346,10 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             steps.append(["method": "EBSD.normalize_intensity", "num_std": intensity.numStd, "divide_by_square_root": intensity.divideBySquareRoot])
         }
         if binning > 1 { steps.append(["method": "EBSD.downsample", "factor": binning]) }
+        if nlpar.isOn {
+            steps.append(["method": "pyebsdindex.nlpar.NLPAR", "searchradius": nlpar.searchRadius, "lam": "opt_lambda() median",
+                          "reference": "pyebsdindex 0.3.10.1"])
+        }
         let root: [String: Any] = [
             "software": "macTEM", "reference": "kikuchipy 0.13.1", "file": fileName,
             "scan": [dataset.scanRows, dataset.scanColumns], "pattern": [dataset.patternRows, dataset.patternColumns],

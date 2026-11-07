@@ -111,6 +111,8 @@ package final class EBSDSession {
     package private(set) var patternIsProcessed = false
     /// Why the shown pattern could not be processed (a stage's sentence), shown under the Processing rows; nil when it could.
     package private(set) var previewFailure: String?
+    /// The λ NLPAR chose in the last run (`opt_lambda`'s median), nil when that run had no NLPAR.
+    package private(set) var nlparLambda: Double?
 
     /// The static background the pipeline uses: the file's or the scan's mean.
     package var staticBackground: FormatoArray? {
@@ -178,13 +180,16 @@ package final class EBSDSession {
         let access = document.access
         isProcessing = true
         processProgress = 0
+        nlparLambda = nil
         onEvent?("Processing \(document.dataset.patternCount) patterns…")
         let started = Date()
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 let result = try pipeline.process(access, background: background, progress: { f in
                     Task { @MainActor in self?.landProcessProgress(f, generation: gen) }
-                }, isCancelled: { Task.isCancelled })
+                }, isCancelled: { Task.isCancelled }, lambda: { l in
+                    Task { @MainActor in self?.landLambda(l, generation: gen) }
+                })
                 await self?.landProcessed(result, with: pipeline, failure: nil, seconds: Date().timeIntervalSince(started), generation: gen)
             } catch {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -193,6 +198,11 @@ package final class EBSDSession {
         }
         processTask = task
         return Task { await task.value }
+    }
+
+    private func landLambda(_ l: Double, generation gen: Int) {
+        guard gen == generation else { return }
+        nlparLambda = l
     }
 
     private func landProcessProgress(_ f: Double, generation gen: Int) {
@@ -208,7 +218,8 @@ package final class EBSDSession {
             processedWith = run
             processProgress = 1
             let mb = Double(result.bytes.count) / 1_000_000
-            onEvent?("Processed \(result.dataset.patternCount) patterns in \(String(format: "%.1f", seconds)) s · \(String(format: "%.1f", mb)) MB in memory")
+            let nlpar = run.nlpar.isOn ? nlparLambda.map { " · NLPAR λ \(String(format: "%.3f", $0))" } ?? "" : ""
+            onEvent?("Processed \(result.dataset.patternCount) patterns in \(String(format: "%.1f", seconds)) s · \(String(format: "%.1f", mb)) MB in memory" + nlpar)
             setPatternDisplay(.processed)
         } else if let failure {
             onEvent?("Error: \(failure)")
@@ -442,7 +453,7 @@ package final class EBSDSession {
 
     private func resetProcessing() {
         processTask?.cancel(); meanTask?.cancel()
-        processed = nil; processedWith = nil; isProcessing = false; processProgress = 0
+        processed = nil; processedWith = nil; isProcessing = false; processProgress = 0; nlparLambda = nil
         scanMeanBackground = nil; isComputingMean = false; patternIsProcessed = false; previewFailure = nil
         patternDisplay = .raw
         pipeline = .roomDefault
@@ -460,7 +471,7 @@ package final class EBSDSession {
         virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
         qualityTask?.cancel(); imageQualityMap = nil; dotProductMap = nil; isQualityMapping = false; qualityProgress = 0; showsTiles = false
         processTask?.cancel(); meanTask?.cancel()
-        processed = nil; processedWith = nil; isProcessing = false; processProgress = 0
+        processed = nil; processedWith = nil; isProcessing = false; processProgress = 0; nlparLambda = nil
         scanMeanBackground = nil; isComputingMean = false; patternIsProcessed = false; previewFailure = nil
         patternDisplay = .raw; pipeline = .roomDefault
     }
@@ -598,6 +609,15 @@ package final class EBSDSession {
         let pipeline: PatternPipeline? = patternDisplay == .processed && processingRefusal == nil ? self.pipeline : nil
         let background = staticBackground
         if patternDisplay == .processed, let refusal = processingRefusal { previewFailure = refusal.sentence } else { previewFailure = nil }
+        // The scan's own run when it is current: the only way to see NLPAR, which needs the neighbours.
+        if patternDisplay == .processed, let processed, processedWith == self.pipeline,
+           let one = try? processed.pattern(row: position.row, column: position.column) {
+            patternPresentation.show(Self.canvas(one))
+            patternPosition = position
+            patternIsProcessed = true
+            previewFailure = nil
+            return Task {}
+        }
         let cached = cache[index]
         if let cached, pipeline == nil {
             patternPresentation.show(Self.canvas(cached))
