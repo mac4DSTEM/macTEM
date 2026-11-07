@@ -71,10 +71,22 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         let bare = try XCTUnwrap(KikuchiOverlayExport.png(patternPNG: plain, overlay: empty, settings: settings))
         let drawn = try rgba(png), background = try rgba(bare)
         XCTAssertEqual(drawn.count, background.count)
-        let changed = stride(from: 0, to: drawn.count, by: 4).filter { drawn[$0] != background[$0] || drawn[$0 + 2] != background[$0 + 2] }.count
+        var changed = 0, blue = 0
+        for k in stride(from: 0, to: drawn.count, by: 4) {
+            let r = drawn[k], g = drawn[k + 1], b = drawn[k + 2]
+            if r != background[k] || b != background[k + 2] { changed += 1 }
+            if Self.isAccent(r: r, g: g, b: b) { blue += 1 }
+        }
         XCTAssertGreaterThan(changed, 2000, "the bands, edges and labels change the picture")
-        let blue = stride(from: 0, to: drawn.count, by: 4).filter { drawn[$0 + 2] > 200 && drawn[$0] < 80 && drawn[$0 + 1] > 90 && drawn[$0 + 1] < 170 }.count
         XCTAssertGreaterThan(blue, 500, "the accent colour is on the bands")
+    }
+
+    /// The export's accent blue (sRGB 0.04, 0.52, 1), allowing for the halo's blend at the strokes' edges.
+    private static func isAccent(r: UInt8, g: UInt8, b: UInt8) -> Bool {
+        let blueEnough: Bool = b > 200
+        let lowRed: Bool = r < 80
+        let midGreen: Bool = g > 90 && g < 170
+        return blueEnough && lowRed && midGreen
     }
 
     /// The pixels of a PNG as sRGB RGBA bytes.
