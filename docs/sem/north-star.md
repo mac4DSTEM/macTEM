@@ -181,6 +181,14 @@ defaults: boundaries at 10°, grains of at least 10 points; the symmetric KAM at
 | The same on the two-phase steel (austenite and ferrite, phase boundaries) | as above | `m5/grains-sdss` | as above |
 | **F11** grain map with sizes of the whole 381 × 507 Ti map (62 grains, the largest 78 515 points) and **F12** KAM and GOS maps (GOS up to 4.95°, mean 0.90°; mean KAM 4.14° DefDAP's, 2.39° symmetric, 0.81° at 5°) | as above | `m5/grains-ti-full` | grain map exact (sha256), sizes exact; KAM and GROD every 37th value atol 1e-6; GOS atol 1e-6 |
 
+Slip analysis and dislocation content (P5-03), DefDAP 1.3.1 on inputs that need no download
+(`fixtures/slip_inputs.json`: a 90 x 120 corner of orix-data's Ti map and the whole sdss map):
+
+| What | Reference | Bundle | Tolerance |
+| --- | --- | --- | --- |
+| hcp Ti (`hexagonal_withca`, 24 systems in 10 plane groups): slip-system vectors, DefDAP quaternions, Nye tensor and GND density (DefDAP as shipped and with separate x and y derivatives, D-SEM-74), grains at 10° (13), their average orientations, Schmid factors for a load along x, slip-trace angles and inclinations, and the same per orientation for every 37th point under loads along x and y | `defdap.ebsd.Map.calc_nye`, `find_grains`; `Grain.calc_average_ori`, `calc_average_schmid_factors`, `calc_slip_traces`; `crystal.SlipSystem.load` | `m5/slip-ti` | Schmid factors and angles atol 1e-6; GND and Nye rtol 1e-5 (atol 1e6 m⁻²); vectors and quaternions 1e-12; grain averages 1e-10; indices exact |
+| The duplex steel: fcc austenite (`cubic_fcc`, 12 systems) and bcc ferrite (`cubic_bcc`, 48 rows in 30 plane groups), the same quantities, 102 grains | as above | `m5/slip-sdss` | as above |
+
 ### Figure 6 (milestone 6): geometrical simulation
 
 Kikuchipy *Geometrical EBSD simulations*: Kikuchi bands and zone axes of the indexed orientation drawn on the

@@ -145,6 +145,21 @@ where PyEBSDIndex uses float32, with the CPU path only, the "KIKUCHIPY" vendor c
 each file's first lines say which functions it derives from and what changed.
 
 ================================================================================
+DefDAP (ported code and data)
+================================================================================
+
+The slip analysis in Sources/TEMCore/SEM/Deformation/ (DefDAPQuat, DefDAPCrystalStructure, SlipSystem, SlipSystemSet,
+SlipPhase, SlipTraceAnalysis, NyeTensor) is a port of DefDAP 1.3.1 (https://github.com/MechMicroMan/DefDAP): defdap.quat,
+defdap.crystal, defdap.crystal_utils and defdap.ebsd (calc_nye, calc_average_ori, calc_average_schmid_factors,
+calc_slip_traces), and SlipSystems.swift carries DefDAP's slip-system files (defdap/slip_systems/*.txt) verbatim.
+Copyright 2025 Mechanics of Microstructures Group at The University of Manchester. Licensed under the Apache License,
+Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0), which is compatible with GPL-3.0; DefDAP ships no NOTICE file.
+Changes: DefDAP's Python is rewritten in Swift; NyeTensor keeps the x and y derivatives apart by default where DefDAP 1.3.1
+aliases them (its numbers remain available); SlipPhase.analysisSlipSystems drops twelve rows of cubic_bcc whose slip
+direction is not in its plane. The parity inputs tools/parity/sem/fixtures/slip_inputs.json hold rows 0-89, columns
+0-119 of orix-data's Ti_orientations.ctf and the whole sdss_ferrite_austenite.ang (both CC BY 4.0).
+
+================================================================================
 SpectroKit (a Swift package the app is built with)
 ================================================================================
 
