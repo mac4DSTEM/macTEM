@@ -165,10 +165,29 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(method?["indexed"] as? Int, indexed)
         XCTAssertEqual(method?["patterns"] as? String, IndexingSource.Kind.perPattern.title)
 
-        // A phase or processing change stales the result; undoing it makes it current again; a layer change never stales.
+        // A scalar layer is its values through the Map Display (D-SEM-96): the canvas spans the indexed points' CI, the points not
+        // indexed are masked; its PNG is the pane's picture. The Euler layer is orix's Euler colour key of the orientation.
         XCTAssertFalse(indexing.isStale)
         indexing.setLayer(.confidence)
         XCTAssertFalse(indexing.isStale)
+        XCTAssertTrue(indexing.showsScalarMap)
+        XCTAssertNil(indexing.mapRGBA, "a scalar layer is not painted as RGBA")
+        let canvas = try XCTUnwrap(indexing.mapPresentation.canvas)
+        XCTAssertEqual([canvas.width, canvas.height], [result.scanColumns, result.scanRows])
+        let ci = solutions.filter { $0.phase >= 0 }.map { Float($0.confidence) }
+        let lowest = try XCTUnwrap(ci.min()), highest = try XCTUnwrap(ci.max())
+        XCTAssertEqual(canvas.rawRange, lowest...highest)
+        XCTAssertEqual(canvas.normalized.filter { $0 < 0 }.count, result.pointCount - indexed, "a point not indexed is masked")
+        reports = []
+        state.export(.mapPNG, from: indexing, directory: directory) { reports.append($0) }
+        XCTAssertEqual(reports, ["Exported patterns_v2 indexed Confidence index.png"])
+        indexing.setLayer(.euler)
+        XCTAssertFalse(indexing.showsScalarMap)
+        let euler = try XCTUnwrap(indexing.mapRGBA)
+        let eulerColour = EulerColorKey(PointGroup.oh).color(of: [solutions[first].quaternion])[0]
+        for c in 0..<3 { XCTAssertEqual(Double(euler[first * 4 + c]), (eulerColour[c] * 255).rounded(), accuracy: 1, "channel \(c)") }
+
+        // A phase or processing change stales the result; undoing it makes it current again; a layer change never stales.
         indexing.setPhase(named: "ni", isOn: false)
         XCTAssertTrue(indexing.isStale)
         XCTAssertEqual(indexing.refusal, "Turn a phase on to index against it.")

@@ -17,6 +17,7 @@
 
 import Foundation
 import Observation
+import ShellMetal
 import TEMCore
 
 @Observable
@@ -70,9 +71,19 @@ package final class IndexingSession {
 
     // MARK: The pictures
 
-    /// The map as RGBA, one pixel per scan point, and its version for the Metal view.
+    /// The map as RGBA, one pixel per scan point, and its version for the Metal view: a pointwise layer (IPF, Euler, Phase) or the
+    /// navigator before a run; nil while the map shows a scalar layer.
     package private(set) var mapRGBA: [UInt8]?
     package private(set) var mapVersion = 0
+    /// A scalar layer's values (CI, Fit, Bands, PQ, Score, OSM) as the image rooms draw a picture (D-SEM-96): its colormap, window,
+    /// gamma and scale bar are the inspector's Map Display; a point without a value is masked. Viridis first (matplotlib's default,
+    /// which orix's `CrystalMap.plot` draws a property with): its masked grey is no value's colour, where on Gray it reads as a value
+    /// a third of the way up.
+    package let mapPresentation: ImagePresentation = {
+        let presentation = ImagePresentation()
+        presentation.colormap = .viridis
+        return presentation
+    }()
     /// The pattern as it is indexed (through the pipeline), drawn with its own contrast.
     package let patternPresentation = ImagePresentation()
     /// The position under the pointer while it hovers the map, else nil (the pinned position is the Patterns room's).
@@ -200,6 +211,7 @@ package final class IndexingSession {
         result = nil; resultInputs = nil; resultSource = nil; resultProjectionCenter = nil
         isIndexing = false; progress = 0; lastRunSeconds = nil; wasStopped = false; chunksDone = 0; chunksTotal = 0
         mapRGBA = nil; palette = nil; probe = nil; runPlan = nil; dictionaryPlan = nil; shownKey = nil; shownRaw = []
+        mapPresentation.resetWindow()
         hovered = nil; patternPosition = nil; detectedBands = []; patternFailure = nil; patternShape = (rows: 0, columns: 0)
         bestMatchPosition = nil; bestMatchFailure = nil; bestMatchKey = nil
         phases = []; skippedPhases = []; settings = .roomDefault; layer = .ipfZ
@@ -390,12 +402,18 @@ package final class IndexingSession {
                                               detector: document.dataset.detector, beamEnergy: document.dataset.sem.beamEnergyKeV)
     }
 
+    /// Shows layer `new` of the result. A scalar layer's window goes back to its full range (each layer has its own units); the
+    /// colormap and the gamma stay, as the Patterns room's map keeps them from map to map.
     package func setLayer(_ new: IndexingLayer) {
         guard new != layer, availableLayers.contains(new) else { return }
         layer = new
         palette = result.map { IndexingPalette(layer: new, phases: $0.phases) }
+        if !new.isPointwise { mapPresentation.resetWindow() }
         refreshMap()
     }
+
+    /// Whether the map shows a scalar layer through `mapPresentation` (a result is on screen and its layer is not pointwise).
+    package var showsScalarMap: Bool { result != nil && !layer.isPointwise }
 
     // MARK: - Whether Index can run
 
@@ -641,13 +659,18 @@ package final class IndexingSession {
 
     // MARK: - The map
 
-    /// Repaints the whole map: the result on its layer over the dimmed navigator, or the navigator alone before a run.
+    /// Repaints the whole map: the result on its layer (a pointwise one over the dimmed navigator, a scalar one as its values through
+    /// `mapPresentation`), or the navigator alone before a run.
     package func refreshMap() {
         guard let dataset = patterns.dataset else {
             mapRGBA = nil
             return
         }
-        if let result {
+        if let result, !layer.isPointwise {
+            mapRGBA = nil
+            mapPresentation.show(CanvasPixels.make(width: result.scanColumns, height: result.scanRows,
+                                                   pixels: IndexingRaster.scalarPixels(result, layer: layer)))
+        } else if let result {
             let palette = self.palette.flatMap { $0.layer == layer ? $0 : nil } ?? IndexingPalette(layer: layer, phases: result.phases)
             self.palette = palette
             mapRGBA = IndexingRaster.rgba(result, palette: palette, backdrop: patterns.meanIntensities)
@@ -657,7 +680,7 @@ package final class IndexingSession {
         mapVersion &+= 1
     }
 
-    /// Landed rows: a pointwise layer repaints those rows, a scalar layer (its grey range moves) the whole map.
+    /// Landed rows: a pointwise layer repaints those rows, a scalar layer (its range moves) the whole map.
     private func repaint(rows: Range<Int>) {
         guard let result, let palette, palette.layer == layer, layer.isPointwise, var rgba = mapRGBA, rgba.count == result.pointCount * 4 else {
             refreshMap()

@@ -257,6 +257,10 @@ of the Swift steps matched every bundle: float32 runs within 2.3e-6, the float64
 - D-SEM-92 (2026-11-07): the room runs the scan in blocks of rows against the whole dictionary; Stop keeps whole blocks; a NaN score
   (no contrast) is not indexed in the room and its files; the OSM layer is kikuchipy's map of the rows landed, a point not indexed
   showing none.
+- D-SEM-96 (2026-11-07): the room's Euler layer is `EulerColorKey` of the phase's point group (held by
+  `testEulerColourKeyMatchesOrixForEveryGroup`; through the room by `IndexingMapLayerTests` and `testFigureF8ThroughTheRoom`); the
+  scalar layers are drawn from their values (`IndexingRaster.scalarPixels`, NaN where a point has none) with the Map Display's
+  colormap and window, which change no number.
 - Figure F9 (`docs/sem/north-star.md`): `tools/parity/sem/dictionary_figure.py` draws kikuchipy's IPF-Z map beside the one from
   the indices `testFigureF9WholeScanIndexedAgainstTheNickelDictionary` writes to `$TMPDIR/macTEM-F9-ours.i32` (and prints as
   base64), the score map and the points whose best match differs.

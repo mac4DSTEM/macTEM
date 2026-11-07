@@ -2,9 +2,10 @@
 //  IndexingResult.swift
 //  Role: a run of the Indexing room as it lands (docs/sem/design/indexing-room.md §3, §6): one solution per scan point, filled row by
 //        row (Hough) or block of rows by block (dictionary, D-SEM-92), so the map grows in place and a stopped run keeps its indexed
-//        prefix; the map's layers (IPF-Z, IPF-X, IPF-Y, Phase, then CI, Fit, Bands, PQ for Hough, D-SEM-84, or Score and OSM for a
-//        dictionary) as RGBA, one pixel per scan point; the status line's readout; the Bands table of the pattern on screen, and each
-//        detected band's centre line on that pattern for the overlay.
+//        prefix; the map's layers (IPF-Z, IPF-X, IPF-Y, Euler, Phase, then CI, Fit, Bands, PQ for Hough, D-SEM-84, or Score and OSM
+//        for a dictionary): the orientation's and the phase's as RGBA, the scalars as their values (D-SEM-96), one pixel per scan
+//        point; the status line's readout; the Bands table of the pattern on screen, and each detected band's centre line on that
+//        pattern for the overlay.
 //
 //  A dictionary run's point carries its best match as a `HoughIndexer.Solution` (the rotation, phase 0, the score as its confidence,
 //  no fit and no bands), so the map, the readout and the tables read both methods alike; the full ranking (keep_n matches per point)
@@ -12,25 +13,27 @@
 //  `orientation_similarity_map` with its defaults: every kept match, not normalised, the four nearest neighbours; Marquardt et al.
 //  2017) is `OrientationSimilarityMap` (#221) on the rows landed, updated as each block lands (D-SEM-92).
 //
-//  Colours: the IPF layers are orix's `IPFColorKeyTSL` of the phase's point group (parity-tested, `SEMColorKeyParityTests`); Phase
-//  is the phase's colour; the scalar layers are grey from their smallest to their largest value over the points reached. A point
-//  the run has not indexed is black, as orix draws `not_indexed`; a point the run has not reached shows the scan's mean intensity,
-//  dimmed, so the map reads as the Patterns room's navigator until Index has passed.
+//  Colours: the IPF layers are orix's `IPFColorKeyTSL` of the phase's point group, Euler is orix's `EulerColorKey` of it (both
+//  parity-tested, `SEMColorKeyParityTests`); Phase is the phase's colour. On those layers a point the run has not indexed is black,
+//  as orix draws `not_indexed`, and a point the run has not reached shows the scan's mean intensity, dimmed, so the map reads as the
+//  Patterns room's navigator until Index has passed. A scalar layer is its values (`scalarPixels`), drawn as the image rooms draw a
+//  picture (colormap, window, gamma, D-SEM-96): a point without a value (not indexed, not reached) is NaN, the masked grey.
 //
 
 import Foundation
 
-/// The Indexing room's map layers (D-SEM-84).
+/// The Indexing room's map layers (D-SEM-84, D-SEM-96).
 package nonisolated enum IndexingLayer: String, Sendable, CaseIterable, Identifiable, Codable {
-    case ipfZ, ipfX, ipfY, phase, confidence, fit, bands, patternQuality, score, osm
+    case ipfZ, ipfX, ipfY, euler, phase, confidence, fit, bands, patternQuality, score, osm
 
     package var id: String { rawValue }
 
-    /// The layers a run of `method` has (D-SEM-84, D-SEM-92): the orientation's and the phase's, then the method's own scalars.
+    /// The layers a run of `method` has (D-SEM-84, D-SEM-92, D-SEM-96): the orientation's in its two colour keys and the phase's, then
+    /// the method's own scalars.
     package static func layers(for method: IndexingMethod) -> [IndexingLayer] {
         switch method {
-        case .hough: [.ipfZ, .ipfX, .ipfY, .phase, .confidence, .fit, .bands, .patternQuality]
-        case .dictionary: [.ipfZ, .ipfX, .ipfY, .phase, .score, .osm]
+        case .hough: [.ipfZ, .ipfX, .ipfY, .euler, .phase, .confidence, .fit, .bands, .patternQuality]
+        case .dictionary: [.ipfZ, .ipfX, .ipfY, .euler, .phase, .score, .osm]
         }
     }
 
@@ -40,6 +43,7 @@ package nonisolated enum IndexingLayer: String, Sendable, CaseIterable, Identifi
         case .ipfZ: "IPF-Z"
         case .ipfX: "IPF-X"
         case .ipfY: "IPF-Y"
+        case .euler: "Euler"
         case .phase: "Phase"
         case .confidence: "Confidence index"
         case .fit: "Fit"
@@ -60,13 +64,15 @@ package nonisolated enum IndexingLayer: String, Sendable, CaseIterable, Identifi
         }
     }
 
-    /// Whether each point's colour is its own (IPF, Phase); a scalar layer's grey depends on the range of every point reached.
-    package var isPointwise: Bool { direction != nil || self == .phase }
+    /// Whether each point's colour is its own (IPF, Euler, Phase); a scalar layer is drawn through a colormap over the range of every
+    /// point reached.
+    package var isPointwise: Bool { direction != nil || self == .euler || self == .phase }
 
-    /// What a grey scalar layer says, pyEBSDindex's names: "CI (cm)", "fit (°)".
+    /// The pop-up's help: what the layer shows, in its source's words (pyEBSDindex's cm, fit and pq; orix's colour keys).
     package var help: String {
         switch self {
         case .ipfZ, .ipfX, .ipfY: "The crystal direction along the sample's \(title.suffix(1).lowercased()) axis, in the phase's IPF colour key (orix's TSL key)"
+        case .euler: "The Bunge angles (φ₁, Φ, φ₂) in the Euler fundamental region of the phase's proper point group, each over its largest value, as red, green and blue (orix's Euler colour key)"
         case .phase: "Each point in its phase's colour"
         case .confidence: "pyEBSDindex's confidence metric (cm): the votes of the matched families over all votes, 0 to 1"
         case .fit: "The mean angle between the detected and the matched band normals, degrees"
@@ -85,7 +91,7 @@ package nonisolated enum IndexingLayer: String, Sendable, CaseIterable, Identifi
         case .fit: return s.phase >= 0 ? s.fit : nil
         case .bands: return Double(s.matchedBands)
         case .patternQuality: return s.patternQuality.isFinite ? s.patternQuality : nil
-        case .ipfZ, .ipfX, .ipfY, .phase, .osm: return nil
+        case .ipfZ, .ipfX, .ipfY, .euler, .phase, .osm: return nil
         }
     }
 }
@@ -193,6 +199,16 @@ package nonisolated struct IndexingResult: Sendable {
 
     /// The score's name: "NCC", "NDP"; "CI" for Hough.
     package var scoreTitle: String { metric?.title ?? "CI" }
+
+    /// A scalar layer's name under its colour bar: the score by its metric ("NCC"), the fit with its unit ("Fit (°)"), else the
+    /// layer's title.
+    package func scalarTitle(_ layer: IndexingLayer) -> String {
+        switch layer {
+        case .score: scoreTitle
+        case .fit: "Fit (°)"
+        default: layer.title
+        }
+    }
 
     /// The map layers this run has.
     package var layers: [IndexingLayer] { IndexingLayer.layers(for: method) }
@@ -385,6 +401,7 @@ package nonisolated struct IndexingResult: Sendable {
 package nonisolated struct IndexingPalette: Sendable {
     package let layer: IndexingLayer
     private let keys: [IPFColorKeyTSL?]
+    private let eulerKeys: [EulerColorKey?]
     private let phaseColors: [SIMD3<Double>]
 
     package init(layer: IndexingLayer, phases: [IndexingPhase]) {
@@ -394,6 +411,7 @@ package nonisolated struct IndexingPalette: Sendable {
         } else {
             keys = phases.map { _ in nil }
         }
+        eulerKeys = phases.map { phase in layer == .euler ? phase.pointGroup.map(EulerColorKey.init) : nil }
         phaseColors = phases.map(\.colorRGB)
     }
 
@@ -413,6 +431,14 @@ package nonisolated struct IndexingPalette: Sendable {
                 let colors = key.color(of: members.map { solutions[$0]?.quaternion ?? SIMD4(1, 0, 0, 0) })
                 for (k, i) in members.enumerated() { out[i] = colors[k] }
             }
+        case .euler:
+            for (p, key) in eulerKeys.enumerated() {
+                guard let key else { continue }
+                let members = solutions.indices.filter { solutions[$0]?.phase == p }
+                guard !members.isEmpty else { continue }
+                let colors = key.color(of: members.map { solutions[$0]?.quaternion ?? SIMD4(1, 0, 0, 0) })
+                for (k, i) in members.enumerated() { out[i] = colors[k] }
+            }
         case .confidence, .fit, .bands, .patternQuality, .score, .osm:
             break
         }
@@ -424,8 +450,9 @@ package nonisolated enum IndexingRaster {
     /// How much of the mean intensity a point the run has not reached shows.
     static let backdropDimming = 0.45
 
-    /// The layer over the whole scan, 4 bytes per point (alpha 255), scan row-major. `backdrop`: the scan's mean intensity per
-    /// point (the Patterns room's navigator), drawn dimmed where the run has not reached; nil draws those points dark grey.
+    /// A pointwise layer (IPF, Euler, Phase) over the whole scan, 4 bytes per point (alpha 255), scan row-major. `backdrop`: the
+    /// scan's mean intensity per point (the Patterns room's navigator), drawn dimmed where the run has not reached; nil draws those
+    /// points dark grey. A scalar layer is drawn from `scalarPixels`, through the room's display.
     package static func rgba(_ result: IndexingResult, palette: IndexingPalette, backdrop: [Float]?) -> [UInt8] {
         var out = [UInt8](repeating: 255, count: result.pointCount * 4)
         paint(&out, result: result, palette: palette, backdrop: backdrop, rows: 0..<result.scanRows)
@@ -444,29 +471,20 @@ package nonisolated enum IndexingRaster {
         return out
     }
 
-    /// Repaints scan rows `rows` of `rgba` (a pointwise layer only needs the rows that landed; a scalar layer's range moves with
-    /// every row, so the caller repaints all of it).
+    /// Repaints scan rows `rows` of `rgba` with a pointwise layer (its points' colours are their own, so only the rows that landed
+    /// change); a point reached with no colour on the layer (not indexed) is black.
     package static func paint(_ rgba: inout [UInt8], result: IndexingResult, palette: IndexingPalette, backdrop: [Float]?, rows: Range<Int>) {
         let columns = result.scanColumns
         let lo = max(rows.lowerBound, 0), hi = min(rows.upperBound, result.scanRows)
         guard rgba.count == result.pointCount * 4, lo < hi else { return }
         let start = lo * columns, end = hi * columns
         let slice = Array(result.solutions[start..<end])
-        let colors = palette.layer.isPointwise ? palette.pointColors(slice) : []
-        let scalar = palette.layer.isPointwise ? nil : scalarRange(result, layer: palette.layer)
+        let colors = palette.pointColors(slice)
         let means = meanRange(backdrop, count: result.pointCount)
         for (k, solution) in slice.enumerated() {
             let i = start + k
-            let rgb: SIMD3<Double>
             if solution != nil {
-                if palette.layer.isPointwise {
-                    rgb = colors[k] ?? SIMD3(0, 0, 0)
-                } else if let v = result.value(palette.layer, at: i), let scalar {
-                    let t = scalar.upperBound > scalar.lowerBound ? (v - scalar.lowerBound) / (scalar.upperBound - scalar.lowerBound) : 1
-                    rgb = SIMD3(repeating: min(max(t, 0), 1))
-                } else {
-                    rgb = SIMD3(0, 0, 0)
-                }
+                let rgb = colors[k] ?? SIMD3(0, 0, 0)
                 rgba[4 * i] = byte(rgb.x); rgba[4 * i + 1] = byte(rgb.y); rgba[4 * i + 2] = byte(rgb.z)
             } else {
                 let g = grey(backdrop, i, means)
@@ -476,14 +494,29 @@ package nonisolated enum IndexingRaster {
         }
     }
 
-    /// The smallest and largest finite value of a scalar layer over the points reached; nil when there is none.
-    package static func scalarRange(_ result: IndexingResult, layer: IndexingLayer) -> ClosedRange<Double>? {
-        var lo = Double.infinity, hi = -Double.infinity
+    /// A scalar layer's values over the whole scan, scan row-major, as the room draws them (D-SEM-96): NaN where a point has no value
+    /// on it (not indexed for CI, Fit, Score and OSM) or has not been reached, which the display draws as the masked grey.
+    package static func scalarPixels(_ result: IndexingResult, layer: IndexingLayer) -> [Float] {
+        (0..<result.pointCount).map { i in result.value(layer, at: i).map(Float.init) ?? .nan }
+    }
+
+    /// What the masked grey of a scalar layer stands for, for the legend: "grey: not indexed · not reached"; nil when no point is grey.
+    /// CI, Fit, Score and OSM have no value where the run did not index; Bands and Pattern quality have one at every point reached
+    /// (pyEBSDindex's pq is 0 when no band is valid), so their grey says "no value" only for a pattern quality that is not a number.
+    package static func maskedWords(_ result: IndexingResult, layer: IndexingLayer) -> String? {
+        var missing = false, unreached = false
         for i in result.solutions.indices {
-            guard let v = result.value(layer, at: i), v.isFinite else { continue }
-            lo = min(lo, v); hi = max(hi, v)
+            if result.solutions[i] == nil {
+                unreached = true
+            } else if !(result.value(layer, at: i)?.isFinite ?? false) {
+                missing = true
+            }
+            if missing && unreached { break }
         }
-        return lo <= hi ? lo...hi : nil
+        var words: [String] = []
+        if missing { words.append(layer == .patternQuality || layer == .bands ? "no value" : "not indexed") }
+        if unreached { words.append("not reached") }
+        return words.isEmpty ? nil : "grey: " + words.joined(separator: " · ")
     }
 
     private static func byte(_ v: Double) -> UInt8 { UInt8((min(max(v, 0), 1) * 255).rounded()) }
@@ -582,6 +615,13 @@ package nonisolated struct IndexedBand: Sendable, Identifiable, Equatable {
 // MARK: - The colour key
 
 package nonisolated enum IndexingColorKey {
+    /// The Euler colour key of a point group in words (orix's `EulerColorKey`: each Bunge angle over the largest it takes in the Euler
+    /// fundamental region of the proper subgroup): "R φ₁ 0–360° · G Φ 0–90° · B φ₂ 0–90°" for m-3m.
+    package static func eulerWords(_ pointGroup: PointGroup) -> String {
+        let region = pointGroup.eulerFundamentalRegion
+        return "R φ₁ 0–\(region[0])° · G Φ 0–\(region[1])° · B φ₂ 0–\(region[2])°"
+    }
+
     /// The IPF colour key of a point group as a picture about `side` pixels on its longer edge (orix's TSL key in the stereographic
     /// projection; pixels outside the sector are transparent).
     package static func image(_ pointGroup: PointGroup, side: Int = 160) -> IPFKeyImage {
