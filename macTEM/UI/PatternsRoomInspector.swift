@@ -2,11 +2,12 @@
 //  PatternsRoomInspector.swift
 //  Role: the Patterns room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the Image room's order
 //        (control placement §2; design §4): Calibration (the geometry the file states, as value rows), Display (the map's colormap, window,
-//        gamma and scale bar), Pattern Display (the pattern pane's own, so the two pictures keep their own contrast) and Export (the
-//        pattern on screen as PNG, the header as JSON). Info: what the file is (design §5). Presentation only: the rows are
+//        gamma and scale bar), Virtual images (the detector grid, the map's image, the colour mix, the tiles pane), Pattern Display (the pattern
+//        pane's own, so the two pictures keep their own contrast) and Export (the map and the pattern on screen as PNG, the header as JSON). Info: what the file is (design §5). Presentation only: the rows are
 //        `EBSDBrowsing`'s (TEMCore), the state `EBSDSession`'s (TEMSession).
 //
 
+import ShellControls
 import ShellInspector
 import ShellLayout
 import SwiftUI
@@ -27,11 +28,66 @@ struct PatternsRoomSettings: View {
                 InspectorNote("The file's own values. The projection centre is shown in the Bruker convention, as kikuchipy stores it.")
             }
             ImageRoomDisplaySection(presentation: session.mapPresentation, colormapID: "patterns.colormap")
+            PatternsVirtualImagesSection(session: session, dataset: dataset)
             ImageRoomDisplaySection(presentation: session.patternPresentation, title: "Pattern Display", colormapID: "patterns.pattern.colormap")
             PatternsExportSection(session: session, state: appState.patternsRoom)
         } else {
             ContentUnavailableView("No EBSD dataset open", systemImage: "square.grid.3x3.square",
                                    description: Text("Open an h5ebsd pattern file to browse its patterns. Its controls appear here."))
+        }
+    }
+}
+
+/// Virtual images (design §4, north star F1): the detector grid, which image the map shows, the three tiles of the colour mix, the tiles pane.
+struct PatternsVirtualImagesSection: View {
+    let session: EBSDSession
+    let dataset: EBSDDataset
+
+    /// The grids offered: the whole detector, 3 x 3, 5 x 5 (kikuchipy's default), 7 x 7; one the pattern is too small for is left out.
+    private var grids: [Int] { [1, 3, 5, 7].filter { $0 <= min(dataset.patternRows, dataset.patternColumns) } }
+
+    var body: some View {
+        let landed = session.virtualImages != nil
+        InspectorSection("Virtual images") {
+            SegmentedPicker(label: "Grid", items: grids.map { n in (n, .title(n == 1 ? "1" : "\(n) × \(n)", help: n == 1 ? "The whole detector: the virtual BSE" : "The detector cut into \(n) by \(n) tiles")) },
+                            selection: Binding(get: { session.virtualGrid.rows }, set: { session.setVirtualGrid(VirtualBSEGrid($0)) }))
+                .accessibilityIdentifier("patterns.grid")
+            InspectorRow("Map") {
+                Picker("Map", selection: Binding(get: { session.mapChoice }, set: { session.showMap($0) })) {
+                    Text("Mean intensity").tag(EBSDSession.MapChoice.mean)
+                    Text("BSE (whole detector)").tag(EBSDSession.MapChoice.bse)
+                    if session.virtualGrid.tileCount > 1 {
+                        ForEach(session.virtualGrid.tiles) { tile in Text("Tile \(tile.label)").tag(EBSDSession.MapChoice.tile(tile)) }
+                    }
+                    if session.hasMix { Text("Colour mix").tag(EBSDSession.MapChoice.mix) }
+                }
+                .labelsHidden()
+                .disabled(!landed)
+                .help(landed ? "The image the scan map draws" : "Waiting for the pass over the scan")
+                .accessibilityIdentifier("patterns.map.choice")
+            }
+            if session.virtualGrid.tileCount > 1 {
+                ForEach(Array(["Red", "Green", "Blue"].enumerated()), id: \.offset) { channel, name in
+                    InspectorRow(name) {
+                        Picker(name, selection: Binding(get: { session.mixTiles[channel] }, set: { session.setMixTile($0, channel: channel) })) {
+                            Text("None").tag(VirtualBSETile?.none)
+                            ForEach(session.virtualGrid.tiles) { tile in Text(tile.label).tag(VirtualBSETile?.some(tile)) }
+                        }
+                        .labelsHidden()
+                        .disabled(!landed)
+                        .help("The tile summed into the \(name.lowercased()) channel of the colour mix")
+                        .accessibilityIdentifier("patterns.mix.\(name.lowercased())")
+                    }
+                }
+                InspectorNote(session.hasMix ? "The colour mix: each channel normalised to its median and spread, then the three rescaled together (kikuchipy)."
+                              : "Pick a tile for each of red, green and blue to see the colour mix on the map.")
+            }
+            InspectorRow("Tiles") {
+                Toggle("Show the tiles", isOn: Binding(get: { session.showsTiles }, set: { session.showsTiles = $0 }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("Every tile's image in a pane under the map; a click makes it the map")
+                    .accessibilityIdentifier("patterns.tiles")
+            }
         }
     }
 }
@@ -45,6 +101,10 @@ struct PatternsExportSection: View {
     var body: some View {
         InspectorSection("Export", startsExpanded: false) {
             InspectorActionRow {
+                Button(PatternsExportKind.mapPNG.title) { export(.mapPNG) }
+                    .disabled(session.mapPresentation.canvas == nil)
+                    .help("The scan map on screen (the mean, a tile or the colour mix) as a PNG, one pixel per scan point")
+                    .accessibilityIdentifier("patterns.export.map")
                 Button(PatternsExportKind.patternPNG.title) { export(.patternPNG) }
                     .disabled(session.patternPresentation.canvas == nil)
                     .help("The pattern on screen as a PNG, one pixel per detector pixel, with its colormap and contrast")

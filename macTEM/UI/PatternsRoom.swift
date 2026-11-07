@@ -27,6 +27,15 @@ struct PatternsRoom: View {
 
     private var importTypes: [UTType] { EBSDOpening.readableExtensions.compactMap { UTType(filenameExtension: $0) } }
 
+    /// The scan map beside the live pattern pane.
+    private func upper(_ dataset: EBSDDataset) -> some View {
+        PaneSplit(storageKey: "patterns.split", resizeLabel: "Resize the scan map and the pattern", leadingName: "Scan map") {
+            ScanMapPane(session: appState.ebsd, state: appState.patternsRoom, dataset: dataset)
+        } trailing: {
+            LivePatternPane(session: appState.ebsd, state: appState.patternsRoom, dataset: dataset)
+        }
+    }
+
     var body: some View {
         let session = appState.ebsd
         let state = appState.patternsRoom
@@ -42,10 +51,17 @@ struct PatternsRoom: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("patterns.opening")
             } else if let document = session.document {
-                PaneSplit(storageKey: "patterns.split", resizeLabel: "Resize the scan map and the pattern", leadingName: "Scan map") {
-                    ScanMapPane(session: session, state: state, dataset: document.dataset)
-                } trailing: {
-                    LivePatternPane(session: session, state: state, dataset: document.dataset)
+                Group {
+                    if session.showsTiles {
+                        VerticalPaneSplit(storageKey: "patterns.lowerSplit", defaultFraction: 0.65, resizeLabel: "Resize the panes and the tiles", topName: "Scan map and pattern",
+                                          minimumTop: 160, minimumBottom: 120) {
+                            upper(document.dataset)
+                        } bottom: {
+                            VirtualTilesPane(session: session, dataset: document.dataset)
+                        }
+                    } else {
+                        upper(document.dataset)
+                    }
                 }
                 .id(document.fileName)
                 .modifier(PatternsKeyedRoom(session: session))
@@ -71,7 +87,7 @@ struct PatternsRoom: View {
         .fileExporter(isPresented: Binding(get: { state.exporting != nil }, set: { if !$0 { state.exporting = nil } }),
                       document: PatternsExportFile(data: state.exportData),
                       contentType: state.exporting?.contentType ?? .json,
-                      defaultFilename: (session.fileName as NSString).deletingPathExtension + (state.exporting?.suffix(position: state.exportPosition) ?? "")) { result in
+                      defaultFilename: (session.fileName as NSString).deletingPathExtension + (state.exporting?.suffix(position: state.exportPosition, map: state.exportMap) ?? "")) { result in
             switch result {
             case .success(let url): appState.statusText = "Exported \(url.lastPathComponent)"
             case .failure(let error): appState.present(error)
@@ -154,8 +170,9 @@ struct ScanMapPane: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text("Scan map · mean intensity")
+            Text(mapTitle)
                 .font(.headline).lineLimit(1)
+                .accessibilityIdentifier("patterns.map.title")
             Spacer(minLength: 8)
             if session.isMapping {
                 ProgressView(value: session.mapProgress).progressViewStyle(.linear).frame(width: LayoutPolicy.paneHeaderProgressWidth)
@@ -171,6 +188,16 @@ struct ScanMapPane: View {
         .frame(height: LayoutPolicy.paneHeaderHeight)
     }
 
+    /// "Scan map · mean intensity", "· BSE", "· tile r2 c1", "· colour mix r2 c1 + r2 c2 + r2 c3".
+    private var mapTitle: String {
+        switch session.mapChoice {
+        case .mean: "Scan map · mean intensity"
+        case .bse: "Scan map · BSE (whole detector)"
+        case .tile(let tile): "Scan map · tile \(tile.label)"
+        case .mix: "Scan map · colour mix " + session.mixTiles.compactMap { $0?.label }.joined(separator: " + ")
+        }
+    }
+
     private func content(in size: CGSize) -> some View {
         let box = LayoutPolicy.fitted(in: size, aspect: CGFloat(dataset.scanColumns) / CGFloat(dataset.scanRows))
         let presentation = session.mapPresentation
@@ -179,7 +206,14 @@ struct ScanMapPane: View {
         let unit = EBSDBrowsing.unitLabel(dataset.scanUnit)
         return ZStack {
             ZStack {
-                if let canvas = presentation.canvas {
+                if session.mapChoice == .mix, let rgba = session.mixRGBA {
+                    // The colour mix: packed RGBA through the view's RGBA pipeline (the Display section's colormap and window do not apply).
+                    MetalImageView(pixels: [Float](repeating: 0, count: dataset.scanRows * dataset.scanColumns), width: dataset.scanColumns, height: dataset.scanRows,
+                                   contentVersion: session.mixVersion, rgba: rgba)
+                        .displayTransform(transform)
+                        .frame(width: box.width, height: box.height)
+                        .allowsHitTesting(false)
+                } else if let canvas = presentation.canvas {
                     MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
                                    colormap: presentation.colormap, displayLo: presentation.displayFractions.low,
                                    displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma))
@@ -239,7 +273,7 @@ struct ScanMapPane: View {
                 session.hover(nil); state.readout = nil; return
             }
             session.hover(position)
-            state.readout = EBSDBrowsing.mapReadout(position, mean: session.meanIntensity(at: position))
+            state.readout = EBSDBrowsing.mapReadout(position, mean: session.meanIntensity(at: position), map: session.mapValue(at: position))
         case .ended:
             session.hover(nil)
             state.readout = nil
@@ -305,6 +339,12 @@ struct LivePatternPane: View {
         return EBSDBrowsing.patternTitle(position, hovering: session.hovered != nil)
     }
 
+    /// The tile on the map, outlined on the pattern.
+    private var shownTile: VirtualBSETile? {
+        if case .tile(let tile) = session.mapChoice { return tile }
+        return nil
+    }
+
     private var header: some View {
         HStack(spacing: 8) {
             Text(title)
@@ -334,10 +374,20 @@ struct LivePatternPane: View {
                 } else {
                     Rectangle().fill(.quaternary)
                 }
+                if session.virtualGrid.tileCount > 1 {
+                    DetectorGridOverlay(grid: session.virtualGrid, dataset: dataset, geometry: geometry, mixTiles: session.mixTiles, shown: shownTile)
+                        .allowsHitTesting(false)
+                }
             }
             .frame(width: box.width, height: box.height)
             .clipped()
             .contentShape(Rectangle())
+            // A click on a grid cell shows that tile on the map (design §4: the tile is picked on the pattern it sits on).
+            .onTapGesture { location in
+                guard session.virtualGrid.tileCount > 1 else { return }
+                let q = geometry.imagePoint(atPanePoint: location)
+                if let tile = DetectorGridOverlay.tile(at: q, grid: session.virtualGrid, dataset: dataset) { session.showMap(.tile(tile)) }
+            }
             .border(Color.white.opacity(0.08))
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry, canvas: presentation.canvas) })
             .zoomPanWheel(zoomModel, box: box)
@@ -376,5 +426,101 @@ struct LivePatternPane: View {
         case .ended:
             state.readout = nil
         }
+    }
+}
+
+// MARK: - The detector grid
+
+/// The grid's lines over the pattern, through the pane's geometry (they keep their place at any zoom); the mix's tiles outlined in red, green
+/// and blue, the tile on the map in the accent colour.
+private struct DetectorGridOverlay: View {
+    let grid: VirtualBSEGrid
+    let dataset: EBSDDataset
+    let geometry: MarkGeometry
+    let mixTiles: [VirtualBSETile?]
+    let shown: VirtualBSETile?
+
+    /// The tile whose rectangle holds detector pixel `q`, nil off the pattern.
+    static func tile(at q: ImagePoint, grid: VirtualBSEGrid, dataset: EBSDDataset) -> VirtualBSETile? {
+        let x = Int(q.x.rounded()), y = Int(q.y.rounded())
+        guard x >= 0, x < dataset.patternColumns, y >= 0, y < dataset.patternRows else { return nil }
+        for tile in grid.tiles {
+            let r = grid.rect(of: tile, patternRows: dataset.patternRows, patternColumns: dataset.patternColumns)
+            if y >= r.top, y < r.bottom, x >= r.left, x < r.right { return tile }
+        }
+        return nil
+    }
+
+    /// The pane rectangle of a detector rectangle: pixel edges are at image coordinate −0.5 and side − 0.5.
+    private func paneRect(_ r: DetectorRect) -> CGRect {
+        let a = geometry.panePoint(of: ImagePoint(x: Double(r.left) - 0.5, y: Double(r.top) - 0.5))
+        let b = geometry.panePoint(of: ImagePoint(x: Double(r.right) - 0.5, y: Double(r.bottom) - 0.5))
+        return CGRect(x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y)
+    }
+
+    var body: some View {
+        let colors: [Color] = [.red, .green, .blue]
+        ZStack {
+            Path { p in
+                for tile in grid.tiles { p.addRect(paneRect(grid.rect(of: tile, patternRows: dataset.patternRows, patternColumns: dataset.patternColumns))) }
+            }
+            .stroke(Color.white.opacity(0.55), lineWidth: 1)
+            ForEach(Array(mixTiles.enumerated()), id: \.offset) { channel, tile in
+                if let tile {
+                    Path { p in p.addRect(paneRect(grid.rect(of: tile, patternRows: dataset.patternRows, patternColumns: dataset.patternColumns)).insetBy(dx: 1, dy: 1)) }
+                        .stroke(colors[channel], lineWidth: 2)
+                }
+            }
+            if let shown {
+                Path { p in p.addRect(paneRect(grid.rect(of: shown, patternRows: dataset.patternRows, patternColumns: dataset.patternColumns)).insetBy(dx: 2.5, dy: 2.5)) }
+                    .stroke(Color.accentColor, lineWidth: 1.5)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+// MARK: - The tiles pane
+
+/// Every tile's image (design §3, the bottom pane's Virtual images tab): the BSE first, then the grid in rows; a click makes a tile the map.
+struct VirtualTilesPane: View {
+    let session: EBSDSession
+    let dataset: EBSDDataset
+
+    var body: some View {
+        let columns = session.virtualGrid.columns
+        ScrollView {
+            if let images = session.virtualImages {
+                let tiles = session.virtualGrid.tiles
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 60), spacing: 8), count: max(columns, 1) + 1), spacing: 8) {
+                    tileCell(title: "BSE", image: images[0], choice: .bse)
+                    ForEach(tiles) { tile in
+                        if let image = session.tileImage(tile) { tileCell(title: tile.label, image: image, choice: .tile(tile)) }
+                    }
+                }
+                .padding(8)
+            } else {
+                Text(session.isMapping ? "Reading the scan…" : "No tiles yet").foregroundStyle(.secondary).padding()
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("patterns.tiles.pane")
+    }
+
+    private func tileCell(title: String, image: [Float], choice: EBSDSession.MapChoice) -> some View {
+        let canvas = CanvasPixels.make(width: dataset.scanColumns, height: dataset.scanRows, pixels: image)
+        let selected = session.mapChoice == choice
+        return VStack(spacing: 3) {
+            MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion, colormap: .gray)
+                .aspectRatio(CGFloat(dataset.scanColumns) / CGFloat(dataset.scanRows), contentMode: .fit)
+                .overlay(Rectangle().stroke(selected ? Color.accentColor : Color.white.opacity(0.15), lineWidth: selected ? 2 : 1))
+            Text(title).font(.caption.monospacedDigit()).foregroundStyle(selected ? Color.accentColor : .secondary)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { session.showMap(choice) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Tile \(title)")
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityIdentifier("patterns.tile.\(title.replacingOccurrences(of: " ", with: "-"))")
     }
 }

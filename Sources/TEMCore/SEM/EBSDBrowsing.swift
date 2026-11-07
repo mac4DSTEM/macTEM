@@ -76,10 +76,12 @@ package nonisolated enum EBSDBrowsing {
     /// The scan unit as shown: the files write "um".
     package static func unitLabel(_ unit: String) -> String { unit == "um" ? "µm" : UnitDisplay.label(unit) }
 
-    /// The status line over the map (control placement §7): "row 12 · col 40 · mean 118.3".
-    package static func mapReadout(_ position: EBSDPosition, mean: Float?) -> String {
+    /// The status line over the map (control placement §7): "row 12 · col 40 · mean 118.3", then the shown virtual image's value
+    /// ("· r2 c1 12 034") when the map is not the mean.
+    package static func mapReadout(_ position: EBSDPosition, mean: Float?, map: (label: String, value: Float)? = nil) -> String {
         var text = "row \(position.row) · col \(position.column)"
         if let mean { text += " · mean \(UnitDisplay.number(Double(mean), digits: 4))" }
+        if let map { text += " · \(map.label) \(UnitDisplay.number(Double(map.value), digits: 6))" }
         return text
     }
 
