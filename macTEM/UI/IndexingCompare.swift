@@ -132,8 +132,12 @@ private struct IndexingCompareTile: View {
             .zoomPanWheel(zoomModel, box: box)
 
             if shown == nil {
-                // Why the side is empty: its method not run yet, running, stopped before a row, or the comparison on its way.
-                Text(session.compareAbsence(source) ?? "Comparing…")
+                // Why the side is empty: its method not run yet, running, stopped before a row, the other side so, or the comparison
+                // on its way.
+                let other = isLeading ? session.compareB : session.compareA
+                Text(session.compareAbsence(source)
+                     ?? session.compareAbsence(other).map { "Waiting for \(isLeading ? "B" : "A") · \($0)" }
+                     ?? "Comparing…")
                     .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     .padding(8)
                     .allowsHitTesting(false)
@@ -180,6 +184,7 @@ private struct IndexingCompareTile: View {
         .accessibilityLabel("Compared map \(letter)")
         .accessibilityValue(title)
         .accessibilityHint(ZoomPan.accessibilityHint)
+        .zoomPanAccessibilityActions(zoomModel, box: box)
     }
 
     /// The pattern pane follows the pointer; the status line gives both solutions and their disorientation there (the run's own line
@@ -238,8 +243,8 @@ private struct IndexingCompareHistogram: View {
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onChange(of: pointerX) {
-            guard let comparison = session.comparison, let x = pointerX else { return }
-            state.readout = IndexingCompareFormat.binReadout(comparison, atDegrees: x)
+            // The pointer off the chart clears the bar's line, as leaving a map clears the point's.
+            state.readout = pointerX.flatMap { x in session.comparison.flatMap { IndexingCompareFormat.binReadout($0, atDegrees: x) } }
         }
     }
 

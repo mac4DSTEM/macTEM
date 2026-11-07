@@ -965,14 +965,17 @@ package final class IndexingSession {
     }
 
     /// What the Maps room says of run `run` of `method` it shows: nil while it is that method's last run and its inputs stand; else that
-    /// a later run of the method replaced it (and to hand that one over when it can be: it reached a point and has ended), or which
-    /// inputs changed since (`isStale(of:)`): the Patterns room's processing, or this room's phases or method settings. A run of the
-    /// other method leaves it current (D-SEM-97).
+    /// a later run of the method replaced it (started, or ended having reached a point; and to Open in Maps again when that newer run
+    /// is the one on screen and can be handed), or which inputs changed since (`isStale(of:)`): the Patterns room's processing, or this
+    /// room's phases or method settings. A run of the other method leaves it current (D-SEM-97).
     package func staleness(ofRun run: Int, method: IndexingMethod) -> String? {
         guard let held = runs[method], held.id == run else {
-            let handable = (runs[method]?.result.reachedCount ?? 0) > 0 && runningMethod != method
-            return handable ? "Stale: the Indexing room has run \(method.title) again since. Open in Maps again to show the new run."
-                : "Stale: the Indexing room has started another \(method.title) run since."
+            guard let newer = runs[method], newer.result.reachedCount > 0, runningMethod != method else {
+                return "Stale: the Indexing room has started another \(method.title) run since."
+            }
+            // Open in Maps hands the run on screen: the note offers it only while that is the newer run and it can be handed.
+            let handable = shownRun?.id == newer.id && openInMapsRefusal == nil
+            return "Stale: the Indexing room has run \(method.title) again since." + (handable ? " Open in Maps again to show the new run." : "")
         }
         guard isStale(of: method) else { return nil }
         if held.inputs.pipeline != patterns.pipeline { return "Stale: the Patterns room's processing changed since this run." }

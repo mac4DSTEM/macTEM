@@ -101,6 +101,13 @@ nonisolated final class IndexingCompareTests: XCTestCase {
         XCTAssertNotEqual(indexing.runs[.hough]?.id, hough.id)
         XCTAssertEqual(state.mapsStaleness, "Stale: the Indexing room has started another Hough run since.")
 
+        // Run to its end, the newer Hough run is offered while it is the run on screen (Open in Maps hands that one), else only said.
+        await indexing.index().value
+        XCTAssertEqual(state.mapsStaleness, "Stale: the Indexing room has run Hough again since. Open in Maps again to show the new run.")
+        indexing.setMethod(.dictionary)
+        XCTAssertEqual(indexing.result?.method, .dictionary)
+        XCTAssertEqual(state.mapsStaleness, "Stale: the Indexing room has run Hough again since.")
+
         state.ebsd.close()
         XCTAssertTrue(indexing.runs.isEmpty)
         XCTAssertNil(indexing.result)

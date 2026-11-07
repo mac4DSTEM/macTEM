@@ -241,12 +241,15 @@ package nonisolated struct Orientations: Sendable {
         return try Misorientations(quaternions: m, start: symmetry, end: other.symmetry).reduced()
     }
 
-    /// `angle_with`: per pair, the smallest angle between self_i and other_i over the proper symmetry elements of both.
+    /// `angle_with`: per pair, the smallest angle between self_i and other_i over the proper symmetry elements of both. A pair
+    /// whose misorientation is not finite (a zero quaternion either side) is 0, as orix's `nan_to_num` makes it.
     package func angles(with other: Orientations) -> [Double] {
         precondition(count == other.count, "angles(with:) takes two sets of the same length")
         let sym = PointGroup.uniqueElements(symmetry, other.symmetry)
         return zip(quaternions, other.quaternions).map { s, o in
             let m = Rotation(unit: Rotation(unit: o).unitQuaternion) * Rotation(unit: Rotation(unit: s).unitQuaternion).inverse
+            // An improper element's absDot is 0, which max takes over the NaN of the proper ones: π, not orix's 0.
+            guard m.q[0].isFinite, m.q[1].isFinite, m.q[2].isFinite, m.q[3].isFinite else { return 0 }
             var best = -Double.infinity
             for e in sym { best = max(best, m.absDot(e)) }
             let w = acos(2 * best * best - 1)
