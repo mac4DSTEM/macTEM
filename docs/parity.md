@@ -24,6 +24,7 @@ package's own tests use, never stricter. References are pinned in `tools/parity/
 | `NORDIFScan.read` (`Pattern.dat`, `Background acquisition pattern.bmp`) | `kikuchipy.load("Pattern.dat")` | same | patterns bit-exact (SHA-256 of the uint8 block in map order), background bit-exact | a short file reads zero-padded with a note, as upstream pads with a warning; `Setting_bad1-3.txt` read the acquisition as upstream does |
 | `NORDIFCalibrationPatterns.read` (`Calibration (x,y).bmp`, positions, area, ROI, scaled to steps) | `kikuchipy.load("Setting.txt")` (`nordif_calibration_patterns`) | same | positions and shapes exact; patterns bit-exact | scaled values round half to even as NumPy; `Setting_bad1.txt` and `Setting_bad2.txt` refused with one sentence where upstream raises `ValueError`; `Setting_bad3.txt` reads with its missing `Top` as 0 and no area shape, as upstream |
 | `NORDIFBitmap.decode` (8-bit greyscale BMP) | `matplotlib.pyplot.imread` (Pillow mode L) | same | bit-exact | own decoder, not ImageIO; any other bitmap kind refused with a sentence |
+| `NORDIFOpening.open` (`Pattern.dat` as an `EBSDDataset`, read by record) | `kikuchipy.load("Pattern.dat")` through `NORDIFScan` | `NORDIFOpeningTests` | patterns bit-exact against `NORDIFScan` | a `.dat` routes only with a NORDIF `Setting.txt` beside it; a short file reads whole records and the rest as 0 with a note (upstream keeps the bytes of an incomplete last pattern; `NORDIFScan` keeps that for the parity) |
 
 ## Pattern processing
 
@@ -91,6 +92,37 @@ files verbatim, the per-grain slip analysis and the Nye tensor. Bundles `m5/slip
 |---|---|---|---|---|
 | `EBSDBrowsing.meanIntensityMap` (the navigation map) | `EBSD.mean(axis=(2, 3))` (numpy's float64 mean over the two pattern axes) | `PatternsRoomTests` on a planted 2 x 3 scan of uint16 patterns and on the first and last pattern of `ebsd-kikuchipy-h5ebsd.h5` | float64 sum and division, exact to the map's `Float` rounding | read one scan row per slab; the demo dataset (`DemoDocuments.ebsd`) is generated, so it has no reference |
 
+## Master patterns and their projection (figure F15)
+
+References: `tools/parity/sem/emit.py` cases `m6/read-master-pattern-*` and `m6/project-master-pattern-*` (kikuchipy 0.13.1,
+orix 0.15.0) on kikuchipy's in-package Ni 20 kV master pattern (EMsoft, Callahan and De Graef 2013; the square Lambert
+projection of Roşca 2010), its 11-energy dummy file and planted TKD and ECP files; tests in `MasterPatternParityTests`. kikuchipy
+projects in float64 (numba, fastmath) and casts to the output type; TEMCore projects in float64 too. Upstream's own tests compare
+simulated patterns with `np.allclose` (rtol 1e-5, atol 1e-8). A numpy port of the Swift steps gave kikuchipy's float32 and uint8
+patterns bit for bit on all three projection bundles (2026-11-06).
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `EMsoftMasterPatternReader.read` (EBSD, TKD, ECP; Lambert, stereographic; upper, lower, both; all, nearest, range of energies) | `kikuchipy.io.plugins.emsoft_{ebsd,tkd,ecp}_master_pattern.file_reader` | `testTheNickelMasterPatternReadsAsKikuchipyReadsIt`, `testMultiEnergyMasterPatternsOfEachTypeRead` | exact (values, shapes, axes, phase) | the Lambert asymmetric positions summed and cast back to the stored type (uint8 wraps), the stereographic patterns flipped up-down, energies compared in float32; ECP Lambert: see below |
+| `SpaceGroupPointGroup.pointGroup` | `orix.quaternion.symmetry.get_point_group(n, proper=False)`, `contains_inversion` | `testEverySpaceGroupMapsToOrixsPointGroup` | exact, all 230 | decides whether one hemisphere is enough for a projection |
+| `EBSDMasterPattern.EnergyAxis.index` | `hyperspy.axes.UniformDataAxis.value2index` (round) | `testTheReaderRefusesWhatKikuchipyRefuses` | exact | truncated at 1e-12, half rounded towards zero, refused outside the axis |
+| `MasterPatternProjection.sampleToDetector` | `detectors._ebsd_detector._sample_to_detector_matrix` | `m6/project-master-pattern-*` | rtol 1e-7 | |
+| `MasterPatternProjection.gnomonicBounds` | `EBSDDetector.gnomonic_bounds` (Britton et al. 2016) | same | rtol 1e-7 | |
+| `MasterPatternProjection.directionCosines` | `_get_direction_cosines_for_fixed_pc` / `_varying_pc` | same | rtol 1e-7 | |
+| `MasterPatternProjection.project` (float32, float64, uint8, uint16) | `EBSDMasterPattern.get_patterns` (`_project_single_pattern_from_master_pattern`, `_vector2lambert`, `_get_lambert_interpolation_parameters`, `_rescale_with_min_max`) | `testTheDocsExample…`, `testFigureF15…`, `testATiltedDetector…` | float: rtol 1e-5, atol 1e-8; integer: 1 count | a flat pattern is refused (kikuchipy divides by zero); the master pattern must be Lambert, with both hemispheres unless the point group holds the inversion |
+| `MasterPatternProjectionMetal.project` (float32 GPU) | `MasterPatternProjection.project` (float64 CPU) | `testTheMetalPathMatchesTheCPUReference` (skipped without a Metal device) | 1e-3 absolute on the -1 to 1 scale | float32 emulation of the kernel measured 3.2e-5 (it takes 1 - |z| as (x² + y²) / (1 + |z|) against float32 cancellation near the pole); `patternsFloat32` picks it from 10⁶ pattern pixels |
+
+### Known limits and decisions
+
+- D-SEM-32 (2026-11-06): the Ni 20 kV master pattern of F15 and of the demo is kikuchipy's in-package uint8 copy, not the
+  float32 Zenodo file (record 7498645), which the cloud sandbox cannot fetch.
+- D-SEM-33 (2026-11-06): an ECP Lambert dataset of rank 4 is read as (numset, energy, y, x). kikuchipy 0.13.1 does not prepend the
+  numset slice for ECP, so its energy pick slices the numset axis and returns an empty array; the ECP bundle therefore covers the
+  whole-energy Lambert readings and every stereographic one.
+- D-SEM-34 (2026-11-06): the GPU path's bound (1e-3 on -1 to 1) is ours, not upstream's: kikuchipy has no float32 projection.
+- Figure F15 (`docs/sem/north-star.md`): `tools/parity/sem/master_pattern_figure.py` draws the reference patterns beside the ones
+  `testFigureF15NickelMasterPatternOnTheNorthStarDetector` writes to `$TMPDIR/macTEM-F15-ours.u8` (and prints as base64).
+
 ## Pattern quality
 
 References: `tools/parity/sem/emit.py` cases `m2/quality-kikuchipy-h5ebsd` and `m2/quality-nickel-ebsd-large` (kikuchipy
@@ -113,3 +145,24 @@ bundles hold rtol 1e-5, the float32 bound.
   pixels shift by one grey level (measured), so D-SEM-18's background differences propagate; a float64 replica of the chain
   measured 5.3e-3 (IQ) and 1.1e-3 (ADP) at worst. Both maps run on the CPU in float64: the 4125 nickel patterns take well
   under a second, so a Metal path does not pay (D16).
+
+## Detector geometry and projection-centre calibration
+
+References: `tools/parity/sem/detector_cases.py` (kikuchipy 0.13.1), bundles `m2/detector-*` and `m2/pc-moving-screen-si`,
+tests in `SEMDetectorGeometryParityTests`. kikuchipy computes these in float64 (the rotation and the coordinate maps under
+numba fastmath); its own tests compare at `atol=1e-6` (gnomonic ranges), `1e-4` (rotations as quaternions, the moving-screen
+PC) and `np.allclose` defaults (coordinates).
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `EBSDDetectorGeometry.Convention(kikuchipyName:)`, `init(…, convention:)`, `brukerCenter`, `center(_:in:)`, `centers(in:)` | `EBSDDetector(pc, convention)`, `pc_tsl`, `pc_oxford`, `pc_emsoft(4/5)` | `testEveryConventionName…`, `testBrukerWritten…`, `testConventionRoundTrip…` | rtol 1e-7, atol 1e-12; round trip 1e-12 | aliases edax/amatek → TSL, aztec → Oxford, emsoft = emsoft5 |
+| `height`, `width`, `binnedPixelSize`, `unbinnedShape`, `specimenScintillatorDistance` | same names | `testSizesGnomonicBounds…` | rtol 1e-7 | |
+| `gnomonicBounds`, `gnomonicScale`, `rMax` | `gnomonic_bounds`, `x_scale`/`y_scale`, `r_max` (Britton et al. 2016) | `testSizesGnomonicBounds…` | rtol 1e-7 | `rMax` keeps kikuchipy's corner list (D-SEM-46) |
+| `gnomonic(pixel:pc:)`, `pixel(gnomonic:pc:)` | `to_gnomonic_coords`, `to_pixel_coords` | `testPixelToGnomonicAndBack…` | rtol 1e-7, atol 1e-12 | (y, x) order as kikuchipy |
+| `sampleToDetector`, `detectorToSample`, `FrameRotation` | `sample_to_detector` (`_sample_to_detector_matrix`) | `testSampleToDetector…`, `testAzimuthalTurnsAboutDetectorY` | rtol 1e-7, atol 1e-12 | the matrix, rows = detector axes in sample coordinates; quaternions come with the orientation core (P3-01) |
+| TKD set-ups | `EBSDDetector` with TKD angles | `testTKDGeometryAsKikuchipy` | rtol 1e-7, atol 1e-12 | D-SEM-47 |
+| `PCCalibrationMovingScreen` (Hjelen et al. 1991) | `PCCalibrationMovingScreen` | `testMovingScreenPCOfSiliconAsKikuchipy` (figure F5) | rtol 1e-5 | line crossings in closed form where kikuchipy calls `np.linalg.det`; `standardDeviation` is numpy's `std` of `pc_all` |
+
+- Figure F5 (`docs/sem/north-star.md`): `tools/parity/sem/detector_figure.py` draws si_in and si_out5mm with the marked
+  points, the out → in lines and the PC, kikuchipy's beside the one `testMovingScreenPCOfSiliconAsKikuchipy` prints
+  (`F5 ours …` in the test log, passed with `--ours`).

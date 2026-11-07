@@ -57,7 +57,7 @@ package nonisolated enum EBSDH5Reader {
             case .brukerH5EBSD: dataset = try readBruker(file, scan: group)
             case .edaxH5EBSD: dataset = try readEDAX(file, scan: group)
             case .oxfordH5OINA: dataset = try readOxford(file, scan: group, version: top.version)
-            case .generated, .oxfordBinary, .edaxBinary: throw EBSDReadError(text: "\(url.lastPathComponent) is not an h5ebsd file.")
+            case .generated, .oxfordBinary, .edaxBinary, .nordif: throw EBSDReadError(text: "\(url.lastPathComponent) is not an h5ebsd file.")
             }
             dataset.manufacturer = top.manufacturer; dataset.version = top.version; dataset.scanGroups = top.scanGroups
             return dataset

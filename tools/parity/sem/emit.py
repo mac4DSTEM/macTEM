@@ -14,7 +14,8 @@ Milestones (docs/sem/north-star.md): m1 data in and seen (readers, pattern brows
 processing (static and dynamic background, emitted now so phase-2 ports can start from a committed reference), m3
 orientation maths (orix's rotations, point groups, fundamental zones, orientations and misorientations), m5 maps and
 grains (DefDAP's slip systems, Schmid factors, slip traces and GND density), m7 SEM-EDS line
-intensities on the TM002 spectrum (the numbers behind the EDS figure).
+intensities on the TM002 spectrum (the numbers behind the EDS figure), m6 master patterns (EMsoft EBSD, TKD and ECP
+master pattern files read, the Ni 20 kV pattern projected onto a detector: figure F15).
 
 Run with `python -I -B` from outside this folder: a fixture is data, never code.
 """
@@ -32,6 +33,11 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
 from refbundle import Bundle  # noqa: E402
+
+sys.path.append(str(HERE))
+from detector_cases import (  # noqa: E402,F401  (milestone 2 detector geometry and figure F5; emit collects case_ names)
+    case_m2_detector_gnomonic, case_m2_detector_pc_conventions, case_m2_detector_sample_to_detector,
+    case_m2_detector_tkd_geometry, case_m2_pc_moving_screen_si)
 
 warnings.filterwarnings("ignore")
 
@@ -734,6 +740,188 @@ def case_m7_eds_lines_tm002(ctx):
     b.array("intensity_background_subtracted", np.asarray([float(np.asarray(i.data).ravel()[0]) for i in sub], dtype=np.float64), **F64)
     b.write()
     ctx.done("m7/eds-lines-tm002")
+
+
+# ------------------------------------------------------------------------------- master patterns and projection (m6)
+
+# Allclose's defaults (kikuchipy's tests compare simulated patterns with `np.allclose`): the float32 patterns.
+ALLCLOSE = {"rtol": 1e-5, "atol": 1e-8}
+NI_MP = FIXTURES / "emsoft_ebsd_master_pattern_ni_mc_mp_20kv_uint8_gzip_opts9.h5"
+DUMMY_MP = FIXTURES / "emsoft_ebsd_master_pattern_dummy.h5"
+
+
+def _master_pattern_read(path: Path, plugin: str, **kw) -> dict:
+    """One reading through the plugin's `file_reader` (what `kikuchipy.load` calls), reduced to what an app keeps."""
+    import importlib
+
+    reader = importlib.import_module(f"kikuchipy.io.plugins.{plugin}._api").file_reader
+    d = reader(str(path), **kw)[0]
+    data = np.asarray(d["data"])
+    phase = d["phase"]
+    return {
+        "data": data,
+        "values": {
+            "kwargs": {k: (list(v) if isinstance(v, (tuple, range)) else v) for k, v in kw.items()},
+            "shape": list(data.shape), "dtype": data.dtype.name,
+            "axes": [{"name": a["name"], "size": int(a["size"]), "scale": float(a["scale"]), "offset": float(a["offset"]),
+                      "units": a["units"]} for a in d["axes"]],
+            "projection": d["projection"], "hemisphere": d["hemisphere"],
+            "signal_type": d["metadata"]["Signal"]["signal_type"],
+            "phase": {"name": phase.name, "space_group": int(phase.space_group.number),
+                      "point_group": phase.point_group.name, "inversion": bool(phase.point_group.contains_inversion),
+                      "lattice": [float(x) for x in (phase.structure.lattice.a, phase.structure.lattice.b,
+                                                     phase.structure.lattice.c, phase.structure.lattice.alpha,
+                                                     phase.structure.lattice.beta, phase.structure.lattice.gamma)],
+                      "atoms": len(phase.structure)},
+        },
+    }
+
+
+def case_m6_read_master_pattern_ni(ctx):
+    """kikuchipy's in-package Ni 20 kV EBSD master pattern (`nickel_ebsd_master_pattern_small`: EMsoft's 401 x 401
+    Lambert and stereographic projections of both hemispheres, reduced to uint8 with gzip by kikuchipy's own script), read
+    in every projection and hemisphere. Exact: the bytes as kikuchipy hands them (stereographic flipped up-down)."""
+    case = "m6/read-master-pattern-ni"
+    b = Bundle(case, 6, "kikuchipy", "kikuchipy.io.plugins.emsoft_ebsd_master_pattern.file_reader", ctx.out)
+    b.input(NI_MP, "fixtures/" + NI_MP.name)
+    readings = {}
+    for projection in ("lambert", "stereographic"):
+        for hemisphere in ("upper", "lower", "both"):
+            r = _master_pattern_read(NI_MP, "emsoft_ebsd_master_pattern", projection=projection, hemisphere=hemisphere)
+            key = f"{projection}_{hemisphere}"
+            readings[key] = r["values"]
+            b.fingerprint(f"data_{key}", r["data"])
+            if hemisphere == "both":
+                d = r["data"]
+                b.array(f"rows_{key}", np.ascontiguousarray(d[:, ::50, :]), **EXACT,
+                        note="every 50th row of both hemispheres (rows 0, 50, ..., 400)")
+                b.array(f"sum_{key}", d.reshape(2, -1).astype(np.uint64).sum(axis=1).astype(np.int64), **EXACT)
+    b.value("readings", readings)
+    b.value("point_groups", {str(n): _point_group(n) for n in range(1, 231)})
+    b.write()
+    ctx.done(case)
+
+
+def _point_group(number: int) -> dict:
+    from orix.quaternion.symmetry import get_point_group
+
+    pg = get_point_group(number, proper=False)
+    return {"name": pg.name, "inversion": bool(pg.contains_inversion)}
+
+
+def _multi_energy_bundle(ctx, case: str, path: Path, plugin: str, function: str, label: str,
+                         lambert_energy_pick: bool = True) -> None:
+    """A float32 master pattern file of 11 energies (10 to 20 kV) in 13 x 13 px: every energy, one energy by nearest
+    match, an energy range, in each projection and hemisphere; the values are small enough to commit whole.
+    `lambert_energy_pick=False` leaves out the Lambert readings of one energy or a range (ECP: kikuchipy 0.13.1 applies
+    the energy slice to the first axis of the (numset, energy, y, x) Lambert dataset, which is the numset axis, and
+    returns an empty array; docs/parity.md)."""
+    b = Bundle(case, 6, "kikuchipy", function, ctx.out)
+    b.input(path, label)
+    readings = {}
+    selections = {"all": {}, "nearest_15_4": {"energy": 15.4}, "range_12_16": {"energy": (12, 16)},
+                  "nearest_25": {"energy": 25}}
+    for projection in ("lambert", "stereographic"):
+        for hemisphere in ("upper", "lower", "both"):
+            for sel, kw in selections.items():
+                if not lambert_energy_pick and projection == "lambert" and sel != "all":
+                    continue
+                r = _master_pattern_read(path, plugin, projection=projection, hemisphere=hemisphere, **kw)
+                key = f"{projection}_{hemisphere}_{sel}"
+                readings[key] = r["values"]
+                b.array(f"data_{key}", r["data"].astype(np.float32), **EXACT)
+    b.value("readings", readings)
+    b.write()
+    ctx.done(case)
+
+
+def case_m6_read_master_pattern_dummy(ctx):
+    _multi_energy_bundle(ctx, "m6/read-master-pattern-dummy", DUMMY_MP, "emsoft_ebsd_master_pattern",
+                         "kikuchipy.io.plugins.emsoft_ebsd_master_pattern.file_reader", "fixtures/" + DUMMY_MP.name)
+
+
+def case_m6_read_master_pattern_tkd(ctx):
+    p = FIXTURES / "planted_emsoft_tkd_master_pattern.h5"
+    _multi_energy_bundle(ctx, "m6/read-master-pattern-tkd", p, "emsoft_tkd_master_pattern",
+                         "kikuchipy.io.plugins.emsoft_tkd_master_pattern.file_reader", "fixtures/" + p.name)
+
+
+def case_m6_read_master_pattern_ecp(ctx):
+    p = FIXTURES / "planted_emsoft_ecp_master_pattern.h5"
+    _multi_energy_bundle(ctx, "m6/read-master-pattern-ecp", p, "emsoft_ecp_master_pattern",
+                         "kikuchipy.io.plugins.emsoft_ecp_master_pattern.file_reader", "fixtures/" + p.name,
+                         lambert_energy_pick=False)
+
+
+def _projection_bundle(ctx, case: str, mp_path: Path, mp_label: str, detector: dict, euler_deg, dtypes, energies=(None,),
+                       note: str = "") -> None:
+    """`EBSDMasterPattern.get_patterns` for Bunge Euler angles (degrees, through orix's `Rotation.from_euler`, the
+    quaternions are in the bundle so the port starts from the same rotation) onto a detector: the detector's direction
+    cosines, its sample-to-detector matrix and gnomonic bounds, and the patterns in each output dtype."""
+    import kikuchipy as kp
+    from kikuchipy.signals.util._master_pattern import _get_direction_cosines_from_detector
+    from orix.quaternion import Rotation
+
+    mp = kp.load(str(mp_path), projection="lambert", hemisphere="both")
+    det = kp.detectors.EBSDDetector(**detector)
+    rot = Rotation.from_euler(np.deg2rad(np.asarray(euler_deg, dtype=np.float64)))
+    b = Bundle(case, 6, "kikuchipy", "kikuchipy.signals.EBSDMasterPattern.get_patterns", ctx.out)
+    b.input(mp_path, mp_label)
+    if note:
+        b.value("note", note)
+    b.value("detector", {k: (np.asarray(v).tolist() if not isinstance(v, (int, float)) else v) for k, v in detector.items()})
+    b.value("master_pattern_shape", list(mp.data.shape))
+    b.array("euler_deg", np.asarray(euler_deg, dtype=np.float64), **EXACT)
+    b.array("quaternions", rot.data.reshape(-1, 4).astype(np.float64), **EXACT, note="orix (a, b, c, d) of the Euler angles")
+    # orix builds the matrix through a quaternion, so an exact zero comes back as ~1e-17: atol at float64 rounding.
+    b.array("sample_to_detector", det.sample_to_detector.to_matrix().squeeze().astype(np.float64), rtol=1e-7, atol=1e-12)
+    b.array("gnomonic_bounds", det.gnomonic_bounds.reshape(-1, 4).astype(np.float64), **F64)
+    dc = _get_direction_cosines_from_detector(det)
+    b.array("direction_cosines", np.asarray(dc, dtype=np.float64).reshape(-1, 3), **F64,
+            note="(n PCs x) rows x columns x 3, row-major")
+    b.value("dtypes", list(dtypes))
+    b.value("energies", [e for e in energies])
+    for energy in energies:
+        for dt in dtypes:
+            sim = mp.get_patterns(rot, det, energy=energy, dtype_out=dt, compute=True, show_progressbar=False)
+            data = np.asarray(sim.data).reshape(-1, *det.shape)
+            tol = ALLCLOSE if np.dtype(dt).kind == "f" else U8
+            name = f"patterns_{dt}" + ("" if energy is None else f"_e{str(energy).replace('.', '_')}")
+            b.array(name, data, **tol)
+    b.write()
+    ctx.done(case)
+
+
+def case_m6_project_master_pattern_docs(ctx):
+    """The docs example of `EBSDMasterPattern.get_patterns` (kikuchipy 0.13.1): four identity rotations onto a 60 x 60
+    detector with PCs (0.4, 0.5, 0.4), (0.6, 0.5, 0.4), (0.4, 0.5, 0.6), (0.6, 0.5, 0.6), one per rotation."""
+    pc = [[[0.4, 0.5, 0.4], [0.6, 0.5, 0.4]], [[0.4, 0.5, 0.6], [0.6, 0.5, 0.6]]]
+    _projection_bundle(ctx, "m6/project-master-pattern-docs", NI_MP, "fixtures/" + NI_MP.name,
+                       {"shape": (60, 60), "pc": np.asarray(pc)}, [[[0.0, 0.0, 0.0]] * 2] * 2, ("float32", "uint8"),
+                       note="figure F15, left: the docstring example")
+
+
+def case_m6_project_master_pattern_ni(ctx):
+    """Figure F15, right: the Ni 20 kV master pattern projected onto the north-star detector (nickel_ebsd_large: 60 x 60,
+    sample tilt 70 deg, the scan's mean PC in the Bruker convention) for three orientations of the scan's Ni."""
+    _projection_bundle(ctx, "m6/project-master-pattern-ni", NI_MP, "fixtures/" + NI_MP.name,
+                       {"shape": (60, 60), "pc": [0.4214, 0.2142, 0.5013], "sample_tilt": 70.0, "binning": 8},
+                       [[0.0, 0.0, 0.0], [120.0, 45.0, 60.0], [263.7, 32.1, 151.4]], ("float32", "uint8", "float64"),
+                       note="figure F15, right")
+
+
+def case_m6_project_master_pattern_tilted(ctx):
+    """Every angle of the detector at once (sample tilt 68, tilt 10, azimuthal 2.5, twist 1.2 deg) on a non-square
+    48 x 64 detector, one PC per rotation, and the multi-energy float32 master pattern at its highest energy (None) and
+    at 12.4 kV (rounded to the 12 kV pattern): the energy pick and the varying-PC path."""
+    pc = [[0.52, 0.31, 0.61], [0.47, 0.28, 0.55], [0.5, 0.35, 0.7]]
+    _projection_bundle(ctx, "m6/project-master-pattern-tilted", DUMMY_MP, "fixtures/" + DUMMY_MP.name,
+                       {"shape": (48, 64), "pc": np.asarray(pc), "sample_tilt": 68.0, "tilt": 10.0, "azimuthal": 2.5,
+                        "twist": 1.2},
+                       [[200.0, 30.0, 10.0], [15.0, 80.0, 300.0], [90.0, 90.0, 90.0]], ("float32",),
+                       energies=(None, 12.4),
+                       note="the dummy master pattern is flat at each energy (its value is the energy), so only the "
+                            "float32 output (no rescale) is compared: a rescale of a flat pattern divides zero by zero")
 
 
 # --------------------------------------------------------------------------- slip systems, Schmid factors, slip traces, GND (m5)
