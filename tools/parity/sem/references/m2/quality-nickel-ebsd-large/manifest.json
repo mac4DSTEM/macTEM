@@ -1,0 +1,130 @@
+{
+  "arrays": {
+    "adp": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "adp.bin",
+      "note": "figure F3: after static and dynamic background",
+      "rtol": 1e-05,
+      "sha256": "64bec56e48556ea729c12fb386a53704a991ff368cd1e54eec4a301e879a148e",
+      "shape": [
+        55,
+        75
+      ]
+    },
+    "block_adp": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "block_adp.bin",
+      "note": "the 6 x 6 block as its own signal (edges at the block border)",
+      "rtol": 1e-05,
+      "sha256": "10ee91afd12b2460d5f901f516a916d3e2a7bbfbdd49a223d70f9d022c3c9974",
+      "shape": [
+        6,
+        6
+      ]
+    },
+    "block_corrected_patterns": {
+      "atol": 0.0,
+      "dtype": "uint8",
+      "file": "block_corrected_patterns.bin",
+      "note": "scan rows 20..25, cols 30..35, kikuchipy's uint8",
+      "rtol": 0.0,
+      "sha256": "e21f4b08c8259f30d7677610e722c0d5089e3296572ba980eea6dfd7edb52373",
+      "shape": [
+        6,
+        6,
+        60,
+        60
+      ]
+    },
+    "block_iq": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "block_iq.bin",
+      "note": "the 6 x 6 block as its own signal (edges at the block border)",
+      "rtol": 1e-05,
+      "sha256": "a7999d811a69f409e7cfc5f9146911df677c4cfb5b045e6ef8cb9e41df9027aa",
+      "shape": [
+        6,
+        6
+      ]
+    },
+    "iq": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "iq.bin",
+      "note": "figure F3: after static and dynamic background",
+      "rtol": 1e-05,
+      "sha256": "85a6ac3ebd2539fe79ada74fed20f40caa23e8600cb5d8ec62e34848521c8dbb",
+      "shape": [
+        55,
+        75
+      ]
+    },
+    "raw_adp": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "raw_adp.bin",
+      "note": "raw patterns, no background removed",
+      "rtol": 1e-05,
+      "sha256": "09397ee9266a3707489567efd800425c5fa26ffe0c41f7d6601d6987dd721d8a",
+      "shape": [
+        55,
+        75
+      ]
+    },
+    "raw_iq": {
+      "atol": 0.0,
+      "dtype": "float32",
+      "file": "raw_iq.bin",
+      "note": "raw patterns, no background removed",
+      "rtol": 1e-05,
+      "sha256": "9444ef7abd1cbaeb47b9b7c1654082fc0d31f9bbff52ac2c0fd525ed0ff8c5b7",
+      "shape": [
+        55,
+        75
+      ]
+    }
+  },
+  "case": "m2/quality-nickel-ebsd-large",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    }
+  ],
+  "milestone": 2,
+  "reference": {
+    "function": "kikuchipy.signals.EBSD.get_image_quality / get_average_neighbour_dot_product_map",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {},
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "block": {
+      "cols": [
+        30,
+        36
+      ],
+      "rows": [
+        20,
+        26
+      ]
+    }
+  }
+}

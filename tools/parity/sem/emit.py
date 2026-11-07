@@ -540,6 +540,139 @@ def case_m3_ti_disorientations(ctx):
     b.write()
     ctx.done("m3/ti-disorientations")
 
+# Pattern quality maps (m2, figure F3): float32 in kikuchipy, float64 in the port; rtol 1e-5 is the float32 bound the brief
+# states (measured: the float64 port is within 1e-7 of kikuchipy for IQ and 6e-7 for ADP on the same patterns).
+F32Q = {"rtol": 1e-5, "atol": 0.0}
+
+
+def _quality_maps(s, prefix: str, b, note: str = "") -> None:
+    """kikuchipy's image quality (Krieger Lassen 1994, normalize=True) and average neighbour dot product map (default
+    window: 3 x 3 circular, the four nearest neighbours; zero_mean and normalize True) of signal `s`."""
+    b.array(f"{prefix}iq", np.asarray(s.get_image_quality(show_progressbar=False), dtype=np.float32), **F32Q, note=note or None)
+    b.array(f"{prefix}adp", np.asarray(s.get_average_neighbour_dot_product_map(show_progressbar=False), dtype=np.float32),
+            **F32Q, note=note or None)
+
+
+def _corrected(s):
+    """kikuchipy's docs chain: static background (from the file) then dynamic background, both subtracted, uint8."""
+    c = s.deepcopy()
+    c.remove_static_background(operation="subtract")
+    c.remove_dynamic_background(operation="subtract", filter_domain="frequency", truncate=4.0)
+    return c
+
+
+def case_m2_quality_small(ctx):
+    """Every option of both maps on the 3 x 3 nickel fixture: corrected patterns as the input array (so the port is fed
+    exactly kikuchipy's uint8 patterns), IQ with and without normalisation, ADP under the default, a rectangular 3 x 3,
+    a circular 5 x 5 and a 1 x 3 window, without zero mean and without normalisation; the raw patterns' maps too."""
+    import kikuchipy as kp
+    from kikuchipy.filters import Window
+
+    path = FIXTURES / "kikuchipy_h5ebsd_patterns.h5"
+    s = kp.load(str(path))
+    b = Bundle("m2/quality-kikuchipy-h5ebsd", 2, "kikuchipy",
+               "kikuchipy.signals.EBSD.get_image_quality / get_average_neighbour_dot_product_map", ctx.out)
+    b.input(path, "fixtures/kikuchipy_h5ebsd_patterns.h5")
+    sy, sx = s.axes_manager.signal_shape[::-1]
+    b.array("frequency_vectors", kp.pattern.fft_frequency_vectors((sy, sx)).astype(np.float64), **EXACT)
+    _quality_maps(s, "raw_", b)
+    c = _corrected(s)
+    b.array("corrected_patterns", np.asarray(c.data), **EXACT, note="static then dynamic background, kikuchipy's uint8")
+    _quality_maps(c, "", b)
+    b.array("iq_unnormalized", np.asarray(c.get_image_quality(normalize=False, show_progressbar=False), dtype=np.float32), **F32Q)
+    windows = {"rect3": Window("rectangular", shape=(3, 3)), "circ5": Window("circular", shape=(5, 5)),
+               "rect1x3": Window("rectangular", shape=(1, 3))}
+    b.value("windows", {k: np.asarray(w).astype(int).tolist() for k, w in windows.items()})
+    for k, w in windows.items():
+        b.array(f"adp_{k}", np.asarray(c.get_average_neighbour_dot_product_map(window=w, show_progressbar=False), dtype=np.float32), **F32Q)
+    b.array("adp_no_zero_mean", np.asarray(c.get_average_neighbour_dot_product_map(zero_mean=False, show_progressbar=False), dtype=np.float32), **F32Q)
+    b.array("adp_no_normalize", np.asarray(c.get_average_neighbour_dot_product_map(normalize=False, show_progressbar=False), dtype=np.float32), **F32Q)
+    b.write()
+    ctx.done("m2/quality-kikuchipy-h5ebsd")
+
+
+QUALITY_BLOCK = (slice(20, 26), slice(30, 36))
+
+
+def case_m2_quality_nickel_large(ctx):
+    """North-star figure F3: the IQ and ADP maps of nickel_ebsd_large after kikuchipy's static and dynamic background
+    (its docs' chain), whole map. The raw patterns' maps (input = the shipped file, exact through the reader) and a 6 x 6
+    block of corrected patterns with the block's own maps let the port be checked on kikuchipy's exact input."""
+    import kikuchipy as kp
+
+    p = ctx.data / "nickel_ebsd_large" / "patterns_v2.h5"
+    if not ctx.have(p, "m2/quality-nickel-ebsd-large"):
+        return
+    s = kp.load(str(p))
+    b = Bundle("m2/quality-nickel-ebsd-large", 2, "kikuchipy",
+               "kikuchipy.signals.EBSD.get_image_quality / get_average_neighbour_dot_product_map", ctx.out)
+    b.input(p, "sem-data/nickel_ebsd_large/patterns_v2.h5")
+    _quality_maps(s, "raw_", b, "raw patterns, no background removed")
+    c = _corrected(s)
+    _quality_maps(c, "", b, "figure F3: after static and dynamic background")
+    r, k = QUALITY_BLOCK
+    b.value("block", {"rows": [r.start, r.stop], "cols": [k.start, k.stop]})
+    blk = c.inav[k, r]
+    b.array("block_corrected_patterns", np.asarray(blk.data), **EXACT, note="scan rows 20..25, cols 30..35, kikuchipy's uint8")
+    _quality_maps(blk, "block_", b, "the 6 x 6 block as its own signal (edges at the block border)")
+    b.write()
+    ctx.done("m2/quality-nickel-ebsd-large")
+
+
+SAMPLING_INPUTS = FIXTURES / "sampling_inputs.json"
+
+
+def _strided_rows(a: np.ndarray, rows: int) -> tuple[int, np.ndarray]:
+    """Every stride-th row of a sample in orix's order and the last one, stride = ceil(count / rows): the rows a
+    bundle keeps of a large sample (the count is exact on its own)."""
+    n = a.shape[0]
+    stride = max(1, -(-n // rows))
+    idx = np.arange(0, n, stride)
+    if idx[-1] != n - 1:
+        idx = np.append(idx, n - 1)
+    return stride, a[idx]
+
+
+def case_m3_orientation_sampling(ctx):
+    """orix.sampling with the cubochoric method (Rosca et al. 2014; Singh & De Graef 2016): resolution to semi-edge
+    steps, the full grid S000(N) for a small N, get_sample_fundamental for m-3m at 4, 2 and 1.5 degrees, 6/mmm at 4
+    degrees and three more groups, and get_sample_local around the identity and two centres. Counts exact; rotations in
+    orix's order within atol 1e-7 (every stride-th row and the last of a large sample, see sampling_inputs.json)."""
+    import json
+
+    from orix.quaternion import Rotation
+    from orix.sampling import get_sample_fundamental, get_sample_local
+    from orix.sampling._cubochoric_sampling import cubochoric_sampling, resolution_to_semi_edge_steps
+
+    inp = json.loads(SAMPLING_INPUTS.read_text(encoding="utf-8"))
+    rows = int(inp["rows_per_case"])
+    b = Bundle("m3/orientation-sampling", 3, "orix", "orix.sampling.get_sample_fundamental / get_sample_local (cubochoric)", ctx.out)
+    b.input(SAMPLING_INPUTS, "fixtures/sampling_inputs.json")
+    res = [float(x) for x in inp["semi_edge_resolutions"]]
+    b.value("semi_edge_resolutions", res)
+    b.value("semi_edge_steps", [int(resolution_to_semi_edge_steps(x)) for x in res])
+    n = int(inp["full_grid_semi_edge_steps"])
+    b.array("full_grid", cubochoric_sampling(semi_edge_steps=n).data, **ORI)
+    fundamental = []
+    for i, c in enumerate(inp["fundamental"]):
+        (g,) = _point_groups([c["point_group"]])
+        R = get_sample_fundamental(float(c["resolution"]), point_group=g)
+        stride, kept = _strided_rows(R.data, rows)
+        fundamental.append({"point_group": g.name, "resolution": float(c["resolution"]), "count": int(R.size), "stride": stride})
+        b.array(f"fundamental_{i:02d}", kept, **ORI)
+    b.value("fundamental", fundamental)
+    local = []
+    for i, c in enumerate(inp["local"]):
+        eu = c["center_euler_degrees"]
+        center = None if eu is None else Rotation.from_euler(np.asarray(eu, dtype=np.float64), degrees=True)
+        R = get_sample_local(float(c["resolution"]), center=center, grid_width=float(c["grid_width"]))
+        stride, kept = _strided_rows(R.data, rows)
+        local.append({"resolution": float(c["resolution"]), "grid_width": float(c["grid_width"]), "count": int(R.size), "stride": stride})
+        b.array(f"local_{i:02d}", kept, **ORI)
+    b.value("local", local)
+    b.write()
+    ctx.done("m3/orientation-sampling")
+
 
 TI_MAP_COLUMNS = 507  # orix-data's Ti map is 381 x 507 (x varies fastest)
 F7_EDGES = np.arange(0.0, 95.0, 1.0)  # 1 degree bins to 94, above 622's largest disorientation (93.84 degrees)
@@ -549,7 +682,7 @@ def _neighbour_pairs(O, rows):
     """Horizontal (right, left) and vertical (below, above) neighbour pairs of a row-major map as flat Orientation arrays.
     Taken flat on purpose: in orix 0.15.0, `O2[:, 1:] - O2[:, :-1]` on a 2D-shaped Orientation returns the right angles in a
     permuted order (a pair of identical orientations comes out at 90 degrees; the histogram is unchanged), while the same pairs taken flat agree
-    with `angle_with` on the 2D arrays; D-SEM-37."""
+    with `angle_with` on the 2D arrays; D-SEM-48."""
     from orix.quaternion import Orientation
 
     q = O.data.reshape(rows, TI_MAP_COLUMNS, 4)
