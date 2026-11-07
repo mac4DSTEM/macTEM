@@ -38,7 +38,7 @@ package nonisolated enum KikuchiOverlay {
     }
 
     /// Why a position has no overlay.
-    package enum Absence: Sendable, Equatable {
+    package enum Absence: Error, Sendable, Equatable {
         /// The dataset has no crystal map.
         case noOrientations
         /// The point is not indexed (or not in the map's data).
@@ -164,9 +164,11 @@ package nonisolated enum KikuchiOverlay {
     /// inside `brackets` ("[]" for a direction, "{}" for a family): [1̄21], {311}.
     package static func millerText(_ v: SIMD3<Int>, brackets: String) -> String {
         let pair = Array(brackets)
-        let body = [v.x, v.y, v.z].map { i in
-            i < 0 ? String(String(-i).flatMap { [$0, "\u{0305}"] }) : String(i)
-        }.joined()
+        var body = ""
+        for i in [v.x, v.y, v.z] {
+            guard i < 0 else { body += String(i); continue }
+            for digit in String(-i) { body.append(digit); body.append("\u{0305}") }
+        }
         return pair.count == 2 ? "\(pair[0])\(body)\(pair[1])" : body
     }
 
