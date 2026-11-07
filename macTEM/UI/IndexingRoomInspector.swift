@@ -307,6 +307,7 @@ private struct IndexingDictionarySection: View {
                 InspectorValueRow("Pattern", master.summary)
                     .help("The master pattern's phase, energies, projection and side, as EMsoft wrote it")
                     .accessibilityIdentifier("indexing.dictionary.summary")
+                    .accessibilityValue(master.summary)
             }
             InspectorActionRow {
                 Button("Open Master Pattern…") { importing = true }
@@ -324,13 +325,14 @@ private struct IndexingDictionarySection: View {
             InspectorValueRow("Dictionary", sizeRow)
                 .help("The orientations sampled, one simulated pattern each")
                 .accessibilityIdentifier("indexing.dictionary.size")
+                .accessibilityValue(sizeRow)
             SegmentedPicker(label: "Metric", items: DictionaryIndexing.Metric.allCases.map { metric in
                 (metric, .title(metric.title, help: metric.help))
             }, selection: Binding(get: { settings.metric }, set: { metric in session.editDictionarySettings { $0.metric = metric } }))
                 .accessibilityIdentifier("indexing.dictionary.metric")
             InspectorRow("Keep") {
                 OptionalNumericField(title: "Matches kept", value: Double(settings.keep), format: Self.whole, prompt: "\(defaults.keep)") { v in
-                    session.editDictionarySettings { $0.keep = Int(v.rounded()) }
+                    session.editDictionarySettings { $0.keep = WholeNumberEntry.value(v) }
                 }
                 .help("The best matches kept per pattern, best first (keep_n); the map shows the best")
                 .accessibilityIdentifier("indexing.dictionary.keep")
@@ -381,7 +383,7 @@ private struct IndexingHoughSection: View {
         InspectorSection("Hough", status: settings == defaults ? nil : "edited") {
             InspectorRow("Bands") {
                 OptionalNumericField(title: "Bands", value: Double(settings.bands), format: Self.whole, prompt: "\(defaults.bands)") { v in
-                    session.editSettings { $0.bands = Int(v.rounded()) }
+                    session.editSettings { $0.bands = WholeNumberEntry.value(v) }
                 }
                 .help("The number of bands detected in each pattern (nBands)")
                 .accessibilityIdentifier("indexing.hough.bands")
@@ -396,14 +398,14 @@ private struct IndexingHoughSection: View {
             }
             InspectorRow("ρ bins") {
                 OptionalNumericField(title: "Rho bins", value: Double(settings.rhoBins), format: Self.whole, prompt: "\(defaults.rhoBins)") { v in
-                    session.editSettings { $0.rhoBins = Int(v.rounded()) }
+                    session.editSettings { $0.rhoBins = WholeNumberEntry.value(v) }
                 }
                 .help("The Radon transform's bins across the pattern's distance from its centre (nRho)")
                 .accessibilityIdentifier("indexing.hough.rhoBins")
             }
             InspectorRow("θ bins") {
                 OptionalNumericField(title: "Theta bins", value: Double(settings.thetaBins), format: Self.whole, prompt: "\(defaults.thetaBins)") { v in
-                    session.editSettings { $0.thetaBins = Int(v.rounded()) }
+                    session.editSettings { $0.thetaBins = WholeNumberEntry.value(v) }
                 }
                 .help("The Radon transform's bins over 180° of band angle (nTheta)")
                 .accessibilityIdentifier("indexing.hough.thetaBins")
@@ -432,7 +434,7 @@ private struct IndexingHoughSection: View {
             InspectorRow("Early exit") {
                 OptionalNumericField(title: "Early exit", value: Double(settings.earlyExitBands), format: Self.whole, unit: "bands",
                                      prompt: "\(defaults.earlyExitBands)") { v in
-                    session.editSettings { $0.earlyExitBands = Int(v.rounded()) }
+                    session.editSettings { $0.earlyExitBands = WholeNumberEntry.value(v) }
                 }
                 .help("A pattern stops voting once this many bands agree on one orientation (nband_earlyexit)")
                 .accessibilityIdentifier("indexing.hough.earlyExit")
@@ -564,5 +566,14 @@ struct IndexingRoomInfo: View {
         if appState.indexing.isIndexing { return "Indexing, row \(result.rowsDone) of \(result.scanRows)" }
         if appState.indexing.wasStopped { return "Stopped at row \(result.rowsDone) of \(result.scanRows)" }
         return appState.indexing.isStale ? "Stale: the patterns, phases or settings changed" : "Current"
+    }
+}
+
+/// The whole-number fields (Keep, Bands, ρ bins, θ bins, Early exit).
+nonisolated private enum WholeNumberEntry {
+    /// A typed number rounded and held within ±10⁹, so that a huge or non-finite entry reaches the setting's refusal instead of
+    /// trapping in the conversion to `Int`.
+    static func value(_ v: Double) -> Int {
+        v.isFinite ? Int(min(max(v.rounded(), -1e9), 1e9)) : 0
     }
 }
