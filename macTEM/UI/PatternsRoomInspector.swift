@@ -1,8 +1,8 @@
 //
 //  PatternsRoomInspector.swift
 //  Role: the Patterns room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the Image room's order
-//        (control placement §2; design §4): Calibration (the geometry the file states, as value rows), Display (the map's colormap, window,
-//        gamma and scale bar), Virtual images (the detector grid, the map's image, the colour mix, the tiles pane), Pattern Display (the pattern
+//        (control placement §2; design §4; processing: pattern-processing.md §3): Calibration (the geometry the file states, as value rows), Display (the map's colormap, window,
+//        gamma and scale bar), Virtual images (the detector grid, the map's image, the colour mix, the tiles pane), the processing stages (`PatternsProcessingSections`), Pattern Display (the pattern
 //        pane's own, so the two pictures keep their own contrast) and Export (the map and the pattern on screen as PNG, the header as JSON). Info: what the file is (design §5). Presentation only: the rows are
 //        `EBSDBrowsing`'s (TEMCore), the state `EBSDSession`'s (TEMSession).
 //
@@ -29,6 +29,7 @@ struct PatternsRoomSettings: View {
             }
             ImageRoomDisplaySection(presentation: session.mapPresentation, colormapID: "patterns.colormap")
             PatternsVirtualImagesSection(session: session, dataset: dataset)
+            PatternsProcessingSections(session: session, dataset: dataset)
             ImageRoomDisplaySection(presentation: session.patternPresentation, title: "Pattern Display", colormapID: "patterns.pattern.colormap")
             PatternsExportSection(session: session, state: appState.patternsRoom)
         } else {
@@ -118,6 +119,9 @@ struct PatternsExportSection: View {
                 Button(PatternsExportKind.metadataJSON.title) { export(.metadataJSON) }
                     .help("The scan, pattern and detector header as the reader holds it, as JSON")
                     .accessibilityIdentifier("patterns.export.metadata")
+                Button(PatternsExportKind.methodJSON.title) { export(.methodJSON) }
+                    .help("Every processing stage with its parameters in kikuchipy's names, to redo the run in Python")
+                    .accessibilityIdentifier("patterns.export.method")
             }
         }
     }
@@ -140,7 +144,8 @@ struct PatternsRoomInfo: View {
                 if document.dataset.format == .generated {
                     InspectorNote("A generated demo dataset, not data: six grains of cosine bands with fixed-seed noise.")
                 } else {
-                    InspectorNote("Patterns are as the file stores them (no background correction yet).")
+                    InspectorNote(session.processed == nil ? "Patterns are as the file stores them; Process runs the Processing stages over the scan."
+                                  : "The scan is processed in memory; the file is unchanged.")
                 }
             }
         } else {
