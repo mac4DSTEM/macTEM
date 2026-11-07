@@ -13,8 +13,9 @@ import XCTest
 nonisolated final class SidebarLayoutTests: XCTestCase {
 
     @MainActor func testTheRoomsListHeightFollowsTheSystemSidebarSize() {
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.small), 242)
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.medium), 270)
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.large), 326)
+        // Eight rooms since the Indexing room (P4-04): one row per room and the header's 32 pt.
+        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.small), 272)
+        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.medium), 304)
+        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.large), 368)
     }
 }

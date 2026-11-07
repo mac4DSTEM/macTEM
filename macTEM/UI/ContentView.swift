@@ -38,6 +38,7 @@ struct ContentView: View {
         .onChange(of: appState.edx.isBusy, initial: true) { appState.markBusy(.edx, appState.edx.isBusy) }
         .onChange(of: appState.eels.isBusy, initial: true) { appState.markBusy(.eels, appState.eels.isBusy) }
         .onChange(of: appState.ebsd.isBusy, initial: true) { appState.markBusy(.patterns, appState.ebsd.isBusy) }
+        .onChange(of: appState.indexing.isBusy, initial: true) { appState.markBusy(.indexing, appState.indexing.isBusy) }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: imageTypes,
@@ -96,6 +97,16 @@ struct ContentView: View {
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
             return .idle(file: session.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
+        case .indexing:
+            let session = appState.indexing
+            guard let dataset = session.patterns.dataset else { return nil }
+            if session.isBusy {
+                // "Hough · 2 340 of 4 125": the points indexed so far (whole rows land at once).
+                let done = (session.result?.rowsDone ?? 0) * dataset.scanColumns
+                return .busy(operation: "Hough · \(done.formatted()) of \(dataset.patternCount.formatted())", progress: RoomProgress.fraction(room: room, appState: appState),
+                             metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
+            }
+            return .idle(file: session.patterns.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
         default:
             guard !appState.imageSession.isLoading, let image = appState.imageSession.image else { return nil }
             return .idle(file: image.fileName, room: room.title, detail: "\(image.width) × \(image.height) px", help: nil)

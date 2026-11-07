@@ -60,6 +60,8 @@ enum BusyOperation {
         case .patterns:
             let s = appState.ebsd
             return patterns(processing: s.isProcessing, mapping: s.isMapping, stage: s.firstStaleStage)
+        case .indexing:
+            return appState.indexing.isIndexing ? "Indexing with Hough…" : nil
         default:
             return nil
         }

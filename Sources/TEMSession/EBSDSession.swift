@@ -277,6 +277,9 @@ package final class EBSDSession {
     /// The infobar's line for an event ("Opening…", "Opened…") and the alert for a failure (the window's `AppState` wires them).
     package var onEvent: ((String) -> Void)?
     package var onFailure: ((any Error) -> Void)?
+    /// A dataset was bound, and one was closed: the Indexing room starts over on the dataset (`IndexingSession`).
+    package var onBind: ((Document) -> Void)?
+    package var onClose: (() -> Void)?
 
     @ObservationIgnored private var openTask: Task<Void, Never>?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
@@ -454,6 +457,7 @@ package final class EBSDSession {
         resetProcessing()
         onEvent?("Opened \(document.fileName) — \(EBSDBrowsing.capsuleDetail(document.dataset)), step \(UnitDisplay.number(document.dataset.stepX)) \(EBSDBrowsing.unitLabel(document.dataset.scanUnit))")
         startMap(document)
+        onBind?(document)
         return showPattern(at: .origin)
     }
 
@@ -489,6 +493,7 @@ package final class EBSDSession {
         scanMeanBackground = nil; isComputingMean = false; patternIsProcessed = false; previewFailure = nil
         patternDisplay = .raw; pipeline = .roomDefault
         resetOverlay()
+        onClose?()
     }
 
     // MARK: The map
