@@ -144,7 +144,7 @@ Their provenance and the framework packaging (tools/xcframework/build.sh) are in
 Demo data shipped in the app (Contents/Resources/DemoData/)
 ================================================================================
 
-Two public datasets ship in the application bundle unchanged, so that anyone can try the SEM rooms without a microscope file
+Three public datasets ship in the application bundle unchanged, so that anyone can try the SEM rooms without a microscope file
 (Help > Open Demo Data, the welcome window's Try Demo Data). Each is the copy its source publishes; the repository's
 DemoData/ folder holds them and `DemoDocuments.Shipped` pins their size and md5.
 
@@ -165,6 +165,16 @@ EDS_SEM_TM002.hspy (31,008 bytes, md5 1c3b8fddb2698741a0948d5a7c4eec51)
     `exspy/data/EDS_SEM_TM002.hspy` of the eXSpy package (https://github.com/hyperspy/exspy), Copyright 2007-2026 The eXSpy
     developers, GPL-3.0-or-later (text in LICENSE, which is version 3 of the same licence). macTEM reads the spectrum with its
     own reader of HyperSpy's HDF5 layout (`HyperSpySpectrumFile`); no eXSpy or RosettaSciIO code is copied.
+
+ni_mc_mp_20kv_uint8_gzip_opts9.h5 (908,492 bytes, md5 807c8306a0d02b46effbcb12bd44cd02)
+    The dynamically simulated EBSD master pattern of nickel at 20 kV (EMsoft EMMCOpenCL and EMEBSDmaster), 401 x 401 pixels
+    in the square Lambert and the stereographic projection of both hemispheres, reduced to 8 bit with gzip by kikuchipy. The
+    file is `kikuchipy/data/emsoft_ebsd_master_pattern/ni_mc_mp_20kv_uint8_gzip_opts9.h5` of kikuchipy 0.13.1
+    (https://github.com/pyxem/kikuchipy, the file `data.nickel_ebsd_master_pattern_small()` loads), Copyright 2019-2026 the
+    kikuchipy developers, GPL-3.0-or-later; the master pattern itself is H. W. Ånes, "EBSD master pattern of nickel at
+    20 kV" [Data set], Zenodo, https://doi.org/10.5281/zenodo.7498645, CC BY 4.0 (text in
+    `Licenses/kikuchipy-data-nickel_ebsd_large-LICENSE.txt`, the same licence). macTEM reads it with its own reader
+    (`EMsoftMasterPatternReader`).
 
 ================================================================================
 Validation references (used by the test harnesses; not part of the app)
@@ -191,3 +201,35 @@ The NORDIF readers (Sources/TEMCore/SEM/NORDIF) are ported from kikuchipy 0.13.1
 source in its first lines. macTEMTests/Fixtures/sem/nordif holds kikuchipy's `data/nordif` test files unchanged
 (GPL-3.0-or-later; the patterns are from the recrystallised nickel dataset of Ånes et al. 2020, CC BY 4.0,
 https://doi.org/10.5281/zenodo.7497682).
+
+The master pattern reader and the projection onto a detector (Sources/TEMCore/SEM/MasterPattern) are ported from kikuchipy
+0.13.1 (`kikuchipy/io/plugins/_emsoft_master_pattern.py` and the EBSD, TKD and ECP master pattern plugins,
+`kikuchipy/signals/ebsd_master_pattern.py::get_patterns`, `kikuchipy/signals/util/_master_pattern.py`,
+`kikuchipy/detectors/_ebsd_detector.py`), Copyright 2019-2026 the kikuchipy developers, GPL-3.0-or-later. The direction
+cosines and the interpolation in the square Lambert projection are kikuchipy's adaptation of EMsoft, whose notice it
+carries and this repository carries on:
+
+    Copyright (c) 2013-2022, Marc De Graef Research Group/Carnegie Mellon University
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+    following conditions are met:
+
+     - Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+       disclaimer.
+     - Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+       following disclaimer in the documentation and/or other materials provided with the distribution.
+     - Neither the names of Marc De Graef, Carnegie Mellon University nor the names of its contributors may be used to
+       endorse or promote products derived from this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+    INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+    WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The fixtures tools/parity/sem/fixtures/emsoft_ebsd_master_pattern_*.h5 are kikuchipy's in-package master pattern files
+(the Ni one CC BY 4.0 as above); planted_emsoft_{tkd,ecp}_master_pattern.h5 are written by tools/parity/sem/make_fixtures.py
+as kikuchipy's test fixtures write them.
