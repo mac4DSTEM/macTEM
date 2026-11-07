@@ -87,3 +87,14 @@ sidecar, so the journey does not index), `Overlay · Geometrical`, `indexing.pat
 labelled lines (accessibility children named `{111}` …); screenshot; (2) hover a second grain, the labels change; (3)
 `Overlay · Dynamical`, the `Blend` slider appears, the Dictionary tab's simulated pattern shows an NCC above 0,3; (4)
 `Export › Pattern with overlay…` writes a PNG.
+
+## 8. As built (#201)
+
+- The Patterns room has the layer and a `Simulation` section for the file's orientations (P6-02); the Indexing room has the
+  same layer in its pattern pane for the run's solution at the shown point, with its own `Simulation` section after the
+  method's section and before Export. Each room has its own on or off; `Min d`, `Band width`, `Zone axes`, `Labels`,
+  `Kinematical` and `Blend` are one set of settings that both sections edit.
+- The Indexing overlay uses the run's mean projection centre (the PC the run indexed with) and the dataset's detector
+  angles at the indexed pattern's shape, binned when the pipeline bins.
+- `Overlay` is `Off · Geometrical · Kinematical` (D-SEM-95). The kinematical master pattern's picture is in the Patterns
+  room's section; the Indexing room's Dictionary tab keeps the opened EMsoft master pattern and the Best match pane.
