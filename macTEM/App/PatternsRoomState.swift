@@ -14,21 +14,25 @@ import UniformTypeIdentifiers
 import TEMCore
 import TEMSession
 
-/// What the Patterns room's Export section writes (design §4): the pattern on screen as a PNG, the header as JSON.
+/// What the Patterns room's Export section writes (design §4): the pattern on screen as a PNG (alone or with the Kikuchi overlay), the
+/// overlay as CSV, the header as JSON.
 nonisolated enum PatternsExportKind: String, CaseIterable, Identifiable {
-    case mapPNG, patternPNG, metadataJSON, methodJSON
+    case mapPNG, patternPNG, overlayPNG, overlayCSV, metadataJSON, methodJSON
     var id: String { rawValue }
     var title: String {
         switch self {
         case .mapPNG: "Map PNG…"
         case .patternPNG: "Pattern PNG…"
+        case .overlayPNG: "Pattern with Overlay…"
+        case .overlayCSV: "Overlay CSV…"
         case .metadataJSON: "Metadata JSON…"
         case .methodJSON: "Method JSON…"
         }
     }
     var contentType: UTType {
         switch self {
-        case .mapPNG, .patternPNG: .png
+        case .mapPNG, .patternPNG, .overlayPNG: .png
+        case .overlayCSV: .commaSeparatedText
         case .metadataJSON, .methodJSON: .json
         }
     }
@@ -37,6 +41,8 @@ nonisolated enum PatternsExportKind: String, CaseIterable, Identifiable {
         switch self {
         case .mapPNG: " map \(map)"
         case .patternPNG: " pattern r\(position.row) c\(position.column)"
+        case .overlayPNG: " pattern r\(position.row) c\(position.column) overlay"
+        case .overlayCSV: " overlay r\(position.row) c\(position.column)"
         case .metadataJSON: " metadata"
         case .methodJSON: " processing method"
         }
@@ -77,6 +83,24 @@ final class PatternsRoomState {
                 exportPosition = position
                 data = try Self.patternPNG(canvas: canvas, presentation: session.patternPresentation, dataset: document.dataset,
                                            fileName: document.fileName, position: position)
+            case .overlayPNG:
+                guard let canvas = session.patternPresentation.canvas, let position = session.patternPosition,
+                      session.overlayOn, case .success(let overlay)? = session.overlay else {
+                    report("Nothing to export yet: no Kikuchi overlay is on the pattern."); return
+                }
+                exportPosition = position
+                let plain = try Self.patternPNG(canvas: canvas, presentation: session.patternPresentation, dataset: document.dataset,
+                                                fileName: document.fileName, position: position)
+                guard let png = KikuchiOverlayExport.png(patternPNG: plain, overlay: overlay, settings: session.overlaySettings) else {
+                    report("Export failed: the pattern with its overlay could not be encoded."); return
+                }
+                data = png
+            case .overlayCSV:
+                guard let position = session.patternPosition, session.overlayOn, let csv = session.overlayCSV else {
+                    report("Nothing to export yet: no Kikuchi overlay is on the pattern."); return
+                }
+                exportPosition = position
+                data = Data(csv.utf8)
             case .mapPNG:
                 guard let canvas = session.mapPresentation.canvas else { report("Nothing to export yet: the map has not landed."); return }
                 if session.mapChoice == .imageQuality || session.mapChoice == .dotProduct, session.chosenImage == nil {

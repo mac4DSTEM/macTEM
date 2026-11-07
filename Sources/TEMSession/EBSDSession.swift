@@ -97,7 +97,7 @@ package final class EBSDSession {
     @ObservationIgnored var overlayBands: [Int: KikuchiOverlay.Bands?] = [:]
     @ObservationIgnored var overlayMaxR: Double?
     /// The last overlay made, by position and spacing (the pane asks on every draw).
-    @ObservationIgnored var overlayMemo: (position: EBSDPosition, minD: Double, value: Result<KikuchiOverlay.Pattern, KikuchiOverlay.Absence>)?
+    @ObservationIgnored var overlayMemo: (position: EBSDPosition, minD: Double, bandWidth: Bool, value: Result<KikuchiOverlay.Pattern, KikuchiOverlay.Absence>)?
 
     // MARK: Processing
 

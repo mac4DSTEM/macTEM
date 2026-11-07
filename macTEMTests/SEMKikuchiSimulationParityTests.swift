@@ -3,7 +3,7 @@
 //  TEMCore's Kikuchi simulation (`CrystalLattice`, `KikuchiReflectors`, `KikuchiWavelength`, `GeometricalKikuchiSimulation`,
 //  `KinematicMasterPattern`, `KikuchiOverlay`) against diffpy.structure, diffsims 0.7.0 and kikuchipy 0.13.1: the bundles
 //  `m6/kikuchi-lattice`, `m6/kikuchi-scattering-tables`, `m6/kikuchi-reflectors-{ni,ti,al2cu}`, `m6/geometrical-simulation-nickel`
-//  (figure F14), `m6/geometrical-simulation-tilted` and `m6/kinematic-master-pattern-ni` from tools/parity/sem/simulation_cases.py, at each
+//  (figure F14), `m6/geometrical-band-edges-nickel`, `m6/geometrical-simulation-tilted` and `m6/kinematic-master-pattern-ni` from tools/parity/sem/simulation_cases.py, at each
 //  bundle's tolerance (docs/parity.md). Red before the port: none of the types exists. Red after the lattice left in diffpy's frame
 //  (the hexagonal zone axes move), a reflector counted with z ≤ 0 (every band twice), the sample-to-detector matrix not transposed
 //  (the lines turn), zone axes not reduced by orix's rounding (labels and positions change), or a band edge at π/2 + θ: each moves
@@ -210,6 +210,104 @@ nonisolated final class SEMKikuchiSimulationParityTests: XCTestCase {
             try assertSimulation(overlay.simulation, ref, prefix: "p\(p[0])_\(p[1])_")
             XCTAssertEqual(overlay.lineLabels.count, overlay.simulation.lines.count)
         }
+    }
+
+    /// The band edges (#201): each F14 line's two small circles at π/2 ∓ θ about its reflector, as kikuchipy's `plot(mode="bands")`
+    /// draws them (orix's `get_circle`, 360 steps), put on the detector of pattern (0, 0) with diffsims' θ at the file's 20 kV.
+    /// Red before: the simulation has no edges (and no `braggAngles`); red with the edge at π/2 ± θ swapped, θ in degrees, or a
+    /// circle about the crystal-frame g instead of the detector-frame one.
+    func testBandEdgesAsKikuchipyBands() throws {
+        let ref = try SEMParityReference.load("m6/geometrical-band-edges-nickel")
+        let nickel = try SEMParityReference.load("m6/geometrical-simulation-nickel")
+        var p = try XCTUnwrap(nickel.values["lattice"] as? [Double])
+        p[0] *= 10; p[1] *= 10; p[2] *= 10   // the overlay's lattice is in Å (KikuchiOverlay.lattice), as the bundle's θ
+        let reflectors = KikuchiReflectors(lattice: try XCTUnwrap(CrystalLattice(parameters: p)), hkl: triples(try nickel.array("reflectors_hkl").values))
+        let d = try XCTUnwrap(nickel.values["detector"] as? [String: Any])
+        let shape = try XCTUnwrap(d["shape"] as? [Int])
+        let detector = EBSDDetectorGeometry(rows: shape[0], columns: shape[1], pixelSize: try XCTUnwrap(d["px_size"] as? Double),
+                                            binning: try XCTUnwrap(d["binning"] as? Int), tilt: try XCTUnwrap(d["tilt"] as? Double),
+                                            azimuthal: try XCTUnwrap(d["azimuthal"] as? Double), twist: try XCTUnwrap(d["twist"] as? Double),
+                                            sampleTilt: try XCTUnwrap(d["sample_tilt"] as? Double), projectionCenters: [])
+        let rotation = quads(try nickel.array("rotations").values)[0], pc = triples(try nickel.array("pcs").values)[0]
+        let maxR = try XCTUnwrap(ref.manifest.scalars["max_r_gnomonic"]?.value)
+        let steps = try XCTUnwrap(ref.values["steps"] as? Int)
+        let bare = GeometricalKikuchiSimulation.simulate(reflectors: reflectors, rotation: rotation, detector: detector, pc: pc, maxRGnomonic: maxR)
+        let hkl = try ref.array("lines_hkl")
+        SEMAssertParity(ints(bare.lines.map(\.hkl)), hkl, shape: hkl.shape)
+        XCTAssertTrue(bare.lines.allSatisfy(\.edges.isEmpty), "no edges without Bragg angles")
+        SEMAssertParity(bare.lines.flatMap { [$0.detector.x, $0.detector.y, $0.detector.z] }, try ref.array("vector_detector"))
+        // The bundle's θ for each line's reflector; the rest get none drawn (they make no line).
+        let lineTheta = try ref.array("theta").values
+        var theta = [Double](repeating: 0, count: reflectors.count)
+        for (k, line) in bare.lines.enumerated() where k < lineTheta.count { theta[line.reflector] = lineTheta[k] }
+        let sim = GeometricalKikuchiSimulation.simulate(reflectors: reflectors, rotation: rotation, detector: detector, pc: pc, maxRGnomonic: maxR,
+                                                        braggAngles: theta, edgeSteps: steps)
+        XCTAssertEqual(sim.lines.map(\.hkl), bare.lines.map(\.hkl), "the edges do not change which lines are drawn")
+        XCTAssertEqual(sim.lines.map(\.pixel), bare.lines.map(\.pixel))
+        XCTAssertTrue(sim.lines.allSatisfy { $0.edges.count == 2 && $0.edges.allSatisfy { $0.pixel.count == steps } })
+        SEMAssertParity(sim.lines.flatMap { $0.edges.flatMap { $0.gnomonic.flatMap { [$0.x, $0.y] } } }, try ref.array("edges_gnomonic"))
+        SEMAssertParity(sim.lines.flatMap { $0.edges.flatMap { $0.pixel.flatMap { [$0.x, $0.y] } } }, try ref.array("edges_px"))
+        // Every band shows on the pattern as two arcs, one either side of its centre line.
+        for line in sim.lines {
+            XCTAssertTrue(line.edges.allSatisfy { !$0.pixelRuns.isEmpty }, "\(line.hkl) has an edge with no visible arc")
+        }
+    }
+
+    /// The overlay's own θ (the relativistic wavelength at the file's beam energy, no mean inner potential: decision D-SEM-94) is
+    /// diffsims' within 0.1 %, and the demo nickel's overlay draws every band with its two edges when it is asked for.
+    func testOverlayBandEdgesOnTheDemoNickel() throws {
+        let ref = try SEMParityReference.load("m6/geometrical-band-edges-nickel")
+        let (dataset, _) = try EBSDOpening.open(url: Self.demoScan)
+        XCTAssertEqual(dataset.sem.beamEnergyKeV, try XCTUnwrap(ref.values["beam_energy_kev"] as? Double))
+        let map = try XCTUnwrap(dataset.crystalMap)
+        let phase = try XCTUnwrap(map.phases[id: map.allPhaseIDs[0]])
+        let bands = try XCTUnwrap(KikuchiOverlay.bands(for: phase, minDSpacing: 1.0))
+        let maxR = KikuchiOverlay.scanMaxR(dataset)
+        let result = KikuchiOverlay.pattern(dataset, at: .origin, maxR: maxR, beamEnergyKeV: dataset.sem.beamEnergyKeV) { _, _ in bands }
+        guard case .success(let overlay) = result else { return XCTFail("no overlay: \(result)") }
+        let theta = try XCTUnwrap(overlay.lineTheta)
+        let reference = try ref.array("theta").values
+        XCTAssertEqual(theta.count, reference.count)
+        for (ours, theirs) in zip(theta, reference) {
+            XCTAssertEqual(ours, theirs, accuracy: 1e-3 * theirs, "θ within 0.1 % of diffsims' (the mean inner potential left out)")
+            XCTAssertGreaterThan(ours, theirs, "without the inner potential the wavelength is longer, so θ larger")
+        }
+        XCTAssertTrue(overlay.simulation.lines.allSatisfy { $0.edges.count == 2 })
+        let off = KikuchiOverlay.pattern(dataset, at: .origin, maxR: maxR) { _, _ in bands }
+        guard case .success(let plain) = off else { return XCTFail("no overlay: \(off)") }
+        XCTAssertNil(plain.lineTheta)
+        XCTAssertTrue(plain.simulation.lines.allSatisfy(\.edges.isEmpty), "no edges unless asked")
+    }
+
+    /// `Overlay CSV…`: one row per band and per zone axis, the indices with their signs, the ends in detector pixels exactly as the
+    /// simulation holds them, θ when the edges were computed.
+    func testOverlayCSVHoldsTheLinesAndZoneAxes() throws {
+        let (dataset, _) = try EBSDOpening.open(url: Self.demoScan)
+        let map = try XCTUnwrap(dataset.crystalMap)
+        let phase = try XCTUnwrap(map.phases[id: map.allPhaseIDs[0]])
+        let bands = try XCTUnwrap(KikuchiOverlay.bands(for: phase, minDSpacing: 1.0))
+        let result = KikuchiOverlay.pattern(dataset, at: .origin, maxR: KikuchiOverlay.scanMaxR(dataset), beamEnergyKeV: 20) { _, _ in bands }
+        guard case .success(let overlay) = result else { return XCTFail("no overlay: \(result)") }
+        let rows = KikuchiOverlay.csv(overlay).split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        XCTAssertEqual(rows.first, "feature,h_or_u,k_or_v,l_or_w,label,x1_px,y1_px,x2_px,y2_px,theta_rad")
+        XCTAssertEqual(rows.last, "", "the file ends with a newline")
+        let body = rows.dropFirst().dropLast().map { $0.split(separator: ",", omittingEmptySubsequences: false).map(String.init) }
+        XCTAssertTrue(body.allSatisfy { $0.count == 10 })
+        let bandRows = body.filter { $0[0] == "band" }, axisRows = body.filter { $0[0] == "zone_axis" }
+        XCTAssertEqual(bandRows.count, overlay.simulation.lines.count)
+        XCTAssertEqual(axisRows.count, overlay.simulation.zoneAxes.count)
+        for (row, line) in zip(bandRows, overlay.simulation.lines) {
+            XCTAssertEqual(row[1...3].map { Double($0)! }, [line.hkl.x, line.hkl.y, line.hkl.z])
+            XCTAssertEqual(row[5...8].map { Double($0)!.bitPattern }, [line.pixel[0], line.pixel[1], line.pixel[2], line.pixel[3]].map(\.bitPattern))
+            XCTAssertTrue(["{111}", "{200}", "{220}", "{311}"].contains(row[4]), row[4])
+            XCTAssertGreaterThan(Double(row[9]) ?? 0, 0)
+        }
+        for (row, axis) in zip(axisRows, overlay.simulation.zoneAxes) {
+            XCTAssertEqual(row[4], "[\(axis.uvw.x)\(axis.uvw.y)\(axis.uvw.z)]")
+            XCTAssertEqual(Double(row[5])?.bitPattern, axis.pixel.x.bitPattern)
+            XCTAssertEqual(row[7], "")
+        }
+        XCTAssertEqual(KikuchiOverlay.plainMiller(SIMD3(-1, -2, 1), brackets: "[]"), "[-1-21]")
     }
 
     func testTiltedTitaniumDetectorAsKikuchipy() throws {

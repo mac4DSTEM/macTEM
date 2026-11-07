@@ -1,0 +1,113 @@
+{
+  "arrays": {
+    "edges_gnomonic": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "edges_gnomonic.bin",
+      "note": "line, (pi/2 - theta, pi/2 + theta), step, (x, y); NaN off the screen or outside r_max",
+      "rtol": 1e-07,
+      "sha256": "cacaaba5b34e08b30782ef60a5b129960b7c9467208a3937e0fad3acedab79fc",
+      "shape": [
+        22,
+        2,
+        360,
+        2
+      ]
+    },
+    "edges_px": {
+      "atol": 1e-06,
+      "dtype": "float64",
+      "file": "edges_px.bin",
+      "note": "the same in detector pixels",
+      "rtol": 1e-07,
+      "sha256": "ac01f19c5ecde4f62eef9e76ce6459aa5aa2a16c2dd9209c267c9459d06a183d",
+      "shape": [
+        22,
+        2,
+        360,
+        2
+      ]
+    },
+    "lines_hkl": {
+      "atol": 0.0,
+      "dtype": "int32",
+      "file": "lines_hkl.bin",
+      "note": "the lines of pattern (0, 0), as m6/geometrical-simulation-nickel's p0_0_lines_hkl",
+      "rtol": 0.0,
+      "sha256": "068a0ee6b1b921caa2bfdcfd20716d28ca6132de0723272c2c2badc918d6fdb1",
+      "shape": [
+        22,
+        3
+      ]
+    },
+    "theta": {
+      "atol": 0.0,
+      "dtype": "float64",
+      "file": "theta.bin",
+      "note": "diffsims' Bragg angle of each line's reflector at the file's beam energy, radians",
+      "rtol": 1e-07,
+      "sha256": "50e89df9b8368480d1f71c25ccf88080b93fb3c3a1fd8d94b246e74a1f764c19",
+      "shape": [
+        22
+      ]
+    },
+    "vector_detector": {
+      "atol": 1e-12,
+      "dtype": "float64",
+      "file": "vector_detector.bin",
+      "note": "each line's reflector in the detector frame",
+      "rtol": 1e-07,
+      "sha256": "a34415cdcb5f0f444bfeb30c30c1ac1840f15a07813595c449da84bf9b503ac7",
+      "shape": [
+        22,
+        3
+      ]
+    }
+  },
+  "case": "m6/geometrical-band-edges-nickel",
+  "inputs": [
+    {
+      "path": "sem-data/nickel_ebsd_large/patterns_v2.h5",
+      "sha256": "5b564cae2e2aedc3229cba84529255d8fdbe1199d1ac7c7c3ef6400a2142e934"
+    },
+    {
+      "path": "fixtures/simulation_cases.json",
+      "sha256": "53ac4cc181b31ba459c94fc5ee11e78f387778d1e297fc3b86110759dc02b0dd"
+    }
+  ],
+  "milestone": 6,
+  "reference": {
+    "function": "kikuchipy.simulations.KikuchiPatternSimulator.plot(mode='bands') edges (orix Vector3d.get_circle at pi/2 -+ theta) on on_detector's detector frame",
+    "package": "kikuchipy",
+    "version": "0.13.1"
+  },
+  "scalars": {
+    "max_r_gnomonic": {
+      "atol": 0.0,
+      "rtol": 1e-07,
+      "value": 2.0580661127983166
+    }
+  },
+  "schema": 1,
+  "stack": {
+    "diffsims": "0.7.0",
+    "exspy": "0.3.2",
+    "h5py": "3.16.0",
+    "hyperspy": "2.5.0",
+    "kikuchipy": "0.13.1",
+    "numpy": "2.5.4",
+    "orix": "0.15.0",
+    "pyebsdindex": "0.3.10.1",
+    "python": "3.14.6",
+    "rsciio": "0.15.0",
+    "scipy": "1.18.1"
+  },
+  "values": {
+    "beam_energy_kev": 20.0,
+    "point": [
+      0,
+      0
+    ],
+    "steps": 360
+  }
+}
