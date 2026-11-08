@@ -10,7 +10,8 @@
 //  decodes it so; a UTF-8 copy reads with mojibake in the unit column, which no value reads from). kikuchipy reads each
 //  value from a fixed line offset below its section header; this reader looks the key up within its section, which
 //  gives the same values on every file of the parity set, including the three damaged ones, and refuses a file whose
-//  required line is missing where kikuchipy would fail on `float("")`.
+//  required line is missing where kikuchipy would fail on `float("")`, or whose acquisition resolution or number of
+//  samples has a size below 1, which no reader can lay out.
 //
 //  Conventions kept from kikuchipy, each with its line in `_api.py`:
 //  - `Number of samples	3x3` reads as rows x columns (ny, nx); `Resolution	60x60` as width x height (sx, sy).
@@ -105,6 +106,7 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
         case notSettings(String)
         case missing(section: String, key: String)
         case notANumber(section: String, key: String, value: String)
+        case notPositive(section: String, key: String, value: String)
         case noCalibrationPatterns
 
         /// The app's words, after "<file> cannot be read: ".
@@ -113,6 +115,7 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
             case .notSettings(let name): "\(name) is not a NORDIF settings file (no [Microscope] section)."
             case .missing(let section, let key): "its [\(section)] section has no '\(key)' line."
             case .notANumber(let section, let key, let value): "its [\(section)] '\(key)' value '\(value)' is not a number."
+            case .notPositive(let section, let key, let value): "its [\(section)] '\(key)' value '\(value)' has a size below 1."
             case .noCalibrationPatterns: "it lists no calibration patterns (no 'Calibration (x,y)' line under [Calibration patterns])."
             }
         }
@@ -171,11 +174,11 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
         let file = Sections(lines: lines)
         guard file.has("Microscope") else { throw Refusal.notSettings(fileName) }
 
-        let acquisition = try patternSettings(file, section: "Acquisition settings")
+        let acquisition = try patternSettings(file, section: "Acquisition settings", sized: true)
         var calibration: PatternSettings?
-        if file.has("Calibration settings") { calibration = try patternSettings(file, section: "Calibration settings") }
+        if file.has("Calibration settings") { calibration = try patternSettings(file, section: "Calibration settings", sized: false) }
         let samples = try file.required("Area", "Number of samples")
-        let (rows, columns) = try pair(samples, section: "Area", key: "Number of samples")
+        let (rows, columns) = try sizes(samples, section: "Area", key: "Number of samples")
         let area = Area(top: measure(file, "Top"), left: measure(file, "Left"), width: measure(file, "Width"), height: measure(file, "Height"),
                         stepUM: try file.number("Area", "Step size"), rows: rows, columns: columns, scanTime: file.value("Area", "Scan time"))
 
@@ -256,11 +259,15 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
         }
     }
 
-    private static func patternSettings(_ file: Sections, section: String) throws -> PatternSettings {
-        PatternSettings(frameRateFPS: file.value(section, "Frame rate").flatMap(Double.init),
-                        resolution: try resolution(try file.required(section, "Resolution"), section: section),
-                        exposureUS: file.value(section, "Exposure time").flatMap(Double.init),
-                        gain: file.value(section, "Gain").flatMap(Double.init))
+    /// `[Acquisition settings]` or `[Calibration settings]`. The acquisition resolution sizes every pattern record, so it must be at
+    /// least 1 x 1 (`sized`); the calibration one sizes nothing here and is kept as written.
+    private static func patternSettings(_ file: Sections, section: String, sized: Bool) throws -> PatternSettings {
+        let value = try file.required(section, "Resolution")
+        let (width, height) = try sized ? sizes(value, section: section, key: "Resolution") : pair(value, section: section, key: "Resolution")
+        return PatternSettings(frameRateFPS: file.value(section, "Frame rate").flatMap(Double.init),
+                               resolution: Resolution(width: width, height: height),
+                               exposureUS: file.value(section, "Exposure time").flatMap(Double.init),
+                               gain: file.value(section, "Gain").flatMap(Double.init))
     }
 
     /// `AxB` as two integers.
@@ -269,6 +276,14 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
         guard parts.count == 2, let a = parts[0], let b = parts[1] else {
             throw Refusal.notANumber(section: section, key: key, value: value)
         }
+        return (a, b)
+    }
+
+    /// `AxB` as two sizes of at least 1: the acquisition resolution and the number of samples size every record and the map, so a
+    /// zero or negative one is refused here, before a reader divides by it or lays out a map with it.
+    private static func sizes(_ value: String, section: String, key: String) throws -> (Int, Int) {
+        let (a, b) = try pair(value, section: section, key: key)
+        guard a > 0, b > 0 else { throw Refusal.notPositive(section: section, key: key, value: value) }
         return (a, b)
     }
 
