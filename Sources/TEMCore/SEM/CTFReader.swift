@@ -33,16 +33,22 @@ package nonisolated enum CTFReader {
         case row(line: Int, columns: Int, needed: Int)
         case number(line: Int, String)
         case missingColumn(String)
+        /// An orientation table naming one property column twice.
+        case repeatedColumn(String)
+        /// An ASTAR header whose `XCells` and `YCells` are not a count of cells, or whose cells do not hold the file's points.
+        case cells(points: Int)
 
         package var reason: String {
             switch self {
             case .notText: "it is not a text file."
             case .noColumnLine: "it has no `Phase X Y ...` column line in its first 1000 lines and no column names on its first line."
-            case .noPhases: "its header has no `Phases` line."
+            case .noPhases: "its header has no `Phases` line with a count of phases."
             case .phase(let line, let what): "its phase on line \(line) is not read: \(what)."
             case .row(let line, let columns, let needed): "line \(line) has \(columns) columns; \(needed) are needed."
             case .number(let line, let text): "line \(line) holds `\(text)` where a number is needed."
             case .missingColumn(let name): "its column names lack `\(name)`."
+            case .repeatedColumn(let name): "its column names hold `\(name)` twice."
+            case .cells(let points): "its header's `XCells` and `YCells` are not a grid of its \(points) points."
             }
         }
     }
@@ -109,7 +115,7 @@ package nonisolated enum CTFReader {
         let vendor = vendors.count == 1 ? vendors[0] : Vendor.oxfordOrBruker
 
         let phases = try phasesFromHeader(header)
-        let rows = try numberRows(lines: lines, from: columnLine + 1, needed: 11)
+        let rows = try numberRows(lines: lines, from: columnLine + 1, needed: 11, phaseColumn: 0)
 
         var x = [Double](), y = [Double](), phaseID = [Int](), euler = [SIMD3<Double>]()
         x.reserveCapacity(rows.count); y.reserveCapacity(rows.count); phaseID.reserveCapacity(rows.count)
@@ -126,7 +132,7 @@ package nonisolated enum CTFReader {
         let names = vendor == .emsoft ? ["bands", "error", "DP", "OSM", "IQ"] : ["bands", "error", "MAD", "BC", "BS"]
         let properties = Dictionary(uniqueKeysWithValues: zip(names, [bands, error, mad, bc, bs]))
 
-        if vendor == .astar { fixASTARCoordinates(header: header, x: &x, y: &y) }
+        if vendor == .astar { try fixASTARCoordinates(header: header, x: &x, y: &y) }
 
         let map = try CrystalMap(euler: euler, phaseIDs: phaseID, x: x, y: y, phaseList: phases, properties: properties, scanUnit: "um")
         return File(map: map, vendor: vendor, header: header, propertyNames: names)
@@ -138,7 +144,7 @@ package nonisolated enum CTFReader {
     static func phasesFromHeader(_ header: [String]) throws -> PhaseList {
         guard let phasesLine = header.firstIndex(where: { $0.hasPrefix("Phases") }) else { throw Refusal.noPhases }
         let fields = header[phasesLine].split(separator: "\t", omittingEmptySubsequences: false)
-        guard fields.count > 1, let count = Int(fields[1].trimmingCharacters(in: .whitespaces)) else { throw Refusal.noPhases }
+        guard fields.count > 1, let count = Int(fields[1].trimmingCharacters(in: .whitespaces)), count >= 0 else { throw Refusal.noPhases }
         var phases: [CrystalPhase] = []
         for i in 0..<count {
             let lineNumber = phasesLine + 1 + i
@@ -173,19 +179,27 @@ package nonisolated enum CTFReader {
     }
 
     /// `_fix_astar_coords`: when the coordinates' decimals round to another extent than the header's cells, the
-    /// coordinates are regenerated from the header's steps (orix compares the x slice with the y cells; kept as is).
-    static func fixASTARCoordinates(header: [String], x: inout [Double], y: inout [Double]) {
+    /// coordinates are regenerated from the header's steps (orix compares the x slice with the y cells; kept as is). Cells that
+    /// are no count (not finite, or beyond an Int), or whose grid would not hold the file's points (the map could not be built from
+    /// it), are refused before the new coordinates are allocated.
+    static func fixASTARCoordinates(header: [String], x: inout [Double], y: inout [Double]) throws {
         let slices = CrystalMap.dataSlices(coordinates: [x, y], steps: [CrystalMap.stepSize(x), CrystalMap.stepSize(y)])
         guard slices.count == 2,
               let cellsX = headerValue(header, key: "XCells"), let cellsY = headerValue(header, key: "YCells"),
               let stepX = headerValue(header, key: "XStep"), let stepY = headerValue(header, key: "YStep") else { return }
+        // The cells truncated as `Int(_:)` truncates them.
+        guard let rows = Int(exactly: cellsY.rounded(.towardZero)), let columns = Int(exactly: cellsX.rounded(.towardZero)) else {
+            throw Refusal.cells(points: x.count)
+        }
         let found = [slices[0].stop + 1, slices[1].stop + 1]
-        let shape = [Int(cellsY), Int(cellsX)]
+        let shape = [rows, columns]
         guard found != shape else { return }
+        let cells = rows.multipliedReportingOverflow(by: columns)
+        guard rows >= 0, columns >= 0, !cells.overflow, cells.partialValue == x.count else { throw Refusal.cells(points: x.count) }
         var newX = [Double](), newY = [Double]()
-        newX.reserveCapacity(shape[0] * shape[1]); newY.reserveCapacity(shape[0] * shape[1])
-        for row in 0..<shape[0] {
-            for column in 0..<shape[1] {
+        newX.reserveCapacity(cells.partialValue); newY.reserveCapacity(cells.partialValue)
+        for row in 0..<rows {
+            for column in 0..<columns {
                 newY.append(Double(row) * stepY)
                 newX.append(Double(column) * stepX)
             }
@@ -196,8 +210,9 @@ package nonisolated enum CTFReader {
 
     // MARK: - The rows
 
-    /// numpy.loadtxt below the header: blank and `#` lines skipped, whitespace-separated numbers, at least `needed` a row.
-    static func numberRows(lines: [Substring], from start: Int, needed: Int) throws -> [[Double]] {
+    /// numpy.loadtxt below the header: blank and `#` lines skipped, whitespace-separated numbers, at least `needed` a row. The field in
+    /// `phaseColumn` must be a phase id (`isPhaseID`).
+    static func numberRows(lines: [Substring], from start: Int, needed: Int, phaseColumn: Int? = nil) throws -> [[Double]] {
         var rows: [[Double]] = []
         rows.reserveCapacity(max(0, lines.count - start))
         for index in start..<lines.count {
@@ -207,14 +222,19 @@ package nonisolated enum CTFReader {
             guard fields.count >= needed else { throw Refusal.row(line: index + 1, columns: fields.count, needed: needed) }
             var row = [Double]()
             row.reserveCapacity(fields.count)
-            for field in fields {
-                guard let value = Double(field) else { throw Refusal.number(line: index + 1, String(field)) }
+            for (k, field) in fields.enumerated() {
+                guard let value = Double(field), k != phaseColumn || isPhaseID(value) else {
+                    throw Refusal.number(line: index + 1, String(field))
+                }
                 row.append(value)
             }
             rows.append(row)
         }
         return rows
     }
+
+    /// A phase id `Int(_:)` takes, truncating as orix's `int()` does: finite and inside Int's range (`Int(_:)` traps on anything else).
+    static func isPhaseID(_ value: Double) -> Bool { Int(exactly: value.rounded(.towardZero)) != nil }
 
     // MARK: - The orientation table
 
@@ -223,7 +243,7 @@ package nonisolated enum CTFReader {
         guard let nameLine = lines.firstIndex(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) else { throw Refusal.noColumnLine }
         let names = lines[nameLine].split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)
         guard names.contains("phi1"), names.contains("Phi"), names.contains("phi2") else { throw Refusal.noColumnLine }
-        let rows = try numberRows(lines: lines, from: nameLine + 1, needed: names.count)
+        let rows = try numberRows(lines: lines, from: nameLine + 1, needed: names.count, phaseColumn: names.firstIndex(of: "phase"))
         func column(_ name: String) -> [Double]? {
             guard let i = names.firstIndex(of: name) else { return nil }
             return rows.map { $0[i] }
@@ -235,6 +255,10 @@ package nonisolated enum CTFReader {
         let phaseID = column("phase").map { $0.map { Int($0) == 0 ? -1 : Int($0) } } ?? [Int](repeating: 1, count: rows.count)
         let taken: Set<String> = ["phi1", "Phi", "phi2", "phase", "x", "y"]
         let propertyNames = names.filter { !taken.contains($0) }
+        var seen: Set<String> = []
+        for name in propertyNames {
+            guard seen.insert(name).inserted else { throw Refusal.repeatedColumn(name) }
+        }
         let properties = Dictionary(uniqueKeysWithValues: propertyNames.map { ($0, column($0)!) })
         let map = try CrystalMap(euler: euler, phaseIDs: phaseID, x: column("x"), y: column("y"), properties: properties, scanUnit: "um")
         return File(map: map, vendor: .orientationTable, header: [String(lines[nameLine])], propertyNames: propertyNames)
