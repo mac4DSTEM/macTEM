@@ -22,6 +22,7 @@ done
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/tools/lib/developer-dir.sh"
+. "$ROOT/tools/lib/release-checks.sh"
 resolve_mactem_developer_dir
 
 TEAM="${DEVELOPMENT_TEAM:-3B8SMSSAX4}"
@@ -59,15 +60,17 @@ PKG="$(print -l "$EXPORT"/*.pkg(N) | head -1)"
 echo "== Check the package"
 pkgutil --check-signature "$PKG" | grep -q "Installer Distribution\|3rd Party Mac Developer Installer" \
   || { echo "$PKG is not signed with an installer distribution certificate." >&2; exit 1; }
-for binary in "$APP/Contents/MacOS/macTEM" "$APP"/Contents/Frameworks/{FormatoLibHDF5,FormatoLibSZ,FormatoLibAEC}.framework/{FormatoLibHDF5,FormatoLibSZ,FormatoLibAEC}(N); do
-  [[ "$(lipo -archs "$binary")" == "arm64" ]] || { echo "Not arm64 alone: $binary" >&2; exit 1; }
-done
+# The executable and the three HDF5 frameworks, each by name, and the shipped demo files (tools/lib/release-checks.sh).
+assert_mactem_bundle_arm64_only "$APP"
+assert_mactem_demo_data "$APP"
 codesign -d --entitlements :- "$APP" > "$OUT/store-entitlements.plist" 2>/dev/null
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' "$OUT/store-entitlements.plist" 2>/dev/null)" == true ]] \
   || { echo "The store app is not sandboxed." >&2; exit 1; }
 if /usr/libexec/PlistBuddy -c 'Print :com.apple.security.get-task-allow' "$OUT/store-entitlements.plist" >/dev/null 2>&1; then
   echo "The store app carries get-task-allow." >&2; exit 1
 fi
+# The sandbox entitlements exactly: no network client, nothing the store listing does not declare.
+assert_mactem_store_entitlements "$OUT/store-entitlements.plist"
 [[ -f "$APP/Contents/Resources/PrivacyInfo.xcprivacy" ]] || { echo "The app has no privacy manifest." >&2; exit 1; }
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$APP/Contents/Info.plist" 2>/dev/null)" == false ]] \
   || { echo "Info.plist does not answer the export-compliance question." >&2; exit 1; }

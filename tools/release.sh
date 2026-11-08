@@ -12,6 +12,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/tools/lib/developer-dir.sh"
+. "$ROOT/tools/lib/release-checks.sh"
 resolve_mactem_developer_dir
 
 IDENTITY="${DEVELOPER_ID_APPLICATION:-Developer ID Application: Paul Lobpreis (3B8SMSSAX4)}"
@@ -39,10 +40,9 @@ xcodebuild archive -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configurati
   || { tail -30 "$OUT/archive.log"; exit 1; }
 
 echo "== Check the app"
-for binary in "$APP/Contents/MacOS/macTEM" "$APP"/Contents/Frameworks/{FormatoLibHDF5,FormatoLibSZ,FormatoLibAEC}.framework/{FormatoLibHDF5,FormatoLibSZ,FormatoLibAEC}(N); do
-  [[ "$(lipo -archs "$binary")" == "arm64" ]] || { echo "Not arm64 alone: $binary" >&2; exit 1; }
-done
-[[ -d "$APP/Contents/Frameworks/FormatoLibHDF5.framework" ]] || { echo "The app is missing FormatoLibHDF5.framework." >&2; exit 1; }
+# The executable and the three HDF5 frameworks, each by name, and the shipped demo files (tools/lib/release-checks.sh).
+assert_mactem_bundle_arm64_only "$APP"
+assert_mactem_demo_data "$APP"
 codesign --verify --deep --strict "$APP"
 codesign -d --entitlements :- "$APP" 2>/dev/null | grep -q "get-task-allow" && { echo "The app carries get-task-allow." >&2; exit 1; }
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
