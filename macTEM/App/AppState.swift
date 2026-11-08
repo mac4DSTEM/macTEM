@@ -122,6 +122,8 @@ final class AppState {
         // The spectrum rooms follow the selected file through the list's own callback (a view's observation did not fire on screen, drive 6).
         openItems.onSelect = { [weak self] _ in self?.spectrumRoomsFollowSelection() }
         openItems.onReadFailure = { [weak self] _, error in self?.present(error) }
+        // A stack frame that could not be read: the status line and Output say which and why (the slider is back on the frame shown).
+        openItems.onFrameFailure = { [weak self] in self?.statusText = $0 }
         // Every session's event line: the infobar, the SEM rooms' session record, and VoiceOver for a line that ends something.
         edx.onEvent = { [weak self] in self?.report(event: $0, in: nil) }
         edx.onFailure = { [weak self] in self?.present($0) }
