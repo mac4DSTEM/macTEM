@@ -184,8 +184,9 @@ private struct ImageCommands: Commands {
                 }
             }
             Divider()
-            // The room's Stop (the toolbar's verb turns into Cancel while a run is in flight; this is its key).
-            Button("Stop") { if let appState { RoomPrimaryAction.stopActive(appState) } }
+            // The room's Stop (the toolbar's verb turns into Cancel while a run is in flight; this is its key). While the shown room is
+            // idle it stops the run of another room the toolbar shows, and says which ("Stop Indexing").
+            Button(appState.map { RoomPrimaryAction.stopTitle($0) } ?? "Stop") { if let appState { RoomPrimaryAction.stopActive(appState) } }
                 .keyboardShortcut(".", modifiers: .command)
                 .disabled(appState.map { !RoomPrimaryAction.canStop($0) } ?? true)
         }

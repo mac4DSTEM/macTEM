@@ -157,4 +157,62 @@ nonisolated final class BusyOperationTests: XCTestCase {
         await texturing.value
         XCTAssertNil(state.maps.texture, "a stopped texture does not land")
     }
+
+    // MARK: A run in another room
+
+    /// The room whose run the toolbar shows and ⌘. stops in place of an idle shown room: the first busy room in the Workspace menu's
+    /// order; none while the shown room is busy itself or nothing else runs. Red before: no such room, so a run elsewhere showed nowhere.
+    func testTheBackgroundRoomIsTheFirstBusyOtherRoom() {
+        XCTAssertEqual(BusyOperation.backgroundRoom(shown: .maps, busy: [.indexing]), .indexing)
+        XCTAssertEqual(BusyOperation.backgroundRoom(shown: .image, busy: [.maps, .indexing, .eels]), .eels)
+        XCTAssertNil(BusyOperation.backgroundRoom(shown: .maps, busy: [.maps, .indexing]), "a busy shown room keeps its own")
+        XCTAssertNil(BusyOperation.backgroundRoom(shown: .maps, busy: []))
+        XCTAssertNil(BusyOperation.backgroundRoom(shown: .image, busy: [.diffraction]), "the ring fit is stopped in its own room")
+    }
+
+    /// An Index left running while the Maps room is shown: the toolbar names it under its room, ⌘. is on, says which room it stops and
+    /// stops it; with the Indexing room shown the run is its own again. Red before: `canStop` was false outside the Indexing room and
+    /// ⌘. reached only the shown room.
+    @MainActor func testAnIndexRunningBehindTheMapsRoomShowsAndStops() async throws {
+        let state = AppState()
+        await state.ebsd.bind(try DemoDocuments.ebsd()).value
+        for _ in 0..<6000 where state.ebsd.isBusy || state.ebsd.isComputingMean || state.maps.isBusy {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        state.navigation.workspaceArea = .maps
+        XCTAssertNil(BusyOperation.backgroundRoom(state), "nothing runs")
+        XCTAssertFalse(RoomPrimaryAction.canStop(state))
+        XCTAssertEqual(RoomPrimaryAction.stopTitle(state), "Stop")
+        XCTAssertTrue(state.indexing.canIndex, state.indexing.refusal ?? "")
+
+        let run = state.indexing.index()
+        XCTAssertTrue(state.indexing.isIndexing)
+        XCTAssertEqual(BusyOperation.backgroundRoom(state), .indexing)
+        let line = try XCTUnwrap(BusyOperation.backgroundOperation(room: .indexing, appState: state))
+        XCTAssertTrue(line.hasPrefix("Indexing · Hough · "), line)
+        XCTAssertTrue(RoomPrimaryAction.canStop(state), "⌘. reaches the run")
+        XCTAssertEqual(RoomPrimaryAction.stopTitle(state), "Stop Indexing")
+
+        state.navigation.workspaceArea = .indexing
+        XCTAssertNil(BusyOperation.backgroundRoom(state), "the shown room's run is its own")
+        XCTAssertEqual(RoomPrimaryAction.stopTitle(state), "Stop")
+
+        state.navigation.workspaceArea = .maps
+        RoomPrimaryAction.stopActive(state)
+        XCTAssertFalse(state.indexing.isIndexing)
+        await run.value
+        XCTAssertTrue(state.indexing.wasStopped)
+        XCTAssertNil(BusyOperation.backgroundRoom(state))
+        XCTAssertFalse(RoomPrimaryAction.canStop(state))
+    }
+
+    /// The toolbar shows the other room's run while the shown room is idle, and the Stop item takes its title. Red under: the toolbar
+    /// built from the shown room alone, the item titled "Stop" whatever it stops.
+    func testTheToolbarAndTheStopItemReachARunInAnotherRoom() throws {
+        let view = squeezed(try source("macTEM/UI/ContentView.swift"))
+        XCTAssertTrue(view.contains("if let other = BusyOperation.backgroundRoom(appState), let operation = BusyOperation.backgroundOperation(room: other, appState: appState) {"))
+        XCTAssertTrue(view.contains("metrics: { now in RunClock.reading(since: appState.busySince[other], progress: RoomProgress.fraction(room: other, appState: appState), now: now) }"))
+        let menu = squeezed(try source("macTEM/App/macTEMApp.swift"))
+        XCTAssertTrue(menu.contains("Button(appState.map { RoomPrimaryAction.stopTitle($0) } ?? \"Stop\") { if let appState { RoomPrimaryAction.stopActive(appState) } }"))
+    }
 }

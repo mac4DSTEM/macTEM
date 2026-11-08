@@ -5,7 +5,9 @@
 //        sentence when they start, so the busy line named the open while the fit ran. The name is read from the room's own busy flags;
 //        an open keeps its own sentence ("Opening <file>…"), which it sets as it starts. The Patterns toolbar read "Reading the scan for
 //        the map…" during Process and the quality pass, and the Maps toolbar showed the file while Segment and the texture ran: both
-//        rooms now take their busy line from here too (`toolbarOperation`).
+//        rooms now take their busy line from here too (`toolbarOperation`). A run in a room not on screen (an Index left running while
+//        the Maps room is shown) showed nowhere and ⌘. could not reach it: while the shown room is idle, the toolbar shows that run under
+//        its room's name and ⌘. stops it (`backgroundRoom`), as mac4DSTEM shows and cancels its busy work whatever the room.
 //
 
 import Foundation
@@ -103,5 +105,61 @@ enum BusyOperation {
         }
         guard busy else { return nil }
         return name(room: room, appState: appState) ?? room.title
+    }
+
+    /// The Indexing toolbar's busy line: "Hough · 2 340 of 4 125", the points indexed so far (whole rows land at once); "Dictionary · 1
+    /// of 3 chunks · NCC", the dictionary's chunks every block runs through (design §3); "Dictionary · Al · 23 of 40 chunks · NCC"
+    /// against several phases, the dictionary matching named (D-SEM-98).
+    @MainActor
+    static func indexingLine(_ session: IndexingSession, dataset: EBSDDataset) -> String {
+        let done = (session.result?.rowsDone ?? 0) * dataset.scanColumns
+        let phase = session.chunkPhase.map { "\($0) · " } ?? ""
+        return session.result?.method == .dictionary
+            ? "Dictionary · \(phase)\(session.chunksDone) of \(session.chunksTotal) chunks · \(session.result?.scoreTitle ?? "NCC")"
+            : "Hough · \(done.formatted()) of \(dataset.patternCount.formatted())"
+    }
+
+    // MARK: A run in another room
+
+    /// The rooms whose runs go on while another room is shown, in the Workspace menu's order.
+    nonisolated static let runningRooms: [WorkspaceArea] = [.edx, .eels, .patterns, .indexing, .maps]
+
+    /// The room whose run the toolbar shows and ⌘. stops in place of the shown room's: the first busy room of `runningRooms`; nil while
+    /// the shown room is busy itself (it keeps its own) or nothing else runs.
+    nonisolated static func backgroundRoom(shown: WorkspaceArea, busy: Set<WorkspaceArea>) -> WorkspaceArea? {
+        guard !busy.contains(shown) else { return nil }
+        return runningRooms.first { busy.contains($0) }
+    }
+
+    /// `backgroundRoom` of the window: the room shown and the rooms with work in flight.
+    @MainActor
+    static func backgroundRoom(_ appState: AppState) -> WorkspaceArea? {
+        let busy = Set(WorkspaceArea.allCases.filter { isBusy($0, appState: appState) })
+        return backgroundRoom(shown: appState.navigation.workspaceArea, busy: busy)
+    }
+
+    /// Whether `room` has work in flight: its session's busy flag; for the Diffraction room the selected file's ring fit, which ⌘. stops
+    /// there.
+    @MainActor
+    static func isBusy(_ room: WorkspaceArea, appState: AppState) -> Bool {
+        switch room {
+        case .edx: appState.edx.isBusy
+        case .eels: appState.eels.isBusy
+        case .patterns: appState.ebsd.isBusy
+        case .indexing: appState.indexing.isBusy
+        case .maps: appState.maps.isBusy
+        case .diffraction: appState.openItems.selected?.diffraction.isFitting ?? false
+        case .image, .fft, .results: false
+        }
+    }
+
+    /// The toolbar's busy line for `room`'s run while another room is shown: the room, then the line it shows itself ("Maps · Segmenting
+    /// grains…", "Indexing · Hough · 2 340 of 4 125"); nil while it is idle.
+    @MainActor
+    static func backgroundOperation(room: WorkspaceArea, appState: AppState) -> String? {
+        if room == .indexing, appState.indexing.isBusy, let dataset = appState.indexing.patterns.dataset {
+            return "\(room.title) · \(indexingLine(appState.indexing, dataset: dataset))"
+        }
+        return toolbarOperation(room: room, appState: appState).map { "\(room.title) · \($0)" }
     }
 }

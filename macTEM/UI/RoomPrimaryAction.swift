@@ -128,10 +128,21 @@ enum RoomPrimaryAction {
         }
     }
 
-    /// ⌘.: ends whatever the shown room is running.
+    /// The room ⌘. acts on: the shown room while it runs something Stop ends; else the room whose run the toolbar shows in its place
+    /// (`BusyOperation.backgroundRoom`) when Stop ends it, so a run left going in another room can be stopped from any room; else the
+    /// shown room.
+    @MainActor
+    static func stopTarget(_ appState: AppState) -> WorkspaceArea {
+        let shown = appState.navigation.workspaceArea
+        guard !canStop(room: shown, appState: appState), let other = BusyOperation.backgroundRoom(appState),
+              canStop(room: other, appState: appState) else { return shown }
+        return other
+    }
+
+    /// ⌘.: ends whatever the shown room is running, or, while it is idle, the run of another room the toolbar shows (`stopTarget`).
     @MainActor
     static func stopActive(_ appState: AppState) {
-        switch appState.navigation.workspaceArea {
+        switch stopTarget(appState) {
         case .edx: appState.edx.stop()
         case .eels: appState.eels.stop()
         case .patterns: appState.ebsd.stop()
@@ -144,7 +155,20 @@ enum RoomPrimaryAction {
 
     @MainActor
     static func canStop(_ appState: AppState) -> Bool {
-        switch appState.navigation.workspaceArea {
+        canStop(room: stopTarget(appState), appState: appState)
+    }
+
+    /// The Stop item's title: "Stop" for the shown room's run, "Stop Indexing" for the run of another room (`stopTarget`).
+    @MainActor
+    static func stopTitle(_ appState: AppState) -> String {
+        let target = stopTarget(appState)
+        return target == appState.navigation.workspaceArea ? "Stop" : "Stop \(target.title)"
+    }
+
+    /// Whether `room` runs something Stop ends (a layer's picture in the Maps room is not stopped).
+    @MainActor
+    static func canStop(room: WorkspaceArea, appState: AppState) -> Bool {
+        switch room {
         case .edx: appState.edx.isBusy
         case .eels: appState.eels.isBusy
         case .patterns: appState.ebsd.isBusy
