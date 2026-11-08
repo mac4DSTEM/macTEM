@@ -194,9 +194,12 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
         m.detector = text(value("Detectors", "Name"))
         m.spotSize = finite(number("Beam", "Spot"))
         m.chamberPressurePa = finite(number("Vacuum", "ChPressure"))
-        if let bar = number("PrivateFei", "DatabarHeight"), let rows = number("Image", "ResolutionY"),
-           bar > 0, bar == bar.rounded(), rows == rows.rounded(), Int(rows) + Int(bar) == height {
-            m.databarRows = Int(bar)
+        // Both heights are whole numbers an Int holds (`Int(exactly:)` is nil for inf, nan and 1e300) and their sum is checked,
+        // so a header that reads otherwise records no databar and the image opens with the rest of its record.
+        if let bar = number("PrivateFei", "DatabarHeight").flatMap({ Int(exactly: $0) }),
+           let rows = number("Image", "ResolutionY").flatMap({ Int(exactly: $0) }), bar > 0 {
+            let total = rows.addingReportingOverflow(bar)
+            if !total.overflow, total.partialValue == height { m.databarRows = bar }
         }
         return m
     }
@@ -355,8 +358,9 @@ package nonisolated struct SEMImageMetadata: Sendable, Equatable {
         m.user = text(value("MAIN", "FullUserName") ?? value("MAIN", "UserName"))
         m.date = value("MAIN", "Date").flatMap(isoDate)
         m.time = value("MAIN", "Time").flatMap(isoTime)
-        if let strip = number("MAIN", "ImageStripSize"), strip > 0, strip == strip.rounded(), Int(strip) < height {
-            m.databarRows = Int(strip)
+        // A whole number an Int holds, as the Thermo databar: a header reading inf or 1e300 records no strip.
+        if let strip = number("MAIN", "ImageStripSize").flatMap({ Int(exactly: $0) }), strip > 0, strip < height {
+            m.databarRows = strip
         }
         return m
     }

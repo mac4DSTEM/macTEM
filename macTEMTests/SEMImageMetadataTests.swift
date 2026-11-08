@@ -134,6 +134,37 @@ nonisolated final class SEMImageMetadataTests: XCTestCase {
         XCTAssertNil(noResolution?.databarRows, "without [Image] ResolutionY the height is not checked, so it is not read")
     }
 
+    /// A databar height that is no whole number an Int holds (inf, 1e300) or two heights whose sum overflows Int record no databar,
+    /// and the rest of the record reads: each trapped in the conversion to Int (or the sum) before, while the TIFF opened.
+    func testADatabarHeightBeyondIntIsNotRecordedAndTheRestReads() throws {
+        let thermoRest = "[Beam]\r\nHV=15000\r\n[User]\r\nUser=paul\r\n"
+        let thermoCases = [("inf", "29"), ("-inf", "29"), ("1e300", "29"), ("442", "inf"), ("442", "1e300"),
+                           ("4611686018427387904", "4611686018427387904")]
+        for (resolution, databar) in thermoCases {
+            let header = "[Image]\r\nResolutionY=\(resolution)\r\n[PrivateFei]\r\nDatabarHeight=\(databar)\r\n" + thermoRest
+            let what = "ResolutionY=\(resolution), DatabarHeight=\(databar)"
+            let got = try XCTUnwrap(SEMImageMetadata.read(data: PlantedSEMTIFF(width: 8, height: 471, tag: 34682, bytes: Array(header.utf8) + [0]).build()), what)
+            XCTAssertEqual(got.vendor, .thermo, what)
+            XCTAssertNil(got.databarRows, what)
+            XCTAssertEqual(got.scanRows, 471, "\(what): nothing is cut")
+            assertClose(got.beamEnergyKV, 15, "\(what): HV still reads")
+            XCTAssertEqual(got.user, "paul", what)
+        }
+        let fits = "[Image]\r\nResolutionY=442\r\n[PrivateFei]\r\nDatabarHeight=29\r\n" + thermoRest
+        XCTAssertEqual(SEMImageMetadata.read(data: PlantedSEMTIFF(width: 8, height: 471, tag: 34682, bytes: Array(fits.utf8) + [0]).build())?.databarRows, 29,
+                       "a height that fits reads as before")
+
+        for strip in ["inf", "1e300"] {
+            let header = "[MAIN]\r\nDevice=MIRA3 LMU\r\nImageStripSize=\(strip)\r\n[SEM]\r\nHV=15000\r\n"
+            let got = try XCTUnwrap(SEMImageMetadata.read(data: PlantedSEMTIFF(width: 8, height: 840, tag: 50431, bytes: Array(header.utf8) + [0]).build()), strip)
+            XCTAssertEqual(got.vendor, .tescan, strip)
+            XCTAssertNil(got.databarRows, "ImageStripSize=\(strip)")
+            XCTAssertEqual(got.scanRows, 840, strip)
+            XCTAssertEqual(got.instrument, "MIRA3 LMU", strip)
+            assertClose(got.beamEnergyKV, 15, "ImageStripSize=\(strip): HV still reads")
+        }
+    }
+
     func testAThermoHeaderReadsTheIRBeamFallbackAndEmptyValuesAsNil() throws {
         // The navcam shape: no [Scan], the field widths over the image resolution; HV and Spot empty.
         let header = "[User]\r\nDate=05/17/2022\r\nTime=09:07:08 AM\r\nUser=user\r\n[Beam]\r\nHV=\r\nSpot=\r\n"
