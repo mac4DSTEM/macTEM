@@ -10,8 +10,8 @@
 //        statistic (the indexed fraction, the mean confidence index of the indexed points) is an aggregate of the numbers the run stored
 //        and its CSV holds, never a second run.
 //
-//        A new product of the program (grains, KAM and GOS, pole figures and the ODF of P5-04, the refinement of P4-03) is one more `Kind`
-//        and one more builder in the ledger; the report's sections take it by its kind.
+//        A new product of the program is one more `Kind` and one more builder in the ledger; the report's sections take it by its kind
+//        (the Maps room's grain statistics and texture joined so, macTEM#242).
 //
 
 import Foundation
@@ -41,7 +41,7 @@ package nonisolated struct SEMLogLine: Sendable, Equatable {
 package nonisolated struct SEMSessionRow: Sendable, Equatable, Identifiable {
     /// What a row is; the Results room groups by it in this order, the report puts each in its section.
     package enum Kind: String, Sendable, Equatable, CaseIterable {
-        case dataset, processing, scanMaps, indexing, orientationMap, composition, export
+        case dataset, processing, scanMaps, indexing, orientationMap, grains, texture, composition, export
 
         /// The group's title in the Results room.
         package var title: String {
@@ -51,6 +51,8 @@ package nonisolated struct SEMSessionRow: Sendable, Equatable, Identifiable {
             case .scanMaps: "Scan maps"
             case .indexing: "Indexing"
             case .orientationMap: "Orientation maps"
+            case .grains: "Grains"
+            case .texture: "Texture"
             case .composition: "SEM-EDS composition"
             case .export: "Exports"
             }
@@ -61,7 +63,7 @@ package nonisolated struct SEMSessionRow: Sendable, Equatable, Identifiable {
             switch self {
             case .dataset, .processing, .scanMaps: "Patterns"
             case .indexing: "Indexing"
-            case .orientationMap: "Maps"
+            case .orientationMap, .grains, .texture: "Maps"
             case .composition: "EDS"
             case .export: "the room named in Source"
             }

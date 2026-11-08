@@ -196,6 +196,76 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         }
     }
 
+    /// The Maps room's Segment and texture are Results rows and report parts (macTEM#242): the grain statistics in the Grains section's
+    /// words with the mean GOS and KAM of what Segment stored and the settings it ran with, stale once the settings change; the texture
+    /// with each figure's largest density; the grains under "Maps and grains", the texture its own section with its own checkbox.
+    /// Red before: no row for either, and no Texture section; red under: the stale row showing the new settings instead of the ones it
+    /// ran with; the texture method cited with the Texture part switched off.
+    @MainActor func testGrainsAndTextureAreRowsAndReportParts() async throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/ebsd-sdss-ferrite-austenite.ang")
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.maps.open(url: url).value
+        XCTAssertTrue(state.maps.hasMap)
+        XCTAssertNil(SEMSessionLedger.rows(of: state).first { $0.kind == .grains }, "no grain row before Segment")
+        let settings = MapAnalysisSettings(boundaryDegrees: 10, minimumSize: 10, kamMaxDegrees: 5)
+        state.maps.setAnalysisSettings(settings)
+        await state.maps.segment().value
+        await state.maps.showTexture().value
+        let analysis = try XCTUnwrap(state.maps.analysis)
+        let texture = try XCTUnwrap(state.maps.texture)
+
+        let rows = SEMSessionLedger.rows(of: state)
+        XCTAssertEqual(rows.map(\.kind), [.orientationMap, .grains, .texture], "\(rows.map(\.id))")
+        let grains = try XCTUnwrap(rows.first { $0.kind == .grains })
+        func field(_ row: SEMSessionRow, _ name: String) -> String? { row.fields.first { $0.name == name }?.value }
+        XCTAssertEqual(grains.value, MapsRoomFormat.grainSummary(analysis))
+        XCTAssertEqual(field(grains, "Grains"), "\(analysis.table.count)")
+        XCTAssertEqual(field(grains, "Boundary"), "10°")
+        XCTAssertEqual(field(grains, "State"), "Current")
+        let gos = analysis.table.map(\.gosDegrees).filter(\.isFinite)
+        XCTAssertEqual(field(grains, "Mean GOS"),
+                       "\(MapsRoomFormat.angle(gos.reduce(0, +) / Double(gos.count), digits: 2))° over \(gos.count) grains")
+        XCTAssertTrue(field(grains, "Mean KAM")?.hasSuffix(" points") ?? false, "\(grains.fields)")
+        XCTAssertEqual(grains.methods, [.grains, .kam, .gos])
+        XCTAssertTrue(grains.log.first?.text.hasPrefix("Segmented \(analysis.table.count) grains") ?? false, "\(grains.log)")
+        XCTAssertNotNil(grains.time)
+
+        let made = try XCTUnwrap(rows.first { $0.kind == .texture })
+        XCTAssertEqual(made.label, "\(texture.phaseName) texture")
+        XCTAssertEqual(field(made, "Points"), "\(texture.points)")
+        for figure in texture.poleFigures + texture.odfSections {
+            XCTAssertEqual(field(made, figure.title), "maximum \(MapsRoomFormat.number(figure.maximum)) MRD", figure.title)
+        }
+        XCTAssertEqual(made.methods, [.orientationMap, .texture])
+
+        // The report: the grains under Maps and grains, the texture its own part, left out with its method when unticked.
+        let outline = SEMSessionReport.outline(rows)
+        XCTAssertEqual(outline[.maps], 2)
+        XCTAssertEqual(outline[.texture], 1)
+        let context = SEMSessionReport.Context(date: Date(), software: "macTEM")
+        let text = SEMReportMarkdown.text(of: SEMSessionReport.document(rows, options: SEMSessionReport.Options(title: "Steel", format: .markdown),
+                                                                       context: context), directory: nil)
+        for heading in ["## Maps and grains", "### Grain statistics", "## Texture", "### \(texture.phaseName) texture",
+                        "### " + SEMMethod.texture.title, "### " + SEMMethod.kam.title] {
+            XCTAssertTrue(text.contains("\n\(heading)\n"), heading)
+        }
+        var sections = Set(SEMSessionReport.Section.allCases)
+        sections.remove(.texture)
+        let without = SEMReportMarkdown.text(of: SEMSessionReport.document(rows, options: SEMSessionReport.Options(title: "Steel", sections: sections,
+                                                                                                                  format: .markdown),
+                                                                          context: context), directory: nil)
+        XCTAssertFalse(without.contains("\n## Texture\n"))
+        XCTAssertFalse(without.contains("\n### " + SEMMethod.texture.title + "\n"), "a part left out cites nothing")
+        XCTAssertTrue(without.contains("\n### Grain statistics\n"))
+
+        // Changed settings: the row is stale and still says what Segment ran with.
+        state.maps.setAnalysisSettings(MapAnalysisSettings(boundaryDegrees: 15, minimumSize: 10, kamMaxDegrees: 5))
+        let stale = try XCTUnwrap(SEMSessionLedger.rows(of: state).first { $0.kind == .grains })
+        XCTAssertEqual(stale.value, MapsRoomFormat.grainSummary(analysis) + " · stale")
+        XCTAssertEqual(field(stale, "State"), "Stale: the Grains or Misorientation settings changed after Segment")
+        XCTAssertEqual(field(stale, "Boundary"), "10°", "the settings it ran with")
+    }
+
     /// The record keeps a room's lines with their times, not the "…ing" lines of a run in flight.
     @MainActor func testTheRecordKeepsTheEndingLines() {
         let record = SEMSessionRecord()
