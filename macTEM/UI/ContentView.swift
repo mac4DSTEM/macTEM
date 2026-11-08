@@ -128,16 +128,15 @@ struct ContentView: View {
         }
     }
 
-    /// Opens the dropped files macTEM reads; a dropped file it does not read is refused by name through the alert.
+    /// Opens the dropped files macTEM reads; every dropped file it does not read is refused by name in one alert, a line each.
     private func openDropped(_ urls: [URL]) -> Bool {
         let readable = FileRouting.openableExtensions
         // A file of a readable format; a dragged web link ending in .tif is not a file.
         let isReadable = { (url: URL) in url.isFileURL && readable.contains(url.pathExtension.lowercased()) }
         let accepted = urls.filter(isReadable)
-        if let refused = urls.first(where: { !isReadable($0) }) {
-            appState.present(ImageOpening.Refusal.unreadableFormat(
-                file: refused.lastPathComponent, ext: refused.pathExtension.lowercased()))
-        }
+        appState.presentRefusals(urls.filter { !isReadable($0) }.map { refused in
+            ErrorDetail.text(ImageOpening.Refusal.unreadableFormat(file: refused.lastPathComponent, ext: refused.pathExtension.lowercased()))
+        })
         guard !accepted.isEmpty else { return false }
         appState.open(urls: accepted)
         return true

@@ -20,7 +20,8 @@ extension AppState {
     /// Every open ends here — the panel, a drop, Finder, Open Recent: one item per file not open yet, read one at a time in
     /// this order; a file open already is selected, not read twice; the first is selected at once (`OpenItems.open`). A
     /// failed read is reported by the alert (`onReadFailure`); the infobar says "Opened …" once the batch is in. Every
-    /// file that is not refused goes to the front of Open Recent (`recents`), with the bookmark made in its scope.
+    /// file that is not refused goes to the front of Open Recent (`recents`), with the bookmark made in its scope. The
+    /// batch's refused files are one alert, a line each; the files a one-document room left out are named after the batch.
     @discardableResult
     func open(urls: [URL]) -> Task<Void, Never>? {
         guard !urls.isEmpty else { return nil }
@@ -33,8 +34,9 @@ extension AppState {
             var images: [URL] = []
             var landing: FileInventory.Landing?
             var edsBatch: [URL] = [], eelsBatch: [URL] = [], ebsdBatch: [URL] = [], mapBatch: [URL] = []
+            var refusals: [String] = []
             for (url, inventory, bookmark) in inventories {
-                if let why = inventory.refusal { present(OpenRefusal(text: why)); continue }
+                if let why = inventory.refusal { refusals.append(why); continue }
                 if let bookmark {
                     recents.remember(RecentFile(path: url.standardizedFileURL.path, displayName: url.lastPathComponent, bookmark: bookmark))
                 }
@@ -47,6 +49,7 @@ extension AppState {
                 if inventory.eelsSpectrumImage { eelsFiles.insert(url); eelsBatch.append(url) }
                 if let found = inventory.landing, landing == nil || found.richness > landing!.richness { landing = found }
             }
+            presentRefusals(refusals)
             // One file per spectrum room: the batch's first, the one Open Files selects when it is first in the list (the room followed the
             // selection only on the next click; two files at launch left the last in the room and the first selected, 2026-10-23). The others
             // are reached by selecting their row (`spectrumRoomsFollowSelection`).
@@ -56,6 +59,8 @@ extension AppState {
             if let first = ebsdBatch.first { ebsd.open(url: first) }
             // The Maps room holds one map: an `.ang` or `.ctf` opened on its own (a dataset's map comes through the Patterns room).
             if let first = mapBatch.first { maps.open(url: first) }
+            // The others of each room that no Open Files row reaches are named once the batch is in, not dropped without a word.
+            let leftOut = OpenBatch.leftOut(eds: edsBatch, eels: eelsBatch, ebsd: ebsdBatch, maps: mapBatch, imageRows: images)
             switch landing {
             case .patterns: if navigation.workspaceArea != .indexing { selectWorkspace(.patterns) }   // Indexing shows the scan too
             case .maps: selectWorkspace(.maps)
@@ -64,7 +69,7 @@ extension AppState {
             case .image, nil: break   // the image is selected below, once its item exists
             }
             guard !images.isEmpty else {
-                if landing == .eds || landing == .eels || landing == .patterns || landing == .maps { statusText = "" }
+                if landing == .eds || landing == .eels || landing == .patterns || landing == .maps { statusText = leftOut ?? "" }
                 return
             }
             openItems.open(urls: images)
@@ -79,13 +84,19 @@ extension AppState {
                     AccessibilityNotification.Announcement(Self.needsAccessSentence).post()
                 }
             }
+            if let leftOut { statusText = leftOut }
         }
         lastOpen = task
         return task
     }
 
-    /// What an Open that is refused says (the route's sentence), as an alert.
-    struct OpenRefusal: Error, LocalizedError { let text: String; var errorDescription: String? { text } }
+    /// The refused files of one Open (the route's sentences, or a drop's) as one alert, a line each: a `present` per file left only
+    /// the last one up. The status line and Output take the same sentences on one line. Nothing for none.
+    func presentRefusals(_ sentences: [String]) {
+        guard !sentences.isEmpty else { return }
+        errorMessage = sentences.joined(separator: "\n")
+        statusText = "Error: " + sentences.joined(separator: " ")
+    }
 
     /// What each URL holds, by content, off the main actor and inside the URL's security scope, and for a file that is not refused
     /// the security-scoped bookmark Open Recent keeps (made in the same scope; nil when none can be made, and then the file is not
@@ -330,5 +341,30 @@ extension AppState {
                                         edsOpening: edx.isOpening, eelsOpening: eels.isOpening)
         if follow.eds, let url { edx.open(url: url) }
         if follow.eels, let url { eels.open(url: url) }
+    }
+}
+
+/// What one Open leaves out of the rooms that hold one document each (EDS, EELS, Patterns, Maps): pure, so a test holds it.
+nonisolated enum OpenBatch {
+    /// The files of a batch a one-document room did not open (each room takes the batch's first) and that no Open Files row reaches
+    /// (a spectrum image with an image is opened in its room again from its row: `spectrumRoomsFollowSelection`), room by room:
+    /// "The Patterns room holds one dataset: b.h5 and c.h5 were not opened." Nil when there are none.
+    static func leftOut(eds: [URL], eels: [URL], ebsd: [URL], maps: [URL], imageRows: [URL]) -> String? {
+        let rooms: [(holds: String, files: [URL])] = [
+            ("The EDS room holds one spectrum image", eds), ("The EELS room holds one spectrum image", eels),
+            ("The Patterns room holds one dataset", ebsd), ("The Maps room holds one map", maps),
+        ]
+        let sentences = rooms.compactMap { room -> String? in
+            let names = room.files.dropFirst().filter { !imageRows.contains($0) }.map(\.lastPathComponent)
+            guard !names.isEmpty else { return nil }
+            return "\(room.holds): \(Self.list(names)) \(names.count == 1 ? "was" : "were") not opened."
+        }
+        return sentences.isEmpty ? nil : sentences.joined(separator: " ")
+    }
+
+    /// "a", "a and b", "a, b and c".
+    static func list(_ names: [String]) -> String {
+        guard names.count > 1, let last = names.last else { return names.first ?? "" }
+        return names.dropLast().joined(separator: ", ") + " and " + last
     }
 }
