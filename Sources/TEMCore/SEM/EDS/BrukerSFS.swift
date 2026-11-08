@@ -54,18 +54,26 @@ package nonisolated final class BrukerSFS {
         let treeAddress = Int(try h.u32(0x140)), treeItems = Int(try h.u32(0x144))
         guard treeItems > 0, treeItems < 1_000_000 else { throw SEMEDSReadError("\(name) holds no SFS file tree.") }
 
-        // The file tree: 0x200 bytes per item, through linked chunks when it outgrows one.
+        // The file tree: 0x200 bytes per item, through linked chunks when it outgrows one. Each chunk of the chain is read once:
+        // a link back to a chunk already read is a damaged container, refused.
         let treeChunks = (treeItems * 0x200 + (chunkSize - 0x20) - 1) / (chunkSize - 0x20)
         var rawTree: [UInt8]
         if treeChunks == 1 {
-            rawTree = try Self.read(handle, at: chunkSize * treeAddress + 0x138, count: 0x200 * treeItems, length: fileLength, name: name)
+            let start = try Self.offset(chunk: treeAddress, plus: 0x138, chunkSize: chunkSize, length: fileLength, name: name)
+            rawTree = try Self.read(handle, at: start, count: 0x200 * treeItems, length: fileLength, name: name)
         } else {
             rawTree = []
             var address = treeAddress
+            var visited = Set<Int>()
             let perChunk = (chunkSize - 0x20) / 0x200
             for _ in 0..<treeChunks {
-                let next = SEMEDSBytes(try Self.read(handle, at: chunkSize * address + 0x118, count: 4, length: fileLength, name: name), name: name)
-                rawTree += try Self.read(handle, at: chunkSize * address + 0x138, count: perChunk * 0x200, length: fileLength, name: name)
+                guard visited.insert(address).inserted else {
+                    throw SEMEDSReadError("\(name)'s SFS file tree links back to chunk \(address), which it has already read.")
+                }
+                let link = try Self.offset(chunk: address, plus: 0x118, chunkSize: chunkSize, length: fileLength, name: name)
+                let start = try Self.offset(chunk: address, plus: 0x138, chunkSize: chunkSize, length: fileLength, name: name)
+                let next = SEMEDSBytes(try Self.read(handle, at: link, count: 4, length: fileLength, name: name), name: name)
+                rawTree += try Self.read(handle, at: start, count: perChunk * 0x200, length: fileLength, name: name)
                 address = Int(try next.u32(0))
             }
             rawTree = Array(rawTree.prefix(treeItems * 0x200))
@@ -76,9 +84,13 @@ package nonisolated final class BrukerSFS {
         for i in 0..<treeItems {
             let b = SEMEDSBytes(Array(rawTree[(i * 0x200)..<((i + 1) * 0x200)]), name: name)
             let pointerTable = Int(try b.i32(0))
-            let size = Int(try b.u64(4))
+            let storedSize = try b.u64(4)
             let parent = Int(try b.i32(40))
             let isDir = try b.u8(220) != 0
+            // A stored file is never larger than the container that holds it.
+            guard let size = Int(exactly: storedSize), isDir || size <= fileLength else {
+                throw SEMEDSReadError("\(name) states an SFS file of \(storedSize) bytes in a container of \(fileLength).")
+            }
             let itemName = SEMEDSText.decode(try b.slice(224, 256), stripLeading: true)
             parsed.append((Item(name: itemName, path: "", size: size, isDirectory: isDir, pointers: []), parent, pointerTable))
         }
@@ -119,8 +131,8 @@ package nonisolated final class BrukerSFS {
     package func item(path: String) -> Item? { items.last { $0.path == path } }
 
     private static func read(_ handle: FileHandle, at offset: Int, count: Int, length: Int, name: String) throws -> [UInt8] {
-        guard offset >= 0, count >= 0, offset + count <= length else {
-            throw SEMEDSReadError("\(name) ends inside its SFS container (byte \(offset + count) of \(length)).")
+        guard offset >= 0, count >= 0, offset <= length, count <= length - offset else {
+            throw SEMEDSReadError("\(name) ends inside its SFS container (\(count) bytes at byte \(offset) of \(length)).")
         }
         if count == 0 { return [] }
         try handle.seek(toOffset: UInt64(offset))
@@ -129,6 +141,19 @@ package nonisolated final class BrukerSFS {
         return [UInt8](data)
     }
 
+    /// The file offset `plus` bytes into chunk `chunk` (chunk · chunk size + `plus`: 0x118 is where a chunk's link to the next
+    /// one sits, 0x138 where its data starts), refused when the product overflows or the offset lies outside the file.
+    private static func offset(chunk: Int, plus: Int, chunkSize: Int, length: Int, name: String) throws -> Int {
+        let scaled = chunk.multipliedReportingOverflow(by: chunkSize)
+        let sum = scaled.partialValue.addingReportingOverflow(plus)
+        guard chunk >= 0, !scaled.overflow, !sum.overflow, sum.partialValue <= length else {
+            throw SEMEDSReadError("\(name) points to SFS chunk \(chunk), which lies outside the file.")
+        }
+        return sum.partialValue
+    }
+
+    /// A file's chunk offsets from its pointer table. A table of several chunks is followed link by link, each chunk once: a link
+    /// back to a chunk already read is refused, so a damaged chain cannot loop.
     private static func pointerTable(_ handle: FileHandle, first: Int, size: Int, chunkSize: Int, usable: Int, length: Int,
                                      name: String) throws -> [Int] {
         let chunks = (size + usable - 1) / usable
@@ -136,20 +161,34 @@ package nonisolated final class BrukerSFS {
         var table: [UInt8] = []
         if tableChunks > 1 {
             var next = first
+            var visited = Set<Int>()
             for _ in 0..<tableChunks {
-                let link = SEMEDSBytes(try read(handle, at: chunkSize * next + 0x118, count: 4, length: length, name: name), name: name)
-                table += try read(handle, at: chunkSize * next + 0x138, count: usable, length: length, name: name)
+                guard visited.insert(next).inserted else {
+                    throw SEMEDSReadError("\(name)'s SFS pointer table links back to chunk \(next), which it has already read.")
+                }
+                let linkOffset = try offset(chunk: next, plus: 0x118, chunkSize: chunkSize, length: length, name: name)
+                let start = try offset(chunk: next, plus: 0x138, chunkSize: chunkSize, length: length, name: name)
+                let link = SEMEDSBytes(try read(handle, at: linkOffset, count: 4, length: length, name: name), name: name)
+                table += try read(handle, at: start, count: usable, length: length, name: name)
                 next = Int(try link.u32(0))
             }
         } else {
-            table = try read(handle, at: chunkSize * first + 0x138, count: min(usable, max(chunks * 4, 0)), length: length, name: name)
+            let start = try offset(chunk: first, plus: 0x138, chunkSize: chunkSize, length: length, name: name)
+            table = try read(handle, at: start, count: min(usable, max(chunks * 4, 0)), length: length, name: name)
         }
         let t = SEMEDSBytes(table, name: name)
-        return try (0..<chunks).map { Int(try t.u32($0 * 4)) * chunkSize + 0x138 }
+        return try (0..<chunks).map {
+            try offset(chunk: Int(try t.u32($0 * 4)), plus: 0x138, chunkSize: chunkSize, length: length, name: name)
+        }
     }
 
-    /// `length` bytes of the stored (not decompressed) file from `offset` (rsciio `read_piece`).
+    /// `length` bytes of the stored (not decompressed) file from `offset` (rsciio `read_piece`). The piece must lie inside the
+    /// file's chunks before anything is reserved for it.
     package func readPiece(_ item: Item, offset: Int, length: Int) throws -> [UInt8] {
+        let stored = item.pointers.count * usableChunk
+        guard offset >= 0, length >= 0, offset <= stored, length <= stored - offset else {
+            throw SEMEDSReadError("\(item.path) in \(url.lastPathComponent) ends early.")
+        }
         var out: [UInt8] = []
         out.reserveCapacity(length)
         var off = offset, remaining = length
@@ -189,15 +228,25 @@ package nonisolated final class BrukerSFS {
         }
     }
 
-    /// The whole file (for the XML header, which is small).
+    /// The most bytes one decompressed block, or the whole XML header, may hold (256 MB). A real header holds a few megabytes and a
+    /// real block half a megabyte; a damaged container that promises more is refused before it fills memory.
+    private static let largestRead = 256 << 20
+
+    /// The whole file (for the XML header, which is small; more than 256 MB is refused).
     package func contents(_ item: Item) throws -> [UInt8] {
         var out: [UInt8] = []
         let next = blocks(item)
-        while let block = try next() { out += block }
+        while let block = try next() {
+            guard block.count <= Self.largestRead - out.count else {
+                throw SEMEDSReadError("\(item.path) in \(url.lastPathComponent) runs past 256 MB, far more than an XML header holds.")
+            }
+            out += block
+        }
         return out
     }
 
-    /// A zlib stream (2-byte header, deflate, Adler-32) decompressed with the Compression framework's raw deflate.
+    /// A zlib stream (2-byte header, deflate, Adler-32) decompressed with the Compression framework's raw deflate; a stream that
+    /// inflates past 256 MB is refused.
     package static func inflate(_ zlib: [UInt8], name: String) throws -> [UInt8] {
         guard zlib.count > 2, zlib[0] & 0x0F == 8, (UInt16(zlib[0]) << 8 | UInt16(zlib[1])) % 31 == 0, zlib[1] & 0x20 == 0 else {
             throw SEMEDSReadError("\(name) holds a compressed block that is not a zlib stream.")
@@ -223,6 +272,9 @@ package nonisolated final class BrukerSFS {
                 status = compression_stream_process(stream, Int32(COMPRESSION_STREAM_FINALIZE.rawValue))
                 guard status != COMPRESSION_STATUS_ERROR else { throw SEMEDSReadError("A compressed block of \(name) is damaged.") }
                 out.append(contentsOf: UnsafeBufferPointer(start: buffer, count: capacity - stream.pointee.dst_size))
+                guard out.count <= Self.largestRead else {
+                    throw SEMEDSReadError("A compressed block of \(name) inflates past 256 MB, far more than a Bruker block holds.")
+                }
             } while status == COMPRESSION_STATUS_OK
         }
         return out
