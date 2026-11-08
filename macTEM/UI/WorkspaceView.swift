@@ -4,6 +4,7 @@ import TEMCore
 import TEMSession
 import ShellEDXModel
 import ShellSpectroscopy
+import SpectroCore
 
 /// The detail column: the science, and the infobar + process area along its bottom edge. The column's chassis (the divider,
 /// its drag, the infobar, the process area and their scene-stored fractions) is ShellLayout's `WorkspaceColumn` (suite task 8,
@@ -36,6 +37,12 @@ struct WorkspaceView: View {
             canvas: { content },
             run: { runSlot },
             glance: { glanceSlot })
+            // The SEM rows of the EDS room (line table, window quantification, SEM conditions) follow the EDS room's file. The load
+            // hangs here, on a view that is always drawn, because the inspector's SEM sections draw nothing until it has run: a
+            // `.task` on their empty group never started, so an SEM spectrum never showed its rows (drive 2026-11-08).
+            .task(id: appState.edx.source?.metadata.filePath) {
+                await appState.semEDS.load(path: appState.edx.source?.metadata.filePath)
+            }
     }
 
     /// The room's cursor readout, which stands in the status line while the pointer is over a picture (control placement §7).

@@ -12,19 +12,16 @@ import TEMCore
 
 private let semNumber = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...4))
 
-/// The Settings rows; loads the table for the EDS room's current file.
+/// The Settings rows for an SEM spectrum. The table is loaded by `WorkspaceView` when the EDS room's file changes, not here: a
+/// `.task` on this view never starts while it draws nothing, which is every time before the first load.
 struct SEMEDSSettings: View {
     let state: SEMEDSState
-    let path: String?
 
     var body: some View {
-        Group {
-            if state.isSEMSpectrum {
-                SEMEDSLinesSection(state: state)
-                SEMEDSQuantSection(state: state)
-            }
+        if state.isSEMSpectrum {
+            SEMEDSLinesSection(state: state)
+            SEMEDSQuantSection(state: state)
         }
-        .task(id: path) { await state.load(path: path) }
     }
 }
 

@@ -34,7 +34,7 @@ private struct InspectorSettingsTab: View {
             InspectorScrollColumn {
                 EDXRoomSettings(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions)
                     .environment(\.inspectorScope, "settings.edx")
-                SEMEDSSettings(state: appState.semEDS, path: appState.edx.source?.metadata.filePath)
+                SEMEDSSettings(state: appState.semEDS)
                     .environment(\.inspectorScope, "settings.edx")
             }
             .environment(\.inspectorScope, "settings")
