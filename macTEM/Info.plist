@@ -44,6 +44,9 @@
 				<string>hspy</string>
 			</array>
 		</dict>
+		<!-- Related items: a vendor scan's pattern file and the map beside it (.up1/.up2 and .ang, .ebsp and .ctf) are read
+		     together by name, and the sandbox grants only the file the person picked. NSIsRelatedItemType lets the app read
+		     the other one (macTEM/App/RelatedFileAccess.swift); the extensions declared do not change. -->
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>EBSD pattern dataset</string>
@@ -51,6 +54,8 @@
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
+			<key>NSIsRelatedItemType</key>
+			<true/>
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>h5</string>
