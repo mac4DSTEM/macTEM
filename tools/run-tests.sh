@@ -4,7 +4,8 @@
 #
 #   unit        the XCTest suite (macTEMTests), unsigned, in a scratch DerivedData; then the executed tests are
 #               reconciled BY NAME (Class.method, from the result bundle) against the `func test…()` declarations,
-#               and any difference fails (a stale bundle, a renamed test or one in the wrong class passes a count)
+#               and any difference fails (a stale bundle, a renamed test or one in the wrong class passes a count);
+#               each skipped test is named with its XCTSkip's reason
 #   core        `swift build` of the package from a fresh scratch path: TEMCore and TEMSession — the layering gate
 #               (a package target cannot reach the app's App/ or UI/), the Swift 6 gate, and zero warnings
 #   scientific  the reference harnesses (the `scientific` array below), fail-fast
@@ -63,6 +64,19 @@ executed_tests_from_json() {
            | if .nodeType == "Test Case" then (.nodeIdentifier // ($s + "/" + .name))
              else (.children[]? | cases($s)) end;
          .testNodes[] | cases("?")' | sed -E 's#\(\)$##; s#/#.#'
+}
+
+# The tests a result bundle skipped, one line each, sorted: "unit: SKIPPED Class.method: <reason>", named as above. The reason is
+# the case's first "Failure Message" node (where xcresulttool puts the XCTSkip message), or "no reason recorded" without one.
+skipped_tests_from_json() {
+  jq -r 'def skips($suite): (if .nodeType == "Test Suite" then .name else $suite end) as $s
+           | if .nodeType == "Test Case" then
+               (select(.result == "Skipped")
+                | ((.nodeIdentifier // ($s + "/" + .name)) | sub("\\(\\)$"; "") | sub("/"; ".")) as $t
+                | ([.. | objects | select(.nodeType == "Failure Message") | .name] | first // "no reason recorded") as $why
+                | "unit: SKIPPED " + $t + ": " + ($why | gsub("\n"; " ")))
+             else (.children[]? | skips($s)) end;
+         .testNodes[] | skips("?")' | LC_ALL=C sort -u
 }
 
 # The tests macTEMTests declares, as Class.method: each `func test…()` (no parameters: XCTest runs no other) under
@@ -165,6 +179,12 @@ unit_tests() (
                | .name as $t | .. | objects | select(.nodeType? == "Failure Message") | "unit:   " + $t + ": " + .name' \
       | sort -u | head -60
   fi
+  # Name the skips too, each with its XCTSkip's reason: a count alone hides which tests lacked their data (sem-data, an opt-in
+  # real-data variable) or their device (Metal), so a check the runner never ran reads like one that passed.
+  if [[ "$skipped" != 0 ]]; then
+    xcrun xcresulttool get test-results tests --path "$work/unit.xcresult" | skipped_tests_from_json \
+      || echo "unit: cannot list the skipped tests from the result bundle"
+  fi
   if [[ -n "${MACTEM_ONLY_TESTING:-}" ]]; then
     echo "unit (filtered to ${MACTEM_ONLY_TESTING}): $failed failed of $total"
     if [[ "$failed" != 0 ]]; then
@@ -178,7 +198,7 @@ unit_tests() (
   fi
   (( rc == 0 )) || return $rc
   # A skipped test is a declared XCTSkip (the opt-in real-data tests without their data or variable, a fixture that is absent): it ran by name
-  # and said why, so it is not a failure of the gate; a failure is.
+  # and said why (each is named above with its reason), so it is not a failure of the gate; a failure is.
   if [[ "$total" != "$MACTEM_TESTS_MATCHED" || "$failed" != 0 || $(( passed + skipped )) != "$total" ]]; then
     echo "unit: $passed of $total passed, $skipped skipped, $MACTEM_TESTS_MATCHED matched by name — a failed test, or a summary that disagrees with the test list"
     return 1
@@ -304,6 +324,17 @@ inventory() {
   grep -q '\.defaultIsolation(' <(sed -n '/name: "TEMCore"/,/^        ),/p' "$ROOT/Package.swift") \
     && { echo "  TEMCore sets a default isolation; it is nonisolated by decision"; rc=1; }
 
+  # SwiftPM names the local package after the checkout folder; the Xcode targets must too, or every `package` symbol of TEMCore
+  # and TEMSession is out of reach from a checkout in another folder. CI checks out into macTEM, where a literal name passes;
+  # the release builds from a worktree of the tag (tools/release.sh), where it does not (mac4DSTEM's v5.1.0 archive, built from
+  # ~/GitHub/.worktrees/mac4DSTEM-v5.1.0, lost every `package` symbol of DSTEMCore).
+  echo "== SWIFT_PACKAGE_NAME follows the checkout folder"
+  local pkg_lines
+  pkg_lines="$(grep -E 'SWIFT_PACKAGE_NAME = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" || true)"
+  if [[ -z "$pkg_lines" ]] || grep -vqF 'SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";' <<< "$pkg_lines"; then
+    echo "  every SWIFT_PACKAGE_NAME must be \"\$(SRCROOT:file:lower:c99extidentifier)\", never a literal name"; rc=1
+  fi
+
   echo "== kits: version ranges in Package.swift, Package.resolved inside them"
   # The kits are imported by version range (`from:`), never a local path; Package.resolved holds the versions built, and the
   # harnesses build them through SwiftPM from it. A resolved version must lie in the range: at least the lower bound, same major.
@@ -411,6 +442,19 @@ inventory() {
     if grep -rqF "\"${id%.*.*}.\\(" "${where[@]}"; then continue; fi
     echo "  MISSING   identifier $id is used by a UI journey and no source declares it"; rc=1
   done
+
+  # mac4DSTEM's check of its live docs: a doc that says work is held uncommitted is stale once the tree is clean. Status claims
+  # only ("held uncommitted", "still uncommitted"), and only positive ones: "nothing is uncommitted" is true on a clean tree. On a
+  # dirty tree the claim may be true, so the check runs on a clean one only: always in CI, seldom on a working Mac.
+  echo "== live docs claim no uncommitted work (clean tree)"
+  local -a live_docs=("$ROOT"/docs/**/*.md(N.))
+  if [[ -n "$(git -C "$ROOT" status --porcelain)" ]]; then
+    echo "  (the tree has changes: not checked here)"
+  elif (( ${#live_docs} )) \
+       && grep -nEi '(held|still|stays?|remains?|is|are) uncommitted' "${live_docs[@]}" \
+          | grep -viE 'was (still )?uncommitted|at the time|(nothing|none|no [a-z]+) (is|are|remains?) uncommitted'; then
+    echo "  ^ live docs claim uncommitted work on a clean tree"; rc=1
+  fi
 
   if (( rc == 0 )); then echo "inventory: clean"; else echo "inventory: FAILED"; fi
   return $rc
