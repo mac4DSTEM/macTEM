@@ -118,6 +118,9 @@ package nonisolated enum JEOLEDSReader {
                         o += max(valueLength, 0)
                     } else {
                         let n = valueLength / t.size
+                        // The values must lie in the file before room is reserved for them (the reads below would refuse
+                        // them anyway, after the reservation).
+                        try b.need(o, max(n, 0) * t.size)
                         var values: [Double] = []
                         values.reserveCapacity(max(n, 0))
                         for k in 0..<max(n, 0) {
@@ -221,8 +224,10 @@ package nonisolated enum JEOLEDSReader {
         guard let bits = bitsNode.numbers, let code = bitsNode.typeCode, code == "B" || code == "H" else {
             throw SEMEDSReadError("\(name) stores its image in a type macTEM does not read.")
         }
-        // numpy's resize: truncated or padded with zeros to height x width.
-        var pixels = [UInt32](repeating: 0, count: width * height)
+        // numpy's resize: truncated or padded with zeros to height x width. A complete file holds a byte or two for each pixel,
+        // so a size larger than the file is refused before the image is allocated.
+        let pixelCount = try SEMEDSFile.checkedCount(dims: [height, width], bytesPerItem: 1, fileLength: b.bytes.count, name: name)
+        var pixels = [UInt32](repeating: 0, count: pixelCount)
         for i in 0..<min(bits.count, pixels.count) { pixels[i] = UInt32(bits[i]) }
         let scanSize = try number(tree, "Instrument", "ScanSize", file: name)
         let mag = try number(tree, "Instrument", "Mag", file: name)

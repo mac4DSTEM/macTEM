@@ -1,12 +1,13 @@
 //
 //  JEOLReaderRobustnessTests.swift
 //  Damaged JEOL files are refused in words, never trapped on and never followed round a loop: an OLE date that is not a
-//  number, infinite or past Int64's microseconds; an image whose Size is under a pixel or infinite; a project (.asw) that
-//  names itself; a project member that climbs out of the project's folder. The files are written here with a small writer of
-//  JEOL's tagged header tree (`_parsejeol`'s layout). The committed seq project still reads its image and spectra.
+//  number, infinite or past Int64's microseconds; an image whose Size is under a pixel, infinite, or more than its file
+//  holds; a project (.asw) that names itself; a project member that climbs out of the project's folder. The files are
+//  written here with a small writer of JEOL's tagged header tree (`_parsejeol`'s layout). The committed seq project still
+//  reads its image and spectra.
 //  Mutations each test must go red under: oleDate back to Int64(_:) (a trap); the Size guard dropped (an image 0 pixels wide,
-//  which CalibratedImage traps on, or a trap on Int(inf)); readASW without its visited set (a stack overflow); the member
-//  join without its ".." refusal (the file outside the folder is read).
+//  which CalibratedImage traps on, or a trap on Int(inf)); the image allocated before checkedCount (a crash); readASW without
+//  its visited set (a stack overflow); the member join without its ".." refusal (the file outside the folder is read).
 //
 
 import Foundation
@@ -117,6 +118,16 @@ nonisolated final class JEOLReaderRobustnessTests: XCTestCase {
         XCTAssertEqual(image.width, 2)
         XCTAssertEqual(image.pixels, [1, 2, 3, 4])
         XCTAssertEqual(image.metadata.date, "2020-06-18")
+    }
+
+    /// An image whose Size states more pixels than its file holds (10^9 x 10^9 in a file of a few hundred bytes) is refused
+    /// before the image is allocated; before, the allocation of 4 x 10^18 bytes crashed.
+    func testAnImageLargerThanItsFileIsRefused() throws {
+        let url = try scratchFolder().appendingPathComponent("vast.img")
+        try Data(Self.image(size: [1e9, 1e9], bits: [7, 7, 7, 7])).write(to: url)
+        XCTAssertThrowsError(try JEOLEDSReader.read(url: url)) { error in
+            XCTAssertTrue((error as? SEMEDSReadError)?.text.contains("vast.img") ?? false, "\(error)")
+        }
     }
 
     /// A project that names itself is refused when it comes round again; before, readASW called itself until the stack

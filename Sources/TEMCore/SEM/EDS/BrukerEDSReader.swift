@@ -84,6 +84,13 @@ package nonisolated enum BrukerEDSReader {
         return Double(s)
     }
 
+    /// A header number as a whole count, truncated as Int(_:) truncates it; nil when it is no number, or infinite or past Int
+    /// (a damaged header's "1e400"), so a size is refused rather than trapped on.
+    package static func whole(_ s: String?) -> Int? {
+        guard let v = number(s) else { return nil }
+        return Int(exactly: v.rounded(.towardZero))
+    }
+
     /// rsciio's `sanitize_msxml_float`: `>-?\d+,(\d*([Ee]-?\d*)?<` gets a decimal point for its comma.
     static func sanitized(_ xml: [UInt8]) -> Data {
         guard let s = String(bytes: xml, encoding: .isoLatin1),
@@ -193,7 +200,7 @@ package nonisolated enum BrukerEDSReader {
         let hd = child(db, "Header")
         var date: (String, String)?
         if let d = text(child(hd, "Date")), let t = text(child(hd, "Time")) { date = SEMEDSText.brukerDateTime(date: d, time: t) }
-        let version = Int(number(text(child(hd, "FileVersion"))) ?? 1)
+        let version = whole(text(child(hd, "FileVersion"))) ?? 1
         let sem = fields(child(db, "ClassInstance", type: "TRTSEMData"))
         let hv = number(sem["HV"])
         let units = sem["DX"] != nil ? "µm" : "pix"
@@ -203,8 +210,8 @@ package nonisolated enum BrukerEDSReader {
         guard let imageNode = children(db, "ClassInstance", type: "TRTImageData").last(where: {
             ($0.attribute(forName: "Name")?.stringValue ?? "").isEmpty
         }) else { throw SEMEDSReadError("\(name) holds no image node in its header.") }
-        guard let width = number(text(child(imageNode, "Width"))).map({ Int($0) }),
-              let height = number(text(child(imageNode, "Height"))).map({ Int($0) }), width > 0, height > 0 else {
+        guard let width = whole(text(child(imageNode, "Width"))), let height = whole(text(child(imageNode, "Height"))),
+              width > 0, height > 0 else {
             throw SEMEDSReadError("\(name) states no map size.")
         }
         var overview: XMLElement?
@@ -247,10 +254,8 @@ package nonisolated enum BrukerEDSReader {
 
     /// The images of one image node, empty planes skipped (rsciio `_parse_image`).
     static func images(_ node: XMLElement, header h: Header, fileName: String) throws -> [SEMEDSImage] {
-        guard let width = number(text(child(node, "Width"))).map({ Int($0) }),
-              let height = number(text(child(node, "Height"))).map({ Int($0) }),
-              let itemSize = number(text(child(node, "ItemSize"))).map({ Int($0) }),
-              let planes = number(text(child(node, "PlaneCount"))).map({ Int($0) }) else {
+        guard let width = whole(text(child(node, "Width"))), let height = whole(text(child(node, "Height"))),
+              let itemSize = whole(text(child(node, "ItemSize"))), let planes = whole(text(child(node, "PlaneCount"))) else {
             throw SEMEDSReadError("\(fileName) has an image node without its size.")
         }
         guard [1, 2, 4].contains(itemSize) else { throw SEMEDSReadError("\(fileName) stores images of \(itemSize)-byte pixels.") }
@@ -267,7 +272,8 @@ package nonisolated enum BrukerEDSReader {
                 pixels[k] = v
             }
             guard pixels.contains(where: { $0 != 0 }) else { continue }
-            guard count == width * height else {
+            let area = width.multipliedReportingOverflow(by: height)
+            guard !area.overflow, count == area.partialValue else {
                 throw SEMEDSReadError("An image of \(fileName) holds \(count) pixels for \(width) x \(height).")
             }
             var md = SEMEDSMetadata()
@@ -360,8 +366,15 @@ package nonisolated enum BrukerEDSReader {
         guard lines <= height else {
             throw SEMEDSReadError("\(name)'s spectral data holds \(lines) lines for a map of \(height): it is not this map's.")
         }
+        // The map's size comes from the XML alone: the stream may hold fewer lines than the map and names each pixel it stores by
+        // x, so the file does not bound it. It is held to a stated cap instead: the builder's rows, and the one dense line
+        // unpacked at a time.
         var builder = try CSRSpectrumImageBuilder(ny: height, nx: width, channels: channels)
-        var line = [UInt32](repeating: 0, count: width * channels)
+        let lineCount = width.multipliedReportingOverflow(by: channels)
+        guard !lineCount.overflow, lineCount.partialValue <= SEMEDSFile.largestArray else {
+            throw SEMEDSReadError("\(name) states a map \(width) pixels wide of \(channels) channels, more than macTEM unpacks in one line.")
+        }
+        var line = [UInt32](repeating: 0, count: lineCount.partialValue)
         for _ in 0..<lines {
             for i in line.indices { line[i] = 0 }
             let pixels = Int(try stream.u32())

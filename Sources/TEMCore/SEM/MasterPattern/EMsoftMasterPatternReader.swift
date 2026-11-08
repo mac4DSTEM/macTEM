@@ -142,9 +142,9 @@ package nonisolated enum EMsoftMasterPatternReader {
             let nml = "/NMLparameters"
 
             // The phase (`_crystaldata2phase`), named from `MCCLNameList/xtalname` (`os.path.split(...)[0]`, then `splitext`).
-            let spaceGroup = try Int(requiredDouble(reader, "/CrystalData/SpaceGroupNumber"))
+            let spaceGroup = try storedCount(requiredDouble(reader, "/CrystalData/SpaceGroupNumber"), path: "/CrystalData/SpaceGroupNumber")
             let lattice = try reader.readDataset("/CrystalData/LatticeParameters").doubles()
-            let atoms = try Int(requiredDouble(reader, "/CrystalData/Natomtypes"))
+            let atoms = try storedCount(requiredDouble(reader, "/CrystalData/Natomtypes"), path: "/CrystalData/Natomtypes")
             let xtalPath = "\(nml)/MCCLNameList/xtalname"
             // Without one kikuchipy sets `phase.name = None`, which orix's setter stores as the text "None".
             let name = try reader.exists(xtalPath) ? try reader.readStrings(xtalPath).first.map { splitExtension(pathHead($0)) } ?? "None" : "None"
@@ -157,8 +157,8 @@ package nonisolated enum EMsoftMasterPatternReader {
             // The energies and the slice of them (`get_data_shape_slices`). EMsoft writes them as float32: compared as float32.
             let energies = try reader.readDataset("\(dataGroup)/\(type.energyDataset)").doubles()
             guard !energies.isEmpty else { throw EBSDReadError(text: "the file lists no energies in '\(dataGroup)/\(type.energyDataset)'.") }
-            let npx = try Int(requiredDouble(reader, "\(nml)/\(t)MasterNameList/npx"))
-            let side = npx * 2 + 1
+            let npxPath = "\(nml)/\(t)MasterNameList/npx"
+            let side = try patternSide(npx: requiredDouble(reader, npxPath), path: npxPath)
             let picked = try energyIndices(Array(energies), selection: energy)
             let binSize = try requiredDouble(reader, "\(nml)/\(type.monteCarloNameList)/Ebinsize")
 
@@ -170,8 +170,8 @@ package nonisolated enum EMsoftMasterPatternReader {
             case .upper: names = ["\(label)NH"]
             case .lower: names = ["\(label)SH"]
             }
+            // Room for every hemisphere is reserved once the first is read, never from the stored npx alone.
             var values: [Float] = []
-            values.reserveCapacity(names.count * picked.count * side * side)
             var dataType: FormatoDataType?
             for dataset in names {
                 let (stored, block) = try readHemisphere(reader, path: "\(dataGroup)/\(dataset)", projection: projection,
@@ -180,6 +180,7 @@ package nonisolated enum EMsoftMasterPatternReader {
                     throw EBSDReadError(text: "the two hemispheres are stored as \(dataType.rawValue) and \(stored.rawValue).")
                 }
                 dataType = stored
+                if values.isEmpty { values.reserveCapacity(names.count * block.count) }
                 values += block
             }
             guard let dataType else { throw EBSDReadError(text: "no master pattern dataset was read.") }
@@ -235,14 +236,15 @@ package nonisolated enum EMsoftMasterPatternReader {
             throw EBSDReadError(text: "'\(path)' is stored as \(info.type), not as uint8, uint16, float32 or float64 numbers.")
         }
         let shape = info.shape
+        // `side` comes from patternSide, so its square fits an Int; room for the patterns is reserved once the shape holds them.
         let n = side * side
         var out: [Float] = []
-        out.reserveCapacity(picked.count * n)
         switch (projection, shape.count) {
         case (.lambert, 4):
             guard shape[1] == energyCount, shape[2] == side, shape[3] == side else {
                 throw EBSDReadError(text: "'\(path)' has shape \(shape), not (numset, \(energyCount), \(side), \(side)).")
             }
+            try reserve(&out, patterns: picked.count, of: n, path: path, shape: shape)
             let numset = shape[0]
             for e in picked {
                 let block = try reader.readDataset(path, start: [0, e, 0, 0], count: [numset, 1, side, side]).doubles()
@@ -256,6 +258,7 @@ package nonisolated enum EMsoftMasterPatternReader {
             guard shape[0] == energyCount, shape[1] == side, shape[2] == side else {
                 throw EBSDReadError(text: "'\(path)' has shape \(shape), not (\(energyCount), \(side), \(side)).")
             }
+            try reserve(&out, patterns: picked.count, of: n, path: path, shape: shape)
             for e in picked {
                 let block = try reader.readDataset(path, start: [e, 0, 0], count: [1, side, side]).doubles()
                 if projection == .stereographic {
@@ -286,6 +289,35 @@ package nonisolated enum EMsoftMasterPatternReader {
             throw EBSDReadError(text: "the file has no '\(path)'.")
         }
         return value
+    }
+
+    /// A count the file stores as a number (a space group, a number of atom types, npx), as Int(_:) truncates it; one that
+    /// is not finite or does not fit an Int is refused rather than trapped on.
+    static func storedCount(_ value: Double, path: String) throws -> Int {
+        guard let n = Int(exactly: value.rounded(.towardZero)) else {
+            throw EBSDReadError(text: "the file's '\(path)' is \(value), which is not a count.")
+        }
+        return n
+    }
+
+    /// The side of the square pattern, `2 npx + 1` px, from the stored npx; refused when npx is not a count or the side's
+    /// square overflows an Int (no dataset has that shape), so nothing is sized from a damaged npx.
+    package static func patternSide(npx: Double, path: String) throws -> Int {
+        let half = try storedCount(npx, path: path)
+        let doubled = half.multipliedReportingOverflow(by: 2)
+        let side = doubled.partialValue.addingReportingOverflow(1)
+        let area = side.partialValue.multipliedReportingOverflow(by: side.partialValue)
+        guard !doubled.overflow, !side.overflow, !area.overflow else {
+            throw EBSDReadError(text: "the file's '\(path)' is \(npx), a pattern side no dataset has.")
+        }
+        return side.partialValue
+    }
+
+    /// Room in `out` for `patterns` patterns of `n` values, once the dataset's shape is known to hold them.
+    private static func reserve(_ out: inout [Float], patterns: Int, of n: Int, path: String, shape: [Int]) throws {
+        let total = patterns.multipliedReportingOverflow(by: n)
+        guard !total.overflow else { throw EBSDReadError(text: "'\(path)' has shape \(shape), more values than macTEM holds.") }
+        out.reserveCapacity(total.partialValue)
     }
 
     /// `os.path.split(path)[0]`: everything before the last slash, trailing slashes removed unless only slashes remain.

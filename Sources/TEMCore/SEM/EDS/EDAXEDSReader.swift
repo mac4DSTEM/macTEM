@@ -143,7 +143,9 @@ package nonisolated enum EDAXEDSReader {
         var axes: [SEMEDSAxis]
         let shape: [Int]
         if lineScan {
-            let kept = min(nSpectra, nx * ny)
+            // nx · ny overflows only far above any nSpectra (an Int32), which then is the smaller.
+            let grid = nx.multipliedReportingOverflow(by: ny)
+            let kept = grid.overflow ? nSpectra : min(nSpectra, grid.partialValue)
             rows = 1; cols = max(kept, 0)
             md.title = "EDS Line Scan"
             var scale = 1.0, offset = 0.0, units: String?
@@ -174,6 +176,15 @@ package nonisolated enum EDAXEDSReader {
         do { handle = try FileHandle(forReadingFrom: url) } catch { throw SEMEDSReadError("\(name) could not be read.") }
         defer { try? handle.close() }
         let pixelBytes = nz * countBytes
+        // The counts the header states must fit in the file after dataOffset before anything is allocated for them; a file
+        // that holds fewer gets the sentence the read below would give it.
+        let fileLength = Int((try? handle.seekToEnd()) ?? 0)
+        do {
+            _ = try SEMEDSFile.checkedCount(dims: [rows, cols, nz], bytesPerItem: countBytes, fileLength: max(0, fileLength - dataOffset),
+                                            name: name)
+        } catch {
+            throw SEMEDSReadError("\(name) holds fewer spectra than its header states (\(nx) x \(ny) of \(nz) channels).")
+        }
         guard (try? handle.seek(toOffset: UInt64(dataOffset))) != nil else { throw SEMEDSReadError("\(name) ends before its data.") }
         var builder = try CSRSpectrumImageBuilder(ny: rows, nx: cols, channels: nz)
         var spectrum = [UInt32](repeating: 0, count: nz)
