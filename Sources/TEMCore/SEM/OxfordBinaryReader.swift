@@ -16,9 +16,11 @@
 //          * patterns in map order: record i of the file is moved to the map position its start-table entry names.
 //        The result is an `EBSDDataset` whose patterns stay in the file (`EBSDPatternSource.Layout.records`, one record per
 //        pattern, read by map position through `fileIndexByPosition`); kikuchipy's `original_metadata` (beam and map positions,
-//        the map's 1D ids, the file order) is `metadata(data:)`. Compressed patterns are refused by name, as in kikuchipy. The
-//        parity test reads kikuchipy's own `patterns.ebsp` and the layouts kikuchipy's tests write (macTEMTests/Fixtures/sem/oxford,
-//        from tools/parity/sem-readers/make_oxford_fixtures.py) bit-exact. The `.ctf` map next to the file is `OxfordOpening`'s.
+//        the map's 1D ids, the file order) is `metadata(data:)`. Compressed patterns are refused by name, as in kikuchipy; a version
+//        word of Int64.min and beam positions that give no map (not finite, or more steps apart than an Int counts) are refused in
+//        words instead of trapping. The parity test reads kikuchipy's own `patterns.ebsp` and the layouts kikuchipy's tests write
+//        (macTEMTests/Fixtures/sem/oxford, from tools/parity/sem-readers/make_oxford_fixtures.py) bit-exact. The `.ctf` map next to
+//        the file is `OxfordOpening`'s.
 //
 
 import Foundation
@@ -27,23 +29,27 @@ import FormatoCore
 package nonisolated enum OxfordBinaryReader {
     package enum Refusal: Error, Equatable {
         case tooShort
+        case version(Int64)
         case noPatternTable
         case compressed
         case patternShape(rows: Int, columns: Int, bytes: Int)
         case truncated(needed: Int, have: Int)
         case startTable(record: Int, of: Int)
         case step(Double)
+        case beamPositions
         case mapShape(rows: Int, columns: Int, patterns: Int)
 
         package var reason: String {
             switch self {
             case .tooShort: "it is shorter than an .ebsp header."
+            case .version(let word): "its version word \(word) is not an .ebsp version."
             case .noPatternTable: "its pattern table has no end; it is not an .ebsp file as kikuchipy reads one."
             case .compressed: "its patterns are compressed; only uncompressed .ebsp patterns are read (kikuchipy reads the same)."
             case .patternShape(let r, let c, let b): "its first pattern is \(r) x \(c) pixels in \(b) bytes, neither 8 nor 16 bits a pixel."
             case .truncated(let needed, let have): "its patterns need \(needed) bytes but the file has \(have)."
             case .startTable(let record, let of): "its pattern table points at record \(record) of \(of)."
             case .step(let step): "its beam positions step by \(step) µm, which gives no map."
+            case .beamPositions: "its beam positions are not finite or lie too many steps apart, which gives no map."
             case .mapShape(let r, let c, let n): "its beam positions span a \(r) x \(c) map but it holds \(n) patterns."
             }
         }
@@ -114,6 +120,8 @@ package nonisolated enum OxfordBinaryReader {
         init(data: Data) throws {
             guard data.count >= 8 else { throw Refusal.tooShort }
             let word = data.int64(at: 0)
+            // Int64.min has no positive counterpart: it names no version, and negating it would trap.
+            guard word != .min else { throw Refusal.version(word) }
             // Locals first: a closure below cannot read a stored constant before every one is set.
             let version = word < 0 ? Int(-word) : 0
             let tablePosition = version == 0 ? 0 : (version > 3 ? 9 : 8)
@@ -235,9 +243,13 @@ package nonisolated enum OxfordBinaryReader {
                 let firstY = beamY(data: data, record: firstRecord)!, lastY = beamY(data: data, record: lastRecord)!
                 let step = secondX - firstX
                 guard step != 0, step.isFinite else { throw Refusal.step(step) }
-                let rows = Int(abs((lastY / step).rounded(.toNearestOrEven) - (firstY / step).rounded(.toNearestOrEven))) + 1
-                let columns = Int(abs((lastX / step).rounded(.toNearestOrEven) - (firstX / step).rounded(.toNearestOrEven))) + 1
-                guard rows * columns == n else { throw Refusal.mapShape(rows: rows, columns: columns, patterns: n) }
+                let rowSpan = abs((lastY / step).rounded(.toNearestOrEven) - (firstY / step).rounded(.toNearestOrEven))
+                let columnSpan = abs((lastX / step).rounded(.toNearestOrEven) - (firstX / step).rounded(.toNearestOrEven))
+                // A damaged footer (a NaN or infinite position, or more steps than an Int counts) gives no map: refused before it is a count.
+                guard let rowSteps = Int(exactly: rowSpan), let columnSteps = Int(exactly: columnSpan) else { throw Refusal.beamPositions }
+                let rows = rowSteps + 1, columns = columnSteps + 1
+                let points = rows.multipliedReportingOverflow(by: columns)
+                guard !points.overflow, points.partialValue == n else { throw Refusal.mapShape(rows: rows, columns: columns, patterns: n) }
                 found.scanRows = rows; found.scanColumns = columns; found.step = step; found.scanUnit = "um"
             }
             return found
