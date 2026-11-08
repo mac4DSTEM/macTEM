@@ -76,7 +76,8 @@ extension EELSSession {
             let flat = EELSMapScale.isFlat(tile.values)
             let values = flat ? EELSMapScale.flatValues(tile.values) : EELSMapScale.scaled(tile.values, mode: EELSMapScale.mode(forTileID: tile.id)).values
             let coloring = flat ? MapColoring.colormap(.gray) : appearance.coloring(for: tile.id, default: EELSTileStyle.defaultColoring(tile.id))
-            cells.append(EDXFigureCell(id: tile.id, title: tile.title, detail: tile.detailText ?? "",
+            // The PNG's words are in the export's locale, not the reader's (`ExportSnapshot.labelLocale`).
+            cells.append(EDXFigureCell(id: tile.id, title: tile.title, detail: tile.detailText(locale: ExportSnapshot.labelLocale) ?? "",
                                        rgba: MapRaster.rgba(values: values, coloring: coloring, upper: 1, adjustment: flat ? MapAdjustment() : appearance.adjustment(for: tile.id)),
                                        width: tile.width, height: tile.height, footer: tile.footer))
         }

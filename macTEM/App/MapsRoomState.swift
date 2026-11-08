@@ -418,6 +418,26 @@ nonisolated enum MapsFigure {
         return power
     }
 
+    // MARK: Labels
+
+    // The words burned into the PNGs are in `ExportSnapshot.labelLocale`, not the reader's: a de_DE reader still gets "0.5 µm" in a
+    // figure, as from the Image room. A test passes another locale; the figures take the default.
+
+    /// The scale bar's label: "0.5 µm" (the files write "um").
+    static func scaleBarLabel(length: Double, unit: String, locale: Locale = ExportSnapshot.labelLocale) -> String {
+        "\(UnitDisplay.number(length, locale: locale)) \(EBSDBrowsing.unitLabel(unit))"
+    }
+
+    /// A property or derived layer's value range in the legend: "0.5 to 2.25".
+    static func rangeLabel(_ range: ClosedRange<Double>, locale: Locale = ExportSnapshot.labelLocale) -> String {
+        "\(UnitDisplay.number(range.lowerBound, digits: 4, locale: locale)) to \(UnitDisplay.number(range.upperBound, digits: 4, locale: locale))"
+    }
+
+    /// A texture figure's colour bar: "0 to 3.21 MRD" (multiples of random).
+    static func mrdLabel(_ maximum: Double, locale: Locale = ExportSnapshot.labelLocale) -> String {
+        "0 to \(UnitDisplay.number(maximum, digits: 3, locale: locale)) MRD"
+    }
+
     /// An image of premultiplied RGBA bytes.
     static func cgImage(premultipliedRGBA rgba: [UInt8], width: Int, height: Int) -> CGImage? {
         guard width > 0, height > 0, rgba.count == width * height * 4,
@@ -487,7 +507,7 @@ nonisolated enum MapsFigure {
             let y = mapRect.maxY + 12
             ctx.setFillColor(CGColor(gray: 0, alpha: 1))
             ctx.fill(CGRect(x: mapRect.minX, y: y, width: barW, height: 4))
-            text("\(UnitDisplay.number(length)) \(EBSDBrowsing.unitLabel(map.scanUnit))", at: CGPoint(x: mapRect.minX + barW + 8, y: y - 4), size: 12, ctx: ctx)
+            text(scaleBarLabel(length: length, unit: map.scanUnit), at: CGPoint(x: mapRect.minX + barW + 8, y: y - 4), size: 12, ctx: ctx)
         }
 
         // The legend.
@@ -527,7 +547,7 @@ nonisolated enum MapsFigure {
             text(name, at: CGPoint(x: x, y: y), size: 12, ctx: ctx)
             y += 18
             if let range = raster.valueRange {
-                text("\(UnitDisplay.number(range.lowerBound, digits: 4)) to \(UnitDisplay.number(range.upperBound, digits: 4))", at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
+                text(rangeLabel(range), at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
             }
         case .derived(.grains):
             text("Grains", at: CGPoint(x: x, y: y), size: 12, ctx: ctx)
@@ -539,7 +559,7 @@ nonisolated enum MapsFigure {
             text(derived.unit.isEmpty ? derived.title : "\(derived.title) (\(derived.unit))", at: CGPoint(x: x, y: y), size: 12, ctx: ctx)
             y += 18
             if let range = raster.valueRange {
-                text("\(UnitDisplay.number(range.lowerBound, digits: 4)) to \(UnitDisplay.number(range.upperBound, digits: 4))", at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
+                text(rangeLabel(range), at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
             }
         }
         _ = fileName
@@ -634,7 +654,7 @@ nonisolated enum MapsFigure {
                     ctx.interpolationQuality = .high
                     draw(bar, in: CGRect(x: x, y: y, width: CGFloat(side), height: CGFloat(barH)), ctx: ctx)
                 }
-                text("0 to \(UnitDisplay.number(figure.maximum, digits: 3)) MRD", at: CGPoint(x: x, y: y + CGFloat(barH) + 2), size: 10, ctx: ctx)
+                text(mrdLabel(figure.maximum), at: CGPoint(x: x, y: y + CGFloat(barH) + 2), size: 10, ctx: ctx)
             }
         }
         row(top, y0: margin + captionH, odf: false)
