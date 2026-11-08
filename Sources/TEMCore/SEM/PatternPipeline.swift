@@ -284,9 +284,14 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
                 return Refusal(.intensity, "Equalise reads 8 and 16 bit patterns; Normalise makes them float32. Rescale or leave the intensities instead.")
             }
             if let k = intensity.equalizeKernel, k < 1 { return Refusal(.intensity, "The equalisation kernel must be at least 1 px.") }
-            // CLAHE pads the pattern by about the kernel on each side, so a typed 100000 would ask for (2 × 100000)² values.
+            // CLAHE pads the pattern by about the kernel on each side, (rows + 2k) × (columns + 2k) values, so a typed 100000 would ask
+            // for (2 × 100000)² of them. scikit-image sets no limit: every kernel up to the pattern's side runs, and so does a larger one
+            // whose padding holds at most 2²⁴ values (128 MB of Int); only a kernel past both is refused.
             if let k = intensity.equalizeKernel, k > max(dataset.patternRows, dataset.patternColumns) {
-                return Refusal(.intensity, "The equalisation kernel of \(k) px is larger than the \(dataset.patternRows) × \(dataset.patternColumns) px pattern.")
+                let padded = (Double(dataset.patternRows) + 2 * Double(k)) * (Double(dataset.patternColumns) + 2 * Double(k))
+                if padded > Double(1 << 24) {
+                    return Refusal(.intensity, "The equalisation kernel of \(k) px is far larger than the \(dataset.patternRows) × \(dataset.patternColumns) px pattern.")
+                }
             }
             guard intensity.clipLimit.isFinite, intensity.clipLimit >= 0 else { return Refusal(.intensity, "The clip limit must be 0 or more.") }
         }

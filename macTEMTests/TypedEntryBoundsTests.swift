@@ -3,7 +3,7 @@
 //  Typed whole numbers and the bounds on what they reach: `TypedWholeNumber` (macTEM/UI) rounds a typed entry and holds it within
 //  ±10⁹ where `Int()` trapped on 1e20 (the NLPAR radius, the equalisation kernel, the Richardson-Lucy iterations), and
 //  `PatternPipeline.refusal` names a Std × truncate, an NLPAR search radius or a CLAHE kernel too large to run, where it trapped in
-//  `Int()` or in `2 r + 1`, or accepted a kernel whose padding exhausts memory. Settings that ran before are not refused.
+//  `Int()` or in `2 r + 1`, or accepted a kernel whose padding exhausts memory. Settings that ran before in memory are not refused.
 //  Red before: no `TypedWholeNumber`; the truncate and radius refusals trap while the inspector redraws; the kernel is accepted.
 //
 
@@ -79,19 +79,24 @@ nonisolated final class TypedEntryBoundsTests: XCTestCase {
         XCTAssertEqual(p.refusal(for: data, background: nil)?.sentence, "The search radius must be at least 1.")
     }
 
-    func testAnEqualisationKernelLargerThanThePatternIsRefused() {
+    func testAnEqualisationKernelWhosePaddingWouldExhaustMemoryIsRefused() {
         let data = dataset()
         var p = withoutStaticBackground()
         p.intensity.equalize = true
         XCTAssertNil(p.refusal(for: data, background: nil), "kikuchipy's default kernel, a quarter of the pattern")
         p.intensity.equalizeKernel = 60
         XCTAssertNil(p.refusal(for: data, background: nil), "a kernel as large as the pattern")
+        p.intensity.equalizeKernel = 61
+        XCTAssertNil(p.refusal(for: data, background: nil), "a kernel past the pattern runs as scikit-image runs it")
+        // (60 + 2k)² ≤ 2²⁴ up to k = 2018.
+        p.intensity.equalizeKernel = 2018
+        XCTAssertNil(p.refusal(for: data, background: nil), "the largest kernel whose padding fits 2²⁴ values")
+        p.intensity.equalizeKernel = 2019
+        XCTAssertEqual(p.refusal(for: data, background: nil)?.stage, .intensity)
         p.intensity.equalizeKernel = 100_000
         let refusal = p.refusal(for: data, background: nil)
         XCTAssertEqual(refusal?.stage, .intensity)
-        XCTAssertEqual(refusal?.sentence, "The equalisation kernel of 100000 px is larger than the 60 × 60 px pattern.")
-        p.intensity.equalizeKernel = 61
-        XCTAssertEqual(p.refusal(for: data, background: nil)?.stage, .intensity)
+        XCTAssertEqual(refusal?.sentence, "The equalisation kernel of 100000 px is far larger than the 60 × 60 px pattern.")
     }
 
     func testTheDefaultSettingsAreNotRefused() throws {
