@@ -5,7 +5,8 @@
 //        pattern width and height, pattern offset; from version 3 the map width and height, the hexagonal-grid flag and the step in
 //        µm), the pattern count from the file size for a version 1 file or a hexagonal grid (one row of patterns, kikuchipy's one
 //        navigation dimension, with its warning as `note`), and the patterns by index or map position, as stored. Version 2 is refused
-//        as upstream refuses it. The pairing with the `.ang` map next to the file is `EDAXOpening`.
+//        as upstream refuses it; so is a damaged header, whose sizes leave the Int range or give no pattern, instead of trapping.
+//        The pairing with the `.ang` map next to the file is `EDAXOpening`.
 //        Parity: macTEMTests/EDAXBinaryReaderTests.swift against ebsd-edax.truth.json (tools/parity/sem-readers/make_edax_fixtures.py).
 //
 
@@ -88,7 +89,13 @@ package nonisolated enum EDAXBinaryReader {
         let sx = try word(4), sy = try word(8), offset = try word(12)
         guard sx > 0, sy > 0 else { throw EDAXReadError(text: "\(name) states a \(sx) x \(sy) pattern.") }
         guard offset <= data.count else { throw EDAXReadError(text: "\(name) puts its patterns at byte \(offset), past the end of the file (\(data.count) bytes).") }
-        let bytesPerPattern = sx * sy * dataType.byteSize
+        // A damaged header can state sizes whose products leave the Int range; those are refused here instead of trapping.
+        let pixels = sx.multipliedReportingOverflow(by: sy)
+        let patternBytes = pixels.partialValue.multipliedReportingOverflow(by: dataType.byteSize)
+        guard !pixels.overflow, !patternBytes.overflow else {
+            throw EDAXReadError(text: "\(name) states a \(sx) x \(sy) pattern, larger than the whole file (\(data.count) bytes).")
+        }
+        let bytesPerPattern = patternBytes.partialValue
         let count: Int
         var nx: Int, ny: Int, dx = 1.0, dy = 1.0, isHex = false
         if version == 1 {
@@ -104,12 +111,16 @@ package nonisolated enum EDAXBinaryReader {
                 count = (data.count - offset) / bytesPerPattern
                 nx = count; ny = 1
             } else {
-                count = nx * ny
-                guard offset + count * bytesPerPattern <= data.count else {
+                guard nx > 0, ny > 0 else { throw EDAXReadError(text: "\(name) states a \(ny) x \(nx) map.") }
+                let total = nx.multipliedReportingOverflow(by: ny)
+                let span = total.partialValue.multipliedReportingOverflow(by: bytesPerPattern)
+                guard !total.overflow, !span.overflow, span.partialValue <= data.count - offset else {
                     throw EDAXReadError(text: "\(name) states \(ny) x \(nx) patterns of \(sy) x \(sx) but holds \((data.count - offset) / bytesPerPattern).")
                 }
+                count = total.partialValue
             }
         }
+        guard count > 0 else { throw EDAXReadError(text: "\(name) holds no complete \(sy) x \(sx) pattern after byte \(offset) (\(data.count) bytes).") }
         return EDAXBinaryFile(url: url, version: version, patternRows: sy, patternColumns: sx, patternOffset: offset, scanRows: ny, scanColumns: nx,
                               patternCount: count, stepX: dx, stepY: dy, isHexagonal: isHex, dataType: dataType, note: isHex ? hexagonalNote : nil)
     }
