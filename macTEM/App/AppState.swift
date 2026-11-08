@@ -118,13 +118,14 @@ final class AppState {
         // The spectrum rooms follow the selected file through the list's own callback (a view's observation did not fire on screen, drive 6).
         openItems.onSelect = { [weak self] _ in self?.spectrumRoomsFollowSelection() }
         openItems.onReadFailure = { [weak self] _, error in self?.present(error) }
-        edx.onEvent = { [weak self] in self?.statusText = $0 }
+        // Every session's event line: the infobar, the SEM rooms' session record, and VoiceOver for a line that ends something.
+        edx.onEvent = { [weak self] in self?.report(event: $0, in: nil) }
         edx.onFailure = { [weak self] in self?.present($0) }
-        eels.onEvent = { [weak self] in self?.statusText = $0 }
+        eels.onEvent = { [weak self] in self?.report(event: $0, in: nil) }
         eels.onFailure = { [weak self] in self?.present($0) }
-        ebsd.onEvent = { [weak self] in self?.statusText = $0; self?.semRecord.note($0, in: .patterns) }
+        ebsd.onEvent = { [weak self] in self?.report(event: $0, in: .patterns) }
         ebsd.onFailure = { [weak self] in self?.present($0) }
-        maps.onEvent = { [weak self] in self?.statusText = $0; self?.semRecord.note($0, in: .maps) }
+        maps.onEvent = { [weak self] in self?.report(event: $0, in: .maps) }
         maps.onFailure = { [weak self] in self?.present($0) }
         // Every dataset the Patterns room binds: the Indexing room starts over on it, and the Maps room drops the old dataset's maps
         // (its own and an Indexing run on it) and shows the new one's crystal map with the patterns beside (a map opened on its own
@@ -139,7 +140,7 @@ final class AppState {
             self?.indexing.close()
             self?.maps.patternsClosed()
         }
-        indexing.onEvent = { [weak self] in self?.statusText = $0; self?.semRecord.note($0, in: .indexing) }
+        indexing.onEvent = { [weak self] in self?.report(event: $0, in: .indexing) }
         // Every file the SEM rooms write is kept for the Results room and the session report (D-SEM-104).
         patternsRoom.onWritten = { [weak self] in self?.semRecord.wrote($0) }
         indexingRoom.onWritten = { [weak self] in self?.semRecord.wrote($0) }
