@@ -182,8 +182,41 @@ nonisolated final class CTFReaderTests: XCTestCase {
         XCTAssertThrowsError(try CTFReader.read(text: short)) { error in
             XCTAssertEqual(error as? CTFReader.Refusal, .row(line: 5, columns: 7, needed: 11))
         }
-        for refusal in [CTFReader.Refusal.notText, .noColumnLine, .noPhases, .row(line: 1, columns: 1, needed: 11), .number(line: 1, "x")] {
+        for refusal in [CTFReader.Refusal.notText, .noColumnLine, .noPhases, .row(line: 1, columns: 1, needed: 11), .number(line: 1, "x"),
+                        .repeatedColumn("MAD"), .cells(points: 4)] {
             XCTAssertTrue(refusal.reason.hasSuffix("."), refusal.reason)
         }
+    }
+
+    /// Files that trapped the reader are refused by name: a negative `Phases` count, a phase id that is not finite or too large for
+    /// an Int, ASTAR cells that are no count or no grid of the points, an orientation table naming a property column twice. Red
+    /// before: each trapped (`0..<-1`, `Int(.nan)`, `Int(1e300)`, `Int(.infinity)`, `Dictionary(uniqueKeysWithValues:)`).
+    func testHostileFilesAreRefusedNotTrapped() throws {
+        let columns = "Phase\tX\tY\tBands\tError\tEuler1\tEuler2\tEuler3\tMAD\tBC\tBS\n"
+        let nickel = "Phases\t1\n3.6;3.6;3.6\t90;90;90\tNi\t11\t225\n"
+        func refusal(_ text: String) -> CTFReader.Refusal? {
+            do {
+                _ = try CTFReader.read(text: text)
+                return nil
+            } catch {
+                return error as? CTFReader.Refusal
+            }
+        }
+        XCTAssertEqual(refusal("Channel Text File\nPhases\t-1\n" + columns + "1 0 0 1 0 1 2 3 0 0 0\n"), .noPhases)
+        XCTAssertEqual(refusal("Channel Text File\n" + nickel + columns + "nan 0 0 1 0 1 2 3 0 0 0\n"), .number(line: 5, "nan"))
+        XCTAssertEqual(refusal("Channel Text File\n" + nickel + columns + "1e300 0 0 1 0 1 2 3 0 0 0\n"), .number(line: 5, "1e300"))
+        XCTAssertEqual(refusal("phi1 Phi phi2 phase\n1 2 3 inf\n"), .number(line: 2, "inf"))
+        XCTAssertEqual(refusal("phi1 Phi phi2 MAD MAD\n1 2 3 4 5\n"), .repeatedColumn("MAD"))
+        let astarHeader = "Channel Text File\nAuthor\tFile created from ACOM RES results\nXCells\t2\nYCells\t-1\nXStep\t1\nYStep\t1\n"
+        let astar = astarHeader + nickel + columns +
+            "1 0 0 1 0 1 2 3 0 0 0\n1 1 0 1 0 1 2 3 0 0 0\n1 0 1 1 0 1 2 3 0 0 0\n1 1 1 1 0 1 2 3 0 0 0\n"
+        XCTAssertEqual(refusal(astar), .cells(points: 4))
+        XCTAssertEqual(refusal(astar.replacingOccurrences(of: "XCells\t2", with: "XCells\tnan")), .cells(points: 4))
+        XCTAssertEqual(refusal(astar.replacingOccurrences(of: "YCells\t-1", with: "YCells\t1e300")), .cells(points: 4))
+        // The same file with cells that hold its four points reads, its coordinates regenerated from the header's steps.
+        let read = try CTFReader.read(text: astar.replacingOccurrences(of: "YCells\t-1", with: "YCells\t2"))
+        XCTAssertEqual(read.vendor, .astar)
+        XCTAssertEqual(read.map.shape, [2, 2])
+        XCTAssertEqual(read.map.phaseIDs, [1, 1, 1, 1])
     }
 }

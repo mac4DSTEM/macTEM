@@ -211,4 +211,23 @@ nonisolated final class ANGReaderTests: XCTestCase {
         XCTAssertEqual(map.map.phaseIDs, [1, 1], "no not-indexed convention for an unknown vendor")
         XCTAssertEqual(map.map.phases.names, ["Ni"], "no formula: the material name stays")
     }
+
+    /// A header phase id that leaves no Int for the phases numbered after it is refused (red before: `Int.max + 1` trapped), and more
+    /// than 190 phases sharing a formula and a point group take orix's `chr(65 + i)` on through Unicode (red before: `UInt8(256)`
+    /// trapped at the 192nd phase).
+    func testHostileHeadersAreRefusedOrNamedAsOrixNamesThem() throws {
+        let phase = "# MaterialName A\n# Symmetry 43\n# LatticeConstants 3 3 3 90 90 90\n"
+        let rows = "0 0 0 0 0 1 0.5 0 1 0.1\n0 0 0 1 0 1 0.5 0 1 0.1\n"
+        let overflowing = "# Phase 9223372036854775807\n" + phase + phase + rows
+        XCTAssertThrowsError(try ANGReader.read(text: overflowing, url: URL(fileURLWithPath: "/tmp/g.ang"))) { error in
+            XCTAssertTrue(((error as? ANGReadError)?.text ?? "").contains("'9223372036854775807'"), String(describing: error))
+        }
+        var many = ""
+        for _ in 0..<192 { many += "# MaterialName Iron\n# Formula Fe\n# Symmetry 43\n# LatticeConstants 2.87 2.87 2.87 90 90 90\n" }
+        let text = many + "0 0 0 0 0 1 0.5 0 1 0.1\n0 0 0 1 0 1 0.5 191 1 0.1\n"
+        let map = try ANGReader.read(text: text, url: URL(fileURLWithPath: "/tmp/h.ang")).map
+        XCTAssertEqual(map.phases.ids, [0, 191])
+        XCTAssertEqual(map.phases[id: 0]?.name, "Fe-432-A")
+        XCTAssertEqual(map.phases[id: 191]?.name, "Fe-432-\u{100}", "orix's chr(65 + 191)")
+    }
 }

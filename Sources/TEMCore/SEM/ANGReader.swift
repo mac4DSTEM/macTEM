@@ -233,8 +233,15 @@ package nonisolated enum ANGReader {
         let n = names.count
         if phaseIDs.isEmpty { phaseIDs = Array(0..<n) }
         else if n > phaseIDs.count {
-            let next = phaseIDs.max()! + 1
-            phaseIDs += Array(next..<(next + n - phaseIDs.count))
+            // The phases without a `Phase` line take the ids after the largest; an id with no room after it in an Int is refused
+            // (orix's Python ints never run out).
+            let largest = phaseIDs.max()!
+            let next = largest.addingReportingOverflow(1)
+            let end = next.partialValue.addingReportingOverflow(n - phaseIDs.count)
+            guard !next.overflow, !end.overflow else {
+                throw ANGReadError(text: "The phase id '\(largest)' in the header is too large to number the phases after it.")
+            }
+            phaseIDs += Array(next.partialValue..<end.partialValue)
         }
         // orix zips names with ids, point groups and lattice constants: a header short of one truncates to the shortest (zip), and a
         // header with more point groups or lattices than names is read by PhaseList as an error.
@@ -278,8 +285,14 @@ package nonisolated enum ANGReader {
         let order = ids.indices.sorted { ids[$0] < ids[$1] }
         var names = order.map { formulas[$0] }
         func repeats(_ names: [String]) -> Bool { Set(names).count < names.count }
+        // Python's `chr(65 + i)`: A to Z, then on through Unicode past the 26th phase; a surrogate, which no Swift string holds, by
+        // its number.
+        func letter(_ i: Int) -> String {
+            guard let code = UInt32(exactly: 65 + i), let scalar = Unicode.Scalar(code) else { return String(i) }
+            return String(Character(scalar))
+        }
         if repeats(names) { names = names.indices.map { names[$0] + "-" + (phases[$0].pointGroup ?? "None") } }
-        if repeats(names) { names = names.indices.map { names[$0] + "-" + String(Character(UnicodeScalar(UInt8(65 + $0)))) } }
+        if repeats(names) { names = names.indices.map { names[$0] + "-" + letter($0) } }
         for i in phases.indices { phases[i].name = names[i] }
     }
 

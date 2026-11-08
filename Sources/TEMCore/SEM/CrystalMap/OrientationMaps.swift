@@ -99,7 +99,8 @@ package nonisolated struct OrientationMapRaster: Sendable, Equatable {
         return lo...hi
     }
 
-    static func byte(_ v: Double) -> UInt8 { UInt8((min(max(v, 0), 1) * 255).rounded()) }
+    /// A channel (0...1) to the nearest byte; NaN, the colour of a cell past the last point of a map that does not fill its grid, is 0.
+    static func byte(_ v: Double) -> UInt8 { v.isNaN ? 0 : UInt8((min(max(v, 0), 1) * 255).rounded()) }
 }
 
 package nonisolated enum OrientationMaps {
@@ -150,9 +151,10 @@ package nonisolated enum OrientationMaps {
     }
 
     /// The index into the map's per-point arrays (`euler`, `allPhaseIDs`, `properties`) of every grid cell, row-major, −1 where no
-    /// point is in data.
+    /// point is in data. A map whose points stop short of its grid (a scan stopped mid-row) has no point in the cells past its last
+    /// one: `mapData` leaves them NaN, and they read −1 too.
     package static func pointIndexGrid(_ map: CrystalMap) -> [Int] {
-        map.mapData(map.ids.map(Double.init), fill: -1).map { Int($0) }
+        map.mapData(map.ids.map(Double.init), fill: -1).map { $0.isFinite ? Int($0) : -1 }
     }
 
     /// The picture of `layer`: an IPF or phase map as orix's plot draws it, or a property's values (NaN where no point is in data).
