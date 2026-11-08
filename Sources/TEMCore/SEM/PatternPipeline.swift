@@ -424,6 +424,34 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         return out
     }
 
+    /// About the most memory `process` holds at once for a scan of `dataset`, in bytes, counted from the buffers each stage keeps: the
+    /// per-pattern output; three times that while neighbour averaging runs (its input, its output and their bytes); three float32
+    /// copies of the scan while NLPAR runs (its input, its result and the tile it is averaging, which can be the whole scan). In
+    /// Double, so no dataset's size overflows it.
+    package func estimatedProcessBytes(for dataset: EBSDDataset) -> Double {
+        let factor = max(binning, 1)
+        let values = Double(dataset.scanRows) * Double(dataset.scanColumns)
+            * Double(dataset.patternRows / factor) * Double(dataset.patternColumns / factor)
+        if nlpar.isOn { return 3 * values * 4 }
+        let perPattern = values * Double(intensity.mode == .normalize ? 4 : dataset.dataType.byteSize)
+        return averaging.isOn ? 3 * perPattern : perPattern
+    }
+
+    /// Whether `process` fits beside what stays held (`heldBytes`: the last processed scan, kept until the new run lands) on a Mac of
+    /// `physicalMemory` bytes: the two together may take half the memory, the other half being the app, the system and the file's
+    /// pages. nil when it fits. Apart from `refusal(for:background:)`, which also gates the one-pattern preview and the indexer's
+    /// streamed patterns, neither of which holds the scan.
+    package func processAdmission(for dataset: EBSDDataset, heldBytes: Int, physicalMemory: UInt64) -> Refusal? {
+        let total = estimatedProcessBytes(for: dataset) + Double(max(heldBytes, 0))
+        let memory = Double(physicalMemory)
+        guard total > memory / 2 else { return nil }
+        let gb = 1_073_741_824.0
+        let held = String(format: "%.1f", total / gb), mac = String(format: "%.0f", memory / gb)
+        let stage: Stage = nlpar.isOn ? .nlpar : averaging.isOn ? .averaging : .size
+        let advice = nlpar.isOn ? "Bin the patterns or turn NLPAR off." : "Bin the patterns."
+        return Refusal(stage, "Process would hold about \(held) GB in memory, more than half of this Mac's \(mac) GB. " + advice)
+    }
+
     /// Every pattern of the scan through the pipeline, row by row, into memory, then neighbour averaging and NLPAR over the result when
     /// they are on (`lambda` is told the λ NLPAR chose). `progress` gets the fraction done after each scan row (the rows are the first
     /// half when a whole-scan stage follows, averaging the third quarter when NLPAR follows it); returns nil when `isCancelled` says so
