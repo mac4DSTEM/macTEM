@@ -8,7 +8,8 @@
 #               each skipped test is named with its XCTSkip's reason
 #   core        `swift build` of the package from a fresh scratch path: TEMCore and TEMSession — the layering gate
 #               (a package target cannot reach the app's App/ or UI/), the Swift 6 gate, and zero warnings
-#   scientific  the reference harnesses (the `scientific` array below), fail-fast
+#   scientific  the reference harnesses (the `scientific` array below): every one runs, a red one does not stop the rest,
+#               and the run fails at the end naming each red one (tools/lib/run-harnesses.sh)
 #   inventory   the repo's own review: the checks below; no build
 #
 # Read the exit code from the script itself, never through a pipe: redirect to a log, `echo $?` on its own line.
@@ -17,6 +18,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/tools/lib/developer-dir.sh"
 resolve_mactem_developer_dir
+# run_harnesses <root> <name>...: keeps going past a red harness and fails at the end, naming every red one.
+. "$ROOT/tools/lib/run-harnesses.sh"
 
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
 scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
@@ -240,16 +243,6 @@ ui_tests() (
   return $(( rc == 0 && failed == 0 && total > 0 ? 0 : 1 ))
 )
 
-run_harnesses() {
-  local name started
-  for name in "$@"; do
-    started=$(date +%s)
-    echo "==> $name"
-    "$ROOT/tools/parity/$name/run.sh"
-    echo "<== $name ($(( $(date +%s) - started )) s)"
-  done
-}
-
 # From a fresh scratch path every run: an incremental build compiles nothing and so prints none of the warnings it
 # emitted the first time (a second run on the same tree printed 0 of 2, review 2026-10-12). Any `warning:` fails.
 core_build() (
@@ -270,6 +263,9 @@ core_build() (
 
 inventory() {
   local rc=0 name dir src f
+
+  echo "== the harness runner keeps going past a red harness"
+  "$ROOT/tools/lib/run-harnesses-selftest.sh" || rc=1
 
   echo "== tools classification"
   local -a all=("${scientific[@]}" "${diagnostic[@]}" "${owner_only[@]}" "${retired[@]}" "${support[@]}" "${references[@]}")
@@ -512,7 +508,7 @@ inventory() {
 case "${1:-unit}" in
   unit) require_free_space 4 "the xcodebuild unit suite"; unit_tests ;;
   core) core_build ;;
-  scientific) require_free_space 4 "the science harnesses"; run_harnesses "${scientific[@]}" ;;
+  scientific) require_free_space 4 "the science harnesses"; run_harnesses "$ROOT/tools/parity" "${scientific[@]}" ;;
   inventory) inventory ;;
   ui) shift; require_free_space 4 "the UI journeys"; ui_tests "$@" ;;
   *) echo "Usage: tools/run-tests.sh [unit|core|scientific|inventory|ui [Journey ...]]" >&2; exit 64 ;;
