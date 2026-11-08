@@ -151,6 +151,8 @@ package final class EELSSession {
 
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var passTask: Task<Void, Never>?
+    /// Run's chain of stages (`run`): Stop, Close and a new file end it with the pass, so no later stage starts after them.
+    @ObservationIgnored private var runTask: Task<Void, Never>?
     @ObservationIgnored private var openTask: Task<Void, Never>?
     @ObservationIgnored private var version = 0
 
@@ -523,11 +525,12 @@ package final class EELSSession {
 
     private func cancelPass() {
         generation += 1
+        runTask?.cancel(); runTask = nil
         passTask?.cancel(); passTask = nil
         isComputing = false
     }
 
-    /// Stop: ends the pass; the kit stops at its next block and the previous map stays.
+    /// Stop: ends the pass and Run's chain; the kit stops at its next block, the previous map stays and no later stage starts.
     package func stop() {
         guard isBusy else { return }
         openTask?.cancel(); openTask = nil; isOpening = false
@@ -1234,19 +1237,22 @@ package final class EELSSession {
         onEvent?("Refused: \(why)")
     }
 
-    /// The toolbar's verb: every stage that is not current, in order (Align, then Thickness). The returned task ends when the last has landed.
+    /// The toolbar's verb: every stage that is not current, in order (Align, Thickness, Deconvolve, Fit). The returned task ends when the last has
+    /// landed. A Stop or a refusal ends the chain there: the next stage never starts.
     @discardableResult
     package func run() -> Task<Void, Never> {
-        Task { [weak self] in
-            guard let self, self.canRun else { return }
+        let task = Task { [weak self] in
+            guard let self, !Task.isCancelled, self.canRun else { return }
             if self.alignState != .current { await self.align()?.value }
-            guard self.failure == nil else { return }
+            guard !Task.isCancelled, self.failure == nil else { return }
             if self.thicknessState != .current { await self.refresh()?.value }
-            guard self.failure == nil else { return }
+            guard !Task.isCancelled, self.failure == nil else { return }
             if self.deconvolveState != .current { await self.deconvolve()?.value }
-            guard self.failure == nil else { return }
+            guard !Task.isCancelled, self.failure == nil else { return }
             if self.fitState != .current, self.fitBlocker == nil { await self.fit()?.value }
         }
+        runTask = task
+        return task
     }
 
     // MARK: Export
