@@ -25,7 +25,14 @@
 #     into the gitignored References/ (fetch-rsciio.sh, fetch-py4dstem-scattering.sh, and the beta'' CIF that
 #     tools/parity/crystal-structures writes). Every harness runs even after a red one; the job fails at the end and
 #     names each red one. Not a required check.
-# Every other job skips the schedule event. Dispatch CI on a branch to run both before merging, and on main before a tag.
+#   * `tools/run-tests.sh release-build` — the Release configuration built as tools/release.sh and tools/release-store.sh
+#     archive it (generic/platform=macOS, ARCHS=arm64, MACEM_STORE_BUILD=YES), signed ad hoc with no team, never
+#     notarized or uploaded, then the app checked: arm64 alone with FormatoKit's three frameworks, the version that
+#     Config/Version.xcconfig sets, the privacy manifest, the export-compliance answer, the sandbox entitlements. Every
+#     other build here is Debug for the concrete platform=macOS, so without it a Release-only failure first shows on the
+#     owner's Mac after the tag exists. release-please.yml dispatches CI on each Release PR, so it runs there too, before
+#     the merge that tags. Not a required check.
+# Every other job skips the schedule event. Dispatch CI on a branch to run them before merging, and on main before a tag.
 #
 # XCODE: every macOS job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
 # change the toolchain on an unchanged tree.
@@ -44,7 +51,9 @@
 #     that is the runner's limit, stated here, not a flake.
 #   * Measured 2026-11-06 on macos-26: unit 8-10 min, core about 3 min, inventory under 1 min. The timeouts are margin.
 #     The scientific job's has not been measured off the dev Mac: tighten it from the `<== name (N s)` lines its first
-#     green runs print.
+#     green runs print. Nor has release-build's: tighten it from its first green runs.
+#   * release-build signs ad hoc, so it cannot see a certificate, provisioning or notarization failure; those stay with
+#     the release scripts on the owner's Mac.
 
 name: CI
 
@@ -55,7 +64,7 @@ on:
     tags: ['*']
   pull_request:
   workflow_dispatch:
-  # Nightly: the unit job with the SEM reference data, and `scientific` (every other job skips the schedule event).
+  # Nightly: the unit job with the SEM reference data, `scientific` and `release-build` (every other job skips the schedule event).
   schedule:
     - cron: "0 1 * * *"
 
@@ -159,6 +168,36 @@ jobs:
           # Mutants run at a time in export-parity and fft-export-parity: the runner's three cores, not the dev Mac's default 6.
           MACTEM_PARITY_JOBS: 3
         run: tools/run-tests.sh scientific
+
+  release-build:
+    name: release build (Release configuration, signed ad hoc)
+    # Nightly and by hand only, never on a push or a pull request: it cannot hold a PR, and it is not a required check.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    # Margin, not measurement: a whole-module Release build of the app and the kits from a cold DerivedData.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain on record
+        run: |
+          sw_vers
+          xcode-select -p
+          xcodebuild -version
+      - name: Restore the SwiftPM repository cache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-
+      - name: Ensure the Metal toolchain component
+        # As in the unit job: the build compiles MacEMUI's Colormaps.metal, and Xcode 26 ships the Metal compiler separately.
+        run: |
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            sudo xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun -sdk macosx metal --version
+      - name: Build Release the way the release scripts do, and check the app
+        run: tools/run-tests.sh release-build
 
   inventory:
     name: inventory (repo review)

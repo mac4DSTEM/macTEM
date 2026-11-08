@@ -11,6 +11,9 @@
 #   scientific  the reference harnesses (the `scientific` array below): every one runs, a red one does not stop the rest,
 #               and the run fails at the end naming each red one (tools/lib/run-harnesses.sh)
 #   inventory   the repo's own review: the checks below; no build
+#   release-build
+#               the Release configuration built the way the release scripts archive it, signed ad hoc, then the app
+#               checked (release_build below): nightly in CI, so a Release-only failure shows before a tag
 #
 # Read the exit code from the script itself, never through a pipe: redirect to a log, `echo $?` on its own line.
 set -euo pipefail
@@ -259,6 +262,91 @@ core_build() (
     return 1
   fi
   echo "core: TEMCore + TEMSession built from scratch, 0 warnings"
+)
+
+# The Release configuration, built the way tools/release.sh and tools/release-store.sh archive it, before a tag exists: whole-module
+# and the hardened runtime (the project's Release), the generic destination, ARCHS=arm64 on the command line (the project's setting
+# does not reach the package targets) and the store build's MACEM_STORE_BUILD=YES. Every other gate builds Debug for the concrete
+# `platform=macOS`, which picks the architecture itself: in mac4DSTEM that hid an archive that would not compile, and a universal
+# v2.5.1 (its tools/lib/release-arch.sh). `build`, not `archive`, and signed ad hoc with no team: no certificate is needed, and the
+# signature still carries the entitlements to read back. Then the product is checked, not the settings, as mac4DSTEM's
+# tools/harnesses/package-test/run.sh does: what both scripts check on their archive short of the signing identity, and what the
+# App Store asks of the bundle. Every check runs and each failure is named; the run fails at the end.
+release_build() (
+  local work rc app info macho archs library document key want got version failures=0
+  work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-release-build.XXXXXX")"
+  trap 'rm -rf "$work"' EXIT
+  xcodebuild build -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configuration Release \
+    -destination 'generic/platform=macOS' -derivedDataPath "$work/DerivedData" ARCHS=arm64 \
+    CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= MACEM_STORE_BUILD=YES > "$work/release.log" 2>&1 && rc=0 || rc=$?
+  grep -E "error:|: error|BUILD (SUCCEEDED|FAILED)" "$work/release.log" | tail -40 || true
+  grep -A12 "^The following build commands failed:" "$work/release.log" | head -30 || true
+  # A compiler crash prints no `error:`: its signal and stack dump are the reason (whole-module Release can crash where Debug does not).
+  grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/release.log" | head -40 || true
+  echo "release-build: xcodebuild exit $rc"
+  (( rc == 0 )) || return $rc
+  app="$work/DerivedData/Build/Products/Release/macTEM.app"
+  info="$app/Contents/Info.plist"
+  [[ -f "$info" ]] || { echo "release-build: the build wrote no app at Build/Products/Release/macTEM.app"; return 1; }
+
+  # Each Mach-O a user receives, named: the executable and FormatoKit's three HDF5 frameworks, each present and arm64 alone. Named,
+  # not globbed: a glob that matches nothing passes an app that lost them (mac4DSTEM's release-arch.sh), and FormatoKit loads
+  # libhdf5 at run time, so such an app launches and then fails every HDF5, EMD and h5ebsd open. No load command may name a
+  # machine-local library either.
+  local -a machos=("$app/Contents/MacOS/macTEM")
+  for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do machos+=("$app/Contents/Frameworks/$library.framework/$library"); done
+  for macho in "${machos[@]}"; do
+    if [[ ! -f "$macho" ]]; then echo "  MISSING   ${macho#$app/}"; failures=1; continue; fi
+    archs="$(lipo -archs "$macho" 2>/dev/null || true)"
+    [[ "$archs" == arm64 ]] || { echo "  ARCH      ${macho#$app/} is '${archs:-unreadable}', not arm64 alone"; failures=1; }
+    # grep reads to the end (no -q): an early exit would fail the pipe under pipefail and hide the match.
+    if otool -L "$macho" | tail -n +2 | grep -E '^[[:space:]]+/(opt/homebrew|usr/local|Users)/' >/dev/null; then
+      echo "  ABSPATH   ${macho#$app/} links a machine-local library"; failures=1
+    fi
+  done
+  [[ ! -e "$app/Contents/Frameworks/Sparkle.framework" ]] || { echo "  SPARKLE   the store build (MACEM_STORE_BUILD=YES) embeds Sparkle"; failures=1; }
+
+  # What the bundle says, against what the project declares; the version and build number are read from the project, never a
+  # literal (mac4DSTEM's audit asserted a literal version and went red at every bump). The identifier is the App Store record's.
+  want="$(sed -n 's/^MARKETING_VERSION = \([0-9.]*\).*/\1/p' "$ROOT/Config/Version.xcconfig")"
+  got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info" 2>/dev/null || true)"
+  [[ -n "$want" && "$got" == "$want" ]] || { echo "  VERSION   the app says '$got', Config/Version.xcconfig '$want'"; failures=1; }
+  version="$got"
+  want="$(grep -m1 'CURRENT_PROJECT_VERSION = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/' || true)"
+  got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info" 2>/dev/null || true)"
+  [[ -n "$want" && "$got" == "$want" ]] || { echo "  BUILD     the app's build number is '$got', the project's '$want'"; failures=1; }
+  want="$(grep -m1 'MACOSX_DEPLOYMENT_TARGET = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/' || true)"
+  got="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$info" 2>/dev/null || true)"
+  [[ -n "$want" && "$got" == "$want" ]] || { echo "  FLOOR     the app asks for macOS '$got', the project's floor is '$want'"; failures=1; }
+  got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$info" 2>/dev/null || true)"
+  [[ "$got" == com.mac4dstem.macTEM ]] || { echo "  BUNDLEID  the app is '$got', not com.mac4dstem.macTEM"; failures=1; }
+
+  # The store's asks of the bundle (release-store.sh checks the same on its archive): the privacy manifest, the export-compliance
+  # answer; and the program's own licence beside its dependencies' (a GPL binary ships the GPL).
+  [[ -f "$app/Contents/Resources/PrivacyInfo.xcprivacy" ]] || { echo "  PRIVACY   the app has no PrivacyInfo.xcprivacy"; failures=1; }
+  got="$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$info" 2>/dev/null || true)"
+  [[ "$got" == false ]] || { echo "  EXPORT    ITSAppUsesNonExemptEncryption is '$got', not false"; failures=1; }
+  for document in LICENSE NOTICE; do
+    [[ -s "$app/Contents/Resources/$document" ]] || { echo "  LICENCE   the app is missing $document"; failures=1; }
+  done
+  grep -q 'GNU GENERAL PUBLIC LICENSE' "$app/Contents/Resources/LICENSE" 2>/dev/null \
+    || { echo "  LICENCE   Contents/Resources/LICENSE is not the GPL"; failures=1; }
+
+  # The signature: valid through every nested framework, the sandbox and its two file entitlements, and no get-task-allow.
+  codesign --verify --deep --strict "$app" || { echo "  SIGNATURE the ad hoc signature does not verify (codesign --verify --deep --strict)"; failures=1; }
+  codesign -d --entitlements :- "$app" > "$work/entitlements.plist" 2>/dev/null || true
+  for key in com.apple.security.app-sandbox com.apple.security.files.user-selected.read-write com.apple.security.files.bookmarks.app-scope; do
+    got="$(/usr/libexec/PlistBuddy -c "Print :$key" "$work/entitlements.plist" 2>/dev/null || true)"
+    [[ "$got" == true ]] || { echo "  ENTITLE   $key is '$got', not true"; failures=1; }
+  done
+  if /usr/libexec/PlistBuddy -c 'Print :com.apple.security.get-task-allow' "$work/entitlements.plist" >/dev/null 2>&1; then
+    echo "  ENTITLE   the Release app carries get-task-allow"; failures=1
+  fi
+
+  if (( failures != 0 )); then echo "release-build: the Release app FAILED the checks above"; return 1; fi
+  echo "release-build: macTEM $version built Release for generic/platform=macOS;" \
+       "arm64 alone with its three frameworks, version, build, floor and identifier as the project declares, privacy manifest," \
+       "export answer, licences, sandbox entitlements and a verified signature"
 )
 
 inventory() {
@@ -510,6 +598,7 @@ case "${1:-unit}" in
   core) core_build ;;
   scientific) require_free_space 4 "the science harnesses"; run_harnesses "$ROOT/tools/parity" "${scientific[@]}" ;;
   inventory) inventory ;;
+  release-build) require_free_space 4 "the Release build"; release_build ;;
   ui) shift; require_free_space 4 "the UI journeys"; ui_tests "$@" ;;
-  *) echo "Usage: tools/run-tests.sh [unit|core|scientific|inventory|ui [Journey ...]]" >&2; exit 64 ;;
+  *) echo "Usage: tools/run-tests.sh [unit|core|scientific|inventory|release-build|ui [Journey ...]]" >&2; exit 64 ;;
 esac
