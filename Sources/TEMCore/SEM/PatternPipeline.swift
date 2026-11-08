@@ -543,10 +543,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
                                        isCancelled: () -> Bool = { false }) throws -> FormatoArray? {
         let dataset = access.dataset
         let pixels = dataset.patternPixels
-        guard dataset.patternCount >= 1, pixels >= 1 else { throw PatternProcessing.Error.shape }
-        guard dataset.dataType == .uint8 || dataset.dataType == .uint16 else {
-            throw Refusal(.staticBackground, "Processing reads 8 and 16 bit unsigned patterns; these are \(dataset.dataType.rawValue).")
-        }
+        try checkMeanBackground(dataset)
         var sum = [Double](repeating: 0, count: pixels)
         for row in 0..<dataset.scanRows {
             if isCancelled() { return nil }
@@ -557,6 +554,24 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             }
             progress(Double(row + 1) / Double(dataset.scanRows))
         }
+        return try meanBackground(sum: sum, of: dataset)
+    }
+
+    /// What `meanBackground` refuses before it reads a row: a scan with no pattern or no pixel, and patterns that are not 8 or 16 bit
+    /// unsigned. The session asks it before it lets the map's pass sum the patterns for the mean.
+    package static func checkMeanBackground(_ dataset: EBSDDataset) throws {
+        guard dataset.patternCount >= 1, dataset.patternPixels >= 1 else { throw PatternProcessing.Error.shape }
+        guard dataset.dataType == .uint8 || dataset.dataType == .uint16 else {
+            throw Refusal(.staticBackground, "Processing reads 8 and 16 bit unsigned patterns; these are \(dataset.dataType.rawValue).")
+        }
+    }
+
+    /// `meanBackground`'s last step: each pixel's sum over every pattern of the scan (`sum`, `patternPixels` long, summed row by row in
+    /// map order) divided by the pattern count and cast to the pattern type by truncation. The map's pass (`VirtualBSEImaging`) sums in
+    /// that order as it reads, so its mean is this mean exactly.
+    package static func meanBackground(sum: [Double], of dataset: EBSDDataset) throws -> FormatoArray {
+        try checkMeanBackground(dataset)
+        guard sum.count == dataset.patternPixels else { throw PatternProcessing.Error.shape }
         let n = Double(dataset.patternCount)
         let top = dataset.dataType == .uint8 ? 255.0 : 65535.0
         let mean = sum.map { min(max(($0 / n).rounded(.towardZero), 0), top) }
