@@ -200,9 +200,15 @@ extension AppState {
             let frame0 = try stack.frame(0)
             let first = sem?.calibrated(frame0) ?? frame0
             let canvas = canvas(for: first)
+            // The stack's identity (its first frame's pixels, the stack as the object, so a mark drawn on any frame is the stack's
+            // and restores with it) and what the sidecar beside it makes of it, as for a single image. Inside the live scope.
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
+            let identity = SessionSourceIdentity.ofStack(firstFrame: first, frameCount: stack.frameCount, fileByteSize: size)
+            let sidecar = SessionGrants.outcome(source: url, opened: identity, image: first)
             return OpenedImage(image: first, canvas: canvas, metadata: AcquisitionMetadata.read(path: url.path), url: url,
                                thumbnail: Thumbnail.make(normalized: canvas.normalized, width: canvas.width, height: canvas.height, maxSide: Thumbnail.defaultMaxSide),
-                               bookmark: nil, stack: stack, sem: sem)
+                               bookmark: nil, identity: identity, sidecar: sidecar, stack: stack,
+                               hasGrant: SessionGrants.bookmark(forSource: url) != nil, sem: sem)
         }
         let (image, canvas, metadata, sem, databar) = try await read(url)
         try Task.checkCancellation()

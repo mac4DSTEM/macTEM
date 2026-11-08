@@ -170,6 +170,10 @@ package final class ImageMeasurements {
     @ObservationIgnored private var nodeIDs: [ImageMark.ID: String] = [:]
     /// The identity of the image the marks were drawn on: set by `noteOpened` while nothing is drawn, a restore or a save.
     @ObservationIgnored private var drawnOn: SessionSourceIdentity?
+    /// The object of the image the latest read opened (`noteOpened`), which a mark's node records: an image's own `source`, or
+    /// an image stack's (`SessionSourceIdentity.ofStack`), so a mark drawn on any frame is restored with the stack. Nil until a
+    /// read names one; a node then records the image's `source`.
+    @ObservationIgnored private var openedObject: String?
     /// The lineage the sidecar on disk held when it was restored or last saved; a save checks it is still there.
     @ObservationIgnored private var onDisk: String?
     /// The source attribute the sidecar on disk held then; a save checks it too.
@@ -208,7 +212,7 @@ package final class ImageMeasurements {
                 let session = mark.sessionMark
                 var candidate = lineage
                 let id = try candidate.add(kind: session.kind.rawValue,
-                                           parameters: SessionMarks.parameters(of: session, object: image.source),
+                                           parameters: SessionMarks.parameters(of: session, object: openedObject ?? image.source),
                                            results: SessionMarks.results(of: session, x: image.x, y: image.y,
                                                                          samples: profile?.samples.count),
                                            recorded: SessionLineage.milliseconds(now()))
@@ -279,8 +283,9 @@ package final class ImageMeasurements {
 
     /// The identity of the image a read has just opened (computed off the main actor by the caller). While nothing is
     /// drawn it is the image the marks will be drawn on; a later one with other pixels, while there are marks, notes that
-    /// they differ.
+    /// they differ. Its object is the one a mark recorded from now on names (`openedObject`).
     package func noteOpened(_ identity: SessionSourceIdentity) {
+        openedObject = identity.object
         guard let drawnOn, !marks.isEmpty || !lineage.nodes.isEmpty else { self.drawnOn = identity; return }
         if drawnOn.pixelSHA256 != identity.pixelSHA256, !lineage.nodes.isEmpty || !marks.isEmpty,
            !notes.contains(.pixelsDiffer) {
@@ -381,7 +386,7 @@ package final class ImageMeasurements {
         guard let node = nodeIDs[mark.id] else { profiles[mark.id] = profile; return true }
         let session = mark.sessionMark
         var candidate = lineage
-        if candidate.replace(id: node, parameters: SessionMarks.parameters(of: session, object: image.source),
+        if candidate.replace(id: node, parameters: SessionMarks.parameters(of: session, object: openedObject ?? image.source),
                              results: SessionMarks.results(of: session, x: image.x, y: image.y,
                                                            samples: profile?.samples.count),
                              recorded: SessionLineage.milliseconds(now())) {

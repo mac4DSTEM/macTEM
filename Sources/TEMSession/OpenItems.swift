@@ -304,7 +304,8 @@ package final class OpenItem: Identifiable {
 
     // MARK: The session record's per-file state (the marks and the lineage are `measurements`')
 
-    /// The identity of the pixels of the latest read: what a save describes. Kept while cold.
+    /// The identity of the pixels of the latest read: what a save describes. Kept while cold. An image stack's is its first
+    /// frame's with the stack as the object (`SessionSourceIdentity.ofStack`), whichever frame is shown.
     @ObservationIgnored package fileprivate(set) var openedIdentity: SessionSourceIdentity?
     /// A session file is beside the image and macOS has not given the app access to read it: saving is off until the
     /// user chooses it.
