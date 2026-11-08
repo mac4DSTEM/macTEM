@@ -274,6 +274,25 @@ nonisolated final class ParticleTests: XCTestCase {
         XCTAssertNil(analysis.report); XCTAssertFalse(analysis.showsObjects)
     }
 
+    /// A mask preview asked while Show Objects is in flight (a threshold nudge with the tint on) leaves the run to land: the report
+    /// arrives, the objects show and Finding… ends. Both are asked on the main actor before either detached task can land. Red under:
+    /// one generation counter for both, where the preview dropped the run's report and `isComputing` stayed on.
+    @MainActor func testAMaskPreviewDuringShowObjectsLeavesTheRunToLand() async throws {
+        let image = CalibratedImage(width: Self.width, height: Self.height, pixels: Self.planted(), x: nil, y: nil, fileName: "p.dm4", source: "", voltage: nil)
+        let analysis = ParticleAnalysis()
+        analysis.setPreviewsMask(true)
+        let run = analysis.analyse(image: image)
+        XCTAssertTrue(analysis.isComputing)
+        let preview = analysis.updatePreview(image: image)
+        XCTAssertNotNil(preview, "the tint is on, so the preview runs")
+        await run.value
+        await analysis.settled()
+        XCTAssertFalse(analysis.isComputing, "Finding… ends")
+        XCTAssertEqual(try XCTUnwrap(analysis.report).summary.total, 5)
+        XCTAssertTrue(analysis.showsObjects)
+        XCTAssertNotNil(analysis.maskPreview, "the preview lands too")
+    }
+
     @MainActor func testAnImageWithNothingFiniteSetsTheFailure() async {
         let image = CalibratedImage(width: 2, height: 1, pixels: [.nan, .nan], x: nil, y: nil, fileName: "n.dm4", source: "", voltage: nil)
         let analysis = ParticleAnalysis()
