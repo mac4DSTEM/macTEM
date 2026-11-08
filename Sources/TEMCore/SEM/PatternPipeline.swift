@@ -477,13 +477,13 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         return Refusal(stage, "Process would hold about \(held) GB in memory, more than half of this Mac's \(mac) GB. " + advice)
     }
 
-    /// Every pattern of the scan through the pipeline, row by row, into memory, then neighbour averaging and NLPAR over the result when
-    /// they are on (`lambda` is told the λ NLPAR chose). `progress` gets the fraction done after each scan row (the rows are the first
-    /// half when a whole-scan stage follows, averaging the third quarter when NLPAR follows it); returns nil when `isCancelled` says so
-    /// between rows, or between the rows and tiles of averaging and NLPAR, which also ask it on NLPAR's worker threads (so it must
-    /// read a flag such as `CancellationFlag`, not `Task.isCancelled`). Where it can, the scan is held once: averaging lets its input
-    /// bytes go before it writes its output, NLPAR takes the per-pattern output as float32 and the bytes go, and each result is
-    /// written out in one copy.
+    /// Every pattern of the scan through the pipeline, row by row (a row's patterns on every core, `ScanRowWork`), into memory, then
+    /// neighbour averaging and NLPAR over the result when they are on (`lambda` is told the λ NLPAR chose). `progress` gets the fraction
+    /// done after each scan row (the rows are the first half when a whole-scan stage follows, averaging the third quarter when NLPAR
+    /// follows it); returns nil when `isCancelled` says so between rows, or between the rows and tiles of averaging and NLPAR, which also
+    /// ask it on NLPAR's worker threads (so it must read a flag such as `CancellationFlag`, not `Task.isCancelled`). Where it can, the
+    /// scan is held once: averaging lets its input bytes go before it writes its output, NLPAR takes the per-pattern output as float32
+    /// and the bytes go, and each result is written out in one copy.
     package func process(_ access: any EBSDPatternAccess, background: FormatoArray?,
                          progress: (Double) -> Void = { _ in }, isCancelled: @Sendable () -> Bool = { false },
                          lambda: (Double) -> Void = { _ in }) throws -> EBSDMemoryPatterns? {
@@ -498,15 +498,17 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         for row in 0..<dataset.scanRows {
             if isCancelled() { return nil }
             let slab = try access.row(row)
-            for column in 0..<dataset.scanColumns {
+            // Each pattern through `apply` on its own, in its column's place: the bytes are the serial loop's.
+            let patterns = try ScanRowWork.map(columns: dataset.scanColumns) { (column: Int) throws -> Data in
                 let one = try FormatoArray(dataType: dataset.dataType, shape: [dataset.patternRows, dataset.patternColumns],
                                            bytes: slab.bytes.subdata(in: (column * inSize)..<((column + 1) * inSize)))
                 do {
-                    bytes.append(try apply(one, rows: dataset.patternRows, columns: dataset.patternColumns, background: background).bytes)
+                    return try apply(one, rows: dataset.patternRows, columns: dataset.patternColumns, background: background).bytes
                 } catch let refusal as Refusal {
                     throw refusal.at(row: row, column: column)
                 }
             }
+            for pattern in patterns { bytes.append(pattern) }
             progress(Double(row + 1) / Double(dataset.scanRows) * (nlpar.isOn || averaging.isOn ? 0.5 : 1))
         }
         if averaging.isOn {
@@ -674,10 +676,9 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         }
     }
 
+    /// A pattern's uint8 or uint16 values as an array of `type`, its bytes written in one copy (`littleEndianBytes`).
     static func array<P: FixedWidthInteger & UnsignedInteger>(_ values: [P], type: FormatoDataType, rows: Int, columns: Int) throws -> FormatoArray {
-        var data = Data(capacity: values.count * MemoryLayout<P>.size)
-        for v in values { withUnsafeBytes(of: v.littleEndian) { data.append(contentsOf: $0) } }
-        return try FormatoArray(dataType: type, shape: [rows, columns], bytes: data)
+        try FormatoArray(dataType: type, shape: [rows, columns], bytes: littleEndianBytes(values))
     }
 
     /// uint8, uint16 or float32 values (little-endian bytes, as `FormatoArray` holds them) as float32: exact for the three types, so the
@@ -703,15 +704,14 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
     }
 
     /// Integer or float values as `FormatoArray`'s little-endian bytes, in one copy: every Mac is little-endian, so the array's memory
-    /// is those bytes (`array` writes the same bytes value by value).
+    /// is those bytes (each value's `littleEndian` bytes appended in turn, as `array` once wrote them).
     static func littleEndianBytes<T: Numeric>(_ values: [T]) -> Data {
         values.withUnsafeBufferPointer { Data(buffer: $0) }
     }
 
+    /// A normalised pattern as a float32 array, its bytes written in one copy (`littleEndianBytes`).
     static func array(_ values: [Float], rows: Int, columns: Int) throws -> FormatoArray {
-        var data = Data(capacity: values.count * 4)
-        for v in values { withUnsafeBytes(of: v.bitPattern.littleEndian) { data.append(contentsOf: $0) } }
-        return try FormatoArray(dataType: .float32, shape: [rows, columns], bytes: data)
+        try FormatoArray(dataType: .float32, shape: [rows, columns], bytes: littleEndianBytes(values))
     }
 
     /// A uint8 or uint16 background binned as `EBSD.downsample` bins the signal's `static_background`.

@@ -108,8 +108,10 @@ package nonisolated enum PatternQuality {
     }
 
     /// `EBSD.get_image_quality(normalize)`: one value per map point, row-major over the scan. `pattern(row, column)` hands
-    /// each pattern (detector row-major, `patternRows * patternColumns` values) and is asked row by row; `progress` gets
-    /// the finished fraction after each scan row; the task's cancellation stops the map between rows.
+    /// each pattern (detector row-major, `patternRows * patternColumns` values) and is asked row by row, in map order on the
+    /// calling task (it need not be thread safe); each row's image qualities are computed on every core (`ScanRowWork`), each
+    /// in its column's place. `progress` gets the finished fraction after each scan row; the task's cancellation stops the
+    /// map between rows.
     @concurrent package static func imageQualityMap(
         scanRows: Int, scanColumns: Int, patternRows: Int, patternColumns: Int, normalize: Bool = true,
         progress: (@Sendable (Double) -> Void)? = nil,
@@ -120,7 +122,12 @@ package nonisolated enum PatternQuality {
         var out = [Double](repeating: 0, count: scanRows * scanColumns)
         for r in 0..<scanRows {
             try Task.checkCancellation()
-            for c in 0..<scanColumns { out[r * scanColumns + c] = try iq(pattern(r, c), normalize: normalize) }
+            var read: [[Double]] = []
+            read.reserveCapacity(scanColumns)
+            for c in 0..<scanColumns { read.append(try pattern(r, c)) }
+            let patterns = read
+            let values = try ScanRowWork.map(columns: scanColumns) { (c: Int) throws -> Double in try iq(patterns[c], normalize: normalize) }
+            for c in 0..<scanColumns { out[r * scanColumns + c] = values[c] }
             progress?(Double(r + 1) / Double(scanRows))
         }
         return out

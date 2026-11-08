@@ -7,7 +7,8 @@
 //        rectangular ROI slicing (`UniformDataAxis.value2index`: the grid's float edges rounded to the nearest pixel, half to even).
 //        Sums are float64 over the stored counts (exact for integer patterns); the RGB channels follow the reference's float32
 //        arithmetic so a count lands where kikuchipy's lands (docs/parity.md: atol 1). One pass over the scan in rows through
-//        `EBSDPatternAccess`, which can also sum the patterns for the scan's mean on the way; nothing here touches a view.
+//        `EBSDPatternAccess` (a row's rectangle sums on every core), which can also sum the patterns for the scan's mean on the way;
+//        nothing here touches a view.
 //
 
 import Foundation
@@ -114,17 +115,25 @@ package nonisolated enum VirtualBSEImaging {
         for row in 0..<rows {
             if isCancelled() { return nil }
             let values = try access.row(row).doubles()
-            for column in 0..<columns {
+            // Each pattern's rectangle sums on every core, in its column's place: the same sums in the same order as the serial loop.
+            let sums = try ScanRowWork.map(columns: columns) { (column: Int) -> [Double] in
                 let base = column * pixels
+                var perRect = [Double](repeating: 0, count: clamped.count)
                 for (k, rect) in clamped.enumerated() where rect.pixelCount > 0 {
                     var sum = 0.0
                     for y in rect.top..<rect.bottom {
                         let line = base + y * pc
                         for x in rect.left..<rect.right { sum += values[line + x] }
                     }
-                    out[k][row * columns + column] = sum
+                    perRect[k] = sum
                 }
+                return perRect
+            }
+            for column in 0..<columns {
+                for (k, rect) in clamped.enumerated() where rect.pixelCount > 0 { out[k][row * columns + column] = sums[column][k] }
+                // The mean's sum runs across the row's patterns, in map order (its rounding is the mean's), so it stays serial.
                 if sumsPatterns {
+                    let base = column * pixels
                     for j in 0..<pixels { patternSum[j] += values[base + j] }
                 }
             }
