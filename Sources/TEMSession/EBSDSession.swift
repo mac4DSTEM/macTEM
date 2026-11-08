@@ -6,9 +6,10 @@
 //        map and the pattern keep their own contrast). The room's views read it; they hold none of it.
 //
 //  Nothing here makes a number: the mean map and the virtual images are `VirtualBSEImaging`, the quality maps `PatternQuality` (TEMCore), the patterns the readers'. This
-//  owner decides WHEN to read: the map in one detached pass that lands only if no newer dataset was bound meanwhile (`generation`),
-//  the hovered pattern in a task that is cancelled by the next hover, so a fast sweep over the map reads the pattern the pointer
-//  rests on, not every one it passed. Patterns read once stay in a bounded cache by map index.
+//  owner decides WHEN to read: the map in one detached pass that lands only if no newer dataset was bound and no other grid was picked
+//  meanwhile (`mapGeneration`); the scan's mean, Process and the quality pass land only for the dataset they started on (`generation`),
+//  so a new grid never drops them; the hovered pattern in a task that is cancelled by the next hover, so a fast sweep over the map reads
+//  the pattern the pointer rests on, not every one it passed. Patterns read once stay in a bounded cache by map index.
 //
 //  Processing (docs/sem/design/pattern-processing.md): `pipeline` holds the stages' settings (`PatternPipeline`, TEMCore). The pattern pane
 //  shows the shown pattern raw or through the current pipeline (`patternDisplay`), computed on the fly from the raw pattern, so a change of
@@ -292,7 +293,12 @@ package final class EBSDSession {
     @ObservationIgnored private var patternTask: Task<Void, Never>?
     @ObservationIgnored private var processTask: Task<Void, Never>?
     @ObservationIgnored private var meanTask: Task<Void, Never>?
+    /// The dataset's count: bind and close move it on, and the scan's mean, Process, the quality pass and the pattern reads land only
+    /// for the dataset they started on.
     @ObservationIgnored private var generation = 0
+    /// The virtual-image pass's own count: a new dataset or a new grid moves it on, and only the latest pass lands. Kept apart from
+    /// `generation`, so a new grid never drops the scan's mean, Process or the quality pass.
+    @ObservationIgnored private var mapGeneration = 0
     /// Raw patterns read so far, by map index; cleared when it grows past `cacheLimit` and with every new dataset.
     @ObservationIgnored private var cache: [Int: FormatoArray] = [:]
     @ObservationIgnored private var cacheOrder: [Int] = []
@@ -365,7 +371,7 @@ package final class EBSDSession {
         mixRGBA = nil
         if case .tile = mapChoice { mapChoice = .mean }
         if mapChoice == .mix { mapChoice = .mean }
-        generation += 1
+        mapGeneration += 1
         mapTask?.cancel()
         startMap(document)
     }
@@ -451,6 +457,7 @@ package final class EBSDSession {
     @discardableResult
     package func bind(_ document: Document) -> Task<Void, Never> {
         generation += 1
+        mapGeneration += 1
         mapTask?.cancel(); patternTask?.cancel()
         self.document = document
         cache = [:]; cacheOrder = []
@@ -487,6 +494,7 @@ package final class EBSDSession {
     /// Closes the dataset: the room goes back to its door.
     package func close() {
         generation += 1
+        mapGeneration += 1
         openTask?.cancel(); mapTask?.cancel(); patternTask?.cancel()
         isOpening = false; isMapping = false
         document = nil; cache = [:]; cacheOrder = []
@@ -506,7 +514,7 @@ package final class EBSDSession {
     /// One pass over the scan in rows (`VirtualBSEImaging.images`): the whole detector's sum and every tile of `virtualGrid`; the mean map
     /// is the whole sum over the pattern's pixels (`EBSDBrowsing.meanIntensityMap`'s number, tested against it).
     private func startMap(_ document: Document) {
-        let gen = generation
+        let gen = mapGeneration
         isMapping = true
         mapProgress = 0
         mapFailure = nil
@@ -517,16 +525,16 @@ package final class EBSDSession {
         mapTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 let sums = try VirtualBSEImaging.images(access, rects: rects, progress: { f in
-                    Task { @MainActor in self?.landMapProgress(f, generation: gen) }
+                    Task { @MainActor in self?.landMapProgress(f, mapGeneration: gen) }
                 }, isCancelled: { Task.isCancelled })
                 guard let sums else { return }
                 let pixels = Double(max(dataset.patternPixels, 1))
                 let mean = sums[0].map { Float($0 / pixels) }
                 let images = sums.map { $0.map(Float.init) }
-                await self?.landMap(mean, images: images, failure: nil, generation: gen)
+                await self?.landMap(mean, images: images, failure: nil, mapGeneration: gen)
             } catch {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                await self?.landMap(nil, images: nil, failure: words, generation: gen)
+                await self?.landMap(nil, images: nil, failure: words, mapGeneration: gen)
             }
         }
     }
@@ -570,13 +578,13 @@ package final class EBSDSession {
         }
     }
 
-    private func landMapProgress(_ f: Double, generation gen: Int) {
-        guard gen == generation, isMapping else { return }
+    private func landMapProgress(_ f: Double, mapGeneration gen: Int) {
+        guard gen == mapGeneration, isMapping else { return }
         mapProgress = f
     }
 
-    private func landMap(_ map: [Float]?, images: [[Float]]?, failure: String?, generation gen: Int) {
-        guard gen == generation else { return }
+    private func landMap(_ map: [Float]?, images: [[Float]]?, failure: String?, mapGeneration gen: Int) {
+        guard gen == mapGeneration else { return }
         isMapping = false
         mapProgress = map == nil ? mapProgress : 1
         if let map, let images {
