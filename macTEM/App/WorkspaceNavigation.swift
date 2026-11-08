@@ -4,8 +4,13 @@
 // Added (P3-04, 2026-11-07, D-SEM-80): `maps` after Indexing (⌘8), Results keeps ⌘9.
 // Changed (2026-11-10, Paul): the rooms are grouped into five workspaces (`WorkspaceGroup`) as mac4DSTEM's are; ⌘1…⌘5 go to the
 // workspaces, and a room is reached as a part under its workspace.
+// Added (2026-11-08): `DocumentTarget`, the document the room shows, which File > Close (⌘W) and Show in Finder act on.
+import Foundation
+import ShellEDXModel
 import ShellLayout
+import SpectroCore
 import SwiftUI
+import TEMSession
 
 /// The six rooms 1.0 ships, in the order the work goes: the image, its transform, the spectrum images, the diffraction pattern,
 /// the numbers. Prepare (calibration, stacks and alignment) was listed unbuilt until 1.0 and is gone (the owner, 2026-10-23).
@@ -156,4 +161,77 @@ final class WorkspaceNavigation {
 
     /// The panes: the process area (Output), the sidebar and the inspector.
     let panels = PanelNavigation()
+}
+
+/// The document the room shows, which File > Close (⌘W) and Show in Finder act on: the selected image in the image rooms, the
+/// Patterns room's dataset in Patterns and Indexing (Indexing runs on it), the map in Maps, the spectrum image in EDS and EELS. ⌘W
+/// acted on the selected image in every room before, so in Maps it closed an image that was not shown and the dataset, the map or the
+/// spectrum image could never be closed. Pure, so a test pins it.
+nonisolated enum DocumentTarget: Equatable, Sendable {
+    case image
+    case ebsdDataset
+    case orientationMap
+    case eds
+    case eels
+
+    /// What `area` shows, given what the window holds; nil when it shows nothing (⌘W then closes the window, as the system's would).
+    static func of(area: WorkspaceArea, hasImage: Bool, hasDataset: Bool, hasMap: Bool, hasEDS: Bool, hasEELS: Bool) -> DocumentTarget? {
+        switch area {
+        case .image, .fft, .diffraction, .results: return hasImage ? .image : nil
+        case .patterns, .indexing: return hasDataset ? .ebsdDataset : nil
+        case .maps: return hasMap ? .orientationMap : nil
+        case .edx: return hasEDS ? .eds : nil
+        case .eels: return hasEELS ? .eels : nil
+        }
+    }
+
+    /// The File menu's ⌘W item for it.
+    var closeTitle: String {
+        switch self {
+        case .image: "Close Image"
+        case .ebsdDataset: "Close Dataset"
+        case .orientationMap: "Close Map"
+        case .eds, .eels: "Close Spectrum Image"
+        }
+    }
+}
+
+extension AppState {
+    /// The document the room shows (`DocumentTarget.of`), nil when it shows none.
+    var documentTarget: DocumentTarget? {
+        DocumentTarget.of(area: navigation.workspaceArea, hasImage: openItems.selected != nil, hasDataset: ebsd.hasDataset,
+                          hasMap: maps.hasMap, hasEDS: edx.hasImage, hasEELS: eels.hasImage)
+    }
+
+    /// Show in Finder's file: the shown document's (an Indexing run handed to Maps is the dataset's), nil when it has none (a generated demo).
+    var documentURL: URL? {
+        guard let target = documentTarget else { return nil }
+        switch target {
+        case .image: return openItems.selected?.url
+        case .ebsdDataset: return ebsd.document?.url
+        case .orientationMap: return maps.document?.url
+        case .eds: return Self.fileURL(path: edx.source?.metadata.filePath ?? "")
+        case .eels: return Self.fileURL(path: eels.filePath)
+        }
+    }
+
+    /// ⌘W on `target`: the selected image through `requestClose` (unsaved marks ask first); the Patterns room's dataset, with the
+    /// Indexing room's run and the dataset's maps (`ebsd.onClose`); every map the Maps room holds; the spectrum image, with the SEM
+    /// line table read from it. The room then gives way to one with data (`reconcileRoom`).
+    func closeDocument(_ target: DocumentTarget) {
+        switch target {
+        case .image: requestCloseSelected()
+        case .ebsdDataset: ebsd.close()
+        case .orientationMap: maps.close()
+        case .eds:
+            edx.close()
+            Task { await semEDS.load(path: nil) }
+        case .eels: eels.close()
+        }
+    }
+
+    /// A reader's path as a file URL; nil for "" (a document made in memory).
+    private static func fileURL(path: String) -> URL? {
+        path.isEmpty ? nil : URL(fileURLWithPath: path)
+    }
 }

@@ -81,18 +81,20 @@ private struct ImageCommands: Commands {
                 .disabled(!MenuActionRelay.isEnabled(
                     hasFocusedWindow: appState != nil,
                     blocked: appState?.imageSession.isLoading == true))
-            // The macOS term (ADR 011); no key of its own. It acts on the selected file, as the row's menu does.
+            // The macOS term (ADR 011); no key of its own. It acts on the document the room shows (`DocumentTarget`): the selected
+            // file in the image rooms, as the row's menu does, the dataset, the map or the spectrum image in theirs.
             Button("Show in Finder") {
-                if let url = appState?.openItems.selected?.url { DatasetLocationActions.reveal(url: url) }
+                if let url = appState?.documentURL { DatasetLocationActions.reveal(url: url) }
             }
-            .disabled(appState?.openItems.selected == nil)
+            .disabled(appState?.documentURL == nil)
         }
-        // Replaces the system's Close (⌘W), which would close the window: ⌘W closes the selected image and
-        // ⇧⌘W the window (the owner, ADR 007); with no image open ⌘W closes the window, as the system's would.
-        // Close is the part of the Save group that SwiftUI exposes. An image with unsaved marks asks first (`requestClose`).
+        // Replaces the system's Close (⌘W), which would close the window: ⌘W closes the document the room shows (`DocumentTarget`:
+        // Close Image, Close Dataset, Close Map, Close Spectrum Image) and ⇧⌘W the window (the owner, ADR 007); with nothing shown
+        // ⌘W closes the window, as the system's would. Close is the part of the Save group that SwiftUI exposes. An image with
+        // unsaved marks asks first (`requestClose`).
         CommandGroup(replacing: .saveItem) {
-            if appState?.openItems.selected != nil {
-                Button("Close Image") { appState?.requestCloseSelected() }
+            if let target = appState?.documentTarget {
+                Button(target.closeTitle) { appState?.closeDocument(target) }
                     .keyboardShortcut("w", modifiers: .command)
             } else {
                 Button("Close") { dismissWindow(id: "image") }
