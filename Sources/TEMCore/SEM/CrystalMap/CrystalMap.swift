@@ -22,6 +22,8 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
         case notARectangle(shape: [Int], points: Int)
         /// A phase list with fewer phases than the data's phase ids (orix's `phases` setter).
         case tooFewPhases
+        /// x and y that make no grid (`checkedSlices`, `maximumCells`): why, as a clause.
+        case coordinates(String)
 
         package var errorDescription: String? {
             switch self {
@@ -29,9 +31,14 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
             case .moreThanOnePhase(let names): "The points hold the phases \(names.joined(separator: ", ")); this needs one phase."
             case .notARectangle(let shape, let points): "The \(points) points do not fill a \(shape.map(String.init).joined(separator: " × ")) map."
             case .tooFewPhases: "There must be at least as many phases as there are phase ids."
+            case .coordinates(let why): "The crystal map's coordinates make no grid: \(why)."
             }
         }
     }
+
+    /// The most grid cells a map may span, 2^28 (2 GB for one Double per cell), far above any real scan. orix has no bound and
+    /// allocates whatever the coordinates ask for; a map past it is refused instead.
+    package static let maximumCells = 1 << 28
 
     // MARK: Stored (every point of the original map; `isInData` hides points)
 
@@ -108,7 +115,17 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
         }
         if includeNotIndexed { self.phases.addNotIndexed() }
         self.originalShape = []
-        self.originalShape = shape(onlyInData: false)
+        // orix's `_original_shape` (`shape(onlyInData: false)`), from coordinates that make a grid of at most `maximumCells` cells.
+        let extents = try CrystalMap.checkedSlices([("y", allY ?? []), ("x", allX ?? [])]).map { $0.stop - $0.start }
+        var cells = 1
+        for extent in extents {
+            let product = cells.multipliedReportingOverflow(by: extent)
+            guard !product.overflow, product.partialValue <= CrystalMap.maximumCells else {
+                throw Refusal.coordinates("they span more than \(CrystalMap.maximumCells) grid cells")
+            }
+            cells = product.partialValue
+        }
+        self.originalShape = extents
     }
 
     /// A reader's map: Bunge Euler angles in radians (lab to crystal, orix's `Rotation.from_euler`) kept as given.
@@ -288,6 +305,23 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
             out.append((Int((lo / step).rounded(.toNearestOrEven)), Int((hi / step + 1).rounded(.toNearestOrEven))))
         }
         return out
+    }
+
+    /// `dataSlices` of named coordinate arrays with their own steps (`stepSize`), refused where its arithmetic cannot run: a value
+    /// that is not finite, or a slice bound past 2^53 steps (a step far finer than the spread, as one jittered coordinate makes).
+    /// Coordinates that pass give `dataSlices`'s slices unchanged.
+    package static func checkedSlices(_ axes: [(name: String, values: [Double])]) throws -> [(start: Int, stop: Int)] {
+        for axis in axes where !axis.values.allSatisfy(\.isFinite) {
+            throw Refusal.coordinates("\(axis.name) holds a value that is not a finite number")
+        }
+        let steps = axes.map { stepSize($0.values) }
+        for (axis, step) in zip(axes, steps) {
+            guard let lo = axis.values.min(), let hi = axis.values.max(), step != 0 else { continue }
+            guard abs((lo / step).rounded(.toNearestOrEven)) < 0x1p53, abs((hi / step + 1).rounded(.toNearestOrEven)) < 0x1p53 else {
+                throw Refusal.coordinates("\(axis.name) spans more than 2^53 times its smallest step")
+            }
+        }
+        return dataSlices(coordinates: axes.map { $0.values }, steps: steps)
     }
 
     private func shape(onlyInData: Bool) -> [Int] { slices(onlyInData: onlyInData).map { $0.stop - $0.start } }

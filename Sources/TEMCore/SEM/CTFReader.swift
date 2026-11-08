@@ -181,10 +181,10 @@ package nonisolated enum CTFReader {
     /// `_fix_astar_coords`: when the coordinates' decimals round to another extent than the header's cells, the
     /// coordinates are regenerated from the header's steps (orix compares the x slice with the y cells; kept as is). Cells that
     /// are no count (not finite, or beyond an Int), or whose grid would not hold the file's points (the map could not be built from
-    /// it), are refused before the new coordinates are allocated.
+    /// it), are refused before the new coordinates are allocated. Coordinates `CrystalMap.checkedSlices` refuses (not finite, or a
+    /// step far finer than their spread) are left as read, for the map to refuse.
     static func fixASTARCoordinates(header: [String], x: inout [Double], y: inout [Double]) throws {
-        let slices = CrystalMap.dataSlices(coordinates: [x, y], steps: [CrystalMap.stepSize(x), CrystalMap.stepSize(y)])
-        guard slices.count == 2,
+        guard let slices = try? CrystalMap.checkedSlices([("x", x), ("y", y)]), slices.count == 2,
               let cellsX = headerValue(header, key: "XCells"), let cellsY = headerValue(header, key: "YCells"),
               let stepX = headerValue(header, key: "XStep"), let stepY = headerValue(header, key: "YStep") else { return }
         // The cells truncated as `Int(_:)` truncates them.
