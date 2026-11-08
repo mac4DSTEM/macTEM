@@ -342,13 +342,14 @@ package final class OrientationMapSession {
         return shape.rows > 0 && shape.rows <= dataset.scanRows && shape.columns == dataset.scanColumns
     }
 
-    /// ⌘.: ends the open, Segment and the texture in flight; a layer's picture still lands. The texture's own loops run on to their end,
-    /// but what they make is dropped; the texture pane asks again the next time it appears.
+    /// ⌘.: ends the open, Segment and the texture in flight; a layer's picture still lands. Segment stops at its next row or grain and
+    /// stays busy until its pass has returned (`segmentEnded`), so a second one never runs beside it; what it made is dropped. The
+    /// texture's own loops run on to their end, but what they make is dropped; the texture pane asks again the next time it appears.
     package func stop() {
         if isOpening { openTask?.cancel(); isOpening = false; onEvent?("Stopped opening") }
-        if isSegmenting {
+        if isSegmenting, let task = segmentTask, !task.isCancelled {
             segmentGeneration += 1
-            segmentTask?.cancel(); isSegmenting = false
+            task.cancel()
             onEvent?("Stopped segmenting")
         }
         if isTexturing {
@@ -528,7 +529,8 @@ package final class OrientationMapSession {
                                    kamMaxDegrees: angle(settings.kamMaxDegrees, 5))
     }
 
-    /// Runs the grain analysis with the current settings off the main actor; the returned task ends when it has landed.
+    /// Runs the grain analysis with the current settings off the main actor; the returned task ends when it has landed (or was stopped
+    /// and its pass has returned).
     @discardableResult
     package func segment() -> Task<Void, Never> {
         guard let document, canSegment else { return Task {} }
@@ -541,16 +543,26 @@ package final class OrientationMapSession {
         let task = Task { [weak self] in
             do {
                 let result = try await MapAnalysis.runAsync(map, settings: settings)
-                guard let self, gen == self.segmentGeneration else { return }
-                self.landAnalysis(result)
+                self?.segmentEnded(generation: gen, result: result, failure: nil)
             } catch {
-                guard let self, gen == self.segmentGeneration else { return }
-                self.isSegmenting = false
-                if !(error is CancellationError) { self.onFailure?(error) }
+                self?.segmentEnded(generation: gen, result: nil, failure: error)
             }
         }
         segmentTask = task
         return task
+    }
+
+    /// A Segment's pass has returned, done, failed or stopped. Segment is free again only here, so a pass a Stop, a new map or a close
+    /// cancelled never runs beside the next one (one pass at a time: `canSegment` waits on `isSegmenting`). Its analysis lands, or its
+    /// failure shows, only when it is still the newest asked for on this map.
+    private func segmentEnded(generation gen: Int, result: MapAnalysis?, failure: (any Error)?) {
+        isSegmenting = false
+        guard gen == segmentGeneration else { return }
+        if let result {
+            landAnalysis(result)
+        } else if let failure, !(failure is CancellationError) {
+            onFailure?(failure)
+        }
     }
 
     private func landAnalysis(_ result: MapAnalysis) {
@@ -567,10 +579,12 @@ package final class OrientationMapSession {
         if case .derived = layer { draw() }
     }
 
+    /// Drops the analysis and the texture. A Segment in flight is cancelled and lands nothing; `isSegmenting` stays until its pass has
+    /// returned (`segmentEnded`).
     private func resetAnalysis() {
         segmentGeneration += 1
         segmentTask?.cancel(); textureTask?.cancel()
-        analysis = nil; isSegmenting = false; slip = []; setSelectedGrain(nil)
+        analysis = nil; slip = []; setSelectedGrain(nil)
         grainBoundaryEdges = []; phaseBoundaryEdges = []
         texture = nil; texturePhaseID = nil; isTexturing = false
     }
