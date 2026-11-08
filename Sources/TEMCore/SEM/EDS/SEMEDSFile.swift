@@ -118,6 +118,30 @@ package nonisolated struct SEMEDSFile: Sendable {
     package var images: [SEMEDSImage] { signals.compactMap { if case .image(let s) = $0 { s } else { nil } } }
 }
 
+extension SEMEDSFile {
+    /// The most items a reader allocates for one array from the sizes a header states, where the file itself does not bound
+    /// them (2^28: the row offsets of a 16384 x 16384 map, 2 GB). Real maps hold a few million pixels.
+    package static let largestArray = 1 << 28
+
+    /// The number of items `dims` describe, checked before a reader allocates for them: the product must not overflow, and
+    /// that many items of `bytesPerItem` bytes must fit in the `fileLength` bytes the file holds for them. A header that
+    /// promises more than its file holds is refused with the file's name.
+    package static func checkedCount(dims: [Int], bytesPerItem: Int, fileLength: Int, name: String) throws -> Int {
+        let stated = dims.map { String($0) }.joined(separator: " x ")
+        var count = 1
+        for d in dims {
+            let next = count.multipliedReportingOverflow(by: d)
+            guard d >= 0, !next.overflow else { throw SEMEDSReadError("\(name) states \(stated) values, which no file holds.") }
+            count = next.partialValue
+        }
+        let bytes = count.multipliedReportingOverflow(by: bytesPerItem)
+        guard !bytes.overflow, bytes.partialValue <= fileLength else {
+            throw SEMEDSReadError("\(name) states \(stated) values of \(bytesPerItem) bytes, more than the \(fileLength) bytes it holds for them.")
+        }
+        return count
+    }
+}
+
 /// A file a SEM-EDS reader does not read, in a sentence.
 package nonisolated struct SEMEDSReadError: Error, LocalizedError, Equatable {
     package var text: String
@@ -220,13 +244,17 @@ package nonisolated struct CSRSpectrumImageBuilder {
     private var channelIndex: [UInt16] = []
     private var counts: [UInt32] = []
 
+    /// A builder for `ny` x `nx` pixels of `channels` channels; more pixels than `SEMEDSFile.largestArray` (or a product that
+    /// overflows) is refused before the row offsets are reserved.
     package init(ny: Int, nx: Int, channels: Int) throws {
-        guard ny >= 0, nx >= 0, channels > 0, channels <= Int(UInt16.max) + 1 else {
+        let pixels = ny.multipliedReportingOverflow(by: nx)
+        guard ny >= 0, nx >= 0, !pixels.overflow, pixels.partialValue <= SEMEDSFile.largestArray, channels > 0,
+              channels <= Int(UInt16.max) + 1 else {
             throw SEMEDSReadError("A spectrum image of \(ny) x \(nx) pixels and \(channels) channels is not one macTEM holds.")
         }
         self.ny = ny; self.nx = nx; self.channels = channels
         rowOffsets = [0]
-        rowOffsets.reserveCapacity(ny * nx + 1)
+        rowOffsets.reserveCapacity(pixels.partialValue + 1)
     }
 
     package var pixelsAppended: Int { rowOffsets.count - 1 }
@@ -294,11 +322,14 @@ package nonisolated enum SEMEDSText {
     }
 
     /// An OLE automation date (days since 1899-12-30, as JEOL writes it) as rsciio's `date` and `time` ISO strings; the time keeps its
-    /// microseconds when it has any, as Python's `time.isoformat()` does.
-    package static func oleDate(_ days: Double) -> (date: String, time: String) {
+    /// microseconds when it has any, as Python's `time.isoformat()` does. A damaged field (not a number, infinite, or more
+    /// microseconds than an Int64 holds, about 290 000 years) is refused; rsciio raises on each of these too.
+    package static func oleDate(_ days: Double, file: String) throws -> (date: String, time: String) {
         // Python: datetime(1899, 12, 30) + timedelta(days=d), timedelta rounds to whole microseconds (round half even).
         let micros = (days * 86_400_000_000).rounded(.toNearestOrEven)
-        var totalMicros = Int64(micros)
+        guard var totalMicros = Int64(exactly: micros) else {
+            throw SEMEDSReadError("\(file) states its date as \(days) days after 1899-12-30, which is no date.")
+        }
         var dayNumber = totalMicros / 86_400_000_000
         totalMicros -= dayNumber * 86_400_000_000
         if totalMicros < 0 { totalMicros += 86_400_000_000; dayNumber -= 1 }
