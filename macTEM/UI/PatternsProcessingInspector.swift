@@ -133,7 +133,7 @@ struct PatternsProcessingSections: View {
             InspectorRow("Radius") {
                 OptionalNumericField(title: "Search radius", value: Double(pipeline.nlpar.searchRadius),
                                      format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0)), unit: "px",
-                                     prompt: "\(NLPAR.defaultSearchRadius)") { v in session.editPipeline { $0.nlpar.searchRadius = max(1, Int(v.rounded())) } }
+                                     prompt: "\(NLPAR.defaultSearchRadius)") { v in session.editPipeline { $0.nlpar.searchRadius = max(1, TypedWholeNumber.value(v)) } }
                     .disabled(!pipeline.nlpar.isOn)
                     .help("The neighbourhood searched around each scan point: (2 r + 1) × (2 r + 1) patterns")
                     .accessibilityIdentifier("patterns.nlpar.radius")
@@ -283,7 +283,7 @@ struct PatternsProcessingSections: View {
                 InspectorRow("Kernel") {
                     OptionalNumericField(title: "Equalisation kernel", value: pipeline.intensity.equalizeKernel.map(Double.init), format: Self.integer,
                                          unit: "px", prompt: "\(dataset.patternColumns / 4)") { v in
-                        session.editPipeline { $0.intensity.equalizeKernel = max(1, Int(v.rounded())) }
+                        session.editPipeline { $0.intensity.equalizeKernel = max(1, TypedWholeNumber.value(v)) }
                     }
                         .help("The side of each contextual region; empty is kikuchipy's default, a quarter of the pattern")
                         .accessibilityIdentifier("patterns.intensity.kernel")
