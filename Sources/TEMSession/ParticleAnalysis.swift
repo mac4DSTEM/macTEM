@@ -5,8 +5,8 @@
 //
 //  Nothing here makes a number. `TEMCore/Particles/ParticleCompute` is ImagoKit's smoothing, labelling and moments with the
 //  settings; this owner decides WHEN to ask: the preview and the report each run in a detached task and land only if no newer
-//  request was made meanwhile (a generation counter, as the EDX room does). A report is stale when the settings or the image
-//  moved on since: `isCurrent`.
+//  request of their own kind was made meanwhile (a generation counter each, as the EDX room does: a preview never drops a run).
+//  A report is stale when the settings or the image moved on since: `isCurrent`.
 //
 
 import Foundation
@@ -35,7 +35,9 @@ package final class ParticleAnalysis {
     /// Whether the mask is tinted on the image while the settings are edited.
     package private(set) var previewsMask = false
 
-    @ObservationIgnored private var generation = 0
+    /// Show Objects and the mask preview count apart: a preview asked while a run is in flight leaves the run to land.
+    @ObservationIgnored private var runGeneration = 0
+    @ObservationIgnored private var previewGeneration = 0
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var previewTask: Task<Void, Never>?
     @ObservationIgnored private var version = 0
@@ -67,8 +69,8 @@ package final class ParticleAnalysis {
     package func updatePreview(image: CalibratedImage) -> Task<Void, Never>? {
         guard previewsMask else { return nil }
         previewTask?.cancel()
-        generation += 1
-        let gen = generation
+        previewGeneration += 1
+        let gen = previewGeneration
         let settings = settings, pixels = image.pixels, w = image.width, h = image.height
         let t = Task.detached(priority: .userInitiated) { [weak self] in
             guard let range = ParticleCompute.range(pixels), let cut = try? ParticleCompute.mask(pixels: pixels, width: w, height: h, range: range, settings: settings) else { return }
@@ -80,7 +82,7 @@ package final class ParticleAnalysis {
     }
 
     private func landPreview(_ mask: [Bool], width: Int, height: Int, generation gen: Int) {
-        guard gen == generation, previewsMask else { return }
+        guard gen == previewGeneration, previewsMask else { return }
         version += 1
         maskPreview = ParticleMask(width: width, height: height, mask: mask, version: version)
     }
@@ -89,8 +91,8 @@ package final class ParticleAnalysis {
     @discardableResult
     package func analyse(image: CalibratedImage) -> Task<Void, Never> {
         task?.cancel()
-        generation += 1
-        let gen = generation
+        runGeneration += 1
+        let gen = runGeneration
         isComputing = true
         failure = nil
         let settings = settings, pixels = image.pixels, w = image.width, h = image.height
@@ -113,7 +115,7 @@ package final class ParticleAnalysis {
     }
 
     private func land(_ new: ParticleReport?, failure why: String?, generation gen: Int) {
-        guard gen == generation else { return }
+        guard gen == runGeneration else { return }
         isComputing = false
         if let new {
             report = new
@@ -126,7 +128,7 @@ package final class ParticleAnalysis {
 
     /// The image changed under the item (a re-read with other pixels): the report and the preview belong to the old pixels.
     package func reset() {
-        task?.cancel(); previewTask?.cancel(); generation += 1
+        task?.cancel(); previewTask?.cancel(); runGeneration += 1; previewGeneration += 1
         report = nil; maskPreview = nil; failure = nil; isComputing = false; showsObjects = false; selectedLabel = nil
     }
 
