@@ -64,6 +64,9 @@ private struct ImageWindow: View {
             .onChange(of: appState.closeRequest) { _, request in
                 if let request { SessionPanels.askToClose(request, appState: appState) }
             }
+            // File > Reopen Last Session's record follows what the window holds: a file opened or closed, a room's document read in or
+            // closed, the selection and the room (`AppState.recordLastSession`, which saves only a changed record).
+            .onChange(of: appState.lastSessionState) { appState.recordLastSession() }
     }
 }
 
@@ -74,6 +77,8 @@ private struct ImageCommands: Commands {
     let menuRelay: MenuActionRelay
     /// File > Open Recent's list, the app's, not the focused window's: the menu lists it with no window focused too.
     let recents: RecentFiles
+    /// File > Reopen Last Session's record, the app's for the same reason.
+    let lastSession: LastSession
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -95,6 +100,16 @@ private struct ImageCommands: Commands {
             .disabled(recents.entries.isEmpty || !MenuActionRelay.isEnabled(
                 hasFocusedWindow: appState != nil,
                 blocked: appState?.imageSession.isLoading == true))
+            // The files, the selected one and the room the last launch had open (`LastSession`), listed only when that launch left a
+            // record (mac4DSTEM's Reopen ⇧⌘O). Offered, never opened at launch: a mapped multi-GB file must not load before the person
+            // asks. As Open Image…, with no window focused it opens the window and runs there (`MenuActionRelay`).
+            if lastSession.previous != nil {
+                Button("Reopen Last Session") { perform(.reopenLastSession) }
+                    .keyboardShortcut("o", modifiers: [.command, .shift])
+                    .disabled(!MenuActionRelay.isEnabled(
+                        hasFocusedWindow: appState != nil,
+                        blocked: appState?.imageSession.isLoading == true))
+            }
             // The macOS term (ADR 011); no key of its own. It acts on the document the room shows (`DocumentTarget`): the selected
             // file in the image rooms, as the row's menu does, the dataset, the map or the spectrum image in theirs.
             Button("Show in Finder") {
@@ -219,9 +234,11 @@ private struct ImageCommands: Commands {
 @main
 struct macTEMApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    /// The one state graph, owned here so that closing the window never releases the files (ADR 007). Open Recent's list is the one
-    /// kept in UserDefaults, except for a UI-testing launch, which keeps one in memory and leaves a person's recents alone.
-    @State private var appState = AppState(recents: macTEMApp.isUITesting ? nil : RecentFiles.stored())
+    /// The one state graph, owned here so that closing the window never releases the files (ADR 007). Open Recent's list and the last
+    /// session's record are the ones kept in UserDefaults, except for a UI-testing launch, which keeps them in memory and leaves a
+    /// person's alone.
+    @State private var appState = AppState(recents: macTEMApp.isUITesting ? nil : RecentFiles.stored(),
+                                           lastSession: macTEMApp.isUITesting ? nil : LastSession.stored())
     // File-menu actions asked for while no window is focused (`MenuActionRelay`): read by the commands, taken
     // by the window they open.
     @State private var menuRelay = MenuActionRelay()
@@ -240,7 +257,7 @@ struct macTEMApp: App {
             .windowStyle(.titleBar)
             .windowToolbarStyle(.unified)
             .commands {
-                ImageCommands(menuRelay: menuRelay, recents: appState.recents)
+                ImageCommands(menuRelay: menuRelay, recents: appState.recents, lastSession: appState.lastSession)
                 // File > Save to Session (V1-2), listed before the export group so it sits above its Divider.
                 SessionCommands()
                 // File > Export Image… and Export Profile… (V1-10), their own `Commands` (`ExportCommands.swift`).

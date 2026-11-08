@@ -95,7 +95,7 @@ nonisolated final class EDXRoomTests: XCTestCase {
         // The list's URL is resolved and standardised (drive 6 on screen: the raw URL never matched it).
         let viaTmp = URL(fileURLWithPath: "/tmp/../data/SI 1339.emd")
         XCTAssertEqual(AppState.roomsToFollow(selected: viaTmp, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eds, true, "another spelling of the same path")
-        XCTAssertTrue(squeezed((try? source("macTEM/App/AppState.swift")) ?? "").contains("openItems.onSelect = { [weak self] _ in self?.spectrumRoomsFollowSelection() }"),
+        XCTAssertTrue(squeezed((try? source("macTEM/App/AppState.swift")) ?? "").contains("openItems.onSelect = { [weak self] _ in self?.spectrumRoomsFollowSelection() self?.recordLastSession() }"),
                       "the selection reaches the rooms through the list's own callback, not a view's observation (it did not fire on screen)")
     }
 

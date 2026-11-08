@@ -6,7 +6,7 @@
 //
 //  Owners: `navigation` (rooms and panes, App/), `openItems` (the files open in the window, each with its own
 //  session, presentation, marks and viewport, TEMSession), `activityLog` (the Output pane, App/), `imageRoomTools`
-//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession), `semRecord` (the SEM rooms' exports and Output lines for the session report, App/), `recents` (File > Open Recent's last eight files, TEMSession). `imageSession`, `presentation` and `measurements` are the selected
+//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession), `semRecord` (the SEM rooms' exports and Output lines for the session report, App/), `recents` (File > Open Recent's last eight files, TEMSession), `lastSession` (File > Reopen Last Session's record, TEMSession). `imageSession`, `presentation` and `measurements` are the selected
 //  item's, forwarded, so the views that read them did not change with V1-13.
 //
 
@@ -44,6 +44,10 @@ final class AppState {
     /// File > Open Recent's list (TEMSession): every file `open(urls:)` takes in, with the bookmark that opens it again. The app passes
     /// the list kept in UserDefaults (`RecentFiles.stored()`); a bare `AppState()`, a test's, keeps one in memory and writes nothing.
     let recents: RecentFiles
+    /// File > Reopen Last Session's record (TEMSession): the files open, the selected one and the room, written as they change
+    /// (`recordLastSession`), and the previous launch's, which the menu offers. The app passes the record kept in UserDefaults
+    /// (`LastSession.stored()`); a bare `AppState()`, a test's, keeps one in memory and writes nothing.
+    let lastSession: LastSession
 
     /// The window's title: the file of the room that is shown (the spectrum image in the EDX and EELS rooms, the image elsewhere).
     var windowTitle: String {
@@ -113,14 +117,19 @@ final class AppState {
         return dir.path.hasPrefix("/") && !launch.exportDirectoryIsRelative ? dir : FileManager.default.temporaryDirectory.appendingPathComponent(launch.exportDirectoryName ?? "export", isDirectory: true)
     }
 
-    init(launch: LaunchOptions = LaunchOptions(), recents: RecentFiles? = nil) {
+    init(launch: LaunchOptions = LaunchOptions(), recents: RecentFiles? = nil, lastSession: LastSession? = nil) {
         self.launch = launch
         self.recents = recents ?? RecentFiles()
+        self.lastSession = lastSession ?? LastSession()
         let ebsd = EBSDSession()
         self.ebsd = ebsd
         indexing = IndexingSession(patterns: ebsd)
-        // The spectrum rooms follow the selected file through the list's own callback (a view's observation did not fire on screen, drive 6).
-        openItems.onSelect = { [weak self] _ in self?.spectrumRoomsFollowSelection() }
+        // The spectrum rooms follow the selected file through the list's own callback (a view's observation did not fire on screen, drive 6),
+        // and the last-session record takes the new selection.
+        openItems.onSelect = { [weak self] _ in
+            self?.spectrumRoomsFollowSelection()
+            self?.recordLastSession()
+        }
         openItems.onReadFailure = { [weak self] _, error in self?.present(error) }
         // A stack frame that could not be read: the status line and Output say which and why (the slider is back on the frame shown).
         openItems.onFrameFailure = { [weak self] in self?.statusText = $0 }
@@ -197,6 +206,7 @@ final class AppState {
     func selectWorkspace(_ area: WorkspaceArea) {
         guard roomUnavailableReason(area) == nil else { return }
         navigation.workspaceArea = area
+        recordLastSession()
     }
 
     /// Go to a workspace: the room it was last in when that can still be entered, else its first room that can. A workspace none of

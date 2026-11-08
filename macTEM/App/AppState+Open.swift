@@ -2,8 +2,9 @@
 //  AppState+Open.swift
 //  Role: open files into the window. Which files are open, which is selected and what each holds is
 //        `OpenItems`'; here are the reader it is given — the file, its metadata, the display copy, the row's thumbnail
-//        and a security-scoped bookmark, all off the main actor — the infobar's events, and File > Open Recent's side
-//        (every file taken in is remembered with a bookmark; an entry is opened again through it).
+//        and a security-scoped bookmark, all off the main actor — the infobar's events, File > Open Recent's side
+//        (every file taken in is remembered with a bookmark; an entry is opened again through it) and File > Reopen Last
+//        Session's (the files open, the selected one and the room recorded as they change; the last launch's opened again).
 //
 
 import ShellMetal
@@ -20,13 +21,15 @@ extension AppState {
     /// Every open ends here — the panel, a drop, Finder, Open Recent: one item per file not open yet, read one at a time in
     /// this order; a file open already is selected, not read twice; the first is selected at once (`OpenItems.open`). A
     /// failed read is reported by the alert (`onReadFailure`); the infobar says "Opened …" once the batch is in. Every
-    /// file that is not refused goes to the front of Open Recent (`recents`), with the bookmark made in its scope. The
-    /// batch's refused files are one alert, a line each; the files a one-document room left out are named after the batch.
+    /// file that is not refused goes to the front of Open Recent (`recents`), with the bookmark made in its scope, and into the
+    /// last-session record once the batch is in (`recordLastSession`). The batch's refused files are one alert, a line each; the
+    /// files a one-document room left out are named after the batch.
     @discardableResult
     func open(urls: [URL]) -> Task<Void, Never>? {
         guard !urls.isEmpty else { return nil }
         statusText = urls.count == 1 ? "Opening \(urls[0].lastPathComponent)…" : "Opening \(urls.count) files…"
         let task = Task {
+            defer { recordLastSession() }
             // By content (FormatoKit's sniff), off the main actor: an HDF5 file is opened under the HDF5 lock. The sniff runs inside the
             // security scope the panel, a drop or Finder granted. The FILE decides, not the room the person is in: a file is opened into
             // every room that has data in it (`FileInventory`), and the window lands in the room of the richest dataset.
@@ -38,7 +41,9 @@ extension AppState {
             for (url, inventory, bookmark) in inventories {
                 if let why = inventory.refusal { refusals.append(why); continue }
                 if let bookmark {
-                    recents.remember(RecentFile(path: url.standardizedFileURL.path, displayName: url.lastPathComponent, bookmark: bookmark))
+                    let file = RecentFile(path: url.standardizedFileURL.path, displayName: url.lastPathComponent, bookmark: bookmark)
+                    recents.remember(file)
+                    lastSession.remember(file)
                 }
                 if inventory.ebsdPatterns { ebsdBatch.append(url) }
                 if inventory.orientationMap { mapBatch.append(url) }
@@ -135,6 +140,94 @@ extension AppState {
             statusText = "\(entry.displayName) is no longer where it was (moved, renamed or deleted), so it was removed from Open Recent."
         }
         return nil
+    }
+
+    /// What the last-session record is made of now: the window writes the record again whenever this changes (`ImageWindow`).
+    var lastSessionState: LastSessionState {
+        var urls = openItems.items.map(\.url)
+        if let url = ebsd.document?.url { urls.append(url) }
+        urls.append(contentsOf: maps.sources.compactMap(\.url))
+        for path in [edx.source?.metadata.filePath ?? "", eels.filePath] where !path.isEmpty {
+            urls.append(URL(fileURLWithPath: path))
+        }
+        return LastSessionState(urls: urls, selected: openItems.selected?.url, room: navigation.workspaceArea)
+    }
+
+    /// The window's open set into the last-session record (`LastSession.update`, which saves it only when it changed): the Open Files
+    /// list in order, then each room's own document (the Patterns room's dataset, the maps, the spectrum images), the selected file
+    /// and the room shown. Called at the end of every Open and when the selection or the room changes, and by the window whenever
+    /// any of it changes (a file closed, a room's document read in).
+    func recordLastSession() {
+        let state = lastSessionState
+        lastSession.update(open: state.urls, selected: state.selected, room: state.room.rawValue)
+    }
+
+    /// File > Reopen Last Session: the files the previous launch had open (`LastSession.previous`), each through its bookmark
+    /// (resolved without mounting a volume or asking anything), opened as any other through `open(urls:)`; once they are in, the
+    /// file that was selected and the room that was shown. A file that is gone, or on a disk that is not connected, is named in the
+    /// status line and the others open; when none can be opened and no disk is waited for, the record is forgotten and the menu
+    /// stops offering it. Never run at launch: a mapped multi-GB file must not load before the person asks.
+    @discardableResult
+    func reopenLastSession() -> Task<Void, Never>? {
+        guard let record = lastSession.previous else { return nil }
+        var found: [(path: String, url: URL)] = []
+        var gone: [String] = []
+        var offline: [(name: String, volume: String)] = []
+        for file in record.files {
+            if let url = Self.reachable(file) {
+                found.append((path: file.path, url: url))
+            } else if let volume = RecentFiles.absentVolume(of: file.path) {
+                offline.append((name: file.displayName, volume: volume))
+            } else {
+                gone.append(file.displayName)
+            }
+        }
+        let missing = Self.notReopened(gone: gone, offline: offline)
+        guard !found.isEmpty else {
+            if offline.isEmpty { lastSession.forgetPrevious() }
+            statusText = missing ?? ""
+            return nil
+        }
+        let selectedPath = found.first { $0.path == record.selectedPath }?.url.standardizedFileURL.path
+        let room = WorkspaceArea(rawValue: record.room)
+        let opening = open(urls: found.map { $0.url })
+        let task = Task {
+            await opening?.value
+            if let selectedPath, let item = openItems.items.first(where: { $0.url.standardizedFileURL.path == selectedPath }) {
+                openItems.select(item.id)
+            }
+            if let room { selectWorkspace(room) }
+            if let missing { statusText = missing }
+        }
+        lastOpen = task
+        return task
+    }
+
+    /// The file a last-session entry's bookmark resolves to while it is still there; nil when the bookmark does not resolve or the
+    /// file it names is gone (looked at inside its security scope).
+    private static func reachable(_ file: RecentFile) -> URL? {
+        var stale = false
+        guard let url = try? URL(resolvingBookmarkData: file.bookmark, options: [.withSecurityScope, .withoutUI, .withoutMounting],
+                                 relativeTo: nil, bookmarkDataIsStale: &stale) else { return nil }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// What Reopen Last Session says of the files it could not open; nil for none. "b.dm4 is no longer where it was (moved, renamed
+    /// or deleted), so it was not reopened." (two or more: "b.dm4 and c.h5 are no longer where they were …, so they were not
+    /// reopened."), and "d.dm4 is on NAS, which is not connected, so it was not reopened." Pure, so a test pins it.
+    nonisolated static func notReopened(gone: [String], offline: [(name: String, volume: String)]) -> String? {
+        var sentences: [String] = []
+        if gone.count == 1 {
+            sentences.append("\(gone[0]) is no longer where it was (moved, renamed or deleted), so it was not reopened.")
+        } else if gone.count > 1 {
+            sentences.append("\(OpenBatch.list(gone)) are no longer where they were (moved, renamed or deleted), so they were not reopened.")
+        }
+        for file in offline {
+            sentences.append("\(file.name) is on \(file.volume), which is not connected, so it was not reopened.")
+        }
+        return sentences.isEmpty ? nil : sentences.joined(separator: " ")
     }
 
     static let needsAccessSentence =
@@ -348,6 +441,14 @@ extension AppState {
         if follow.eds, let url { edx.open(url: url) }
         if follow.eels, let url { eels.open(url: url) }
     }
+}
+
+/// What File > Reopen Last Session's record is made of (`AppState.lastSessionState`), compared to tell when it changed: the files the
+/// window holds in order, the selected one and the room shown.
+nonisolated struct LastSessionState: Equatable {
+    var urls: [URL]
+    var selected: URL?
+    var room: WorkspaceArea
 }
 
 /// What one Open leaves out of the rooms that hold one document each (EDS, EELS, Patterns, Maps): pure, so a test holds it.
