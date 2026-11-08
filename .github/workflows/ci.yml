@@ -13,6 +13,12 @@
 #   * `tools/run-tests.sh inventory` — the repo's own review. Its checks are listed in tools/run-tests.sh, not
 #     here, so this comment cannot go stale. It needs no sibling checkout and no reference venv.
 #
+# NIGHTLY (cron 01:00 UTC) and by hand (workflow_dispatch): the unit job first restores and fetches the SEM reference
+# datasets (tools/parity/sem/fetch-data.sh into the gitignored References/sem-data, sem-parity.yml's cache), so the
+# parity cases whose input is a fetched dataset run instead of skipping: the whole-map figures F7, F11/F12 and F13
+# and the large SEM-EDS reader bundles. A push or pull-request run skips those (they are named in its log); every
+# other job skips the schedule event. Dispatch CI on a branch to run them before merging.
+#
 # XCODE: every macOS job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
 # change the toolchain on an unchanged tree.
 #
@@ -42,9 +48,13 @@ on:
     tags: ['*']
   pull_request:
   workflow_dispatch:
+  # Nightly: the unit job with the SEM reference data (every other job skips the schedule event).
+  schedule:
+    - cron: "0 1 * * *"
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # The nightly run has its own group, so it never queues behind, or holds up, a main push run.
+  group: ci-${{ github.event_name == 'schedule' && 'nightly-' || '' }}${{ github.ref }}
   # Superseded branch/PR runs cancel; main runs always complete: on main each commit's finished run is the record.
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
@@ -77,11 +87,23 @@ jobs:
             sudo xcodebuild -downloadComponent MetalToolchain
           fi
           xcrun -sdk macosx metal --version
+      - name: Restore the SEM reference data (nightly and by hand)
+        # sem-parity.yml's cache of what fetch-data.sh downloads; the next step fetches whatever it lacks.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: actions/cache@v5
+        with:
+          path: References/sem-data
+          key: sem-data-${{ hashFiles('tools/parity/sem/data-manifest.txt') }}
+      - name: Fetch the SEM reference data (nightly and by hand)
+        # Checked against data-manifest.txt's sha256; the Zenodo lines are "manual" and are listed, never fetched.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: tools/parity/sem/fetch-data.sh
       - name: Run the unit gate
         run: tools/run-tests.sh unit
 
   inventory:
     name: inventory (repo review)
+    if: github.event_name != 'schedule'
     runs-on: macos-26
     timeout-minutes: 10
     steps:
@@ -105,6 +127,7 @@ jobs:
 
   core:
     name: core (TEMCore + TEMSession package build)
+    if: github.event_name != 'schedule'
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -124,6 +147,7 @@ jobs:
 
   kit-boundary:
     name: kit boundary (no numerics frameworks in the app)
+    if: github.event_name != 'schedule'
     # Plain bash, grep and awk: Linux runs it (checked with mawk), off the macOS runner queue.
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -135,6 +159,7 @@ jobs:
 
   lint:
     name: Lint (shared SwiftLint and SwiftFormat config)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -145,6 +170,7 @@ jobs:
 
   private-refs:
     name: No private references
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
