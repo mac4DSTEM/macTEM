@@ -128,7 +128,7 @@ package final class EBSDSession {
     package private(set) var patternIsProcessed = false
     /// Why the shown pattern could not be processed (a stage's sentence), shown under the Processing rows; nil when it could.
     package private(set) var previewFailure: String?
-    /// The λ NLPAR chose in the last run (`opt_lambda`'s median), nil when that run had no NLPAR.
+    /// The λ NLPAR chose in the run that landed (`opt_lambda`'s median), nil when that run had no NLPAR; it lands with the run's result.
     package private(set) var nlparLambda: Double?
 
     /// The static background the pipeline uses: the file's or the scan's mean.
@@ -183,7 +183,8 @@ package final class EBSDSession {
     }
 
     /// The room's verb: the whole scan through the pipeline, off the main actor, with progress; Stop (⌘.) ends it and keeps the last run.
-    /// The returned task ends when the run has landed (or was refused or stopped).
+    /// The returned task ends when the run has landed (or was refused or stopped). Each run lands only while it is the latest
+    /// (`processRun`), so a stopped run never lands over the one started after it.
     @discardableResult
     package func process() -> Task<Void, Never> {
         guard let document, !isBusy else { return Task {} }
@@ -192,50 +193,49 @@ package final class EBSDSession {
             return Task {}
         }
         let gen = generation
+        processRun += 1
+        let runID = processRun
         let pipeline = self.pipeline
         let background = staticBackground
         let access = document.access
         isProcessing = true
         processProgress = 0
-        nlparLambda = nil
         onEvent?("Processing \(document.dataset.patternCount) patterns…")
         let started = Date()
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
+                // NLPAR's λ travels with this run's result, so a stopped run never hands its λ to the run that stays.
+                var chosenLambda: Double?
                 let result = try pipeline.process(access, background: background, progress: { f in
-                    Task { @MainActor in self?.landProcessProgress(f, generation: gen) }
-                }, isCancelled: { Task.isCancelled }, lambda: { l in
-                    Task { @MainActor in self?.landLambda(l, generation: gen) }
-                })
-                await self?.landProcessed(result, with: pipeline, failure: nil, seconds: Date().timeIntervalSince(started), generation: gen)
+                    Task { @MainActor in self?.landProcessProgress(f, generation: gen, processRun: runID) }
+                }, isCancelled: { Task.isCancelled }, lambda: { chosenLambda = $0 })
+                await self?.landProcessed(result, with: pipeline, lambda: chosenLambda, failure: nil, seconds: Date().timeIntervalSince(started),
+                                          generation: gen, processRun: runID)
             } catch {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                await self?.landProcessed(nil, with: pipeline, failure: words, seconds: 0, generation: gen)
+                await self?.landProcessed(nil, with: pipeline, lambda: nil, failure: words, seconds: 0, generation: gen, processRun: runID)
             }
         }
         processTask = task
         return Task { await task.value }
     }
 
-    private func landLambda(_ l: Double, generation gen: Int) {
-        guard gen == generation else { return }
-        nlparLambda = l
-    }
-
-    private func landProcessProgress(_ f: Double, generation gen: Int) {
-        guard gen == generation, isProcessing else { return }
+    private func landProcessProgress(_ f: Double, generation gen: Int, processRun runID: Int) {
+        guard gen == generation, runID == processRun, isProcessing else { return }
         processProgress = f
     }
 
-    private func landProcessed(_ result: EBSDMemoryPatterns?, with run: PatternPipeline, failure: String?, seconds: Double, generation gen: Int) {
-        guard gen == generation, isProcessing else { return }
+    private func landProcessed(_ result: EBSDMemoryPatterns?, with run: PatternPipeline, lambda: Double?, failure: String?, seconds: Double,
+                               generation gen: Int, processRun runID: Int) {
+        guard gen == generation, runID == processRun, isProcessing else { return }
         isProcessing = false
         if let result {
             processed = result
             processedWith = run
+            nlparLambda = lambda
             processProgress = 1
             let mb = Double(result.bytes.count) / 1_000_000
-            let nlpar = run.nlpar.isOn ? nlparLambda.map { " · NLPAR λ \(String(format: "%.3f", $0))" } ?? "" : ""
+            let nlpar = run.nlpar.isOn ? lambda.map { " · NLPAR λ \(String(format: "%.3f", $0))" } ?? "" : ""
             onEvent?("Processed \(result.dataset.patternCount) patterns in \(String(format: "%.1f", seconds)) s · \(String(format: "%.1f", mb)) MB in memory" + nlpar)
             // Already showing Processed: re-draw, so the pane trades the one-pattern preview for the run (the whole-scan stages show).
             if patternDisplay == .processed { showPattern(at: shown) } else { setPatternDisplay(.processed) }
@@ -299,6 +299,9 @@ package final class EBSDSession {
     /// The virtual-image pass's own count: a new dataset or a new grid moves it on, and only the latest pass lands. Kept apart from
     /// `generation`, so a new grid never drops the scan's mean, Process or the quality pass.
     @ObservationIgnored private var mapGeneration = 0
+    /// The processing run's own count: Process and Stop move it on, and a run's progress and result land only while it is the latest,
+    /// so Stop then Process never lands the stopped run as the new one.
+    @ObservationIgnored private var processRun = 0
     /// Raw patterns read so far, by map index; cleared when it grows past `cacheLimit` and with every new dataset.
     @ObservationIgnored private var cache: [Int: FormatoArray] = [:]
     @ObservationIgnored private var cacheOrder: [Int] = []
@@ -473,12 +476,18 @@ package final class EBSDSession {
         return showPattern(at: .origin)
     }
 
-    /// Ends the open, the map's pass or the processing run in flight; what has landed stays (a stopped run keeps the last complete one).
+    /// Ends the open, the map's pass or the processing run in flight; what has landed stays (a stopped run keeps the last complete one,
+    /// and never lands itself, even after a new run has started).
     package func stop() {
         if isOpening { openTask?.cancel(); isOpening = false; onEvent?("Stopped opening") }
         if isMapping { mapTask?.cancel(); isMapping = false; mapFailure = "The map's pass was stopped." }
         if isQualityMapping { qualityTask?.cancel(); isQualityMapping = false; onEvent?("Stopped the quality maps") }
-        if isProcessing { processTask?.cancel(); isProcessing = false; onEvent?("Stopped processing; the last complete run stays") }
+        if isProcessing {
+            processRun += 1
+            processTask?.cancel()
+            isProcessing = false
+            onEvent?("Stopped processing; the last complete run stays")
+        }
     }
 
     private func resetProcessing() {
