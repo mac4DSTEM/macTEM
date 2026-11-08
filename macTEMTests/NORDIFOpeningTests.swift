@@ -3,10 +3,11 @@
 //  A NORDIF acquisition at the Patterns room's door (NORDIFOpening through EBSDOpening and FileRouting): `Pattern.dat` opens as an
 //  `EBSDDataset` whose patterns are read from the file by map position and equal NORDIFScan's bit for bit (the scan's parity against
 //  kikuchipy 0.13.1 is NORDIFReaderTests); a `.dat` counts only with a NORDIF `Setting.txt` beside it; a short pattern file reads its
-//  whole records and the rest as 0, with a note.
+//  whole records and the rest as 0, with a note; a `Setting.txt` that is there and may not be read is named in the refusal.
 //
 
 import XCTest
+import Darwin
 import FormatoCore
 import TEMCore
 
@@ -99,5 +100,26 @@ nonisolated final class NORDIFOpeningTests: XCTestCase {
         XCTAssertThrowsError(try EBSDOpening.open(url: pattern)) { error in
             XCTAssertEqual((error as? EBSDReadError)?.text, sentence)
         }
+    }
+
+    /// A `Setting.txt` that is there and may not be read (the sandbox's case: a signed build is granted the picked `Pattern.dat`, not
+    /// its folder) is named in the refusal, with the folder; file mode 000 stands in for the sandbox. A `.dat` with no settings file,
+    /// or with one that opens, gets no such sentence. Red before: the general "is not a format macTEM opens".
+    func testASettingsFileThatMayNotBeReadIsNamedInTheRefusal() throws {
+        XCTAssertNotEqual(geteuid(), 0, "root reads a mode-000 file; run this as a user")
+        let folder = try folder(patternBytes: try Data(contentsOf: url("Pattern.dat")))
+        let settings = folder.appendingPathComponent("Setting.txt")
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: settings.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: settings.path) }
+        let pattern = folder.appendingPathComponent("Pattern.dat")
+        XCTAssertFalse(NORDIFOpening.isNORDIFFile(pattern), "a settings file that cannot be opened cannot be recognised")
+        let sentence = "Setting.txt beside Pattern.dat cannot be read: macOS does not let macTEM open it (Permission denied); "
+            + "a NORDIF scan needs the acquisition's folder, not Pattern.dat alone."
+        XCTAssertEqual(NORDIFOpening.unreadableSettingsRefusal(pattern), sentence)
+        XCTAssertEqual(FileRouting.inventory(path: pattern.path), FileInventory(refusal: sentence))
+        let lone = try self.folder(patternBytes: Data([1, 2, 3]), settings: nil)
+        XCTAssertNil(NORDIFOpening.unreadableSettingsRefusal(lone.appendingPathComponent("Pattern.dat")), "no Setting.txt beside it")
+        XCTAssertNil(NORDIFOpening.unreadableSettingsRefusal(url("Pattern.dat")), "its Setting.txt opens")
+        XCTAssertNil(NORDIFOpening.unreadableSettingsRefusal(settings), "not a .dat")
     }
 }

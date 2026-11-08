@@ -10,7 +10,12 @@
 //  and keeps the general routing. Whole records only: a file shorter than its scan reads its complete patterns and the rest as 0,
 //  with a note (kikuchipy pads an incomplete last pattern with zeros after its bytes; NORDIFScan keeps that for the parity).
 //
+//  A signed build is sandboxed: an Open grants the file the user picked, not the folder around it, so a `Setting.txt` beside the
+//  picked `Pattern.dat` can be there and still not open. That `.dat` is refused with a sentence that names the settings file and the
+//  folder (`unreadableSettingsRefusal`, FileRouting), not as a format macTEM does not know.
+//
 
+import Darwin
 import Foundation
 import FormatoCore
 
@@ -33,6 +38,23 @@ package nonisolated enum NORDIFOpening {
     /// True when `url` is a NORDIF pattern file: a `.dat` with a NORDIF settings file beside it.
     package static func isNORDIFFile(_ url: URL) -> Bool {
         readableExtensions.contains(url.pathExtension.lowercased()) && isSettingsFile(settingsURL(besides: url))
+    }
+
+    /// The refusal for a `.dat` whose `Setting.txt` is there and may not be read (the sandbox's EPERM, or a file mode's EACCES): nil
+    /// for any other file, a `.dat` with no settings file beside it, or one whose settings file opens. The probe is the open a read
+    /// would make, without blocking, so a denied read is told apart from a missing file without asking for the folder.
+    package static func unreadableSettingsRefusal(_ url: URL) -> String? {
+        guard readableExtensions.contains(url.pathExtension.lowercased()) else { return nil }
+        let settings = settingsURL(besides: url)
+        let code: Int32 = settings.path.withCString { path in
+            let probe = Darwin.open(path, O_RDONLY | O_NONBLOCK)
+            guard probe >= 0 else { return errno }
+            _ = Darwin.close(probe)
+            return 0
+        }
+        guard code == EPERM || code == EACCES else { return nil }
+        return "\(settings.lastPathComponent) beside \(url.lastPathComponent) cannot be read: macOS does not let macTEM open it "
+            + "(\(String(cString: strerror(code)))); a NORDIF scan needs the acquisition's folder, not \(url.lastPathComponent) alone."
     }
 
     /// The scan of `patternFile` as a dataset whose patterns stay in the file. Reads the settings and the background bitmap; run it off

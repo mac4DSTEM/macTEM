@@ -144,6 +144,8 @@ package nonisolated enum FileRouting {
         case .empad, .merlinMIB, .hdf5:
             return FileInventory(refusal: "\(name) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: macTEM opens images, spectra and EBSD patterns; open it in mac4DSTEM.")
         case .unknown:
+            // A `.dat` whose `Setting.txt` is there but may not be read (the sandbox granted the file, not its folder) says so.
+            if let why = NORDIFOpening.unreadableSettingsRefusal(url) { return FileInventory(refusal: why) }
             return FileInventory(refusal: "\(name) is not a format macTEM opens (or its extension and its first bytes disagree).")
         }
     }
