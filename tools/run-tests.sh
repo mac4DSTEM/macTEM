@@ -324,6 +324,17 @@ inventory() {
   grep -q '\.defaultIsolation(' <(sed -n '/name: "TEMCore"/,/^        ),/p' "$ROOT/Package.swift") \
     && { echo "  TEMCore sets a default isolation; it is nonisolated by decision"; rc=1; }
 
+  # SwiftPM names the local package after the checkout folder; the Xcode targets must too, or every `package` symbol of TEMCore
+  # and TEMSession is out of reach from a checkout in another folder. CI checks out into macTEM, where a literal name passes;
+  # the release builds from a worktree of the tag (tools/release.sh), where it does not (mac4DSTEM's v5.1.0 archive, built from
+  # ~/GitHub/.worktrees/mac4DSTEM-v5.1.0, lost every `package` symbol of DSTEMCore).
+  echo "== SWIFT_PACKAGE_NAME follows the checkout folder"
+  local pkg_lines
+  pkg_lines="$(grep -E 'SWIFT_PACKAGE_NAME = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" || true)"
+  if [[ -z "$pkg_lines" ]] || grep -vqF 'SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";' <<< "$pkg_lines"; then
+    echo "  every SWIFT_PACKAGE_NAME must be \"\$(SRCROOT:file:lower:c99extidentifier)\", never a literal name"; rc=1
+  fi
+
   echo "== kits: version ranges in Package.swift, Package.resolved inside them"
   # The kits are imported by version range (`from:`), never a local path; Package.resolved holds the versions built, and the
   # harnesses build them through SwiftPM from it. A resolved version must lie in the range: at least the lower bound, same major.
@@ -431,6 +442,19 @@ inventory() {
     if grep -rqF "\"${id%.*.*}.\\(" "${where[@]}"; then continue; fi
     echo "  MISSING   identifier $id is used by a UI journey and no source declares it"; rc=1
   done
+
+  # mac4DSTEM's check of its live docs: a doc that says work is held uncommitted is stale once the tree is clean. Status claims
+  # only ("held uncommitted", "still uncommitted"), and only positive ones: "nothing is uncommitted" is true on a clean tree. On a
+  # dirty tree the claim may be true, so the check runs on a clean one only: always in CI, seldom on a working Mac.
+  echo "== live docs claim no uncommitted work (clean tree)"
+  local -a live_docs=("$ROOT"/docs/**/*.md(N.))
+  if [[ -n "$(git -C "$ROOT" status --porcelain)" ]]; then
+    echo "  (the tree has changes: not checked here)"
+  elif (( ${#live_docs} )) \
+       && grep -nEi '(held|still|stays?|remains?|is|are) uncommitted' "${live_docs[@]}" \
+          | grep -viE 'was (still )?uncommitted|at the time|(nothing|none|no [a-z]+) (is|are|remains?) uncommitted'; then
+    echo "  ^ live docs claim uncommitted work on a clean tree"; rc=1
+  fi
 
   if (( rc == 0 )); then echo "inventory: clean"; else echo "inventory: FAILED"; fi
   return $rc
