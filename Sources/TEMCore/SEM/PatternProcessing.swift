@@ -37,13 +37,21 @@ package nonisolated enum PatternProcessing {
         package var title: String { rawValue.capitalized }
     }
 
-    package enum Error: Swift.Error, Equatable, Sendable {
+    package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {
         /// A count does not match `rows * columns`, or a size is below 1.
         case shape
         /// `std` or `truncate` is not positive and finite, or the window they give has no pixel or is wider than `maximumWindow`.
         case parameter(String)
         /// A division made an infinite or undefined value (a zero in the background), so the pattern cannot be rescaled.
         case nonFinite
+
+        package var errorDescription: String? {
+            switch self {
+            case .shape: "The pattern's values do not match its size, or a size is zero."
+            case .parameter(let name): "The \(name) is out of range for this pattern."
+            case .nonFinite: "This pattern is flat or holds an undefined value, so it cannot be rescaled."
+            }
+        }
     }
 
     // MARK: - Rescaling (`_rescale_with_min_max`)

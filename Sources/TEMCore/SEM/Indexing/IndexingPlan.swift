@@ -119,7 +119,12 @@ package nonisolated struct IndexingSource: Sendable {
         for column in 0..<dataset.scanColumns {
             let one = try FormatoArray(dataType: slab.dataType, shape: [dataset.patternRows, dataset.patternColumns],
                                        bytes: bytes.subdata(in: (base + column * size)..<(base + (column + 1) * size)))
-            out.append(try indexed(one))
+            do {
+                out.append(try indexed(one))
+            } catch let refusal as PatternPipeline.Refusal {
+                // A stage that fails names the pattern, so a run over the scan says which one stopped it.
+                throw refusal.at(row: row, column: column)
+            }
         }
         return out
     }

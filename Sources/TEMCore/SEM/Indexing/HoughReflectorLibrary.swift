@@ -20,13 +20,21 @@
 import Foundation
 
 package nonisolated struct HoughReflectorLibrary: Sendable {
-    package enum Error: Swift.Error, Equatable, Sendable {
+    package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {
         /// The space group is outside 1...230 or its Laue group has no rotations in pyEBSDindex.
         case spaceGroup(Int)
         /// No non-zero reflector, or a reflector with neither 3 nor 4 indices.
         case reflectors
         /// The lattice parameters do not describe a cell (non-positive lengths or a degenerate angle set).
         case lattice
+
+        package var errorDescription: String? {
+            switch self {
+            case .spaceGroup(let n): "Space group \(n) is outside 1 to 230, or Hough indexing has no rotations for its Laue group."
+            case .reflectors: "The reflector list needs a non-zero reflector, each with three or four indices."
+            case .lattice: "The lattice parameters do not describe a unit cell."
+            }
+        }
     }
 
     package let name: String
