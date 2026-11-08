@@ -2,14 +2,15 @@
 //  SEMSessionLedger.swift
 //  Role: the Results room's SEM rows (design export-and-reports §3, D-SEM-103): what the window's SEM rooms hold now and what the session
 //        record kept, as `SEMSessionRow`s in the Results room's order: the pattern dataset and its calibration, the processing run, the
-//        scan maps, each indexing run (the one on screen, then the other method's), the orientation map, the SEM-EDS line intensities
-//        and composition, and every file the rooms exported. The session report sets the same rows (`SEMSessionReport`), so the report
-//        says nothing the room does not.
+//        scan maps, each indexing run (the one on screen, then the other method's), the orientation map, its grain statistics and
+//        texture (macTEM#242), the SEM-EDS line intensities and composition, and every file the rooms exported. The session report
+//        sets the same rows (`SEMSessionReport`), so the report says nothing the room does not.
 //
 //        THE WORDS are the rooms': the Indexing room's Info words (`IndexingInfoFormat`), the Patterns room's Calibration rows
 //        (`EBSDBrowsing.calibrationRows`), the Maps room's Info rows (`MapsRoomFormat.infoRows`), the EDS room's SEM rows (`SEMEDSFormat`),
-//        the Output lines as logged. One number per run is an aggregate of what the run stored, never a second run: the indexed points'
-//        mean confidence index (or dictionary score), which the Results CSV holds point by point; nothing else is.
+//        the Output lines as logged. A few numbers are aggregates of what a run stored, never a second run: the indexed points' mean
+//        confidence index (or dictionary score), which the Results CSV holds point by point, and the grains' mean GOS and the points'
+//        mean KAM, which the Grains CSV and the KAM layer hold; nothing else is.
 //
 //        Read on every body that shows the rows (the record and the sessions are observed), as `ResultsLedger` is.
 //
@@ -43,6 +44,8 @@ enum SEMSessionLedger {
         }
         rows += indexingRows(indexing, record: record, since: since)
         if let row = mapRow(maps, record: record) { rows.append(row) }
+        if let row = grainsRow(maps, record: record) { rows.append(row) }
+        if let row = textureRow(maps) { rows.append(row) }
         rows += compositionRows(eds)
         rows += exportRows(record)
         return rows
@@ -258,6 +261,55 @@ enum SEMSessionLedger {
         return SEMSessionRow(id: "map", kind: .orientationMap, label: document.fileName, value: MapsRoomFormat.capsuleDetail(document.map),
                              source: "Maps", time: record.lastLine(of: .maps, startingWith: "Opened \(document.fileName)")?.time,
                              fields: fields, methods: [.orientationMap, .ipfColours], file: document.url)
+    }
+
+    // MARK: - Grains and texture (macTEM#242)
+
+    /// The Maps room's grain analysis: the Grains section's summary rows, the mean GOS of the grains and the mean KAM of the points that
+    /// have one (aggregates of what Segment stored, never a second run), the settings it ran with, and whether they changed since.
+    static func grainsRow(_ session: OrientationMapSession, record: SEMSessionRecord) -> SEMSessionRow? {
+        guard let document = session.document, let analysis = session.analysis else { return nil }
+        let stale = session.analysisIsStale
+        var fields = MapsRoomFormat.grainRows(analysis).filter { $0.label != "Made with" }.map { SEMSessionField($0.label, $0.value) }
+        fields += grainMeans(analysis)
+        fields += MapsRoomFormat.analysisFields(analysis.settings)
+        fields.append(SEMSessionField("State", stale ? "Stale: the Grains or Misorientation settings changed after Segment" : "Current"))
+        let segmented = record.lastLine(of: .maps, startingWith: "Segmented ")
+        return SEMSessionRow(id: "grains", kind: .grains, label: "Grain statistics",
+                             value: MapsRoomFormat.grainSummary(analysis) + (stale ? " · stale" : ""),
+                             source: "Maps · \(document.fileName)", time: segmented?.time, fields: fields,
+                             methods: [.grains, .kam, .gos], log: segmented.map { [$0] } ?? [])
+    }
+
+    /// The mean GOS over the grain table and the mean KAM over the points that have one, in degrees.
+    nonisolated static func grainMeans(_ analysis: MapAnalysis) -> [SEMSessionField] {
+        var out: [SEMSessionField] = []
+        let gos = analysis.table.map(\.gosDegrees).filter(\.isFinite)
+        if !gos.isEmpty {
+            out.append(SEMSessionField("Mean GOS", "\(MapsRoomFormat.angle(gos.reduce(0, +) / Double(gos.count), digits: 2))° over \(gos.count) grains"))
+        }
+        let kam = analysis.grains.kam.filter(\.isFinite)
+        if !kam.isEmpty {
+            let mean = kam.reduce(0, +) / Double(kam.count) * 180 / Double.pi
+            out.append(SEMSessionField("Mean KAM", "\(MapsRoomFormat.angle(mean, digits: 2))° over \(kam.count) points"))
+        }
+        return out
+    }
+
+    /// The texture the Maps room's Pole figures and ODF tabs show: its phase and points, each figure's largest density in multiples of
+    /// random, and the tabs' captions (the smoothing, the ODF kernel and the points it used).
+    static func textureRow(_ session: OrientationMapSession) -> SEMSessionRow? {
+        guard let document = session.document, let texture = session.texture else { return nil }
+        let figures = texture.poleFigures + (texture.inversePoleFigure.map { [$0] } ?? []) + texture.odfSections
+        var fields = [SEMSessionField("Phase", texture.phaseName), SEMSessionField("Points", "\(texture.points)")]
+        fields += figures.map { SEMSessionField($0.title, "maximum \(MapsRoomFormat.number($0.maximum)) MRD") }
+        fields.append(SEMSessionField("Pole figures", MapsRoomFormat.textureCaption(texture, odf: false)))
+        if !texture.odfSections.isEmpty { fields.append(SEMSessionField("ODF", MapsRoomFormat.textureCaption(texture, odf: true))) }
+        let largest = texture.poleFigures.map(\.maximum).filter(\.isFinite).max()
+        var value = "\(texture.points) points · " + texture.poleFigures.map(\.title).joined(separator: " ")
+        if let largest { value += " · up to \(MapsRoomFormat.number(largest)) MRD" }
+        return SEMSessionRow(id: "texture", kind: .texture, label: "\(texture.phaseName) texture", value: value,
+                             source: "Maps · \(document.fileName)", fields: fields, methods: [.orientationMap, .texture])
     }
 
     // MARK: - SEM-EDS

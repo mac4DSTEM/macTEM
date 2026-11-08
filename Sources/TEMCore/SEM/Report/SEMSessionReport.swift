@@ -15,7 +15,7 @@ import Foundation
 package nonisolated enum SEMSessionReport {
     /// The report's sections, in order; the Report section's `Include` checkboxes.
     package enum Section: String, Sendable, Equatable, Hashable, CaseIterable, Identifiable {
-        case openedFiles, calibration, processing, indexing, maps, spectra, figures, methods, versions
+        case openedFiles, calibration, processing, indexing, maps, texture, spectra, figures, methods, versions
 
         package var id: String { rawValue }
 
@@ -26,6 +26,7 @@ package nonisolated enum SEMSessionReport {
             case .processing: "Processing"
             case .indexing: "Indexing"
             case .maps: "Maps and grains"
+            case .texture: "Texture"
             case .spectra: "Spectra"
             case .figures: "Figures"
             case .methods: "Methods and references"
@@ -40,7 +41,8 @@ package nonisolated enum SEMSessionReport {
             case .calibration: [.dataset]
             case .processing: [.processing, .scanMaps]
             case .indexing: [.indexing]
-            case .maps: [.orientationMap]
+            case .maps: [.orientationMap, .grains]
+            case .texture: [.texture]
             case .spectra: [.composition]
             case .figures: [.export]
             case .methods, .versions: []
@@ -130,7 +132,7 @@ package nonisolated enum SEMSessionReport {
                     [row.file?.lastPathComponent ?? row.label, row.kind.room, row.kind == .composition ? "SEM-EDS spectrum" : row.value,
                      row.file?.deletingLastPathComponent().path ?? "in memory"]
                 })))
-            case .calibration, .processing, .indexing, .maps:
+            case .calibration, .processing, .indexing, .maps, .texture:
                 guard !kept.isEmpty else { continue }
                 cited += kept
                 blocks.append(.heading(level: 2, text: section.title))
