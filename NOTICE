@@ -100,8 +100,8 @@ KernelAverageMisorientation, GrainOrientationStatistics) is a port of DefDAP 1.3
 defdap.ebsd (find_boundaries, find_grains, build_neighbour_network, calc_kam, Grain.calc_average_ori,
 build_mis_ori_list, calc_grod), defdap._accelerated (flood_fill), defdap.quat (create_many_quats, calc_sym_eqvs,
 calc_average_ori, calcMisOri) and the symmetry tables of defdap.crystal. Copyright 2025 Mechanics of Microstructures
-Group at The University of Manchester. Licensed under the Apache License, Version 2.0
-(http://www.apache.org/licenses/LICENSE-2.0), which is compatible with GPL-3.0; DefDAP ships no NOTICE file. Changes:
+Group at The University of Manchester. Licensed under the Apache License, Version 2.0 (text in `Licenses/DefDAP-LICENSE.txt`,
+http://www.apache.org/licenses/LICENSE-2.0), which is compatible with GPL-3.0; DefDAP ships no NOTICE file. Changes:
 rewritten in Swift; boundaries take the symmetry of each pair's phase where DefDAP takes the primary phase's; a
 symmetric KAM with a threshold is added beside DefDAP's (kept as KernelAverageMisorientation.Method.defdap); the GOS is
 the mean GROD angle beside DefDAP's mean cosine. Its parity input tools/parity/sem/fixtures/grain_inputs.json holds rows
@@ -181,11 +181,12 @@ SlipPhase, SlipTraceAnalysis, NyeTensor) is a port of DefDAP 1.3.1 (https://gith
 defdap.crystal, defdap.crystal_utils and defdap.ebsd (calc_nye, calc_average_ori, calc_average_schmid_factors,
 calc_slip_traces), and SlipSystems.swift carries DefDAP's slip-system files (defdap/slip_systems/*.txt) verbatim.
 Copyright 2025 Mechanics of Microstructures Group at The University of Manchester. Licensed under the Apache License,
-Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0), which is compatible with GPL-3.0; DefDAP ships no NOTICE file.
-Changes: DefDAP's Python is rewritten in Swift; NyeTensor keeps the x and y derivatives apart by default where DefDAP 1.3.1
-aliases them (its numbers remain available); SlipPhase.analysisSlipSystems drops twelve rows of cubic_bcc whose slip
-direction is not in its plane. The parity inputs tools/parity/sem/fixtures/slip_inputs.json hold rows 0-89, columns
-0-119 of orix-data's Ti_orientations.ctf and the whole sdss_ferrite_austenite.ang (both CC BY 4.0).
+Version 2.0 (text in `Licenses/DefDAP-LICENSE.txt`, http://www.apache.org/licenses/LICENSE-2.0), which is compatible with
+GPL-3.0; DefDAP ships no NOTICE file. Changes: DefDAP's Python is rewritten in Swift; NyeTensor keeps the x and y
+derivatives apart by default where DefDAP 1.3.1 aliases them (its numbers remain available); SlipPhase.analysisSlipSystems
+drops twelve rows of cubic_bcc whose slip direction is not in its plane. The parity inputs
+tools/parity/sem/fixtures/slip_inputs.json hold rows 0-89, columns 0-119 of orix-data's Ti_orientations.ctf and the whole
+sdss_ferrite_austenite.ang (both CC BY 4.0).
 
 ================================================================================
 SpectroKit (a Swift package the app is built with)
