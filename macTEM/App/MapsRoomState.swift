@@ -161,11 +161,11 @@ nonisolated enum MapsRoomFormat {
         }
     }
 
-    /// The Grains and Misorientation sections' settings an analysis ran with, in their words.
-    static func analysisFields(_ settings: MapAnalysisSettings) -> [SEMSessionField] {
-        [SEMSessionField("Boundary", "\(UnitDisplay.number(settings.boundaryDegrees))°"),
+    /// The Grains and Misorientation sections' settings an analysis ran with, in their words, the numbers in `locale`.
+    static func analysisFields(_ settings: MapAnalysisSettings, locale: Locale = .autoupdatingCurrent) -> [SEMSessionField] {
+        [SEMSessionField("Boundary", "\(UnitDisplay.number(settings.boundaryDegrees, locale: locale))°"),
          SEMSessionField("Smallest", "\(settings.minimumSize) points"),
-         SEMSessionField("KAM maximum", "\(UnitDisplay.number(settings.kamMaxDegrees))°")]
+         SEMSessionField("KAM maximum", "\(UnitDisplay.number(settings.kamMaxDegrees, locale: locale))°")]
     }
 
     /// A map figure's settings for the session report: the layer, and for a layer the analysis makes, the settings it ran with (and the
@@ -228,37 +228,44 @@ nonisolated enum MapsRoomFormat {
 
     // MARK: Analysis words (P5-04)
 
+    // The numbers are in the reader's locale unless the caller passes one: the session report passes `ExportSnapshot.labelLocale`.
+
     static let decimal = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...4))
     static let whole = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0))
 
-    static func angle(_ v: Double, digits: Int = 1) -> String {
-        v.isFinite ? v.formatted(.number.grouping(.never).precision(.fractionLength(digits))) : "–"
+    static func angle(_ v: Double, digits: Int = 1, locale: Locale = .autoupdatingCurrent) -> String {
+        v.isFinite ? v.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(digits))) : "–"
     }
 
-    static func number(_ v: Double) -> String { v.isFinite ? v.formatted(.number.grouping(.never).precision(.significantDigits(1...4))) : "–" }
+    static func number(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        v.isFinite ? v.formatted(.number.locale(locale).grouping(.never).precision(.significantDigits(1...4))) : "–"
+    }
 
     static func fraction(_ v: Double) -> String { v.isFinite ? v.formatted(.number.precision(.fractionLength(3))) : "–" }
 
     /// "102 grains · mean ECD 3.1 µm · ASTM 14.2".
-    static func grainSummary(_ analysis: MapAnalysis) -> String {
+    static func grainSummary(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> String {
         var parts = ["\(analysis.table.count) grains"]
-        if let mean = analysis.meanDiameter { parts.append("mean ECD \(number(mean.byNumber)) \(EBSDBrowsing.unitLabel(analysis.scanUnit))") }
-        if let g = analysis.astmGrainSizeNumber { parts.append("ASTM \(angle(g))") }
+        if let mean = analysis.meanDiameter {
+            parts.append("mean ECD \(number(mean.byNumber, locale: locale)) \(EBSDBrowsing.unitLabel(analysis.scanUnit))")
+        }
+        if let g = analysis.astmGrainSizeNumber { parts.append("ASTM \(angle(g, locale: locale))") }
         return parts.joined(separator: " · ")
     }
 
     /// The Grains section's summary rows.
-    static func grainRows(_ analysis: MapAnalysis) -> [EBSDBrowsing.Row] {
+    static func grainRows(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
         let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
+        let n = { (v: Double) in Self.number(v, locale: locale) }
         var out = [EBSDBrowsing.Row("Grains", "\(analysis.table.count)")]
         if let mean = analysis.meanDiameter {
-            out.append(EBSDBrowsing.Row("Mean ECD", "\(number(mean.byNumber)) \(unit)"))
-            out.append(EBSDBrowsing.Row("Area-weighted", "\(number(mean.byArea)) \(unit)"))
+            out.append(EBSDBrowsing.Row("Mean ECD", "\(n(mean.byNumber)) \(unit)"))
+            out.append(EBSDBrowsing.Row("Area-weighted", "\(n(mean.byArea)) \(unit)"))
         }
-        if let l = analysis.meanLinealIntercept { out.append(EBSDBrowsing.Row("Mean intercept", "\(number(l)) \(unit)")) }
-        if let g = analysis.astmGrainSizeNumber { out.append(EBSDBrowsing.Row("ASTM E112", angle(g))) }
+        if let l = analysis.meanLinealIntercept { out.append(EBSDBrowsing.Row("Mean intercept", "\(n(l)) \(unit)")) }
+        if let g = analysis.astmGrainSizeNumber { out.append(EBSDBrowsing.Row("ASTM E112", angle(g, locale: locale))) }
         let s = analysis.settings
-        out.append(EBSDBrowsing.Row("Made with", "\(number(s.boundaryDegrees))° · ≥ \(s.minimumSize) points · KAM ≤ \(number(s.kamMaxDegrees))°"))
+        out.append(EBSDBrowsing.Row("Made with", "\(n(s.boundaryDegrees))° · ≥ \(s.minimumSize) points · KAM ≤ \(n(s.kamMaxDegrees))°"))
         return out
     }
 
@@ -343,8 +350,8 @@ nonisolated enum MapsRoomFormat {
         return lines.joined(separator: "\n") + "\n"
     }
 
-    /// The Info tab (design §5): what the map is, where it came from and how its colours are made.
-    static func infoRows(_ document: OrientationMapSession.Document) -> [EBSDBrowsing.Row] {
+    /// The Info tab (design §5): what the map is, where it came from and how its colours are made; the step in `locale`.
+    static func infoRows(_ document: OrientationMapSession.Document, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
         let map = document.map
         let (rows, columns) = OrientationMaps.gridShape(map)
         let unit = EBSDBrowsing.unitLabel(map.scanUnit)
@@ -353,7 +360,7 @@ nonisolated enum MapsRoomFormat {
             EBSDBrowsing.Row("Format", document.format),
             EBSDBrowsing.Row("Source", Self.infoSource(document.source)),
             EBSDBrowsing.Row("Map", "\(rows) × \(columns)"),
-            EBSDBrowsing.Row("Step", "\(UnitDisplay.number(map.dx)) \(unit) × \(UnitDisplay.number(map.dy)) \(unit)"),
+            EBSDBrowsing.Row("Step", "\(UnitDisplay.number(map.dx, locale: locale)) \(unit) × \(UnitDisplay.number(map.dy, locale: locale)) \(unit)"),
             EBSDBrowsing.Row("Points", "\(map.size)"),
         ]
         let notIndexed = map.phaseIDs.filter { $0 == PhaseList.notIndexedID }.count

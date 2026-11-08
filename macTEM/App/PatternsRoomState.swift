@@ -171,9 +171,9 @@ final class PatternsRoomState {
         case .overlayPNG, .overlayCSV:
             let overlay = session.overlaySettings
             let drawsSimulation = kind == .overlayPNG && overlay.kinematical && session.canDrawBandWidth
-            // The Simulation section's words: Overlay, Blend, Min d, Band width.
+            // The Simulation section's words: Overlay, Blend (two decimals, as its slider), Min d, Band width, in one locale.
             fields = [position, SEMSessionField("Overlay", drawsSimulation ? "Kinematical" : "Geometrical")]
-            if drawsSimulation { fields.append(SEMSessionField("Blend", String(format: "%.2f", overlay.blend))) }
+            if drawsSimulation { fields.append(SEMSessionField("Blend", Num.fixed(overlay.blend, 2))) }
             fields.append(SEMSessionField("Min d", "\(UnitDisplay.number(overlay.minDSpacing)) Å"))
             fields.append(SEMSessionField("Band width", overlay.bandWidth && session.canDrawBandWidth ? "On" : "Off"))
             methods = [.kikuchiOverlay] + (drawsSimulation ? [.kinematicalSimulation] : [])

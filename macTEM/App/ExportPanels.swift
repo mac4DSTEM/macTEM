@@ -114,9 +114,10 @@ enum ExportPanels {
 
     /// File > Export Session Report… and the Results inspector's Export Report…: the SEM session as one PDF or Markdown report
     /// (D-SEM-103), with the Report section's choices. The rows and the context are taken when the panel opens; a Markdown report links
-    /// the figures from the folder it is written to, so it is set after OK.
+    /// the figures from the folder it is written to, so it is set after OK. The rows' numbers are in `ExportSnapshot.labelLocale`, as the
+    /// figures' labels are, so the report reads the same on every Mac; the Results room shows them in the reader's.
     static func exportSessionReport(appState: AppState) {
-        let rows = SEMSessionLedger.rows(of: appState)
+        let rows = SEMSessionLedger.rows(of: appState, locale: ExportSnapshot.labelLocale)
         guard !rows.isEmpty else { return }
         let options = appState.resultsRoom.reportOptions(rows)
         let context = SEMReportFile.context(namesAuthor: appState.resultsRoom.reportNamesAuthor)
