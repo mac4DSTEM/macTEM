@@ -294,11 +294,14 @@ package nonisolated enum SEMEDSText {
     }
 
     /// An OLE automation date (days since 1899-12-30, as JEOL writes it) as rsciio's `date` and `time` ISO strings; the time keeps its
-    /// microseconds when it has any, as Python's `time.isoformat()` does.
-    package static func oleDate(_ days: Double) -> (date: String, time: String) {
+    /// microseconds when it has any, as Python's `time.isoformat()` does. A damaged field (not a number, infinite, or more
+    /// microseconds than an Int64 holds, about 290 000 years) is refused; rsciio raises on each of these too.
+    package static func oleDate(_ days: Double, file: String) throws -> (date: String, time: String) {
         // Python: datetime(1899, 12, 30) + timedelta(days=d), timedelta rounds to whole microseconds (round half even).
         let micros = (days * 86_400_000_000).rounded(.toNearestOrEven)
-        var totalMicros = Int64(micros)
+        guard var totalMicros = Int64(exactly: micros) else {
+            throw SEMEDSReadError("\(file) states its date as \(days) days after 1899-12-30, which is no date.")
+        }
         var dayNumber = totalMicros / 86_400_000_000
         totalMicros -= dayNumber * 86_400_000_000
         if totalMicros < 0 { totalMicros += 86_400_000_000; dayNumber -= 1 }

@@ -25,12 +25,14 @@ package nonisolated enum JEOLEDSReader {
         return SEMEDSFile(url: url, signals: signals)
     }
 
-    static func signals(url: URL) throws -> [SEMEDSSignal] {
+    /// The signals of one file; `projects` are the project files already open on the way to it (a project's members are read
+    /// through here).
+    static func signals(url: URL, projects: [String] = []) throws -> [SEMEDSSignal] {
         switch url.pathExtension.lowercased() {
         case "pts": return try readPTS(url: url)
         case "eds": return try [readEDS(url: url)]
         case "img", "map": return try [readIMG(url: url)]
-        case "asw": return try readASW(url: url)
+        case "asw": return try readASW(url: url, projects: projects)
         default: return []
         }
     }
@@ -188,7 +190,11 @@ package nonisolated enum JEOLEDSReader {
             n = next
         }
         if let s = n.string { return s }
-        if let v = n.number { return v == v.rounded() ? String(Int(v)) : String(v) }
+        if let v = n.number {
+            // A whole number prints as an integer; one past Int (or infinite) prints as the double it is.
+            if v == v.rounded(), let whole = Int(exactly: v) { return String(whole) }
+            return String(v)
+        }
         throw SEMEDSReadError("\(file)'s \(keys.joined(separator: " / ")) holds no value.")
     }
 
@@ -206,7 +212,11 @@ package nonisolated enum JEOLEDSReader {
         let tree = try parseTree(b, at: dataPos + 12).root
         let size = try node(tree, "Image", "Size", file: name).numbers ?? []
         guard size.count == 2, size[0] > 0, size[1] > 0 else { throw SEMEDSReadError("\(name) states no image size.") }
-        let width = Int(size[0]), height = Int(size[1])
+        // The size in whole pixels, as Int(_:) truncates it; one under a pixel, infinite or past Int is a damaged field.
+        guard size[0] >= 1, size[1] >= 1, let width = Int(exactly: size[0].rounded(.towardZero)),
+              let height = Int(exactly: size[1].rounded(.towardZero)) else {
+            throw SEMEDSReadError("\(name) states an image of \(size[0]) x \(size[1]) pixels, which is not an image size.")
+        }
         let bitsNode = try node(tree, "Image", "Bits", file: name)
         guard let bits = bitsNode.numbers, let code = bitsNode.typeCode, code == "B" || code == "H" else {
             throw SEMEDSReadError("\(name) stores its image in a type macTEM does not read.")
@@ -224,7 +234,7 @@ package nonisolated enum JEOLEDSReader {
         md.beamEnergy = hv
         md.magnification = mag
         md.originalFilename = name
-        let when = SEMEDSText.oleDate(created)
+        let when = try SEMEDSText.oleDate(created, file: name)
         md.date = when.date; md.time = when.time
         md.title = try string(tree, "Image", "Title", file: name)
         let axes = [SEMEDSAxis(name: "y", size: height, scale: scale / Double(height), offset: 0, units: "µm"),
@@ -315,7 +325,7 @@ package nonisolated enum JEOLEDSReader {
         md.energyResolutionMnKa = mnKa
         md.liveTime = liveTime
         md.originalFilename = name
-        let when = SEMEDSText.oleDate(fileDate)
+        let when = try SEMEDSText.oleDate(fileDate, file: name)
         md.date = when.date; md.time = when.time
         md.title = "EDX"
         md.signalType = "EDS_" + mode(accKV)
@@ -349,7 +359,10 @@ package nonisolated enum JEOLEDSReader {
         let coefA = try number(meas, "Doc", "CoefA", file: name), coefB = try number(meas, "Doc", "CoefB", file: name)
         let digZ = try number(header, "PTTD Param", "Params", "PARAMPAGE1_EDXRF", "Tpl", template, "DigZ", file: name)
         let energyOffset = coefB - coefA * digZ
-        let sweep = Int(try number(meas, "Doc", "Sweep", file: name))
+        let sweepValue = try number(meas, "Doc", "Sweep", file: name)
+        guard let sweep = Int(exactly: sweepValue.rounded(.towardZero)) else {
+            throw SEMEDSReadError("\(name) states \(sweepValue) sweeps, which is not a count.")
+        }
 
         // The event stream, frame by frame.
         let words = (b.bytes.count - min(dataPos, b.bytes.count)) / 2
@@ -381,7 +394,7 @@ package nonisolated enum JEOLEDSReader {
 
         let hv = try number(meas, "MeasCond", "AccKV", file: name)
         let m = mode(hv)
-        let when = SEMEDSText.oleDate(fileDate)
+        let when = try SEMEDSText.oleDate(fileDate, file: name)
         var md = SEMEDSMetadata()
         md.mode = m
         md.beamEnergy = hv
@@ -474,8 +487,31 @@ package nonisolated enum JEOLEDSReader {
 
     // MARK: - .asw
 
-    static func readASW(url: URL) throws -> [SEMEDSSignal] {
+    /// How many project files deep a project may name another (a real project names none).
+    static let projectDepth = 8
+
+    /// The file a project names, under the project's folder. JEOL writes the name relative to the project, Windows style
+    /// (`.\Sample\00_View002\View002_0000000.img`); `.` and empty parts are dropped. A name with a part that climbs out of the
+    /// folder (`..`) or names a drive (`C:`) is refused, so a project reads only files in its own folder or below it.
+    package static func projectMember(folder: URL, filename: String) throws -> URL {
+        let parts = filename.split(whereSeparator: { $0 == "\\" || $0 == "/" }).map(String.init).filter { $0 != "." }
+        guard !parts.contains(".."), !parts.contains(where: { $0.contains(":") }) else {
+            throw SEMEDSReadError("\(filename) lies outside the JEOL project's folder \(folder.lastPathComponent); macTEM reads only files below a project.")
+        }
+        return parts.reduce(folder) { $0.appendingPathComponent($1) }
+    }
+
+    /// A project file and the files it names, in order. `projects` are the project files already open on the way here: a
+    /// project that names one of them, or nests deeper than `projectDepth`, is refused rather than followed round a loop.
+    static func readASW(url: URL, projects: [String] = []) throws -> [SEMEDSSignal] {
         let name = url.lastPathComponent
+        let path = url.standardizedFileURL.path
+        guard !projects.contains(path) else {
+            throw SEMEDSReadError("\(name) is named again by the JEOL project it belongs to, a loop macTEM does not follow.")
+        }
+        guard projects.count < projectDepth else {
+            throw SEMEDSReadError("\(name) is a JEOL project nested \(projects.count) projects deep, deeper than macTEM follows.")
+        }
         let b = try load(url)
         guard b.bytes.count >= 12, try b.u32(0) == 0 else {
             throw SEMEDSReadError("\(name) is not a JEOL project file (its first word is not 0), as RosettaSciIO finds too.")
@@ -490,10 +526,9 @@ package nonisolated enum JEOLEDSReader {
                 guard let data = views[j]?["ViewData"] else { continue }
                 for k in data.keys {
                     guard let file = data[k]?["Filename"]?.string else { continue }
-                    let parts = file.split(separator: "\\").map(String.init).filter { !$0.isEmpty }
-                    let sub = parts.reduce(folder) { $0.appendingPathComponent($1) }
+                    let sub = try projectMember(folder: folder, filename: file)
                     guard readableExtensions.contains(sub.pathExtension.lowercased()) else { continue }
-                    out += try signals(url: sub)
+                    out += try signals(url: sub, projects: projects + [path])
                 }
             }
         }
