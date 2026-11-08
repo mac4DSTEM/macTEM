@@ -2,7 +2,8 @@
 //  RoomPrimaryAction.swift
 //  Role: the toolbar's one verb for the room that has one (design 2026-10-22, §2.2): EDS has Quantify, EELS has Run (the stages that are not current,
 //        in order), Patterns has Process, Indexing has Index, Maps has Segment; the Image, FFT, Diffraction and Results rooms have none yet. The button and its glass styles are ShellLayout's
-//        `PrimaryActionButton`; what the verb is, when it is enabled and what it says while blocked is this file's.
+//        `PrimaryActionButton`; what the verb is, when it is enabled and what it says while blocked is this file's. Workspace > Run (⌘R)
+//        runs the same verb from the menu, on exactly when the button can run it (`canRun`).
 //
 
 import ShellLayout
@@ -126,6 +127,27 @@ enum RoomPrimaryAction {
         default:
             return nil
         }
+    }
+
+    /// Workspace > Run (⌘R): the shown room's verb as its title ("Process", "Index"), "Run" in a room without one or with no window.
+    @MainActor
+    static func runTitle(_ appState: AppState?) -> String {
+        appState.flatMap { current($0)?.title } ?? "Run"
+    }
+
+    /// Whether ⌘R runs `action` now: a verb that applies, is enabled and is not running. The toolbar button's own readiness, so ⌘R is
+    /// never a dead key (mac4DSTEM's Run Current Task).
+    @MainActor
+    static func canRun(_ action: PrimaryAction?) -> Bool {
+        guard let action, action.title != nil else { return false }
+        return action.isEnabled && !action.isRunning
+    }
+
+    /// ⌘R: runs the shown room's verb when it can run now.
+    @MainActor
+    static func runActive(_ appState: AppState) {
+        guard let action = current(appState), canRun(action) else { return }
+        action.run()
     }
 
     /// The room ⌘. acts on: the shown room while it runs something Stop ends; else the room whose run the toolbar shows in its place

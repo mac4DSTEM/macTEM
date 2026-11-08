@@ -184,6 +184,11 @@ private struct ImageCommands: Commands {
                 }
             }
             Divider()
+            // The room's verb (⌘R), titled with it, as mac4DSTEM's Run Current Task: on only when the toolbar's button can run it, so ⌘R
+            // is never a dead key. The button keeps its own ⌘↩.
+            Button(RoomPrimaryAction.runTitle(appState)) { if let appState { RoomPrimaryAction.runActive(appState) } }
+                .keyboardShortcut("r", modifiers: .command)
+                .disabled(!RoomPrimaryAction.canRun(appState.flatMap { RoomPrimaryAction.current($0) }))
             // The room's Stop (the toolbar's verb turns into Cancel while a run is in flight; this is its key). While the shown room is
             // idle it stops the run of another room the toolbar shows, and says which ("Stop Indexing").
             Button(appState.map { RoomPrimaryAction.stopTitle($0) } ?? "Stop") { if let appState { RoomPrimaryAction.stopActive(appState) } }
