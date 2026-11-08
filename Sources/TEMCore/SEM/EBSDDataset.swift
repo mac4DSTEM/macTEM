@@ -5,7 +5,8 @@
 //        convention (kikuchipy's internal one), the static background the file carries, the SEM header, the file's own crystal map
 //        when it has one, and where the patterns are (`EBSDPatternSource`: an HDF5 dataset or fixed-size records of a vendor's binary
 //        file) so they are read by map position on demand. The header numbers a reader sizes and indexes by pass `ReaderNumber`,
-//        and every dataset passes `EBSDDataset.validated()` at the open, so a broken or hostile header is refused in words.
+//        and every dataset passes `EBSDDataset.validated()` at the open, so a broken or hostile header is refused in words. A record
+//        file is mapped only on a local volume and checked before every read, so a volume that goes away is a sentence, not a crash.
 //        Ported from kikuchipy 0.13.1 (`kikuchipy/io/plugins/_h5ebsd.py`, `detectors/_ebsd_detector.py`; GPL-3.0-or-later); the
 //        SEM program's parity rows are in docs/parity.md.
 //
@@ -213,33 +214,51 @@ package nonisolated struct EBSDDataset: Sendable, Equatable {
     }
 }
 
-/// Reads patterns of one dataset by map position; holds the HDF5 dataset open (or the record file mapped) between calls (the live
-/// pattern pane asks per cursor move).
+/// Reads patterns of one dataset by map position; holds the HDF5 dataset open (or the record file, `RecordFile`) between calls (the
+/// live pattern pane asks per cursor move).
 package nonisolated final class EBSDPatternReader: @unchecked Sendable {
     package let dataset: EBSDDataset
 
+    /// How a record file is held. A mapped page whose volume has gone (a network share that dropped, a disk pulled out) or whose file
+    /// was cut short faults when it is touched, a SIGBUS that ends the app without a dialog; a read through a file handle fails with
+    /// an error instead. Either way the bytes are the same.
+    package enum RecordStrategy: Sendable, Equatable {
+        /// Mapped, pages coming in as patterns are read; before every read a descriptor opened with the file is asked whether the file
+        /// is still there, at least as long as when it was opened.
+        case mapped
+        /// Read record by record through a held file handle.
+        case read
+    }
+
+    /// Mapped on a local volume; read on any other, or when the volume does not say (mac4DSTEM's `DM4Reader.readingOptions` maps on
+    /// local volumes only, for the same fault).
+    package static func recordStrategy(volumeIsLocal: Bool?) -> RecordStrategy {
+        volumeIsLocal == true ? .mapped : .read
+    }
+
     private enum Store {
         case hdf5(HDF5SlabReader)
-        case records(Data, offset: Int, recordBytes: Int, patternOffset: Int)
+        case records(RecordFile, offset: Int, recordBytes: Int, patternOffset: Int)
     }
     private let store: Store
 
-    package init(_ dataset: EBSDDataset) throws {
+    /// A record file is held as `strategy` says, or when nil as its volume says (`recordStrategy(volumeIsLocal:)`).
+    package init(_ dataset: EBSDDataset, strategy: RecordStrategy? = nil) throws {
         self.dataset = dataset
         let source = dataset.patterns
         switch source.layout {
         case .hdf5(let path):
             do { store = .hdf5(try HDF5SlabReader(url: source.url, path: path)) } catch { throw EBSDReadError.wrap(error, file: source.url) }
         case .records(let offset, let recordBytes, let patternOffset):
-            let data: Data
-            do { data = try Data(contentsOf: source.url, options: .alwaysMapped) } catch {
-                throw EBSDReadError(text: "\(source.url.lastPathComponent) could not be read: \((error as NSError).localizedDescription)")
-            }
+            let volumeIsLocal = try? source.url.resourceValues(forKeys: [.volumeIsLocalKey]).volumeIsLocal
+            let file = try RecordFile(url: source.url, strategy: strategy ?? EBSDPatternReader.recordStrategy(volumeIsLocal: volumeIsLocal))
             let bytesPerPattern = dataset.patternPixels * dataset.dataType.byteSize
-            guard recordBytes >= patternOffset + bytesPerPattern, offset + source.fileCount * recordBytes <= data.count else {
-                throw EBSDReadError(text: "\(source.url.lastPathComponent) is shorter than its \(source.fileCount) patterns need (\(data.count) bytes).")
+            // The records' span overflow-checked, and compared with what follows the offset, so neither side can overflow.
+            let span = ReaderNumber.product([source.fileCount, recordBytes]) ?? Int.max
+            guard recordBytes >= patternOffset + bytesPerPattern, offset >= 0, offset <= file.size, span <= file.size - offset else {
+                throw EBSDReadError(text: "\(source.url.lastPathComponent) is shorter than its \(source.fileCount) patterns need (\(file.size) bytes).")
             }
-            store = .records(data, offset: offset, recordBytes: recordBytes, patternOffset: patternOffset)
+            store = .records(file, offset: offset, recordBytes: recordBytes, patternOffset: patternOffset)
         }
     }
 
@@ -304,8 +323,8 @@ package nonisolated final class EBSDPatternReader: @unchecked Sendable {
         return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: out)
     }
 
-    /// One scan row as the file stores it (the file order is the map order: `row(_:)` checks that), as one slab read (one slice of the
-    /// mapped file for bare-pattern records, record by record otherwise).
+    /// One scan row as the file stores it (the file order is the map order: `row(_:)` checks that), as one slab read (one slice or one
+    /// read of the record file for bare-pattern records, record by record otherwise).
     func rowSlab(row: Int) throws -> FormatoArray {
         let columns = dataset.scanColumns
         let shape = [columns, dataset.patternRows, dataset.patternColumns]
@@ -346,11 +365,76 @@ package nonisolated final class EBSDPatternReader: @unchecked Sendable {
                 start = [fileIndex, 0, 0]; extent = [count, fileShape[1], fileShape[2]]
             }
             do { return try slabs.read(start: start, count: extent).bytes } catch { throw EBSDReadError.wrap(error, file: dataset.patterns.url) }
-        case .records(let data, let offset, let recordBytes, let patternOffset):
-            let first = data.startIndex + offset + fileIndex * recordBytes + patternOffset
+        case .records(let file, let offset, let recordBytes, let patternOffset):
+            let first = offset + fileIndex * recordBytes + patternOffset
             let length = recordBytes == bytesPerPattern ? count * bytesPerPattern : bytesPerPattern
-            return data.subdata(in: first..<(first + length))
+            return try file.bytes(from: first, count: length)
         }
+    }
+}
+
+/// A record file's bytes, held as `EBSDPatternReader.RecordStrategy` says. Mapped: a descriptor is opened before the file is mapped and
+/// kept, and before every read it must still answer (`fstat`) with at least the size the file was opened at; a volume that has gone
+/// (the descriptor fails) or a file cut short is refused in words, and the mapping is never touched. Read: each read seeks the held
+/// handle and reads, under a lock (the handle has one offset), and a short or failed read is refused the same way.
+private nonisolated final class RecordFile: @unchecked Sendable {
+    let url: URL
+    /// The file's size in bytes when it was opened; every read stays inside it.
+    let size: Int
+    private let handle: FileHandle
+    /// The mapping (`.mapped`), nil when records are read through `handle` (`.read`).
+    private let mapping: Data?
+    private let lock = NSLock()
+
+    init(url: URL, strategy: EBSDPatternReader.RecordStrategy) throws {
+        let handle: FileHandle, mapping: Data?, size: Int
+        do {
+            handle = try FileHandle(forReadingFrom: url)
+            switch strategy {
+            case .mapped:
+                let data = try Data(contentsOf: url, options: .alwaysMapped)
+                mapping = data
+                size = data.count
+            case .read:
+                mapping = nil
+                size = Int(try handle.seekToEnd())
+            }
+        } catch {
+            throw EBSDReadError(text: "\(url.lastPathComponent) could not be read: \((error as NSError).localizedDescription)")
+        }
+        self.url = url; self.handle = handle; self.mapping = mapping; self.size = size
+    }
+
+    deinit { try? handle.close() }
+
+    /// `count` bytes from byte `start` of the file.
+    func bytes(from start: Int, count: Int) throws -> Data {
+        guard let mapping else { return try read(from: start, count: count) }
+        guard isStillThere else { throw gone }
+        return mapping.subdata(in: (mapping.startIndex + start)..<(mapping.startIndex + start + count))
+    }
+
+    /// Whether the descriptor opened with the file still answers, with at least the opened size: false once the volume has gone
+    /// (`fstat` fails on a descriptor whose disk was pulled or whose share dropped) or the file was cut short (a mapped page past the
+    /// new end faults). A file that grew still is: reads stay inside the opened size.
+    private var isStillThere: Bool {
+        var info = stat()
+        return fstat(handle.fileDescriptor, &info) == 0 && info.st_size >= off_t(size)
+    }
+
+    private var gone: EBSDReadError { EBSDReadError(text: "\(url.lastPathComponent) is no longer available.") }
+
+    private func read(from start: Int, count: Int) throws -> Data {
+        let data = lock.withLock { () -> Data? in
+            do {
+                try handle.seek(toOffset: UInt64(start))
+                return try handle.read(upToCount: count) ?? Data()
+            } catch {
+                return nil
+            }
+        }
+        guard let data, data.count == count else { throw gone }
+        return data
     }
 }
 
