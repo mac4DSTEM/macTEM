@@ -263,8 +263,13 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             if let std = dynamicStage.std, !(std.isFinite && std > 0) { return Refusal(.dynamicBackground, "Std must be a positive number of pixels.") }
             guard dynamicStage.truncate.isFinite, dynamicStage.truncate > 0 else { return Refusal(.dynamicBackground, "Truncate must be positive.") }
             let std = dynamicStage.std ?? Double(dataset.patternColumns) / 8
-            if dynamicStage.domain == .frequency, Int(dynamicStage.truncate * std) < 1 {
+            // The window's width compared in Double, as `PatternProcessing.gaussianWindow` bounds it: `Int()` of a typed 1e300 traps.
+            let width = dynamicStage.truncate * std
+            if dynamicStage.domain == .frequency, width < 1 {
                 return Refusal(.dynamicBackground, "Std × truncate is under one pixel: the Gaussian window would be empty.")
+            }
+            if dynamicStage.domain == .frequency, width > Double(PatternProcessing.maximumWindow) {
+                return Refusal(.dynamicBackground, "Std × truncate is over \(PatternProcessing.maximumWindow) px: the Gaussian window would be far wider than any pattern.")
             }
         }
         if intensity.mode == .rescale, intensity.usesPercentiles {
@@ -279,6 +284,15 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
                 return Refusal(.intensity, "Equalise reads 8 and 16 bit patterns; Normalise makes them float32. Rescale or leave the intensities instead.")
             }
             if let k = intensity.equalizeKernel, k < 1 { return Refusal(.intensity, "The equalisation kernel must be at least 1 px.") }
+            // CLAHE pads the pattern by about the kernel on each side, (rows + 2k) × (columns + 2k) values, so a typed 100000 would ask
+            // for (2 × 100000)² of them. scikit-image sets no limit: every kernel up to the pattern's side runs, and so does a larger one
+            // whose padding holds at most 2²⁴ values (128 MB of Int); only a kernel past both is refused.
+            if let k = intensity.equalizeKernel, k > max(dataset.patternRows, dataset.patternColumns) {
+                let padded = (Double(dataset.patternRows) + 2 * Double(k)) * (Double(dataset.patternColumns) + 2 * Double(k))
+                if padded > Double(1 << 24) {
+                    return Refusal(.intensity, "The equalisation kernel of \(k) px is far larger than the \(dataset.patternRows) × \(dataset.patternColumns) px pattern.")
+                }
+            }
             guard intensity.clipLimit.isFinite, intensity.clipLimit >= 0 else { return Refusal(.intensity, "The clip limit must be 0 or more.") }
         }
         if fftFilter.isOn {
@@ -306,10 +320,14 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             return Refusal(.averaging, "Average neighbours reads 8 and 16 bit patterns; Normalise makes them float32. Rescale or leave the intensities instead.")
         }
         if nlpar.isOn {
-            let window = 2 * nlpar.searchRadius + 1
-            guard nlpar.searchRadius >= 1 else { return Refusal(.nlpar, "The search radius must be at least 1.") }
-            guard window <= dataset.scanRows, window <= dataset.scanColumns else {
-                return Refusal(.nlpar, "A search radius of \(nlpar.searchRadius) needs a scan of at least \(window) × \(window); this one is \(dataset.scanRows) × \(dataset.scanColumns).")
+            let radius = nlpar.searchRadius
+            guard radius >= 1 else { return Refusal(.nlpar, "The search radius must be at least 1.") }
+            // The radius is held against the scan before the window 2 r + 1 is formed, so no typed radius overflows it.
+            guard radius <= (min(dataset.scanRows, dataset.scanColumns) - 1) / 2 else {
+                let scan = "this one is \(dataset.scanRows) × \(dataset.scanColumns)."
+                guard radius <= Int.max / 2 else { return Refusal(.nlpar, "A search radius of \(radius) is wider than any scan; " + scan) }
+                let window = 2 * radius + 1
+                return Refusal(.nlpar, "A search radius of \(radius) needs a scan of at least \(window) × \(window); " + scan)
             }
         }
         return nil

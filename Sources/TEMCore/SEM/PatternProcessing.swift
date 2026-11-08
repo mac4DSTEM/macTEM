@@ -40,7 +40,7 @@ package nonisolated enum PatternProcessing {
     package enum Error: Swift.Error, Equatable, Sendable {
         /// A count does not match `rows * columns`, or a size is below 1.
         case shape
-        /// `std` or `truncate` is not positive and finite, or the window they give has no pixel.
+        /// `std` or `truncate` is not positive and finite, or the window they give has no pixel or is wider than `maximumWindow`.
         case parameter(String)
         /// A division made an infinite or undefined value (a zero in the background), so the pattern cannot be rescaled.
         case nonFinite
@@ -280,12 +280,19 @@ package nonisolated enum PatternProcessing {
         }
     }
 
+    /// The widest frequency-domain Gaussian window, 2²⁰ px: far wider than any pattern. A wider `truncate * std` is refused
+    /// before the window is allocated or converted to `Int` (a typed truncate of 1e300 would trap there).
+    package static let maximumWindow = 1 << 20
+
     /// kikuchipy's dynamic-background window along one axis: `scipy.signal.windows.gaussian(M, std, sym=True)` with
     /// `M = int(truncate * std)` — exp(−n² / 2σ²) at n = 0 − (M − 1)/2 ... (M − 1)/2 — normalised to a sum of one (the
-    /// 1 / 2πσ² factor cancels in that normalisation). A window of one pixel is [1].
+    /// 1 / 2πσ² factor cancels in that normalisation). A window of one pixel is [1]; one under a pixel or over `maximumWindow`
+    /// is refused.
     static func gaussianWindow(std: Double, truncate: Double) throws -> [Double] {
-        let m = Int(truncate * std)
-        guard m >= 1 else { throw Error.parameter("truncate · std") }
+        let extent = truncate * std
+        // `int(x) >= 1` is `x >= 1`; a nan fails both comparisons.
+        guard extent >= 1, extent <= Double(maximumWindow) else { throw Error.parameter("truncate · std") }
+        let m = Int(extent)
         if m == 1 { return [1] }
         let centre = Double(m - 1) / 2
         let w = (0..<m).map { n in exp(-pow(Double(n) - centre, 2) / (2 * std * std)) }

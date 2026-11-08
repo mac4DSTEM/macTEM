@@ -274,7 +274,8 @@ struct EELSProcessingSection: View {
                 InspectorRow("Iterations") {
                     OptionalNumericField(title: "Iterations", value: Double(n), format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0)),
                                          unit: "", prompt: "\(EELSDeconvolutionChoice.defaultIterations)") { v in
-                        session.setDeconvolution(.richardsonLucy(iterations: max(0, Int(v.rounded()))))
+                        // At most 10,000: a spectrum's iterations all run between two cancellation checks, so a typed 1e9 could not be stopped.
+                        session.setDeconvolution(.richardsonLucy(iterations: min(max(0, TypedWholeNumber.value(v)), 10_000)))
                     }
                     .help("Richardson-Lucy iterations (exSpy's default 15); more iterations amplify the noise")
                     .accessibilityIdentifier("eels.deconvolution.iterations")
