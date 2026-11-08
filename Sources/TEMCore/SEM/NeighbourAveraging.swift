@@ -53,7 +53,8 @@ package nonisolated enum NeighbourAveraging {
         _ patterns: [P], scanRows: Int, scanColumns: Int, pixels: Int, window: PatternWindow
     ) throws -> [Double] {
         var out = [Double](repeating: 0, count: patterns.count)
-        try forEachAveraged(patterns, scanRows: scanRows, scanColumns: scanColumns, pixels: pixels, window: window) { base, rescaled in
+        try forEachAveraged(patterns, scanRows: scanRows, scanColumns: scanColumns, pixels: pixels, window: window,
+                            isCancelled: { false }) { base, rescaled in
             for k in 0..<rescaled.count { out[base + k] = rescaled[k] }
         }
         return out
@@ -61,8 +62,10 @@ package nonisolated enum NeighbourAveraging {
 
     /// The steps of `averageValues`, one pattern at a time in map order: `body` gets the index of the pattern's first value in the
     /// scan and its `pixels` averaged, rescaled values, so a caller that casts them at once needs no whole-scan float64 buffer.
+    /// `isCancelled` is asked before each scan row; a yes ends the pass with `CancellationError`.
     private static func forEachAveraged<P: FixedWidthInteger & UnsignedInteger>(
-        _ patterns: [P], scanRows: Int, scanColumns: Int, pixels: Int, window: PatternWindow, _ body: (Int, [Double]) throws -> Void
+        _ patterns: [P], scanRows: Int, scanColumns: Int, pixels: Int, window: PatternWindow, isCancelled: () -> Bool,
+        _ body: (Int, [Double]) throws -> Void
     ) throws {
         guard scanRows >= 1, scanColumns >= 1, pixels >= 1, patterns.count == scanRows * scanColumns * pixels else { throw Error.shape }
         let sums = windowSums(scanRows: scanRows, scanColumns: scanColumns, window: window)
@@ -70,6 +73,7 @@ package nonisolated enum NeighbourAveraging {
         let (omin, omax) = PatternProcessing.range(of: P.self)
         var acc = [Double](repeating: 0, count: pixels)
         for r in 0..<scanRows {
+            if isCancelled() { throw CancellationError() }
             for c in 0..<scanColumns {
                 for k in 0..<pixels { acc[k] = 0 }
                 for a in 0..<window.rows {
@@ -109,9 +113,11 @@ package nonisolated enum NeighbourAveraging {
     }
 
     /// `average` written into `out`, the caller's buffer of `patterns.count` values: each pattern is averaged, rescaled and cast
-    /// on its own, so no whole-scan float64 buffer is made. The values are `average`'s, as the cast is value by value.
+    /// on its own, so no whole-scan float64 buffer is made. The values are `average`'s, as the cast is value by value. `isCancelled`
+    /// (Stop) is asked before each scan row; a yes ends the pass with `CancellationError`, `out` part written.
     package static func average<P: FixedWidthInteger & UnsignedInteger>(
-        _ patterns: [P], scanRows: Int, scanColumns: Int, pixels: Int, window: PatternWindow, into out: inout [P]
+        _ patterns: [P], scanRows: Int, scanColumns: Int, pixels: Int, window: PatternWindow, into out: inout [P],
+        isCancelled: () -> Bool = { false }
     ) throws {
         guard out.count == patterns.count else { throw Error.shape }
         if window.rows == 1, window.columns == 1 {
@@ -119,7 +125,8 @@ package nonisolated enum NeighbourAveraging {
             out = patterns
             return
         }
-        try forEachAveraged(patterns, scanRows: scanRows, scanColumns: scanColumns, pixels: pixels, window: window) { base, rescaled in
+        try forEachAveraged(patterns, scanRows: scanRows, scanColumns: scanColumns, pixels: pixels, window: window,
+                            isCancelled: isCancelled) { base, rescaled in
             let cast: [P]
             do {
                 cast = try PatternProcessing.cast(rescaled, to: P.self)

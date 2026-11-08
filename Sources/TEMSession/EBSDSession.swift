@@ -195,7 +195,8 @@ package final class EBSDSession {
 
     /// The room's verb: the whole scan through the pipeline, off the main actor, with progress; Stop (⌘.) ends it and keeps the last run.
     /// The returned task ends when the run has landed (or was refused or stopped). Each run lands only while it is the latest
-    /// (`processRun`), so a stopped run never lands over the one started after it.
+    /// (`processRun`), so a stopped run never lands over the one started after it; and a run starts computing only once the run before
+    /// it has ended, so a stopped run still finishing its row or tile never shares the cores and the memory with the new one.
     @discardableResult
     package func process() -> Task<Void, Never> {
         guard let document, !isBusy else { return Task {} }
@@ -212,14 +213,23 @@ package final class EBSDSession {
         isProcessing = true
         processProgress = 0
         onEvent?("Processing \(document.dataset.patternCount) patterns…")
-        let started = Date()
+        let previous = processTask
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            if let previous { await previous.value }
+            let started = Date()
+            // Stop cancels this task, and the handler raises the flag the pipeline asks: NLPAR asks it on worker threads that run no
+            // task, where `Task.isCancelled` is always false.
+            let stopped = CancellationFlag()
             do {
                 // NLPAR's λ travels with this run's result, so a stopped run never hands its λ to the run that stays.
                 var chosenLambda: Double?
-                let result = try pipeline.process(access, background: background, progress: { f in
-                    Task { @MainActor in self?.landProcessProgress(f, generation: gen, processRun: runID) }
-                }, isCancelled: { Task.isCancelled }, lambda: { chosenLambda = $0 })
+                let result = try await withTaskCancellationHandler {
+                    try pipeline.process(access, background: background, progress: { f in
+                        Task { @MainActor in self?.landProcessProgress(f, generation: gen, processRun: runID) }
+                    }, isCancelled: { stopped.isRaised }, lambda: { chosenLambda = $0 })
+                } onCancel: {
+                    stopped.raise()
+                }
                 await self?.landProcessed(result, with: pipeline, lambda: chosenLambda, failure: nil, seconds: Date().timeIntervalSince(started),
                                           generation: gen, processRun: runID)
             } catch {
@@ -488,7 +498,8 @@ package final class EBSDSession {
     }
 
     /// Ends the open, the map's pass or the processing run in flight; what has landed stays (a stopped run keeps the last complete one,
-    /// and never lands itself, even after a new run has started).
+    /// and never lands itself, even after a new run has started). A stopped run's work ends at its next row or tile, NLPAR's and
+    /// neighbour averaging's included.
     package func stop() {
         if isOpening { openTask?.cancel(); isOpening = false; onEvent?("Stopped opening") }
         if isMapping { mapTask?.cancel(); isMapping = false; mapFailure = "The map's pass was stopped." }

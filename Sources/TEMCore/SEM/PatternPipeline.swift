@@ -455,10 +455,12 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
     /// Every pattern of the scan through the pipeline, row by row, into memory, then neighbour averaging and NLPAR over the result when
     /// they are on (`lambda` is told the λ NLPAR chose). `progress` gets the fraction done after each scan row (the rows are the first
     /// half when a whole-scan stage follows, averaging the third quarter when NLPAR follows it); returns nil when `isCancelled` says so
-    /// between rows. Where it can, the scan is held once: averaging lets its input bytes go before it writes its output, NLPAR takes
-    /// the per-pattern output as float32 and the bytes go, and each result is written out in one copy.
+    /// between rows, or between the rows and tiles of averaging and NLPAR, which also ask it on NLPAR's worker threads (so it must
+    /// read a flag such as `CancellationFlag`, not `Task.isCancelled`). Where it can, the scan is held once: averaging lets its input
+    /// bytes go before it writes its output, NLPAR takes the per-pattern output as float32 and the bytes go, and each result is
+    /// written out in one copy.
     package func process(_ access: any EBSDPatternAccess, background: FormatoArray?,
-                         progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false },
+                         progress: (Double) -> Void = { _ in }, isCancelled: @Sendable () -> Bool = { false },
                          lambda: (Double) -> Void = { _ in }) throws -> EBSDMemoryPatterns? {
         let dataset = access.dataset
         if let problem = refusal(for: dataset, background: background) { throw problem }
@@ -480,7 +482,11 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         }
         if averaging.isOn {
             if isCancelled() { return nil }
-            try averageNeighbours(&bytes, dataset: out, type: dataset.dataType)
+            do {
+                try averageNeighbours(&bytes, dataset: out, type: dataset.dataType, isCancelled: isCancelled)
+            } catch is CancellationError {
+                return nil
+            }
             progress(nlpar.isOn ? 0.75 : 1)
         }
         guard nlpar.isOn else { return try EBSDMemoryPatterns(dataset: out, bytes: bytes) }
@@ -490,7 +496,12 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         let scan = try NLPAR.Scan(rows: out.scanRows, columns: out.scanColumns, patternRows: out.patternRows, patternColumns: out.patternColumns,
                                   values: Self.floats(bytes, type: perPattern))
         bytes = Data()
-        let result = try NLPAR.run(scan, searchRadius: nlpar.searchRadius)
+        let result: NLPAR.Result
+        do {
+            result = try NLPAR.run(scan, searchRadius: nlpar.searchRadius, isCancelled: isCancelled)
+        } catch is CancellationError {
+            return nil
+        }
         lambda(result.lambda)
         progress(1)
         return try EBSDMemoryPatterns(dataset: out, bytes: Self.littleEndianBytes(result.denoised.values))
@@ -498,25 +509,28 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
 
     /// The per-pattern output of the scan in `bytes` (`type`, uint8 or uint16, in `dataset`'s shapes; not `dataset.dataType`, which is
     /// float32 when NLPAR follows) replaced by itself averaged with its neighbours.
-    private func averageNeighbours(_ bytes: inout Data, dataset: EBSDDataset, type: FormatoDataType) throws {
+    private func averageNeighbours(_ bytes: inout Data, dataset: EBSDDataset, type: FormatoDataType, isCancelled: () -> Bool) throws {
         let window = try averaging.window.window()
         switch type {
-        case .uint8: try Self.averagePatterns(&bytes, as: UInt8.self, type: type, dataset: dataset, window: window)
-        case .uint16: try Self.averagePatterns(&bytes, as: UInt16.self, type: type, dataset: dataset, window: window)
+        case .uint8: try Self.averagePatterns(&bytes, as: UInt8.self, type: type, dataset: dataset, window: window, isCancelled: isCancelled)
+        case .uint16: try Self.averagePatterns(&bytes, as: UInt16.self, type: type, dataset: dataset, window: window, isCancelled: isCancelled)
         default: throw Refusal(.averaging, "Average neighbours reads 8 and 16 bit patterns; these are \(type.rawValue).")
         }
     }
 
     /// `averageNeighbours` for one pattern type: the values are read out and `bytes` let go before the averaged patterns are written
-    /// into their own buffer, so the scan is held twice at most, never beside a float64 copy.
+    /// into their own buffer, so the scan is held twice at most, never beside a float64 copy. Stopped, it throws `CancellationError`.
     private static func averagePatterns<P: FixedWidthInteger & UnsignedInteger>(_ bytes: inout Data, as _: P.Type, type: FormatoDataType,
-                                                                                dataset: EBSDDataset, window: PatternWindow) throws {
+                                                                                dataset: EBSDDataset, window: PatternWindow,
+                                                                                isCancelled: () -> Bool) throws {
         let values = try unsigned(FormatoArray(dataType: type, shape: [bytes.count / type.byteSize], bytes: bytes), as: P.self)
         bytes = Data()
         var out = [P](repeating: 0, count: values.count)
         do {
             try NeighbourAveraging.average(values, scanRows: dataset.scanRows, scanColumns: dataset.scanColumns, pixels: dataset.patternPixels,
-                                           window: window, into: &out)
+                                           window: window, into: &out, isCancelled: isCancelled)
+        } catch let stop as CancellationError {
+            throw stop
         } catch {
             throw Refusal(.averaging, "An averaged pattern is flat, so it cannot be rescaled.")
         }
