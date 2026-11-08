@@ -248,8 +248,10 @@ final class AppState {
                        exportDirectory: { [weak self] in self?.exportDirectory })
     }
 
+    /// The alert and the status line for `error`: its sentence, and for a system error its domain, code and underlying error
+    /// (`ErrorDetail`), so a sandbox denial and a missing file read apart.
     func present(_ error: any Error) {
-        let detail = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        let detail = ErrorDetail.text(error)
         errorMessage = detail
         statusText = "Error: \(detail)"
     }
