@@ -152,7 +152,7 @@ package nonisolated enum EBSDH5Reader {
 
         func int(_ key: String) throws -> Int? {
             guard let value = try double(key) else { return nil }
-            return Int(value)
+            return try EBSDH5Reader.wholeNumber(value, "'\(key)' in '\(path)'")
         }
 
         func string(_ key: String) throws -> String? {
@@ -167,13 +167,21 @@ package nonisolated enum EBSDH5Reader {
             return value
         }
 
-        func requiredInt(_ key: String) throws -> Int { Int(try required(key)) }
+        func requiredInt(_ key: String) throws -> Int { try EBSDH5Reader.wholeNumber(try required(key), "'\(key)' in '\(path)'") }
     }
 
     // MARK: - Shared pieces
 
+    /// `value`, a count or index the file stores as a float, as Python's `int()` makes it (`ReaderNumber.int`); refused in words where
+    /// Swift's `Int(_:)` would trap (NaN, infinity, beyond Int's range). `what` names it for the sentence.
+    package static func wholeNumber(_ value: Double, _ what: String) throws -> Int {
+        guard let number = ReaderNumber.int(value) else { throw EBSDReadError(text: "\(what) is \(value), not a whole number in range.") }
+        return number
+    }
+
     /// The pattern dataset's shape and type checked against the scan: (n, sy, sx) or (ny, nx, sy, sx), with sy and sx the header's
-    /// (`H5EBSDReader.get_data`; a shorter dataset is zero-padded there and here, a longer one is read up to the scan).
+    /// (`H5EBSDReader.get_data`; a shorter dataset is zero-padded there and here, a longer one is read up to the scan). The scan and
+    /// the dataset are sized here, before any reader multiplies by them: at least one row and column each, and their bytes countable.
     static func patternSource(_ file: H5File, data: H5Group, name: String, scanRows: Int, scanColumns: Int, rows: Int, columns: Int,
                               order: [Int?]? = nil) throws -> EBSDPatternSource {
         guard let datasetName = data.name(for: name), let info = try data.info(name) else {
@@ -186,6 +194,13 @@ package nonisolated enum EBSDH5Reader {
         let patternShape = Array(shape.suffix(2))
         guard shape.count == 3 || shape.count == 4, patternShape == [rows, columns] else {
             throw EBSDReadError(text: "the patterns in 'EBSD/Data/\(name)' have shape \(shape); the header says \(rows) x \(columns) patterns in a \(scanRows) x \(scanColumns) scan.")
+        }
+        if let refusal = EBSDDataset.sizeRefusal(scanRows: scanRows, scanColumns: scanColumns, patternRows: rows, patternColumns: columns,
+                                                 byteSize: type.byteSize) {
+            throw EBSDReadError(text: "\(file.url.lastPathComponent): \(refusal)")
+        }
+        guard ReaderNumber.product(shape + [type.byteSize]) != nil else {
+            throw EBSDReadError(text: "the patterns in 'EBSD/Data/\(name)' have shape \(shape), more bytes than can be counted.")
         }
         return EBSDPatternSource(url: file.url, datasetPath: data.path + "/" + datasetName, fileShape: shape, dataType: type, fileIndexByPosition: order)
     }
@@ -255,7 +270,7 @@ package nonisolated enum EBSDH5Reader {
         let n = min(phi1.count, Phi.count, phi2.count)
         let euler = (0..<n).map { SIMD3(phi1[$0], Phi[$0], phi2[$0]) }
         let phaseColumn = try data.doubles("phase_id") ?? [Double](repeating: 0, count: n)
-        let phaseIDs = phaseColumn.map { Int($0) }
+        let phaseIDs = try phaseColumn.map { try wholeNumber($0, "a phase id of the crystal map") }
         var phases: [(id: Int, phase: CrystalPhase)] = []
         if let list = try header.subgroup("phases") {
             for id in list.names.sorted(by: { (Int($0) ?? 0) < (Int($1) ?? 0) }) {
@@ -301,8 +316,8 @@ package nonisolated enum EBSDH5Reader {
         let iy = try semGroup.doubles("IY")
         let ix = try semGroup.doubles("IX")
         if let iy, let ix {
-            let rows = iy.map { Int($0) }
-            let columns = ix.map { Int($0) }
+            let rows = try iy.map { try wholeNumber($0, "an 'IY' of the region of interest") }
+            let columns = try ix.map { try wholeNumber($0, "an 'IX' of the region of interest") }
             guard let roi = rectangularROI(rows: rows, columns: columns) else {
                 throw EBSDReadError(text: "only a rectangular region of interest is supported.")
             }
@@ -349,7 +364,8 @@ package nonisolated enum EBSDH5Reader {
             var counts: [Int: Int] = [:]
             for v in values { counts[v, default: 0] += 1 }
             let keys = counts.keys.sorted()
-            guard zip(keys, keys.dropFirst()).allSatisfy({ $1 - $0 == 1 }) else { return false }
+            // The keys ascend, so `$0 + 1` cannot overflow where `$1 - $0` of two far-apart indices would.
+            guard zip(keys, keys.dropFirst()).allSatisfy({ $1 == $0 + 1 }) else { return false }
             return Set(counts.values).count == 1
         }
         guard contiguousEvenCounts(rows), contiguousEvenCounts(columns) else { return nil }
@@ -442,11 +458,17 @@ package nonisolated enum EBSDH5Reader {
         let major = Int(version.split(separator: ".").first ?? "") ?? 0
         let key = major >= 7 ? "Camera Mode" : "Camera Binning Mode"
         guard let mode = try header.string(key) else { return nil }
+        return oxfordBinning(cameraMode: mode)
+    }
+
+    /// The binning a camera mode string `... (WxH px)` gives (`get_binning`); nil when it holds no such size, or a height of 0 or less,
+    /// which gives no binning (1024 over 0 is no number of pixels).
+    package static func oxfordBinning(cameraMode mode: String) -> Int? {
         guard let open = mode.lastIndex(of: "("), let close = mode[open...].firstIndex(of: ")") else { return nil }
         let inside = mode[mode.index(after: open)..<close]   // "60x60 px"
         guard inside.hasSuffix(" px") else { return nil }
         let dims = inside.dropLast(3).split(separator: "x")
-        guard dims.count == 2, let height = Int(dims[1]) else { return nil }
+        guard dims.count == 2, let height = Int(dims[1]), height > 0 else { return nil }
         return height == 88 ? 8 : Int((1024.0 / Double(height)).rounded())
     }
 }

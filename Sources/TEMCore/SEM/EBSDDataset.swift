@@ -4,7 +4,8 @@
 //        grid and its step, the pattern shape and element type, the detector geometry with its projection centres in the Bruker
 //        convention (kikuchipy's internal one), the static background the file carries, the SEM header, the file's own crystal map
 //        when it has one, and where the patterns are (`EBSDPatternSource`: an HDF5 dataset or fixed-size records of a vendor's binary
-//        file) so they are read by map position on demand.
+//        file) so they are read by map position on demand. The header numbers a reader sizes and indexes by pass `ReaderNumber`,
+//        and every dataset passes `EBSDDataset.validated()` at the open, so a broken or hostile header is refused in words.
 //        Ported from kikuchipy 0.13.1 (`kikuchipy/io/plugins/_h5ebsd.py`, `detectors/_ebsd_detector.py`; GPL-3.0-or-later); the
 //        SEM program's parity rows are in docs/parity.md.
 //
@@ -178,6 +179,32 @@ package nonisolated struct EBSDDataset: Sendable, Equatable {
     package var patternCount: Int { scanRows * scanColumns }
     package var patternPixels: Int { patternRows * patternColumns }
 
+    /// Why a scan of `scanRows` x `scanColumns` positions of `patternRows` x `patternColumns` patterns of `byteSize` bytes a pixel
+    /// cannot be read, in one sentence; nil when it can: every side at least 1 and the whole scan's bytes countable in an Int, so
+    /// no count or offset sized by them traps.
+    package static func sizeRefusal(scanRows: Int, scanColumns: Int, patternRows: Int, patternColumns: Int, byteSize: Int) -> String? {
+        guard scanRows >= 1, scanColumns >= 1 else {
+            return "its scan is \(scanRows) x \(scanColumns) positions; a scan needs at least one row and one column."
+        }
+        guard patternRows >= 1, patternColumns >= 1 else {
+            return "its patterns are \(patternRows) x \(patternColumns) pixels; a pattern needs at least one row and one column."
+        }
+        guard ReaderNumber.product([scanRows, scanColumns, patternRows, patternColumns, byteSize]) != nil else {
+            return "its \(scanRows) x \(scanColumns) scan of \(patternRows) x \(patternColumns) patterns is more bytes than can be counted."
+        }
+        return nil
+    }
+
+    /// This dataset when its scan and pattern sizes can be read (`sizeRefusal`), else a refusal that names the file. `EBSDOpening.open`
+    /// passes every reader's dataset through here before a pattern reader or a map is sized by it.
+    package func validated() throws -> EBSDDataset {
+        if let refusal = Self.sizeRefusal(scanRows: scanRows, scanColumns: scanColumns, patternRows: patternRows, patternColumns: patternColumns,
+                                          byteSize: dataType.byteSize) {
+            throw EBSDReadError(text: "\(patterns.url.lastPathComponent): \(refusal)")
+        }
+        return self
+    }
+
     /// Every pattern in map order as one array of shape (scanRows, scanColumns, patternRows, patternColumns), zero where the file has
     /// none. One slab read of the dataset, then the reorder.
     package func allPatterns() throws -> FormatoArray {
@@ -338,5 +365,27 @@ package nonisolated struct EBSDReadError: Error, LocalizedError, Equatable {
         if let already = error as? EBSDReadError { return already }
         let words = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
         return EBSDReadError(text: "\(file.lastPathComponent): \(words)")
+    }
+}
+
+/// The numbers a reader takes from a file's header, checked before anything is counted, sized or indexed by them: where Swift's
+/// `Int(_:)` or `*` would trap on a broken or hostile header, these answer nil and the reader refuses the file in words.
+package nonisolated enum ReaderNumber {
+    /// A count or index the file stores as a float, as the whole number Python's `int()` makes of it (truncated toward zero), so a
+    /// value that converts gives the same number as before; nil for NaN and infinity (where `int()` raises) and for a value beyond
+    /// Int's range (where `Int(_:)` traps).
+    package static func int(_ value: Double) -> Int? {
+        Int(exactly: value.rounded(.towardZero))
+    }
+
+    /// The product of `factors` (1 for none), nil when it overflows an Int.
+    package static func product(_ factors: [Int]) -> Int? {
+        var total = 1
+        for factor in factors {
+            let (next, overflow) = total.multipliedReportingOverflow(by: factor)
+            if overflow { return nil }
+            total = next
+        }
+        return total
     }
 }

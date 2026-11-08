@@ -64,14 +64,16 @@ package nonisolated enum EBSDOpening {
     }
 
     /// The first scan of the file at `url` and the reader for its patterns. Opens the file twice (the header, then the dataset handle it keeps):
-    /// run it off the main actor, inside the file's security scope.
+    /// run it off the main actor, inside the file's security scope. Every reader's dataset passes `EBSDDataset.validated()` first, so a
+    /// scan or pattern size no map can be sized by is refused here in words, whichever door read it.
     package static func open(url: URL) throws -> (dataset: EBSDDataset, reader: EBSDPatternReader) {
         let ext = url.pathExtension.lowercased()
-        let dataset: EBSDDataset
-        if OxfordOpening.readableExtensions.contains(ext) { dataset = try OxfordOpening.open(url: url) }
-        else if EDAXOpening.readableExtensions.contains(ext) { dataset = try EDAXOpening.open(url: url) }
-        else if NORDIFOpening.readableExtensions.contains(ext) { dataset = try NORDIFOpening.open(url: url) }
-        else { dataset = try EBSDH5Reader.read(url: url) }
+        let read: EBSDDataset
+        if OxfordOpening.readableExtensions.contains(ext) { read = try OxfordOpening.open(url: url) }
+        else if EDAXOpening.readableExtensions.contains(ext) { read = try EDAXOpening.open(url: url) }
+        else if NORDIFOpening.readableExtensions.contains(ext) { read = try NORDIFOpening.open(url: url) }
+        else { read = try EBSDH5Reader.read(url: url) }
+        let dataset = try read.validated()
         return (dataset, try EBSDPatternReader(dataset))
     }
 }
