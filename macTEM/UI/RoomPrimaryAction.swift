@@ -11,19 +11,35 @@ import TEMCore
 import TEMSession
 import ShellEDXModel
 
-/// How far the running spectrum-image work is, for the toolbar's busy display: the EDS room's open, or the EELS room's pass (align, thickness, fit); nil while idle
-/// or when the work reports no fraction.
+/// How far the running work is, for the toolbar's busy display: the EDS room's open, the EELS room's pass (align, thickness, fit), the
+/// Patterns room's run or pass, the Indexing room's run; nil while idle or when the work reports no fraction (the Maps room's Segment and
+/// texture report none).
 enum RoomProgress {
     @MainActor
     static func fraction(room: WorkspaceArea, appState: AppState) -> Double? {
         switch room {
         case .edx: appState.edx.isOpening ? appState.edx.openProgress : nil
         case .eels: appState.eels.isComputing ? min(max(appState.eels.progress, 0), 1) : nil
-        case .patterns: appState.ebsd.isProcessing ? min(max(appState.ebsd.processProgress, 0), 1)
-            : (appState.ebsd.isMapping ? min(max(appState.ebsd.mapProgress, 0), 1) : nil)
+        case .patterns: patternsFraction(appState.ebsd)
         case .indexing: appState.indexing.isIndexing ? min(max(appState.indexing.progress, 0), 1) : nil
         default: nil
         }
+    }
+
+    /// The Patterns room's running work in the order `BusyOperation.patterns` names it: Process, the map's pass, the quality pass.
+    @MainActor
+    private static func patternsFraction(_ session: EBSDSession) -> Double? {
+        let fraction: Double
+        if session.isProcessing {
+            fraction = session.processProgress
+        } else if session.isMapping {
+            fraction = session.mapProgress
+        } else if session.isQualityMapping {
+            fraction = session.qualityProgress
+        } else {
+            return nil
+        }
+        return min(max(fraction, 0), 1)
     }
 }
 
@@ -133,7 +149,7 @@ enum RoomPrimaryAction {
         case .eels: appState.eels.isBusy
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy
-        case .maps: appState.maps.isOpening || appState.maps.isSegmenting
+        case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected?.diffraction.isFitting ?? false
         default: false
         }

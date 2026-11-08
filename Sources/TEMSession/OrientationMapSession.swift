@@ -319,12 +319,19 @@ package final class OrientationMapSession {
         return shape.rows > 0 && shape.rows <= dataset.scanRows && shape.columns == dataset.scanColumns
     }
 
+    /// ⌘.: ends the open, Segment and the texture in flight; a layer's picture still lands. The texture's own loops run on to their end,
+    /// but what they make is dropped; the texture pane asks again the next time it appears.
     package func stop() {
         if isOpening { openTask?.cancel(); isOpening = false; onEvent?("Stopped opening") }
         if isSegmenting {
             segmentGeneration += 1
             segmentTask?.cancel(); isSegmenting = false
             onEvent?("Stopped segmenting")
+        }
+        if isTexturing {
+            textureTask?.cancel()
+            isTexturing = false
+            onEvent?("Stopped the texture")
         }
     }
 

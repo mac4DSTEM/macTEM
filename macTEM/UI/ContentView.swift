@@ -76,7 +76,7 @@ struct ContentView: View {
             documentMenu: { ImageMenu() })
     }
 
-    /// What the toolbar's centre shows: nothing without a document or while it loads; the running spectrum-image work while busy;
+    /// What the toolbar's centre shows: nothing without a document or while it loads; the running work while busy (`BusyOperation`);
     /// else "file · room · size".
     private var toolbarDisplay: ToolbarDisplayState? {
         let room = appState.navigation.workspaceArea
@@ -93,8 +93,8 @@ struct ContentView: View {
         case .patterns:
             let session = appState.ebsd
             guard let dataset = session.dataset else { return nil }
-            if session.isBusy {
-                return .busy(operation: session.isOpening ? "Opening the dataset…" : "Reading the scan for the map…", progress: RoomProgress.fraction(room: room, appState: appState),
+            if let operation = BusyOperation.toolbarOperation(room: room, appState: appState) {
+                return .busy(operation: operation, progress: RoomProgress.fraction(room: room, appState: appState),
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
             return .idle(file: session.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
@@ -116,8 +116,9 @@ struct ContentView: View {
             return .idle(file: session.patterns.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
         case .maps:
             let session = appState.maps
-            if session.isOpening {
-                return .busy(operation: "Opening the orientation map…", progress: nil,
+            // The open, Segment, the texture or a layer's picture; none reports a fraction.
+            if let operation = BusyOperation.toolbarOperation(room: room, appState: appState) {
+                return .busy(operation: operation, progress: nil,
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: nil, now: now) })
             }
             guard let map = session.map else { return nil }
