@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import ImageIO
 import ImagoCore
 import Observation
 import ShellSpectroscopy
@@ -101,7 +100,8 @@ final class PatternsRoomState {
                 exportPosition = position
                 let plain = try Self.patternPNG(canvas: canvas, presentation: session.patternPresentation, dataset: document.dataset,
                                                 fileName: document.fileName, position: position)
-                guard let png = KikuchiOverlayExport.png(patternPNG: plain, overlay: overlay, settings: session.overlaySettings) else {
+                guard let png = KikuchiOverlayExport.png(patternPNG: plain, fileName: document.fileName, overlay: overlay,
+                                                         settings: session.overlaySettings) else {
                     report("Export failed: the pattern with its overlay could not be encoded."); return
                 }
                 data = png
@@ -118,7 +118,7 @@ final class PatternsRoomState {
                 }
                 exportMap = Self.mapName(session.mapChoice)
                 if session.mapChoice == .mix, let rgba = session.mixRGBA {
-                    guard let png = Self.mixPNG(rgba: rgba, width: canvas.width, height: canvas.height) else {
+                    guard let png = Self.mixPNG(rgba: rgba, width: canvas.width, height: canvas.height, fileName: document.fileName) else {
                         report("Export failed: the colour mix could not be encoded."); return
                     }
                     data = png
@@ -187,13 +187,11 @@ final class PatternsRoomState {
                                png: isPicture ? data : nil)
     }
 
-    /// The colour mix's RGBA bytes as a PNG (ImageIO), one pixel per scan point.
-    nonisolated static func mixPNG(rgba: [UInt8], width: Int, height: Int) -> Data? {
+    /// The colour mix's RGBA bytes as a PNG, one pixel per scan point, through the app's one encoder (`ImageExport.encodePNG`) with
+    /// `fileName` as Title and macTEM as Software, as the map PNG carries them.
+    nonisolated static func mixPNG(rgba: [UInt8], width: Int, height: Int, fileName: String) -> Data? {
         guard let image = EDXMapRaster.cgImage(rgba: rgba, width: width, height: height) else { return nil }
-        let encoded = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(encoded as CFMutableData, UTType.png.identifier as CFString, 1, nil) else { return nil }
-        CGImageDestinationAddImage(destination, image, nil)
-        return CGImageDestinationFinalize(destination) ? encoded as Data : nil
+        return try? ImageExport.encodePNG(image, title: fileName, software: "macTEM")
     }
 
     static func mapName(_ choice: EBSDSession.MapChoice) -> String {

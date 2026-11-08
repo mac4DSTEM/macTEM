@@ -7,6 +7,7 @@
 //  functions laid out as the room draws them. Red before P5-04: none of these types or the Segment verb exists.
 //
 
+import FormatoCore
 import Foundation
 import TEMCore
 import ShellLayout
@@ -178,6 +179,8 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         XCTAssertNotNil(MapsFigure.textureImage(texture.poleFigures[0].raster))
         let png = try MapsFigure.texturePNG(texture, fileName: "sdss.ang", side: 80)
         XCTAssertEqual(Array(png.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
+        // The file's name is the figure's Title (#331).
+        XCTAssertEqual(try FormatoPNG.textEntries(in: png).first { $0.keyword == "Title" }?.value, "sdss.ang")
     }
 
     // MARK: - The session and the room

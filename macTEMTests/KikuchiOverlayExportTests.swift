@@ -2,11 +2,13 @@
 //  KikuchiOverlayExportTests.swift
 //  The Kikuchi overlay's exports (#201): `Overlay CSV…` and `Pattern with Overlay…` from the Patterns room on the shipped nickel scan,
 //  written to the journeys' folder without a panel; refused while the overlay is off; the band-width switch reaches the session's
-//  overlay; Kinematical carries the point's simulated pattern and the master pattern picture. Red before: neither export kind exists,
-//  and the session's overlay has neither band edges nor a simulation.
+//  overlay; Kinematical carries the point's simulated pattern and the master pattern picture; the picture carries its Title, Software
+//  and Description as text chunks (#331). Red before: neither export kind exists, and the session's overlay has neither band edges
+//  nor a simulation; before #331 the Description was ImageIO's XMP packet and there was no Title.
 //
 
 import XCTest
+import FormatoCore
 import ImageIO
 import TEMCore
 import TEMSession
@@ -61,6 +63,13 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         XCTAssertEqual(s, 8)
         XCTAssertEqual(image.width, 60 * s)
         XCTAssertEqual(image.height, 60 * s)
+        // Title, Software and what is drawn are text chunks, as the Image room's PNGs carry theirs (#331).
+        let text = try FormatoPNG.textEntries(in: png)
+        XCTAssertEqual(text.first { $0.keyword == "Title" }?.value, "patterns_v2.h5")
+        XCTAssertEqual(text.first { $0.keyword == "Software" }?.value, "macTEM")
+        let bands = overlay.simulation.lines.count, axes = overlay.simulation.zoneAxes.count
+        XCTAssertEqual(text.first { $0.keyword == "Description" }?.value,
+                       "Kikuchi overlay of \(overlay.phase): \(bands) bands, \(axes) zone axes; pattern enlarged 8x; macTEM")
 
         // The overlay is in the picture: the enlarged plain pattern differs from it, and the accent blue is drawn where a band runs.
         let plain = try PatternsRoomState.patternPNG(canvas: try XCTUnwrap(session.patternPresentation.canvas), presentation: session.patternPresentation,
@@ -69,7 +78,7 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         empty.simulation.lines = []
         empty.simulation.zoneAxes = []
         empty.lineLabels = []
-        let bare = try XCTUnwrap(KikuchiOverlayExport.png(patternPNG: plain, overlay: empty, settings: settings))
+        let bare = try XCTUnwrap(KikuchiOverlayExport.png(patternPNG: plain, fileName: "patterns_v2.h5", overlay: empty, settings: settings))
         let drawn = try rgba(png), background = try rgba(bare)
         XCTAssertEqual(drawn.count, background.count)
         var changed = 0, blue = 0

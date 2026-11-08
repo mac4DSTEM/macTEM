@@ -22,7 +22,7 @@ nonisolated final class SEMSessionReportTests: XCTestCase {
     private static let folder = URL(fileURLWithPath: "/data/nickel", isDirectory: true)
 
     private static func png() throws -> Data {
-        try XCTUnwrap(PatternsRoomState.mixPNG(rgba: [UInt8](repeating: 200, count: 16), width: 2, height: 2))
+        try XCTUnwrap(PatternsRoomState.mixPNG(rgba: [UInt8](repeating: 200, count: 16), width: 2, height: 2, fileName: "patterns_v2.h5"))
     }
 
     /// A session: the dataset, a processing run, a Hough run, a map PNG and an .ang written next to the data.

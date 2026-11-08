@@ -10,7 +10,6 @@
 import CoreGraphics
 import CoreText
 import Foundation
-import ImageIO
 import ImagoCore
 import Observation
 import ShellMetal
@@ -569,15 +568,17 @@ nonisolated enum MapsFigure {
                 text(rangeLabel(range), at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
             }
         }
-        _ = fileName
         guard let image = ctx.makeImage() else { throw Failure(text: "The figure could not be drawn.") }
-        let encoded = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(encoded as CFMutableData, UTType.png.identifier as CFString, 1, nil) else {
+        return try encoded(image, fileName: fileName)
+    }
+
+    /// A figure as PNG bytes through the app's one encoder (`ImageExport.encodePNG`), the file's name as its Title and macTEM as
+    /// its Software, as the Patterns room's map PNG carries them.
+    private static func encoded(_ image: CGImage, fileName: String) throws -> Data {
+        guard let png = try? ImageExport.encodePNG(image, title: fileName, software: "macTEM") else {
             throw Failure(text: "The figure could not be encoded.")
         }
-        CGImageDestinationAddImage(destination, image, nil)
-        guard CGImageDestinationFinalize(destination) else { throw Failure(text: "The figure could not be encoded.") }
-        return encoded as Data
+        return png
     }
 
     /// The legend column's height: a title and a key per phase, a row per phase, or two lines.
@@ -667,13 +668,7 @@ nonisolated enum MapsFigure {
         row(top, y0: margin + captionH, odf: false)
         if !bottom.isEmpty { row(bottom, y0: margin + captionH + cellH + gap, odf: true) }
         guard let image = ctx.makeImage() else { throw Failure(text: "The figure could not be drawn.") }
-        let encoded = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(encoded as CFMutableData, UTType.png.identifier as CFString, 1, nil) else {
-            throw Failure(text: "The figure could not be encoded.")
-        }
-        CGImageDestinationAddImage(destination, image, nil)
-        guard CGImageDestinationFinalize(destination) else { throw Failure(text: "The figure could not be encoded.") }
-        return encoded as Data
+        return try encoded(image, fileName: fileName)
     }
 
     /// A property layer through the pane's colormap, window and gamma (`ExportSnapshot.display`, the Image room's exporter's mapping).

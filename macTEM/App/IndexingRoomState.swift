@@ -88,7 +88,8 @@ final class IndexingRoomState {
                                                         fileName: document.fileName, map: "indexed \(session.layer.title)")
                 } else {
                     guard let rgba = session.mapRGBA,
-                          let png = PatternsRoomState.mixPNG(rgba: rgba, width: result.scanColumns, height: result.scanRows) else {
+                          let png = PatternsRoomState.mixPNG(rgba: rgba, width: result.scanColumns, height: result.scanRows,
+                                                             fileName: document.fileName) else {
                         report("Export failed: the map could not be encoded."); return
                     }
                     data = png
