@@ -186,7 +186,7 @@ struct ImageMenu: View {
                 }
                 .pickerStyle(.inline)
                 Divider()
-                Button("Close Image") { openItems.closeSelected() }
+                Button("Close Image") { appState.requestCloseSelected() }
             }
         } label: {
             Label("Image", systemImage: "photo.on.rectangle")

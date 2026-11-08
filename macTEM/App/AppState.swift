@@ -79,6 +79,9 @@ final class AppState {
     /// The alert's text; nil when no alert is up.
     var errorMessage: String?
 
+    /// The question up before files with unsaved marks close (`requestClose`, CloseGuard.swift); nil when none is asked.
+    var closeRequest: CloseRequest?
+
     /// Bumped by every "Open Image…" gesture; `ContentView` presents the open panel when it changes.
     private(set) var openImageRequest = 0
 

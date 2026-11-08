@@ -3,8 +3,13 @@
 //  Role: File > Save to Session and the actions of the Measure tail:
 //        the first save's panel, the later saves
 //        through the stored grant, the refusal alert, the infobar event, Show in Finder, and restoring from a session
-//        file the user chose. What is saved and restored is TEMSession's (`SessionSaving`, `SessionOpening`,
-//        `OpenItem.adopt`); the bookmarks are `SessionGrants`'; nothing is written here.
+//        file the user chose; and the question before a file with unsaved marks closes (`askToClose`; the rule is
+//        `CloseGuard`'s), whose Save to Session saves here. What is saved and restored is TEMSession's (`SessionSaving`,
+//        `SessionOpening`, `OpenItem.adopt`); the bookmarks are `SessionGrants`'; nothing is written here.
+//
+//  THE CLOSE QUESTION is an `NSAlert` sheet for the reason the Replace alert is (below, `confirmReplace`), and one more: its
+//  Save to Session opens the save panel as the next sheet, which `ExportPanels.hostWindow` refuses while a sheet is attached;
+//  the alert's await resumes after its sheet is gone.
 //
 //  WHY APPKIT (the suite's rule: only where SwiftUI cannot do the job, named where used): `NSSavePanel` and its delegate's
 //  `panel(_:validate:)`. SwiftUI's `fileExporter` writes the bytes itself, which would leave an empty file where
@@ -166,6 +171,58 @@ enum SessionPanels {
                 throw NSError(domain: "macTEM.session", code: 1, userInfo: [NSLocalizedDescriptionKey: sentence])
             }
         }
+    }
+
+    // MARK: Before a file closes
+
+    /// The question `AppState.requestClose` raised, as a sheet on the window. Save to Session saves each file's marks in turn (a
+    /// first save asks where, as File > Save to Session does), then the answer closes the files with nothing left unsaved; Don't
+    /// Save closes them; Cancel keeps them. With another sheet up nothing can be asked: a beep, and the files stay open.
+    static func askToClose(_ request: CloseRequest, appState: AppState) {
+        guard let window = ExportPanels.hostWindow() else {
+            NSSound.beep()
+            appState.answerClose(.cancel, to: request)
+            return
+        }
+        Task.immediate {
+            let answer = await closeAnswer(request, on: window)
+            if answer == .save {
+                for id in request.items {
+                    guard let item = appState.openItems.item(id), item.canSave else { continue }
+                    await run(item, appState: appState)
+                }
+            }
+            appState.answerClose(answer, to: request)
+        }
+    }
+
+    /// The close question as a warning sheet, its buttons `CloseGuard.closeButtons`' (Save to Session, the destructive Don't Save,
+    /// Cancel on Esc; with no save offered Cancel comes first and takes Return). A window that closes under its sheet takes the
+    /// sheet with it and never calls the completion handler (`ExportPanels.present`), so the sheet is ended as Cancel when the
+    /// window is about to close.
+    private static func closeAnswer(_ request: CloseRequest, on window: NSWindow) async -> CloseGuard.Answer {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = CloseGuard.closeTitle(canSave: request.canSave)
+        alert.informativeText = CloseGuard.closeDetail(request.question, canSave: request.canSave)
+        let answers = CloseGuard.closeButtons(canSave: request.canSave)
+        for (index, answer) in answers.enumerated() {
+            let button = alert.addButton(withTitle: CloseGuard.title(of: answer, canSave: request.canSave))
+            if answer == .discard { button.hasDestructiveAction = true }
+            if answer == .cancel, index > 0 { button.keyEquivalent = "\u{1b}" }
+        }
+        let observer = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window,
+                                                              queue: .main) { _ in
+            MainActor.assumeIsolated {
+                if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel) }
+            }
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        let response: Int = await withCheckedContinuation { continuation in
+            alert.beginSheetModal(for: window) { continuation.resume(returning: $0.rawValue) }
+        }
+        let index = response - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        return answers.indices.contains(index) ? answers[index] : .cancel
     }
 
     // MARK: A mark the record would not take

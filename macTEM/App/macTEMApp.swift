@@ -50,14 +50,19 @@ private struct ImageWindow: View {
                    minHeight: LayoutPolicy.datasetWindowMinimumSize.height)
             // "Open Image…" chosen with no window focused opened this one; a `.task`, so the content's own
             // request observer exists before the action fires. The relay's handler is set here too, which
-            // delivers a Finder open that arrived before the window did.
+            // delivers a Finder open that arrived before the window did, and the delegate's hook for the quit question.
             .task {
                 OpenURLRelay.shared.handler = { appState.open(urls: $0) }
+                AppDelegate.appState = appState
                 if let action = menuRelay.take() { MenuActionRelay.run(action, in: appState) }
             }
             // A window that was minimised, not closed, does not run its `.task` again; `take` runs an action once.
             .onChange(of: menuRelay.requestCount) {
                 if let action = menuRelay.take() { MenuActionRelay.run(action, in: appState) }
+            }
+            // A close of files with unsaved marks waits for the answer (`AppState.requestClose`), asked as a sheet here.
+            .onChange(of: appState.closeRequest) { _, request in
+                if let request { SessionPanels.askToClose(request, appState: appState) }
             }
     }
 }
@@ -84,10 +89,10 @@ private struct ImageCommands: Commands {
         }
         // Replaces the system's Close (⌘W), which would close the window: ⌘W closes the selected image and
         // ⇧⌘W the window (the owner, ADR 007); with no image open ⌘W closes the window, as the system's would.
-        // Close is the part of the Save group that SwiftUI exposes.
+        // Close is the part of the Save group that SwiftUI exposes. An image with unsaved marks asks first (`requestClose`).
         CommandGroup(replacing: .saveItem) {
             if appState?.openItems.selected != nil {
-                Button("Close Image") { appState?.openItems.closeSelected() }
+                Button("Close Image") { appState?.requestCloseSelected() }
                     .keyboardShortcut("w", modifiers: .command)
             } else {
                 Button("Close") { dismissWindow(id: "image") }

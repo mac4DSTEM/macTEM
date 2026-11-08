@@ -3,7 +3,8 @@
 //  Role: the sidebar's list of the files open in the window (design study §4) — one 40-pt thumbnail row
 //        per `OpenItem`, in opening order, the selection bound to `OpenItems.selection`. Rows describe UI only: the
 //        text comes from `OpenItemRowFormat` (pure, tested), the picture from `OpenItemThumbnailPixels` (pure, tested),
-//        and every state — the selection, closing, the reads — is `OpenItems`'.
+//        and every state — the selection, closing, the reads — is `OpenItems`'; a close goes through
+//        `AppState.requestClose`, which asks first when a file's marks are not saved.
 //
 //        Observation: the list reads `OpenItems.items` (opening and closing a file) and each row reads its own
 //        `OpenItem` (its summary, residency, colormap), so a finished read re-draws one row, not the list. A row's
@@ -203,7 +204,8 @@ struct OpenItemsList: View {
                 .listStyle(.sidebar)
                 .scrollContentBackground(.hidden)
                 .scrollBounceBehavior(.basedOnSize)
-                .onDeleteCommand { openItems.closeSelected() }
+                // ⌫ closes the selected file; one with unsaved marks asks first (`AppState.requestClose`).
+                .onDeleteCommand { appState.requestCloseSelected() }
                 .accessibilityIdentifier("sidebar.openItems")
                 // The least scroll that brings the selected row into view (a nil anchor): a file opened below the
                 // fold, or reached by ⌘⇧] or the Image menu, is seen.
@@ -251,15 +253,15 @@ struct OpenItemRow: View {
         .contentShape(Rectangle())
         .help(item.readFailure ?? item.url.path)
         .contextMenu {
-            Button("Close") { appState.openItems.close(item.id) }
-            Button("Close Others") { appState.openItems.closeOthers(keeping: item.id) }
+            Button("Close") { appState.requestClose([item.id]) }
+            Button("Close Others") { appState.requestCloseOthers(keeping: item.id) }
                 .disabled(!canCloseOthers)
             Divider()
             Button("Show in Finder") { DatasetLocationActions.reveal(url: item.url) }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spokenLabel(summary))
-        .accessibilityAction(named: "Close") { appState.openItems.close(item.id) }
+        .accessibilityAction(named: "Close") { appState.requestClose([item.id]) }
         .accessibilityAction(named: "Show in Finder") { DatasetLocationActions.reveal(url: item.url) }
         .task(id: key) {
             guard let thumbnail = key.thumbnail else { picture = nil; return }
