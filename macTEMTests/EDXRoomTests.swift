@@ -104,6 +104,32 @@ nonisolated final class EDXRoomTests: XCTestCase {
                       "the selection reaches the rooms through the list's own callback, not a view's observation (it did not fire on screen)")
     }
 
+    /// Two spectrum images of one name in two folders (day 1's and day 2's SI.emd) are told apart by the path the room's reader states, as the
+    /// Results room's `edsFitBelongs` does: selecting day 2's while day 1's holds the rooms reads it into them, selecting day 1's asks for nothing,
+    /// and a reader that states no path (a document made in memory) is still told by its name. Red under: the rooms held by name only (day 2's
+    /// never reached them, and Quantify ran on day 1's while day 2's was selected).
+    @MainActor func testTwoSpectrumImagesOfOneNameAreToldApartByTheirFolder() {
+        let day1 = URL(fileURLWithPath: "/data/day1/SI.emd"), day2 = URL(fileURLWithPath: "/data/day2/SI.emd")
+        let both: Set<URL> = [day1, day2]
+        let toDay2 = AppState.roomsToFollow(selected: day2, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "SI.emd",
+                                            edsPath: day1.path, eelsPath: day1.path, edsOpening: false, eelsOpening: false)
+        XCTAssertTrue(toDay2.eds, "day 1's holds the EDS room: day 2's is read into it")
+        XCTAssertTrue(toDay2.eels, "and into the EELS room")
+        let toDay1 = AppState.roomsToFollow(selected: day1, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "SI.emd",
+                                            edsPath: day1.path, eelsPath: day1.path, edsOpening: false, eelsOpening: false)
+        XCTAssertFalse(toDay1.eds, "day 1's is already in the EDS room")
+        XCTAssertFalse(toDay1.eels, "day 1's is already in the EELS room")
+        let respelled = AppState.roomsToFollow(selected: day1, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "",
+                                               edsPath: "/data/day2/../day1/SI.emd", edsOpening: false, eelsOpening: false)
+        XCTAssertFalse(respelled.eds, "another spelling of the room's path is the same file")
+        let noPath = AppState.roomsToFollow(selected: day2, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "",
+                                            edsOpening: false, eelsOpening: false)
+        XCTAssertFalse(noPath.eds, "a reader that states no path is told by its name")
+        XCTAssertTrue(squeezed((try? source("macTEM/App/AppState+Open.swift")) ?? "")
+            .contains("edsPath: edx.source?.metadata.filePath ?? \"\", eelsPath: eels.filePath, edsOpening: edx.isOpening, eelsOpening: eels.isOpening)"),
+                      "the selection's follow passes both readers' paths")
+    }
+
     @MainActor func testTheEDXRoomCanBeEnteredWithNoImageOpen() {
         let state = AppState()
         XCTAssertFalse(state.hasImage)
