@@ -6,7 +6,7 @@
 //
 //  Owners: `navigation` (rooms and panes, App/), `openItems` (the files open in the window, each with its own
 //  session, presentation, marks and viewport, TEMSession), `activityLog` (the Output pane, App/), `imageRoomTools`
-//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession), `semRecord` (the SEM rooms' exports and Output lines for the session report, App/). `imageSession`, `presentation` and `measurements` are the selected
+//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession), `semRecord` (the SEM rooms' exports and Output lines for the session report, App/), `recents` (File > Open Recent's last eight files, TEMSession). `imageSession`, `presentation` and `measurements` are the selected
 //  item's, forwarded, so the views that read them did not change with V1-13.
 //
 
@@ -41,6 +41,9 @@ final class AppState {
     /// What the SEM rooms did that none of them keeps: every file they wrote and their Output lines with times (App/), for the Results
     /// room's session rows and the session report.
     let semRecord = SEMSessionRecord()
+    /// File > Open Recent's list (TEMSession): every file `open(urls:)` takes in, with the bookmark that opens it again. The app passes
+    /// the list kept in UserDefaults (`RecentFiles.stored()`); a bare `AppState()`, a test's, keeps one in memory and writes nothing.
+    let recents: RecentFiles
 
     /// The window's title: the file of the room that is shown (the spectrum image in the EDX and EELS rooms, the image elsewhere).
     var windowTitle: String {
@@ -110,8 +113,9 @@ final class AppState {
         return dir.path.hasPrefix("/") && !launch.exportDirectoryIsRelative ? dir : FileManager.default.temporaryDirectory.appendingPathComponent(launch.exportDirectoryName ?? "export", isDirectory: true)
     }
 
-    init(launch: LaunchOptions = LaunchOptions()) {
+    init(launch: LaunchOptions = LaunchOptions(), recents: RecentFiles? = nil) {
         self.launch = launch
+        self.recents = recents ?? RecentFiles()
         let ebsd = EBSDSession()
         self.ebsd = ebsd
         indexing = IndexingSession(patterns: ebsd)

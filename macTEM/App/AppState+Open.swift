@@ -2,7 +2,8 @@
 //  AppState+Open.swift
 //  Role: open files into the window. Which files are open, which is selected and what each holds is
 //        `OpenItems`'; here are the reader it is given — the file, its metadata, the display copy, the row's thumbnail
-//        and a security-scoped bookmark, all off the main actor — and the infobar's events.
+//        and a security-scoped bookmark, all off the main actor — the infobar's events, and File > Open Recent's side
+//        (every file taken in is remembered with a bookmark; an entry is opened again through it).
 //
 
 import ShellMetal
@@ -16,9 +17,10 @@ import ShellEDXModel
 import SpectroCore
 
 extension AppState {
-    /// Every open ends here — the panel, a drop, Finder: one item per file not open yet, read one at a time in this
-    /// order; a file open already is selected, not read twice; the first is selected at once (`OpenItems.open`). A
-    /// failed read is reported by the alert (`onReadFailure`); the infobar says "Opened …" once the batch is in.
+    /// Every open ends here — the panel, a drop, Finder, Open Recent: one item per file not open yet, read one at a time in
+    /// this order; a file open already is selected, not read twice; the first is selected at once (`OpenItems.open`). A
+    /// failed read is reported by the alert (`onReadFailure`); the infobar says "Opened …" once the batch is in. Every
+    /// file that is not refused goes to the front of Open Recent (`recents`), with the bookmark made in its scope.
     @discardableResult
     func open(urls: [URL]) -> Task<Void, Never>? {
         guard !urls.isEmpty else { return nil }
@@ -31,8 +33,11 @@ extension AppState {
             var images: [URL] = []
             var landing: FileInventory.Landing?
             var edsBatch: [URL] = [], eelsBatch: [URL] = [], ebsdBatch: [URL] = [], mapBatch: [URL] = []
-            for (url, inventory) in inventories {
+            for (url, inventory, bookmark) in inventories {
                 if let why = inventory.refusal { present(OpenRefusal(text: why)); continue }
+                if let bookmark {
+                    recents.remember(RecentFile(path: url.standardizedFileURL.path, displayName: url.lastPathComponent, bookmark: bookmark))
+                }
                 if inventory.ebsdPatterns { ebsdBatch.append(url) }
                 if inventory.orientationMap { mapBatch.append(url) }
                 if inventory.image { images.append(url) }
@@ -82,18 +87,43 @@ extension AppState {
     /// What an Open that is refused says (the route's sentence), as an alert.
     struct OpenRefusal: Error, LocalizedError { let text: String; var errorDescription: String? { text } }
 
-    /// What each URL holds, by content, off the main actor and inside the URL's security scope. The generated demo image is an image.
-    /// The file a vendor file is read with (an EBSD scan's `.ang` or `.ctf` beside its patterns, and back) is granted first, inside
-    /// that scope: the sandbox grants the picked file only, and the routing already reads the other (`RelatedFileAccess`).
+    /// What each URL holds, by content, off the main actor and inside the URL's security scope, and for a file that is not refused
+    /// the security-scoped bookmark Open Recent keeps (made in the same scope; nil when none can be made, and then the file is not
+    /// remembered). The generated demo image is an image, in memory, with no bookmark. The file a vendor file is read with (an EBSD
+    /// scan's `.ang` or `.ctf` beside its patterns, and back) is granted first, inside that scope: the sandbox grants the picked file
+    /// only, and the routing already reads the other (`RelatedFileAccess`).
     @concurrent
-    nonisolated static func inventories(_ urls: [URL]) async -> [(URL, FileInventory)] {
+    nonisolated static func inventories(_ urls: [URL]) async -> [(URL, FileInventory, Data?)] {
         urls.map { url in
-            if DemoDocuments.isDemo(url) { return (url, FileInventory(image: true)) }
+            if DemoDocuments.isDemo(url) { return (url, FileInventory(image: true), nil) }
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             RelatedFileAccess.grant(for: url)
-            return (url, FileRouting.inventory(path: url.path))
+            let inventory = FileRouting.inventory(path: url.path)
+            let bookmark = inventory.refusal == nil ? (try? SecurityScopedBookmark.make(for: url)) : nil
+            return (url, inventory, bookmark)
         }
+    }
+
+    /// File > Open Recent: the entry's bookmark resolved (without mounting a volume or asking anything) and the file opened as
+    /// any other, through `open(urls:)`, which remembers it again with a bookmark made now, so a stale one is renewed and a file
+    /// that moved is listed where it is. An entry on a disk that is not connected stays and the status line says so; one whose
+    /// file is gone (moved away, renamed or deleted) leaves the list, and the status line says that.
+    @discardableResult
+    func openRecent(_ entry: RecentFile) -> Task<Void, Never>? {
+        var stale = false
+        if let url = try? URL(resolvingBookmarkData: entry.bookmark, options: [.withSecurityScope, .withoutUI, .withoutMounting],
+                              relativeTo: nil, bookmarkDataIsStale: &stale) {
+            if url.standardizedFileURL.path != entry.path { recents.remove(path: entry.path) }
+            return open(urls: [url])
+        }
+        if let volume = RecentFiles.absentVolume(of: entry.path) {
+            statusText = "\(entry.displayName) is on \(volume), which is not connected: connect it, then open the file again."
+        } else {
+            recents.remove(path: entry.path)
+            statusText = "\(entry.displayName) is no longer where it was (moved, renamed or deleted), so it was removed from Open Recent."
+        }
+        return nil
     }
 
     static let needsAccessSentence =
