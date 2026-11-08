@@ -6,15 +6,20 @@
 //        Every signed build is sandboxed (macTEM.entitlements, for Debug, Release and the DMG alike): the sandbox grants the
 //        file the user picked (`files.user-selected.read-write`), not the file beside it. The vendors' EBSD scans are pairs
 //        read together by name, whichever of the two is picked: an EDAX `.up1`/`.up2` with its `.ang` (`EDAXOpening`), an
-//        Oxford `.ebsp` with its `.ctf` (`OxfordOpening`). Without a grant the sibling still "exists" (file-read-metadata is
-//        broad), so the pairing finds it and the read fails with EPERM: a picked `.ebsp` failed outright, a picked `.ang` was
-//        refused, a picked `.up1` lost its map.
+//        Oxford `.ebsp` with its `.ctf` (`OxfordOpening`). An EDAX EDS map reads its energy axis from the `.spc` of its name,
+//        a map its pixel size from an `.ipr`, a line scan its distances from the `.csv` of its name (`EDAXEDSReader`). Without
+//        a grant the sibling still "exists" (file-read-metadata is broad), so the pairing finds it and the read fails with
+//        EPERM: a picked `.ebsp` failed outright, a picked `.ang` was refused, a picked `.up1` lost its map, an `.spd` or
+//        `.lsd` did not open.
 //
 //        The narrow grant macOS offers for this is the related item: Info.plist declares the companion extensions with
 //        `NSIsRelatedItemType`, and a file presenter whose `primaryPresentedItemURL` is the picked file and whose
 //        `presentedItemURL` is the sibling (same folder, same name, other extension) gets the sibling's access once it is
 //        registered and a coordinated read has run. The presenter stays registered for the app's life: the Patterns room reads
 //        its patterns long after the open (`EBSDSession`).
+//
+//        Only a sibling of the same name can be asked for: an `.ipr` named after the map's electron image (its header's
+//        `fName`, as EDAX usually writes it) needs a folder grant, and without one the map opens without its pixel size.
 //
 
 import Foundation
@@ -38,6 +43,8 @@ nonisolated final class RelatedFileAccess: NSObject, NSFilePresenter, @unchecked
         "ang": ["up1", "up2"],
         "ebsp": ["ctf"],
         "ctf": ["ebsp"],
+        "spd": ["spc", "ipr"],
+        "lsd": ["spc", "csv"],
     ]
 
     /// The siblings a picked file may need: same folder and name, each companion extension, upper case when the picked

@@ -1,10 +1,10 @@
 //
 //  RelatedFileAccessTests.swift
-//  The sandbox grants the picked file, not the file beside it that a vendor scan is read with (mac4DSTEM#120, ported).
+//  The sandbox grants the picked file, not the file beside it that a vendor file is read with (mac4DSTEM#120, ported).
 //  RelatedFileAccess asks for the companion as a related item, which macOS allows only for extensions Info.plist declares
 //  with NSIsRelatedItemType. These hold the code's list and the built Info.plist together, and pin which sibling each format
-//  asks for. Whether the grant works in the sandboxed app is a drive of a signed build on a real .ebsp/.ctf or .up1/.ang
-//  pair (every signed build is sandboxed; the unit tests' host is not).
+//  asks for. Whether the grant works in the sandboxed app is a drive of a signed build on a real .ebsp/.ctf, .up1/.ang or
+//  .spd/.spc pair (every signed build is sandboxed; the unit tests' host is not).
 //
 
 import XCTest
@@ -12,8 +12,8 @@ import XCTest
 
 nonisolated final class RelatedFileAccessTests: XCTestCase {
 
-    /// Mutation: drop NSIsRelatedItemType from the EBSD type in macTEM/Info.plist, or add a companion to the code's list that
-    /// no related type declares - red. Red before: no type was related.
+    /// Mutation: drop NSIsRelatedItemType from the EBSD, SEM-EDS or companion type in macTEM/Info.plist, or add a companion to
+    /// the code's list that no related type declares - red. Red before: no type was related.
     func testEveryCompanionExtensionIsARelatedItemTypeOfTheBuiltApp() throws {
         // The unit tests are hosted by the app: the bundle that holds `AppDelegate` is macTEM.app.
         let bundle = Bundle(for: AppDelegate.self)
@@ -21,7 +21,7 @@ nonisolated final class RelatedFileAccessTests: XCTestCase {
         let related = Set(types.filter { $0["NSIsRelatedItemType"] as? Bool == true }
             .flatMap { $0["CFBundleTypeExtensions"] as? [String] ?? [] })
         let needed = Set(RelatedFileAccess.companionExtensions.values.flatMap { $0 })
-        XCTAssertEqual(needed, ["ang", "up1", "up2", "ebsp", "ctf"])
+        XCTAssertEqual(needed, ["ang", "up1", "up2", "ebsp", "ctf", "spc", "ipr", "csv"])
         XCTAssertTrue(needed.isSubset(of: related), "not declared related: \(needed.subtracting(related).sorted())")
     }
 
@@ -37,6 +37,9 @@ nonisolated final class RelatedFileAccessTests: XCTestCase {
         XCTAssertEqual(names("scan.ebsp"), ["scan.ctf"])
         XCTAssertEqual(names("scan.ctf"), ["scan.ebsp"])
         XCTAssertEqual(names("SCAN.CTF"), ["SCAN.EBSP"], "an upper-case pair keeps its case")
+        XCTAssertEqual(names("map.spd"), ["map.spc", "map.ipr"])
+        XCTAssertEqual(names("line.lsd"), ["line.spc", "line.csv"])
+        XCTAssertEqual(names("MAP.SPD"), ["MAP.SPC", "MAP.IPR"])
         XCTAssertEqual(RelatedFileAccess.companions(of: folder.appendingPathComponent("scan.ebsp")).map(\.path),
                        [folder.appendingPathComponent("scan.ctf").path], "the sibling is in the picked file's folder")
         XCTAssertEqual(names("scan.h5"), [])

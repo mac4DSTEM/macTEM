@@ -166,6 +166,65 @@ nonisolated final class SEMEDSMapReaderTests: XCTestCase {
         }
     }
 
+    /// `names` from the committed EDAX fixtures, copied into a fresh temporary folder that is removed after the test.
+    private func copyEDAX(_ names: [String]) throws -> URL {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("edax-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        for name in names { try FileManager.default.copyItem(at: Self.fixture("edax/" + name), to: folder.appendingPathComponent(name)) }
+        return folder
+    }
+
+    /// `url` made mode 000 until the test ends: this process may not read it, as the sandboxed app may not read a companion it
+    /// was not given.
+    private func makeUnreadable(_ url: URL) throws {
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: url.path)
+        addTeardownBlock { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: url.path) }
+        XCTAssertFalse(FileManager.default.isReadableFile(atPath: url.path), "root reads a mode-000 file; run this as a user")
+    }
+
+    /// An .ipr beside an EDAX map that is there but cannot be read is left out as a missing one is, with a note: the map opens
+    /// with the same counts and the .spc's energy axis, its pixels not calibrated, and the EDS room shows it in pixels. Red
+    /// before: the .ipr's read failure failed the whole open.
+    func testAnEDAXMapWhoseIPRCannotBeReadOpensWithoutItsPixelSize() throws {
+        let folder = try copyEDAX(["spd_map_crop8.spd", "spd_map_crop8.spc", "Live Map 2_Img.ipr"])
+        let map = folder.appendingPathComponent("spd_map_crop8.spd")
+        let whole = try EDAXEDSReader.read(url: map)
+        XCTAssertEqual(whole.notes, [])
+        let calibrated = try XCTUnwrap(whole.spectrumImages.first)
+        XCTAssertEqual(calibrated.axes.map(\.units), ["\u{B5}m", "\u{B5}m", "keV"])
+        try makeUnreadable(folder.appendingPathComponent("Live Map 2_Img.ipr"))
+        let file = try EDAXEDSReader.read(url: map)
+        XCTAssertEqual(file.notes, ["Live Map 2_Img.ipr beside spd_map_crop8.spd could not be read: the map has no pixel size."])
+        let uncalibrated = try XCTUnwrap(file.spectrumImages.first)
+        XCTAssertEqual(uncalibrated.axes.map(\.units), [nil, nil, "keV"])
+        XCTAssertEqual([uncalibrated.axes[0].scale, uncalibrated.axes[1].scale], [1, 1])
+        XCTAssertEqual(uncalibrated.energyAxis, calibrated.energyAxis, "the .spc's energy axis")
+        XCTAssertEqual(uncalibrated.cube, calibrated.cube, "the same counts")
+        let loaded = try EDXOpening.open(url: map)
+        XCTAssertNil(loaded.metadata.scanPixelUnit)
+        XCTAssertEqual(loaded.metadata.energyDispersionEV, 5, accuracy: 1e-12)
+    }
+
+    /// The same for a line scan's .csv: it opens with the same counts and energy axis, its x axis in steps of one instead of
+    /// the distances. Red before: the .csv's read failure failed the whole open.
+    func testAnEDAXLineScanWhoseCSVCannotBeReadOpensWithoutItsDistances() throws {
+        let folder = try copyEDAX(["line_scan_crop.lsd", "line_scan_crop.spc", "line_scan_crop.csv"])
+        let line = folder.appendingPathComponent("line_scan_crop.lsd")
+        let whole = try EDAXEDSReader.read(url: line)
+        XCTAssertEqual(whole.notes, [])
+        let measured = try XCTUnwrap(whole.spectrumImages.first)
+        XCTAssertEqual(measured.axes[0].units, "nm")
+        XCTAssertEqual(measured.axes[0].scale, 212)
+        try makeUnreadable(folder.appendingPathComponent("line_scan_crop.csv"))
+        let file = try EDAXEDSReader.read(url: line)
+        XCTAssertEqual(file.notes, ["line_scan_crop.csv beside line_scan_crop.lsd could not be read: the line scan has no distances."])
+        let unmeasured = try XCTUnwrap(file.spectrumImages.first)
+        XCTAssertEqual(unmeasured.axes[0], SEMEDSAxis(name: "x", size: measured.axes[0].size, scale: 1, offset: 0, units: nil))
+        XCTAssertEqual(unmeasured.energyAxis, measured.energyAxis)
+        XCTAssertEqual(unmeasured.cube, measured.cube, "the same counts")
+    }
+
     /// A JEOL .pts opens as its 512 x 512 x 4096 map, held sparse; the S(T)EM image of a stream that has one is the scan image.
     func testAJEOLMapOpensSparseWithItsSTEMImage() throws {
         let loaded = try EDXOpening.open(url: Self.fixture("jeol/View000_0000006_4frames.pts"))
