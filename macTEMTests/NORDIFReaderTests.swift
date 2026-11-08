@@ -150,6 +150,39 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
         }
     }
 
+    func testAZeroOrNegativeSizeIsRefusedByItsSectionAndKeyBeforeAnyReaderUsesIt() throws {
+        let lines = try NORDIFSettings.read(path: path("Setting.txt")).lines
+        XCTAssertEqual(lines[47], "Resolution\t60x60\tpx", "[Acquisition settings]")
+        XCTAssertEqual(lines[53], "Resolution\t60x60\tpx", "[Calibration settings]")
+        XCTAssertEqual(lines[79], "Number of samples\t3x3\t#")
+        var flat = lines
+        flat[47] = "Resolution\t0x0\tpx"
+        var backwards = lines
+        backwards[79] = "Number of samples\t-2x3\t#"
+        XCTAssertThrowsError(try NORDIFSettings.parse(lines: flat, fileName: "Setting.txt")) { error in
+            XCTAssertEqual(error as? NORDIFSettings.Refusal, .notPositive(section: "Acquisition settings", key: "Resolution", value: "0x0"))
+            XCTAssertEqual((error as? NORDIFSettings.Refusal)?.reason, "its [Acquisition settings] 'Resolution' value '0x0' has a size below 1.")
+        }
+        XCTAssertThrowsError(try NORDIFSettings.parse(lines: backwards, fileName: "Setting.txt")) { error in
+            XCTAssertEqual(error as? NORDIFSettings.Refusal, .notPositive(section: "Area", key: "Number of samples", value: "-2x3"))
+        }
+        // The door divided by the record size and the scan took a negative prefix of the file: both now stop at the settings, in words.
+        let flatFile = scratchFile(named: "Setting.txt", contents: try XCTUnwrap(flat.joined(separator: "\r\n").data(using: .isoLatin1)))
+        XCTAssertThrowsError(try NORDIFOpening.open(url: URL(fileURLWithPath: path("Pattern.dat")), settingsFile: URL(fileURLWithPath: flatFile))) { error in
+            XCTAssertEqual(error as? EBSDReadError,
+                           EBSDReadError(text: "Setting.txt cannot be read: its [Acquisition settings] 'Resolution' value '0x0' has a size below 1."))
+        }
+        let backwardsFile = scratchFile(named: "Setting.txt", contents: try XCTUnwrap(backwards.joined(separator: "\r\n").data(using: .isoLatin1)))
+        XCTAssertThrowsError(try NORDIFScan.read(patternFile: path("Pattern.dat"), settingsFile: backwardsFile)) { error in
+            XCTAssertEqual(error as? NORDIFSettings.Refusal, .notPositive(section: "Area", key: "Number of samples", value: "-2x3"))
+        }
+        // The calibration resolution sizes nothing and is kept as written.
+        var calibration = lines
+        calibration[53] = "Resolution\t0x0\tpx"
+        let kept = try NORDIFSettings.parse(lines: calibration, fileName: "Setting.txt")
+        XCTAssertEqual(kept.calibration?.resolution, NORDIFSettings.Resolution(width: 0, height: 0))
+    }
+
     // MARK: - Pattern.dat
 
     func testPatternDatReadsBitExactInMapOrder() throws {

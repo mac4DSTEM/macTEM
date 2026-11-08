@@ -152,6 +152,44 @@ nonisolated final class OxfordBinaryReaderTests: XCTestCase {
         }
     }
 
+    /// A version word of Int64.min (negating it trapped) and a NaN beam position (converting it to a map size trapped) are refused in
+    /// the reader's words, at the drop and at the open.
+    func testAVersionWordWithNoVersionAndANonFiniteBeamPositionAreRefusedInWords() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("oxford-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let whole = try Data(contentsOf: Self.url("patterns.ebsp"))
+        // Int64.min, little-endian, as the version word.
+        var noVersion = whole
+        noVersion.replaceSubrange(0..<8, with: Data([0, 0, 0, 0, 0, 0, 0, 0x80]))
+        XCTAssertThrowsError(try OxfordBinaryReader.patternCountInHeader(data: noVersion)) { error in
+            XCTAssertEqual(error as? OxfordBinaryReader.Refusal, .version(.min))
+        }
+        let dropped = folder.appendingPathComponent("no-version.ebsp")
+        try noVersion.write(to: dropped)
+        XCTAssertEqual(FileRouting.inventory(path: dropped.path).refusal, "no-version.ebsp: its version word -9223372036854775808 is not an .ebsp version.")
+        // NaN as the beam y of the last pattern in map order (record 7: kikuchipy's file is rolled one record), whose footer is a flag
+        // byte, beam x, a flag byte and beam y after the 16-byte header and the 3600 pixels.
+        let metadata = try OxfordBinaryReader.metadata(data: whole)
+        let lastRecord = try XCTUnwrap(metadata.fileOrder.last)
+        let beamY = 8 + 9 * 8 + lastRecord * (16 + 3600 + 18) + 16 + 3600 + 10
+        let stored = Double(bitPattern: UInt64(littleEndian: whole.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: beamY, as: UInt64.self) }))
+        XCTAssertEqual(stored, metadata.beamY?.last, "the bytes replaced are that footer's beam y")
+        var nan = Data()
+        withUnsafeBytes(of: Double.nan.bitPattern.littleEndian) { nan.append(contentsOf: $0) }
+        var notFinite = whole
+        notFinite.replaceSubrange(beamY..<(beamY + 8), with: nan)
+        XCTAssertThrowsError(try OxfordBinaryReader.read(data: notFinite, url: URL(fileURLWithPath: "/not-finite.ebsp"))) { error in
+            XCTAssertEqual(error as? OxfordBinaryReader.Refusal, .beamPositions)
+        }
+        let opened = folder.appendingPathComponent("not-finite.ebsp")
+        try notFinite.write(to: opened)
+        XCTAssertThrowsError(try OxfordOpening.open(url: opened)) { error in
+            XCTAssertEqual(error as? EBSDReadError,
+                           EBSDReadError(text: "not-finite.ebsp: its beam positions are not finite or lie too many steps apart, which gives no map."))
+        }
+    }
+
     // MARK: The door
 
     /// `.ebsp` and `.ctf` of one name open as one scan from either side; a map of another point count is left out with a note; a

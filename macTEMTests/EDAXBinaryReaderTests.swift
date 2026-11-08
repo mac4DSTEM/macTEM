@@ -3,8 +3,9 @@
 //  The EDAX .up1/.up2 reader against kikuchipy 0.13.1 (`edax_binary.file_reader`): every Fixtures/ebsd-edax-binary*.up* reads with the
 //  values of Fixtures/ebsd-edax.truth.json (tools/parity/sem-readers/make_edax_fixtures.py): the header, the navigation and pattern
 //  shapes, the element type, kikuchipy's warning as the note, the first and last pattern and the sha256 of every pattern in map order;
-//  version 2 refused in words. Then the door (`EDAXOpening`, one `EBSDDataset` whose patterns stay in the file): a hexagonal grid
-//  refused, the `.ang` next to the file paired by name as the dataset's crystal map, the patterns read by map position bit-exact.
+//  version 2 and a damaged header (sizes whose products leave the Int range, an empty map) refused in words. Then the door
+//  (`EDAXOpening`, one `EBSDDataset` whose patterns stay in the file): a hexagonal grid refused, the `.ang` next to the file paired by
+//  name as the dataset's crystal map, the patterns read by map position bit-exact.
 //
 
 import CryptoKit
@@ -140,6 +141,50 @@ nonisolated final class EDAXBinaryReaderTests: XCTestCase {
         XCTAssertThrowsError(try EDAXBinaryReader.read(url: wrong)) { error in
             XCTAssertTrue(((error as? EDAXReadError)?.text ?? "").contains(".up1 or .up2"), String(describing: error))
         }
+    }
+
+    /// A header in the file's layout: version, sx, sy and the pattern offset, then from version 3 one pad byte, nx, ny, the hexagonal-grid
+    /// flag (off) and the steps.
+    private static func header(version: UInt32, sx: UInt32, sy: UInt32, offset: UInt32, nx: UInt32 = 1, ny: UInt32 = 1) -> Data {
+        var bytes = Data()
+        for word in [version, sx, sy, offset] { withUnsafeBytes(of: word.littleEndian) { bytes.append(contentsOf: $0) } }
+        guard version >= 3 else { return bytes }
+        bytes.append(0)
+        for word in [nx, ny] { withUnsafeBytes(of: word.littleEndian) { bytes.append(contentsOf: $0) } }
+        bytes.append(0)
+        for value in [1.0, 1.0] { withUnsafeBytes(of: value.bitPattern.littleEndian) { bytes.append(contentsOf: $0) } }
+        return bytes
+    }
+
+    func testADamagedHeaderIsRefusedInWordsInsteadOfTrapping() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("edax-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        func refusal(_ bytes: Data, _ name: String) throws -> String {
+            let url = folder.appendingPathComponent(name)
+            try bytes.write(to: url)
+            do {
+                _ = try EDAXBinaryReader.read(url: url)
+                XCTFail("\(name) was read")
+                return ""
+            } catch {
+                let text = (error as? EDAXReadError)?.text ?? String(describing: error)
+                // A drop reads the same header: the refusal is the Open Files row's sentence, not a crash.
+                XCTAssertEqual(FileRouting.inventory(path: url.path).refusal, text, name)
+                return text
+            }
+        }
+        // A pattern of (2^32 - 1)^2 pixels: sx * sy left the Int range and trapped.
+        let huge = try refusal(Self.header(version: 3, sx: .max, sy: .max, offset: 42), "huge-pattern.up1")
+        XCTAssertEqual(huge, "huge-pattern.up1 states a 4294967295 x 4294967295 pattern, larger than the whole file (42 bytes).")
+        // A map of (2^32 - 1)^2 patterns: nx * ny left the Int range and trapped.
+        let map = try refusal(Self.header(version: 3, sx: 1, sy: 1, offset: 42, nx: .max, ny: .max), "huge-map.up2")
+        XCTAssertEqual(map, "huge-map.up2 states 4294967295 x 4294967295 patterns of 1 x 1 but holds 0.")
+        // A map with no columns, and a version 1 file with no pattern after its header, opened as empty scans.
+        let empty = try refusal(Self.header(version: 3, sx: 8, sy: 8, offset: 42, nx: 0, ny: 3), "no-columns.up1")
+        XCTAssertEqual(empty, "no-columns.up1 states a 3 x 0 map.")
+        let none = try refusal(Self.header(version: 1, sx: 8, sy: 8, offset: 16) + Data(count: 63), "no-pattern.up1")
+        XCTAssertEqual(none, "no-pattern.up1 holds no complete 8 x 8 pattern after byte 16 (79 bytes).")
     }
 
     // MARK: The door
