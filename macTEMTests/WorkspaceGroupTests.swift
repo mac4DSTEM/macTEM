@@ -5,7 +5,10 @@
 //  entered; the row that reads as selected is the part, or the workspace when it is one room.
 //
 
+import SwiftUI
 import XCTest
+import TEMSession
+import ShellEDXModel
 @testable import macTEM
 
 nonisolated final class WorkspaceGroupTests: XCTestCase {
