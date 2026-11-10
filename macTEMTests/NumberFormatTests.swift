@@ -1,6 +1,7 @@
 //
 //  NumberFormatTests.swift
-//  The one number format (`Num`): a value that rounds to zero is written as zero, with no sign, whatever the sign of what was rounded.
+//  The one number format (`Num`, `UnitDisplay`): a value that rounds to zero is written as zero, with no sign, whatever the sign of what was
+//  rounded; the digits are printf's (the CSV's) in the reader's decimal mark, with no exponent and no grouping.
 //
 
 import XCTest
@@ -26,6 +27,32 @@ nonisolated final class NumberFormatTests: XCTestCase {
         XCTAssertEqual(Num.fixed(2.0366, 3, locale: de), "2,037")
         XCTAssertEqual(Num.fixed(-0.006, 2, locale: en), "-0.01")
         XCTAssertEqual(Num.sig(0.012625, 6, locale: de), "0,012625")
+    }
+
+    /// A decimal tie rounds as the binary value does, as the CSV beside it: 0.35 is 0.34999… ("0.3") and 2.675 is 2.67499… ("2.67"), in the
+    /// reader's mark. Red before: FormatStyle rounded the shortest spelling, half to even, and read "0.4" and "2.68".
+    func testATieRoundsAsTheCSVDoes() {
+        XCTAssertEqual(Num.fixed(0.35, 1, locale: en), String(format: "%.1f", 0.35))
+        XCTAssertEqual(Num.fixed(0.35, 1, locale: en), "0.3")
+        XCTAssertEqual(Num.fixed(0.35, 1, locale: de), "0,3")
+        XCTAssertEqual(Num.signed(0.35, 1, locale: en), "+0.3")
+        XCTAssertEqual(UnitDisplay.number(2.675, digits: 3, locale: en), "2.67")
+        XCTAssertEqual(Num.sig(2.675, 3, locale: de), "2,67")
+        XCTAssertEqual(ParticleFormat.number(2.675, locale: en), ParticleFormat.csvNumber(2.675), "the object table and its CSV show one last digit")
+    }
+
+    /// The spelling stays as it was: no exponent for a small or a large value, no trailing zeros, no grouping, a dash for no value.
+    /// Red under: `%g` itself ("1.23e-05", "1.23e+06"), or the trailing zeros of `%.3e`.
+    func testNoExponentNoTrailingZerosNoGrouping() {
+        XCTAssertEqual(UnitDisplay.number(0.0000123, digits: 3, locale: en), "0.0000123")
+        XCTAssertEqual(UnitDisplay.number(1_234_567, digits: 3, locale: en), "1230000")
+        XCTAssertEqual(UnitDisplay.number(9.9996, digits: 4, locale: de), "10", "rounds up across a decade")
+        XCTAssertEqual(UnitDisplay.number(-4.5, locale: de), "-4,5")
+        XCTAssertEqual(UnitDisplay.number(0, digits: 3, locale: en), "0")
+        XCTAssertEqual(UnitDisplay.number(.nan, locale: en), "—")
+        XCTAssertEqual(Num.fixed(12_345.678, 1, locale: de), "12345,7")
+        XCTAssertEqual(Num.fixed(87.6, 0, locale: de), "88", "no decimal mark at zero places")
+        XCTAssertEqual(UnitDisplay.fixed(-0.004, places: 2, locale: de), "0,00")
     }
 
     /// The numbers inside on-screen sentences take the reader's decimal mark, as the fields beside them do: NLPAR's λ row, an SEM-EDS window's
