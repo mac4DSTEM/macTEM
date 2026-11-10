@@ -314,35 +314,20 @@ enum SEMSessionLedger {
 
     // MARK: - SEM-EDS
 
-    /// One row per X-ray line of the SEM spectrum the EDS room shows: its window and intensity, and its composition once quantified.
-    static func compositionRows(_ eds: SEMEDSState) -> [SEMSessionRow] {
+    /// One row per X-ray line of the SEM spectrum the EDS room shows: its energy, exspy's integration and background windows and the
+    /// counts in them (Info › Line Windows). The composition is the shared EDS room's (D-SEM-107), reported with the room's results.
+    static func compositionRows(_ eds: SEMEDSState, locale: Locale = .autoupdatingCurrent) -> [SEMSessionRow] {
         guard eds.isSEMSpectrum, let path = eds.path, !eds.rows.isEmpty else { return [] }
         let url = URL(fileURLWithPath: path)
-        let composition = Dictionary((eds.composition ?? []).map { ($0.line, $0) }, uniquingKeysWith: { a, _ in a })
-        let quantified = eds.composition != nil
         return eds.rows.map { row in
-            var fields = [
-                SEMSessionField("Energy", "\(SEMEDSFormat.keV(row.energyKeV)) keV"),
-                SEMSessionField("Window", SEMEDSFormat.windows(row)),
-                SEMSessionField("Intensity", "\(SEMEDSFormat.counts(row.intensity)) counts"),
+            let counts = "\(SEMEDSFormat.counts(row.intensity, locale: locale)) counts"
+            let fields = [
+                SEMSessionField("Energy", "\(SEMEDSFormat.keV(row.energyKeV, locale: locale)) keV"),
+                SEMSessionField("Window", SEMEDSFormat.windows(row, locale: locale)),
+                SEMSessionField("Intensity", counts),
             ]
-            var value = "\(SEMEDSFormat.counts(row.intensity)) counts"
-            if quantified {
-                let k = eds.kFactors[row.line].map { UnitDisplay.number($0, digits: 4) } ?? "none"
-                fields.append(SEMSessionField("k-factor", k))
-                if let c = composition[row.line] {
-                    let wt = "\(SEMEDSFormat.percent(c.weightPercent)) wt%", at = "\(SEMEDSFormat.percent(c.atomicPercent)) at%"
-                    fields.append(SEMSessionField("Weight", wt))
-                    fields.append(SEMSessionField("Atomic", at))
-                    value = "\(wt) · \(at)" + (eds.compositionIsStale ? " · stale" : "")
-                } else {
-                    fields.append(SEMSessionField("Weight", ""))
-                    fields.append(SEMSessionField("Atomic", ""))
-                }
-            }
-            return SEMSessionRow(id: "eds:\(row.line)", kind: .composition, label: SEMEDSFormat.lineTitle(row.line), value: value,
-                                 source: "EDS · \(url.lastPathComponent)", fields: fields,
-                                 methods: quantified ? [.edsLines, .cliffLorimer] : [.edsLines], file: url)
+            return SEMSessionRow(id: "eds:\(row.line)", kind: .composition, label: SEMEDSFormat.lineTitle(row.line), value: counts,
+                                 source: "EDS · \(url.lastPathComponent)", fields: fields, methods: [.edsLines], file: url)
         }
     }
 

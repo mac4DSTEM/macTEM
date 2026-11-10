@@ -11,9 +11,16 @@ import SwiftUI
 import TEMCore
 
 nonisolated enum SEMEDSFormat {
-    static func keV(_ v: Double) -> String { v.formatted(.number.precision(.fractionLength(3))) }
-    static func counts(_ v: Double) -> String { v.formatted(.number.precision(.fractionLength(0))) }
-    static func percent(_ v: Double) -> String { v.formatted(.number.precision(.fractionLength(2))) }
+    /// `places` decimals in `locale`, never grouped (the SEM rows' rule, #272): "12345 counts", "1,486 keV" in de_DE. A non-finite
+    /// value is UnitDisplay's dash, and a value that rounds to zero carries no sign ("0,000", never "-0,000").
+    static func fixed(_ v: Double, _ places: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        guard v.isFinite else { return UnitDisplay.number(v) }
+        let text = v.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(places)))
+        return text.hasPrefix("-") && !text.contains(where: { ("1"..."9").contains($0) }) ? String(text.dropFirst()) : text
+    }
+
+    static func keV(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { fixed(v, 3, locale: locale) }
+    static func counts(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { fixed(v, 0, locale: locale) }
     static func lineTitle(_ line: String) -> String {
         let parts = line.split(separator: "_").map(String.init)
         guard parts.count == 2 else { return line }
@@ -21,10 +28,11 @@ nonisolated enum SEMEDSFormat {
         return "\(parts[0]) \(greek)"
     }
 
-    static func windows(_ row: SEMEDSLines.LineRow) -> String {
-        var text = "\(keV(row.integrationWindow[0]))–\(keV(row.integrationWindow[1]))"
+    static func windows(_ row: SEMEDSLines.LineRow, locale: Locale = .autoupdatingCurrent) -> String {
+        let k = { keV($0, locale: locale) }
+        var text = "\(k(row.integrationWindow[0]))–\(k(row.integrationWindow[1]))"
         if let bw = row.backgroundWindows {
-            text += " · bg \(keV(bw[0]))–\(keV(bw[1])), \(keV(bw[2]))–\(keV(bw[3])) keV"
+            text += " · bg \(k(bw[0]))–\(k(bw[1])), \(k(bw[2]))–\(k(bw[3])) keV"
         } else {
             text += " keV"
         }
