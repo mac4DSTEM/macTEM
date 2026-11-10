@@ -89,11 +89,6 @@ package nonisolated enum OrientationSampling {
         }
     }
 
-    /// `local(resolution:center:gridWidth:)` off the caller's actor.
-    @concurrent package static func localSample(resolution: Double, center: Rotation? = nil, gridWidth: Double = 10) async throws -> [Rotation] {
-        try local(resolution: resolution, center: center, gridWidth: gridWidth)
-    }
-
     // MARK: - The grid
 
     /// `_cubochoric_sampling_loop` with a filter applied as each point is made: the unit quaternions the filter keeps, in

@@ -131,12 +131,6 @@ package nonisolated enum OrientationDensity {
                           values: values(orientations, at: grid, halfWidthDegrees: halfWidthDegrees), halfWidthDegrees: halfWidthDegrees)
     }
 
-    /// Sections off the caller's actor.
-    @concurrent package static func sectionsAsync(_ orientations: Orientations, phi2Degrees: [Double], stepDegrees: Double = 5,
-                                                  halfWidthDegrees: Double = defaultHalfWidthDegrees) async -> [ODFSection] {
-        phi2Degrees.map { section(orientations, phi2Degrees: $0, stepDegrees: stepDegrees, halfWidthDegrees: halfWidthDegrees) }
-    }
-
     private nonisolated final class ValueBands: @unchecked Sendable {
         private var storage: [Double]
         private let lock = NSLock()
