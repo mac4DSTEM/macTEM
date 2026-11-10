@@ -44,9 +44,14 @@ struct DiffractionRoom: View {
         .task(id: DisplayKey(id: item.id, log: view.useLog, width: image.width, height: image.height)) {
             analysis.bind(image)
             let centre = analysis.centre ?? .imageCentre(width: image.width, height: image.height)
-            view.setAutoExtent(await Self.extent(pixels: image.pixels, width: image.width, height: image.height, centre: centre))
+            let radius = await Self.extent(pixels: image.pixels, width: image.width, height: image.height, centre: centre)
+            // A quick Log toggle or another file cancels this pass while it computes: it writes nothing, so the newer pass's extent
+            // and canvas are the ones left on screen.
+            guard !Task.isCancelled else { return }
+            view.setAutoExtent(radius)
             let pixels = image.pixels, w = image.width, h = image.height, log = view.useLog
             let canvas = await Self.makeCanvas(pixels: pixels, width: w, height: h, log: log)
+            guard !Task.isCancelled else { return }
             // A window in log values means nothing in linear ones: the range starts whole again.
             if view.presentation.canvas.map({ $0.contentVersion != canvas.contentVersion }) ?? false { view.presentation.resetWindow() }
             view.presentation.show(canvas)

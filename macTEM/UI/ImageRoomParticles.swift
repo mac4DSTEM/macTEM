@@ -230,7 +230,7 @@ struct ParticleOverlay: View {
         .task(id: preview?.version) {
             guard let preview else { tint = nil; return }
             let w = preview.width, h = preview.height, mask = preview.mask
-            tint = await Task.detached(priority: .userInitiated) {
+            let made: CGImage? = await Task.detached(priority: .userInitiated) {
                 var rgba = [UInt8](repeating: 0, count: w * h * 4)
                 for (i, on) in mask.enumerated() where on { rgba[4 * i] = 255; rgba[4 * i + 1] = 60; rgba[4 * i + 2] = 60; rgba[4 * i + 3] = 110 }
                 guard let provider = CGDataProvider(data: Data(rgba) as CFData) else { return nil as CGImage? }
@@ -238,6 +238,9 @@ struct ParticleOverlay: View {
                                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue), provider: provider, decode: nil,
                                shouldInterpolate: false, intent: .defaultIntent)
             }.value
+            // A newer preview cancelled this tint while it ran (the detached work does not see it): it lands nothing over the newer one.
+            guard !Task.isCancelled else { return }
+            tint = made
         }
     }
 
