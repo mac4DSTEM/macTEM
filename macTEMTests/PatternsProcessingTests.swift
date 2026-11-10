@@ -3,7 +3,8 @@
 //  The Patterns room's processing (P2-01, docs/sem/design/pattern-processing.md): `EBSDSession`'s pipeline, the Raw / Processed
 //  display, the room's verb `Process` and the stage states, on the generated demo (no static background: the scan's mean stands
 //  in) and on the shipped nickel scan (the north star: its pattern (0, 0) after Process is figure F2 within one grey level).
-//  Red before the wiring: no `process()`; red when a change does not stale its stage, or the display ignores the pipeline.
+//  Red before the wiring: no `process()`; red when a change does not stale its stage, or the display ignores the pipeline, or a
+//  stopped run lands over the run started after it.
 //
 
 import XCTest
@@ -64,6 +65,26 @@ nonisolated final class PatternsProcessingTests: XCTestCase {
         await session.process().value
         XCTAssertNil(session.firstStaleStage)
         XCTAssertEqual(session.processed?.dataset.patternRows, DemoDocuments.Truth.ebsdPatternSide / 2)
+    }
+
+    /// Stop then Process at once (a double click on the verb): the stopped run never lands and the new one does. Red while the runs
+    /// shared one count: the stopped run landed as the new one with no result, and the new run's result was then thrown away.
+    @MainActor func testStopThenProcessLandsTheNewRunNotTheStoppedOne() async throws {
+        let session = EBSDSession()
+        await session.bind(try DemoDocuments.ebsd()).value
+        try await waitIdle(session)
+        var events: [String] = []
+        session.onEvent = { events.append($0) }
+        session.process()
+        session.stop()
+        XCTAssertFalse(session.isProcessing)
+        let second = session.process()
+        XCTAssertTrue(session.isProcessing)
+        await second.value
+        XCTAssertFalse(session.isProcessing)
+        XCTAssertNotNil(session.processed)
+        XCTAssertEqual(session.processedWith, session.pipeline)
+        XCTAssertEqual(events.filter { $0.hasPrefix("Processed ") }.count, 1, "\(events)")
     }
 
     @MainActor func testARefusedStageSaysWhyAndProcessDoesNotRun() async throws {
