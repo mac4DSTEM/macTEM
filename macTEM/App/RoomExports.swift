@@ -8,7 +8,7 @@
 //        pinned without a window; `ExportCommands` draws the items.
 //
 //        The rooms: EDS (the shared room's `EDXRoomState.export`), EELS (`EELSRoomState.export`), Patterns
-//        (`PatternsRoomState.export`) and Indexing (`IndexingRoomState.export`).
+//        (`PatternsRoomState.export`), Indexing (`IndexingRoomState.export`) and Maps (`MapsRoomState`'s four calls, one a file).
 //
 
 import ShellEDXModel
@@ -188,6 +188,68 @@ extension ExportSnapshot {
     }
 }
 
+// MARK: - Maps
+
+/// The Maps room's four files, named as the room's Export buttons are (`MapsExportSection`); the room state has one call for each.
+nonisolated enum MapsExportKind: String, CaseIterable, Identifiable, Sendable {
+    case map, grains, histogram, texture
+
+    var id: String { rawValue }
+
+    /// The inspector button's title.
+    var title: String {
+        switch self {
+        case .map: "Map PNG…"
+        case .grains: "Grains CSV…"
+        case .histogram: "Histogram CSV…"
+        case .texture: "Texture PNG…"
+        }
+    }
+}
+
+/// Which of the Maps room's File-menu exports are enabled, by the rules of the room's own Export buttons (`MapsExportSection`).
+nonisolated struct MapsExportAvailability: Sendable, Equatable {
+    /// Map PNG…: the map's picture has landed.
+    let map: Bool
+    /// Grains CSV… and Histogram CSV…: the map is segmented.
+    let grains: Bool
+    /// Texture PNG…: the texture has landed.
+    let texture: Bool
+
+    /// Whether the item of `kind` is enabled.
+    func isEnabled(_ kind: MapsExportKind) -> Bool {
+        switch kind {
+        case .map: map
+        case .grains, .histogram: grains
+        case .texture: texture
+        }
+    }
+}
+
+extension ExportSnapshot {
+    /// The Maps room's exports are listed only while that room shows a map: nil in any other room and with none open.
+    /// Exhaustive over the rooms on purpose, as `availability` is.
+    static func mapsAvailability(area: WorkspaceArea, hasMap: Bool, hasPicture: Bool, isSegmented: Bool,
+                                 hasTexture: Bool) -> MapsExportAvailability? {
+        let inRoom: Bool
+        switch area {
+        case .maps: inRoom = true
+        case .image, .fft, .diffraction, .results, .edx, .eels, .patterns, .indexing: inRoom = false
+        }
+        guard inRoom, hasMap else { return nil }
+        return MapsExportAvailability(map: hasPicture, grains: isSegmented, texture: hasTexture)
+    }
+
+    static func mapsAvailability(of appState: AppState) -> MapsExportAvailability? {
+        // The session is read only where it decides something: in the Maps room.
+        let area = appState.navigation.workspaceArea
+        guard area == .maps else { return nil }
+        let session = appState.maps
+        return mapsAvailability(area: area, hasMap: session.hasMap, hasPicture: session.raster != nil,
+                                isSegmented: session.analysis != nil, hasTexture: session.texture != nil)
+    }
+}
+
 // MARK: - The calls
 
 /// What a room's File-menu export does: the room state's own export, as the room's inspector button calls it.
@@ -216,5 +278,17 @@ enum RoomExports {
     /// folder, with the room's line in the status line.
     static func indexing(_ kind: IndexingExportKind, appState: AppState) {
         appState.indexingRoom.export(kind, from: appState.indexing, directory: appState.exportDirectory) { appState.statusText = $0 }
+    }
+
+    /// The Maps room's: the file of `kind` (the histogram the Histogram tab counts) to the room's save panel or into a UI journey's
+    /// export folder, with the room's line in the status line.
+    static func maps(_ kind: MapsExportKind, appState: AppState) {
+        let room = appState.mapsRoom
+        switch kind {
+        case .map: room.exportMap(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+        case .grains: room.exportGrains(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+        case .histogram: room.exportHistogram(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+        case .texture: room.exportTexture(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+        }
     }
 }

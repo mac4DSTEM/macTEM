@@ -7,8 +7,8 @@
 //        (`ExportSnapshot.fftAvailability`), and Export Session Report… wherever the SEM rooms hold a result. Listed only while
 //        their room shows its document, as mac4DSTEM lists its Spectroscopy exports: the EDS room's five
 //        (`ExportSnapshot.edsAvailability`), the EELS room's seven (`eelsAvailability`), the Patterns room's six
-//        (`patternsAvailability`) and the Indexing room's five (`indexingAvailability`), each through the room's own export
-//        (`RoomExports`), the call its inspector button makes.
+//        (`patternsAvailability`), the Indexing room's five (`indexingAvailability`) and the Maps room's four
+//        (`mapsAvailability`), each through the room's own export (`RoomExports`), the call its inspector button makes.
 //
 //        PLACEMENT: after the Save group, which this app's File menu fills with Close Image and Close Window (`ImageCommands`
 //        replaces it) — the anchor already known to render here. `.importExport`, the HIG's home of Export, would put the items
@@ -33,6 +33,7 @@ struct ExportCommands: Commands {
         let eels = appState.flatMap(ExportSnapshot.eelsAvailability(of:))
         let patterns = appState.flatMap(ExportSnapshot.patternsAvailability(of:))
         let indexing = appState.flatMap(ExportSnapshot.indexingAvailability(of:))
+        let maps = appState.flatMap(ExportSnapshot.mapsAvailability(of:))
         CommandGroup(after: .saveItem) {
             Divider()
             Button("Export Image…") {
@@ -80,6 +81,8 @@ struct ExportCommands: Commands {
             if let appState, let patterns { patternsItems(patterns, appState: appState) }
             // The Indexing room's five, on the same terms.
             if let appState, let indexing { indexingItems(indexing, appState: appState) }
+            // The Maps room's four, while that room shows a map.
+            if let appState, let maps { mapsItems(maps, appState: appState) }
         }
     }
 
@@ -130,6 +133,17 @@ struct ExportCommands: Commands {
         ForEach(IndexingExportKind.allCases) { kind in
             Button("Export \(kind.title)") { RoomExports.indexing(kind, appState: appState) }
                 .disabled(!indexing.indexed)
+        }
+    }
+
+    /// The Maps room's exports, each named "Export" and its inspector button's title, in the inspector's order: enabled by the
+    /// button's rule (`ExportSnapshot.mapsAvailability`) and written by the room's own export. No keys.
+    @ViewBuilder
+    private func mapsItems(_ maps: MapsExportAvailability, appState: AppState) -> some View {
+        Divider()
+        ForEach(MapsExportKind.allCases) { kind in
+            Button("Export \(kind.title)") { RoomExports.maps(kind, appState: appState) }
+                .disabled(!maps.isEnabled(kind))
         }
     }
 }
