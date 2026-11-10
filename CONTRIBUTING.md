@@ -24,7 +24,7 @@ later.
 
 ```sh
 xcodebuild -project macTEM.xcodeproj -scheme macTEM -destination 'platform=macOS' build
-tools/run-tests.sh unit         # the unit tests: run these before you open a pull request
+tools/run-tests.sh unit         # the unit tests, and no compiler warning: run these before you open a pull request
 tools/run-tests.sh core         # TEMCore and TEMSession build alone, with no warning (the layering check)
 tools/run-tests.sh inventory    # repository checks (notices, large files, harness list, UI identifiers)
 ```

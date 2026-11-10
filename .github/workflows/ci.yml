@@ -6,7 +6,8 @@
 # (.github/workflows/ui.yml, nightly and by hand, queued while the Mac is offline).
 #
 # WHAT RUNS:
-#   * `tools/run-tests.sh unit`      — the XCTest suite (macTEMTests) through xcodebuild, every declared test run by name.
+#   * `tools/run-tests.sh unit`      — the XCTest suite (macTEMTests) through xcodebuild, every declared test run by name;
+#     a compiler warning in the app's own sources or tests fails it (tools/lib/app-warnings.sh).
 #   * `tools/run-tests.sh core`      — TEMCore and TEMSession built standalone by `swift build` (Package.swift)
 #     from a fresh scratch path: the layering gate. It fails the moment Core reaches into Session or either
 #     reaches into the app, and on any compiler warning.
