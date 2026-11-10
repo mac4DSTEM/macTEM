@@ -160,6 +160,29 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         XCTAssertTrue(sentence.hasPrefix("Not saved. Save to Session (⌘S) keeps the marks in "), sentence)
     }
 
+    /// The results CSV's `session:` header writes a saved time in ISO 8601 with its zone's offset, the same in every locale and with the day; the
+    /// Image room's tail (and the Results room's header) keep the reader's clock. Export Results… takes the header. Red before: the header was the
+    /// tail's line, "Saved at 1:03 PM to …" in en_US and "Saved at 13:03 to …" in de_DE.
+    @MainActor func testTheSessionHeaderWritesTheSavedTimeInISO8601() throws {
+        let saved = Date(timeIntervalSince1970: 1_794_315_780) // 2026-11-10 13:03:00 UTC
+        var input = SessionTailInput(fileName: "a.dm4.mactem.h5", sidecar: .saved, notes: [], needsAccess: false, newerVersion: nil,
+                                     hasMarks: true, isDirty: false, canSave: false, isSaving: false, savedAt: saved)
+        let utc = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let berlin = try XCTUnwrap(TimeZone(identifier: "Europe/Berlin"))
+        XCTAssertEqual(ExportSnapshot.sessionHeader(input, timeZone: utc), "Saved at 2026-11-10T13:03:00Z to a.dm4.mactem.h5.")
+        XCTAssertEqual(ExportSnapshot.sessionHeader(input, timeZone: berlin), "Saved at 2026-11-10T14:03:00+01:00 to a.dm4.mactem.h5.")
+        for locale in [Locale(identifier: "en_US"), Locale(identifier: "de_DE")] {
+            let screen = try XCTUnwrap(SessionFormat.tail(input, locale: locale).lines.first?.text)
+            XCTAssertTrue(screen.hasPrefix("Saved at ") && !screen.contains("2026-11-10T"), "the screen keeps the reader's clock: \(screen)")
+        }
+        input.isDirty = true
+        XCTAssertEqual(ExportSnapshot.sessionHeader(input, timeZone: utc), "Changed since saved at 2026-11-10T13:03:00Z.")
+        input.sidecar = .none
+        XCTAssertEqual(ExportSnapshot.sessionHeader(input, timeZone: utc), SessionFormat.tail(input).lines.first?.text, "no time: the tail's words")
+        XCTAssertTrue(squeezed(try source("macTEM/App/ResultsExportSnapshot.swift")).contains("session: sessionHeader(SessionTailInput(item: item))"),
+                      "Export Results… writes the header, not the screen's sentence")
+    }
+
     // MARK: The room's state
 
     /// A file switch resets the selection and a repeat of the same file keeps it; the shown groups filter the rows and the sections,
