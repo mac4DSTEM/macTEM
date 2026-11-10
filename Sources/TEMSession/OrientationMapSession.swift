@@ -716,11 +716,18 @@ package final class OrientationMapSession {
         textureTask?.cancel()
         let map = document.map
         let task = Task { [weak self] in
-            let made = try? await MapTexture.computeAsync(map, phaseID: id)
+            var made: MapTexture?
+            var failure = ""
+            do {
+                made = try await MapTexture.computeAsync(map, phaseID: id)
+            } catch {
+                failure = ": " + ((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+            }
             guard let self, !Task.isCancelled, self.texturePhaseID == id, self.document?.fileName == document.fileName else { return }
             self.texture = made
             self.isTexturing = false
-            if made == nil { self.onEvent?("No texture for this phase") }
+            // The texture's own sentence (a phase without a point group, orientations that cannot be read) says why.
+            if made == nil { self.onEvent?("No texture for this phase" + failure) }
         }
         textureTask = task
         return task

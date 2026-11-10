@@ -373,4 +373,18 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         state.exportHistogram(from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported ebsd-sdss-ferrite-austenite histogram GOS.csv"])
     }
+
+    /// A texture that cannot be made says why in the status line. Red before: the reason was dropped and the line read "No texture for
+    /// this phase".
+    @MainActor func testATextureThatCannotBeMadeSaysWhy() async throws {
+        let session = OrientationMapSession()
+        await session.open(url: Self.sdss).value
+        var events: [String] = []
+        session.onEvent = { events.append($0) }
+        XCTAssertNil(session.document?.map.phases[id: 99], "no phase 99 in the map")
+        await session.showTexture(phaseID: 99).value
+        XCTAssertNil(session.texture)
+        XCTAssertFalse(session.isTexturing)
+        XCTAssertEqual(events.last, "No texture for this phase: The phase has no point group: no texture.", "\(events)")
+    }
 }

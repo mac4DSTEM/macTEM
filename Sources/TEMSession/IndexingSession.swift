@@ -481,14 +481,24 @@ package final class IndexingSession {
             guard samplingTasks[key] == nil else { continue }
             samplingTasks[key] = Task { [weak self] in
                 var rotations: [SIMD4<Double>]?
+                var failure: String?
                 if let group = PointGroup.named(key.pointGroup) {
-                    rotations = try? await DictionaryIndexingPlan.sample(resolution: key.resolution, pointGroup: group)
+                    do {
+                        rotations = try await DictionaryIndexingPlan.sample(resolution: key.resolution, pointGroup: group)
+                    } catch {
+                        failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    }
                 }
                 // A cancelled task was taken out of `samplingTasks` by whoever cancelled it; any other ends its own entry, landed or
                 // not, so a later refresh samples the group again.
                 guard let self, !Task.isCancelled else { return }
                 self.samplingTasks[key] = nil
-                if let rotations { self.keepSampled([key: rotations]) }
+                if let rotations {
+                    self.keepSampled([key: rotations])
+                } else if let failure {
+                    // The group's dictionary size stays blank; the status line says why.
+                    self.onEvent?("Dictionary (\(key.pointGroup)): \(failure)")
+                }
             }
         }
         dictionarySizes = sizes
