@@ -441,8 +441,10 @@ private struct EELSReferencesBlock: View {
                     .background(selected == reference.id ? Color.accentColor.opacity(0.25) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
                     .contentShape(Rectangle())
                     .onTapGesture { selected = reference.id }
+                    // A row that selects on a click is a button to VoiceOver, with the click as its action (the Patterns room's tile cells).
                     .accessibilityElement(children: .combine)
-                    .accessibilityAddTraits(selected == reference.id ? .isSelected : [])
+                    .accessibilityAddTraits(selected == reference.id ? [.isButton, .isSelected] : .isButton)
+                    .accessibilityAction(.default) { selected = reference.id }
                 }
             }
             InspectorActionRow {

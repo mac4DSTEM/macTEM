@@ -102,6 +102,7 @@ struct EELSRoom: View {
                 // Opening: a bar in the centre and Stop (the toolbar's Stop and ⌘. do the same).
                 VStack(spacing: 12) {
                     ProgressView().progressViewStyle(.linear).frame(maxWidth: EDXLayout.openingBarWidth)
+                        .accessibilityLabel("Opening spectrum image")
                     Text("Opening spectrum image").font(.headline)
                     Button("Stop") { session.stop() }
                         .keyboardShortcut(.cancelAction)
@@ -255,7 +256,7 @@ struct EELSMapsBlock: View {
                         Label(failure, systemImage: "xmark.octagon.fill").font(.callout).foregroundStyle(.red).multilineTextAlignment(.center)
                             .accessibilityIdentifier("eels.failure")
                     } else {
-                        ProgressView().controlSize(.regular)
+                        ProgressView().controlSize(.regular).accessibilityLabel("Mapping the thickness")
                         Text("Mapping the thickness…").foregroundStyle(.secondary)
                     }
                 }
@@ -1064,7 +1065,7 @@ struct EELSResultsPanel: View {
                     .background(.quaternary, in: Capsule())
                     .help(EELSLiterature.tooltip)
                     .accessibilityIdentifier("eels.methodsTag")
-                if session.isComputing { ProgressView().controlSize(.small) }
+                if session.isComputing { ProgressView().controlSize(.small).accessibilityLabel(EELSStage.spinnerLabel(session.computingStage)) }
             }
             .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
             .frame(height: LayoutPolicy.paneHeaderHeight)
