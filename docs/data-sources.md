@@ -46,9 +46,10 @@ test files are compatible, and each entry below says which it is. Demo data ship
 | `edax_h5ebsd_patterns.h5` | The 3 x 3 scan as an EDAX h5ebsd file with its indexed map | kikuchipy 0.13.1 package data | GPL-3.0 |
 | `emsoft_ebsd_EBSD_TEST_Ni.h5` | One 640 x 480 simulated Ni pattern as EMsoft's EBSD HDF5 output (`EMEBSD`), with PC and orientation | kikuchipy 0.13.1 package data | GPL-3.0 |
 | `oxford_h5oina_patterns.h5oina`, `bruker_h5ebsd_patterns.h5` | The 3 x 3 scan as an Oxford AZtec H5OINA (format 7.0) and a Bruker Esprit h5ebsd, written by kikuchipy's dummy-file writers (`tools/parity/sem/make_fixtures.py`) | kikuchipy 0.13.1 `kikuchipy.data._dummy_files` | GPL-3.0 |
-| `planted_oxford.ctf` + `.truth.json` | A hand-written Oxford Channel 5 text file, 4 x 5 points, fcc and bcc iron, one not-indexed point. No public `.ctf` of a known licence was found on 2026-11-06 and orix 0.15.0 has no `.ctf` writer | this repo (`make_fixtures.py`) | GPL-3.0 |
+| `planted_oxford.ctf` + `.truth.json` | A hand-written Oxford Channel 5 text file, 4 x 5 points, fcc and bcc iron, one not-indexed point. No public `.ctf` written by Oxford's own software, of a known licence, was found on 2026-11-06 (orix-data's `Ti_orientations.ctf` above is an MTEX export) and orix 0.15.0 has no `.ctf` writer | this repo (`make_fixtures.py`) | GPL-3.0 |
 | `rsciio_Zeiss_SEM_512pix.tif` | A 512 x 384 Zeiss SmartSEM TIFF (ULTRA 55, 5 kV, CZ_SEM tag: pixel size 11.65 nm, WD 3.9 mm, stage) | RosettaSciIO 0.15.0 test data `tiff_Zeiss_SEM.zip` | GPL-3.0 |
 | `rsciio_FEI_Helios_Ebeam_8bits.tif` | A 512 x 471 Thermo/FEI Helios NanoLab 660 TIFF (5 kV, FEI_HELIOS tag: pixel size 3.3724 µm, dwell 10 µs, stage) | RosettaSciIO 0.15.0 test data `tiff_FEI_Helios.zip` | GPL-3.0 |
+| `macTEMTests/Fixtures/sem-tiff/tescan-pfib_dataZeroed.50431.bin`, `tescan-reference.json` | Tag 50431 (the embedded header) of NexusLIMS's Tescan test file `tescan-pfib_dataZeroed.tif`, byte for byte, and the sections NexusLIMS's `tescan_tif` pipeline parses from it, written by `tools/parity/sem/sem-image/tescan_reference.py` (`SOURCES-sem-tiff.md` beside them) | NexusLIMS (github.com/datasophos/NexusLIMS, main), `tests/unit/files/tescan-pfib_dataZeroed.tar.gz` (sha256 `a4859def…adfba`), fetched 2026-11-07 | MIT, (c) 2025 Datasophos (the permission notice is in `NOTICE`) |
 | `exspy_EDS_SEM_TM002.hspy`, `.msa` | The north-star SEM-EDS spectrum, see above | exspy 0.3.2 package data | GPL-3.0 |
 | `rsciio/bruker/*.bcf`, `*.spx` | RosettaSciIO's Bruker test files unchanged: 12-bit, 16-bit and instructed packing, zlib, version 1 and 2 (`bcf-edx-ebsd.bcf`, 1.2 MB, the one fixture over 1 MB, D-SEM-79), a TEM map, counts over 16 bits, a file that is not SFS (`Nope.bcf`), three `.spx` spectra | RosettaSciIO 0.15.0 test data `rsciio/tests/data/bruker/` | GPL-3.0-or-later |
 | `rsciio/edax/spd_map_crop8.*`, `spc0_61-ipr333_xrf_crop8.*`, `Live Map 2_Img.ipr`, `Garnet1_Img.ipr`, `line_scan_crop.*`, `single_spect.spc` | 8 x 8 windows (rows 96 to 103, columns 120 to 127) of rsciio's two EDAX maps with their `.spc` and `.ipr`, its line scan and single spectrum, written by `make_fixtures.py` from `edax_files.zip` (the header's point and line counts rewritten, nothing else) | RosettaSciIO 0.15.0 test data `rsciio/tests/data/edax/edax_files.zip` | GPL-3.0-or-later |
@@ -62,11 +63,13 @@ test files are compatible, and each entry below says which it is. Demo data ship
 
 ## Gaps on 2026-11-06
 
-- **Tescan**: closed on 2026-11-07. RosettaSciIO has no Tescan test file; NexusLIMS's MIT-licensed
-  `tescan-pfib_dataZeroed.tif` is the one public Tescan TIFF of known licence found, and its tag is the fixture above.
-- No public **Oxford .ctf** map; the planted file above covers the reader until one is found.
+- No public **.ctf** map written by Oxford's own software (AZtec, Channel 5) of a known licence; orix-data's
+  `Ti_orientations.ctf` is an MTEX export, and the planted file above covers Oxford's own layout until one is found.
 - **TKD** patterns: none public with a stated licence yet; the TKD geometry of phase 2 is checked against kikuchipy
   on the Ni data with the detector tilted as a TKD setup would be (a geometry test, not a TKD dataset).
+
+Closed since: **Tescan** (2026-11-07). RosettaSciIO has no Tescan test file, but NexusLIMS's `tescan-pfib_dataZeroed.tif`
+(MIT, the fixture above) is public; the Tescan reader is live on it (D-SEM-89).
 
 ## Shipped with the app
 
@@ -79,4 +82,4 @@ Dictionary indexing works on the demo scan.
 | `DemoData/nickel_ebsd_large/patterns_v2.h5` | kikuchipy `nickel_ebsd_large`, the EBSD north star | 15.4 MB | CC BY 4.0 |
 | `DemoData/EDS_SEM_TM002.hspy` | exspy `EDS_SEM_TM002`, the SEM-EDS north star | 31 KB | GPL-3.0 |
 | `DemoData/sdss_ferrite_austenite.ang` | orix-data `sdss_ferrite_austenite`, the Maps room's demo map (macTEM P3-04) | 0.65 MB | CC BY 4.0 |
-| `DemoData/ni_mc_mp_20kv_uint8_gzip_opts9.h5` | kikuchipy's EMsoft Ni 20 kV master pattern (`nickel_ebsd_master_pattern_small`), the Indexing room's master pattern for the demo scan | 0.9 MB | CC BY 4.0 (data), GPL-3.0 (package) |
+| `DemoData/ni_mc_mp_20kv_uint8_gzip_opts9.h5` | kikuchipy `nickel_ebsd_master_pattern_small`, the EMsoft Ni 20 kV master pattern; the Indexing room opens it with the demo scan, so Dictionary runs without a file to find (macTEM#160, D-SEM-91) | 0.9 MB | CC BY 4.0 (the pattern), GPL-3.0 (kikuchipy's file) |

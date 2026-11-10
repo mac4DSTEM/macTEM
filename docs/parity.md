@@ -1,9 +1,13 @@
 # Parity
 
-Every SEM-program function the app computes itself (not through a kit), its reference, its state and its tolerance; the kits'
-own functions are listed in their `docs/parity.md`. The rule: match the pinned Python reference within the tolerance that
-package's own tests use, never stricter. References are pinned in `tools/parity/sem` (kikuchipy 0.13.1, orix 0.15.0, pyebsdindex
-0.3.10.1, exspy 0.3.2, rosettasciio 0.15.0).
+Every function the app computes itself (not through a kit), its reference, its state and its tolerance: the SEM program's in the
+sections below, the TEM rooms' own numbers in the last one; the kits' own functions are listed in their `docs/parity.md`. The
+rule: match the pinned Python reference within the tolerance that package's own tests use, never stricter. The SEM references are
+pinned in `tools/parity/sem/requirements.lock` (CPython 3.14): kikuchipy 0.13.1, orix 0.15.0, pyebsdindex 0.3.10.1, diffsims 0.7.0,
+diffpy.structure 3.5.0, HyperSpy 2.5.0, exspy 0.3.2, rosettasciio 0.15.0, DefDAP 1.3.1, scikit-image 0.26.0, SciPy 1.18.1,
+NumPy 2.5.4, tifffile 2026.10.15 and matplotlib 3.11.2, over h5py 3.16.0 and numba 0.68.1; NexusLIMS, which is on no index, by the
+sha256 of its `tescan_tif.py` (`f29d59ad…f67`, main of 2026-11-07, `tools/parity/sem/sem-image/tescan_reference.py`). The TEM
+harnesses' references are pinned in `tools/lib/references-lock.txt` (the last section).
 
 ## Readers (exact)
 
@@ -25,13 +29,14 @@ package's own tests use, never stricter. References are pinned in `tools/parity/
 | `NORDIFCalibrationPatterns.read` (`Calibration (x,y).bmp`, positions, area, ROI, scaled to steps) | `kikuchipy.load("Setting.txt")` (`nordif_calibration_patterns`) | same | positions and shapes exact; patterns bit-exact | scaled values round half to even as NumPy; `Setting_bad1.txt` and `Setting_bad2.txt` refused with one sentence where upstream raises `ValueError`; `Setting_bad3.txt` reads with its missing `Top` as 0 and no area shape, as upstream |
 | `NORDIFBitmap.decode` (8-bit greyscale BMP) | `matplotlib.pyplot.imread` (Pillow mode L) | same | bit-exact | own decoder, not ImageIO; any other bitmap kind refused with a sentence |
 | `NORDIFOpening.open` (`Pattern.dat` as an `EBSDDataset`, read by record) | `kikuchipy.load("Pattern.dat")` through `NORDIFScan` | `NORDIFOpeningTests` | patterns bit-exact against `NORDIFScan` | a `.dat` routes only with a NORDIF `Setting.txt` beside it; a short file reads whole records and the rest as 0 with a note (upstream keeps the bytes of an incomplete last pattern; `NORDIFScan` keeps that for the parity) |
+| `HyperSpySpectrumFile.header`, `read` (`.hspy`: one spectrum in HyperSpy's own HDF5 layout) | `rsciio.hspy.file_reader` (RosettaSciIO 0.15.0, `rsciio/hspy/_api.py`: `Experiments/<title>/data`, the `axis-<i>` groups, the metadata tree as groups of attributes) | `ShippedDemoDataTests.testTheSEMEDSSpectrumReadsBackToItsTruth` on the shipped `DemoData/EDS_SEM_TM002.hspy` (axis, signal type, beam energy, microscope, elements, total and peak counts); `SEMEDSParityTests` reads the same file into the `m7/eds-*-tm002` bundles exspy made from it | exact | refused with one sentence each: not HDF5, no `Experiments` group, several experiments, no numeric data, not one spectrum (a navigation axis or a dataset that is not 1D), no calibrated energy axis; spectrum images in this layout are a later port; no test reaches the six refusals yet |
 
 
 ## SEM images (TIFF)
 
 | Function | Reference | Test | Tolerance | State |
 |---|---|---|---|---|
-| `SEMImageMetadata.read` (Thermo/FEI tags 34680/34682) | RosettaSciIO 0.15.0 `_axes_fei`, `mapping_fei`; tifffile 2026.9.20 `read_fei_metadata` | `SEMImageMetadataTests` on the five Helios test files' tags (bundles `m1/read-sem-tiff-fei-*`) | axes rtol 1e-4 (RosettaSciIO's `test_read_FEI_navcam_metadata`); metadata numbers 1e-9 relative, texts exact (its tests: 7 places) | live; matched upstream except one quirk: RosettaSciIO's `_order_axes_by_name` puts the x scale (HFW / ResolutionX) on the height axis and the y scale on the width axis. macTEM keeps each on its own axis; on the one non-square test file (navcam, 2.5e-6 apart) the difference is inside upstream's tolerance |
+| `SEMImageMetadata.read` (Thermo/FEI tags 34680/34682) | RosettaSciIO 0.15.0 `_axes_fei`, `mapping_fei`; tifffile 2026.10.15 `read_fei_metadata` | `SEMImageMetadataTests` on the five Helios test files' tags (bundles `m1/read-sem-tiff-fei-*`) | axes rtol 1e-4 (RosettaSciIO's `test_read_FEI_navcam_metadata`); metadata numbers 1e-9 relative, texts exact (its tests: 7 places) | live; matched upstream except one quirk: RosettaSciIO's `_order_axes_by_name` puts the x scale (HFW / ResolutionX) on the height axis and the y scale on the width axis. macTEM keeps each on its own axis; on the one non-square test file (navcam, 2.5e-6 apart) the difference is inside upstream's tolerance |
 | `SEMImageMetadata.read` (Zeiss tag 34118) | RosettaSciIO `_axes_zeiss`, `mapping_cz_sem`; tifffile `read_cz_sem` | the same, on the three Zeiss test files' tags (bundles `m1/read-sem-tiff-zeiss*`) | the same | live |
 | `SEMImageMetadata.read` (Tescan tag 50431) | NexusLIMS `tescan_tif` (`_extract_embedded_hdr` pipeline, field units; transcribed in `tools/parity/sem/sem-image/tescan_reference.py`); no RosettaSciIO branch | NexusLIMS's `tescan-pfib_dataZeroed.tif` tag (MIT) and a planted header | exact (every section and key; values as stored, converted by NexusLIMS's factors) | live (D-SEM-89) |
 | Databar rows (Thermo `DatabarHeight`, Tescan `ImageStripSize`) | tifffile's parse of the same bytes; no reader maps it | the five Helios files (29 and 39 rows) and a plant | exact | live; Zeiss never cropped (D-SEM-63) |
@@ -41,8 +46,12 @@ The references are the harness bundles `m1/read-sem-tiff-*` (`tools/parity/sem/e
 
 ## Pattern processing
 
-References: `tools/parity/sem/background_reference.py` (kikuchipy 0.13.1, numpy 2.5.4, scipy 1.18.1) on `nickel_ebsd_large`
-(Aanes et al. 2020, CC BY 4.0); fixtures under `macTEMTests/Fixtures/sem/background/`, tests in `SEMBackgroundParityTests`.
+Methods: kikuchipy's static and dynamic background correction, described with its processing pipeline in Ånes et al. (2020),
+IOP Conf. Ser.: Mater. Sci. Eng. 891, 012002: a static background (acquired, or the scan's mean pattern) subtracted from or divided
+into every pattern, then each pattern's own Gaussian blur (spatial, or a low-pass filter in the frequency domain) as its dynamic
+background. References: `tools/parity/sem/background_reference.py` (kikuchipy 0.13.1, numpy 2.5.4, scipy 1.18.1) on
+`nickel_ebsd_large` (Aanes et al. 2020, CC BY 4.0); fixtures under `macTEMTests/Fixtures/sem/background/`, tests in
+`SEMBackgroundParityTests`.
 kikuchipy computes in float32 (numba, fastmath) and casts back to the pattern's integer type by truncation; TEMCore computes in
 float64. The rescaled values agree to 1e-5 relative (measured at most 1.1e-6); the cast patterns differ by one grey level where
 kikuchipy's float32 value lands on the other side of an integer: measured on all 4125 patterns, 0.05 % (static subtract),
@@ -184,6 +193,10 @@ files verbatim, the per-grain slip analysis and the Nye tensor. Bundles `m5/slip
 | `NyeTensor.compute` (`.separate`, `.defdap131`) | `defdap.ebsd.Map.calc_nye` (Pantleon 2008; L1 norm of the nine components, Ruggles & Fullwood 2013) | `testNyeTensorAndGNDMatchDefDAPBothWays`, `testAUniformMapHasNoDislocationContent` | rtol 1e-5, atol 1e6 m⁻² | DefDAP aliases its two derivative arrays (`betadery = betaderx`); `.separate` is the default and matches DefDAP's code with that line corrected (D-SEM-74); Burgers vector 1.4 Å; the last row and column are zero as in DefDAP; float64 loops, no symmetry table held in memory |
 
 ## Patterns room
+
+Methods: virtual backscatter electron images, the intensity a rectangle of the detector collects at every scan point, and their
+colour mix of three rectangles into red, green and blue, as Wright et al. (2015), Ultramicroscopy 148, 132, and Nolze, Hielscher
+and Winkelmann (2017), Cryst. Res. Technol. 52, 1600252, describe them (both cited by kikuchipy's virtual BSE tutorial).
 
 | Function | Reference | Test | Tolerance | Notes |
 |---|---|---|---|---|
@@ -489,3 +502,28 @@ al. 2020 (pattern matching refinement), the NCC as kikuchipy computes it.
 - The orientation similarity map and the merging of crystal maps (kikuchipy's `_orientation_similarity_map`,
   `_merge_crystal_maps`) need dictionary indexing's best matches per point; they follow when dictionary indexing (P4-02)
   is on main, in its own PR (macTEM#213).
+
+## TEM rooms (the app's own numbers)
+
+The TEM rooms compute through the kits (their `docs/parity.md`). What the app computes itself is held by the six harnesses of
+`tools/run-tests.sh`'s `scientific` array (nightly in CI and by hand, never per PR), each against a reference it computes from
+`tools/lib/references-lock.txt` (CPython 3.14), and by the unit tests in the table. Each harness's README states its clauses,
+tolerances and negative controls.
+
+- `metadata-parity`: `AcquisitionMetadata.tiff(data:)`, `.mrc(data:)`, `.dm(numbers:strings:)` and `.read(path:)` (what the
+  Image room shows of a file's acquisition) against ncempy 1.16, RosettaSciIO `049e7d70`, tifffile 2026.9.20 and mrcfile 1.5.4.
+- `profile-parity`: `ImageMeasurement.distance` and `.angle` against their closed forms, `LineProfile.sample` against
+  scikit-image 0.26.0's `measure.profile_line` (scipy 1.18.1, numpy 2.5.4).
+- `export-parity`: the Image room's export (`ImageExport.render`, `ProfileCSV.text`, `ExportFile`) read back with Pillow 12.3.0,
+  numpy 2.5.4 and Python's `float`.
+- `fft-export-parity`: the FFT room's export (`FFTExport`, `RadialProfileCSV`, `SpotsCSV`, `ImageExport`'s provenance and spot
+  marks) read back the same way.
+- `sidecar-parity`: the session sidecar (`SessionSidecarFile`, `SessionLineage`) written by Swift and read by h5py 3.16.0, and
+  the reverse; h5py ships its own HDF5, so neither side reads what it wrote itself.
+- `diffraction-room-parity`: the Diffraction room's core (`Sources/TEMCore/Diffraction/`, on DiffractoKit) against numpy and
+  planted truth (clauses R1 to R9).
+
+| Function | Reference | Test | Tolerance | Notes |
+|---|---|---|---|---|
+| `EELSCompositionSigma.percentSigmas`, `sigmas` (1σ on at% and wt%) | SpectroKit's `EDXQuantification.quantifyWithSigma`, the same first-order propagation of independent amounts (Ku 1966, J. Res. Natl. Bur. Stand. 70C, 263) | `EELSFitQualityTests.testCompositionSigmaIsTheKitsFirstOrderRule`, `testTheRegionRowsCarryTheSigmaOfTheComposition` | rtol 1e-6 against the kit on hand amounts, 1e-5 on a fitted room | interim, delete at the SpectroKit version whose `EELSCompositionPixel` carries its σ; the amounts' covariance is left out (the kit gives the diagonal only), so the σ of a ratio can read low under MLLS or shared windows; none on a deconvolved core loss |
+| `EELSFitQuality.pearsonReduced`, `of` (RSS and reduced χ²) | the kit's residual sum of squares (`EELSModelResult.residualSumOfSquares`, `EELSMLLSPixel.residualSumOfSquares`); Pearson's χ² (Pearson 1900, Philos. Mag. 50, 157) over the fitted channels, divided by the degrees of freedom | `EELSFitQualityTests.testPearsonReducedChiSquared`, `testTheExactFitQualityIsTheKitsResidual` | 1e-15 on a hand case; RSS equal to the kit's; χ² 1e-12 relative | refused where the model is not positive on a fitted channel or no degree of freedom is left; the exact fit's χ² reads above 1 by construction (each background is fitted on its own window) and is not comparable with MLLS's |
