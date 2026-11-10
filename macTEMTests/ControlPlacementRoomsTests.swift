@@ -123,4 +123,28 @@ nonisolated final class ControlPlacementRoomsTests: XCTestCase {
             .appendingPathComponent("macTEM/App/macTEMApp.swift")
         XCTAssertTrue(try String(contentsOf: app, encoding: .utf8).contains("ZoomCommands()"))
     }
+
+    /// The EDS room's region tools and Pin Region are in the Workspace menu on ⌃⌘0…4 while that room shows a spectrum image (as
+    /// mac4DSTEM's Analysis menu), and the Image room's ⌃⌘1…4 measuring tools are listed only while the Image room is shown, so no
+    /// key is in the menu bar twice (macTEM#317). Red under: the EDS tools reachable only by the pointer; the Image tools listed in
+    /// every room, which would share ⌃⌘1…4 with the EDS tools.
+    func testTheEDSRegionToolsHaveKeysThatNoOtherItemShares() throws {
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        let app = try String(contentsOf: root.appendingPathComponent("macTEM/App/macTEMApp.swift"), encoding: .utf8)
+            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let eds = "if let appState, appState.navigation.workspaceArea == .edx, appState.edx.hasImage {"
+        XCTAssertTrue(app.contains(eds))
+        let edsBlock = try XCTUnwrap(app.components(separatedBy: eds).last)
+        for (title, key) in [("Select Tool", "0"), ("Rectangle Region Tool", "1"), ("Ellipse Region Tool", "2"),
+                             ("Polygon Region Tool", "3"), ("Line Tool", "4")] {
+            XCTAssertTrue(edsBlock.contains("Button(\"\(title)\")"), title)
+            XCTAssertTrue(edsBlock.contains(".keyboardShortcut(\"\(key)\", modifiers: [.command, .control])"), title)
+        }
+        XCTAssertTrue(edsBlock.contains("Button(\"Pin Region\") { appState.edx.pinRegion() } .disabled(appState.edx.selectedPin != nil)"))
+        XCTAssertTrue(app.contains("if appState?.navigation.workspaceArea == .image { Divider() ForEach(ImageRoomTools.Tool.allCases)"),
+                      "the Image room's tools only while that room is shown")
+        // Every ⌃⌘ digit stands in one of the two room blocks: the Image tools' one line and the EDS room's five (⌃⌘S and ⌃⌘L are the
+        // sidebar's and Output's, letters).
+        XCTAssertEqual(app.components(separatedBy: "modifiers: [.command, .control])").count - 1, 8)
+    }
 }
