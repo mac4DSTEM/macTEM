@@ -124,14 +124,23 @@ struct MapsBottomPane: View {
             }
             .padding(.horizontal, 10)
             .padding(.top, 6)
-            switch state.bottomTab {
-            case .key: MapsKeyPane(session: session)
-            case .grains: MapsGrainsTable(session: session)
-            case .poleFigures: MapsTextureFigures(session: session, odf: false)
-            case .odf: MapsTextureFigures(session: session, odf: true)
-            case .histogram: MapsHistogramPane(session: session, state: state)
+            .fixedSize(horizontal: false, vertical: true)
+            Group {
+                switch state.bottomTab {
+                case .key: MapsKeyPane(session: session)
+                case .grains: MapsGrainsTable(session: session)
+                case .poleFigures: MapsTextureFigures(session: session, odf: false)
+                case .odf: MapsTextureFigures(session: session, odf: true)
+                case .histogram: MapsHistogramPane(session: session, state: state)
+                }
             }
+            .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
         }
+        // The tabs stay at the top of the pane whatever its height: centred, they moved with each tab's content and, with the Output pane
+        // open, a figure taller than the pane pushed them out of view (drive 2026-11-08). The minimum height of 0 keeps a tall figure from
+        // moving the split; it is cut at its foot instead.
+        .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .top)
+        .clipped()
     }
 }
 
@@ -256,7 +265,7 @@ struct MapsTextureFigureCell: View {
     var markers: [SIMD2<Double>] = []
 
     var body: some View {
-        let side = LayoutPolicy.mapsTextureFigureSide
+        let side = odf ? LayoutPolicy.mapsODFSectionWidth : LayoutPolicy.mapsTextureFigureSide
         let aspect = CGFloat(figure.raster.height) / CGFloat(max(figure.raster.width, 1))
         VStack(alignment: .leading, spacing: 4) {
             Text(verbatim: figure.title).font(.caption).lineLimit(1)
