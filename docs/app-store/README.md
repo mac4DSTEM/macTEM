@@ -19,5 +19,6 @@ One plain UTF-8 file per App Store Connect field. Counts are characters (`wc -m`
 Every claim comes from the README and the app's code as of 2026-11-10; nothing from the roadmap. Every signed build is
 sandboxed. The formats read with a file of the same name beside them (EDAX .spd and .lsd with their .spc, EDAX .up1 and
 .up2 with their .ang, Oxford .ebsp with its .ctf) get that file through the related-item grant (`RelatedFileAccess`,
-macTEM#395); open one of each in the signed store build before a submission. The texts leave out NORDIF Pattern.dat and
-JEOL .asw, whose second files the sandboxed app is not given.
+macTEM#395); open one of each in the signed store build before a submission. The texts leave out NORDIF Pattern.dat,
+which asks for its folder once (macTEM#403) and has not been opened in a signed build yet, and JEOL .asw, whose other
+files the sandboxed app is not given.

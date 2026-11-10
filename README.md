@@ -31,9 +31,9 @@ and under the one in front its rooms. What the file holds decides the room it op
 TKD patterns are read and indexed as EBSD patterns are; no TKD dataset has been checked in the app yet.
 
 Some files are read together with a file of the same name beside them, so keep them in one folder: an EDAX .spd or
-.lsd with its .spc, an EDAX .up1 or .up2 with its .ang, and an Oxford .ebsp with its .ctf. A NORDIF Pattern.dat needs
-its Setting.txt and a JEOL .asw project the files it names; the sandboxed app is not given those yet, so these two may
-not open.
+.lsd with its .spc, an EDAX .up1 or .up2 with its .ang, and an Oxford .ebsp with its .ctf. A NORDIF Pattern.dat is read
+with the Setting.txt in its folder: the first time, the app asks for that folder. A JEOL .asw project needs the files it
+names; the sandboxed app is not given those yet, so it may not open.
 
 No file at hand? Help > Open Demo Data opens generated TEM documents and three public SEM datasets.
 
