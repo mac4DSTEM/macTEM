@@ -488,9 +488,10 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         XCTAssertFalse(IndexingInfoFormat.isLine("Stopped refinement at row 3 of 55; the refined rows stay", of: .dictionary))
         XCTAssertTrue(IndexingInfoFormat.isLine("Indexed 4125 of 4125 patterns with Dictionary in 7.2 s", of: .dictionary, refined: true))
         XCTAssertFalse(IndexingInfoFormat.isLine("Refined 4125 of 4125 patterns (orientations) in 1.0 s", of: .hough, refined: true))
-        let n = { (v: Double) in UnitDisplay.number(v, digits: 3) }
-        XCTAssertEqual(IndexingInfoFormat.refinementScores((before: 0.41234, after: 0.45321, metric: "NCC")), "NCC \(n(0.41234)) → \(n(0.45321))")
-        XCTAssertEqual(IndexingInfoFormat.refinementScores((before: 0.91, after: 0.45321, metric: "NDP")), "NDP \(n(0.91)) → NCC \(n(0.45321))")
+        let us = Locale(identifier: "en_US"), de = Locale(identifier: "de_DE")
+        XCTAssertEqual(IndexingInfoFormat.refinementScores((before: 0.41234, after: 0.45321, metric: "NCC"), locale: us), "NCC 0.412 → 0.453")
+        XCTAssertEqual(IndexingInfoFormat.refinementScores((before: 0.2, after: 0.36123, metric: "NCC"), locale: de), "NCC 0,200 → 0,361")
+        XCTAssertEqual(IndexingInfoFormat.refinementScores((before: 0.91, after: 0.45321, metric: "NDP"), locale: us), "NDP 0.910 → NCC 0.453")
         print("testRefineThroughTheRoom: \(String(format: "%.1f", Date().timeIntervalSince(started))) s")
     }
 

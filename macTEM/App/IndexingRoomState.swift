@@ -199,8 +199,12 @@ enum IndexingInfoFormat {
 
     /// A refinement's mean score over the refined points, as indexed and as refined (D-SEM-109): "NCC 0.412 → 0.453"; after an NDP
     /// dictionary, "NDP 0.91 → NCC 0.453".
-    nonisolated static func refinementScores(_ s: (before: Double, after: Double, metric: String)) -> String {
-        let n = { (v: Double) in UnitDisplay.number(v, digits: 3) }
+    /// "NCC 0.200 → 0.361": three places on both sides, so the two scores line up (three significant digits wrote "0,2 → 0,361").
+    nonisolated static func refinementScores(_ s: (before: Double, after: Double, metric: String),
+                                             locale: Locale = .autoupdatingCurrent) -> String {
+        let n = { (v: Double) in
+            v.isFinite ? v.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(3))) : UnitDisplay.number(v)
+        }
         return s.metric == "NCC" ? "NCC \(n(s.before)) → \(n(s.after))" : "\(s.metric) \(n(s.before)) → NCC \(n(s.after))"
     }
 
