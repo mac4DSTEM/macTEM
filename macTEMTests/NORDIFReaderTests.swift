@@ -328,6 +328,24 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
         XCTAssertEqual(kept.roiShapeScaled, NORDIFCalibrationPatterns.Point(row: 3, column: 3))
     }
 
+    /// A `Step size` of `inf` makes the factor infinite, and every value divided by it is 0: kikuchipy 0.13.1 loads this file with
+    /// `indices_scaled` [[0, 0], [0, 0]] and the ROI origin, ROI shape and area shape scaled to (0, 0), and so does the port, the
+    /// values as written kept beside them. Red before: an infinite factor gave no scaling, the scaled values nil.
+    func testAnInfiniteStepScalesEveryValueToZeroAsKikuchipy() throws {
+        var lines = try NORDIFSettings.read(path: path("Setting.txt")).lines
+        XCTAssertEqual(lines[78], "Step size\t1.500\tµm")
+        lines[78] = "Step size\tinf\tµm"
+        let c = NORDIFCalibrationPatterns.geometry(settings: try NORDIFSettings.parse(lines: lines, fileName: "Setting.txt"), patterns: [],
+                                                   staticBackground: nil)
+        let zero = NORDIFCalibrationPatterns.Point(row: 0, column: 0)
+        XCTAssertEqual(c.positionsScaled, [zero, zero])
+        XCTAssertEqual(c.roiOriginScaled, zero)
+        XCTAssertEqual(c.roiShapeScaled, zero)
+        XCTAssertEqual(c.areaShapeScaled, zero)
+        XCTAssertEqual(c.positions, [NORDIFSettings.Position(x: 425, y: 447), NORDIFSettings.Position(x: 294, y: 532)])
+        XCTAssertEqual(c.roiShape, NORDIFCalibrationPatterns.Point(row: 11, column: 11))
+    }
+
     func testTheSettingsFilesWithoutCalibrationLinesAreRefusedWithTheReferenceSentence() throws {
         for file in ["Setting_bad1.txt", "Setting_bad2.txt"] {
             let r = calibration(file)

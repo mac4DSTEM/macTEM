@@ -9,8 +9,9 @@
 //
 //  The scaling is kikuchipy's: `factor = step * width_px / width_um` from the `[Area] Width` line, and every scaled
 //  value is `round(value / factor)` with NumPy's round-half-to-even. Without a readable `Width` there is no scaling,
-//  nor with a factor of 0 or one that is not finite (a `Step size` of 0 or NaN, a `Width` of 0 px), nor when a scaled
-//  value is beyond an Int: the scaled values stay nil where a division by such a factor would trap.
+//  nor with a factor of 0 or NaN (a `Step size` of 0 or NaN, a `Width` of 0 px), nor when a scaled value is beyond an
+//  Int: the scaled values stay nil where kikuchipy casts the NaN, infinite or out-of-range quotient to an undefined
+//  integer. An infinite factor scales every value to 0, as kikuchipy's division does.
 //  An `[Area]` corner the file does not carry counts as 0 in `roiOrigin`, as kikuchipy's default; `settings.area`
 //  keeps it nil.
 //
@@ -87,7 +88,8 @@ package nonisolated struct NORDIFCalibrationPatterns: Equatable, Sendable {
                                                roiOrigin: roiOrigin, roiShape: roiShape)
         guard let width = area.width, width.micrometres != 0 else { return result }
         let factor = area.stepUM * Double(width.pixels) / width.micrometres
-        guard factor.isFinite, factor != 0 else { return result }
+        // An infinite factor scales every value to 0, as kikuchipy's division does; NaN scales nothing.
+        guard factor != 0, !factor.isNaN else { return result }
         // `Int(exactly:)`, as `ReaderNumber.int`: a quotient no Int holds means no scaling, where `Int(_:)` would trap.
         func steps(_ value: Int) -> Int? { Int(exactly: (Double(value) / factor).rounded(.toNearestOrEven)) }
         func steps(of point: Point) -> Point? {
