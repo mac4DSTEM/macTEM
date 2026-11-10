@@ -440,21 +440,29 @@ inventory() {
   fi
 
   echo "== the UI contract"
+  # Every Swift file under macTEM/UI and under macTEM/App, at any depth: `**/` is zsh's recursive glob (the folder itself and every
+  # folder below it), so a room's files moved into a subfolder (UI/SEM/) stay under the rules below. A list must not be empty, and
+  # each grep also names /dev/null: a grep without a file reads stdin, and with one file it drops the name the exemptions match on.
+  local -a ui_sources=("$ROOT"/macTEM/UI/**/*.swift(N.))
+  local -a app_sources=("$ROOT"/macTEM/App/**/*.swift(N.))
+  (( ${#ui_sources} && ${#app_sources} )) || { echo "  NOT CHECKED  no Swift file under macTEM/UI or under macTEM/App"; rc=1; }
   # SwiftUI only: no split views (HSplitView was half of a launch crash in mac4DSTEM), no AppKit in UI/. Comment lines
-  # are exempt.
-  if grep -nE '^[^/]*\b(HSplitView|VSplitView|NSSplitView|NSSplitViewController)\b' "$ROOT"/macTEM/UI/*.swift; then
+  # are exempt. The split ban holds in App/ too, which declares view modifiers and hosts an AppKit accessory view; the name of the
+  # defaults key AppKit saves a split's geometry under (LaunchOptions clears it) is a string, not a split.
+  if grep -nE '^[^/]*\b(HSplitView|VSplitView|NSSplitView|NSSplitViewController)\b' "${ui_sources[@]}" "${app_sources[@]}" /dev/null \
+       | grep -vF '"NSSplitView Subview Frames"'; then
     echo "  ^ a split banned by the UI contract (docs/architecture.md)"; rc=1
   fi
   if grep -rnE --include='*.swift' "${imports}(AppKit|Cocoa)([^[:alnum:]_]|$)" "$ROOT/macTEM/UI"; then
     echo "  ^ AppKit imported in UI (docs/architecture.md)"; rc=1
   fi
   # Rule 3: the chrome draws no bar or wash of its own; the science panes are exempt.
-  if grep -nE '\.background\((\.bar\)|Color\.[a-zA-Z]+\.opacity)' "$ROOT"/macTEM/UI/*.swift \
+  if grep -nE '\.background\((\.bar\)|Color\.[a-zA-Z]+\.opacity)' "${ui_sources[@]}" /dev/null \
        | grep -vE 'PaneOverlays|MetalImageView|ImagePane'; then
     echo "  ^ custom bar or opacity wash in the chrome (UI contract rule 3)"; rc=1
   fi
   # Rule 4: a numeric `.frame(...)` in the chrome comes from LayoutPolicy; the panes and overlays are exempt.
-  if grep -nE '\.frame\([^)]*: *[0-9]' "$ROOT"/macTEM/UI/*.swift \
+  if grep -nE '\.frame\([^)]*: *[0-9]' "${ui_sources[@]}" /dev/null \
        | grep -vE 'PaneOverlays|ImagePane|LayoutPolicy' | grep -vE 'LayoutPolicy\.|// science'; then
     echo "  ^ a fixed frame outside the science (UI contract rule 4)"; rc=1
   fi
