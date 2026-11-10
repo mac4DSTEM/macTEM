@@ -30,8 +30,8 @@ nonisolated final class DocumentTargetTests: XCTestCase {
         for area in [WorkspaceArea.fft, .diffraction, .results] {
             XCTAssertEqual(Self.target(area, image: true, eds: true), .image, "\(area.title) shows the selected image")
         }
-        XCTAssertEqual(Self.target(.edx, image: true, eds: true, eels: true), .eds)
-        XCTAssertEqual(Self.target(.eels, image: true, eds: true, eels: true), .eels)
+        XCTAssertEqual(Self.target(.edx, image: true, eds: true, eels: true), .eds(single: false))
+        XCTAssertEqual(Self.target(.eels, image: true, eds: true, eels: true), .eels(single: false))
 
         // A room that shows nothing: ⌘W closes the window, as the system's would.
         XCTAssertNil(Self.target(.image, dataset: true, map: true))
@@ -42,8 +42,13 @@ nonisolated final class DocumentTargetTests: XCTestCase {
         XCTAssertEqual(DocumentTarget.image.closeTitle, "Close Image")
         XCTAssertEqual(DocumentTarget.ebsdDataset.closeTitle, "Close Dataset")
         XCTAssertEqual(DocumentTarget.orientationMap.closeTitle, "Close Map")
-        XCTAssertEqual(DocumentTarget.eds.closeTitle, "Close Spectrum Image")
-        XCTAssertEqual(DocumentTarget.eels.closeTitle, "Close Spectrum Image")
+        XCTAssertEqual(DocumentTarget.eds(single: false).closeTitle, "Close Spectrum Image")
+        XCTAssertEqual(DocumentTarget.eels(single: false).closeTitle, "Close Spectrum Image")
+        // One spectrum (an .msa) is not a spectrum image: the menu says what closes.
+        XCTAssertEqual(DocumentTarget.eds(single: true).closeTitle, "Close Spectrum")
+        XCTAssertEqual(DocumentTarget.eels(single: true).closeTitle, "Close Spectrum")
+        XCTAssertEqual(DocumentTarget.of(area: .edx, hasImage: false, hasDataset: false, hasMap: false, hasEDS: true, hasEELS: false,
+                                         singleSpectrum: true), .eds(single: true))
     }
 
     /// The demo image open and the demo EBSD scan bound, as the window holds them: ⌘W in Maps closes the maps and keeps the dataset

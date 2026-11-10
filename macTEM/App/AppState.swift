@@ -130,6 +130,14 @@ final class AppState {
 
     /// The newest Open in flight (routing, then the reads): a test awaits it.
     @ObservationIgnored var lastOpen: Task<Void, Never>?
+    /// The app's windows, once this one is on screen (`AppWindows.enroll`): a file opened into a window that holds one already goes
+    /// to a tab of its own through them (`open(urls:refused:)`), and the last-session record is made over all of them. Nil for a
+    /// state no window shows (a test's, or before the window appears): everything then opens here, as it did with one window.
+    @ObservationIgnored weak var windows: AppWindows?
+    /// Opens whose routing or reads are still running: a window with one is taken, though it holds nothing yet.
+    @ObservationIgnored var opensInFlight = 0
+    /// Brings this state's window forward (`WindowTabbing`, the one place the `NSWindow` is known); nil while no window shows it.
+    @ObservationIgnored var showWindow: (() -> Void)?
     /// Files opened into the Image room that are also spectrum images (the HAADF of a Velox SI): their image is a scan image, which the Diffraction room does not take.
     var spectrumCompanionImages: Set<URL> = []
     /// The scan of each opened DM4 spectrum image, from its header: its Open Files row shows the scan, not the survey image's size.

@@ -225,3 +225,22 @@ also mac4DSTEM's. Parking instead of asking at the red button keeps the window p
 a question without an AppKit window delegate.
 
 **Reverse it.** `Window` again in `macTEMApp` with one `AppState` on the app; `AppWindows` then holds one window.
+
+## 2026-11-10 — One file per window: a second opened file comes up as a tab
+
+**What.** A file opened while the window holds one already (the panel, a drop, Finder, Open Recent, Reopen Last Session, a
+room's own Open) opens in a window of its own, which the system shows as a tab of the window in front; of a batch, an empty
+window takes the first file and each other file gets its tab (`OpenBatch.perWindow`, `AppWindows.openInTabs`). A file that a
+window holds already comes forward there and is not read twice. Each tab carries its window's title, the file's name. The
+last-session record covers every window on screen. A single spectrum's Close reads "Close Spectrum". Windows prefer tabs
+through `NSWindow.tabbingMode` (`WindowTabbing`): AppKit, named, because SwiftUI has no modifier for it and without it a new
+window is a tab only for someone whose System Settings say so. The launch arguments' documents (`--open`, the demos) still
+open together in the first window, which is what the UI journeys drive. The Open Files list stays until the next step.
+
+**Why.** Paul, 2026-11-10: "in macTEM/EM I see tabs like Finder or safari. Mac4DSTEM usually opens only one dataset at a time
+anyways and should stay like this."
+
+**What it changes for work across files.** Two files are no longer side by side in one window's rooms: the Results room and the
+session report cover the window's file, and a map file opened beside a Patterns dataset is its own tab.
+
+**Reverse it.** Drop the split at the top of `AppState.open(urls:refused:)`: every file then opens in the window it was given to.
