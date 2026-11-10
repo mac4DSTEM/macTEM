@@ -6,8 +6,8 @@
 # walked as a user would, one screenshot per step. The screenshots and the result bundle are uploaded as artifacts of
 # the run; this is the nightly on-screen record a review reads, and the source of a room PR's release-assets shots.
 #
-# WHEN: nightly at 03:30 UTC (the Mac is not in use; the journeys drive the screen and must not run under a person's
-# hands), and by hand with an optional list of journeys. The job targets the Mac by label, with no fallback to a GitHub
+# WHEN: by hand for now; nightly at 03:30 UTC once Paul agrees (the Mac is not in use then; the journeys drive the screen
+# and must not run under a person's hands). By hand with an optional list of journeys. The job targets the Mac by label, with no fallback to a GitHub
 # runner: while the Mac is offline the job queues, and runs when the Mac is back (GitHub drops a job no runner has
 # taken within 24 hours, so an offline night is skipped, not doubled).
 #
@@ -17,8 +17,7 @@
 name: UI journeys
 
 on:
-  schedule:
-    - cron: "30 3 * * *"
+  # The nightly (cron "30 3 * * *") waits for Paul's word: the journeys drive the Mac's screen.
   workflow_dispatch:
     inputs:
       journeys:
@@ -40,18 +39,23 @@ jobs:
     # The org variable MACEM_MAC_RUNNER names the Mac's labels; its fixed labels are the fallback, never a GitHub runner.
     runs-on: ${{ vars.MACEM_MAC_RUNNER && fromJSON(vars.MACEM_MAC_RUNNER) || fromJSON('["self-hosted","macOS","macem-mac"]') }}
     timeout-minutes: 120
-    env:
-      # The gate's output (logs, result bundle, screenshots) in the run's own temp folder, so the upload steps know the path.
-      MACTEM_GATE_DIR: ${{ runner.temp }}/gate
     steps:
       - uses: actions/checkout@v7
+      # The gate's output (logs, result bundle, screenshots) in the run's own temp folder, so the upload steps know the
+      # path. Set here because a job-level env cannot read the runner context: with it there, GitHub refused the whole
+      # file, and every push since 2026-11-06 showed this workflow as a failed run that never started.
+      - name: Gate folder
+        run: echo "MACTEM_GATE_DIR=$RUNNER_TEMP/gate" >> "$GITHUB_ENV"
       - name: Toolchain on record
         run: |
           sw_vers
           xcode-select -p
           xcodebuild -version
       - name: Run the UI journeys
-        run: tools/run-tests.sh ui ${{ inputs.journeys }}
+        # The journey list reaches the shell as a variable, never spliced into the script; unquoted so it splits into names.
+        env:
+          JOURNEYS: ${{ inputs.journeys }}
+        run: tools/run-tests.sh ui $JOURNEYS
       - name: Upload the screenshots
         if: always()
         uses: actions/upload-artifact@v7
