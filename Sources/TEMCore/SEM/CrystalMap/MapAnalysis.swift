@@ -500,9 +500,9 @@ package nonisolated struct MapTexture: Sendable {
     }
 
     /// The pole figures (stereographic, upper hemisphere, 1° bins smoothed at `sigma`°), the IPF-Z density in the colour key's
-    /// sector and the ODF sections of phase `phaseID`, each as a `size`-pixel raster (the ODF at its 5° nodes). A sigma that is
-    /// infinite, or whose kernel passes `PoleDensityFunction.maximumKernelRadius` on either grid, is refused before any figure is
-    /// made; 0, a negative sigma and NaN smooth nothing, as scipy's filter skips them.
+    /// sector and the ODF sections of phase `phaseID`, each as a `size`-pixel raster (the ODF at its 5° nodes). A sigma of +∞, or
+    /// one whose kernel passes `PoleDensityFunction.maximumKernelRadius` on either grid, is refused before any figure is made; 0,
+    /// a negative sigma (−∞ too) and NaN smooth nothing, as scipy's filter skips them.
     package static func compute(_ map: CrystalMap, phaseID: Int, size: Int = 181, sigma: Double = 5,
                                 odfHalfWidth: Double = OrientationDensity.defaultHalfWidthDegrees) throws -> MapTexture {
         guard let phase = map.phases[id: phaseID], let group = phase.pointGroup else {

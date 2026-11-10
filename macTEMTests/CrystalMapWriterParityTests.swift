@@ -157,8 +157,8 @@ nonisolated final class CrystalMapWriterParityTests: XCTestCase {
     }
 
     /// Five points of a 2 × 3 scan stopped one point short, with Bands, Error, BC and BS: the cell past the last point holds no
-    /// value (NaN in the map's data) and writes what a point not indexed writes, Bands 0, Error 3, BC 0, BS 0; the points keep
-    /// their own. Red before: the writer converted the NaN with Int(_:), which traps.
+    /// value (NaN in the map's data) and writes the values of a map without those columns, Bands 0, Error 3 (it is not indexed),
+    /// BC 0, BS 0; the points keep their own. Red before: the writer converted the NaN with Int(_:), which traps.
     func testACTFCellPastTheLastPointWritesTheFallback() throws {
         let properties: [String: [Double]] = ["Bands": [8, 9, 10, 11, 12], "Error": [0, 0, 0, 0, 0],
                                               "BC": [100, 101, 102, 103, 104], "BS": [50, 51, 52, 53, 54]]
