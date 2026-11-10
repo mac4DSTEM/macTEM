@@ -18,32 +18,47 @@ import Observation
 @Observable
 final class AppWindows {
     /// The windows on screen, in the order they appeared.
-    private(set) var open: [AppState] = []
+    private(set) var onScreen: [AppState] = []
     /// Windows closed with something to lose, oldest first: kept until a new window takes them over, or the quit question is answered.
     private(set) var parked: [AppState] = []
     /// The window last brought forward; nil when none is open.
     private(set) weak var front: AppState?
     /// The launch arguments' documents have gone to a window.
     @ObservationIgnored private var launchDocumentsTaken = false
+    /// A Finder open that arrived with no window on screen.
+    @ObservationIgnored private var waitingURLs: [URL] = []
 
     /// A window appeared (or came back): it is known, and it is the front one.
     func enroll(_ state: AppState) {
         parked.removeAll { $0 === state }
-        if !open.contains(where: { $0 === state }) { open.append(state) }
+        if !onScreen.contains(where: { $0 === state }) { onScreen.append(state) }
         front = state
     }
 
     /// A window was brought forward.
     func bringForward(_ state: AppState) {
-        guard open.contains(where: { $0 === state }) else { return }
+        guard onScreen.contains(where: { $0 === state }) else { return }
         front = state
     }
 
     /// A window closed: parked when closing it would lose something (`AppState.quitQuestion`), released otherwise.
     func withdraw(_ state: AppState) {
-        open.removeAll { $0 === state }
-        if front === state { front = open.last }
+        onScreen.removeAll { $0 === state }
+        if front === state { front = onScreen.last }
         if state.quitQuestion != nil, !parked.contains(where: { $0 === state }) { parked.append(state) }
+    }
+
+    /// A Finder open's batch (`OpenURLRelay`): into the window in front, else the newest; with no window on screen it waits for the
+    /// one the open brings up (`takeWaitingURLs`).
+    func deliver(urls: [URL]) {
+        if let target = front ?? onScreen.last { target.open(urls: urls) } else { waitingURLs.append(contentsOf: urls) }
+    }
+
+    /// The files that arrived while no window was on screen, once.
+    func takeWaitingURLs() -> [URL]? {
+        guard !waitingURLs.isEmpty else { return nil }
+        defer { waitingURLs = [] }
+        return waitingURLs
     }
 
     /// The state a new window shows: the oldest parked one, so what a closed window held comes back with the next window, else a new one.
@@ -60,7 +75,7 @@ final class AppWindows {
 
     /// What quitting would lose, over every window open or parked; nil when nothing.
     var quitQuestion: String? {
-        let states = open + parked
+        let states = onScreen + parked
         return CloseGuard.question(dirtyFiles: states.flatMap(\.unsavedFileNames),
                                    busyRooms: states.flatMap(\.busyRooms).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } })
     }

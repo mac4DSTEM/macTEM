@@ -47,7 +47,7 @@ nonisolated final class AppWindowsTests: XCTestCase {
         windows.bringForward(a)
         XCTAssertTrue(windows.front === a)
         windows.enroll(a)
-        XCTAssertEqual(windows.open.count, 2, "a window that appears again is not listed twice")
+        XCTAssertEqual(windows.onScreen.count, 2, "a window that appears again is not listed twice")
         windows.withdraw(a)
         XCTAssertTrue(windows.front === b, "the front window closed: the one left is in front")
         windows.withdraw(b)
@@ -98,6 +98,25 @@ nonisolated final class AppWindowsTests: XCTestCase {
         XCTAssertEqual(second.appearance, "light")
         XCTAssertEqual(second.exportDirectoryName, "out")
         XCTAssertEqual(second.exportDirectory, launch.exportDirectory)
+    }
+
+    /// A Finder open goes to the window in front; with none on screen it waits for the window it brings up, once. Red under: the
+    /// batch dropped with no window, or handed over twice.
+    @MainActor func testAFinderOpenGoesToTheFrontWindowOrWaitsForOne() async throws {
+        let windows = AppWindows()
+        let url = try plantedCopy(named: "a.dm4")
+        windows.deliver(urls: [url])
+        XCTAssertEqual(windows.takeWaitingURLs(), [url])
+        XCTAssertNil(windows.takeWaitingURLs())
+        let a = AppState(launch: LaunchOptions(arguments: [])), b = AppState(launch: LaunchOptions(arguments: []))
+        windows.enroll(a)
+        windows.enroll(b)
+        windows.bringForward(a)
+        windows.deliver(urls: [url])
+        await a.lastOpen?.value
+        XCTAssertEqual(a.openItems.items.map(\.url), [url])
+        XCTAssertTrue(b.openItems.items.isEmpty)
+        XCTAssertNil(windows.takeWaitingURLs())
     }
 
     /// Red under: a state built before it is asked for, or built twice.

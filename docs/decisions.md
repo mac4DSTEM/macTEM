@@ -174,3 +174,22 @@ mac4DSTEM does it". The flat list was drift, not a decision: the first rooms had
 (design D1). One way of finding things in both apps.
 
 **Reverse it.** Paul names other workspaces or another grouping after his drive; the names live in `WorkspaceGroup.title`.
+
+## 2026-11-10 — A state per window: the first step to one file per window with native tabs
+
+**What.** The main scene is a `WindowGroup`, not a single `Window`: every window makes its own `AppState` (`LazyAppState`, as
+mac4DSTEM's dataset windows do), File > New Window (⌘N) opens another, and macOS's own window tabs work (the tab bar, Window >
+Merge All Windows). The app knows its windows through `AppWindows`: a Finder open goes to the window in front; the quit question
+is asked over every window; the launch arguments' documents open in the first window only; the Objects window shows the front
+window's table. A window closed with marks not saved to their session file, or with a room still working, is parked and shown
+again by the next window made, so closing a window still loses nothing, which was the single window's promise (ADR 007); a
+window with nothing to lose lets go of its files when it closes. Open Recent's list and the last session's record are the app's,
+shared by the windows (the last session is the record of the window that changed last). In this step a file still opens into the
+window in front and the Open Files list stays; the next steps give each opened file its own tab and then remove the list.
+
+**Why.** Paul, 2026-11-10: "maybe we also need to rethink how multiple files opened show up in the app. what is the standard
+apple way? ... we should make it simple and intuitive". The Mac's way is a document per window with the system's tabs, which is
+also mac4DSTEM's. Parking instead of asking at the red button keeps the window pure SwiftUI: a window's close cannot be held for
+a question without an AppKit window delegate.
+
+**Reverse it.** `Window` again in `macTEMApp` with one `AppState` on the app; `AppWindows` then holds one window.
