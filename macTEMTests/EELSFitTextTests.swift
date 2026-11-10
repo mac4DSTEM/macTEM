@@ -64,6 +64,34 @@ nonisolated final class EELSFitTextTests: XCTestCase {
         XCTAssertEqual(json["degrees_of_freedom"] as? Int, regionQuality.degreesOfFreedom)
     }
 
+    /// The results CSV writes the Fourier-ratio FWHM with a decimal point in its method line and its deconvolution line, as it writes its other numbers;
+    /// the screen's line takes the reader's mark. The planted Fourier-ratio run of `EELSControlsTests`. Red before: `line` took no locale, so on a German
+    /// Mac the CSV read "FWHM 1,23 eV" beside "fwhm_eV=1.23…" and the POSIX thickness and quality lines.
+    @MainActor func testTheResultsCSVWritesTheFWHMWithADecimalPoint() async throws {
+        let loaded = LoadedEELS(fileName: "fwhm.dm4", image: try EELSRoomTests.image(), beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: 10,
+                                origin: "planted", coreLoss: try EELSControlsTests.core(), coreLossOrigin: "planted core")
+        let session = EELSSession()
+        await session.bind(loaded).value
+        session.setThreshold(.fixed(2.5))
+        await session.settled()
+        session.setConvolveLowLoss(false)
+        for (edge, _) in EELSControlsTests.amounts { session.toggleEdge(edge) }
+        session.setConvolveLowLoss(true)
+        session.setDeconvolution(.fourierRatio)
+        await session.run().value
+        await session.settled()
+        let d = try XCTUnwrap(session.modelDeconvolution, session.failure ?? session.fitRefusal ?? "no fit of the deconvolved core loss")
+        let fwhm = try XCTUnwrap(d.fwhmEV)
+        let posix = Locale(identifier: "en_US_POSIX")
+        XCTAssertTrue(EELSDeconvolveCompute.line(d, locale: de).contains("FWHM \(EELSRoomFormat.sig(fwhm, 3, locale: de)) eV, "))
+        XCTAssertTrue(EELSDeconvolveCompute.line(d, locale: en).contains("FWHM \(EELSRoomFormat.sig(fwhm, 3, locale: en)) eV, "))
+        let line = EELSDeconvolveCompute.line(d, locale: posix)
+        XCTAssertTrue(line.contains("FWHM \(EELSRoomFormat.sig(fwhm, 3, locale: posix)) eV, "), line)
+        let csv = try XCTUnwrap(session.resultsCSV)
+        XCTAssertTrue(csv.contains(" · " + line + "\n"), csv)
+        XCTAssertTrue(csv.contains("# deconvolution: " + line + "; "), csv)
+    }
+
     /// The footer line, measured in the caption font, fits the results column at its minimum width (padding and chevron taken off), with many notes, a
     /// huge χ² and the German decimal mark. Red under: the full "RSS … · χ²ᵣ … (Pearson, n dof)" in the footer ("(Pearson, 162…" on the drive).
     @MainActor func testTheFooterFitsTheResultsColumnAtItsMinimumWidth() {

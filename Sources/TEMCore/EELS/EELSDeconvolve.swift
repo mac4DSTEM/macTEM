@@ -177,12 +177,14 @@ package nonisolated enum EELSDeconvolveCompute {
         return d
     }
 
-    /// One line: "Fourier-ratio deconvolution (FWHM 1.23 eV, estimated threshold)" / "Richardson-Lucy deconvolution, 15 iterations".
-    package static func line(_ r: EELSDeconvolutionResult?) -> String {
+    /// One line: "Fourier-ratio deconvolution (FWHM 1.23 eV, estimated threshold)" / "Richardson-Lucy deconvolution, 15 iterations". The FWHM in
+    /// `locale`: the reader's on screen, en_US_POSIX in the results CSV (`EELSSession.resultsCSV`), as its other numbers.
+    package static func line(_ r: EELSDeconvolutionResult?, locale: Locale = .autoupdatingCurrent) -> String {
         guard let r else { return "no deconvolution" }
         switch r.choice {
         case .off: return "no deconvolution"
-        case .fourierRatio: return r.methodName + " (" + (r.fwhmEV.map { "FWHM \(EELSRoomFormat.sig($0, 3)) eV, " } ?? "") + r.thresholdText + ")"
+        case .fourierRatio:
+            return r.methodName + " (" + (r.fwhmEV.map { "FWHM \(EELSRoomFormat.sig($0, 3, locale: locale)) eV, " } ?? "") + r.thresholdText + ")"
         case .fourierLog: return r.methodName + " (zero-loss peak below the " + r.thresholdText + ")"
         case .richardsonLucy: return r.methodName + " (zero-loss peak below the " + r.thresholdText + ")"
         }
