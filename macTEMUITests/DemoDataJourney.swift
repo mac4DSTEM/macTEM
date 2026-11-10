@@ -38,7 +38,7 @@ nonisolated final class DemoDataJourney: Journey {
         try step("Au Diffraction Pattern opens in the Diffraction room") {
             try openDemo("Au Diffraction Pattern")
             waitFor("diffraction.pane", timeout: 60)
-            waitValue("diffraction.view", timeout: 60) { (Double($0) ?? 0) > 0 }
+            waitValue("diffraction.view", timeout: 60) { (Journey.number($0) ?? 0) > 0 }
         }
         try step("EDX Spectrum Image opens in the EDX room with its maps") {
             try openDemo("EDX Spectrum Image")

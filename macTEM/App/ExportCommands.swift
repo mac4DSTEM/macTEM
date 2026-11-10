@@ -1,11 +1,14 @@
 //
 //  ExportCommands.swift
-//  Role: (⇧⌥⌘E; below the FFT room's three.) The File menu's two export items: Export Image… (⇧⌘E)
-//        and Export Profile… (no key). Their own `Commands`, so `ImageCommands` and `AppState` stay as they are; the scene
-//        adds `ExportCommands()` to its `.commands`. They act on the focused window's `AppState`, and are enabled by
-//        `ExportSnapshot.availability`: an image with its pixels in the Image room, no read running, and for the second a
-//        profile with samples selected. This is where a later room's export goes: the rule switches on the workspace area,
-//        and only the Image room exports.
+//  Role: the File menu's export items, in their own `Commands`, so `ImageCommands` and `AppState` stay as they are; the scene adds
+//        `ExportCommands()` to its `.commands`. They act on the focused window's `AppState`. Listed always, each enabled only where
+//        it can act: Export Image… (⇧⌘E) and Export Profile… in the Image room and Export Results… (⇧⌥⌘E) in the Results room
+//        (`ExportSnapshot.availability`), Export Transform… (⌥⌘E), Export Radial Profile… and Export Spots… in the FFT room
+//        (`ExportSnapshot.fftAvailability`), and Export Session Report… wherever the SEM rooms hold a result. Listed only while
+//        their room shows its document, as mac4DSTEM lists its Spectroscopy exports: the EDS room's five
+//        (`ExportSnapshot.edsAvailability`), the EELS room's seven (`eelsAvailability`), the Patterns room's six
+//        (`patternsAvailability`), the Indexing room's five (`indexingAvailability`) and the Maps room's four
+//        (`mapsAvailability`), each through the room's own export (`RoomExports`), the call its inspector button makes.
 //
 //        PLACEMENT: after the Save group, which this app's File menu fills with Close Image and Close Window (`ImageCommands`
 //        replaces it) — the anchor already known to render here. `.importExport`, the HIG's home of Export, would put the items
@@ -15,6 +18,7 @@
 //        for Find).
 //
 
+import ShellSpectroscopy
 import SwiftUI
 
 struct ExportCommands: Commands {
@@ -25,6 +29,11 @@ struct ExportCommands: Commands {
         let availability = appState.map(ExportSnapshot.availability(of:))
         let fft = appState.map(ExportSnapshot.fftAvailability(of:))
         let session = appState.map(SEMSessionLedger.hasRows(_:))
+        let eds = appState.flatMap(ExportSnapshot.edsAvailability(of:))
+        let eels = appState.flatMap(ExportSnapshot.eelsAvailability(of:))
+        let patterns = appState.flatMap(ExportSnapshot.patternsAvailability(of:))
+        let indexing = appState.flatMap(ExportSnapshot.indexingAvailability(of:))
+        let maps = appState.flatMap(ExportSnapshot.mapsAvailability(of:))
         CommandGroup(after: .saveItem) {
             Divider()
             Button("Export Image…") {
@@ -64,6 +73,77 @@ struct ExportCommands: Commands {
                 if let appState { ExportPanels.exportSessionReport(appState: appState) }
             }
             .disabled(session != true)
+            // The EDS room's five, in the menu only while that room shows a spectrum image.
+            if let appState, let eds { edsItems(eds, appState: appState) }
+            // The EELS room's seven, on the same terms.
+            if let appState, let eels { eelsItems(eels, appState: appState) }
+            // The Patterns room's six, while that room shows a dataset.
+            if let appState, let patterns { patternsItems(patterns, appState: appState) }
+            // The Indexing room's five, on the same terms.
+            if let appState, let indexing { indexingItems(indexing, appState: appState) }
+            // The Maps room's four, while that room shows a map.
+            if let appState, let maps { mapsItems(maps, appState: appState) }
+        }
+    }
+
+    /// The EDS room's exports, named and ordered as mac4DSTEM's Spectroscopy exports are: each enabled by the rule of its button in
+    /// the room's inspector (`ExportSnapshot.edsAvailability`) and written by the room's own export (`RoomExports.eds`). No keys.
+    @ViewBuilder
+    private func edsItems(_ eds: EDSExportAvailability, appState: AppState) -> some View {
+        Divider()
+        Button("Export Spectrum CSV…") { RoomExports.eds(.spectrum, appState: appState) }
+            .disabled(!eds.spectrum)
+        Button("Export Maps…") { RoomExports.eds(.mapsPNG, appState: appState) }
+            .disabled(!eds.maps)
+        Button("Export Results CSV…") { RoomExports.eds(.results, appState: appState) }
+            .disabled(!eds.results)
+        Button("Export Method JSON…") { RoomExports.eds(.method, appState: appState) }
+            .disabled(!eds.results)
+        Button("Export Regions CSV…") { RoomExports.eds(.pins, appState: appState) }
+            .disabled(!eds.regions)
+    }
+
+    /// The EELS room's exports, each named "Export" and its inspector button's title, in the EDS items' order with the two the EELS
+    /// room adds (`EELSExportAvailability.menuKinds`): enabled by the button's rule and written by the room's own export. No keys.
+    @ViewBuilder
+    private func eelsItems(_ eels: EELSExportAvailability, appState: AppState) -> some View {
+        Divider()
+        ForEach(EELSExportAvailability.menuKinds) { kind in
+            Button("Export \(kind.title)") { RoomExports.eels(kind, appState: appState) }
+                .disabled(!eels.isEnabled(kind))
+        }
+    }
+
+    /// The Patterns room's exports, each named "Export" and its inspector button's title, in the inspector's order: the map and the
+    /// overlay items enabled by `ExportSnapshot.patternsAvailability`, each written by the room's own export. No keys.
+    @ViewBuilder
+    private func patternsItems(_ patterns: PatternsExportAvailability, appState: AppState) -> some View {
+        Divider()
+        ForEach(PatternsExportKind.allCases) { kind in
+            Button("Export \(kind.title)") { RoomExports.patterns(kind, appState: appState) }
+                .disabled(!patterns.isEnabled(kind))
+        }
+    }
+
+    /// The Indexing room's exports, each named "Export" and its inspector button's title, in the inspector's order: all enabled once
+    /// the run on screen has reached a point (`ExportSnapshot.indexingAvailability`), each written by the room's own export. No keys.
+    @ViewBuilder
+    private func indexingItems(_ indexing: IndexingExportAvailability, appState: AppState) -> some View {
+        Divider()
+        ForEach(IndexingExportKind.allCases) { kind in
+            Button("Export \(kind.title)") { RoomExports.indexing(kind, appState: appState) }
+                .disabled(!indexing.indexed)
+        }
+    }
+
+    /// The Maps room's exports, each named "Export" and its inspector button's title, in the inspector's order: enabled by the
+    /// button's rule (`ExportSnapshot.mapsAvailability`) and written by the room's own export. No keys.
+    @ViewBuilder
+    private func mapsItems(_ maps: MapsExportAvailability, appState: AppState) -> some View {
+        Divider()
+        ForEach(MapsExportKind.allCases) { kind in
+            Button("Export \(kind.title)") { RoomExports.maps(kind, appState: appState) }
+                .disabled(!maps.isEnabled(kind))
         }
     }
 }

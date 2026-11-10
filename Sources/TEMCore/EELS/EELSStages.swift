@@ -18,6 +18,17 @@ package enum EELSStage: String, CaseIterable, Sendable {
 
     /// Whether Run does it: Edges is a choice (the picked edges), not a computation.
     package var isRun: Bool { self != .edges }
+
+    /// What a spinner says while `stage` runs, for VoiceOver: "Fitting"; "Computing" when no stage is named.
+    package static func spinnerLabel(_ stage: EELSStage?) -> String {
+        switch stage {
+        case .align?: "Aligning"
+        case .thickness?: "Mapping the thickness"
+        case .deconvolve?: "Deconvolving"
+        case .fit?: "Fitting"
+        case .edges?, .none: "Computing"
+        }
+    }
 }
 
 package enum EELSStageState: Equatable, Sendable {

@@ -27,6 +27,30 @@ nonisolated final class EELSMapsStatusTests: XCTestCase {
         return session
     }
 
+    /// A tile is dimmed while the stage that made it needs a new run: the ZLP-shift tile with Align, as t/λ with the thickness and an edge's tile
+    /// with the fit. Through the session: after Align ran and its Crop changed, Align is stale and its tile with it. Red under: the ZLP-shift tile at
+    /// full strength after the Align options changed (its shifts are the last run's, made with the options of then).
+    @MainActor func testTheZLPShiftTileIsDimmedWhileAlignNeedsANewRun() async throws {
+        XCTAssertTrue(EELSMapsComposition.isStale("zlpShift", thickness: .current, fit: .current, align: .stale))
+        XCTAssertFalse(EELSMapsComposition.isStale("zlpShift", thickness: .stale, fit: .stale, align: .current), "only Align makes it")
+        XCTAssertFalse(EELSMapsComposition.isStale("zlpShift", thickness: .current, fit: .current, align: .notRun))
+        XCTAssertFalse(EELSMapsComposition.isStale("tOverLambda", thickness: .current, fit: .current, align: .stale), "t/λ follows the thickness")
+        XCTAssertFalse(EELSMapsComposition.isStale("edge-Mg-K1", thickness: .current, fit: .current, align: .stale), "an edge's tile follows the fit")
+
+        let session = EELSSession()
+        await session.bind(LoadedEELS(fileName: "shifted.dm4", image: try EELSOpeningTests.shiftedImage(), beamEnergyKeV: nil, convergenceMrad: 0,
+                                      collectionMrad: 10, origin: "planted")).value
+        await session.settled()
+        await session.align()?.value
+        await session.settled()
+        let tile = try XCTUnwrap(session.alignmentShiftTile, session.failure ?? "Align made no shift tile")
+        XCTAssertEqual(session.alignState, .current)
+        XCTAssertFalse(EELSMapsComposition.isStale(tile.id, thickness: session.thicknessState, fit: session.fitState, align: session.alignState))
+        session.setAlignCrop(!session.alignChoice.crop)
+        XCTAssertEqual(session.alignState, .stale, "another Crop than the one Align ran with")
+        XCTAssertTrue(EELSMapsComposition.isStale(tile.id, thickness: session.thicknessState, fit: session.fitState, align: session.alignState))
+    }
+
     /// The words: each map-making stage names its maps as the Maps control does, the picked segment where the stage makes it; Deconvolve makes no map;
     /// nothing running, no line. Red under: no line while a stage runs.
     func testTheStatusLineNamesTheMapsTheStageMakes() {

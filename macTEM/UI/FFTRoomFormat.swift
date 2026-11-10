@@ -146,6 +146,13 @@ nonisolated enum FFTRoomFormat {
         return "\(UnitDisplay.number(shown.value, digits: 4, locale: locale)) \(shown.label)"
     }
 
+    /// A measured spot's d as its row's accessibility value: the number and the unit it was measured in, "0.23514 nm". Five significant
+    /// digits, one more than the row draws, in the reader's locale as the row is (#329: the value kept a point under a row that read
+    /// "0,2351 nm"). A UI journey reads it and parses the reader's decimal mark.
+    static func spacingValue(d: Double, unit: String, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(UnitDisplay.number(d, digits: 5, locale: locale)) \(unit)"
+    }
+
     /// A spot's two numbers, "d 0.4 nm" and "|q| 2.5 nm⁻¹", for a row that stacks them when it is narrow.
     static func spotParts(d: Double, q: Double, unit: String, locale: Locale = .autoupdatingCurrent) -> (d: String, q: String) {
         ("d \(length(d, unit: unit, locale: locale))", "|q| \(reciprocal(q, realUnit: unit, locale: locale))")

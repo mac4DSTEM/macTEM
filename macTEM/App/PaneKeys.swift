@@ -21,7 +21,8 @@
 //  `CommandGroup(replacing: .pasteboard)` would take Copy from the inspector's text fields (a focused scene value outlives the
 //  room's focus), and a focused value may not hold closures (swiftui-specialist, environment.md).
 //
-//  APPKIT is used here for `NSPasteboard` only (the key path of ⌘C; the menu path hands the system an `NSItemProvider`).
+//  APPKIT is used here for `NSPasteboard` only (the key path of ⌘C; the menu path hands the system an `NSItemProvider`). The
+//  writer below is the app's one way onto the pasteboard: the error alert's Copy Details writes through it too.
 //
 
 import SwiftUI
@@ -136,8 +137,8 @@ nonisolated enum PaneKeyRouter {
 
 // MARK: - The pasteboard
 
-/// Where a ⌘C that arrives as a key writes its text. The system's general pasteboard in the app; a test passes its own, so
-/// no test touches the owner's clipboard.
+/// Where a ⌘C that arrives as a key, and the error alert's Copy Details, write their text. The system's general pasteboard in
+/// the app; a test passes its own, so no test touches the owner's clipboard.
 @MainActor
 protocol PaneTextWriter {
     func write(_ text: String)

@@ -2,8 +2,9 @@
 //  DemoData.swift
 //  Role: Help > Open Demo Data and the welcome canvas's Try Demo Data. The generated demo documents (TEMSession's DemoDocuments) and
 //        the shipped ones (`DemoDocuments.Shipped`, real licensed files in the bundle) opened from the menu, so anyone without a
-//        microscope file, App Review first, can try every room (macTEM#105). The launch options for the UI tests open the same
-//        documents through `openDemo`, so the menu and the tests cannot drift apart.
+//        microscope file, App Review first, can try every room (macTEM#105). The generated SEM image is written to the temporary
+//        folder and opened as a file, so the Image room's SEM header and databar crop can be tried too. The launch options for the
+//        UI tests open the same documents through `openDemo`, so the menu and the tests cannot drift apart.
 //
 
 import Foundation
@@ -13,6 +14,9 @@ import ShellSpectroscopy
 
 nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
     case lattice, diffraction, edx, eels
+    /// The generated SEM image (`DemoDocuments.semImageFile`: a Thermo-style TIFF with its header and a databar), written to the
+    /// temporary folder and opened through the app's own Open like a file from disk, into the Image room.
+    case semImage
     /// The shipped SEM-EDS spectrum (`DemoDocuments.Shipped.semEDSSpectrum`), opened through the app's own Open like a file from disk.
     case semSpectrum
     /// The shipped nickel EBSD scan (`DemoDocuments.Shipped.nickelEBSD`), opened through the app's own Open into the Patterns room.
@@ -29,6 +33,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
         case .diffraction: "Au Diffraction Pattern"
         case .edx: "EDX Spectrum Image"
         case .eels: "EELS Spectrum Image"
+        case .semImage: "SEM Image (generated)"
         case .semSpectrum: DemoDocuments.Shipped.semEDSSpectrum.title
         case .ebsd: DemoDocuments.Shipped.nickelEBSD.title
         case .orientationMap: DemoDocuments.Shipped.duplexSteelMap.title
@@ -38,7 +43,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
     /// The room the document is shown in once open.
     var room: WorkspaceArea {
         switch self {
-        case .lattice: .image
+        case .lattice, .semImage: .image
         case .diffraction: .diffraction
         case .edx, .semSpectrum: .edx
         case .eels: .eels
@@ -49,9 +54,9 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
 }
 
 extension AppState {
-    /// Opens one generated demo document and shows its room. `regions` draws the UI tests' two rectangles and line on a
-    /// spectrum image (`--demo-regions`); the menu never does. Returns the image open's task (the two images load like a
-    /// file, the EBSD dataset's first pattern); the spectrum images bind at once.
+    /// Opens one demo document and shows its room. `regions` draws the UI tests' two rectangles and line on a
+    /// spectrum image (`--demo-regions`); the menu never does. Returns the open's task (the images and the shipped files
+    /// load like a file); the generated spectrum images bind at once.
     @discardableResult
     func openDemo(_ demo: DemoDocument, regions: Bool = false) -> Task<Void, Never>? {
         var task: Task<Void, Never>?
@@ -67,6 +72,10 @@ extension AppState {
             guard let loaded = try? DemoDocuments.eels() else { return nil }
             eels.bind(loaded)
             if regions { DemoDocuments.drawRegions(on: eels) }
+        case .semImage:
+            // The file just written, through the Open route (`FileRouting`: a TIFF lands in the Image room, its SEM header read).
+            guard let url = try? DemoDocuments.semImageFile() else { return nil }
+            task = open(urls: [url])
         case .semSpectrum:
             // The file in the bundle, through the Open route (`FileRouting`: a `.hspy` of one spectrum lands in the EDS room).
             guard let url = DemoDocuments.Shipped.semEDSSpectrum.url else { return nil }

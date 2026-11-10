@@ -40,6 +40,9 @@ struct ContentView: View {
         .onChange(of: appState.ebsd.isBusy, initial: true) { appState.markBusy(.patterns, appState.ebsd.isBusy) }
         .onChange(of: appState.indexing.isBusy, initial: true) { appState.markBusy(.indexing, appState.indexing.isBusy) }
         .onChange(of: appState.maps.isBusy, initial: true) { appState.markBusy(.maps, appState.maps.isBusy) }
+        // INTERIM, delete at MacEMUI <next>: the shared EDS room's own Open button reads its file past the app's Open, so the file
+        // the room comes to hold is noted as one of the app's EDS files here (EDSRoomDoor.swift, #318).
+        .onChange(of: appState.edx.source?.metadata.filePath) { _, path in appState.noteEDSRoomFile(path: path) }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: imageTypes,
@@ -59,7 +62,8 @@ struct ContentView: View {
                 set: { if !$0 { appState.errorMessage = nil } }
             )
         ) {
-            Button("Copy Details") { copyToPasteboard(appState.errorMessage ?? "") }
+            // Through the app's one pasteboard writer (PaneKeys.swift), as a pane's ⌘C.
+            Button("Copy Details") { SystemPaneTextWriter().write(appState.errorMessage ?? "") }
             Button("OK", role: .cancel) { appState.errorMessage = nil }
         } message: {
             Text(appState.errorMessage ?? "")
@@ -145,11 +149,6 @@ struct ContentView: View {
         }
         appState.open(urls: drop.accepted, refused: drop.refusals)
         return true
-    }
-
-    private func copyToPasteboard(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
     }
 }
 

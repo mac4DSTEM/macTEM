@@ -4,7 +4,8 @@
 //        a 2D image, found by a threshold on the raw range (bright or dark objects), optional Gaussian smoothing, connected-component
 //        labelling and the objects' moments, then counted (not on the edge, not below the minimum area). The image keeps its marks;
 //        the objects are outlined over it (`ParticleOverlay`), the mask can be tinted while the settings are edited, and an object
-//        table (its own window, `ParticleTableWindow`, so it stays beside the image) selects a row to outline it heavier; the pointer
+//        table (its own window, `ParticleTableWindow`, so it stays beside the image) selects a row to outline it heavier (⌘C copies
+//        the selected row, `ParticleTableFormat`); the pointer
 //        readout names the object under the pointer (`ImageReadout`). Presentation only: the numbers are ImagoKit's through
 //        `ParticleCompute`, held per file by `ParticleAnalysis` (TEMSession).
 //
@@ -23,7 +24,8 @@ struct ImageRoomParticlesSection: View {
     let image: CalibratedImage
     let item: OpenItem
     let rawRange: ClosedRange<Float>?
-    @State private var exporting = false
+    /// The CSV the save panel writes: made when Export CSV… is pressed and dropped when the panel is done, so the body builds none.
+    @State private var exportDocument: EDXExportFile?
     @Environment(\.openWindow) private var openWindow
     @Environment(AppState.self) private var appState
 
@@ -73,6 +75,9 @@ struct ImageRoomParticlesSection: View {
                 Stepper(value: Binding(get: { settings.minimumArea }, set: { new in analysis.setSettings { $0.minimumArea = new } }), in: 1...100_000) {
                     Text("\(settings.minimumArea) px²").monospacedDigit()
                 }
+                // The stepper's label is its value on screen ("12 px²"), which VoiceOver took for its name: named and valued here.
+                .accessibilityLabel("Minimum area")
+                .accessibilityValue(UnitDisplay.count(settings.minimumArea, "square pixel", "square pixels"))
                 .accessibilityIdentifier("particles.minimumArea")
             }
             InspectorRow("Tint mask") {
@@ -106,8 +111,8 @@ struct ImageRoomParticlesSection: View {
             try? await Task.sleep(for: .milliseconds(150))
             if !Task.isCancelled { analysis.updatePreview(image: image) }
         }
-        .fileExporter(isPresented: $exporting,
-                      document: EDXExportFile(data: Data(csv(analysis).utf8)),
+        .fileExporter(isPresented: Binding(get: { exportDocument != nil }, set: { if !$0 { exportDocument = nil } }),
+                      document: exportDocument,
                       contentType: .commaSeparatedText,
                       defaultFilename: ParticleExport.baseName(of: image.fileName)) { result in
             switch result {
@@ -117,29 +122,22 @@ struct ImageRoomParticlesSection: View {
         }
     }
 
-    /// `--export-dir` (a UI journey) writes without a panel, as the Diffraction readout does; otherwise the save panel.
+    /// `--export-dir` (a UI journey) writes without a panel, as the Diffraction readout does; otherwise the save panel, for the CSV
+    /// as it is at this press (the one place it is built).
     private func export(_ analysis: ParticleAnalysis) {
-        guard let directory = appState.exportDirectory else { exporting = true; return }
+        let text = csv(analysis)
+        guard let directory = appState.exportDirectory else {
+            exportDocument = EDXExportFile(data: Data(text.utf8))
+            return
+        }
         do {
-            let url = try ParticleExport.write(csv(analysis), imageFileName: image.fileName, into: directory)
+            let url = try ParticleExport.write(text, imageFileName: image.fileName, into: directory)
             appState.statusText = "Exported \(url.lastPathComponent)"
         } catch { appState.present(error) }
     }
 
     private func csv(_ analysis: ParticleAnalysis) -> String {
         analysis.report.map { ParticleFormat.csv($0, scale: ParticleCompute.scale(of: image), fileName: image.fileName) } ?? ""
-    }
-}
-
-/// Where Export CSV writes when the launch gave `--export-dir`: "<image name> particles.csv" in that folder.
-nonisolated enum ParticleExport {
-    static func baseName(of imageFileName: String) -> String { (imageFileName as NSString).deletingPathExtension + " particles" }
-
-    static func write(_ text: String, imageFileName: String, into directory: URL) throws -> URL {
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let url = directory.appendingPathComponent(baseName(of: imageFileName) + ".csv")
-        try Data(text.utf8).write(to: url)
-        return url
     }
 }
 
@@ -162,6 +160,17 @@ nonisolated struct ParticleRow: Identifiable, Hashable, Sendable {
         width = o.moments.widthPx * scale.perPixel
         angle = o.moments.orientationDegrees
     }
+
+    /// A row from its values as shown (lengths already in the scale's unit): what a test of the table's words builds without a report.
+    init(id: Int32, counted: Bool, note: String, area: Double, length: Double, width: Double, angle: Double) {
+        self.id = id
+        self.counted = counted
+        self.note = note
+        self.area = area
+        self.length = length
+        self.width = width
+        self.angle = angle
+    }
 }
 
 private struct ParticleTableSheet: View {
@@ -173,6 +182,8 @@ private struct ParticleTableSheet: View {
 
     var body: some View {
         let rows = report.objects.map { ParticleRow($0, scale: scale) }.filter { !countedOnly || $0.counted }.sorted(using: sortOrder)
+        // Read here, so Edit > Copy is offered and dimmed as the selection comes and goes.
+        let selected = analysis.selectedLabel
         VStack(alignment: .leading, spacing: 10) {
             // A window: its title bar names it and closes it (⌘W), so no headline and no Done.
             HStack {
@@ -180,18 +191,27 @@ private struct ParticleTableSheet: View {
                 Toggle("Counted only", isOn: $countedOnly)
             }
             Table(rows, selection: Binding(get: { analysis.selectedLabel }, set: { analysis.selectedLabel = $0 }), sortOrder: $sortOrder) {
-                TableColumn("#", value: \.id) { Text("\($0.id)").monospacedDigit() }.width(40)
+                TableColumn("#", value: \.id) { Text(verbatim: "\($0.id)").monospacedDigit() }.width(40)
                 TableColumn("Length (\(scale.unit))", value: \.length) { Text(ParticleFormat.number($0.length)).monospacedDigit() }
                 TableColumn("Width (\(scale.unit))", value: \.width) { Text(ParticleFormat.number($0.width)).monospacedDigit() }
-                TableColumn("Angle (°)", value: \.angle) { Text(Num.fixed($0.angle, 1)).monospacedDigit() }
+                TableColumn("Angle (°)", value: \.angle) { Text(ParticleTableFormat.angle($0)).monospacedDigit() }
                 TableColumn("Area (\(scale.unit)²)", value: \.area) { Text(ParticleFormat.number($0.area)).monospacedDigit() }
-                TableColumn("Note") { Text($0.note.isEmpty ? "counted" : $0.note).foregroundStyle($0.counted ? Color.primary : Color.secondary) }
+                TableColumn("Note") { Text(ParticleTableFormat.note($0)).foregroundStyle($0.counted ? Color.primary : Color.secondary) }
             }
+            // ⌘C and Edit > Copy: the selected object's row under the column titles, tab-separated; dimmed with no row selected.
+            .onCopyCommand(perform: rows.contains(where: { $0.id == selected }) ? { copied(rows, selected: selected) } : nil)
             .accessibilityIdentifier("particles.tableView")
             Text(ParticleFormat.counts(report.summary) + " · select a row to outline it on the image").font(.caption).foregroundStyle(.secondary)
         }
         .padding(16)
         .frame(minWidth: EDXLayout.tableSheetMinimum.width, minHeight: EDXLayout.tableSheetMinimum.height)
+    }
+
+    /// What ⌘C hands the system: the selected row as the table shows it (`ParticleTableFormat.copyText`), nothing when none is.
+    private func copied(_ rows: [ParticleRow], selected: Int32?) -> [NSItemProvider] {
+        let picked = rows.filter { $0.id == selected }
+        guard !picked.isEmpty else { return [] }
+        return [NSItemProvider(object: ParticleTableFormat.copyText(picked, unit: scale.unit) as NSString)]
     }
 }
 

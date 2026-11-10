@@ -3,7 +3,8 @@
 //  Role: what the Diffraction room's views hold and the results owner must not: the tool, the log toggle, the annulus being set, the
 //        selected row, the zoom, and the pattern's display (colormap, window, gamma: the Display section, control placement §5). One per open file (`OpenItem.diffractionView`), beside `DiffractionAnalysis`; a change here never
 //        invalidates a reader of the results (the readout, the Results room, the exports), as the EDX room keeps `EDXRoomState`
-//        apart from `EDXSession`. Display only: no number a scientist reads.
+//        apart from `EDXSession`. Display only: no number a scientist reads. Showing a pattern is asked of this owner (`show`: the
+//        bind, the pattern's extent and its canvas), as the FFT room asks its own; the view's task makes the one call.
 //
 
 import Foundation
@@ -63,4 +64,33 @@ package final class DiffractionViewState {
     }
 
     package func fitView() { zoomHalfSide = nil }
+
+    // MARK: Showing the pattern
+
+    /// The room shows this pattern: it appeared, another file took the pane, or Log was switched. Binds the results owner to the
+    /// image, finds how far the pattern has signal (the view opens on that) and builds the canvas of the display values, both off
+    /// the main actor. A pass cancelled while it computes (a quick Log toggle, another file) writes nothing more, so the newer
+    /// pass's extent and canvas are the ones left on screen.
+    package func show(image: CalibratedImage, analysis: DiffractionAnalysis) async {
+        analysis.bind(image)
+        let centre = analysis.centre ?? .imageCentre(width: image.width, height: image.height)
+        let radius = await Self.extent(pixels: image.pixels, width: image.width, height: image.height, centre: centre)
+        guard !Task.isCancelled else { return }
+        setAutoExtent(radius)
+        let canvas = await Self.canvas(pixels: image.pixels, width: image.width, height: image.height, log: useLog)
+        guard !Task.isCancelled else { return }
+        // A window in log values means nothing in linear ones: the range starts whole again.
+        if presentation.canvas.map({ $0.contentVersion != canvas.contentVersion }) ?? false { presentation.resetWindow() }
+        presentation.show(canvas)
+    }
+
+    @concurrent
+    nonisolated private static func extent(pixels: [Float], width: Int, height: Int, centre: DiffractionCentre) async -> Double? {
+        DiffractionCompute.contentRadius(pixels: pixels, width: width, height: height, centre: centre)
+    }
+
+    @concurrent
+    nonisolated private static func canvas(pixels: [Float], width: Int, height: Int, log: Bool) async -> CanvasPixels {
+        CanvasPixels.pattern(pixels: pixels, width: width, height: height, log: log)
+    }
 }

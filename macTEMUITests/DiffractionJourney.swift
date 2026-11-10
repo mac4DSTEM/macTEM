@@ -5,7 +5,7 @@
 //  find the rows in the Results room. Ends on the {220} d-spacing (planted 1.4419 Å) read from the spot's row.
 //  The annulus is dragged on the pane, from points computed from the pane's frame (the image fills it), never absolute. On the way (control
 //  placement §5–§7): the Display section's colormap and log switch, R · q · d in the status line, the wheel's zoom badge and the double-click
-//  fit (the fit's Stop is the infobar's; the unit tests pin that the header has none).
+//  fit, then View > Zoom In and Zoom to Fit from the menu bar (the fit's Stop is the infobar's; the unit tests pin that the header has none).
 //
 
 import XCTest
@@ -15,8 +15,8 @@ nonisolated final class DiffractionJourney: Journey {
 
     /// The half-side (px) the pane shows about the centre: it opens on the pattern's own extent, so a pixel offset maps to the box by it.
     @MainActor private func halfSide() -> Double {
-        let value = waitValue("diffraction.view", timeout: 30) { (Double($0) ?? 0) > 0 }
-        return Double(value) ?? Self.side / 2
+        let value = waitValue("diffraction.view", timeout: 30) { (Journey.number($0) ?? 0) > 0 }
+        return Journey.number(value) ?? Self.side / 2
     }
 
     /// A point of the pattern at (dx, dy) pixels from the centre, as a normalised offset on the pane (the pane is the image's box, and the
@@ -26,10 +26,10 @@ nonisolated final class DiffractionJourney: Journey {
         return waitFor("diffraction.pane").coordinate(withNormalizedOffset: CGVector(dx: 0.5 + dx * k / Self.side, dy: 0.5 + dy * k / Self.side))
     }
 
-    /// The d (Å) a readout row shows, read from its accessibility value.
+    /// The d (Å) a readout row shows, read from its accessibility value (a number in the reader's locale: `Journey.number`).
     @MainActor private func d(of tag: String) -> Double {
         let value = waitValue("diffraction.row.\(tag).d", timeout: 60) { !$0.isEmpty }
-        return Double(value) ?? .nan
+        return Journey.number(value) ?? .nan
     }
 
     @MainActor func testCalibrateOnTheGoldRingThenIndexTheNextRingAndASpot() throws {
@@ -45,7 +45,7 @@ nonisolated final class DiffractionJourney: Journey {
         }
         try step("the file's axis is the scale until a ring sets one") {
             let scale = waitValue("diffraction.scale") { !$0.isEmpty }
-            XCTAssertEqual(Double(scale) ?? .nan, 0.0125 * 1.01, accuracy: 1e-5, "scale: \(scale)")
+            XCTAssertEqual(Journey.number(scale) ?? .nan, 0.0125 * 1.01, accuracy: 1e-5, "scale: \(scale)")
         }
         try step("Display: the colormap and the log switch") {
             showInspector(waitingFor: "diffraction.colormap")
@@ -78,11 +78,17 @@ nonisolated final class DiffractionJourney: Journey {
             waitFor("diffraction.pane").doubleClick()
             waitGone("diffraction.zoomBadge")
         }
+        try step("View > Zoom In zooms the pattern, Zoom to Fit fits it again") {
+            try chooseViewCommand("Zoom In")
+            waitFor("diffraction.zoomBadge")
+            try chooseViewCommand("Zoom to Fit")
+            waitGone("diffraction.zoomBadge")
+        }
         try step("drag an annulus on the {111} ring and calibrate") {
             at(30).click(forDuration: 0.1, thenDragTo: at(36.5))
             waitFor("diffraction.calibrate").click()
-            let scale = waitValue("diffraction.scale", timeout: 120) { (Double($0) ?? 1) < 0.01255 }
-            XCTAssertEqual(Double(scale) ?? .nan, 0.0125, accuracy: 0.0125 * 0.01, "fitted scale: \(scale)")
+            let scale = waitValue("diffraction.scale", timeout: 120) { (Journey.number($0) ?? 1) < 0.01255 }
+            XCTAssertEqual(Journey.number(scale) ?? .nan, 0.0125, accuracy: 0.0125 * 0.01, "fitted scale: \(scale)")
         }
         try step("drag an annulus on the {200} ring") {
             at(37.5).click(forDuration: 0.1, thenDragTo: at(41.5))

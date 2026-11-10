@@ -175,9 +175,10 @@ nonisolated enum ResultsFormat {
         return "\(row.label), \(FFTRoomFormat.spoken(words)), \(badge.replacing(" · ", with: " ")), \(row.lineage.map { "recorded as \($0)" } ?? "not recorded")"
     }
 
-    /// What ⌘C copies for a selected row: its five columns, tab-separated, one line.
+    /// What ⌘C copies for a selected row: its five columns, tab-separated, one line; a tab or line break in a column (a file's
+    /// name) becomes a space (`TSV.line`), so the pasted row keeps its five columns.
     static func copyLine(label: String, value: String, source: String, record: String, badge: String) -> String {
-        [label, value, source, record, badge].joined(separator: "\t")
+        TSV.line([label, value, source, record, badge])
     }
 
     /// What ⌘C copies for the selected rows: one `copyLine` each, in the order given, joined by newlines.
