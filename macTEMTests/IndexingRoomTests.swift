@@ -26,7 +26,9 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         patterns.onBind = { indexing.bind($0) }
         patterns.onClose = { indexing.close() }
         await patterns.open(url: url).value
-        for _ in 0..<6000 where patterns.isMapping || patterns.isComputingMean || patterns.isProcessing { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the nickel scan's passes to end", seconds: 30) {
+            !patterns.isMapping && !patterns.isComputingMean && !patterns.isProcessing
+        }
         return (patterns, indexing)
     }
 

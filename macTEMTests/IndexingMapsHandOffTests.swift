@@ -45,7 +45,7 @@ nonisolated final class IndexingMapsHandOffTests: XCTestCase {
         let demo = try DemoDocuments.ebsd()
         await state.ebsd.bind(demo).value
         let ebsd = state.ebsd
-        for _ in 0..<6000 where ebsd.isMapping || ebsd.isComputingMean || ebsd.isProcessing { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the demo scan's passes to end", seconds: 30) { !ebsd.isMapping && !ebsd.isComputingMean && !ebsd.isProcessing }
         let dataset = try XCTUnwrap(ebsd.dataset)
         XCTAssertEqual(state.maps.document?.source, .patterns, "the demo carries its own crystal map")
 

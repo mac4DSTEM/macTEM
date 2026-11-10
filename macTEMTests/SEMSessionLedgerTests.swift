@@ -32,7 +32,7 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
         let state = AppState(launch: LaunchOptions(arguments: ["--export-dir", directory.path]))
         await state.open(urls: [url])?.value
-        for _ in 0..<4000 where !state.ebsd.hasDataset { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the nickel scan to open in the Patterns room", seconds: 20) { state.ebsd.hasDataset }
         try await waitIdle(state)
         XCTAssertTrue(state.ebsd.hasDataset)
         await state.ebsd.process().value
