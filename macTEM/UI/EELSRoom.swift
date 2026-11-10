@@ -1043,6 +1043,21 @@ nonisolated enum EELSResultsColumns {
     static let percentMinimum: CGFloat = 116
 }
 
+/// A column header that is a symbol on screen, with the words VoiceOver says for it (pure, so a test reads the words): the results table's I, at% and
+/// wt%, the Regions table's I total and t/λ. What is drawn stays as it was.
+nonisolated enum EELSColumnSpeech {
+    static let words: [String: String] = ["I": "intensity", "at%": "atomic percent", "wt%": "weight percent", "I total": "total counts", "t/λ": "t over lambda"]
+
+    /// The words for the header drawn as `drawn`; a header that is a word already ("Edge", "Pixels") is said as it is drawn.
+    static func spoken(_ drawn: String) -> String { words[drawn] ?? drawn }
+
+    /// An edge's column in the Regions table: "Fe L2,3 intensity", "Fe L2,3 atomic percent".
+    static func spoken(edge: String, column: String) -> String { "\(edge) \(spoken(column))" }
+
+    /// The header as the table draws it, said in words.
+    @MainActor static func header(_ drawn: String) -> Text { Text(drawn).accessibilityLabel(spoken(drawn)) }
+}
+
 /// The results beside the spectrum: the thickness line, one row per edge (I, at%, wt%), the regions' table, the refusal if there is one, and the footer
 /// (model · background · convolution · deconvolution). The methods' references are here once, in the Methods tag's tooltip; the columns say only their names.
 struct EELSResultsPanel: View {
@@ -1090,12 +1105,12 @@ struct EELSResultsPanel: View {
                                 if let why = r.unavailable { Image(systemName: "exclamationmark.circle").foregroundStyle(.secondary).help(why).accessibilityLabel(why) }
                             }
                         }.width(min: EELSResultsColumns.edgeMinimum, ideal: EELSResultsColumns.edgeMinimum + 6)
-                        TableColumn("I") { r in
+                        TableColumn(EELSColumnSpeech.header("I")) { r in
                             Text(EELSRoomFormat.intensityText(r)).monospacedDigit().lineLimit(1)
                                 .help("± is 1σ from the counts, carried through the background fit (counts taken as Poisson)"
                                       + (r.exponent.map { "\nPower-law exponent r under this edge: \(EELSRoomFormat.sig($0, 4))" } ?? ""))
                         }.width(min: EELSResultsColumns.intensityMinimum, ideal: EELSResultsColumns.intensityMinimum + 6)
-                        TableColumn("at%") { r in
+                        TableColumn(EELSColumnSpeech.header("at%")) { r in
                             Text(EELSRoomFormat.atomicText(r)).monospacedDigit().lineLimit(1)
                                 .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
                                 .help(r.fitOnly ? EELSEdgeRow.fitOnlyWords
@@ -1104,7 +1119,7 @@ struct EELSResultsPanel: View {
                                       : r.atomicPercent == nil ? (r.atomicUnavailable ?? EELSEdgeRow.atomicNeedsTwo)
                                       : r.atomicSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "The kit gives no σ for an amount: at% without σ")
                         }.width(min: EELSResultsColumns.percentMinimum, ideal: EELSResultsColumns.percentMinimum + 6)
-                        TableColumn("wt%") { r in
+                        TableColumn(EELSColumnSpeech.header("wt%")) { r in
                             Text(EELSRoomFormat.weightText(r)).monospacedDigit().lineLimit(1)
                                 .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
                                 .help(r.weightSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "")

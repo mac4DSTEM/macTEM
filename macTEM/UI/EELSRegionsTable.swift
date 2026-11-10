@@ -56,9 +56,16 @@ struct EELSRegionsTable: View {
                     Grid(alignment: .trailing, horizontalSpacing: 14, verticalSpacing: 4) {
                         GridRow {
                             Text("Region").gridColumnAlignment(.leading)
-                            Text("Pixels"); Text("I total"); Text("t/λ")
-                            ForEach(edges) { Text("\($0.title)") }
-                            if hasComposition { ForEach(edges.filter { $0.atomicPercent != nil }) { Text("\($0.title) at%") } }
+                            Text("Pixels")
+                            // The symbol headers are said in words (`EELSColumnSpeech`); what is drawn is unchanged.
+                            EELSColumnSpeech.header("I total")
+                            EELSColumnSpeech.header("t/λ")
+                            ForEach(edges) { Text("\($0.title)").accessibilityLabel(EELSColumnSpeech.spoken(edge: $0.title, column: "I")) }
+                            if hasComposition {
+                                ForEach(edges.filter { $0.atomicPercent != nil }) {
+                                    Text("\($0.title) at%").accessibilityLabel(EELSColumnSpeech.spoken(edge: $0.title, column: "at%"))
+                                }
+                            }
                         }
                         .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                         Divider().gridCellUnsizedAxes(.horizontal)
