@@ -6,7 +6,8 @@
 //        (`IndexingRun`, D-SEM-97: its result, filled row by row or block by block, and what it was made of, so a later change to
 //        Processing, the phases or the method's settings stales it) and which one is on screen (the run in flight, else the picked
 //        method's), the map on screen as RGBA, the pattern pane's pattern with its detected bands, a dictionary run's best match at
-//        that point, and Compare's two results (IndexingSession+Compare.swift). The dataset, its processing and the pinned position are
+//        that point, Compare's two results (IndexingSession+Compare.swift) and the Dictionary run's refinement
+//        (IndexingSession+Refine.swift, D-SEM-109). The dataset, its processing and the pinned position are
 //        the Patterns room's (`EBSDSession`): the two rooms share one scan and one marker.
 //
 //  Nothing here makes a number: the indexing is `HoughIndexer`'s (pyEBSDindex's port) or `DictionaryIndexing`'s (kikuchipy's), the
@@ -58,17 +59,17 @@ package final class IndexingSession {
 
     /// The last run of each method (D-SEM-97): a run replaces only its own method's, so a Dictionary run leaves the Hough one as it was.
     package private(set) var runs: [IndexingMethod: IndexingRun] = [:]
-    package private(set) var isIndexing = false
+    package internal(set) var isIndexing = false
     /// The method of the run in flight; nil when none runs.
-    package private(set) var runningMethod: IndexingMethod?
+    package internal(set) var runningMethod: IndexingMethod?
     /// The run's fraction of rows done (0...1).
-    package private(set) var progress = 0.0
+    package internal(set) var progress = 0.0
     /// A dictionary run's chunks done and in all (every block runs every phase's whole dictionary in chunks).
-    package private(set) var chunksDone = 0
-    package private(set) var chunksTotal = 0
+    package internal(set) var chunksDone = 0
+    package internal(set) var chunksTotal = 0
     /// The phase whose dictionary a run against several phases is matching now (the toolbar, the map's count and Info name it); nil
     /// otherwise.
-    package private(set) var chunkPhase: String?
+    package internal(set) var chunkPhase: String?
     /// The dataset's own crystal map when it lies on the scan's grid (the Maps room's guard): Compare's `File`.
     package private(set) var fileIndexing: CrystalMap?
 
@@ -85,15 +86,29 @@ package final class IndexingSession {
     @ObservationIgnored var compareTask: Task<Void, Never>?
     @ObservationIgnored var compareKey: IndexingCompareKey?
 
-    /// The run on screen: the run in flight, else the picked method's last run, else the latest run held; nil before a run.
+    // MARK: Refine (IndexingSession+Refine.swift)
+
+    /// `Refine › After indexing` (design §3, D-SEM-109): Index refines the Dictionary run after it; the room shows the refinement.
+    package internal(set) var refinesAfterIndexing = false
+    /// What Refine moves and its trust region. Not a run's input: an edit stales the refinement, never the Dictionary run.
+    package internal(set) var refineSettings = IndexingRefineSettings.roomDefault
+    /// The last refinement of the Dictionary run, a copy of it with the refined rows, kept beside it.
+    package internal(set) var refinedRun: IndexingRun?
+    /// The run in flight is the Refine stage (`isIndexing`, `runningMethod` .dictionary).
+    package internal(set) var isRefining = false
+
+    /// The run on screen: the run in flight, else the picked method's last run, else the latest run held; nil before a run. The
+    /// Dictionary run's refinement stands in its place while Refine is on and it reached a point (D-SEM-109).
     package var shownRun: IndexingRun? {
-        if isIndexing, let runningMethod { return runs[runningMethod] }
-        return runs[method] ?? runs.values.max { $0.id < $1.id }
+        if isIndexing, let runningMethod { return isRefining ? refinedRun : runs[runningMethod] }
+        let run = runs[method] ?? runs.values.max { $0.id < $1.id }
+        if let run, run.id == runs[.dictionary]?.id, let refined = shownRefinedRun { return refined }
+        return run
     }
     /// The other method's run, when it reached a point (Info's `Also held`).
     package var otherRun: IndexingRun? {
         guard let shown = shownRun else { return nil }
-        return runs.values.first { $0.id != shown.id && $0.result.reachedCount > 0 }
+        return runs.values.first { $0.method != shown.method && $0.result.reachedCount > 0 }
     }
     /// The run on screen's result, filled row by row while it runs; nil before the first run.
     package var result: IndexingResult? { shownRun?.result }
@@ -182,14 +197,14 @@ package final class IndexingSession {
         var simulation: Int
     }
 
-    @ObservationIgnored private var runTask: Task<Void, Never>?
+    @ObservationIgnored var runTask: Task<Void, Never>?
     @ObservationIgnored private var patternTask: Task<Void, Never>?
     /// Bumped by every dataset bound or closed (a pattern or a key that lands for another dataset is dropped) and by every run (a row
     /// that lands for an earlier run is dropped).
     @ObservationIgnored private var generation = 0
     /// The number of the last run started: bumped by every run and every dataset (a row that lands for an earlier run is dropped). A
     /// run keeps it as its id (`IndexingRun.id`): the Maps room names a run it shows by it (D-SEM-99), Compare the runs it compares.
-    package private(set) var runGeneration = 0
+    package internal(set) var runGeneration = 0
     @ObservationIgnored private var palette: IndexingPalette?
     /// The band detector of the current settings, kept between hovers and handed to the run.
     @ObservationIgnored private var probe: (key: ProbeKey, probe: IndexingProbe)?
@@ -234,8 +249,8 @@ package final class IndexingSession {
         guard let run = runs[method] else { return false }
         return run.inputs != inputs(for: method)
     }
-    /// The run on screen is stale (`isStale(of:)` of its method).
-    package var isStale: Bool { shownRun.map { isStale(of: $0.method) } ?? false }
+    /// The run on screen is stale (`isStale(of:)` of its method; a refinement's `isRefinementStale`).
+    package var isStale: Bool { shownRun.map { $0.refinement != nil ? isRefinementStale : isStale(of: $0.method) } ?? false }
     /// The master pattern `phase`'s dictionary is projected from (D-SEM-98): the one picked for it, else the one it prefers
     /// (`IndexingMasterPattern.preferred(for:among:)`); nil when none is open.
     package func master(for phase: IndexingPhase) -> IndexingMasterPattern? {
@@ -289,6 +304,7 @@ package final class IndexingSession {
         overlayMasterTasks = [:]
         phases = []; skippedPhases = []; settings = .roomDefault; layer = .ipfZ
         method = .hough; dictionarySettings = .roomDefault; dictionarySizes = [:]; masterPicks = [:]
+        refinedRun = nil; isRefining = false; refinesAfterIndexing = false; refineSettings = .roomDefault
     }
 
     // MARK: - Phases and settings
@@ -559,7 +575,7 @@ package final class IndexingSession {
 
     /// Another run came on screen (a Method pick, or the run in flight ended under another method): its layers, map, Bands families,
     /// best match and Compare.
-    private func shownResultChanged() {
+    func shownResultChanged() {
         if !availableLayers.contains(layer) { layer = .ipfZ }
         if !layer.isPointwise { mapPresentation.resetWindow() }
         palette = nil
@@ -601,7 +617,7 @@ package final class IndexingSession {
         case .hough:
             if let why = IndexingPlan.refusal(phases: phases, settings: settings, detector: document.dataset.detector) { return why }
         case .dictionary:
-            if let why = dictionaryRefusal { return why }
+            if let why = dictionaryRefusal ?? (refinesAfterIndexing ? refineRefusal : nil) { return why }
         }
         if case .failure(let refusal) = self.source() { return refusal.sentence }
         return nil
@@ -609,10 +625,20 @@ package final class IndexingSession {
 
     package var canIndex: Bool { patterns.document != nil && !isIndexing && !patterns.isOpening && !patterns.isProcessing && refusal == nil }
 
-    /// The verb's help: "Index 4,125 patterns with Hough (ni)", "Index 4,125 patterns with Dictionary (ni)", or why it cannot run.
+    /// The verb's help: "Index 4,125 patterns with Hough (ni)", "Index 4,125 patterns with Dictionary (ni)", or why it cannot run;
+    /// with Refine on, the stale stages it runs (design §3): "…, then refine the orientations", or "Refine the orientations of the
+    /// 4,125 patterns indexed with Dictionary (ni)".
     package var verbHelp: String {
         if let refusal { return refusal }
         guard let dataset = patterns.dataset else { return "" }
+        if method == .dictionary, refinesAfterIndexing {
+            let noun = refineSettings.target.noun, names = phasesOn.map(\.name).joined(separator: ", ")
+            if refinesAlone, let base = runs[.dictionary] {
+                return "Refine the \(noun) of the \(base.result.indexedCount.formatted()) patterns indexed with Dictionary (\(names))"
+            }
+            return "Index \(dataset.patternCount.formatted()) patterns with Dictionary (\(names)), then refine the \(noun)"
+                + (isStale(of: .dictionary) ? "; the inputs changed since the last run" : "")
+        }
         let what = "Index \(dataset.patternCount.formatted()) patterns with \(method.title) (\(phasesOn.map(\.name).joined(separator: ", ")))"
         if let result, result.method == method, isStale { return what + "; the inputs changed since the last run" }
         return what
@@ -621,8 +647,10 @@ package final class IndexingSession {
     // MARK: - The run
 
     /// The room's verb: the scan indexed off the main actor with the method picked, row by row (Hough) or block of rows by block
-    /// (dictionary); each lands on the map as it is done. Stop (⌘.) ends it and keeps the rows indexed. The returned task ends when the
-    /// run has landed (or was refused, stopped or failed).
+    /// (dictionary); each lands on the map as it is done. Stop (⌘.) ends it and keeps the rows indexed. With `Refine › After indexing`
+    /// on (D-SEM-109) it runs the stale stages in order: Dictionary then Refine, or Refine alone on a current, complete Dictionary run
+    /// whose refinement is missing, stale, stopped or incomplete. The returned task ends when the run has landed (or was refused,
+    /// stopped or failed), the Refine stage included.
     @discardableResult
     package func index() -> Task<Void, Never> {
         guard let document = patterns.document, !isIndexing else { return Task {} }
@@ -632,8 +660,17 @@ package final class IndexingSession {
         }
         guard case .success(let source) = self.source() else { return Task {} }
         switch method {
-        case .hough: return indexWithHough(document, source: source)
-        case .dictionary: return indexWithDictionary(document, source: source)
+        case .hough:
+            return indexWithHough(document, source: source)
+        case .dictionary:
+            if refinesAfterIndexing, refinesAlone, let refining = refineDictionaryRun() { return refining }
+            let indexed = indexWithDictionary(document, source: source)
+            guard refinesAfterIndexing else { return indexed }
+            // Index → Refine: `finish` starts the Refine stage in the same turn, so the run's task is then the refinement's.
+            return Task { [weak self] in
+                await indexed.value
+                await self?.runTask?.value
+            }
         }
     }
 
@@ -698,6 +735,7 @@ package final class IndexingSession {
         runs[.dictionary] = IndexingRun(id: run, result: IndexingResult(scanRows: rows, scanColumns: columns, phases: inputs.phases,
                                                                         metric: settings.metric),
                                         inputs: inputs, source: source.kind, projectionCenter: IndexingPlan.meanProjectionCenter(detector))
+        refinedRun = nil   // a refinement of the run replaced goes with it
         isIndexing = true; runningMethod = .dictionary; progress = 0; chunksDone = 0; chunksTotal = 0; chunkPhase = nil
         if !IndexingLayer.layers(for: .dictionary).contains(layer) { layer = .ipfZ }
         palette = IndexingPalette(layer: layer, phases: inputs.phases)
@@ -762,16 +800,22 @@ package final class IndexingSession {
     }
 
     /// Ends the run in flight; the rows indexed stay on the map and in the results (a dictionary block stopped between its chunks
-    /// keeps nothing of it: its points have not met the whole dictionary).
+    /// keeps nothing of it: its points have not met the whole dictionary). Stopping the Refine stage keeps the rows refined and
+    /// leaves the Dictionary run as it was.
     package func stop() {
         guard isIndexing else { return }
         runTask?.cancel()
         let before = shownRun?.id
         let stopped = runningMethod
+        let refining = isRefining
         isIndexing = false
+        isRefining = false
         runningMethod = nil
         chunkPhase = nil
-        if let stopped {
+        if refining {
+            refinedRun?.wasStopped = true
+            if let r = refinedRun?.result { onEvent?("Stopped refinement at row \(r.rowsDone) of \(r.scanRows); the refined rows stay") }
+        } else if let stopped {
             runs[stopped]?.wasStopped = true
             if let result = runs[stopped]?.result {
                 if result.method == .dictionary {
@@ -826,11 +870,13 @@ package final class IndexingSession {
         if let row = patternPosition?.row, rows.contains(row) { showBestMatch() }
     }
 
-    private func finish(seconds: Double, failure: String?, run: Int) {
+    func finish(seconds: Double, failure: String?, run: Int) {
         guard run == runGeneration, isIndexing else { return }
         let before = shownRun?.id
         let finished = runningMethod
+        let refined = isRefining
         isIndexing = false
+        isRefining = false
         runningMethod = nil
         chunkPhase = nil
         let shownChanged = shownRun?.id != before
@@ -841,7 +887,15 @@ package final class IndexingSession {
         }
         progress = 1
         if chunksTotal > 0 { chunksDone = chunksTotal }
-        if let finished {
+        if refined, let r = refinedRun {
+            refinedRun?.seconds = seconds
+            let base = runs[.dictionary]?.result
+            let change = base.flatMap { IndexingRefinement.meanScores(base: $0, refined: r.result) }.map {
+                " · mean \(base?.scoreTitle ?? "NCC") \(String(format: "%.3f", $0.before)) → NCC \(String(format: "%.3f", $0.after))"
+            } ?? ""
+            onEvent?("Refined \(r.result.indexedCount) of \(r.result.pointCount) patterns (\(r.refinement?.settings.target.noun ?? "")) in "
+                + "\(String(format: "%.1f", seconds)) s" + change)
+        } else if let finished {
             runs[finished]?.seconds = seconds
             if let result = runs[finished]?.result {
                 // A run against several phases says how many points each took.
@@ -850,6 +904,12 @@ package final class IndexingSession {
                 onEvent?("Indexed \(result.indexedCount) of \(result.pointCount) patterns with \(result.method.title) in \(String(format: "%.1f", seconds)) s"
                     + byPhase)
             }
+        }
+        // Index → Refine (design §3): the stage starts in this turn, so the verb never goes idle between them (and Stop reaches it);
+        // a stage that cannot run says why (the phases or the trust region changed while the dictionary ran).
+        if !refined, finished == .dictionary, refinesAfterIndexing {
+            if refineDictionaryRun() != nil { return }
+            onEvent?("Refine: \(refineStageRefusal ?? "the Dictionary run cannot be refined.")")
         }
         if shownChanged {
             shownResultChanged()
@@ -884,7 +944,7 @@ package final class IndexingSession {
     }
 
     /// Landed rows: a pointwise layer repaints those rows, a scalar layer (its range moves) the whole map.
-    private func repaint(rows: Range<Int>) {
+    func repaint(rows: Range<Int>) {
         guard let result, let palette, palette.layer == layer, layer.isPointwise, var rgba = mapRGBA, rgba.count == result.pointCount * 4 else {
             refreshMap()
             return
@@ -1026,8 +1086,9 @@ package final class IndexingSession {
 
     /// The Best match pane: a dictionary run's best orientation at the pattern pane's point, simulated on the run's detector from the
     /// master pattern of the point's phase (`MasterPatternProjection`, kikuchipy's `get_patterns`, D-SEM-98), off the main actor;
-    /// nothing where the point has none.
-    private func showBestMatch() {
+    /// nothing where the point has none. A refinement's point simulates its refined orientation at the PC it was refined at (its
+    /// refined PC under PC or Both, else the run's detector's, the file's mean), the pattern its NCC scores.
+    func showBestMatch() {
         guard let run = shownRun, run.method == .dictionary, let position = patternPosition,
               let solution = run.result.solution(at: position), solution.phase >= 0, run.dictionaryPlans.indices.contains(solution.phase),
               let simulation = run.result.simulationIndex(at: position) else {
@@ -1039,10 +1100,10 @@ package final class IndexingSession {
         guard key != bestMatchKey else { return }
         bestMatchKey = key
         bestMatchTask?.cancel()
-        let rotation = solution.quaternion
+        let rotation = solution.quaternion, pc = run.result.refinedProjectionCenter(at: position)
         bestMatchTask = Task { [weak self] in
             do {
-                let pixels = try await plan.simulated(rotation)
+                let pixels = try await plan.simulated(rotation, projectionCenter: pc)
                 guard let self, !Task.isCancelled, self.bestMatchKey == key else { return }
                 self.bestMatchPresentation.show(CanvasPixels.make(width: plan.detector.columns, height: plan.detector.rows, pixels: pixels))
                 self.bestMatchPosition = position
@@ -1079,20 +1140,37 @@ package final class IndexingSession {
         guard openInMapsRefusal == nil, let run = shownRun, let document = patterns.document, let map = try crystalMap() else { return nil }
         return OrientationMapSession.Document(fileName: document.fileName, url: document.url, map: map,
                                               source: .indexing(run: run.id, method: run.method),
-                                              format: "Indexing room · \(run.method.title)")
+                                              format: "Indexing room · \(run.title)")
     }
 
     /// What the Maps room says of run `run` of `method` it shows: nil while it is that method's last run and its inputs stand; else that
     /// a later run of the method replaced it (started, or ended having reached a point; and to Open in Maps again when that newer run
     /// is the one on screen and can be handed), or which inputs changed since (`isStale(of:)`): the Patterns room's processing, or this
-    /// room's phases or method settings. A run of the other method leaves it current (D-SEM-97).
+    /// room's phases or method settings. A run of the other method leaves it current (D-SEM-97). A refinement (D-SEM-109) is stale
+    /// once its Dictionary run was replaced, is stale, or Refine moves something else now; a refinement that a later refinement of
+    /// the same Dictionary run replaced says so (its id is above the Dictionary run's: only a refinement of it starts after it under
+    /// Dictionary), with Open in Maps again while that later refinement is on screen.
     package func staleness(ofRun run: Int, method: IndexingMethod) -> String? {
+        if let refined = refinedRun, refined.id == run {
+            guard heldRefinement != nil else { return "Stale: the Indexing room has run Dictionary again since this refinement." }
+            return isRefinementStale ? "Stale: the Indexing room's phases, settings or Refine changed since this refinement." : nil
+        }
+        if method == .dictionary, let base = runs[.dictionary], run > base.id {
+            guard let newer = heldRefinement, newer.id > run, newer.result.rowsDone > 0, !isRefining else {
+                return "Stale: the Indexing room has started another refinement since."
+            }
+            let handable = shownRun?.id == newer.id && openInMapsRefusal == nil
+            return "Stale: the Indexing room has refined the Dictionary run again since."
+                + (handable ? " Open in Maps again to show the new refinement." : "")
+        }
         guard let held = runs[method], held.id == run else {
             guard let newer = runs[method], newer.result.reachedCount > 0, runningMethod != method else {
                 return "Stale: the Indexing room has started another \(method.title) run since."
             }
-            // Open in Maps hands the run on screen: the note offers it only while that is the newer run and it can be handed.
-            let handable = shownRun?.id == newer.id && openInMapsRefusal == nil
+            // Open in Maps hands the run on screen: the note offers it only while that is the newer run (or its refinement, shown in
+            // its place) and it can be handed.
+            let shown = shownRun.map { $0.id == newer.id || $0.refinement?.base == newer.id } ?? false
+            let handable = shown && openInMapsRefusal == nil
             return "Stale: the Indexing room has run \(method.title) again since." + (handable ? " Open in Maps again to show the new run." : "")
         }
         guard isStale(of: method) else { return nil }
@@ -1117,6 +1195,7 @@ package final class IndexingSession {
     }
 
     /// The method record of the run on screen (every input, in pyEBSDindex's, kikuchipy's and orix's names); nil before a run has its plan.
+    /// A refinement's is its Dictionary run's with the refinement under "refinement" (D-SEM-109).
     package func methodJSON() throws -> Data? {
         guard let result, let document = patterns.document else { return nil }
         switch result.method {
@@ -1126,8 +1205,11 @@ package final class IndexingSession {
         case .dictionary:
             let plans = dictionaryPlans
             guard !plans.isEmpty else { return nil }
-            return try DictionaryIndexingPlan.methodJSON(plans, fileName: document.fileName, points: result.pointCount,
-                                                         indexed: result.indexedCount, indexedByPhase: result.countsByPhase)
+            let counted = shownRun?.refinement != nil ? (runs[.dictionary]?.result ?? result) : result
+            let data = try DictionaryIndexingPlan.methodJSON(plans, fileName: document.fileName, points: counted.pointCount,
+                                                             indexed: counted.indexedCount, indexedByPhase: counted.countsByPhase)
+            guard let run = shownRun, let record = run.refinement, let plan = plans.first else { return data }
+            return try IndexingRefinement.methodJSON(data, settings: record.settings, plan: plan, base: counted, refined: run.result)
         }
     }
 }

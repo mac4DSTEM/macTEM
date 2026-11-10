@@ -38,6 +38,7 @@ its closest angle lies from 2° and from a bin edge (the harness's rule: angles 
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 import numpy as np
@@ -222,7 +223,14 @@ PLANTED_PAIRS = {
 
 def _unit(rng) -> np.ndarray:
     q = rng.normal(size=4)
-    return q / np.linalg.norm(q)
+    return q / _length(q)
+
+
+def _length(v: np.ndarray) -> float:
+    """The vector's length, the same bits on every CPU: `np.linalg.norm` of a vector goes through OpenBLAS's dot, whose
+    kernel OpenBLAS picks per CPU at run time (emit.py's numpy pin does not reach it), and the planted inputs then moved
+    in their last bits from one runner to the next (#434). `math.fsum` is exact and the square root is IEEE."""
+    return math.sqrt(math.fsum(float(x) * float(x) for x in v))
 
 
 def _about(rng, low: float, high: float):
@@ -230,7 +238,7 @@ def _about(rng, low: float, high: float):
     from orix.quaternion import Rotation
 
     axis = rng.normal(size=3)
-    return Rotation.from_axes_angles(axis / np.linalg.norm(axis), np.deg2rad(rng.uniform(low, high)))
+    return Rotation.from_axes_angles(axis / _length(axis), np.deg2rad(rng.uniform(low, high)))
 
 
 def _element(rng, group):

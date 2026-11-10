@@ -174,16 +174,18 @@ struct IndexingMapPane: View {
         .clipped()
     }
 
-    /// "Indexed map · Hough · IPF-Z", with "· stale" once the inputs changed since the run (design §6).
+    /// "Indexed map · Hough · IPF-Z" ("Dictionary · Refined" for a refinement, D-SEM-109), with "· stale" once the inputs changed
+    /// since the run (design §6).
     private var title: String {
         guard let result = session.result else { return "Scan map · mean intensity, not indexed" }
-        return "Indexed map · \(result.method.title) · \(session.layer.title)" + (session.isStale ? " · stale" : "")
+        return "Indexed map · \(session.shownRun?.title ?? result.method.title) · \(session.layer.title)" + (session.isStale ? " · stale" : "")
     }
 
     /// "4 120 of 4 125 indexed", "1 875 of 4 125 reached" while it runs (a dictionary run's chunk first, and the phase matching when it
-    /// runs against several, D-SEM-98), "stopped at row 12 of 55".
+    /// runs against several, D-SEM-98; "450 of 4 125 refined" while Refine runs), "stopped at row 12 of 55".
     private var count: String? {
         guard let result = session.result else { return nil }
+        if session.isRefining { return "\(result.reachedCount.formatted()) of \(result.pointCount.formatted()) refined" }
         if session.isIndexing, result.method == .dictionary {
             let phase = session.chunkPhase.map { " · \($0)" } ?? ""
             return "chunk \(session.chunksDone) of \(session.chunksTotal)\(phase) · \(result.reachedCount.formatted()) of \(result.pointCount.formatted()) reached"
@@ -589,8 +591,10 @@ struct IndexingResultsTable: View {
     @State private var selection: Set<IndexingResult.Row.ID> = []
     @State private var sortOrder = [KeyPathComparator(\IndexingResult.Row.id)]
 
-    /// What the rows are of: the run (its rows done, and whether it still runs).
+    /// What the rows are of: the run (its id, so the Refine switch's swap of a Dictionary run and its refinement, alike in every other
+    /// field, rebuilds them; its rows done, and whether it still runs).
     private struct Key: Equatable {
+        var run: Int?
         var rowsDone: Int
         var points: Int
         var running: Bool
@@ -602,13 +606,16 @@ struct IndexingResultsTable: View {
         guard let result = session.result else { return nil }
         let stride = max(result.scanRows / 20, 1)
         let landed = session.isIndexing ? result.rowsDone - result.rowsDone % stride : result.rowsDone
-        return Key(rowsDone: landed, points: result.pointCount, running: session.isIndexing, phases: result.phases.map(\.name), method: result.method)
+        return Key(run: session.shownRun?.id, rowsDone: landed, points: result.pointCount, running: session.isIndexing,
+                   phases: result.phases.map(\.name), method: result.method)
     }
 
+    /// "Results · Dictionary · Refined · ni · 4,125 of 4,125 indexed · PC (…)": the run on screen named as the map's title names it.
     private var header: String {
         guard let result = session.result else { return "Results" }
         let phases = result.phases.map(\.name).joined(separator: ", ")
-        var words = "Results · \(result.method.title) · \(phases) · \(result.indexedCount.formatted()) of \(result.reachedCount.formatted()) indexed"
+        let run = session.shownRun?.title ?? result.method.title
+        var words = "Results · \(run) · \(phases) · \(result.indexedCount.formatted()) of \(result.reachedCount.formatted()) indexed"
         if let pc = session.resultProjectionCenter {
             words += " · PC (\(UnitDisplay.number(pc.x, digits: 4)), \(UnitDisplay.number(pc.y, digits: 4)), \(UnitDisplay.number(pc.z, digits: 4)))"
         }

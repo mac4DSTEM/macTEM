@@ -3,7 +3,7 @@
 //  Refinement of indexed EBSD patterns against a master pattern: each pattern's orientation (Bunge Euler angles), its
 //  projection centre (Bruker PCx, PCy, PCz) or both, moved by the Nelder-Mead simplex (`NelderMead`) to maximise the
 //  normalised cross-correlation (NCC) between the experimental pattern and the pattern projected from the master pattern
-//  (Winkelmann et al. 2020, J. Microsc. 277, 79; Ånes et al. 2020, Ultramicroscopy 218, 113087, the kikuchipy paper).
+//  (Winkelmann et al. 2020, J. Microsc. 277, 79; the kikuchipy paper, Ånes et al. 2020, IOP Conf. Ser.: Mater. Sci. Eng. 891, 012002).
 //  A trust region bounds every variable around its start (angles in degrees, PCs as fractions), inside absolute limits
 //  (Euler angles −5° to 365° / 185° / 365°, PCs −2 to 2); pseudo-symmetry operators start one extra search from each
 //  operator times the start rotation and keep the best.
@@ -492,12 +492,14 @@ package nonisolated enum EBSDRefinement {
         }
 
         func values() throws -> [T] {
-            let (slots, firstError) = state.withLock { $0 }
-            if let firstError {
+            // One copy of the state, read by its labels: destructuring it as `let (slots, firstError) = state.withLock { $0 }`
+            // made Xcode 27.1's compiler infer two different tuple types for withLock's Result.
+            let snapshot = state.withLock { $0 }
+            if let firstError = snapshot.firstError {
                 if firstError.error is CancellationError || firstError.error is EBSDRefinement.Error { throw firstError.error }
                 throw EBSDRefinement.Error.solver(firstError.index, firstError.error.localizedDescription)
             }
-            return slots.map { $0! }
+            return snapshot.slots.map { $0! }
         }
     }
 }

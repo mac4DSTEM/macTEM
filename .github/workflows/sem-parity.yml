@@ -60,5 +60,17 @@ jobs:
         run: |
           References/sem-venv/bin/python -I -B tools/parity/sem/make_fixtures.py
           git diff --exit-code --stat -- tools/parity/sem/fixtures
+      # OpenBLAS picks its kernel per CPU at run time, and the runners differ: a bundle whose inputs went through BLAS
+      # moved in its last bits from one runner to the next (#434). The planted comparison is emitted again under the
+      # Haswell kernel, which every x86-64 runner can run, and compared with the committed bundle within its tolerances
+      # (its inputs exact), whatever kernel the runner would pick itself; the next step runs every bundle on that one.
+      - name: The planted comparison is the same under another BLAS kernel
+        env:
+          OPENBLAS_CORETYPE: Haswell
+        run: |
+          out="$RUNNER_TEMP/planted-haswell"
+          References/sem-venv/bin/python -I -B tools/parity/sem/emit.py --out "$out" --only m4/indexing-compare-planted
+          References/sem-venv/bin/python -I -B tools/parity/sem/lib/refbundle.py \
+            tools/parity/sem/references/m4/indexing-compare-planted "$out/m4/indexing-compare-planted"
       - name: Emit and compare every bundle
         run: References/sem-venv/bin/python -I -B tools/parity/sem/check.py --require-data
