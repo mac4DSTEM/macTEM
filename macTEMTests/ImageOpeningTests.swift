@@ -162,12 +162,13 @@ nonisolated final class ImageOpeningTests: XCTestCase {
         let ser = refusal("/Volumes/Lab Disk/run 7/scan.SER")
         XCTAssertEqual(ser, .unreadableFormat(file: "scan.SER", ext: "ser"))
         XCTAssertEqual(ser?.errorDescription,
-                       "scan.SER is a .ser file. macTEM opens .dm4, .dm3, .tif, .mrc and Velox .emd images; other formats are not read yet.")
+                       "scan.SER is a .ser file. macTEM opens TEM and SEM images (.dm4, .dm3, .tif, .tiff, .mrc, .emd, .img, .map), "
+                       + "EDS and EELS spectra and spectrum images (.emd, .dm4, .msa, .hspy, .bcf, .spd, .lsd, .pts, .asw, .spx, .spc, .eds), "
+                       + "and EBSD patterns and orientation maps (.h5, .hdf5, .h5oina, .h5ebsd, .ebsp, .ctf, .up1, .up2, .ang, .dat).")
         XCTAssertFalse(ser?.errorDescription?.contains("Lab Disk") ?? true, "the message never shows the folders")
         let bare = refusal("/tmp/README")
         XCTAssertEqual(bare, .unreadableFormat(file: "README", ext: ""))
-        XCTAssertEqual(bare?.errorDescription,
-                       "README is a file without an extension. macTEM opens .dm4, .dm3, .tif, .mrc and Velox .emd images; other formats are not read yet.")
+        XCTAssertEqual(bare?.errorDescription, "README is a file without an extension. " + FileRouting.openableSentence)
         // Upper-case DM and TIFF extensions are readable: a missing file is a read error, not a format refusal.
         for path in ["/nonexistent-\(UUID().uuidString)/IMAGE.DM4", "/nonexistent-\(UUID().uuidString)/old.Dm3"] {
             XCTAssertThrowsError(try ImageOpening.openNow(path: path)) { error in
@@ -190,12 +191,30 @@ nonisolated final class ImageOpeningTests: XCTestCase {
             let expected = ImageOpening.Refusal.noImage(file: "nothing.dm4", objects: "thumbnail 8 × 6; 170 × 1; 16 × 2 × 3")
             XCTAssertEqual(error as? ImageOpening.Refusal, expected)
             XCTAssertEqual((error as? LocalizedError)?.errorDescription,
-                           "nothing.dm4 holds no 2D image (thumbnail 8 × 6; 170 × 1; 16 × 2 × 3). Image stacks and spectrum images are not read yet.")
+                           "nothing.dm4 holds no 2D image (thumbnail 8 × 6; 170 × 1; 16 × 2 × 3). Image stacks in DM files are not read yet.")
         }
         let empty = try DM4TestFile.write(DM4TestFile.file([]), named: "empty.dm4", for: self)
         XCTAssertThrowsError(try ImageOpening.openNow(path: empty)) { error in
             XCTAssertEqual(error as? ImageOpening.Refusal, .noImage(file: "empty.dm4", objects: "no image objects"))
         }
+    }
+
+    /// A dropped or opened file of another extension is refused with what macTEM opens, every kind and every extension an Open
+    /// routes, from FileRouting's own table (EBSD, maps, SEM-EDS and spectra too, not the images alone), and says nothing is "not
+    /// read yet". Red before: the sentence named .dm4, .dm3, .tif, .mrc and .emd only, and said other formats were not read yet.
+    func testARefusedFileNamesEveryKindAndExtensionAnOpenRoutes() throws {
+        let sentence = try XCTUnwrap(ImageOpening.Refusal.unreadableFormat(file: "notes.xyz", ext: "xyz").errorDescription)
+        XCTAssertTrue(sentence.hasPrefix("notes.xyz is a .xyz file. macTEM opens "), sentence)
+        for ext in ["h5", "ang", "bcf"] {
+            XCTAssertTrue(sentence.contains(".\(ext),") || sentence.contains(".\(ext))"), "\(ext): \(sentence)")
+        }
+        for ext in FileRouting.openableExtensions {
+            XCTAssertTrue(sentence.contains(".\(ext),") || sentence.contains(".\(ext))"), "\(ext): \(sentence)")
+        }
+        for entry in FileRouting.openableKinds {
+            XCTAssertTrue(sentence.contains(entry.kind + " ("), "\(entry.kind): \(sentence)")
+        }
+        XCTAssertFalse(sentence.contains("not read yet"), sentence)
     }
 
     // MARK: The calibrated image
