@@ -1,4 +1,5 @@
-// The EELS room's per-edge windows, the background choice, the reference spectra and the check that a window does not sit on a stretch with no counts.
+// The EELS room's per-edge windows (and the step that moves one without a drag), the background choice, the reference spectra and the check that a window does
+// not sit on a stretch with no counts.
 // Nothing here makes a number of macTEM's own beyond choosing windows: the defaults are the kit's (`EdgeWindows.defaults`), the background under a window while it is
 // dragged is the kit's `EELSBackground.preview`, a reference is the region's counts less that background, or an MSA file read by FormatoKit.
 import Foundation
@@ -102,6 +103,21 @@ package nonisolated struct EELSEdgeWindows: Equatable, Sendable {
         if background.contains(energy) { return .backgroundBody }
         if signal.contains(energy) { return .signalBody }
         return nil
+    }
+}
+
+/// How far one step moves an edge's window when it is set without a drag (the adjustable elements VoiceOver finds under the spectrum).
+package nonisolated enum EELSWindowStep {
+    /// One step on the core loss `core`: 1 % of its energy range, never less than one channel, so about a hundred steps cross the axis whatever its dispersion.
+    package static func stride(core: EELSPlotCurve) -> Double {
+        max((core.range.upperBound - core.range.lowerBound) / 100, abs(core.step))
+    }
+
+    /// `windows` after one step of `handle`, up the axis (`increment`) or down it. The drag's own rule (`EELSEdgeWindows.moved`), so a step stops where a
+    /// drag would: at the other window, at the least width and at the ends of `limit`.
+    package static func stepped(_ windows: EELSEdgeWindows, handle: EELSEdgeWindows.Handle, increment: Bool, step: Double,
+                                within limit: ClosedRange<Double>) -> EELSEdgeWindows {
+        windows.moved(handle, by: increment ? step : -step, within: limit)
     }
 }
 

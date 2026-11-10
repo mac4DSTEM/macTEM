@@ -1,6 +1,6 @@
 // The EELS room on the EDS chassis (design docs/design/eels-room.md, slice 1): the pure parts. Which tiles the Maps control puts where and why a
-// segment is off, the one energy axis with its gap, the thickness line, the cursor readout, the periodic table's answers. No view, no kit call that
-// makes a number: every value is a field of the session's tiles, the kit's map or the kit's fit, formatted or ordered here.
+// segment is off, the one energy axis with its gap, the thickness line, the cursor readout, the spectrum's spoken value, the periodic table's answers. No view,
+// no kit call that makes a number: every value is a field of the session's tiles, the kit's map or the kit's fit, formatted or ordered here.
 import Foundation
 import SpectroCore
 import SpectroEELS
@@ -597,6 +597,24 @@ extension EELSRoomFormat {
             parts.append("\(tile.title) \(scientific(v, 4, locale: locale))" + (tile.unit.isEmpty ? "" : " \(tile.unit)"))
         }
         return parts.joined(separator: " · ")
+    }
+
+    /// A stretch of the energy axis in words, "650 to 700 eV": a window, or the energies the spectrum shows.
+    package static func energySpan(_ range: ClosedRange<Double>, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(sig(range.lowerBound, 5, locale: locale)) to \(sig(range.upperBound, 5, locale: locale)) eV"
+    }
+
+    /// A window's spoken name: "Fe L2,3 background window".
+    package static func windowName(edge: String, isSignal: Bool) -> String { "\(edge) \(isSignal ? "signal" : "background") window" }
+
+    /// The spectrum's spoken value, what a pointer reads off the plot: the energies shown, then each picked edge's windows by name,
+    /// "283 to 1200 eV shown; Fe L2,3 background 650 to 700 eV, signal 708 to 758 eV".
+    package static func windowsSpeech(items: [(title: String, windows: EELSEdgeWindows)], shown: ClosedRange<Double>,
+                                      locale: Locale = .autoupdatingCurrent) -> String {
+        let edges = items.map { item in
+            "\(item.title) background \(energySpan(item.windows.background, locale: locale)), signal \(energySpan(item.windows.signal, locale: locale))"
+        }
+        return ([energySpan(shown, locale: locale) + " shown"] + edges).joined(separator: "; ")
     }
 
     /// The Processing section's one note: the line, and that the core loss follows the alignment when the file has one.

@@ -618,6 +618,8 @@ struct EELSWindowItem: Equatable {
 /// The region's low loss and core loss on one energy axis (a marked gap when the windows leave energies out), counts on a log axis: the zero-loss mask hatched, each picked edge's
 /// background and signal windows shaded and draggable with the background extrapolated under the signal, the kit's model curve in the accent, its power-law background dashed,
 /// the references dashed. Hover reads energy and counts into the status line, snapped to an edge onset within 5 eV.
+/// Without a pointer: its accessibility value says the energies shown and each edge's windows, every window is an adjustable element under it
+/// (`EELSWindowElements`), and the zoom and the pan are named actions.
 private struct EELSSpectrumView: View {
     let plot: EELSPlotData?
     let items: [EELSWindowItem]
@@ -635,6 +637,8 @@ private struct EELSSpectrumView: View {
     @State private var pinchStart: ClosedRange<Double>?
 
     private static let right = EELSSpectrumLayout.right, gapWidth: CGFloat = 30, handleReach: CGFloat = 5
+    /// One "Zoom in" halves the energies shown; one "Pan" moves them by a quarter of the window.
+    private static let zoomStep = 2.0, panStep = 0.25
 
     /// The counts scale over the energies shown: log10 from 1 to the next power of ten above the largest value, or linear from 0; the counts zoom lowers the top.
     private struct Scale {
@@ -669,6 +673,23 @@ private struct EELSSpectrumView: View {
         return EELSOneAxis(low: cut.low, core: cut.core, width: Double(max(width - left - Self.right, 1)), gapWidth: Double(Self.gapWidth))
     }
 
+    /// The zoom and the pan without a pointer (the named accessibility actions): about the middle of the window, clamped as the gestures' are.
+    private func zoom(closer: Bool, window w: ClosedRange<Double>, plot: EELSPlotData) {
+        let factor = closer ? Self.zoomStep : 1 / Self.zoomStep
+        state.spectrumWindow = EDXSpectrumWindow.zoomed(w, factor: factor, anchor: 0.5, domain: domain(plot), minimumSpan: minimumSpan(plot))
+    }
+
+    private func pan(towardHigherEnergy up: Bool, window w: ClosedRange<Double>, plot: EELSPlotData) {
+        let fraction = up ? Self.panStep : -Self.panStep
+        state.spectrumWindow = EDXSpectrumWindow.panned(w, byFraction: fraction, domain: domain(plot), minimumSpan: minimumSpan(plot))
+    }
+
+    /// The whole spectrum again (a double click off the windows, and the named accessibility action).
+    private func showWholeSpectrum() {
+        state.spectrumWindow = nil
+        state.spectrumYZoom = 1
+    }
+
     /// Where a point sits in the window, 0...1 (the zoom's anchor); the middle in the gap.
     private func anchor(_ x: CGFloat, axis: EELSOneAxis, left: CGFloat, window w: ClosedRange<Double>) -> Double {
         guard let e = axis.energy(atX: Double(x - left)), w.upperBound > w.lowerBound else { return 0.5 }
@@ -689,6 +710,8 @@ private struct EELSSpectrumView: View {
                     if let fitted = plot.backgrounds.first(where: { $0.edgeID == EELSFitCompute.id(item.edge) }), fitted.windows == item.windows { return fitted.curve }
                     return plot.core.flatMap { EELSBackgroundFit.extrapolation(of: $0, windows: item.windows, over: item.windows.background.lowerBound...item.windows.signal.upperBound) }
                 }
+                // What a pointer reads off the plot, in words: the energies shown and each edge's windows.
+                let spoken = EELSRoomFormat.windowsSpeech(items: items.map { (title: EELSFitCompute.title($0.edge), windows: $0.windows) }, shown: w)
                 Canvas { context, size in
                     Self.draw(&context, size: size, left: left, plot: plot, axis: axis, shown: w, scale: scale, isLog: isLog, items: items, backgrounds: backgrounds,
                               references: references, layers: layers)
@@ -755,7 +778,7 @@ private struct EELSSpectrumView: View {
                     if let e = axis.energy(atX: Double(p.x - left)), let item = items.first(where: { $0.windows.background.contains(e) || $0.windows.signal.contains(e) }) {
                         onResetWindows(item.edge)
                     } else {
-                        state.spectrumWindow = nil; state.spectrumYZoom = 1
+                        showWholeSpectrum()
                     }
                 }
                 .contextMenu {
@@ -780,6 +803,17 @@ private struct EELSSpectrumView: View {
                 .accessibilityElement()
                 .accessibilityLabel("Spectrum of \(plot.regionName), \(isLog ? "log" : "linear") counts")
                 .accessibilityIdentifier("eels.spectrum")
+                .accessibilityValue(spoken)
+                // The windows without a drag: two adjustable elements per edge under the spectrum (nothing is drawn).
+                .accessibilityChildren {
+                    if let core = plot.core { EELSWindowElements(items: items, core: core, onWindows: onWindows) }
+                }
+                // The pinch, the scroll and the drags, as named actions.
+                .accessibilityAction(named: "Zoom in") { zoom(closer: true, window: w, plot: plot) }
+                .accessibilityAction(named: "Zoom out") { zoom(closer: false, window: w, plot: plot) }
+                .accessibilityAction(named: "Pan left") { pan(towardHigherEnergy: false, window: w, plot: plot) }
+                .accessibilityAction(named: "Pan right") { pan(towardHigherEnergy: true, window: w, plot: plot) }
+                .accessibilityAction(named: "Show whole spectrum") { showWholeSpectrum() }
             } else {
                 Text("The spectrum appears once the file is read.").foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -952,6 +986,45 @@ private struct EELSSpectrumView: View {
             context.draw(Text(edge.title).font(.caption2), at: CGPoint(x: ex, y: area.minY + 4 + CGFloat(i % 2) * 10))
         }
         context.stroke(Path(area), with: .color(.secondary.opacity(0.4)), lineWidth: 0.5)
+    }
+}
+
+/// The edges' windows as VoiceOver meets them under the spectrum (its `accessibilityChildren`; nothing here is drawn): two elements per edge, the
+/// background window and the signal window, each with its energies as its value. Adjusting one moves the whole window up or down the axis by one step
+/// (`EELSWindowStep.stride`); "Widen" and "Narrow" move its upper end by the same step. Every change is the drag's own (`EELSEdgeWindows.moved`
+/// through `EELSWindowStep.stepped`, handed to the same `onWindows`), so a step stops where a drag would.
+private struct EELSWindowElements: View {
+    let items: [EELSWindowItem]
+    let core: EELSPlotCurve
+    let onWindows: (CoreLossEdge, EELSEdgeWindows) -> Void
+
+    var body: some View {
+        let step = EELSWindowStep.stride(core: core)
+        ForEach(items.map { (id: EELSFitCompute.id($0.edge), item: $0) }, id: \.id) { entry in
+            element(entry.item, isSignal: false, step: step)
+            element(entry.item, isSignal: true, step: step)
+        }
+    }
+
+    private func element(_ item: EELSWindowItem, isSignal: Bool, step: Double) -> some View {
+        let whole: EELSEdgeWindows.Handle = isSignal ? .signalBody : .backgroundBody
+        let upper: EELSEdgeWindows.Handle = isSignal ? .signalUpper : .backgroundUpper
+        func move(_ handle: EELSEdgeWindows.Handle, up: Bool) {
+            onWindows(item.edge, EELSWindowStep.stepped(item.windows, handle: handle, increment: up, step: step, within: core.range))
+        }
+        return Rectangle()
+            .accessibilityElement()
+            .accessibilityLabel(EELSRoomFormat.windowName(edge: EELSFitCompute.title(item.edge), isSignal: isSignal))
+            .accessibilityValue(EELSRoomFormat.energySpan(isSignal ? item.windows.signal : item.windows.background))
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: move(whole, up: true)
+                case .decrement: move(whole, up: false)
+                @unknown default: break
+                }
+            }
+            .accessibilityAction(named: "Widen") { move(upper, up: true) }
+            .accessibilityAction(named: "Narrow") { move(upper, up: false) }
     }
 }
 
