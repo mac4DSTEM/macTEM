@@ -31,6 +31,14 @@ package nonisolated enum UnitDisplay {
         return value.formatted(.number.locale(locale).grouping(.never).precision(.significantDigits(1...digits)))
     }
 
+    /// Three numbers as one value, each as `number` writes it: "(0.4215, 0.2163, 0.5323)". Where the locale's decimal mark is a comma
+    /// the three are parted by semicolons, "(0,4215; 0,2163; 0,5323)", so a decimal comma is never read as the list's.
+    package static func triple(_ v: SIMD3<Double>, digits: Int = 6, locale: Locale = .autoupdatingCurrent) -> String {
+        let separator = locale.decimalSeparator == "," ? "; " : ", "
+        let parts: [String] = [v.x, v.y, v.z].map { number($0, digits: digits, locale: locale) }
+        return "(" + parts.joined(separator: separator) + ")"
+    }
+
     /// A count with its noun, the noun in the singular for one: "1 grain", "0 grains", "102 grains" (English, as the app is). The
     /// number as Swift writes an Int, no grouping; where the caller writes the number its own way ("3,812 points"), `noun` alone.
     package static func count(_ n: Int, _ singular: String, _ plural: String) -> String {

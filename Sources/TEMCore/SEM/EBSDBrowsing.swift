@@ -130,7 +130,7 @@ package nonisolated enum EBSDBrowsing {
         if detector.azimuthal != 0 { rows.append(Row("Azimuthal", "\(n(detector.azimuthal))°")) }
         if detector.twist != 0 { rows.append(Row("Twist", "\(n(detector.twist))°")) }
         if let pc = detector.projectionCenters.first {
-            let one = "(\(four(pc.x)), \(four(pc.y)), \(four(pc.z)))"
+            let one = UnitDisplay.triple(pc, digits: 4, locale: locale)
             rows.append(Row("Projection centre", detector.projectionCenters.count > 1 ? "\(one) · first of \(detector.projectionCenters.count)" : one))
         } else {
             rows.append(Row("Projection centre", "None in the file"))

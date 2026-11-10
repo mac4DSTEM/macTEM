@@ -170,10 +170,9 @@ enum IndexingInfoFormat {
         "\(count.formatted(.number.locale(locale))) \(UnitDisplay.noun(count, "point", "points"))"
     }
 
-    /// "(0.4215, 0.2163, 0.5323) · mean of the file's".
+    /// "(0.4215, 0.2163, 0.5323) · mean of the file's"; "(0,4215; 0,2163; 0,5323) · …" where the decimal mark is a comma.
     nonisolated static func projectionCentre(_ pc: SIMD3<Double>, locale: Locale = .autoupdatingCurrent) -> String {
-        let n = { (v: Double) in UnitDisplay.number(v, digits: 4, locale: locale) }
-        return "(\(n(pc.x)), \(n(pc.y)), \(n(pc.z))) · mean of the file's"
+        UnitDisplay.triple(pc, digits: 4, locale: locale) + " · mean of the file's"
     }
 
     /// "Ni.h5 · Ni · 20 kV · Lambert · 401 × 401".
