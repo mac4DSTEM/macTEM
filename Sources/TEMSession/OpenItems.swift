@@ -295,6 +295,9 @@ package final class OpenItem: Identifiable {
     package fileprivate(set) var requestedFrame = 0
     /// Why the last frame asked for could not be read ("Frame 3 of 20 could not be read: …"); nil once a frame lands.
     package fileprivate(set) var frameFailure: String?
+    /// The frame whose read failed last (from 0): a step carries on from it, so a page that cannot be read in the middle of a stack can
+    /// be stepped past. Nil once a frame lands or another is asked for.
+    package fileprivate(set) var failedFrame: Int?
     @ObservationIgnored fileprivate var frameGeneration = 0
     @ObservationIgnored fileprivate var frameTask: Task<Void, Never>?
     /// Opaque to every view, and re-made by every read: a renewed one is no news, so it is not observed.
@@ -447,6 +450,7 @@ package final class OpenItem: Identifiable {
             frame = 0
             requestedFrame = 0
             frameFailure = nil
+            failedFrame = nil
         }
         // Wholesale, the thumbnail too: a file changed on disk since the last read must not keep the old picture.
         summary = ImageSummary(opened.image, thumbnail: opened.thumbnail)
@@ -475,25 +479,30 @@ package final class OpenItem: Identifiable {
         summary = ImageSummary(opened.image, thumbnail: opened.thumbnail ?? summary?.thumbnail)
         frame = n
         frameFailure = nil
+        failedFrame = nil
         frameTask = nil
     }
 
     /// A frame that could not be read (a page cut short, a file changed on disk): the slider goes back to the frame shown, so the
-    /// same frame can be asked for again, and `frameFailure` keeps the sentence, which is returned. Nil, and nothing changed, for
-    /// the failure of a request a newer one replaced.
+    /// same frame can be asked for again, `failedFrame` keeps which one it was, so a step goes on from it, and `frameFailure` keeps
+    /// the sentence, which is returned. Nil, and nothing changed, for the failure of a request a newer one replaced.
     fileprivate func failFrame(_ n: Int, of count: Int, generation: Int, error: any Error) -> String? {
         guard generation == frameGeneration else { return nil }
         let sentence = "Frame \(n + 1) of \(count) could not be read: \(ErrorDetail.text(error))"
         requestedFrame = frame
+        failedFrame = n
         frameFailure = sentence
         frameTask = nil
         return sentence
     }
 
     /// Asks for frame `n`, off the main actor; a newer request cancels this one, whose answer or failure is then dropped. A read
-    /// that fails is said (`failFrame`, then the list's `onFrameFailure`), not swallowed.
+    /// that fails is said (`failFrame`, then the list's `onFrameFailure`), not swallowed. Any frame of the stack asked for, the one
+    /// shown too, ends the step past a failed frame (`failedFrame`).
     fileprivate func requestFrame(_ n: Int, reader: @escaping FrameReader, owner: OpenItems) {
-        guard let source = stack, n >= 0, n < source.frameCount, n != requestedFrame else { return }
+        guard let source = stack, n >= 0, n < source.frameCount else { return }
+        failedFrame = nil
+        guard n != requestedFrame else { return }
         requestedFrame = n
         frameGeneration &+= 1
         let generation = frameGeneration
@@ -598,10 +607,12 @@ package final class OpenItems {
         item.requestFrame(frame, reader: frameReader, owner: self)
     }
 
-    /// The frame `delta` away from the one asked for last, kept inside the stack (the ends do nothing); the arrow keys' step.
+    /// The frame `delta` away from the one asked for last, kept inside the stack (the ends do nothing); the step of the arrow keys
+    /// and of the inspector's Previous and Next. After a frame that could not be read the step goes on from that frame
+    /// (`OpenItem.failedFrame`), not from the frame shown, so a second step lands past it instead of asking for it again.
     package func stepFrame(_ item: OpenItem, by delta: Int) {
         guard let stack = item.stack else { return }
-        showFrame(item, to: min(max(item.requestedFrame + delta, 0), stack.frameCount - 1))
+        showFrame(item, to: min(max((item.failedFrame ?? item.requestedFrame) + delta, 0), stack.frameCount - 1))
     }
 
     package func item(_ id: OpenItem.ID) -> OpenItem? { items.first { $0.id == id } }

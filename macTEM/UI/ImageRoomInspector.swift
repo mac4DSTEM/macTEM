@@ -125,7 +125,8 @@ enum ImageInfoFormat {
 
 /// The frame of an image stack: "Frame 12 of 100", a slider and the two steps. One frame is read at a time, off the main actor
 /// (`OpenItems.showFrame`); the slider moves at once and the image follows when the frame has been read. The sandbox scope of the
-/// file is held while the item is open.
+/// file is held while the item is open. Previous and Next are the arrow keys' step (`OpenItems.stepFrame`), so after a frame that
+/// could not be read they go on from that frame, as the keys do; the slider stays on the frame shown.
 struct ImageRoomStackSection: View {
     let item: OpenItem
     let items: OpenItems
@@ -133,6 +134,8 @@ struct ImageRoomStackSection: View {
     var body: some View {
         if let stack = item.stack {
             let shown = item.frame, wanted = item.requestedFrame
+            // Where the next step starts: the frame that failed last, or the one asked for.
+            let at = item.failedFrame ?? wanted
             InspectorSection("Stack") {
                 InspectorValueRow("Frame", "\(wanted + 1) of \(stack.frameCount)")
                     .accessibilityIdentifier("image.stack.frame")
@@ -143,10 +146,10 @@ struct ImageRoomStackSection: View {
                     .accessibilityValue("\(wanted + 1) of \(stack.frameCount)")
                     .accessibilityIdentifier("image.stack.slider")
                 InspectorActionRow {
-                    Button("Previous", systemImage: "chevron.left") { items.showFrame(item, to: wanted - 1) }
-                        .disabled(wanted <= 0).accessibilityIdentifier("image.stack.previous")
-                    Button("Next", systemImage: "chevron.right") { items.showFrame(item, to: wanted + 1) }
-                        .disabled(wanted >= stack.frameCount - 1).accessibilityIdentifier("image.stack.next")
+                    Button("Previous", systemImage: "chevron.left") { items.stepFrame(item, by: -1) }
+                        .disabled(at <= 0).accessibilityIdentifier("image.stack.previous")
+                    Button("Next", systemImage: "chevron.right") { items.stepFrame(item, by: 1) }
+                        .disabled(at >= stack.frameCount - 1).accessibilityIdentifier("image.stack.next")
                 }
                 Toggle("Same contrast for every frame", isOn: Binding(
                     get: { item.presentation.windowLow != nil || item.presentation.windowHigh != nil },

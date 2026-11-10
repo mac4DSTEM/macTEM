@@ -32,6 +32,14 @@ nonisolated final class ImageStackTests: XCTestCase {
         return url
     }
 
+    /// A stack in a fresh temporary folder that goes when the test ends.
+    private func scratchStack(frames: Int) throws -> URL {
+        let url = try Self.tempStack(frames: frames)
+        let folder = url.deletingLastPathComponent()
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        return url
+    }
+
     /// The process's physical footprint, bytes.
     static func footprint() -> Int {
         var info = task_vm_info_data_t()
@@ -218,6 +226,60 @@ nonisolated final class ImageStackTests: XCTestCase {
         XCTAssertEqual(item.frame, 2)
         XCTAssertEqual(attempts.value, 2)
         XCTAssertNil(item.frameFailure, "a frame that lands clears it")
+    }
+
+    /// A step carries on past a frame that cannot be read, in both directions: → from frame 2 asks for frame 3, which fails and leaves
+    /// frame 2 shown; the next → goes on from the frame that failed and lands on frame 4, and ← from there passes it the same way. A frame
+    /// that lands ends it. Red before: a step started from `requestedFrame`, which the failure had put back on the frame shown, so every →
+    /// asked for the same bad frame again (it was read twice here) and frame 4 was never reached.
+    @MainActor func testStepsCarryOnPastAFrameThatCannotBeRead() async throws {
+        let url = try scratchStack(frames: 6)
+        let attempts = Counter()
+        let items = OpenItems(frameReader: { stack, frame in
+            if frame == 2 {
+                attempts.add()
+                throw FrameFailure()
+            }
+            return try await AppState.readFrame(stack, frame)
+        }, reader: AppState.read(_:))
+        items.open(urls: [url])
+        await items.settled()
+        let item = try XCTUnwrap(items.selected)
+        XCTAssertNotNil(item.stack, "opened as a stack: \(item.readFailure ?? "no failure")")
+        let sentence = "Frame 3 of 6 could not be read: the page is cut short."
+
+        items.showFrame(item, to: 1)
+        for _ in 0..<2000 where item.frame != 1 { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(item.frame, 1)
+        XCTAssertNil(item.failedFrame, "nothing has failed yet")
+
+        items.stepFrame(item, by: 1)
+        for _ in 0..<2000 where item.frameFailure == nil { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(item.frameFailure, sentence)
+        XCTAssertEqual(item.requestedFrame, 1, "the slider goes back to the frame shown")
+        XCTAssertEqual(item.failedFrame, 2, "the next step starts at the frame that failed")
+
+        items.stepFrame(item, by: 1)
+        XCTAssertEqual(item.requestedFrame, 3, "the second step asks for the frame after the one that failed")
+        XCTAssertNil(item.failedFrame, "another frame asked for ends it")
+        for _ in 0..<2000 where item.frame != 3 { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(item.frame, 3)
+        XCTAssertEqual(attempts.value, 1, "the frame that cannot be read was asked for once, not again")
+        XCTAssertNil(item.frameFailure, "a frame that lands clears the sentence")
+
+        items.stepFrame(item, by: -1)
+        for _ in 0..<2000 where item.frameFailure == nil { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(item.frameFailure, sentence)
+        XCTAssertEqual(item.requestedFrame, 3)
+        XCTAssertEqual(item.failedFrame, 2)
+        items.stepFrame(item, by: -1)
+        XCTAssertEqual(item.requestedFrame, 1, "and back past it the same way")
+        for _ in 0..<2000 where item.frame != 1 { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(item.frame, 1)
+        XCTAssertEqual(attempts.value, 2)
+        XCTAssertNil(item.failedFrame)
+
+        items.close(item.id)
     }
 
     /// Closing an item that holds a stack releases its scope. Red under: the scope leaked until the process ends.
