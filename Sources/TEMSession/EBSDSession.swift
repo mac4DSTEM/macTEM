@@ -309,8 +309,12 @@ package final class EBSDSession {
     /// The pattern on screen and the position it is of (the pane keeps the last pattern until the next one arrives: never a blank).
     package private(set) var patternPosition: EBSDPosition?
     package let patternPresentation = ImagePresentation()
-    /// How the map is drawn; its canvas is the mean map once it has landed.
-    package let mapPresentation = ImagePresentation()
+    /// How the map is drawn; its canvas is the mean map once it has landed. It opens on its 1st to 99th percentile, as a map does.
+    package let mapPresentation: ImagePresentation = {
+        let presentation = ImagePresentation()
+        presentation.defaultQuantiles = 0.01...0.99
+        return presentation
+    }()
 
     /// The infobar's line for an event ("Opening…", "Opened…") and the alert for a failure (the window's `AppState` wires them).
     package var onEvent: ((String) -> Void)?

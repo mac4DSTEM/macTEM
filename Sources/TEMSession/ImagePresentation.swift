@@ -63,6 +63,33 @@ package nonisolated enum DisplayWindow {
         let hi = min(max(((high ?? rawRange.upperBound) - rawRange.lowerBound) / span, 0), 1)
         return lo < hi ? (lo, hi) : (0, 1)
     }
+
+    /// The `quantiles` (fractions, linear between ranks as numpy's `percentile` does) of the canvas's finite pixels, in raw values: the
+    /// default window of a map that opens on its 1st to 99th percentile (control placement §11). Read from the normalised pixels on at
+    /// most `sampleCap` of them, evenly strided (a display default, never a number). Nil with fewer than two finite pixels or no span.
+    package static func quantileWindow(of canvas: CanvasPixels, _ quantiles: ClosedRange<Double>, sampleCap: Int = 1 << 16) -> ClosedRange<Float>? {
+        guard let raw = canvas.rawRange, raw.upperBound > raw.lowerBound, !canvas.normalized.isEmpty else { return nil }
+        let stride = max(1, canvas.normalized.count / max(sampleCap, 2))
+        var sample: [Float] = []
+        sample.reserveCapacity(canvas.normalized.count / stride + 1)
+        var i = 0
+        while i < canvas.normalized.count {
+            let v = canvas.normalized[i]
+            if v.isFinite, v >= 0, v <= 1 { sample.append(v) }
+            i += stride
+        }
+        guard sample.count >= 2 else { return nil }
+        sample.sort()
+        func at(_ q: Double) -> Float {
+            let position = min(max(q, 0), 1) * Double(sample.count - 1)
+            let below = Int(position.rounded(.down)), above = min(below + 1, sample.count - 1)
+            let t = Float(position - Double(below))
+            return sample[below] + (sample[above] - sample[below]) * t
+        }
+        let span = raw.upperBound - raw.lowerBound
+        let low = raw.lowerBound + at(quantiles.lowerBound) * span, high = raw.lowerBound + at(quantiles.upperBound) * span
+        return low < high ? low...high : nil
+    }
 }
 
 @Observable
@@ -102,15 +129,28 @@ package final class ImagePresentation {
         if windowHigh == nil { windowHigh = range.upperBound }
     }
 
-    /// Back to the full range (the histogram's "Reset range").
+    /// The quantiles a picture opens on, as fractions; nil (the image rooms) opens on the full range. The SEM scan and property maps
+    /// pass 0.01…0.99: a few outliers (a dark speck, a dust spot, one high KAM) otherwise drew the rest of a mean, IQ, ADP or KAM map
+    /// white or black (drive 2026-11-08). Display only: no number, export or readout reads the window.
+    package var defaultQuantiles: ClosedRange<Double>?
+    /// The default window of the canvas shown, and whether the window on screen is still it (a person's edit keeps theirs).
+    @ObservationIgnored private var defaultWindow: ClosedRange<Float>?
+
+    /// Back to the default: the full range, or the quantile window of a picture that opens on one (the histogram's "Reset range").
     package func resetWindow() {
-        windowLow = nil
-        windowHigh = nil
+        windowLow = defaultWindow?.lowerBound
+        windowHigh = defaultWindow?.upperBound
     }
 
     package init() {}
 
+    /// Shows `canvas`. A picture with `defaultQuantiles` gets the new canvas's quantile window while its window is still the default one
+    /// (a new map, a new tile); a window the person set stays.
     package func show(_ canvas: CanvasPixels) {
+        let untouched = windowLow == defaultWindow?.lowerBound && windowHigh == defaultWindow?.upperBound
         self.canvas = canvas
+        guard let defaultQuantiles else { return }
+        defaultWindow = DisplayWindow.quantileWindow(of: canvas, defaultQuantiles)
+        if untouched { resetWindow() }
     }
 }

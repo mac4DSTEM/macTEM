@@ -101,8 +101,13 @@ package final class OrientationMapSession {
     package private(set) var isDrawing = false
     /// Which point every grid cell holds (`OrientationMaps.pointIndexGrid`), −1 where none.
     package private(set) var grid: [Int] = []
-    /// A property layer's values as the Metal view draws them through the Display section's colormap and window.
-    package let propertyPresentation = ImagePresentation()
+    /// A property layer's values as the Metal view draws them through the Display section's colormap and window, opening on the layer's
+    /// 1st to 99th percentile (a KAM map's few high points otherwise drew the rest black).
+    package let propertyPresentation: ImagePresentation = {
+        let presentation = ImagePresentation()
+        presentation.defaultQuantiles = 0.01...0.99
+        return presentation
+    }()
     /// The keys of the map's indexed phases with a point group, in phase id order, once made.
     package private(set) var keys: [PhaseKey] = []
 
