@@ -47,6 +47,8 @@ extension LayoutPolicy {
     static let indexingKeyHeight: CGFloat = 56
     /// The Maps room's colour key in the bottom pane: one phase's key image this wide (its own aspect sets the height).
     static let mapsKeyWidth: CGFloat = 150
+    /// The margin either side of a colour key for its corner labels ("[001]" sits centred on the left corner and was cut off).
+    static let mapsKeyLabelInset: CGFloat = 18
     /// The Maps room's bottom pane under the map: the keys' height plus their titles (rule 4).
     static let mapsKeyPaneMinimum: CGFloat = 140
     /// A phase's colour square in the Maps room's legend and inspector, and the IPF colour swatch under the unit cell.
@@ -56,6 +58,8 @@ extension LayoutPolicy {
     static let overlayMasterPictureWidth: CGFloat = 180
     /// One stereogram or ODF section in the Maps room's Pole figures and ODF tabs (its title and colour bar under it).
     static let mapsTextureFigureSide: CGFloat = 150
+    /// An ODF φ₂ section's width: three times wider than tall (φ₁ over 0–360°, Φ over 0–90° for cubic), it read as a strip at 150 pt.
+    static let mapsODFSectionWidth: CGFloat = 240
     /// The colour bar under a texture figure, and the boundary and trace line widths on the map (points).
     static let mapsColourBarHeight: CGFloat = 8
     static let mapsBoundaryLineWidth: CGFloat = 1

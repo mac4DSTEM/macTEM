@@ -417,6 +417,7 @@ struct MapsKeyPane: View {
 
     private func keyCell(_ key: OrientationMapSession.PhaseKey, direction: SampleDirection) -> some View {
         let height = LayoutPolicy.mapsKeyWidth * CGFloat(key.image.height) / CGFloat(max(key.image.width, 1))
+        let inset = LayoutPolicy.mapsKeyLabelInset
         return VStack(alignment: .leading, spacing: 4) {
             Text(verbatim: "\(key.name) · \(key.pointGroup) · IPF-\(direction.rawValue.uppercased())").font(.caption).lineLimit(1)
             ZStack(alignment: .topLeading) {
@@ -425,16 +426,17 @@ struct MapsKeyPane: View {
                         .resizable()
                         .interpolation(.high)
                         .frame(width: LayoutPolicy.mapsKeyWidth, height: height)
+                        .padding(.leading, inset)
                 }
                 ForEach(Array(key.labels.enumerated()), id: \.offset) { _, label in
                     Text(verbatim: label.text)
                         .font(.caption2.monospacedDigit())
                         .fixedSize()
-                        .position(x: CGFloat(label.column) * LayoutPolicy.mapsKeyWidth / CGFloat(key.image.width),
+                        .position(x: inset + CGFloat(label.column) * LayoutPolicy.mapsKeyWidth / CGFloat(key.image.width),
                                   y: CGFloat(label.row) * height / CGFloat(key.image.height) + 8)
                 }
             }
-            .frame(width: LayoutPolicy.mapsKeyWidth, height: height + 16, alignment: .topLeading)
+            .frame(width: LayoutPolicy.mapsKeyWidth + 2 * inset, height: height + 16, alignment: .topLeading)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Colour key of \(key.name), IPF-\(direction.rawValue.uppercased())")
