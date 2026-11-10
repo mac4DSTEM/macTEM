@@ -51,8 +51,7 @@ enum SEMSessionLedger {
         if let row = mapRow(maps, record: record, locale: locale) { rows.append(row) }
         if let row = grainsRow(maps, record: record, locale: locale) { rows.append(row) }
         if let row = textureRow(maps, locale: locale) { rows.append(row) }
-        // The SEM-EDS rows keep the reader's locale until the EDS room's rework lands (macTEM#267).
-        rows += compositionRows(eds)
+        rows += compositionRows(eds, locale: locale)
         rows += exportRows(record)
         return rows
     }

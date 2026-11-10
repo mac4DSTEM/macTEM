@@ -304,6 +304,12 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         let settings = MapAnalysisSettings(boundaryDegrees: 2.5, minimumSize: 10, kamMaxDegrees: 5)
         XCTAssertEqual(MapsRoomFormat.analysisFields(settings, locale: german).map(\.value), ["2,5°", "10 points", "5°"])
         XCTAssertEqual(MapsRoomFormat.angle(1.234, digits: 2, locale: german), "1,23")
+
+        // The SEM-EDS rows' words take it too, and never group their counts.
+        XCTAssertEqual(SEMEDSFormat.keV(5.8987, locale: german), "5,899")
+        XCTAssertEqual(SEMEDSFormat.keV(5.8987, locale: report), "5.899")
+        XCTAssertEqual(SEMEDSFormat.counts(12345, locale: german), "12345")
+        XCTAssertEqual(SEMEDSFormat.counts(12345, locale: report), "12345")
     }
 
     /// The record keeps a room's lines with their times, not the "…ing" lines of a run in flight.
