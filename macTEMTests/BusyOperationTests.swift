@@ -7,6 +7,7 @@
 //
 
 import XCTest
+import ShellLayout
 import TEMCore
 import TEMSession
 @testable import macTEM
@@ -204,6 +205,36 @@ nonisolated final class BusyOperationTests: XCTestCase {
         XCTAssertTrue(state.indexing.wasStopped)
         XCTAssertNil(BusyOperation.backgroundRoom(state))
         XCTAssertFalse(RoomPrimaryAction.canStop(state))
+    }
+
+    /// A room without a verb (the Image room) offers Cancel in the verb's place for a run left going in another room, as ShellLayout's
+    /// `PrimaryAction` documents (no title, a run in flight keeps its Cancel), and the Cancel stops that run; Workspace > Run (⌘R) stays
+    /// off and reads "Run". Red before: `current` was nil there, so the toolbar showed the run and nothing on screen stopped it.
+    @MainActor func testARoomWithoutAVerbOffersCancelForARunInAnotherRoom() async throws {
+        let state = AppState()
+        await state.ebsd.bind(try DemoDocuments.ebsd()).value
+        for _ in 0..<6000 where state.ebsd.isBusy || state.ebsd.isComputingMean || state.maps.isBusy {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        state.navigation.workspaceArea = .image
+        XCTAssertNil(RoomPrimaryAction.current(state), "nothing runs: no verb, no Cancel")
+        XCTAssertEqual(PrimaryActionPresentation.of(RoomPrimaryAction.current(state)), .hidden)
+        XCTAssertTrue(state.indexing.canIndex, state.indexing.refusal ?? "")
+
+        let run = state.indexing.index()
+        XCTAssertTrue(state.indexing.isIndexing)
+        let action = try XCTUnwrap(RoomPrimaryAction.current(state), "the Index runs behind the Image room: its Cancel is offered")
+        XCTAssertNil(action.title, "the Image room has no verb")
+        XCTAssertEqual(PrimaryActionPresentation.of(action), .cancel)
+        XCTAssertEqual(action.operationName, "Indexing · Indexing with Hough…", "the Cancel says which room and what it runs")
+        XCTAssertFalse(RoomPrimaryAction.canRun(action), "⌘R stays off")
+        XCTAssertEqual(RoomPrimaryAction.runTitle(state), "Run")
+
+        action.stop?()
+        XCTAssertFalse(state.indexing.isIndexing, "the Cancel stops the run it names")
+        XCTAssertNil(RoomPrimaryAction.current(state), "the Cancel goes with the run")
+        await run.value
+        XCTAssertTrue(state.indexing.wasStopped)
     }
 
     /// The toolbar shows the other room's run while the shown room is idle, and the Stop item takes its title. Red under: the toolbar

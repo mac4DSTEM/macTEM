@@ -43,7 +43,11 @@ nonisolated final class EDXRoomTests: XCTestCase {
         XCTAssertEqual(action?.title, "Quantify")
         XCTAssertEqual(action?.isEnabled, state.edx.canQuantify)
         state.navigation.workspaceArea = .image
-        XCTAssertNil(RoomPrimaryAction.current(state), "the Image room has no verb")
+        XCTAssertNil(RoomPrimaryAction.current(state)?.title, "the Image room has no verb")
+        // The bind's refresh still runs in the EDS room (nothing here waits for it), so the Image room offers its Cancel and no verb.
+        XCTAssertEqual(PrimaryActionPresentation.of(RoomPrimaryAction.current(state)), .cancel)
+        state.edx.stop()
+        XCTAssertNil(RoomPrimaryAction.current(state), "nothing runs: no verb, no Cancel")
     }
 
     /// While a spectrum image opens the toolbar's verb is running, so it shows Stop, and Stop ends the open (Paul's drive, 2026-10-23).
