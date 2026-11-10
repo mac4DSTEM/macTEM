@@ -10,6 +10,7 @@
 
 import Foundation
 import Observation
+import Synchronization
 import SpectroCore
 import SpectroEDX
 import SpectroEELS
@@ -1312,15 +1313,19 @@ package final class EELSSession {
 }
 
 /// Lets a progress fraction through when it has moved by a percent since the last one that went (and at the end). Called from the compute
-/// thread; the lock makes it safe to share.
-private nonisolated final class ProgressGate: @unchecked Sendable {
-    private let lock = NSLock()
-    private var last = -1.0
+/// thread; the last fraction that went is behind a mutex, so the compiler checks that the gate is safe to share.
+private nonisolated final class ProgressGate: Sendable {
+    private let last: Mutex<Double>   // the last fraction that went; -1 before any
+
+    init() {
+        last = Mutex(-1.0)
+    }
 
     func shouldReport(_ fraction: Double) -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        guard fraction >= 1 || fraction - last >= 0.01 else { return false }
-        last = fraction
-        return true
+        last.withLock { sent -> Bool in
+            guard fraction >= 1 || fraction - sent >= 0.01 else { return false }
+            sent = fraction
+            return true
+        }
     }
 }

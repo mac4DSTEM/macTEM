@@ -252,6 +252,15 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertNil(RoomProgress.fraction(room: .eels, appState: appState), "finished: no fraction")
     }
 
+    /// The gate that lets one progress report through per percent is shared with the compute thread behind a mutex, so the compiler checks that it
+    /// is safe to share, and the session's file marks nothing `@unchecked Sendable`. Red under: a lock beside a `var` the compiler was told not to check.
+    func testTheProgressGateIsCheckedByTheCompiler() throws {
+        let session = squeezed(try source("Sources/TEMSession/EELSSession.swift"))
+        XCTAssertTrue(session.contains("private nonisolated final class ProgressGate: Sendable { private let last: Mutex<Double>"))
+        XCTAssertFalse(session.contains("@unchecked Sendable"), "nothing in the session is taken on trust")
+        XCTAssertFalse(session.contains("NSLock"))
+    }
+
     // MARK: The chassis (slice 1, docs/design/eels-room.md)
 
     private func source(_ path: String) throws -> String {
