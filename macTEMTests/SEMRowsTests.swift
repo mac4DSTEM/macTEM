@@ -26,6 +26,23 @@ nonisolated final class SEMRowsTests: XCTestCase {
         Dictionary(uniqueKeysWithValues: SEMRows.rows(m, locale: locale).map { ($0.id, $0) })
     }
 
+    /// An SEM file's Acquisition section shows each field once: the TEM rows the SEM rows repeat and the TEM-only placeholders go,
+    /// and a TEM reading the SEM rows lack stays (D-SEM-108). Mutation: all nine TEM rows above the SEM rows, as on the drive.
+    func testTheTEMRowsBesideTheSEMRowsShowEachFieldOnce() {
+        func row(_ id: String, _ value: String, placeholder: Bool = false) -> AcquisitionRows.Row {
+            AcquisitionRows.Row(id: id, label: id, value: value, note: nil, isPlaceholder: placeholder, spokenValue: value)
+        }
+        let tem = [row("highTension", "25 kV"), row("magnification", "105×"), row("cameraLength", "Not recorded", placeholder: true),
+                   row("detector", "HE-SE2"), row("dwell", "0.05 µs"), row("exposure", "Not recorded", placeholder: true),
+                   row("acquired", "2015-12-23 09:40:32"), row("instrument", "Merlin"), row("mode", "Not recorded", placeholder: true)]
+        XCTAssertEqual(AcquisitionRows.rows(beside: zeiss(), from: tem, locale: en).map(\.id), [],
+                       "every TEM reading is an SEM row already, and the placeholders are TEM-only")
+        var bare = zeiss()
+        bare.magnification = nil; bare.magnificationText = nil
+        XCTAssertEqual(AcquisitionRows.rows(beside: bare, from: tem, locale: en).map(\.id), ["magnification"],
+                       "the TIFF's magnification stays when the vendor rows have none")
+    }
+
     func testTheZeissRowsInTheDesignsOrder() {
         let rows = SEMRows.rows(zeiss(), locale: en)
         XCTAssertEqual(rows.map(\.id), ["instrument", "detector", "hv", "beamCurrent", "workingDistance", "magnification", "dwell",

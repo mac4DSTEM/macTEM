@@ -83,6 +83,21 @@ nonisolated enum AcquisitionRows {
         return rows
     }
 
+    /// The TEM rows an SEM TIFF keeps above its vendor rows: a field the SEM rows already show (Instrument, Detector, HV, Magnification,
+    /// Dwell, Date) is not shown twice, and Camera length, Exposure and Mode, which an SEM micrograph never records, are left out; a
+    /// TEM reading the SEM rows lack (a TIFF tag's magnification, say) stays. The drive of 2026-11-08 showed Instrument, Detector and
+    /// Dwell twice and three "Not recorded" rows on every SEM file (D-SEM-108).
+    static func rows(beside sem: SEMImageMetadata, from rows: [Row], locale: Locale = .autoupdatingCurrent) -> [Row] {
+        let shownBySEM = Set(SEMRows.rows(sem, locale: locale).map(\.id))
+        let counterpart: [AcquisitionMetadata.Field: String] = [.highTension: "hv", .magnification: "magnification", .detector: "detector",
+                                                                .dwell: "dwell", .acquired: "date", .instrument: "instrument"]
+        return rows.filter { row in
+            guard !row.isPlaceholder, let field = AcquisitionMetadata.Field(rawValue: row.id.replacingOccurrences(of: ".second", with: "")),
+                  let sem = counterpart[field] else { return false }
+            return !shownBySEM.contains(sem)
+        }
+    }
+
     // MARK: Fields
 
     static func label(of field: AcquisitionMetadata.Field) -> String {
@@ -173,7 +188,8 @@ struct AcquisitionSection: View {
     var sem: SEMImageMetadata? = nil
 
     var body: some View {
-        let rows = AcquisitionRows.rows(metadata, formatExtension: formatExtension)
+        let all = AcquisitionRows.rows(metadata, formatExtension: formatExtension)
+        let rows = sem.map { AcquisitionRows.rows(beside: $0, from: all) } ?? all
         InspectorSection("Acquisition") {
             ForEach(rows) { row in
                 AcquisitionRowView(row: row)
