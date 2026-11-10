@@ -6,6 +6,7 @@
 //
 
 import XCTest
+import ShellLayout
 import TEMCore
 import TEMSession
 @testable import macTEM
