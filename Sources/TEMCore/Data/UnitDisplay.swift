@@ -1,7 +1,7 @@
 //
 //  UnitDisplay.swift
-//  Role: how a stored unit and a number are SHOWN. The conversions (Å, nm, pm per pixel, the canonical spellings) are
-//        ImagoKit's `LengthUnit` (ImagoCore 0.5.0); the kit formats nothing for display, so the two display rules live here.
+//  Role: how a stored unit, a number and a count are SHOWN. The conversions (Å, nm, pm per pixel, the canonical spellings) are
+//        ImagoKit's `LengthUnit` (ImagoCore 0.5.0); the kit formats nothing for display, so the display rules live here.
 //        Display boundary only: nothing stored changes.
 //
 
@@ -30,4 +30,13 @@ package nonisolated enum UnitDisplay {
         guard value.isFinite else { return "—" }
         return value.formatted(.number.locale(locale).grouping(.never).precision(.significantDigits(1...digits)))
     }
+
+    /// A count with its noun, the noun in the singular for one: "1 grain", "0 grains", "102 grains" (English, as the app is). The
+    /// number as Swift writes an Int, no grouping; where the caller writes the number its own way ("3,812 points"), `noun` alone.
+    package static func count(_ n: Int, _ singular: String, _ plural: String) -> String {
+        "\(n) \(noun(n, singular, plural))"
+    }
+
+    /// The noun for `n` things: `singular` for one, `plural` for any other count.
+    package static func noun(_ n: Int, _ singular: String, _ plural: String) -> String { n == 1 ? singular : plural }
 }

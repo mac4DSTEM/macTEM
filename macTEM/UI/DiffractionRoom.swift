@@ -224,7 +224,7 @@ private struct DiffractionPatternPane: View {
             .accessibilityElement(children: .ignore)
             .accessibilityIdentifier("diffraction.pane")
             .accessibilityLabel("Diffraction pattern")
-            .accessibilityValue("\(image.width) by \(image.height) pixels, \(analysis.rings.count) rings, \(analysis.spots.count) spots")
+            .accessibilityValue("\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))")
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }

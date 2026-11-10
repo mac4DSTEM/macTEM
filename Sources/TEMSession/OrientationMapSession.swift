@@ -299,7 +299,8 @@ package final class OrientationMapSession {
         resetAnalysis()
         slipFiles = Self.defaultSlipFiles(document.map)
         grid = OrientationMaps.pointIndexGrid(document.map)
-        onEvent?("Opened \(document.fileName) — orientation map \(rows) × \(columns), \(document.map.phasesInData.names.filter { $0 != PhaseList.notIndexedName }.count) phases")
+        let phases = document.map.phasesInData.names.filter { $0 != PhaseList.notIndexedName }.count
+        onEvent?("Opened \(document.fileName) — orientation map \(rows) × \(columns), \(UnitDisplay.count(phases, "phase", "phases"))")
         startKeys(document)
         return draw()
     }
@@ -579,7 +580,8 @@ package final class OrientationMapSession {
         updateSlip()
         followPinnedGrain()
         let s = result.settings
-        onEvent?("Segmented \(result.table.count) grains (boundaries above \(Self.degrees(s.boundaryDegrees))°, at least \(s.minimumSize) points)")
+        onEvent?("Segmented \(UnitDisplay.count(result.table.count, "grain", "grains")) (boundaries above \(Self.degrees(s.boundaryDegrees))°, "
+                 + "at least \(UnitDisplay.count(s.minimumSize, "point", "points")))")
         if case .derived(let d) = layer, !derivedLayers.contains(d) { layer = .derived(.grains) }
         if case .derived = layer { draw() }
     }

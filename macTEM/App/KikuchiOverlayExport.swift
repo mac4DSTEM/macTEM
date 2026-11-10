@@ -106,7 +106,7 @@ nonisolated enum KikuchiOverlayExport {
             }
         }
         guard let image = context.makeImage() else { return nil }
-        let description = "Kikuchi overlay of \(overlay.phase): \(overlay.simulation.lines.count) bands, \(overlay.simulation.zoneAxes.count) zone axes; "
+        let description = "Kikuchi overlay of \(overlay.phase): \(overlay.drawnWords); "
             + "pattern enlarged \(s)x; macTEM"
         // A tEXt Description, as the Image room's PNGs carry theirs: ImageIO's PNG property would become an XMP packet instead.
         return try? ImageExport.encodePNG(image, title: fileName, software: "macTEM", description: description)

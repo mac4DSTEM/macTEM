@@ -297,12 +297,12 @@ enum SEMSessionLedger {
         let gos = analysis.table.map(\.gosDegrees).filter(\.isFinite)
         if !gos.isEmpty {
             let mean = gos.reduce(0, +) / Double(gos.count)
-            out.append(SEMSessionField("Mean GOS", "\(MapsRoomFormat.angle(mean, digits: 2, locale: locale))° over \(gos.count) grains"))
+            out.append(SEMSessionField("Mean GOS", "\(MapsRoomFormat.angle(mean, digits: 2, locale: locale))° over \(UnitDisplay.count(gos.count, "grain", "grains"))"))
         }
         let kam = analysis.grains.kam.filter(\.isFinite)
         if !kam.isEmpty {
             let mean = kam.reduce(0, +) / Double(kam.count) * 180 / Double.pi
-            out.append(SEMSessionField("Mean KAM", "\(MapsRoomFormat.angle(mean, digits: 2, locale: locale))° over \(kam.count) points"))
+            out.append(SEMSessionField("Mean KAM", "\(MapsRoomFormat.angle(mean, digits: 2, locale: locale))° over \(UnitDisplay.count(kam.count, "point", "points"))"))
         }
         return out
     }
@@ -317,7 +317,7 @@ enum SEMSessionLedger {
         fields.append(SEMSessionField("Pole figures", MapsRoomFormat.textureCaption(texture, odf: false)))
         if !texture.odfSections.isEmpty { fields.append(SEMSessionField("ODF", MapsRoomFormat.textureCaption(texture, odf: true))) }
         let largest = texture.poleFigures.map(\.maximum).filter(\.isFinite).max()
-        var value = "\(texture.points) points · " + texture.poleFigures.map(\.title).joined(separator: " ")
+        var value = UnitDisplay.count(texture.points, "point", "points") + " · " + texture.poleFigures.map(\.title).joined(separator: " ")
         if let largest { value += " · up to \(MapsRoomFormat.number(largest, locale: locale)) MRD" }
         return SEMSessionRow(id: "texture", kind: .texture, label: "\(texture.phaseName) texture", value: value,
                              source: "Maps · \(document.fileName)", fields: fields, methods: [.orientationMap, .texture])

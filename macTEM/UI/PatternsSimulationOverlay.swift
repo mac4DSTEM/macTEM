@@ -141,7 +141,7 @@ struct PatternsSimulationSection: View {
     var body: some View {
         let summary: String? = {
             guard session.overlayOn, case .success(let p)? = session.overlay else { return nil }
-            return "\(p.phase): \(p.simulation.lines.count) bands, \(p.simulation.zoneAxes.count) zone axes on this pattern, from the orientation and projection centre the file stores here."
+            return "\(p.phase): \(p.drawnWords) on this pattern, from the orientation and projection centre the file stores here."
         }()
         SimulationOverlayControls(ids: .patterns, isOn: session.overlayOn, setOn: { session.setOverlayOn($0) },
                                   settings: session.overlaySettings, setSettings: { session.setOverlaySettings($0) },

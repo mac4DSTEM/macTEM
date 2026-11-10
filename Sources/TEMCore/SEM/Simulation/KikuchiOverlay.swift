@@ -79,6 +79,15 @@ package nonisolated enum KikuchiOverlay {
         /// The simulated pattern's shape (the detector's), 0 without one.
         package var simulatedRows = 0
         package var simulatedColumns = 0
+
+        /// What it draws, counted (`drawnWords(bands:zoneAxes:)`): the Simulation sections' summaries and the exported figure's
+        /// Description say it in these words.
+        package var drawnWords: String { KikuchiOverlay.drawnWords(bands: simulation.lines.count, zoneAxes: simulation.zoneAxes.count) }
+    }
+
+    /// An overlay's bands and zone axes, counted, one in the singular: "12 bands, 4 zone axes", "1 band, 1 zone axis".
+    package static func drawnWords(bands: Int, zoneAxes: Int) -> String {
+        UnitDisplay.count(bands, "band", "bands") + ", " + UnitDisplay.count(zoneAxes, "zone axis", "zone axes")
     }
 
     // MARK: Bands

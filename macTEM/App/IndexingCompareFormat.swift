@@ -47,7 +47,7 @@ nonisolated enum IndexingCompareFormat {
     /// "4,124 of 4,125 points · median 0.44° · 1.0 % over 2° · 1 without a Hough orientation · 3 of unpaired phases".
     static func footer(_ c: IndexingComparison, a: IndexingCompareSource, b: IndexingCompareSource,
                        locale: Locale = .autoupdatingCurrent) -> String {
-        var parts = ["\(count(c.comparedCount, locale)) of \(count(c.a.pointCount, locale)) points"]
+        var parts = ["\(count(c.comparedCount, locale)) of \(count(c.a.pointCount, locale)) \(UnitDisplay.noun(c.a.pointCount, "point", "points"))"]
         if let median = c.medianDegrees { parts.append("median \(IndexingTableFormat.angle(median, digits: 2, locale: locale))°") }
         if let share = c.fractionOverThreshold {
             parts.append("\(percent(share, locale)) over \(IndexingTableFormat.angle(IndexingComparison.thresholdDegrees, digits: 0, locale: locale))°")

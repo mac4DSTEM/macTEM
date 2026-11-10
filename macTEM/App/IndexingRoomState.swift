@@ -165,9 +165,9 @@ enum IndexingInfoFormat {
         "\(result.indexedCount.formatted(.number.locale(locale))) of \(result.pointCount.formatted(.number.locale(locale)))"
     }
 
-    /// "3,812 points".
+    /// "3,812 points", "1 point".
     nonisolated static func points(_ count: Int, locale: Locale = .autoupdatingCurrent) -> String {
-        "\(count.formatted(.number.locale(locale))) points"
+        "\(count.formatted(.number.locale(locale))) \(UnitDisplay.noun(count, "point", "points"))"
     }
 
     /// "(0.4215, 0.2163, 0.5323) · mean of the file's".
