@@ -7,12 +7,13 @@
 //        write the same file through the room's own save panel, or into a UI journey's export folder. The rules are pure functions,
 //        pinned without a window; `ExportCommands` draws the items.
 //
-//        The rooms: EDS (the shared room's `EDXRoomState.export`), EELS (`EELSRoomState.export`) and Patterns
-//        (`PatternsRoomState.export`).
+//        The rooms: EDS (the shared room's `EDXRoomState.export`), EELS (`EELSRoomState.export`), Patterns
+//        (`PatternsRoomState.export`) and Indexing (`IndexingRoomState.export`).
 //
 
 import ShellEDXModel
 import ShellSpectroscopy
+import TEMCore
 import TEMSession
 
 // MARK: - EDS
@@ -157,6 +158,36 @@ extension ExportSnapshot {
     }
 }
 
+// MARK: - Indexing
+
+/// Whether the Indexing room's File-menu exports are enabled, by the one rule of the room's own Export buttons (`IndexingExportSection`).
+nonisolated struct IndexingExportAvailability: Sendable, Equatable {
+    /// All five (the map, the results, the .ang, the .ctf and the method): the run on screen has reached a point.
+    let indexed: Bool
+}
+
+extension ExportSnapshot {
+    /// The Indexing room's exports are listed only while that room shows a dataset: nil in any other room and with none open.
+    /// Exhaustive over the rooms on purpose, as `availability` is.
+    static func indexingAvailability(area: WorkspaceArea, hasDataset: Bool, reachedPoints: Int) -> IndexingExportAvailability? {
+        let inRoom: Bool
+        switch area {
+        case .indexing: inRoom = true
+        case .image, .fft, .diffraction, .results, .edx, .eels, .patterns, .maps: inRoom = false
+        }
+        guard inRoom, hasDataset else { return nil }
+        return IndexingExportAvailability(indexed: reachedPoints > 0)
+    }
+
+    static func indexingAvailability(of appState: AppState) -> IndexingExportAvailability? {
+        // The session is read only where it decides something: in the Indexing room.
+        let area = appState.navigation.workspaceArea
+        guard area == .indexing else { return nil }
+        let session = appState.indexing
+        return indexingAvailability(area: area, hasDataset: session.hasDataset, reachedPoints: session.result?.reachedCount ?? 0)
+    }
+}
+
 // MARK: - The calls
 
 /// What a room's File-menu export does: the room state's own export, as the room's inspector button calls it.
@@ -179,5 +210,11 @@ enum RoomExports {
     /// folder, with the room's line in the status line (what is missing, when there is nothing to write).
     static func patterns(_ kind: PatternsExportKind, appState: AppState) {
         appState.patternsRoom.export(kind, from: appState.ebsd, directory: appState.exportDirectory) { appState.statusText = $0 }
+    }
+
+    /// The Indexing room's: the bytes of `kind` from the run on screen, to the room's save panel or into a UI journey's export
+    /// folder, with the room's line in the status line.
+    static func indexing(_ kind: IndexingExportKind, appState: AppState) {
+        appState.indexingRoom.export(kind, from: appState.indexing, directory: appState.exportDirectory) { appState.statusText = $0 }
     }
 }
