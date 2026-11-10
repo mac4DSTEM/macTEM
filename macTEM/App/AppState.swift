@@ -1,13 +1,44 @@
 //
 //  AppState.swift
-//  Role: the window's composition root — the app's one window (ADR 007). It composes the owners and holds only
-//        the shell's own feedback channels. A feature's state lives in its owner, never here: a new stored
-//        property names its owner first.
+//  Role: the window's composition root — the app's one window (ADR 007). It composes the owners, holds the shell's own
+//        feedback channels, and stores the few facts listed under "Stored here", each with the reason it has no owner.
+//        A feature's state lives in its owner: a new stored property names its owner first, or joins that list with
+//        its reason.
 //
-//  Owners: `navigation` (rooms and panes, App/), `openItems` (the files open in the window, each with its own
-//  session, presentation, marks and viewport, TEMSession), `activityLog` (the Output pane, App/), `imageRoomTools`
-//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession), `semRecord` (the SEM rooms' exports and Output lines for the session report, App/), `recents` (File > Open Recent's last eight files, TEMSession), `lastSession` (File > Reopen Last Session's record, TEMSession), `runActivity` (the activity held while a room works, App/). `imageSession`, `presentation` and `measurements` are the selected
-//  item's, forwarded, so the views that read them did not change with V1-13.
+//  Owners (each a `let` below; in brackets, where its type lives):
+//  - the window: `navigation` (rooms and panes, App/), `openItems` (the files open in the window, each with its own
+//    session, presentation, marks and viewport, TEMSession), `activityLog` (the Output pane, MacEMUI), `recents` (File >
+//    Open Recent's last eight files, TEMSession), `lastSession` (File > Reopen Last Session's record, TEMSession),
+//    `runActivity` (the activity held while a room works, App/), `launch` (the launch arguments, a value, App/).
+//  - Image and Results: `imageRoomTools` (the Image room's measuring tool and readout, App/), `resultsRoom` (the Results
+//    room's selection and shown groups, App/).
+//  - EDS: `edx` (the spectrum image, picks and fit) and `edxRoom` (its spectrum window and export in flight), both the
+//    shared room's, MacEMUI; `semEDS` (the SEM rows of an SEM spectrum, App/).
+//  - EELS: `eels` (the spectrum image and what the room makes of it, TEMSession) and `eelsRoom` (its view state, App/).
+//  - Patterns: `ebsd` (the dataset, position and pictures, TEMSession) and `patternsRoom` (its view state, App/).
+//  - Indexing: `indexing` (the phases, settings and run on the Patterns room's dataset, TEMSession) and `indexingRoom`
+//    (its view state, App/).
+//  - Maps: `maps` (the orientation map, layer and pictures, TEMSession) and `mapsRoom` (its view state, App/).
+//  - the SEM session: `semRecord` (the SEM rooms' exports and Output lines for the session report, App/).
+//  `imageSession`, `presentation` and `measurements` are the selected item's, forwarded, so the views that read them did
+//  not change with V1-13.
+//
+//  The shell's feedback channels: `statusText` (the infobar's line, each also an Output line), `errorMessage` (the alert),
+//  `closeRequest` (the question before files with unsaved marks close), `openImageRequest` (the open panel's request
+//  counter) and `lastOpen` (the newest Open in flight, which a test awaits).
+//
+//  Stored here, against the rule, each for its reason:
+//  - `diffractionReadout`, the status line's readout over the pattern: the Diffraction room has no room state yet (every
+//    other room keeps its readout in its own); it moves there when the room gets one.
+//  - `spectrumCompanionImages`, `spectrumScans`, `edsFiles`, `eelsFiles`, what the Open found out about each file (an
+//    image that is also a spectrum image, a spectrum image's scan, the files that opened into the EDS and the EELS room):
+//    they span rooms, since one file can open into several, so no room owns them. The Open writes them and the pure rules
+//    beside it read them (`roomsToFollow`, `edsFitBelongs`, `eelsResultsBelong`, AppState+Open.swift), with the room list
+//    and the Open Files rows; they belong in one owner together with those rules.
+//  - `busySince`, when each room last became busy, for the toolbar's busy clock (`RunClock`): it spans the rooms and is
+//    not observed (the clock ticks on its own), so it is no room's view state.
+//  - `cropsDatabar`, whether an SEM image's databar is hidden: a preference of the app kept in UserDefaults
+//    (`SEMImageSettings`), stored here so the views observe it.
 //
 
 import ShellLayout
@@ -106,8 +137,8 @@ final class AppState {
     /// The files that opened into the EDS room and into the EELS room: a room follows the selected file (`spectrumRoomsFollowSelection`).
     var edsFiles: Set<URL> = []
     var eelsFiles: Set<URL> = []
-    /// When each spectrum room last became busy (`markBusy`): the start of the toolbar's busy clock (`RunClock`). Not observed: the
-    /// clock ticks on its own.
+    /// When each room with a busy line last became busy (`markBusy`): the start of the toolbar's busy clock (`RunClock`). Not
+    /// observed: the clock ticks on its own.
     @ObservationIgnored var busySince: [WorkspaceArea: Date] = [:]
 
     /// The launch arguments this window started with (`--export-dir` is read where an export chooses its URL).
