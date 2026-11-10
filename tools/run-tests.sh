@@ -5,7 +5,8 @@
 #   unit        the XCTest suite (macTEMTests), unsigned, in a scratch DerivedData; then the executed tests are
 #               reconciled BY NAME (Class.method, from the result bundle) against the `func test…()` declarations,
 #               and any difference fails (a stale bundle, a renamed test or one in the wrong class passes a count);
-#               each skipped test is named with its XCTSkip's reason
+#               each skipped test is named with its XCTSkip's reason; the compiler warnings in the app's own sources
+#               and tests are listed and counted (not yet a gate)
 #   core        `swift build` of the package from a fresh scratch path: TEMCore and TEMSession — the layering gate
 #               (a package target cannot reach the app's App/ or UI/), the Swift 6 gate, and zero warnings
 #   scientific  the reference harnesses (the `scientific` array below): every one runs, a red one does not stop the rest,
@@ -169,6 +170,15 @@ unit_tests() (
   # A compiler crash prints no `error:` either: its signal and stack dump are the reason.
   grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/unit.log" | head -40 || true
   echo "unit: xcodebuild exit $rc"
+  # The app's own compiler warnings, listed and counted, not yet a gate: `core` holds TEMCore and TEMSession to zero, and nothing
+  # held macTEM/App, macTEM/UI or the tests. Each distinct `warning:` line whose path is under this tree's macTEM/ or macTEMTests/
+  # (not a package checkout, not DerivedData), once, the first 200 of them, then the count. `${ROOT:A}` as well: the compiler names a
+  # file by its resolved path where the tree is reached through a symlink. The number is a cold build's (CI): a warm DerivedData
+  # recompiles little and so prints few. awk exits 0 with or without a match, and `|| true` keeps this from ever changing the verdict.
+  awk -v root="$ROOT/" -v real="${ROOT:A}/" '
+    function under(dir) { return index($0, root dir "/") == 1 || index($0, real dir "/") == 1 }
+    (under("macTEM") || under("macTEMTests")) && index($0, ": warning:") && !seen[$0]++ { if (++n <= 200) print }
+    END { if (n > 200) print "  (" (n - 200) " more, not listed)"; print "unit: " (n + 0) " app warnings (not yet a gate)" }' "$work/unit.log" || true
   # Counted from the result bundle, not the log: Xcode 27's parallel runner prints no suite summary, and its
   # stdout can drop a result line when its own debug output interleaves (measured 2026-10-12).
   if ! xcrun xcresulttool get test-results summary --path "$work/unit.xcresult" > "$work/summary.json" 2>/dev/null; then
