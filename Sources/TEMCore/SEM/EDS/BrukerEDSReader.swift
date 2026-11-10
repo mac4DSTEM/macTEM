@@ -512,7 +512,7 @@ package nonisolated enum BrukerEDSReader {
     static func readSPX(url: URL) throws -> SEMEDSFile {
         let name = url.lastPathComponent
         let raw: [UInt8]
-        do { raw = [UInt8](try Data(contentsOf: url)) } catch { throw SEMEDSReadError("\(name) could not be read.") }
+        do { raw = [UInt8](try Data(contentsOf: url)) } catch { throw SEMEDSReadError("\(name) could not be read: \(ErrorDetail.text(error))") }
         let root = try document(raw, name: name)
         guard let node = child(root, "ClassInstance", type: "TRTSpectrum") else {
             throw SEMEDSReadError("\(name) holds no Bruker spectrum (TRTSpectrum).")

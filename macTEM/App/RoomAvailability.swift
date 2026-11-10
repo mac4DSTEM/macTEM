@@ -55,7 +55,40 @@ nonisolated enum RoomAvailability {
     }
 }
 
+/// The documents the process area (the Output pane) sits under, as plain values: an image that is open and read, the EDS and EELS
+/// rooms' spectrum images, the Patterns room's dataset (the Indexing room reads it too) and the Maps room's map.
+nonisolated struct ProcessAreaDocuments: Equatable, Sendable {
+    var image = false
+    var eds = false
+    var eels = false
+    var dataset = false
+    var map = false
+
+    /// Whether the process area has a document to sit under in `room`: the room's own document (a spectrum image, the dataset or the
+    /// map, which need no open image; alignment design: Output is available there too), else an image. The pane opens on it and
+    /// View > Show Output (⌃⌘L) is on with it, so the menu item is never dimmed where the pane works (mac4DSTEM's one rule for both).
+    func has(in room: WorkspaceArea) -> Bool {
+        switch room {
+        case .edx: eds
+        case .eels: eels
+        case .patterns, .indexing: dataset
+        case .maps: map
+        case .image, .fft, .diffraction, .results: image
+        }
+    }
+}
+
 extension AppState {
+    /// What the process area sits under now. An image still loading is none: the area is shut while it loads.
+    var processAreaDocuments: ProcessAreaDocuments {
+        ProcessAreaDocuments(image: hasImage && !imageSession.isLoading, eds: edx.hasImage, eels: eels.hasImage,
+                             dataset: ebsd.hasDataset, map: maps.hasMap)
+    }
+
+    /// Whether the process area has a document to sit under in the room shown: the pane's rule (`WorkspaceView`) and View > Show
+    /// Output's.
+    var processAreaHasDocument: Bool { processAreaDocuments.has(in: navigation.workspaceArea) }
+
     var roomHoldings: RoomHoldings {
         RoomHoldings(images: !openItems.items.isEmpty,
                      eds: edx.hasImage || edx.isOpening,

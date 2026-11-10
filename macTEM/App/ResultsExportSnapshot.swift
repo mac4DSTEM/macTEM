@@ -27,13 +27,16 @@ nonisolated struct ExportResultsSnapshot: Sendable {
 
 extension SessionTailInput {
     /// The tail's input from the file's own owners: one place, for the Image room's tail and for the Results room's sentence.
+    /// A demo image made in memory can never be saved (its read gives no identity and there is no folder to keep a session
+    /// file in); every file read from disk, an image stack's too, can.
     init(item: OpenItem) {
         let measurements = item.measurements
         self.init(fileName: item.sessionFileName, sidecar: measurements.sidecar, notes: measurements.notes,
                   needsAccess: item.sidecarNeedsAccess,
                   newerVersion: measurements.lineage.isReadOnly ? measurements.lineage.fileVersion : nil,
                   hasMarks: !measurements.marks.isEmpty, isDirty: measurements.isDirty, canSave: item.canSave,
-                  isSaving: item.isSaving, savedAt: item.lastSavedAt, recording: measurements.recordingRefusal)
+                  isSaving: item.isSaving, savedAt: item.lastSavedAt, recording: measurements.recordingRefusal,
+                  canEverSave: !DemoDocuments.isDemo(item.url))
     }
 }
 

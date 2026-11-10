@@ -36,6 +36,9 @@ struct SessionTailInput: Equatable {
     /// Why the next mark would not be recorded (`ImageMeasurements.recordingRefusal`: the record is full, or at the
     /// session file's byte budget), else nil.
     var recording: SessionLineage.Refusal? = nil
+    /// Whether the file can ever be saved to a session file: false for a demo image made in memory, which has no file beside
+    /// which one could be kept. The tail then says so instead of promising Save to Session.
+    var canEverSave = true
 }
 
 /// One line of the tail.
@@ -96,8 +99,8 @@ enum SessionFormat {
             switch input.sidecar {
             case .none:
                 if input.hasMarks {
-                    tail.lines.append(.init(kind: .note, text:
-                        "Not saved. Save to Session (⌘S) keeps the marks in \(name), beside the image."))
+                    tail.lines.append(.init(kind: .note, text: input.canEverSave
+                        ? "Not saved. Save to Session (⌘S) keeps the marks in \(name), beside the image." : notKept))
                 }
             case .restored:
                 tail.lines.append(.init(kind: .note, text: input.isDirty
@@ -130,6 +133,9 @@ enum SessionFormat {
         tail.showsSave = input.canSave && !input.isSaving
         return tail
     }
+
+    /// The state line for marks on a file that can never be saved to a session file (a demo image made in memory).
+    static let notKept = "Marks on demo images are not kept in a session file."
 
     /// The Replace alert's two sentences, for a session file another app changed since this window read it.
     static func replaceTitle(name: String) -> String { "\(name) has changed since this window read it." }

@@ -9,6 +9,8 @@
 
 import Foundation
 import Observation
+import ShellEDXModel
+import SpectroCore
 import TEMCore
 
 @Observable
@@ -61,6 +63,17 @@ final class SEMEDSState {
             guard path == newPath else { return }
             failure = error.localizedDescription
         }
+    }
+
+    /// Picks the elements the file names (`Sample.elements`, exspy's list) in the shared EDS room, once the room is at rest after its open
+    /// and Auto ID: an SEM spectrum is quantified by the room's own Quantify, as a TEM one is (D-SEM-107). Auto ID's picks stay; an
+    /// element already picked is left as it is. Runs once per file (the caller's task is keyed by the path), so an element the person
+    /// takes out is not put back.
+    func pickFileElements(in session: EDXSession) async {
+        guard isSEMSpectrum, let elements = spectrum?.elements, !elements.isEmpty else { return }
+        await session.settled()
+        guard session.source?.metadata.filePath == path else { return }
+        for symbol in elements where !session.picks.contains(where: { $0.symbol == symbol }) { session.toggle(symbol) }
     }
 
     func setKFactor(_ value: Double, for line: String) {

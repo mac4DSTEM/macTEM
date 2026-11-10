@@ -293,6 +293,8 @@ package final class OpenItem: Identifiable {
     package fileprivate(set) var frame = 0
     /// The newest frame asked for, which may still be reading: the slider shows this one.
     package fileprivate(set) var requestedFrame = 0
+    /// Why the last frame asked for could not be read ("Frame 3 of 20 could not be read: …"); nil once a frame lands.
+    package fileprivate(set) var frameFailure: String?
     @ObservationIgnored fileprivate var frameGeneration = 0
     @ObservationIgnored fileprivate var frameTask: Task<Void, Never>?
     /// Opaque to every view, and re-made by every read: a renewed one is no news, so it is not observed.
@@ -302,7 +304,8 @@ package final class OpenItem: Identifiable {
 
     // MARK: The session record's per-file state (the marks and the lineage are `measurements`')
 
-    /// The identity of the pixels of the latest read: what a save describes. Kept while cold.
+    /// The identity of the pixels of the latest read: what a save describes. Kept while cold. An image stack's is its first
+    /// frame's with the stack as the object (`SessionSourceIdentity.ofStack`), whichever frame is shown.
     @ObservationIgnored package fileprivate(set) var openedIdentity: SessionSourceIdentity?
     /// A session file is beside the image and macOS has not given the app access to read it: saving is off until the
     /// user chooses it.
@@ -443,6 +446,7 @@ package final class OpenItem: Identifiable {
             stack = source
             frame = 0
             requestedFrame = 0
+            frameFailure = nil
         }
         // Wholesale, the thumbnail too: a file changed on disk since the last read must not keep the old picture.
         summary = ImageSummary(opened.image, thumbnail: opened.thumbnail)
@@ -470,18 +474,40 @@ package final class OpenItem: Identifiable {
         measurements.refresh(on: opened.image)
         summary = ImageSummary(opened.image, thumbnail: opened.thumbnail ?? summary?.thumbnail)
         frame = n
+        frameFailure = nil
         frameTask = nil
     }
 
-    fileprivate func requestFrame(_ n: Int, reader: @escaping FrameReader) {
+    /// A frame that could not be read (a page cut short, a file changed on disk): the slider goes back to the frame shown, so the
+    /// same frame can be asked for again, and `frameFailure` keeps the sentence, which is returned. Nil, and nothing changed, for
+    /// the failure of a request a newer one replaced.
+    fileprivate func failFrame(_ n: Int, of count: Int, generation: Int, error: any Error) -> String? {
+        guard generation == frameGeneration else { return nil }
+        let sentence = "Frame \(n + 1) of \(count) could not be read: \(ErrorDetail.text(error))"
+        requestedFrame = frame
+        frameFailure = sentence
+        frameTask = nil
+        return sentence
+    }
+
+    /// Asks for frame `n`, off the main actor; a newer request cancels this one, whose answer or failure is then dropped. A read
+    /// that fails is said (`failFrame`, then the list's `onFrameFailure`), not swallowed.
+    fileprivate func requestFrame(_ n: Int, reader: @escaping FrameReader, owner: OpenItems) {
         guard let source = stack, n >= 0, n < source.frameCount, n != requestedFrame else { return }
         requestedFrame = n
         frameGeneration &+= 1
         let generation = frameGeneration
         frameTask?.cancel()
-        frameTask = Task { [weak self] in
-            guard let opened = try? await reader(source, n), !Task.isCancelled else { return }
-            self?.publishFrame(opened, frame: n, generation: generation)
+        frameTask = Task { [weak self, weak owner] in
+            do {
+                let opened = try await reader(source, n)
+                guard !Task.isCancelled else { return }
+                self?.publishFrame(opened, frame: n, generation: generation)
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError),
+                      let sentence = self?.failFrame(n, of: source.frameCount, generation: generation, error: error) else { return }
+                owner?.onFrameFailure?(sentence)
+            }
         }
     }
 
@@ -540,6 +566,9 @@ package final class OpenItems {
     /// Told of every read that failed — a file that could not be opened (its item is removed) and an evicted file that
     /// could not be read again (its item stays, cold) — except a read that was dropped. The app shows its alert.
     @ObservationIgnored package var onReadFailure: (@MainActor (URL, any Error) -> Void)?
+    /// Told of every frame of an image stack that could not be read, with the sentence the item keeps in `frameFailure`, except
+    /// the failure of a request a newer one replaced. The app puts it in the status line.
+    @ObservationIgnored package var onFrameFailure: (@MainActor (String) -> Void)?
 
     @ObservationIgnored private let identify: (URL) -> FileIdentity
     @ObservationIgnored private let reader: ImageReader
@@ -563,9 +592,10 @@ package final class OpenItems {
 
     /// Shows frame `frame` (from 0) of `item`'s image stack: one frame is read, off the main actor, and replaces the one shown; a newer
     /// request drops the answer of an older one. Nothing for an item that is not a stack, a frame out of range, or no frame reader.
+    /// A frame that cannot be read leaves the one shown, says why (`OpenItem.frameFailure`, `onFrameFailure`) and can be asked again.
     package func showFrame(_ item: OpenItem, to frame: Int) {
         guard let frameReader else { return }
-        item.requestFrame(frame, reader: frameReader)
+        item.requestFrame(frame, reader: frameReader, owner: self)
     }
 
     /// The frame `delta` away from the one asked for last, kept inside the stack (the ends do nothing); the arrow keys' step.

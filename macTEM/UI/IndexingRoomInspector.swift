@@ -2,8 +2,8 @@
 //  IndexingRoomInspector.swift
 //  Role: the Indexing room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the Image room's order
 //        (control placement §2; design §4): Calibration (where the patterns come from and the geometry the indexer takes, as value rows),
-//        Display (the map's layer, the detected bands, Compare with its A and B pop-ups, D-SEM-97), Map Display (a scalar layer's colormap, window, gamma and scale bar, D-SEM-96),
-//        Pattern Display (the pattern pane's own contrast), Phases (the list indexed
+//        Display (the map's layer, the detected bands, Compare with its A and B pop-ups, D-SEM-97; then `PaneDisplaySection`'s Map · Pattern
+//        switch over a scalar layer's colormap, window, gamma and scale bar, D-SEM-96, or the pattern pane's own contrast), Phases (the list indexed
 //        against, each with its colour and its switch; a preset or a CIF added), Method (Hough or Dictionary, D-SEM-91), then the
 //        method's own section: Hough (pyEBSDindex's `EBSDIndexer` parameters) or Dictionary (the master pattern, kikuchipy's
 //        `dictionary_indexing` settings and orix's sampling), and Export (the map, the results, the method; `Open in Maps` hands the
@@ -28,11 +28,10 @@ struct IndexingRoomSettings: View {
         let session = appState.indexing
         if let dataset = session.patterns.dataset {
             IndexingCalibrationSection(session: session, dataset: dataset)
-            IndexingDisplaySection(session: session)
-            if session.showsScalarMap {
-                ImageRoomDisplaySection(presentation: session.mapPresentation, title: "Map Display", colormapID: "indexing.map.colormap")
+            PaneDisplaySection(map: session.showsScalarMap ? session.mapPresentation : nil, pattern: session.patternPresentation, room: "indexing",
+                               mapColormapID: "indexing.map.colormap", patternColormapID: "indexing.pattern.colormap") {
+                IndexingDisplayRows(session: session)
             }
-            ImageRoomDisplaySection(presentation: session.patternPresentation, title: "Pattern Display", colormapID: "indexing.pattern.colormap")
             IndexingPhasesSection(session: session)
             IndexingMethodSection(session: session)
             switch session.method {
@@ -98,11 +97,11 @@ private struct IndexingCalibrationSection: View {
 
 /// The map's layer (nine for Hough, seven for a dictionary: a pop-up, control placement §3; the colour key follows the layer, IPF or
 /// Euler, D-SEM-96) and the detected bands over the pattern.
-private struct IndexingDisplaySection: View {
+private struct IndexingDisplayRows: View {
     let session: IndexingSession
 
     var body: some View {
-        InspectorSection("Display") {
+        Group {
             InspectorRow("Map") {
                 Picker("Map", selection: Binding(get: { session.layer }, set: { session.setLayer($0) })) {
                     ForEach(session.availableLayers) { layer in Text(layer.title).tag(layer) }

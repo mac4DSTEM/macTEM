@@ -593,6 +593,17 @@ package nonisolated struct SessionSourceIdentity: Sendable, Equatable, Codable {
                               width: image.width, height: image.height, pixelSHA256: fingerprint(of: image.pixels))
     }
 
+    /// The identity of an image stack read a frame at a time (`ImageStackSource`): its first frame's name, shape and pixels,
+    /// and the stack itself as the object (`stackObject`), so a mark drawn on any frame belongs to the one stack, as the
+    /// window keeps it across frames, and is restored when the stack opens again on its first frame.
+    package static func ofStack(firstFrame image: CalibratedImage, frameCount: Int, fileByteSize: Int64) -> SessionSourceIdentity {
+        SessionSourceIdentity(fileName: image.fileName, byteSize: fileByteSize, object: stackObject(frameCount: frameCount),
+                              width: image.width, height: image.height, pixelSHA256: fingerprint(of: image.pixels))
+    }
+
+    /// The object an image stack's identity and marks record: "stack of 20 frames" (a frame's own `source` is "frame 3 of 20").
+    package static func stackObject(frameCount: Int) -> String { "stack of \(frameCount) frames" }
+
     /// Lowercase hex SHA-256 over the pixels' bytes: Float32, IEEE-754 little-endian, row-major as stored. It
     /// hashes bits, not values (+0 and −0 differ; so do two NaN payloads), which is what "the same file" means.
     package static func fingerprint(of pixels: [Float]) -> String {

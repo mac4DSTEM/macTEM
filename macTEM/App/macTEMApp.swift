@@ -21,6 +21,16 @@ extension FocusedValues {
         get { self[FocusedAppStateKey.self] }
         set { self[FocusedAppStateKey.self] = newValue }
     }
+
+    /// True while the Objects window (`ParticleTableWindow`) is key: File > Close and Close Window close it (`CloseCommand`).
+    var isObjectsWindow: Bool? {
+        get { self[FocusedObjectsWindowKey.self] }
+        set { self[FocusedObjectsWindowKey.self] = newValue }
+    }
+}
+
+private struct FocusedObjectsWindowKey: FocusedValueKey {
+    typealias Value = Bool
 }
 
 /// The one window. The `AppState` is owned by `macTEMApp`, not here: a `Window` scene keeps its view state through
@@ -64,14 +74,22 @@ private struct ImageWindow: View {
             .onChange(of: appState.closeRequest) { _, request in
                 if let request { SessionPanels.askToClose(request, appState: appState) }
             }
+            // File > Reopen Last Session's record follows what the window holds: a file opened or closed, a room's document read in or
+            // closed, the selection and the room (`AppState.recordLastSession`, which saves only a changed record).
+            .onChange(of: appState.lastSessionState) { appState.recordLastSession() }
     }
 }
 
 private struct ImageCommands: Commands {
     @FocusedValue(\.appState) private var appState
+    @FocusedValue(\.isObjectsWindow) private var objectsWindowIsKey
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     let menuRelay: MenuActionRelay
+    /// File > Open Recent's list, the app's, not the focused window's: the menu lists it with no window focused too.
+    let recents: RecentFiles
+    /// File > Reopen Last Session's record, the app's for the same reason.
+    let lastSession: LastSession
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -81,27 +99,49 @@ private struct ImageCommands: Commands {
                 .disabled(!MenuActionRelay.isEnabled(
                     hasFocusedWindow: appState != nil,
                     blocked: appState?.imageSession.isLoading == true))
-            // The macOS term (ADR 011); no key of its own. It acts on the selected file, as the row's menu does.
+            // The last eight files opened (`RecentFiles`), two of one name told apart by their folders. As Open Image…, with no window
+            // focused it opens the window and the file there (`MenuActionRelay`).
+            Menu("Open Recent") {
+                ForEach(recents.entries) { entry in
+                    Button(recents.title(of: entry)) { perform(.openRecent(entry)) }
+                }
+                Divider()
+                Button("Clear Menu") { recents.clear() }
+            }
+            .disabled(recents.entries.isEmpty || !MenuActionRelay.isEnabled(
+                hasFocusedWindow: appState != nil,
+                blocked: appState?.imageSession.isLoading == true))
+            // The files, the selected one and the room the last launch had open (`LastSession`), listed only when that launch left a
+            // record (mac4DSTEM's Reopen ⇧⌘O). Offered, never opened at launch: a mapped multi-GB file must not load before the person
+            // asks. As Open Image…, with no window focused it opens the window and runs there (`MenuActionRelay`).
+            if lastSession.previous != nil {
+                Button("Reopen Last Session") { perform(.reopenLastSession) }
+                    .keyboardShortcut("o", modifiers: [.command, .shift])
+                    .disabled(!MenuActionRelay.isEnabled(
+                        hasFocusedWindow: appState != nil,
+                        blocked: appState?.imageSession.isLoading == true))
+            }
+            // The macOS term (ADR 011); no key of its own. It acts on the document the room shows (`DocumentTarget`): the selected
+            // file in the image rooms, as the row's menu does, the dataset, the map or the spectrum image in theirs.
             Button("Show in Finder") {
-                if let url = appState?.openItems.selected?.url { DatasetLocationActions.reveal(url: url) }
+                if let url = appState?.documentURL { DatasetLocationActions.reveal(url: url) }
             }
-            .disabled(appState?.openItems.selected == nil)
+            .disabled(appState?.documentURL == nil)
         }
-        // Replaces the system's Close (⌘W), which would close the window: ⌘W closes the selected image and
-        // ⇧⌘W the window (the owner, ADR 007); with no image open ⌘W closes the window, as the system's would.
-        // Close is the part of the Save group that SwiftUI exposes. An image with unsaved marks asks first (`requestClose`).
+        // Replaces the system's Close (⌘W), which would close the window: ⌘W closes the document the room shows (`DocumentTarget`:
+        // Close Image, Close Dataset, Close Map, Close Spectrum Image) and ⇧⌘W the window (the owner, ADR 007); with nothing shown
+        // ⌘W closes the window, as the system's would. Close is the part of the Save group that SwiftUI exposes. An image with
+        // unsaved marks asks first (`requestClose`). While the Objects window is key, both close it (`CloseCommand`).
         CommandGroup(replacing: .saveItem) {
-            if appState?.openItems.selected != nil {
-                Button("Close Image") { appState?.requestCloseSelected() }
-                    .keyboardShortcut("w", modifiers: .command)
-            } else {
-                Button("Close") { dismissWindow(id: "image") }
-                    .keyboardShortcut("w", modifiers: .command)
-                    .disabled(appState == nil)
-            }
-            Button("Close Window") { dismissWindow(id: "image") }
+            let close = CloseCommand.close(objectsWindowKey: objectsWindowIsKey == true, imageWindowFocused: appState != nil,
+                                           shown: appState?.documentTarget)
+            Button(close.closeTitle) { runClose(close) }
+                .keyboardShortcut("w", modifiers: .command)
+                .disabled(close == .unavailable)
+            let closeWindow = CloseCommand.closeWindow(objectsWindowKey: objectsWindowIsKey == true, imageWindowFocused: appState != nil)
+            Button("Close Window") { runClose(closeWindow) }
                 .keyboardShortcut("w", modifiers: [.command, .shift])
-                .disabled(appState == nil)
+                .disabled(closeWindow == .unavailable)
         }
         CommandGroup(replacing: .sidebar) {
             Button(appState?.navigation.panels.sidebarIsVisible == true ? "Hide Sidebar" : "Show Sidebar") {
@@ -114,11 +154,13 @@ private struct ImageCommands: Commands {
             // The one key, also the toolbar button's (`InspectorToggleButton`): Opt-Cmd-I, as Mac apps with an inspector
             // have it (HIG, Keyboards). It was Ctrl-Cmd-I here and a hidden Opt-Cmd-0 on the button.
             .keyboardShortcut("i", modifiers: [.command, .option])
+            // On wherever the Output pane has a document to sit under, the pane's own rule: an image, or the EDS, EELS, Patterns,
+            // Indexing or Maps room's document with no image open (`ProcessAreaDocuments`).
             Button(appState?.navigation.panels.showProcessArea == true ? "Hide Output" : "Show Output") {
                 appState?.navigation.panels.showProcessArea.toggle()
             }
             .keyboardShortcut("l", modifiers: [.command, .control])
-            .disabled(appState?.hasImage != true)
+            .disabled(appState?.processAreaHasDocument != true)
         }
         CommandMenu("Image") {
             Button("Previous Image") { appState?.openItems.selectPrevious() }
@@ -168,8 +210,14 @@ private struct ImageCommands: Commands {
                 }
             }
             Divider()
-            // The room's Stop (the toolbar's verb turns into Cancel while a run is in flight; this is its key).
-            Button("Stop") { if let appState { RoomPrimaryAction.stopActive(appState) } }
+            // The room's verb (⌘R), titled with it, as mac4DSTEM's Run Current Task: on only when the toolbar's button can run it, so ⌘R
+            // is never a dead key. The button keeps its own ⌘↩.
+            Button(RoomPrimaryAction.runTitle(appState)) { if let appState { RoomPrimaryAction.runActive(appState) } }
+                .keyboardShortcut("r", modifiers: .command)
+                .disabled(!RoomPrimaryAction.canRun(appState.flatMap { RoomPrimaryAction.current($0) }))
+            // The room's Stop (the toolbar's verb turns into Cancel while a run is in flight; this is its key). While the shown room is
+            // idle it stops the run of another room the toolbar shows, and says which ("Stop Indexing").
+            Button(appState.map { RoomPrimaryAction.stopTitle($0) } ?? "Stop") { if let appState { RoomPrimaryAction.stopActive(appState) } }
                 .keyboardShortcut(".", modifiers: .command)
                 .disabled(appState.map { !RoomPrimaryAction.canStop($0) } ?? true)
         }
@@ -192,13 +240,26 @@ private struct ImageCommands: Commands {
             openWindow(id: "image")
         }
     }
+
+    /// File > Close and Close Window (`CloseCommand`): the shown document, the image window or the Objects window.
+    private func runClose(_ command: CloseCommand) {
+        switch command {
+        case .document(let target): appState?.closeDocument(target)
+        case .imageWindow: dismissWindow(id: "image")
+        case .objectsWindow: dismissWindow(id: ParticleTableWindow.id)
+        case .unavailable: break
+        }
+    }
 }
 
 @main
 struct macTEMApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    /// The one state graph, owned here so that closing the window never releases the files (ADR 007).
-    @State private var appState = AppState()
+    /// The one state graph, owned here so that closing the window never releases the files (ADR 007). Open Recent's list and the last
+    /// session's record are the ones kept in UserDefaults, except for a UI-testing launch, which keeps them in memory and leaves a
+    /// person's alone.
+    @State private var appState = AppState(recents: macTEMApp.isUITesting ? nil : RecentFiles.stored(),
+                                           lastSession: macTEMApp.isUITesting ? nil : LastSession.stored())
     // File-menu actions asked for while no window is focused (`MenuActionRelay`): read by the commands, taken
     // by the window they open.
     @State private var menuRelay = MenuActionRelay()
@@ -217,7 +278,7 @@ struct macTEMApp: App {
             .windowStyle(.titleBar)
             .windowToolbarStyle(.unified)
             .commands {
-                ImageCommands(menuRelay: menuRelay)
+                ImageCommands(menuRelay: menuRelay, recents: appState.recents, lastSession: appState.lastSession)
                 // File > Save to Session (V1-2), listed before the export group so it sits above its Divider.
                 SessionCommands()
                 // File > Export Image… and Export Profile… (V1-10), their own `Commands` (`ExportCommands.swift`).

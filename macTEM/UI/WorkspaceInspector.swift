@@ -34,8 +34,6 @@ private struct InspectorSettingsTab: View {
             InspectorScrollColumn {
                 EDXRoomSettings(session: appState.edx, state: appState.edxRoom, actions: appState.edxActions)
                     .environment(\.inspectorScope, "settings.edx")
-                SEMEDSSettings(state: appState.semEDS)
-                    .environment(\.inspectorScope, "settings.edx")
             }
             .environment(\.inspectorScope, "settings")
         } else if appState.navigation.workspaceArea == .eels {

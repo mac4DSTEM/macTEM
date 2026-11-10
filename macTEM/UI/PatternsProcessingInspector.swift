@@ -1,6 +1,6 @@
 //
 //  PatternsProcessingInspector.swift
-//  Role: the Patterns room's processing sections (docs/sem/design/pattern-processing.md §3), between Virtual images and Pattern Display:
+//  Role: the Patterns room's processing sections (docs/sem/design/pattern-processing.md §3), between Virtual images and Simulation:
 //        Static background, Dynamic background, Intensity (with Equalise), FFT filter, Size, Average neighbours and NLPAR, in dependency order, each with its stage's state on the title row
 //        (the EELS room's glyphs: not run, current, stale). The first row picks what the pattern pane shows, raw or processed; a change
 //        to any row re-draws a processed pattern at once and stales the scan's run from that stage on; the toolbar's Process runs it.
