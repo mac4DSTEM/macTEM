@@ -5,6 +5,8 @@
 //        nothing here is measured, exported or saved, and no measurement reads the canvas (the measuring tools read the image's own
 //        pixels). The intensity histogram the Display section draws is computed once with the canvas, off the main
 //        actor, from the RAW pixels (`IntensityHistogram`; ImagoKit ImagoCore with an app default-bins extension; gated against numpy).
+//        A diffraction pattern's canvas is of its display values, log or linear (`CanvasPixels.pattern`): its range and its
+//        histogram are of what is drawn.
 //
 
 import ShellMetal
@@ -48,6 +50,16 @@ package nonisolated struct CanvasPixels: Sendable, Equatable {
         return CanvasPixels(width: width, height: height, normalized: normalized,
                             contentVersion: MetalImageView.contentVersion(of: normalized, width: width, height: height),
                             rawRange: range, histogram: IntensityHistogram.compute(pixels))
+    }
+
+    /// The canvas of a diffraction pattern: its display values, log10(1 + max(I, 0)) when `log` (a pattern spans decades), else
+    /// linear, normalised (`DiffractionPattern.normalized`). The range is 0…1 and the histogram is of these values, the ones drawn,
+    /// so the Display section's handles move what the eye sees. Built off the main actor (`DiffractionViewState.show`).
+    package static func pattern(pixels: [Float], width: Int, height: Int, log: Bool) -> CanvasPixels {
+        let normalized = TEMCore.DiffractionPattern(qy: height, qx: width, pixels: pixels).normalized(useLog: log)
+        return CanvasPixels(width: width, height: height, normalized: normalized,
+                            contentVersion: MetalImageView.contentVersion(of: normalized, width: width, height: height), rawRange: 0...1,
+                            histogram: IntensityHistogram.compute(normalized))
     }
 }
 

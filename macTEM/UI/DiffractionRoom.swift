@@ -43,38 +43,13 @@ struct DiffractionRoom: View {
             DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                 .frame(height: LayoutPolicy.diffractionReadoutHeight)
         }
+        // The pattern is shown by its owner (the bind, the extent and the canvas, off the main actor); a quick Log toggle or another
+        // file cancels the pass in flight.
         .task(id: DisplayKey(id: item.id, log: view.useLog, width: image.width, height: image.height)) {
-            analysis.bind(image)
-            let centre = analysis.centre ?? .imageCentre(width: image.width, height: image.height)
-            let radius = await Self.extent(pixels: image.pixels, width: image.width, height: image.height, centre: centre)
-            // A quick Log toggle or another file cancels this pass while it computes: it writes nothing, so the newer pass's extent
-            // and canvas are the ones left on screen.
-            guard !Task.isCancelled else { return }
-            view.setAutoExtent(radius)
-            let pixels = image.pixels, w = image.width, h = image.height, log = view.useLog
-            let canvas = await Self.makeCanvas(pixels: pixels, width: w, height: h, log: log)
-            guard !Task.isCancelled else { return }
-            // A window in log values means nothing in linear ones: the range starts whole again.
-            if view.presentation.canvas.map({ $0.contentVersion != canvas.contentVersion }) ?? false { view.presentation.resetWindow() }
-            view.presentation.show(canvas)
+            await view.show(image: image, analysis: analysis)
         }
         // The ring or spot just added is the selected row.
         .onChange(of: analysis.lastAdded) { if let id = analysis.lastAdded { view.selection = id } }
-    }
-
-    @concurrent
-    nonisolated static func extent(pixels: [Float], width: Int, height: Int, centre: DiffractionCentre) async -> Double? {
-        DiffractionCompute.contentRadius(pixels: pixels, width: width, height: height, centre: centre)
-    }
-
-    /// The pattern's display values: log10(1 + max(I, 0)) by default (a pattern spans decades), normalised; off the main actor. The
-    /// Display section's histogram and window are of these values, the ones drawn (0…1), so its handles move what the eye sees.
-    @concurrent
-    nonisolated static func makeCanvas(pixels: [Float], width: Int, height: Int, log: Bool) async -> CanvasPixels {
-        let normalized = TEMCore.DiffractionPattern(qy: height, qx: width, pixels: pixels).normalized(useLog: log)
-        return CanvasPixels(width: width, height: height, normalized: normalized,
-                            contentVersion: MetalImageView.contentVersion(of: normalized, width: width, height: height), rawRange: 0...1,
-                            histogram: IntensityHistogram.compute(normalized))
     }
 }
 
