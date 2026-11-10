@@ -23,9 +23,11 @@ extension AppState {
     /// failed read is reported by the alert (`onReadFailure`); the infobar says "Opened …" once the batch is in. Every
     /// file that opened goes to the front of Open Recent (`recents`) once the batch is in, with the bookmark made in its scope
     /// (`rememberOpened`), and into the last-session record (`recordLastSession`). The batch's refused files are one alert, a line
-    /// each; the files a one-document room left out are named after the batch.
+    /// each, after the lines of the files a drop did not hand over (`refused`: an extension macTEM does not open), and only once
+    /// every folder the Open asks for is answered: an alert up before would take the window's sheet, and the folder panel then
+    /// cannot show. The files a one-document room left out are named after the batch.
     @discardableResult
-    func open(urls: [URL]) -> Task<Void, Never>? {
+    func open(urls: [URL], refused: [String] = []) -> Task<Void, Never>? {
         guard !urls.isEmpty else { return nil }
         statusText = urls.count == 1 ? "Opening \(urls[0].lastPathComponent)…" : "Opening \(urls.count) files…"
         let task = Task {
@@ -71,7 +73,7 @@ extension AppState {
                 if inventory.eelsSpectrumImage { eelsFiles.insert(url); eelsBatch.append(url) }
                 if let found = inventory.landing, landing == nil || found.richness > landing!.richness { landing = found }
             }
-            presentRefusals(refusals)
+            presentRefusals(refused + refusals)
             // One file per spectrum room: the batch's first, the one Open Files selects when it is first in the list (the room followed the
             // selection only on the next click; two files at launch left the last in the room and the first selected, 2026-10-23). The others
             // are reached by selecting their row (`spectrumRoomsFollowSelection`).
@@ -121,8 +123,9 @@ extension AppState {
         return task
     }
 
-    /// The refused files of one Open (the route's sentences, or a drop's) as one alert, a line each: a `present` per file left only
-    /// the last one up. The status line and Output take the same sentences on one line. Nothing for none.
+    /// The refused files of one Open (a drop's own lines, then the route's sentences) as one alert, a line each: a `present` per file
+    /// left only the last one up, and so did a second call while the first alert was up, which is why a drop hands its lines to its
+    /// Open (`open(urls:refused:)`). The status line and Output take the same sentences on one line. Nothing for none.
     func presentRefusals(_ sentences: [String]) {
         guard !sentences.isEmpty else { return }
         errorMessage = sentences.joined(separator: "\n")

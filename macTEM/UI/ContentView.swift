@@ -127,17 +127,23 @@ struct ContentView: View {
         }
     }
 
-    /// Opens the dropped files macTEM reads; every dropped file it does not read is refused by name in one alert, a line each.
+    /// Opens the dropped files macTEM reads; every dropped file it does not read is refused by name in one alert, a line each. With
+    /// files to open the lines go to the Open, which shows them once with the files its routing refuses, after any folder it asks
+    /// for (`AppState.open(urls:refused:)`): an alert raised here first lost its lines to the Open's, and kept the folder panel of a
+    /// NORDIF scan from showing. With none to open the alert is raised here.
     private func openDropped(_ urls: [URL]) -> Bool {
         let readable = FileRouting.openableExtensions
         // A file of a readable format; a dragged web link ending in .tif is not a file.
         let isReadable = { (url: URL) in url.isFileURL && readable.contains(url.pathExtension.lowercased()) }
         let accepted = urls.filter(isReadable)
-        appState.presentRefusals(urls.filter { !isReadable($0) }.map { refused in
-            ErrorDetail.text(ImageOpening.Refusal.unreadableFormat(file: refused.lastPathComponent, ext: refused.pathExtension.lowercased()))
-        })
-        guard !accepted.isEmpty else { return false }
-        appState.open(urls: accepted)
+        let lines = urls.filter { !isReadable($0) }.map { url in
+            ErrorDetail.text(ImageOpening.Refusal.unreadableFormat(file: url.lastPathComponent, ext: url.pathExtension.lowercased()))
+        }
+        guard !accepted.isEmpty else {
+            appState.presentRefusals(lines)
+            return false
+        }
+        appState.open(urls: accepted, refused: lines)
         return true
     }
 
