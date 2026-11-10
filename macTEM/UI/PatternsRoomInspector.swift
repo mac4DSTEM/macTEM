@@ -1,9 +1,9 @@
 //
 //  PatternsRoomInspector.swift
 //  Role: the Patterns room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the Image room's order
-//        (control placement §2; design §4; processing: pattern-processing.md §3): Calibration (the geometry the file states, as value rows), Display (the map's colormap, window,
-//        gamma and scale bar), Virtual images (the detector grid, the map's image, the colour mix, the tiles pane), the processing stages (`PatternsProcessingSections`), Pattern Display (the pattern
-//        pane's own, so the two pictures keep their own contrast), Simulation (the Kikuchi overlay, `PatternsSimulationOverlay.swift`) and Export (the map and the pattern on screen as PNG, the header as JSON). Info: what the file is (design §5). Presentation only: the rows are
+//        (control placement §2; design §4; processing: pattern-processing.md §3): Calibration (the geometry the file states, as value rows), Display (`PaneDisplaySection`: a Map · Pattern
+//        switch over the picked picture's colormap, window, gamma and scale bar, so the two keep their own contrast), Virtual images (the detector grid, the map's image, the colour mix, the tiles pane), the processing stages (`PatternsProcessingSections`),
+//        Simulation (the Kikuchi overlay, `PatternsSimulationOverlay.swift`) and Export (the map and the pattern on screen as PNG, the header as JSON). Info: what the file is (design §5). Presentation only: the rows are
 //        `EBSDBrowsing`'s (TEMCore), the state `EBSDSession`'s (TEMSession).
 //
 
@@ -27,10 +27,10 @@ struct PatternsRoomSettings: View {
                 }
                 InspectorNote("The file's own values. The projection centre is shown in the Bruker convention, as kikuchipy stores it.")
             }
-            ImageRoomDisplaySection(presentation: session.mapPresentation, colormapID: "patterns.colormap")
+            PaneDisplaySection(map: session.mapPresentation, pattern: session.patternPresentation, room: "patterns",
+                               mapColormapID: "patterns.colormap", patternColormapID: "patterns.pattern.colormap")
             PatternsVirtualImagesSection(session: session, dataset: dataset)
             PatternsProcessingSections(session: session, dataset: dataset)
-            ImageRoomDisplaySection(presentation: session.patternPresentation, title: "Pattern Display", colormapID: "patterns.pattern.colormap")
             PatternsSimulationSection(session: session)
             PatternsExportSection(session: session, state: appState.patternsRoom)
         } else {

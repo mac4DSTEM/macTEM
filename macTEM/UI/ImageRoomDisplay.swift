@@ -17,7 +17,7 @@ import TEMSession
 /// placement §5): the Diffraction room draws it for its pattern with the log switch in place of the scale bar (its pane has none).
 struct ImageRoomDisplaySection: View {
     @Bindable var presentation: ImagePresentation
-    /// The section's title: "Display" for a room's one picture; the Patterns room names its second ("Pattern Display").
+    /// The section's title: "Display" (a room with two pictures uses `PaneDisplaySection` instead).
     var title = "Display"
     /// The colormap pop-up's and the log switch's identifiers, the room's own (spelled whole: the inventory finds them by name).
     var colormapID = "image.colormap"
@@ -27,11 +27,28 @@ struct ImageRoomDisplaySection: View {
     /// The SEM record of the file shown; a file with a databar gets the `Databar · Hide · Show` row (ImageRoomSEM.swift, design §4).
     var sem: SEMImageMetadata? = nil
 
+    var body: some View {
+        InspectorSection(title) {
+            ImageRoomDisplayRows(presentation: presentation, colormapID: colormapID, logID: logID, log: log, sem: sem)
+        }
+    }
+}
+
+/// The Display section's rows without their section: colormap, the histogram's window, gamma, the scale bar (or the pattern's log) and
+/// the databar. `ImageRoomDisplaySection` wraps them; a room with two pictures shows them under its one Display section's Map · Pattern
+/// switch (`PaneDisplaySection`).
+struct ImageRoomDisplayRows: View {
+    @Bindable var presentation: ImagePresentation
+    var colormapID = "image.colormap"
+    var logID = "diffraction.log"
+    var log: Binding<Bool>?
+    var sem: SEMImageMetadata? = nil
+
     /// Gray first: the TEM convention.
     private static let colormaps: [ColormapKind] = [.gray, .inferno, .viridis, .rdbu]
 
     var body: some View {
-        InspectorSection(title) {
+        Group {
             InspectorRow("Colormap") {
                 Picker("Colormap", selection: $presentation.colormap) {
                     ForEach(Self.colormaps) { Text($0.displayName).tag($0) }
