@@ -424,7 +424,9 @@ private struct DiffractionOverlay: View {
 /// The rings and spots as a system `Table` with a selection: arrow keys, ⌫ (removes the selected row), ⌘C (copies it, tab-separated under
 /// the column titles), column resizing and VoiceOver rows come with it. The titles and the cells are `DiffractionReadoutFormat`'s, so the
 /// copied text is what the table shows. A value a journey reads is a cell's accessibility value (`diffraction.row.<kind><n>.<column>`);
-/// the d there has one decimal more than the cell (`DiffractionValueFormat.spacing`).
+/// the d there has one decimal more than the cell (`DiffractionValueFormat.spacing`). A header is drawn as its title and spoken as
+/// words (`Column.spoken`: the titles are symbols and units, and the first is empty), and the ring that sets the scale says so, not
+/// "●" (whether the system's table header speaks a `Text`'s accessibility label is unverified on screen).
 private struct DiffractionReadoutTable: View {
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
@@ -437,25 +439,27 @@ private struct DiffractionReadoutTable: View {
         let selection = Binding<UUID?>(get: { view.selection }, set: { view.selection = $0 })
         let selected = view.selection
         Table(rows, selection: selection) {
-            TableColumn(Column.name.title) { row in
+            TableColumn(header(.name)) { row in
                 Text(DiffractionReadoutFormat.cell(.name, row)).help(row.isCalibrating ? "Set the scale" : "")
+                    .accessibilityLabel(DiffractionReadoutFormat.spokenName(row))
+                    .accessibilityValue(DiffractionReadoutFormat.spokenMark(row))
             }.width(min: 52, ideal: 58)
-            TableColumn(Column.radius.title) { row in Text(DiffractionReadoutFormat.cell(.radius, row)).monospacedDigit() }.width(min: 44, ideal: 50)
-            TableColumn(Column.q.title) { row in Text(DiffractionReadoutFormat.cell(.q, row)).monospacedDigit() }.width(min: 56, ideal: 62)
-            TableColumn(Column.d.title) { row in
+            TableColumn(header(.radius)) { row in Text(DiffractionReadoutFormat.cell(.radius, row)).monospacedDigit() }.width(min: 44, ideal: 50)
+            TableColumn(header(.q)) { row in Text(DiffractionReadoutFormat.cell(.q, row)).monospacedDigit() }.width(min: 56, ideal: 62)
+            TableColumn(header(.d)) { row in
                 Text(DiffractionReadoutFormat.cell(.d, row)).monospacedDigit()
                     .accessibilityIdentifier("diffraction.row.\(row.kind.rawValue)\(row.number).d")
                     .accessibilityValue(DiffractionValueFormat.spacing(row.d))
             }.width(min: 52, ideal: 56)
-            TableColumn(Column.family.title) { row in
+            TableColumn(header(.family)) { row in
                 Text(DiffractionReadoutFormat.cell(.family, row))
                     .accessibilityIdentifier("diffraction.row.\(row.kind.rawValue)\(row.number).family")
                     .accessibilityValue(row.family ?? "")
             }.width(min: 46, ideal: 52)
-            TableColumn(Column.dListed.title) { row in Text(DiffractionReadoutFormat.cell(.dListed, row)).monospacedDigit() }.width(min: 52, ideal: 58)
-            TableColumn(Column.delta.title) { row in Text(DiffractionReadoutFormat.cell(.delta, row)).monospacedDigit() }.width(min: 48, ideal: 54)
-            TableColumn(Column.odds.title) { row in Text(DiffractionReadoutFormat.cell(.odds, row)).monospacedDigit() }.width(min: 60, ideal: 68)
-            TableColumn(Column.verdict.title) { row in
+            TableColumn(header(.dListed)) { row in Text(DiffractionReadoutFormat.cell(.dListed, row)).monospacedDigit() }.width(min: 52, ideal: 58)
+            TableColumn(header(.delta)) { row in Text(DiffractionReadoutFormat.cell(.delta, row)).monospacedDigit() }.width(min: 48, ideal: 54)
+            TableColumn(header(.odds)) { row in Text(DiffractionReadoutFormat.cell(.odds, row)).monospacedDigit() }.width(min: 60, ideal: 68)
+            TableColumn(header(.verdict)) { row in
                 Text(DiffractionReadoutFormat.cell(.verdict, row)).lineLimit(1)
                     .accessibilityIdentifier("diffraction.row.\(row.kind.rawValue)\(row.number).verdict")
                     .accessibilityValue(row.verdict)
@@ -471,6 +475,11 @@ private struct DiffractionReadoutTable: View {
             }
         }
         .accessibilityIdentifier("diffraction.readout")
+    }
+
+    /// A column's header: the title as drawn, with the column's words as what VoiceOver calls it.
+    private func header(_ column: Column) -> Text {
+        Text(column.title).accessibilityLabel(column.spoken)
     }
 
     /// What ⌘C hands the system: the selected row as the table shows it (`DiffractionReadoutFormat.copyText`), nothing when none is.

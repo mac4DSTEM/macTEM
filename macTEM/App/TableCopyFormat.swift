@@ -5,7 +5,8 @@
 //        line with the column titles, then one line per selected row in the table's order, the cells as the table shows them,
 //        tab-separated, numbers in the reader's locale without grouping (a spreadsheet in that locale reads them as numbers; the CSV
 //        exports are the locale-free channel). The tables draw their cells through these functions, so what is copied is what is
-//        shown. Pure: no view, no session.
+//        shown. The readout's columns also carry what VoiceOver calls them (#320): its headers are symbols and units, and one is
+//        empty. Pure: no view, no session.
 //
 
 import Foundation
@@ -75,13 +76,36 @@ nonisolated enum DiffractionReadoutFormat {
 
         /// The header in the copied text: the drawn one, and for the first column what it lists.
         var copiedTitle: String { self == .name ? "Ring or spot" : title }
+
+        /// What VoiceOver calls the column: a header of symbols and units in words ("q Å⁻¹" was read sign by sign), the first
+        /// column, drawn without a title, by what it lists; a header that is words already is spoken as drawn.
+        var spoken: String {
+            switch self {
+            case .name: "Ring or spot"
+            case .radius: "radius, pixels"
+            case .q: "q, inverse ångströms"
+            case .d: "d, ångströms"
+            case .family: "family"
+            case .dListed: "d listed"
+            case .delta: "delta d over d, percent"
+            case .odds: "odds"
+            case .verdict: "verdict"
+            }
+        }
     }
+
+    /// A row's name without its mark, "Ring 1" or "Spot 2": what the first cell is called aloud.
+    static func spokenName(_ row: DiffractionReadoutRow) -> String { "\(row.kind == .ring ? "Ring" : "Spot") \(row.number)" }
+
+    /// What the ● beside a ring's name means, as the first cell's spoken value: "sets the scale" for the ring the scale was fitted
+    /// on, "" for every other row. The mark's meaning was in its tooltip only.
+    static func spokenMark(_ row: DiffractionReadoutRow) -> String { row.isCalibrating ? "sets the scale" : "" }
 
     /// One cell as the table shows it: "Ring 1 ●" (the ● marks the ring that sets the scale), R to two decimals, q to five, d and the
     /// listed d to four, the family, Δd/d with its sign, the odds and the verdict; a dash where there is no value.
     static func cell(_ column: Column, _ row: DiffractionReadoutRow, locale: Locale = .autoupdatingCurrent) -> String {
         switch column {
-        case .name: return "\(row.kind == .ring ? "Ring" : "Spot") \(row.number)\(row.isCalibrating ? " ●" : "")"
+        case .name: return "\(spokenName(row))\(row.isCalibrating ? " ●" : "")"
         case .radius: return row.radiusPx.map { Num.fixed($0, 2, locale: locale) } ?? UnitDisplay.noValue
         case .q: return row.q.map { Num.fixed($0, 5, locale: locale) } ?? UnitDisplay.noValue
         case .d: return row.d.map { Num.fixed($0, 4, locale: locale) } ?? UnitDisplay.noValue
