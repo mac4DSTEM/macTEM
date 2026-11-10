@@ -680,6 +680,12 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
         XCTAssertEqual(rows.compactMap { Double($0[1])?.bitPattern }, snapshot.profile.samples.map(\.bitPattern))
     }
 
+    /// What `description(of:)` throws when the PNG has no Description chunk: a plain error, so the calling test fails (an
+    /// `XCTSkip` would pass it silently).
+    private nonisolated struct NoDescriptionChunk: Error, CustomStringConvertible {
+        var description: String { "the PNG has no Description chunk" }
+    }
+
     /// The PNG's Description text chunk as a JSON object, found by walking the chunks: tEXt, or iTXt (UTF-8) when the text
     /// is not ASCII. The writer's own chunk checks (CRCs, the order) are pinned in ImageExportRenderTests.
     private static func description(of png: Data) throws -> [String: Any] {
@@ -705,7 +711,7 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
             }
             i += 8 + length + 4
         }
-        throw XCTSkip("no Description chunk")                       // never reached on a valid export: the asserts say so
+        throw NoDescriptionChunk()                                   // never reached on a valid export: the test fails if it is
     }
 
     /// What the image panel's OK writes: a PNG of the snapshot's file whose Description names that file, its object, its
