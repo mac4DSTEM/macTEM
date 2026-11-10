@@ -95,4 +95,21 @@ nonisolated final class EELSRegionsTests: XCTestCase {
         XCTAssertTrue(source.contains(".accessibilityElement(children: .combine) .accessibilityValue(EELSRegionSpeech.visibility(isVisible: pin.isVisible))"),
                       "the name cell is one element that says when its region is hidden")
     }
+
+    /// The total and the t/λ cells say their numbers in the reader's decimal mark, as the cells show them. Red under: "0.5012" spoken beside a cell that
+    /// shows "0,5012" (`String(format:)` always writes a point).
+    func testTheTotalAndThicknessValuesAreInTheReadersDecimalMark() throws {
+        let german = Locale(identifier: "de_DE"), english = Locale(identifier: "en_US")
+        XCTAssertEqual(EELSRegionSpeech.tOverLambdaValue(0.50123, locale: german), "0,5012")
+        XCTAssertEqual(EELSRegionSpeech.tOverLambdaValue(0.50123, locale: english), "0.5012")
+        XCTAssertEqual(EELSRegionSpeech.tOverLambdaValue(0.50123, locale: german), Num.fixed(0.50123, 4, locale: german), "the cell's own text")
+        XCTAssertEqual(EELSRegionSpeech.tOverLambdaValue(nil, locale: german), "", "no t/λ: no value, as before")
+        XCTAssertEqual(EELSRegionSpeech.totalValue(7_113_000.4, locale: german), "7113000", "a whole number, never grouped")
+        XCTAssertEqual(EELSRegionSpeech.totalValue(7_113_000.4, locale: english), "7113000")
+
+        let source = try FFTRoomWiringTests.squeezedUI("EELSRegionsTable.swift")
+        XCTAssertTrue(source.contains(".accessibilityValue(EELSRegionSpeech.totalValue(row.totalCounts))"))
+        XCTAssertTrue(source.contains(".accessibilityValue(EELSRegionSpeech.tOverLambdaValue(row.tOverLambda))"))
+        XCTAssertFalse(source.contains("String(format:"), "no accessibility value of the table is written with a fixed point")
+    }
 }

@@ -15,6 +15,7 @@ import ShellEDXModel
 
 /// What VoiceOver says for the Regions table's cells (pure, so a test reads the words): an edge cell is "<region> <edge> intensity" or "<region> <edge> at%",
 /// as the EDS room's region table names its per-element cells, with the number the cell shows as its value; a region whose layer is off is "hidden".
+/// Every value is in the reader's decimal mark, as the cell it stands for.
 nonisolated enum EELSRegionSpeech {
     enum Kind { case intensity, atomic }
 
@@ -32,6 +33,15 @@ nonisolated enum EELSRegionSpeech {
         case .intensity: return Num.sig(value, 4, locale: locale)
         case .atomic: return Num.fixed(value, 1, locale: locale)
         }
+    }
+
+    /// The total-counts cell's value: the whole number of counts, no grouping.
+    static func totalValue(_ counts: Double, locale: Locale = .autoupdatingCurrent) -> String { Num.fixed(counts, 0, locale: locale) }
+
+    /// The t/λ cell's value: the four decimals the cell shows, in the reader's decimal mark ("0,5012" in a comma locale, as the cell beside it); nothing
+    /// where the cell shows a dash.
+    static func tOverLambdaValue(_ tOverLambda: Double?, locale: Locale = .autoupdatingCurrent) -> String {
+        tOverLambda.map { Num.fixed($0, 4, locale: locale) } ?? ""
     }
 
     /// The name cell's value: a region whose layer is off is dimmed on screen and "hidden" in words; a visible one adds nothing.
@@ -86,10 +96,10 @@ struct EELSRegionsTable: View {
                                     .accessibilityLabel("\(pin.name) pixels").accessibilityValue("\(row.pixels)")
                                     .accessibilityIdentifier("eels.regionTable.\(pin.name).pixels")
                                 Text(EDXRoomFormat.counts(row.totalCounts)).monospacedDigit()
-                                    .accessibilityLabel("\(pin.name) total counts").accessibilityValue(String(format: "%.0f", row.totalCounts))
+                                    .accessibilityLabel("\(pin.name) total counts").accessibilityValue(EELSRegionSpeech.totalValue(row.totalCounts))
                                     .accessibilityIdentifier("eels.regionTable.\(pin.name).total")
                                 Text(row.tOverLambda.map { Num.fixed($0, 4) } ?? "–").monospacedDigit()
-                                    .accessibilityLabel("\(pin.name) t over lambda").accessibilityValue(row.tOverLambda.map { String(format: "%.4f", $0) } ?? "")
+                                    .accessibilityLabel("\(pin.name) t over lambda").accessibilityValue(EELSRegionSpeech.tOverLambdaValue(row.tOverLambda))
                                     .accessibilityIdentifier("eels.regionTable.\(pin.name).tOverLambda")
                                 ForEach(edges) { edge in
                                     let value = row.edges.first { $0.id == edge.id }?.intensity
