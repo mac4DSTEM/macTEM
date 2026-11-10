@@ -5,10 +5,13 @@
 #   assert_mactem_bundle_arm64_only <app>      the executable and FormatoKit's three HDF5 frameworks: each there, each arm64 alone
 #   assert_mactem_demo_data <app>              the four shipped demo files (DemoDocuments.Shipped) in Contents/Resources/DemoData
 #   assert_mactem_store_entitlements <plist>   the store app's sandbox entitlements (com.apple.security.*): exactly these three
+#   assert_mactem_bundle_developer_id_signed <app> <identity>
+#                                              the app and the three frameworks: each signed by the Developer ID identity, with
+#                                              the hardened runtime and a secure timestamp
 #
-# tools/release.sh calls the first two, tools/release-store.sh all three. Each prints one line per failure and returns non-zero
-# after checking everything, so a caller under `set -e` and one in an `if` stop alike. No counter is called `status`, which zsh
-# aliases to `$?`.
+# tools/release.sh calls the first two and the last, tools/release-store.sh the first three (its package is signed for the store,
+# not with Developer ID). Each prints one line per failure and returns non-zero after checking everything, so a caller under
+# `set -e` and one in an `if` stop alike. No counter is called `status`, which zsh aliases to `$?`.
 #
 # The three frameworks are named, not globbed. The loop this replaces took them from a brace expansion with zsh's (N) qualifier,
 # which drops a path that does not exist, so an app that had lost a framework passed (the store script checked none by name).
@@ -77,4 +80,39 @@ assert_mactem_store_entitlements() {  # <entitlements plist>
     fi
   done
   return $entitlement_failures
+}
+
+# Fails unless $1, an app or a framework, is signed by the identity $2 with the hardened runtime and a secure timestamp, as
+# `codesign -dvv` reports them: the certificate's name on an Authority line, `(runtime)` among the flags, a Timestamp line (a
+# signature without a secure timestamp has a "Signed Time" line in its place). Adapted from mac4DSTEM
+# (tools/release/build-developer-id.sh, check_signed), which holds the frameworks to all three as well: the archive signs every
+# piece with the app's settings. Notarization refuses a download that lacks them, but only after the upload; this names the piece
+# and the mark before it.
+assert_mactem_developer_id_signed() {  # <app or framework> <identity>
+  local details sign_failures=0
+  details="$(codesign -dvv "$1" 2>&1 || true)"
+  if [[ "$details" != *"Authority=$2"* ]]; then
+    echo "Not signed by $2: $1." >&2
+    sign_failures=1
+  fi
+  if [[ "$details" != *"(runtime)"* ]]; then
+    echo "Not signed with the hardened runtime: $1." >&2
+    sign_failures=1
+  fi
+  if [[ "$details" != *"Timestamp="* ]]; then
+    echo "No secure timestamp: $1." >&2
+    sign_failures=1
+  fi
+  return $sign_failures
+}
+
+# Every signed piece of the download: the app and the three frameworks, each named. A framework that is not there is
+# assert_mactem_bundle_arm64_only's to report; here its signature cannot be read and each mark fails.
+assert_mactem_bundle_developer_id_signed() {  # <app> <identity>
+  local app="$1" identity="$2" library bundle_sign_failures=0
+  assert_mactem_developer_id_signed "$app" "$identity" || bundle_sign_failures=1
+  for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do
+    assert_mactem_developer_id_signed "$app/Contents/Frameworks/$library.framework" "$identity" || bundle_sign_failures=1
+  done
+  return $bundle_sign_failures
 }
