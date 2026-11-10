@@ -1,23 +1,41 @@
 cff-version: 1.2.0
-message: "If you use macTEM in published work, please cite it, and please also cite HyperSpy and exSpy, whose methods its EDX room follows."
+message: >-
+  If you use macTEM in published work, please cite it, and please also cite the
+  Python packages whose methods it follows: HyperSpy and eXSpy for EDS;
+  kikuchipy, PyEBSDIndex, orix, diffsims and DefDAP for EBSD and TKD; and
+  RosettaSciIO and NexusLIMS for the SEM-EDS and SEM TIFF readers. All are
+  listed under references.
 title: macTEM
 abstract: >-
-  A native macOS application for calibrated TEM images, electron diffraction and spectrum imaging on Apple Silicon:
-  FFT, lattice analysis, ring calibration, indexing, EDX and EELS, built on the macEM Swift kits and checked against
-  their Python reference packages.
+  A native macOS application for transmission and scanning electron microscopy
+  on Apple Silicon: calibrated TEM and SEM images, FFT and lattice analysis,
+  electron diffraction with ring calibration and indexing, EDS and EELS
+  spectrum images, and SEM-EDS maps, line scans and spectra. For EBSD and TKD
+  it goes from the patterns (background removal, filters, NLPAR, Hough and
+  dictionary indexing) to orientation maps, grains, grain size, KAM, GOS, GND,
+  slip and texture. The TEM methods run on the macEM Swift kits; the SEM
+  methods are ported into the app. Each is checked against its Python
+  reference package. The SEM features are in the development version on main,
+  not yet in release 1.3.0.
 type: software
 authors:
   - family-names: Lobpreis
     given-names: Paul
-version: 1.0.0
-date-released: 2026-10-23
+version: 1.3.0
+date-released: "2026-11-05"
 license: GPL-3.0-only
 repository-code: https://github.com/mac4DSTEM/macTEM
+url: https://mac4dstem.com/mactem/
 keywords:
   - transmission electron microscopy
+  - scanning electron microscopy
   - electron diffraction
-  - EDX
+  - EDS
   - EELS
+  - SEM-EDS
+  - EBSD
+  - TKD
+  - orientation mapping
   - macOS
   - Swift
 references:
@@ -26,8 +44,81 @@ references:
     authors:
       - name: "The HyperSpy developers"
     repository-code: "https://github.com/hyperspy/hyperspy"
+    doi: 10.5281/zenodo.592838
   - type: software
-    title: "exSpy"
+    title: "eXSpy"
     authors:
-      - name: "The exSpy developers"
+      - name: "The eXSpy developers"
     repository-code: "https://github.com/hyperspy/exspy"
+    doi: 10.5281/zenodo.10252344
+  - type: software
+    title: "kikuchipy"
+    authors:
+      - name: "The kikuchipy developers"
+    version: "0.13.1"
+    repository-code: "https://github.com/pyxem/kikuchipy"
+    doi: 10.5281/zenodo.3597646
+  - type: article
+    title: >-
+      Fast Radon transforms for high-precision EBSD orientation determination
+      using PyEBSDIndex
+    authors:
+      - family-names: Rowenhorst
+        given-names: David J.
+      - family-names: Callahan
+        given-names: Patrick G.
+      - family-names: Ånes
+        given-names: Håkon W.
+    journal: Journal of Applied Crystallography
+    volume: 57
+    issue: 1
+    year: 2024
+    start: 3
+    end: 19
+    url: "https://github.com/USNavalResearchLaboratory/PyEBSDIndex"
+  - type: article
+    title: >-
+      Density-based clustering of crystal (mis)orientations and the orix
+      Python library
+    authors:
+      - family-names: Johnstone
+        given-names: Duncan N.
+      - family-names: Martineau
+        given-names: Ben H.
+      - family-names: Crout
+        given-names: Phillip
+      - family-names: Midgley
+        given-names: Paul A.
+      - family-names: Eggeman
+        given-names: Alexander S.
+    journal: Journal of Applied Crystallography
+    volume: 53
+    year: 2020
+    start: 1293
+    doi: 10.1107/S1600576720011103
+  - type: software
+    title: "diffsims"
+    authors:
+      - name: "The diffsims developers"
+    version: "0.7.0"
+    repository-code: "https://github.com/pyxem/diffsims"
+    doi: 10.5281/zenodo.3337900
+  - type: software
+    title: "DefDAP"
+    authors:
+      - name: "Mechanics of Microstructures Group, The University of Manchester"
+    version: "1.3.1"
+    repository-code: "https://github.com/MechMicroMan/DefDAP"
+    doi: 10.5281/zenodo.3688096
+  - type: software
+    title: "RosettaSciIO"
+    authors:
+      - name: "The HyperSpy developers"
+    version: "0.15.0"
+    repository-code: "https://github.com/hyperspy/rosettasciio"
+    doi: 10.5281/zenodo.8011666
+  - type: software
+    title: "NexusLIMS"
+    authors:
+      - name: "Datasophos"
+    repository-code: "https://github.com/datasophos/NexusLIMS"

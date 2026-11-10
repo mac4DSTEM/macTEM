@@ -19,7 +19,8 @@ scipy 1.18.1, h5py 3.16.0, numba 0.68.1, CPython 3.14.
 | pyebsdindex | US Naval Research Laboratory public-domain work (17 USC 105), worldwide royalty-free grant; derivative works must say they are derived and modified, and acknowledge NRL | yes; `NOTICE` carries the acknowledgment and the modification note |
 | HyperSpy, exspy, RosettaSciIO | GPL-3.0-or-later | yes |
 | DefDAP | Apache-2.0 (compatible with GPL-3.0; notices kept in `NOTICE`) | yes |
-| EMsoft | BSD-2-Clause (compatible) | master patterns are read, EMsoft itself is not ported (Fortran, Monte Carlo) |
+| EMsoft | BSD-3-Clause (compatible; the notice kikuchipy carries is kept in `NOTICE`) | master patterns are read, EMsoft itself is not ported (Fortran, Monte Carlo) |
+| NexusLIMS | MIT (compatible; the permission notice is kept in `NOTICE`) | yes: the Tescan TIFF header pipeline (`tescan_tif`), rewritten in Swift; its test file's tag 50431 is a fixture |
 | MTEX | GPL-2.0-or-later (MATLAB) | algorithms by paper only; never code (MATLAB, and the app does not link it) |
 | Avizo, AZtec, OIM Analysis, Esprit, Velox | commercial | feature targets from public manuals only, never code or data |
 

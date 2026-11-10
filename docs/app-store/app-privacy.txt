@@ -9,4 +9,3 @@ Why this is correct:
 - Files, sessions and exports are read from and written to the user's own storage only, reached through the system Open and Save panels.
 
 Privacy Policy URL: https://mac4dstem.com/privacy.html
-Before submission: that page is written for mac4DSTEM and does not yet name macTEM (see urls.txt).
