@@ -111,6 +111,11 @@ struct ContentView: View {
                 return .busy(operation: BusyOperation.indexingLine(session, dataset: dataset), progress: RoomProgress.fraction(room: room, appState: appState),
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
+            // The open of the scan is this room's work too while it is shown (`BusyOperation.isBusy`): the open's own line, as Patterns reads.
+            if session.patterns.isOpening, let operation = BusyOperation.toolbarOperation(room: .patterns, appState: appState) {
+                return .busy(operation: operation, progress: nil,
+                             metrics: { now in RunClock.reading(since: appState.busySince[.patterns], progress: nil, now: now) })
+            }
             return .idle(file: session.patterns.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
         case .maps:
             let session = appState.maps
@@ -127,17 +132,18 @@ struct ContentView: View {
         }
     }
 
-    /// Opens the dropped files macTEM reads; every dropped file it does not read is refused by name in one alert, a line each.
+    /// Opens the dropped files macTEM reads; every dropped file it does not read is refused by name in one alert, a line each, and
+    /// what macTEM opens is said once after them (`FileRouting.dropped`). With files to open the lines go to the Open, which shows
+    /// them once with the files its routing refuses, after any folder it asks for (`AppState.open(urls:refused:)`): an alert raised
+    /// here first lost its lines to the Open's, and kept the folder panel of a NORDIF scan from showing. With none to open the
+    /// alert is raised here.
     private func openDropped(_ urls: [URL]) -> Bool {
-        let readable = FileRouting.openableExtensions
-        // A file of a readable format; a dragged web link ending in .tif is not a file.
-        let isReadable = { (url: URL) in url.isFileURL && readable.contains(url.pathExtension.lowercased()) }
-        let accepted = urls.filter(isReadable)
-        appState.presentRefusals(urls.filter { !isReadable($0) }.map { refused in
-            ErrorDetail.text(ImageOpening.Refusal.unreadableFormat(file: refused.lastPathComponent, ext: refused.pathExtension.lowercased()))
-        })
-        guard !accepted.isEmpty else { return false }
-        appState.open(urls: accepted)
+        let drop = FileRouting.dropped(urls)
+        guard !drop.accepted.isEmpty else {
+            appState.presentRefusals(drop.refusals)
+            return false
+        }
+        appState.open(urls: drop.accepted, refused: drop.refusals)
         return true
     }
 

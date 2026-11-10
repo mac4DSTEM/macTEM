@@ -22,13 +22,21 @@ import Foundation
 import ImagoCore
 
 package nonisolated enum PatternFilters {
-    package enum Error: Swift.Error, Equatable, Sendable {
+    package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {
         /// A count does not match `rows * columns`, a transfer function is not the pattern's shape, or a size is below 1.
         case shape
         /// The FFT for this shape could not be set up.
         case fft
         /// The filtered pattern is flat or not finite, so it cannot be rescaled.
         case nonFinite
+
+        package var errorDescription: String? {
+            switch self {
+            case .shape: "The pattern's values or the filter do not match the pattern's size."
+            case .fft: "The FFT for this pattern size could not be set up."
+            case .nonFinite: "The filtered pattern is flat or not finite, so it cannot be rescaled."
+            }
+        }
     }
 
     /// kikuchipy's `function_domain`.

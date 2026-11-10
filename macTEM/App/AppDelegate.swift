@@ -1,6 +1,6 @@
 //
 //  AppDelegate.swift
-//  Role: the three things SwiftUI's scene API cannot do for a single-`Window` app (spike 2026-10-12, E1/E4):
+//  Role: the three things SwiftUI's scene API cannot do for this app (spike 2026-10-12, E1/E4):
 //        it quits when the last window closes, `.onOpenURL` gets only the first file of a multi-file open, and a quit
 //        cannot be held for a question (SwiftUI has no hook before the app terminates): quitting with marks not saved to
 //        their session file, or with a room still working, asks first in an `NSAlert` (`CloseGuard`). This is the AppKit
@@ -12,9 +12,9 @@ import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
-    /// The window's state, for the question at quit: set when the window first appears (`ImageWindow`), as the URL relay's
-    /// handler is, since the adaptor makes the delegate and cannot hand it one. Weak: `macTEMApp` owns the state.
-    static weak var appState: AppState?
+    /// The app's windows, for the question at quit: set when a window first appears (`ImageWindow`), as the URL relay's
+    /// handler is, since the adaptor makes the delegate and cannot hand it one. Weak: `macTEMApp` owns them.
+    static weak var windows: AppWindows?
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
@@ -24,10 +24,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Quits at once when nothing would be lost; otherwise asks, naming the files with unsaved marks and the rooms still
-    /// working: Quit (destructive) or Cancel (Esc). A UI-testing launch quits without asking: a journey's teardown ends the
+    /// working, over every window (`AppWindows.quitQuestion`): Quit (destructive) or Cancel (Esc). A UI-testing launch quits without asking: a journey's teardown ends the
     /// app, and a modal question would hold it.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let appState = Self.appState, !appState.launch.isUITesting, let question = appState.quitQuestion else {
+        guard let windows = Self.windows, !LaunchOptions().isUITesting, let question = windows.quitQuestion else {
             return .terminateNow
         }
         let alert = NSAlert()

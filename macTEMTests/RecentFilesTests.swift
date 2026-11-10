@@ -1,9 +1,9 @@
 //
 //  RecentFilesTests.swift
 //  Pins File > Open Recent: the list (`RecentFiles`, TEMSession; mac4DSTEM's RecentDatasetsTests, for files) and the app's side of
-//  it (`AppState.open(urls:)` remembers a file it takes in and not one it refuses; `openRecent` opens an entry again and drops one
-//  whose file is gone). Saving is injected as a recorder or as defaults of the test's own, so no test reads or writes a person's
-//  recents. Red before: no `RecentFiles`, no `recents`, no `openRecent`.
+//  it (`AppState.open(urls:)` remembers a file once it has opened, not one it refuses nor one whose read fails; `openRecent` opens
+//  an entry again and drops one whose file is gone). Saving is injected as a recorder or as defaults of the test's own, so no test
+//  reads or writes a person's recents. Red before: no `RecentFiles`, no `recents`, no `openRecent`.
 //
 
 import XCTest
@@ -166,5 +166,18 @@ nonisolated final class RecentFilesTests: XCTestCase {
         XCTAssertEqual(state.recents.entries.map(\.displayName), ["planted.dm4"], "a file that is gone leaves the list")
         XCTAssertTrue(state.statusText.contains("gone.dm4"), state.statusText)
         XCTAssertEqual(state.errorMessage?.contains("gone.dm4"), true, "the alert says it, not the status line alone")
+    }
+
+    /// A file the routing takes as an image and whose read then fails (a DM4 that holds no image object) raises the alert and is not
+    /// in Open Recent, where picking it would only fail again. Red before: `open(urls:)` remembered every file it did not refuse
+    /// while it routed the batch, before any read, so empty.dm4 was the first entry.
+    @MainActor func testAFileWhoseReadFailsIsNotInOpenRecent() async throws {
+        let broken = URL(fileURLWithPath: try DM4TestFile.write(DM4TestFile.file([]), named: "empty.dm4", for: self))
+        XCTAssertEqual(FileRouting.inventory(path: broken.path), FileInventory(image: true), "the routing takes it as an image")
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.open(urls: [broken])?.value
+        XCTAssertTrue(state.openItems.items.isEmpty, "the read failed, so the file has no row")
+        XCTAssertEqual(state.errorMessage?.contains("empty.dm4"), true, "the alert says why")
+        XCTAssertTrue(state.recents.entries.isEmpty, "a file that did not open is not in Open Recent")
     }
 }

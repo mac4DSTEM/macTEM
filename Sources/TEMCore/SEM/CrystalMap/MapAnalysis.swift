@@ -142,8 +142,11 @@ package nonisolated struct MapAnalysis: Sendable {
     /// The scan unit of the lengths.
     package let scanUnit: String
 
-    /// The analysis of `map` with `settings` (a whole map: the points in data fill rows × columns in row order).
-    package static func run(_ map: CrystalMap, settings: MapAnalysisSettings = MapAnalysisSettings()) throws -> MapAnalysis {
+    /// The analysis of `map` with `settings` (a whole map: the points in data fill rows × columns in row order). `isCancelled` is asked
+    /// through the grain analysis (`GrainAnalysis.run`) and before the GND and the table; it throws `CancellationError` once it says so
+    /// (the Maps room's Stop).
+    package static func run(_ map: CrystalMap, settings: MapAnalysisSettings = MapAnalysisSettings(),
+                            isCancelled: () -> Bool = { false }) throws -> MapAnalysis {
         let (rows, columns) = OrientationMaps.gridShape(map)
         guard rows * columns == map.size, OrientationMaps.pointIndexGrid(map) == map.ids else { throw Refusal.notAGrid }
         let grainMap: GrainMap
@@ -151,10 +154,13 @@ package nonisolated struct MapAnalysis: Sendable {
         let analysis: GrainAnalysis
         do {
             analysis = try GrainAnalysis.run(grainMap, boundaryDegrees: settings.boundaryDegrees, minimumSize: settings.minimumSize,
-                                             kam: .symmetric(thresholdDegrees: settings.kamMaxDegrees))
+                                             kam: .symmetric(thresholdDegrees: settings.kamMaxDegrees), isCancelled: isCancelled)
+        } catch let cancelled as CancellationError {
+            throw cancelled
         } catch {
             throw Refusal.grains(error.localizedDescription)
         }
+        if isCancelled() { throw CancellationError() }
         let indexed = map.phases.entries.filter { $0.id != PhaseList.notIndexedID }
         let phaseIDs = indexed.map(\.id)
 
@@ -166,6 +172,7 @@ package nonisolated struct MapAnalysis: Sendable {
                                            structure: structure)
             gnd = zip(result.gnd, grainMap.phase).map { $1 == 0 ? .nan : $0 }
         }
+        if isCancelled() { throw CancellationError() }
 
         // The table.
         let segmentation = analysis.segmentation
@@ -195,9 +202,9 @@ package nonisolated struct MapAnalysis: Sendable {
                            scanUnit: map.scanUnit)
     }
 
-    /// The same off the caller's actor.
+    /// The same off the caller's actor; a cancelled task stops at its next row or grain and throws `CancellationError`.
     @concurrent package static func runAsync(_ map: CrystalMap, settings: MapAnalysisSettings) async throws -> MapAnalysis {
-        try run(map, settings: settings)
+        try run(map, settings: settings, isCancelled: { Task.isCancelled })
     }
 
     /// A length in `unit` in micrometres (the readers write "um"; nm and mm convert; any other unit is taken as micrometres).

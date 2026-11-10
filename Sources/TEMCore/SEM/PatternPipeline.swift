@@ -241,6 +241,12 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             self.stage = stage; self.sentence = sentence
         }
         package var errorDescription: String? { sentence }
+
+        /// This refusal as the pattern at (row, column) of a scan gave it: the sentence names the pattern, so a run over the whole scan
+        /// says which one stopped it.
+        package func at(row: Int, column: Int) -> Refusal {
+            Refusal(stage, "Pattern (row \(row), column \(column)): " + sentence)
+        }
     }
 
     /// The first refusal for a scan of `dataset` with `background` as the static background (nil: none known yet), else nil.
@@ -339,7 +345,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
     package func outputType(_ input: FormatoDataType) -> FormatoDataType { intensity.mode == .normalize || nlpar.isOn ? .float32 : input }
 
     /// One pattern (shape rows × columns, uint8 or uint16) through every active per-pattern stage; the result's shape is binned.
-    /// NLPAR needs the neighbours, so it is not applied here (`process` runs it).
+    /// NLPAR needs the neighbours, so it is not applied here (`process` runs it). A stage that fails throws its `Refusal`.
     package func apply(_ pattern: FormatoArray, rows: Int, columns: Int, background: FormatoArray?) throws -> FormatoArray {
         switch pattern.dataType {
         case .uint8:
@@ -358,25 +364,34 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         var x = pattern
         if staticStage.isOn {
             guard let background else { throw Refusal(.staticBackground, "No static background to remove.") }
-            x = try PatternProcessing.removeStaticBackground(x, background: background, operation: staticStage.operation,
+            x = try Self.staged(.staticBackground) {
+                try PatternProcessing.removeStaticBackground(x, background: background, operation: staticStage.operation,
                                                              scaleBackground: staticStage.scaleBackground)
+            }
         }
         if dynamicStage.isOn {
-            x = try PatternProcessing.removeDynamicBackground(x, rows: rows, columns: columns, operation: dynamicStage.operation,
+            x = try Self.staged(.dynamicBackground) {
+                try PatternProcessing.removeDynamicBackground(x, rows: rows, columns: columns, operation: dynamicStage.operation,
                                                               domain: dynamicStage.domain, std: dynamicStage.std, truncate: dynamicStage.truncate)
+            }
         }
         let outRows = rows / binning, outColumns = columns / binning
         switch intensity.mode {
         case .none:
             break
         case .rescale:
-            x = try PatternProcessing.rescaleIntensity(x, percentiles: intensity.usesPercentiles ? (intensity.lowPercentile, intensity.highPercentile) : nil)
+            x = try Self.staged(.intensity) {
+                try PatternProcessing.rescaleIntensity(x, percentiles: intensity.usesPercentiles ? (intensity.lowPercentile, intensity.highPercentile) : nil)
+            }
         case .normalize:
             guard !intensity.equalize, !fftFilter.isOn else {
                 throw Refusal(intensity.equalize ? .intensity : .fftFilter, "Equalise and the FFT filter read 8 and 16 bit patterns; Normalise makes them float32.")
             }
-            var f = try PatternProcessing.normalizeIntensity(x.map { Double($0) }, numStd: intensity.numStd, divideBySquareRoot: intensity.divideBySquareRoot)
-            if binning > 1 { f = try PatternProcessing.downsampleFloat(f, rows: rows, columns: columns, factor: binning) }
+            let values = x.map { Double($0) }
+            var f = try Self.staged(.intensity) {
+                try PatternProcessing.normalizeIntensity(values, numStd: intensity.numStd, divideBySquareRoot: intensity.divideBySquareRoot)
+            }
+            if binning > 1 { f = try Self.staged(.size) { try PatternProcessing.downsampleFloat(f, rows: rows, columns: columns, factor: binning) } }
             return try Self.array(f, rows: outRows, columns: outColumns)
         }
         if intensity.equalize {
@@ -400,8 +415,18 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
                 throw Refusal(.fftFilter, "This pattern is flat after the FFT filter, so it cannot be rescaled.")
             }
         }
-        if binning > 1 { x = try PatternProcessing.downsample(x, rows: rows, columns: columns, factor: binning) }
+        if binning > 1 { x = try Self.staged(.size) { try PatternProcessing.downsample(x, rows: rows, columns: columns, factor: binning) } }
         return try Self.array(x, type: type, rows: outRows, columns: outColumns)
+    }
+
+    /// One stage's work on one pattern, a failure said as that stage's `Refusal` in the stage function's own sentence (a flat pattern
+    /// cannot be rescaled), so the room shows it under the stage and Process can name the pattern.
+    private static func staged<T>(_ stage: Stage, _ work: () throws -> T) throws -> T {
+        do {
+            return try work()
+        } catch {
+            throw Refusal(stage, (error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+        }
     }
 
     // MARK: - The whole scan
@@ -452,13 +477,13 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         return Refusal(stage, "Process would hold about \(held) GB in memory, more than half of this Mac's \(mac) GB. " + advice)
     }
 
-    /// Every pattern of the scan through the pipeline, row by row, into memory, then neighbour averaging and NLPAR over the result when
-    /// they are on (`lambda` is told the λ NLPAR chose). `progress` gets the fraction done after each scan row (the rows are the first
-    /// half when a whole-scan stage follows, averaging the third quarter when NLPAR follows it); returns nil when `isCancelled` says so
-    /// between rows, or between the rows and tiles of averaging and NLPAR, which also ask it on NLPAR's worker threads (so it must
-    /// read a flag such as `CancellationFlag`, not `Task.isCancelled`). Where it can, the scan is held once: averaging lets its input
-    /// bytes go before it writes its output, NLPAR takes the per-pattern output as float32 and the bytes go, and each result is
-    /// written out in one copy.
+    /// Every pattern of the scan through the pipeline, row by row (a row's patterns on every core, `ScanRowWork`), into memory, then
+    /// neighbour averaging and NLPAR over the result when they are on (`lambda` is told the λ NLPAR chose). `progress` gets the fraction
+    /// done after each scan row (the rows are the first half when a whole-scan stage follows, averaging the third quarter when NLPAR
+    /// follows it); returns nil when `isCancelled` says so between rows, or between the rows and tiles of averaging and NLPAR, which also
+    /// ask it on NLPAR's worker threads (so it must read a flag such as `CancellationFlag`, not `Task.isCancelled`). Where it can, the
+    /// scan is held once: averaging lets its input bytes go before it writes its output, NLPAR takes the per-pattern output as float32
+    /// and the bytes go, and each result is written out in one copy.
     package func process(_ access: any EBSDPatternAccess, background: FormatoArray?,
                          progress: (Double) -> Void = { _ in }, isCancelled: @Sendable () -> Bool = { false },
                          lambda: (Double) -> Void = { _ in }) throws -> EBSDMemoryPatterns? {
@@ -473,11 +498,17 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         for row in 0..<dataset.scanRows {
             if isCancelled() { return nil }
             let slab = try access.row(row)
-            for column in 0..<dataset.scanColumns {
+            // Each pattern through `apply` on its own, in its column's place: the bytes are the serial loop's.
+            let patterns = try ScanRowWork.map(columns: dataset.scanColumns) { (column: Int) throws -> Data in
                 let one = try FormatoArray(dataType: dataset.dataType, shape: [dataset.patternRows, dataset.patternColumns],
                                            bytes: slab.bytes.subdata(in: (column * inSize)..<((column + 1) * inSize)))
-                bytes.append(try apply(one, rows: dataset.patternRows, columns: dataset.patternColumns, background: background).bytes)
+                do {
+                    return try apply(one, rows: dataset.patternRows, columns: dataset.patternColumns, background: background).bytes
+                } catch let refusal as Refusal {
+                    throw refusal.at(row: row, column: column)
+                }
             }
+            for pattern in patterns { bytes.append(pattern) }
             progress(Double(row + 1) / Double(dataset.scanRows) * (nlpar.isOn || averaging.isOn ? 0.5 : 1))
         }
         if averaging.isOn {
@@ -645,10 +676,9 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         }
     }
 
+    /// A pattern's uint8 or uint16 values as an array of `type`, its bytes written in one copy (`littleEndianBytes`).
     static func array<P: FixedWidthInteger & UnsignedInteger>(_ values: [P], type: FormatoDataType, rows: Int, columns: Int) throws -> FormatoArray {
-        var data = Data(capacity: values.count * MemoryLayout<P>.size)
-        for v in values { withUnsafeBytes(of: v.littleEndian) { data.append(contentsOf: $0) } }
-        return try FormatoArray(dataType: type, shape: [rows, columns], bytes: data)
+        try FormatoArray(dataType: type, shape: [rows, columns], bytes: littleEndianBytes(values))
     }
 
     /// uint8, uint16 or float32 values (little-endian bytes, as `FormatoArray` holds them) as float32: exact for the three types, so the
@@ -674,15 +704,14 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
     }
 
     /// Integer or float values as `FormatoArray`'s little-endian bytes, in one copy: every Mac is little-endian, so the array's memory
-    /// is those bytes (`array` writes the same bytes value by value).
+    /// is those bytes (each value's `littleEndian` bytes appended in turn, as `array` once wrote them).
     static func littleEndianBytes<T: Numeric>(_ values: [T]) -> Data {
         values.withUnsafeBufferPointer { Data(buffer: $0) }
     }
 
+    /// A normalised pattern as a float32 array, its bytes written in one copy (`littleEndianBytes`).
     static func array(_ values: [Float], rows: Int, columns: Int) throws -> FormatoArray {
-        var data = Data(capacity: values.count * 4)
-        for v in values { withUnsafeBytes(of: v.bitPattern.littleEndian) { data.append(contentsOf: $0) } }
-        return try FormatoArray(dataType: .float32, shape: [rows, columns], bytes: data)
+        try FormatoArray(dataType: .float32, shape: [rows, columns], bytes: littleEndianBytes(values))
     }
 
     /// A uint8 or uint16 background binned as `EBSD.downsample` bins the signal's `static_background`.

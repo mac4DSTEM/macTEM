@@ -7,7 +7,9 @@
 //        the map…" during Process and the quality pass, and the Maps toolbar showed the file while Segment and the texture ran: both
 //        rooms now take their busy line from here too (`toolbarOperation`). A run in a room not on screen (an Index left running while
 //        the Maps room is shown) showed nowhere and ⌘. could not reach it: while the shown room is idle, the toolbar shows that run under
-//        its room's name and ⌘. stops it (`backgroundRoom`), as mac4DSTEM shows and cancels its busy work whatever the room.
+//        its room's name and ⌘. stops it (`backgroundRoom`), as mac4DSTEM shows and cancels its busy work whatever the room. Which room
+//        the work belongs to is `isBusy`: the scan's open is the Indexing room's too while it is shown, and a layer's picture in the
+//        Maps room is not work that hides another room's run.
 //
 
 import Foundation
@@ -142,16 +144,20 @@ enum BusyOperation {
         return backgroundRoom(shown: appState.navigation.workspaceArea, busy: busy)
     }
 
-    /// Whether `room` has work in flight: its session's busy flag; for the Diffraction room the selected file's ring fit, which ⌘. stops
-    /// there.
+    /// Whether `room` has work in flight that keeps the toolbar's line and ⌘. while the room is shown: its session's busy flag, but for
+    /// three rooms. The Indexing room shows the scan too and draws its open with a Stop of its own, so the open of the scan is its
+    /// work as well as the Patterns room's (from any other room it stays "Patterns · Opening the dataset…": Patterns comes first in
+    /// `runningRooms`). The Maps room counts the work Stop ends (`RoomPrimaryAction.canStop`) and not a layer's picture, which would
+    /// hide another room's run and turn ⌘. off for the length of every draw. The Diffraction room's is the selected file's ring fit,
+    /// which ⌘. stops there.
     @MainActor
     static func isBusy(_ room: WorkspaceArea, appState: AppState) -> Bool {
         switch room {
         case .edx: appState.edx.isBusy
         case .eels: appState.eels.isBusy
         case .patterns: appState.ebsd.isBusy
-        case .indexing: appState.indexing.isBusy
-        case .maps: appState.maps.isBusy
+        case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
+        case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected?.diffraction.isFitting ?? false
         case .image, .fft, .results: false
         }

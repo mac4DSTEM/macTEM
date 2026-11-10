@@ -69,7 +69,7 @@ nonisolated final class ParticleViewTests: XCTestCase {
         XCTAssertTrue(section.contains("Button(\"Object Table…\") { openWindow(id: ParticleTableWindow.id) }"))
         XCTAssertFalse(section.contains(".sheet(isPresented: $showTable)"))
         let app = squeezed(try source("macTEM/App/macTEMApp.swift"))
-        XCTAssertTrue(app.contains("Window(\"Objects\", id: ParticleTableWindow.id) { ParticleTableWindow(appState: appState) }"))
+        XCTAssertTrue(app.contains("Window(\"Objects\", id: ParticleTableWindow.id) { ObjectsWindow(windows: windows) }"))
         XCTAssertEqual(ParticleTableWindow.id, "particles")
     }
 

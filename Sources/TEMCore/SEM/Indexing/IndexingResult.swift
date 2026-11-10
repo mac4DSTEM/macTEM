@@ -253,20 +253,20 @@ package nonisolated struct IndexingResult: Sendable {
     /// A refinement's refined PCs of the points refined, in map order; empty while the PC is held.
     package var refinedProjectionCenters: [SIMD3<Double>] { projectionCenters.filter { $0.x.isFinite } }
 
-    /// Appends a landed block's matches to `dictionary`.
+    /// Appends a landed block's matches to `dictionary`, in place: the stored arrays are held once, so the block's matches are added
+    /// to them as they stand. A copy of `dictionary` to append to (as before) copied every match landed so far at each block, which
+    /// made a run's landing quadratic on the main actor. No capacity is reserved: `append(contentsOf:)` grows geometrically, a
+    /// reserve per block would reallocate to the exact size every time, and a reserve of the whole scan would hold a stopped run's
+    /// full size.
     private mutating func append(_ block: DictionaryIndexing.Result, rows: Range<Int>) {
-        if var landed = dictionary {
-            landed.isInData += block.isInData
-            landed.scores += block.scores
-            landed.simulationIndices += block.simulationIndices
-            landed.rotations += block.rotations
-            landed.navigationShape = [rows.upperBound, scanColumns]
-            dictionary = landed
-        } else {
+        let shape = [rows.upperBound, scanColumns]
+        guard dictionary != nil else {
             var landed = block
-            landed.navigationShape = [rows.upperBound, scanColumns]
+            landed.navigationShape = shape
             dictionary = landed
+            return
         }
+        dictionary?.appendMatches(of: block, navigationShape: shape)
     }
 
     /// Recomputes the orientation similarity map from row `first` down to the last row landed, and the row above it (whose neighbour
@@ -561,6 +561,17 @@ package nonisolated struct IndexingResult: Sendable {
             lines.append(fields.joined(separator: ","))
         }
         return lines.joined(separator: "\n") + "\n"
+    }
+}
+
+/// A block's matches after the ones landed before it, in place on the stored result (`IndexingResult.append(_:rows:)`).
+private extension DictionaryIndexing.Result {
+    mutating func appendMatches(of block: DictionaryIndexing.Result, navigationShape shape: [Int]) {
+        isInData.append(contentsOf: block.isInData)
+        scores.append(contentsOf: block.scores)
+        simulationIndices.append(contentsOf: block.simulationIndices)
+        rotations.append(contentsOf: block.rotations)
+        navigationShape = shape
     }
 }
 

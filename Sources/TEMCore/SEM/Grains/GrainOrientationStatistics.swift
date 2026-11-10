@@ -30,12 +30,14 @@ package nonisolated enum KernelAverageMisorientation {
         case symmetric(thresholdDegrees: Double?)
     }
 
-    /// The KAM map in radians, row-major.
-    package static func map(_ map: GrainMap, method: Method = .symmetric(thresholdDegrees: 5)) throws -> [Double] {
+    /// The KAM map in radians, row-major. `isCancelled` is asked before the pass and before each row of the symmetric one; it throws
+    /// `CancellationError` once it says so (the Maps room's Stop).
+    package static func map(_ map: GrainMap, method: Method = .symmetric(thresholdDegrees: 5), isCancelled: () -> Bool = { false }) throws -> [Double] {
         guard map.rows >= 2, map.columns >= 2 else { throw GrainMap.Refusal.tooSmall }
+        if isCancelled() { throw CancellationError() }
         switch method {
         case .defdap: return defdap(map)
-        case .symmetric(let t): return symmetric(map, threshold: t.map { $0 * .pi / 180 })
+        case .symmetric(let t): return try symmetric(map, threshold: t.map { $0 * .pi / 180 }, isCancelled: isCancelled)
         }
     }
 
@@ -75,11 +77,12 @@ package nonisolated enum KernelAverageMisorientation {
         return kam
     }
 
-    private static func symmetric(_ map: GrainMap, threshold: Double?) -> [Double] {
+    private static func symmetric(_ map: GrainMap, threshold: Double?, isCancelled: () -> Bool) throws -> [Double] {
         let (h, w) = (map.rows, map.columns)
         let q = map.quaternions, phase = map.phase
         var kam = [Double](repeating: .nan, count: h * w)
         for r in 0..<h {
+            if isCancelled() { throw CancellationError() }
             for c in 0..<w {
                 let i = r * w + c
                 let p = phase[i]
@@ -138,8 +141,15 @@ package nonisolated struct GrainOrientationStatistics: Sendable, Equatable {
     }
 
     package static func compute(_ map: GrainMap, segmentation: GrainSegmentation) -> GrainOrientationStatistics {
+        // Never nil: nothing cancels it.
+        compute(map, segmentation: segmentation, isCancelled: { false })!
+    }
+
+    /// The same, asking `isCancelled` before each grain: nil once it says so (the Maps room's Stop, `GrainAnalysis.run`).
+    package static func compute(_ map: GrainMap, segmentation: GrainSegmentation, isCancelled: () -> Bool) -> GrainOrientationStatistics? {
         var averages: [SIMD4<Double>] = [], grods: [[Double]] = [], axes: [[SIMD3<Double>]] = [], cosines: [Double] = []
         for grain in segmentation.grains {
+            if isCancelled() { return nil }
             let ops = grain.phaseIndex.map { map.symmetries[$0] } ?? [SIMD4(1, 0, 0, 0)]
             let eq = grain.points.map { DefDAPQuat.symmetricEquivalents(map.quaternions[$0], ops) }
             let ref = averageOrientation(eq)
@@ -199,19 +209,29 @@ package nonisolated struct GrainAnalysis: Sendable, Equatable {
     package let kam: [Double]
     package let statistics: GrainOrientationStatistics
 
+    /// The analysis; `isCancelled` is asked before each row of the boundaries and of KAM and before each grain of the flood fill and of
+    /// the statistics, and it throws `CancellationError` once it says so (the Maps room's Stop). Not cancelled, every stage runs as it
+    /// did, in the same order.
     package static func run(_ map: GrainMap, boundaryDegrees: Double = 10, minimumSize: Int = 10,
-                            kam method: KernelAverageMisorientation.Method = .symmetric(thresholdDegrees: 5)) throws -> GrainAnalysis {
-        let boundaries = GrainBoundaries.find(in: map, thresholdDegrees: boundaryDegrees)
-        let segmentation = GrainSegmentation.find(in: map, boundaries: boundaries, minimumSize: minimumSize)
-        return GrainAnalysis(boundaries: boundaries, segmentation: segmentation,
-                             neighbours: segmentation.neighbourNetwork(boundaries: boundaries),
-                             kam: try KernelAverageMisorientation.map(map, method: method),
-                             statistics: GrainOrientationStatistics.compute(map, segmentation: segmentation))
+                            kam method: KernelAverageMisorientation.Method = .symmetric(thresholdDegrees: 5),
+                            isCancelled: () -> Bool = { false }) throws -> GrainAnalysis {
+        guard let boundaries = GrainBoundaries.find(in: map, thresholdDegrees: boundaryDegrees, isCancelled: isCancelled) else {
+            throw CancellationError()
+        }
+        guard let segmentation = GrainSegmentation.find(in: map, boundaries: boundaries, minimumSize: minimumSize, isCancelled: isCancelled) else {
+            throw CancellationError()
+        }
+        let neighbours = segmentation.neighbourNetwork(boundaries: boundaries)
+        let kam = try KernelAverageMisorientation.map(map, method: method, isCancelled: isCancelled)
+        guard let statistics = GrainOrientationStatistics.compute(map, segmentation: segmentation, isCancelled: isCancelled) else {
+            throw CancellationError()
+        }
+        return GrainAnalysis(boundaries: boundaries, segmentation: segmentation, neighbours: neighbours, kam: kam, statistics: statistics)
     }
 
-    /// The same off the caller's actor (a 1000 × 1000 map is a few seconds of CPU).
+    /// The same off the caller's actor (a 1000 × 1000 map is a few seconds of CPU); a cancelled task stops at its next row or grain.
     @concurrent package static func runAsync(_ map: GrainMap, boundaryDegrees: Double = 10, minimumSize: Int = 10,
                                              kam method: KernelAverageMisorientation.Method = .symmetric(thresholdDegrees: 5)) async throws -> GrainAnalysis {
-        try run(map, boundaryDegrees: boundaryDegrees, minimumSize: minimumSize, kam: method)
+        try run(map, boundaryDegrees: boundaryDegrees, minimumSize: minimumSize, kam: method, isCancelled: { Task.isCancelled })
     }
 }

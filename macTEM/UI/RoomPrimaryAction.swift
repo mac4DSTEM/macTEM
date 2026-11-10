@@ -3,7 +3,8 @@
 //  Role: the toolbar's one verb for the room that has one (design 2026-10-22, §2.2): EDS has Quantify, EELS has Run (the stages that are not current,
 //        in order), Patterns has Process, Indexing has Index, Maps has Segment; the Image, FFT, Diffraction and Results rooms have none yet. The button and its glass styles are ShellLayout's
 //        `PrimaryActionButton`; what the verb is, when it is enabled and what it says while blocked is this file's. Workspace > Run (⌘R)
-//        runs the same verb from the menu, on exactly when the button can run it (`canRun`).
+//        runs the same verb from the menu, on exactly when the button can run it (`canRun`). A room without a verb shows Cancel in the
+//        verb's place while a run left going in another room is the toolbar's busy line (`BusyOperation.backgroundRoom`).
 //
 
 import ShellLayout
@@ -46,6 +47,7 @@ enum RoomProgress {
 
 enum RoomPrimaryAction {
     /// The value for the toolbar, or nil when this room's verb does not apply (no verb, no document, or the document still opening).
+    /// A room without a verb answers a Cancel alone (no title, running) while the toolbar shows another room's run.
     @MainActor
     static func current(_ appState: AppState) -> PrimaryAction? {
         switch appState.navigation.workspaceArea {
@@ -125,7 +127,17 @@ enum RoomPrimaryAction {
                 stop: { session.stop() },
                 run: { session.segment() })
         default:
-            return nil
+            // A room without a verb keeps the Cancel of a run left going in another room, the one the toolbar's centre shows (ShellLayout's
+            // `PrimaryAction.title`: nil, "but a run may still be in flight and keep its Cancel"; mac4DSTEM's `isRunning: appState.isBusy`
+            // whatever the room). It is ⌘.'s Stop as a button. A room with a verb keeps its verb: rooms run side by side, the shown room's
+            // verb may start its own run, and ⌘. still reaches the other one.
+            guard let other = BusyOperation.backgroundRoom(appState), canStop(room: other, appState: appState) else { return nil }
+            return PrimaryAction(
+                title: nil,
+                isRunning: true,
+                operationName: BusyOperation.name(room: other, appState: appState).map { "\(other.title) · \($0)" } ?? other.title,
+                stop: { RoomPrimaryAction.stopActive(appState) },
+                run: {})
         }
     }
 
@@ -168,7 +180,13 @@ enum RoomPrimaryAction {
         case .edx: appState.edx.stop()
         case .eels: appState.eels.stop()
         case .patterns: appState.ebsd.stop()
-        case .indexing: appState.indexing.stop()
+        case .indexing:
+            // The room's own run first; else the open of the scan, which this room shows and draws with a Stop of its own (`canStop`).
+            if appState.indexing.isBusy {
+                appState.indexing.stop()
+            } else if appState.ebsd.isOpening {
+                appState.ebsd.stop()
+            }
         case .maps: appState.maps.stop()
         case .diffraction: appState.openItems.selected?.diffraction.stop()
         default: break
@@ -187,14 +205,15 @@ enum RoomPrimaryAction {
         return target == appState.navigation.workspaceArea ? "Stop" : "Stop \(target.title)"
     }
 
-    /// Whether `room` runs something Stop ends (a layer's picture in the Maps room is not stopped).
+    /// Whether `room` runs something Stop ends (a layer's picture in the Maps room is not stopped; the open of the scan is the
+    /// Indexing room's too, which shows it: `BusyOperation.isBusy`).
     @MainActor
     static func canStop(room: WorkspaceArea, appState: AppState) -> Bool {
         switch room {
         case .edx: appState.edx.isBusy
         case .eels: appState.eels.isBusy
         case .patterns: appState.ebsd.isBusy
-        case .indexing: appState.indexing.isBusy
+        case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected?.diffraction.isFitting ?? false
         default: false

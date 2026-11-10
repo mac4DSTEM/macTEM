@@ -68,6 +68,13 @@ nonisolated enum FolderGrants {
         return paths
     }
 
+    /// Whether a grant of one of `granted` (folders by `path(of:)`) reaches `file`: its own folder or one around it. An Open keeps
+    /// the folders granted while it runs and asks nothing for a scan one of them reaches: two scans in sibling folders, their common
+    /// parent chosen for the first, ask once (whether the second asks was decided before that grant existed).
+    static func reaches(_ granted: [String], file: URL) -> Bool {
+        folders(around: file).contains { granted.contains($0) }
+    }
+
     /// The open panel's rule: nil when `chosen` is the folder of `file` or one around it, else the sentence for the panel.
     static func panelRefusal(chosen: URL, file: URL) -> String? {
         guard !folders(around: file).contains(path(of: chosen)) else { return nil }

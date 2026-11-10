@@ -7,6 +7,7 @@
 //
 
 import XCTest
+import ShellLayout
 import TEMCore
 import TEMSession
 @testable import macTEM
@@ -15,6 +16,8 @@ nonisolated final class BusyOperationTests: XCTestCase {
     private let opened = "Opened map.emd — 1024 × 1024 px, 4096 channels"
     private static let sdss = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         .appendingPathComponent("Fixtures").appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")
+    private static let scan = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .appendingPathComponent("Fixtures").appendingPathComponent("ebsd-kikuchipy-h5ebsd.h5")
 
     private func source(_ path: String) throws -> String {
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
@@ -112,6 +115,8 @@ nonisolated final class BusyOperationTests: XCTestCase {
         let busy = "if let operation = BusyOperation.toolbarOperation(room: room, appState: appState) { return .busy(operation: operation, "
         XCTAssertTrue(view.contains(busy + "progress: RoomProgress.fraction(room: room, appState: appState),"), "the Patterns case")
         XCTAssertTrue(view.contains(busy + "progress: nil,"), "the Maps case")
+        XCTAssertTrue(view.contains("if session.patterns.isOpening, let operation = BusyOperation.toolbarOperation(room: .patterns, appState: appState) {"),
+                      "the Indexing case reads the open of the scan it shows")
     }
 
     /// The Patterns toolbar names the pass that runs, and the quality pass reports its own fraction. The demo's map pass starts as it is
@@ -204,6 +209,94 @@ nonisolated final class BusyOperationTests: XCTestCase {
         XCTAssertTrue(state.indexing.wasStopped)
         XCTAssertNil(BusyOperation.backgroundRoom(state))
         XCTAssertFalse(RoomPrimaryAction.canStop(state))
+    }
+
+    /// A room without a verb (the Image room) offers Cancel in the verb's place for a run left going in another room, as ShellLayout's
+    /// `PrimaryAction` documents (no title, a run in flight keeps its Cancel), and the Cancel stops that run; Workspace > Run (⌘R) stays
+    /// off and reads "Run". Red before: `current` was nil there, so the toolbar showed the run and nothing on screen stopped it.
+    @MainActor func testARoomWithoutAVerbOffersCancelForARunInAnotherRoom() async throws {
+        let state = AppState()
+        await state.ebsd.bind(try DemoDocuments.ebsd()).value
+        for _ in 0..<6000 where state.ebsd.isBusy || state.ebsd.isComputingMean || state.maps.isBusy {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        state.navigation.workspaceArea = .image
+        XCTAssertNil(RoomPrimaryAction.current(state), "nothing runs: no verb, no Cancel")
+        XCTAssertEqual(PrimaryActionPresentation.of(RoomPrimaryAction.current(state)), .hidden)
+        XCTAssertTrue(state.indexing.canIndex, state.indexing.refusal ?? "")
+
+        let run = state.indexing.index()
+        XCTAssertTrue(state.indexing.isIndexing)
+        let action = try XCTUnwrap(RoomPrimaryAction.current(state), "the Index runs behind the Image room: its Cancel is offered")
+        XCTAssertNil(action.title, "the Image room has no verb")
+        XCTAssertEqual(PrimaryActionPresentation.of(action), .cancel)
+        XCTAssertEqual(action.operationName, "Indexing · Indexing with Hough…", "the Cancel says which room and what it runs")
+        XCTAssertFalse(RoomPrimaryAction.canRun(action), "⌘R stays off")
+        XCTAssertEqual(RoomPrimaryAction.runTitle(state), "Run")
+
+        action.stop?()
+        XCTAssertFalse(state.indexing.isIndexing, "the Cancel stops the run it names")
+        XCTAssertNil(RoomPrimaryAction.current(state), "the Cancel goes with the run")
+        await run.value
+        XCTAssertTrue(state.indexing.wasStopped)
+    }
+
+    /// A dataset opened while the Indexing room is shown is that room's own work (it shows the scan too and draws the open with a Stop
+    /// of its own): no other room's run takes the toolbar, and ⌘. reads "Stop" and ends the open. From a room that does not show the
+    /// scan the open stays the Patterns room's. Red before: the Indexing room was busy only while it indexed, so the toolbar read
+    /// "Patterns · Opening the dataset…" and the item "Stop Patterns" for the open the shown room was drawing.
+    @MainActor func testADatasetOpeningInTheIndexingRoomIsItsOwnWork() async {
+        let state = AppState()
+        state.navigation.workspaceArea = .indexing
+        let open = state.ebsd.open(url: Self.scan)
+        XCTAssertTrue(state.ebsd.isOpening)
+        XCTAssertTrue(BusyOperation.isBusy(.indexing, appState: state), "the room that shows the scan is busy with its open")
+        XCTAssertNil(BusyOperation.backgroundRoom(state), "the shown room's own open, not another room's run")
+        XCTAssertEqual(RoomPrimaryAction.stopTarget(state), .indexing)
+        XCTAssertTrue(RoomPrimaryAction.canStop(state))
+        XCTAssertEqual(RoomPrimaryAction.stopTitle(state), "Stop")
+
+        state.navigation.workspaceArea = .maps
+        XCTAssertEqual(BusyOperation.backgroundRoom(state), .patterns, "from a room that does not show the scan it is the Patterns room's")
+        XCTAssertEqual(RoomPrimaryAction.stopTitle(state), "Stop Patterns")
+
+        state.navigation.workspaceArea = .indexing
+        RoomPrimaryAction.stopActive(state)
+        XCTAssertFalse(state.ebsd.isOpening, "⌘. ends the open")
+        XCTAssertFalse(RoomPrimaryAction.canStop(state))
+        await open.value
+        XCTAssertFalse(state.ebsd.hasDataset, "a stopped open binds nothing")
+    }
+
+    /// A layer picked in the Maps room while an Index runs in another room: a layer's picture is not work Stop ends, so the Index
+    /// keeps the toolbar's line and ⌘.; with nothing else running the room still names its draw. Red before: the draw made the shown
+    /// room busy, so for its length `backgroundRoom` was nil, the line read "Drawing the map…" and ⌘. was off.
+    @MainActor func testALayersPictureDoesNotHideARunInAnotherRoom() async throws {
+        let state = AppState()
+        await state.ebsd.bind(try DemoDocuments.ebsd()).value
+        for _ in 0..<6000 where state.ebsd.isBusy || state.ebsd.isComputingMean || state.maps.isBusy {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        state.navigation.workspaceArea = .maps
+        XCTAssertTrue(state.maps.hasMap, "the demo carries its own crystal map")
+        XCTAssertTrue(state.indexing.canIndex, state.indexing.refusal ?? "")
+
+        let run = state.indexing.index()
+        let drawing = state.maps.setLayer(.phase)
+        XCTAssertTrue(state.indexing.isIndexing)
+        XCTAssertTrue(state.maps.isDrawing)
+        XCTAssertFalse(BusyOperation.isBusy(.maps, appState: state), "a layer's picture is not work Stop ends")
+        XCTAssertEqual(BusyOperation.backgroundRoom(state), .indexing, "the Index keeps the toolbar's line")
+        XCTAssertTrue(RoomPrimaryAction.canStop(state), "⌘. stays on")
+        XCTAssertEqual(RoomPrimaryAction.stopTitle(state), "Stop Indexing")
+
+        RoomPrimaryAction.stopActive(state)
+        XCTAssertFalse(state.indexing.isIndexing)
+        XCTAssertNil(BusyOperation.backgroundRoom(state))
+        XCTAssertEqual(BusyOperation.toolbarOperation(room: .maps, appState: state), "Drawing the map…",
+                       "with nothing else running the room names its draw")
+        await run.value
+        await drawing.value
     }
 
     /// The toolbar shows the other room's run while the shown room is idle, and the Stop item takes its title. Red under: the toolbar

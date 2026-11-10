@@ -33,12 +33,46 @@ private struct FocusedObjectsWindowKey: FocusedValueKey {
     typealias Value = Bool
 }
 
-/// The one window. The `AppState` is owned by `macTEMApp`, not here: a `Window` scene keeps its view state through
-/// a close (spike E1c), but the files must not depend on SwiftUI retaining a closed window's view.
+/// The focused image window's own close (`DismissWindowAction` called in that window): with several windows, File > Close Window
+/// closes the one in front, which a dismiss by the scene's id does not name.
+struct CloseWindowAction {
+    let close: @MainActor () -> Void
+}
+
+private struct FocusedCloseWindowKey: FocusedValueKey {
+    typealias Value = CloseWindowAction
+}
+
+extension FocusedValues {
+    var closeImageWindow: CloseWindowAction? {
+        get { self[FocusedCloseWindowKey.self] }
+        set { self[FocusedCloseWindowKey.self] = newValue }
+    }
+}
+
+/// A window, one of several (one file per window, 2026-11-10, as mac4DSTEM's dataset windows): each has its own `AppState`, made on
+/// the first read in `body` and never again (`LazyAppState`). The app knows its windows through `AppWindows`: which is in front (a
+/// Finder open goes there), what quitting would lose over all of them, and a window closed with marks not saved, whose state is
+/// parked there and shown again by the next window, so closing a window loses nothing (the single window's promise, ADR 007).
 private struct ImageWindow: View {
     /// A File-menu action asked for while no window was focused (`MenuActionRelay`).
     let menuRelay: MenuActionRelay
-    let appState: AppState
+    let windows: AppWindows
+    @State private var holder: LazyAppState
+    private var appState: AppState { holder.state }
+    /// This window is the active one: it is then the app's front window (`AppWindows.bringForward`).
+    @Environment(\.appearsActive) private var appearsActive
+    @Environment(\.dismissWindow) private var dismissWindow
+
+    init(menuRelay: MenuActionRelay, windows: AppWindows, recents: RecentFiles, lastSession: LastSession) {
+        self.menuRelay = menuRelay
+        self.windows = windows
+        _holder = State(initialValue: LazyAppState {
+            windows.stateForNewWindow {
+                AppState(launch: windows.launchOptionsForNewWindow(), recents: recents, lastSession: lastSession)
+            }
+        })
+    }
 
     /// The scheme `--appearance` forces (a journey's light-mode screenshot), else nil: the system's.
     private static func colorScheme(_ name: String?) -> ColorScheme? {
@@ -50,6 +84,11 @@ private struct ImageWindow: View {
             .environment(appState)
             .preferredColorScheme(Self.colorScheme(appState.launch.appearance))
             .focusedSceneValue(\.appState, appState)
+            .focusedSceneValue(\.closeImageWindow, CloseWindowAction { dismissWindow() })
+            // The app's windows know this one while it is on screen; a window closed with something to lose is parked (`AppWindows`).
+            .onAppear { windows.enroll(appState) }
+            .onDisappear { windows.withdraw(appState) }
+            .onChange(of: appearsActive) { _, active in if active { windows.bringForward(appState) } }
             // Info.plist declares CFBundleDocumentTypes, which puts macTEM in Finder's "Open With" — this is
             // the handler that requires. It gets only the FIRST file of a multi-file open; `AppDelegate` gets
             // the rest, and the relay rebuilds the batch.
@@ -60,10 +99,12 @@ private struct ImageWindow: View {
                    minHeight: LayoutPolicy.datasetWindowMinimumSize.height)
             // "Open Image…" chosen with no window focused opened this one; a `.task`, so the content's own
             // request observer exists before the action fires. The relay's handler is set here too, which
-            // delivers a Finder open that arrived before the window did, and the delegate's hook for the quit question.
+            // delivers a Finder open that arrived before the window did, and the delegate's hook for the quit question. Both go
+            // through the app's windows: a batch opens in the window in front, the question is asked over all of them.
             .task {
-                OpenURLRelay.shared.handler = { appState.open(urls: $0) }
-                AppDelegate.appState = appState
+                OpenURLRelay.shared.handler = { [windows] in windows.deliver(urls: $0) }
+                AppDelegate.windows = windows
+                if let waiting = windows.takeWaitingURLs() { appState.open(urls: waiting) }
                 if let action = menuRelay.take() { MenuActionRelay.run(action, in: appState) }
             }
             // A window that was minimised, not closed, does not run its `.task` again; `take` runs an action once.
@@ -83,6 +124,7 @@ private struct ImageWindow: View {
 private struct ImageCommands: Commands {
     @FocusedValue(\.appState) private var appState
     @FocusedValue(\.isObjectsWindow) private var objectsWindowIsKey
+    @FocusedValue(\.closeImageWindow) private var closeImageWindow
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     let menuRelay: MenuActionRelay
@@ -93,6 +135,9 @@ private struct ImageCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
+            // A window per file: an empty one to open a file in, also as a tab (the system's Window > Merge All Windows and tab bar).
+            Button("New Window") { openWindow(id: "image") }
+                .keyboardShortcut("n", modifiers: .command)
             // With no window focused it opens one and runs there (`MenuActionRelay`), so it is enabled then too.
             Button("Open Image…") { perform(.openImage) }
                 .keyboardShortcut("o", modifiers: .command)
@@ -245,7 +290,7 @@ private struct ImageCommands: Commands {
     private func runClose(_ command: CloseCommand) {
         switch command {
         case .document(let target): appState?.closeDocument(target)
-        case .imageWindow: dismissWindow(id: "image")
+        case .imageWindow: closeImageWindow?.close()
         case .objectsWindow: dismissWindow(id: ParticleTableWindow.id)
         case .unavailable: break
         }
@@ -255,19 +300,20 @@ private struct ImageCommands: Commands {
 @main
 struct macTEMApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    /// The one state graph, owned here so that closing the window never releases the files (ADR 007). Open Recent's list and the last
-    /// session's record are the ones kept in UserDefaults, except for a UI-testing launch, which keeps them in memory and leaves a
-    /// person's alone.
-    @State private var appState = AppState(recents: macTEMApp.isUITesting ? nil : RecentFiles.stored(),
-                                           lastSession: macTEMApp.isUITesting ? nil : LastSession.stored())
+    /// The app's windows, as their states (`AppWindows`): each window makes its own `AppState`.
+    @State private var windows = AppWindows()
+    /// Open Recent's list and the last session's record are the app's, shared by every window: the ones kept in UserDefaults, except
+    /// for a UI-testing launch, which keeps them in memory and leaves a person's alone.
+    @State private var recents = macTEMApp.isUITesting ? RecentFiles() : RecentFiles.stored()
+    @State private var lastSession = macTEMApp.isUITesting ? LastSession() : LastSession.stored()
     // File-menu actions asked for while no window is focused (`MenuActionRelay`): read by the commands, taken
     // by the window they open.
     @State private var menuRelay = MenuActionRelay()
     private static let isUITesting = LaunchOptions().isUITesting
 
     var body: some Scene {
-        Window("macTEM", id: "image") {
-            ImageWindow(menuRelay: menuRelay, appState: appState)
+        WindowGroup("macTEM", id: "image") {
+            ImageWindow(menuRelay: menuRelay, windows: windows, recents: recents, lastSession: lastSession)
         }
             .handlesExternalEvents(matching: ["*"])
             .defaultLaunchBehavior(.presented)
@@ -278,7 +324,7 @@ struct macTEMApp: App {
             .windowStyle(.titleBar)
             .windowToolbarStyle(.unified)
             .commands {
-                ImageCommands(menuRelay: menuRelay, recents: appState.recents, lastSession: appState.lastSession)
+                ImageCommands(menuRelay: menuRelay, recents: recents, lastSession: lastSession)
                 // File > Save to Session (V1-2), listed before the export group so it sits above its Divider.
                 SessionCommands()
                 // File > Export Image… and Export Profile… (V1-10), their own `Commands` (`ExportCommands.swift`).
@@ -287,9 +333,25 @@ struct macTEMApp: App {
                 ZoomCommands()
             }
         // The Particles view's object table, beside the image (ImageRoomParticles.swift); never opened at launch.
-        Window("Objects", id: ParticleTableWindow.id) { ParticleTableWindow(appState: appState) }
+        Window("Objects", id: ParticleTableWindow.id) { ObjectsWindow(windows: windows) }
             .defaultLaunchBehavior(.suppressed)
             .restorationBehavior(.disabled)
             .defaultSize(width: 640, height: 420)
+    }
+}
+
+/// The Objects window's content: the object table of the window in front (`AppWindows.front`), which the Objects window itself never
+/// becomes; with no image window open it says so.
+private struct ObjectsWindow: View {
+    let windows: AppWindows
+
+    var body: some View {
+        if let appState = windows.front ?? windows.onScreen.last {
+            ParticleTableWindow(appState: appState)
+        } else {
+            ContentUnavailableView("No objects", systemImage: "circle.dashed",
+                                   description: Text("Show Objects in the Image room's Particles section first."))
+                .focusedSceneValue(\.isObjectsWindow, true)
+        }
     }
 }
