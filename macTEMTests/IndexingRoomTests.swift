@@ -47,7 +47,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
 
     // MARK: - Figure F8 through the room
 
-    /// F8 as a person makes it: open the demo scan, ⌘7, Index. The phase is the file's ("ni", Fm-3m, the FCC list), the patterns the
+    /// F8 as a person makes it: open the demo scan, EBSD › Indexing, Index. The phase is the file's ("ni", Fm-3m, the FCC list), the patterns the
     /// Patterns room's default stages applied per pattern (static then dynamic background, kikuchipy's tutorial), the PC the file's
     /// mean; against kikuchipy + pyEBSDindex: the indexed count within one point, 99 % of the points both index within 1° (m-3m), the
     /// matched-band count equal on 95 %. Then the room's other promises on the same run.
@@ -377,11 +377,11 @@ nonisolated final class IndexingRoomTests: XCTestCase {
 
     // MARK: - The room among the rooms
 
-    /// Indexing is the seventh room (⌘7, between Patterns and Results), entered with an EBSD dataset; its verb is Index.
+    /// Indexing is the EBSD workspace's second part (between Patterns and Maps), entered with an EBSD dataset; its verb is Index.
     @MainActor func testTheRoomSitsAfterPatternsAndNeedsADataset() throws {
         XCTAssertEqual(WorkspaceArea.indexing.title, "Indexing")
         XCTAssertEqual(WorkspaceArea.indexing.systemImage, "scope")
-        XCTAssertEqual(WorkspaceArea.indexing.shortcutDigit, "7")
+        XCTAssertEqual(WorkspaceArea.indexing.group, .ebsd)
         XCTAssertEqual(WorkspaceArea.allCases.firstIndex(of: .indexing), WorkspaceArea.allCases.firstIndex(of: .patterns).map { $0 + 1 })
         XCTAssertNil(RoomAvailability.reason(.indexing, holdings: RoomHoldings(ebsd: true)))
         XCTAssertEqual(RoomAvailability.reason(.indexing, holdings: RoomHoldings(images: true)), "No file open holds EBSD patterns")

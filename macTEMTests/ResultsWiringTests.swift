@@ -53,8 +53,8 @@ nonisolated final class ResultsWiringTests: XCTestCase {
     // MARK: The room is built
 
     /// The rooms 1.0 ships, every one built, in the order of the work; Prepare is not among them (the owner, 2026-10-23: "It shouldn't ship
-    /// in macTEM"). Red under: Prepare back in the list, a room listed but not built, Results not ⌘9 (⌘6 is Patterns since the SEM program, D-SEM-22;
-    /// ⌘7 Indexing since P4-04, D-SEM-84; ⌘8 Maps since P3-04, D-SEM-80).
+    /// in macTEM"). Red under: Prepare back in the list, a room listed but not built, Results not the last workspace (⌘5 since
+    /// the workspaces, 2026-11-10).
     @MainActor func testTheResultsRoomIsBuiltAndCanBeEntered() {
         XCTAssertEqual(WorkspaceArea.allCases, [.image, .fft, .edx, .eels, .diffraction, .patterns, .indexing, .maps, .results])
         XCTAssertNil(WorkspaceArea(rawValue: "prepare"), "a window that saved Prepare opens in the default room")
@@ -64,11 +64,10 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         XCTAssertEqual(state.navigation.workspaceArea, .results)
         state.selectWorkspace(.diffraction)
         XCTAssertEqual(state.navigation.workspaceArea, .diffraction)
-        XCTAssertEqual(WorkspaceArea.image.shortcutDigit, "1")
-        XCTAssertEqual(WorkspaceArea.indexing.shortcutDigit, "7")
-        XCTAssertEqual(WorkspaceArea.maps.shortcutDigit, "8")
-        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "9", "Results keeps ⌘9 after Patterns ⌘6, Indexing ⌘7 and Maps ⌘8 (D-SEM-80, D-SEM-84)")
-        XCTAssertEqual(Set(WorkspaceArea.allCases.map(\.shortcutDigit)).count, WorkspaceArea.allCases.count, "no two rooms share a key")
+        XCTAssertEqual(WorkspaceGroup.imaging.shortcutDigit, "1")
+        XCTAssertEqual(WorkspaceGroup.results.shortcutDigit, "5", "Results is the last workspace")
+        XCTAssertEqual(WorkspaceArea.results.group, .results)
+        XCTAssertFalse(WorkspaceGroup.results.hasParts, "Results is one room, selected in its own right")
         XCTAssertTrue(state.resultsRoom.selection.isEmpty)
     }
 

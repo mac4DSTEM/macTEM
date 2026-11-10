@@ -1,7 +1,7 @@
 //
 //  IndexingJourney.swift
 //  The Indexing room on the shipped nickel scan (docs/sem/design/indexing-room.md §9, steps 1 to 4): open the scan from Help › Open
-//  Demo Data, ⌘7, Index (enabled with the file's phase in the list), the map fills (the empty sentence goes, the header counts the
+//  Demo Data, EBSD › Indexing, Index (enabled with the file's phase in the list), the map fills (the empty sentence goes, the header counts the
 //  indexed points), hovering it puts the three Euler angles and the CI in the status line (figure F8 on screen), a Results row pins its
 //  pattern and the detected bands are drawn over it; then Method · Dictionary with the shipped Ni master pattern: the dictionary's size
 //  at 4°, Index, the map fills again, the status line carries the NCC score and the Best match pane the pinned point's simulated
@@ -49,11 +49,11 @@ nonisolated final class IndexingJourney: Journey {
 
     @MainActor func testIndexTheDemoScanAndReadTheSolution() throws {
         try step("launch with no file") { launch() }
-        try step("the nickel scan opens in Patterns; ⌘7 enters Indexing before any run") {
+        try step("the nickel scan opens in EBSD › Patterns; the Indexing part enters Indexing before any run") {
             try openDemo("Ni EBSD Patterns (kikuchipy)")
             waitFor("patterns.room", timeout: 60)
             try requireFrontmost()
-            app.typeKey("7", modifierFlags: .command)
+            waitFor("workspace.indexing", timeout: 30).click()
             waitFor("indexing.room", timeout: 30)
             waitFor("indexing.map", timeout: 30)
             waitFor("indexing.map.empty", timeout: 30)

@@ -21,7 +21,7 @@ nonisolated final class SidebarHighlightTests: XCTestCase {
         let sidebar = try source("macTEM/UI/WorkspaceSidebar.swift").split(whereSeparator: \.isWhitespace).joined(separator: " ")
         let rooms = try XCTUnwrap(sidebar.range(of: "private var roomsList: some View {"))
         let tail = sidebar[rooms.upperBound...]
-        XCTAssertTrue(tail.contains(".id(WorkspaceArea.allCases.map { appState.roomUnavailableReason($0) == nil })"))
+        XCTAssertTrue(tail.contains(".id(appState.sidebarListIdentity)"))
     }
 
     /// The key changes exactly when a room's availability does: with nothing open only nothing is available; a spectrum image opening makes
@@ -30,8 +30,10 @@ nonisolated final class SidebarHighlightTests: XCTestCase {
         let state = AppState()
         let key = { WorkspaceArea.allCases.map { state.roomUnavailableReason($0) == nil } }
         let empty = key()
+        let emptyIdentity = state.sidebarListIdentity
         state.edx.bind(DemoDocuments.edx())
         XCTAssertNotEqual(key(), empty)
+        XCTAssertNotEqual(state.sidebarListIdentity, emptyIdentity)
         XCTAssertEqual(key()[WorkspaceArea.allCases.firstIndex(of: .edx)!], true)
         XCTAssertEqual(key()[WorkspaceArea.allCases.firstIndex(of: .image)!], false)
     }

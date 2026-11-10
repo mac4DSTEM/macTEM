@@ -13,9 +13,13 @@ import XCTest
 nonisolated final class SidebarLayoutTests: XCTestCase {
 
     @MainActor func testTheRoomsListHeightFollowsTheSystemSidebarSize() {
-        // Nine rooms since the Maps room (P3-04) after Indexing (P4-04): one row per room and the header's 32 pt.
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.small), 302)
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.medium), 338)
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.large), 410)
+        // Five workspaces (2026-11-10): one row per workspace and the header's 32 pt; a workspace with parts adds a row per part and
+        // its section header's 32 pt (EBSD: three parts).
+        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.small, parts: 0), 182)
+        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.medium, parts: 0), 202)
+        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.large, parts: 0), 242)
+        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.small, parts: 3), 304)
+        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.medium, parts: 3), 336)
+        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.large, parts: 3), 400)
     }
 }

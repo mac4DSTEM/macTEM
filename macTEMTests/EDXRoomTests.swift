@@ -77,13 +77,8 @@ nonisolated final class EDXRoomTests: XCTestCase {
     @MainActor func testTheRoomsListInTheOrderTheWorkGoes() {
         XCTAssertEqual(WorkspaceArea.allCases.map(\.title), ["Image", "FFT", "EDS", "EELS", "Diffraction", "Patterns", "Indexing", "Maps", "Results"])
         XCTAssertTrue(WorkspaceArea.edx.isBuilt)
-        XCTAssertEqual(WorkspaceArea.edx.shortcutDigit, "3")
-        XCTAssertEqual(WorkspaceArea.eels.shortcutDigit, "4")
-        XCTAssertEqual(WorkspaceArea.diffraction.shortcutDigit, "5")
-        XCTAssertEqual(WorkspaceArea.patterns.shortcutDigit, "6")
-        XCTAssertEqual(WorkspaceArea.indexing.shortcutDigit, "7")
-        XCTAssertEqual(WorkspaceArea.maps.shortcutDigit, "8")
-        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "9")
+        XCTAssertEqual(WorkspaceGroup.allCases.map(\.title), ["Imaging", "Spectroscopy", "Diffraction", "EBSD", "Results"])
+        XCTAssertEqual(WorkspaceGroup.allCases.map(\.shortcutDigit), ["1", "2", "3", "4", "5"])
     }
 
     /// The spectrum rooms follow the selected file: a file that opened into the EDS room is reopened there when its row is selected while another file
