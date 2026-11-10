@@ -175,6 +175,8 @@ nonisolated final class IndexingComparisonTests: XCTestCase {
         XCTAssertEqual(IndexingCompareFormat.binReadout(c, atDegrees: 5, locale: us), "5–6° · 0 points · 0.0 % of those compared")
         XCTAssertNil(IndexingCompareFormat.binReadout(c, atDegrees: 64, locale: us))
         XCTAssertEqual(IndexingCompareFormat.bins(try XCTUnwrap(c.histogram)).count, 63)
+        // Only the two occupied bins are drawn (0–1° and 10–11°): an empty bin drew as a dot on the axis.
+        XCTAssertEqual(IndexingCompareFormat.drawnBins(try XCTUnwrap(c.histogram)).map(\.low), [0, 10])
 
         let none = try IndexingComparison(IndexingComparison.Side(phases: [ni], phaseIndices: [-1], rotations: [Self.q1]),
                                           IndexingComparison.Side(phases: [nickel], phaseIndices: [0], rotations: [Self.q1]))
