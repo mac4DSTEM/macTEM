@@ -29,19 +29,22 @@ package nonisolated enum SEMEDSOpening {
     package static func isSingleSpectrumFile(path: String) -> Bool { spectrumExtensions.contains(ext(path)) }
     package static func isImageFile(path: String) -> Bool { imageExtensions.contains(ext(path)) }
 
-    /// The file read by its vendor's reader. Whole-file work: run it off the main actor.
-    package static func read(url: URL) throws -> SEMEDSFile {
+    /// The file read by its vendor's reader. Whole-file work: run it off the main actor. A JEOL `.pts` (or the `.asw` naming it)
+    /// reports `progress` 0...1 after each sweep of its event stream and stops with `CancellationError` when the calling task is
+    /// cancelled; the Bruker and EDAX readers report nothing.
+    package static func read(url: URL, progress: (@Sendable (Double) -> Void)? = nil) throws -> SEMEDSFile {
         switch url.pathExtension.lowercased() {
         case let e where BrukerEDSReader.readableExtensions.contains(e): return try BrukerEDSReader.read(url: url)
         case let e where EDAXEDSReader.readableExtensions.contains(e): return try EDAXEDSReader.read(url: url)
-        case let e where JEOLEDSReader.readableExtensions.contains(e): return try JEOLEDSReader.read(url: url)
+        case let e where JEOLEDSReader.readableExtensions.contains(e): return try JEOLEDSReader.read(url: url, progress: progress)
         default: throw SEMEDSReadError("\(url.lastPathComponent) is not a Bruker, EDAX or JEOL EDS file.")
         }
     }
 
-    /// The file as the EDS room's spectrum image: its first spectrum image, else its first spectrum as one pixel.
-    package static func open(url: URL) throws -> LoadedSpectrumImage {
-        let file = try read(url: url)
+    /// The file as the EDS room's spectrum image: its first spectrum image, else its first spectrum as one pixel. `progress` and
+    /// cancellation as `read(url:progress:)`.
+    package static func open(url: URL, progress: (@Sendable (Double) -> Void)? = nil) throws -> LoadedSpectrumImage {
+        let file = try read(url: url, progress: progress)
         let name = url.lastPathComponent
         if let si = file.spectrumImages.first {
             let e = si.energyAxis

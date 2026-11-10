@@ -16,10 +16,11 @@ package enum EDXOpening {
     }
 
     /// Reads the whole spectrum image (a 1.7 GB Velox file is three passes over its event stream): off the main actor, cancellable
-    /// through the calling task, `progress` 0...1.
+    /// through the calling task, `progress` 0...1. Of the SEM-EDS files a JEOL `.pts` reports each sweep of its event stream and
+    /// stops between sweeps when the task is cancelled; the others report once, when they are read.
     package static func open(url: URL, progress: (@Sendable (Double) -> Void)? = nil) throws -> LoadedSpectrumImage {
         if SEMEDSOpening.opensInEDS(path: url.path) {
-            let loaded = try SEMEDSOpening.open(url: url)
+            let loaded = try SEMEDSOpening.open(url: url, progress: progress)
             progress?(1)
             return loaded
         }
