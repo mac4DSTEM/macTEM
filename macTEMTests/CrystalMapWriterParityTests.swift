@@ -156,6 +156,25 @@ nonisolated final class CrystalMapWriterParityTests: XCTestCase {
         XCTAssertThrowsError(try CTFWriter.text(of: one)) { XCTAssertEqual($0 as? CrystalMapExtent.Refusal, .noGrid) }
     }
 
+    /// Five points of a 2 × 3 scan stopped one point short, with Bands, Error, BC and BS: the cell past the last point holds no
+    /// value (NaN in the map's data) and writes what a point not indexed writes, Bands 0, Error 3, BC 0, BS 0; the points keep
+    /// their own. Red before: the writer converted the NaN with Int(_:), which traps.
+    func testACTFCellPastTheLastPointWritesTheFallback() throws {
+        let properties: [String: [Double]] = ["Bands": [8, 9, 10, 11, 12], "Error": [0, 0, 0, 0, 0],
+                                              "BC": [100, 101, 102, 103, 104], "BS": [50, 51, 52, 53, 54]]
+        let map = try CrystalMap(rotations: Array(repeating: SIMD4<Double>(1, 0, 0, 0), count: 5), x: [0, 1, 2, 0, 1],
+                                 y: [0, 0, 0, 1, 1], properties: properties)
+        let lines = try CTFWriter.text(of: map).split(separator: "\n").map(String.init)
+        let header = try XCTUnwrap(lines.firstIndex(of: "Phase\tX\tY\tBands\tError\tEuler1\tEuler2\tEuler3\tMAD\tBC\tBS"))
+        let cells = lines[(header + 1)...].map { $0.split(separator: "\t").map(String.init) }
+        XCTAssertEqual(cells.count, 6, "2 rows of 3 cells")
+        // Bands, Error, BC and BS: columns 3, 4, 9 and 10.
+        XCTAssertEqual(cells.prefix(5).map { [$0[3], $0[4], $0[9], $0[10]] },
+                       (0..<5).map { ["\(8 + $0)", "0", "\(100 + $0)", "\(50 + $0)"] })
+        let past = try XCTUnwrap(cells.last)
+        XCTAssertEqual([past[0], past[3], past[4], past[9], past[10]], ["0", "0", "3", "0", "0"])
+    }
+
     /// An extra column follows orix's `extra_prop`: named in the header, written with its own width, 0 where not indexed.
     func testExtraPropertyColumnFollowsOrix() throws {
         let sdss = try sdssMap()
