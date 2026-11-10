@@ -192,6 +192,16 @@ package nonisolated enum KikuchiOverlay {
                                          halfSize: halfSize, hemisphere: .upper, scaling: .none)[0]
     }
 
+    /// `masterPattern` and, with `picture`, `masterPatternPicture` of the same bands, off the caller's actor: the overlay's
+    /// kinematical simulation is made once per phase and spacing, and the 401 × 401 Lambert grid of every band would stall the pane
+    /// that asked for it. The numbers are those two functions'.
+    @concurrent package static func kinematicalMaster(_ bands: Bands, phase: CrystalPhase, beamEnergyKeV: Double,
+                                                      picture: Bool) async -> (master: EBSDMasterPattern, picture: [Double]?) {
+        let master = masterPattern(bands, phase: phase, beamEnergyKeV: beamEnergyKeV)
+        let stereographic: [Double]? = picture ? masterPatternPicture(bands, beamEnergyKeV: beamEnergyKeV) : nil
+        return (master: master, picture: stereographic)
+    }
+
     /// The overlay at `position`, or why there is none. `bands` maps a phase id to its bands (the session caches them per phase).
     /// With `beamEnergyKeV` each line carries its band's two edges. With `master` (a phase id, the phase and its bands to the phase's
     /// kinematical master pattern), the pattern carries its kinematical simulation for the point's orientation and projection centre.

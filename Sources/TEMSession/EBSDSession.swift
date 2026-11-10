@@ -105,6 +105,10 @@ package final class EBSDSession {
     /// The kinematical master pattern (Lambert, for the simulation) and its stereographic picture per phase id, for the current bands.
     @ObservationIgnored var overlayMasters: [Int: EBSDMasterPattern] = [:]
     @ObservationIgnored var overlayPictures: [Int: [Double]] = [:]
+    /// The master patterns being made off the main actor, by phase id, and how many have landed: the overlay reads the count, so a
+    /// master that lands draws the simulation (EBSDSession+Overlay.swift).
+    @ObservationIgnored var overlayMasterTasks: [Int: Task<Void, Never>] = [:]
+    var overlayMastersLanded = 0
 
     // MARK: Processing
 

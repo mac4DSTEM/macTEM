@@ -97,6 +97,11 @@ final class PatternsRoomState {
                       session.overlayOn, case .success(let overlay)? = session.overlay else {
                     report("Nothing to export yet: no Kikuchi overlay is on the pattern."); return
                 }
+                // The kinematical master pattern is made off the main actor: until it lands, the picture would leave the simulation out.
+                if session.overlaySettings.kinematical, overlay.simulated == nil, session.isMakingOverlayMaster {
+                    report("Nothing to export yet: the kinematical simulation is still being made.")
+                    return
+                }
                 exportPosition = position
                 let plain = try Self.patternPNG(canvas: canvas, presentation: session.patternPresentation, dataset: document.dataset,
                                                 fileName: document.fileName, position: position)

@@ -109,6 +109,9 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         settings.kinematical = true
         settings.blend = 0.7
         session.setOverlaySettings(settings)
+        // The master pattern is made off the main actor: the export waits for it, and so does the test.
+        _ = session.overlay
+        await session.overlayMastersReady().value
         guard case .success(let overlay)? = session.overlay else { return XCTFail("no overlay: \(String(describing: session.overlay))") }
         let simulated = try XCTUnwrap(overlay.simulated, "Kinematical carries the simulated pattern")
         XCTAssertEqual(simulated.count, 60 * 60)
@@ -125,6 +128,45 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         session.setOverlaySettings(settings)
         guard case .success(let plain)? = session.overlay else { return XCTFail("no overlay") }
         XCTAssertNil(plain.simulated, "Geometrical draws no simulated pattern")
+    }
+
+    /// Kinematical makes its master pattern off the main actor (#323): the lines are there at once without the simulation, and
+    /// the Pattern with Overlay export waits for it; once it lands the overlay and the master pattern picture are the ones made
+    /// directly by `KikuchiOverlay`, unchanged. Red before: the getter made the 401 × 401 master pattern on the main actor, so the
+    /// first read already carried the simulation.
+    @MainActor func testTheKinematicalMasterIsMadeOffTheMainActorWithTheSameNumbers() async throws {
+        let session = try await openNickel()
+        session.setOverlayOn(true)
+        var settings = session.overlaySettings
+        settings.kinematical = true
+        session.setOverlaySettings(settings)
+        guard case .success(let first)? = session.overlay else { return XCTFail("no overlay: \(String(describing: session.overlay))") }
+        XCTAssertFalse(first.simulation.lines.isEmpty, "the lines draw at once")
+        XCTAssertNil(first.simulated, "the simulation waits for its master pattern")
+        XCTAssertTrue(session.isMakingOverlayMaster)
+        XCTAssertNil(session.overlayMasterPicture)
+        var reports: [String] = []
+        PatternsRoomState().export(.overlayPNG, from: session, directory: FileManager.default.temporaryDirectory) { reports.append($0) }
+        XCTAssertEqual(reports, ["Nothing to export yet: the kinematical simulation is still being made."])
+
+        await session.overlayMastersReady().value
+        XCTAssertFalse(session.isMakingOverlayMaster)
+        let dataset = try XCTUnwrap(session.dataset)
+        let position = try XCTUnwrap(session.patternPosition)
+        let kv = try XCTUnwrap(dataset.sem.beamEnergyKeV)
+        let minD = settings.minDSpacing
+        let direct = KikuchiOverlay.pattern(dataset, at: position, maxR: KikuchiOverlay.scanMaxR(dataset), beamEnergyKeV: nil,
+                                            master: { _, phase, bands in KikuchiOverlay.masterPattern(bands, phase: phase, beamEnergyKeV: kv) },
+                                            bands: { _, phase in KikuchiOverlay.bands(for: phase, minDSpacing: minD) })
+        XCTAssertNotNil(try direct.get().simulated)
+        XCTAssertEqual(session.overlay, direct, "the simulation that lands is the one made on the spot")
+
+        let map = try XCTUnwrap(dataset.crystalMap)
+        let phase = try XCTUnwrap(map.phases[id: map.allPhaseIDs[position.index(columns: dataset.scanColumns)]])
+        let bands = try XCTUnwrap(KikuchiOverlay.bands(for: phase, minDSpacing: minD))
+        let picture = try XCTUnwrap(session.overlayMasterPicture)
+        XCTAssertEqual(picture.values, KikuchiOverlay.masterPatternPicture(bands, beamEnergyKeV: kv))
+        XCTAssertEqual(picture.side, 201)
     }
 
     /// The pixels of a PNG as sRGB RGBA bytes.
