@@ -63,6 +63,7 @@ private struct ImageWindow: View {
     /// This window is the active one: it is then the app's front window (`AppWindows.bringForward`).
     @Environment(\.appearsActive) private var appearsActive
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.openWindow) private var openWindow
 
     init(menuRelay: MenuActionRelay, windows: AppWindows, recents: RecentFiles, lastSession: LastSession) {
         self.menuRelay = menuRelay
@@ -86,7 +87,13 @@ private struct ImageWindow: View {
             .focusedSceneValue(\.appState, appState)
             .focusedSceneValue(\.closeImageWindow, CloseWindowAction { dismissWindow() })
             // The app's windows know this one while it is on screen; a window closed with something to lose is parked (`AppWindows`).
-            .onAppear { windows.enroll(appState) }
+            .onAppear {
+                windows.openWindow = { openWindow(id: "image") }
+                windows.enroll(appState)
+            }
+            // The window's title, and its tab's, is its file's. New windows join the front window's tabs (`WindowTabbing`, AppKit).
+            .navigationTitle(appState.windowTitle)
+            .background(WindowTabbing(state: appState))
             .onDisappear { windows.withdraw(appState) }
             .onChange(of: appearsActive) { _, active in if active { windows.bringForward(appState) } }
             // Info.plist declares CFBundleDocumentTypes, which puts macTEM in Finder's "Open With" — this is
@@ -174,7 +181,7 @@ private struct ImageCommands: Commands {
             .disabled(appState?.documentURL == nil)
         }
         // Replaces the system's Close (⌘W), which would close the window: ⌘W closes the document the room shows (`DocumentTarget`:
-        // Close Image, Close Dataset, Close Map, Close Spectrum Image) and ⇧⌘W the window (the owner, ADR 007); with nothing shown
+        // Close Image, Close Dataset, Close Map, Close Spectrum Image, Close Spectrum for one spectrum) and ⇧⌘W the window (the owner, ADR 007); with nothing shown
         // ⌘W closes the window, as the system's would. Close is the part of the Save group that SwiftUI exposes. An image with
         // unsaved marks asks first (`requestClose`). While the Objects window is key, both close it (`CloseCommand`).
         CommandGroup(replacing: .saveItem) {

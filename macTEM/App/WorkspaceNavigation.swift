@@ -171,17 +171,19 @@ nonisolated enum DocumentTarget: Equatable, Sendable {
     case image
     case ebsdDataset
     case orientationMap
-    case eds
-    case eels
+    /// `single`: the file is one spectrum (an .msa, one pixel), not a spectrum image; only the menu's title differs.
+    case eds(single: Bool)
+    case eels(single: Bool)
 
     /// What `area` shows, given what the window holds; nil when it shows nothing (⌘W then closes the window, as the system's would).
-    static func of(area: WorkspaceArea, hasImage: Bool, hasDataset: Bool, hasMap: Bool, hasEDS: Bool, hasEELS: Bool) -> DocumentTarget? {
+    static func of(area: WorkspaceArea, hasImage: Bool, hasDataset: Bool, hasMap: Bool, hasEDS: Bool, hasEELS: Bool,
+                   singleSpectrum: Bool = false) -> DocumentTarget? {
         switch area {
         case .image, .fft, .diffraction, .results: return hasImage ? .image : nil
         case .patterns, .indexing: return hasDataset ? .ebsdDataset : nil
         case .maps: return hasMap ? .orientationMap : nil
-        case .edx: return hasEDS ? .eds : nil
-        case .eels: return hasEELS ? .eels : nil
+        case .edx: return hasEDS ? .eds(single: singleSpectrum) : nil
+        case .eels: return hasEELS ? .eels(single: singleSpectrum) : nil
         }
     }
 
@@ -191,7 +193,7 @@ nonisolated enum DocumentTarget: Equatable, Sendable {
         case .image: "Close Image"
         case .ebsdDataset: "Close Dataset"
         case .orientationMap: "Close Map"
-        case .eds, .eels: "Close Spectrum Image"
+        case .eds(let single), .eels(let single): single ? "Close Spectrum" : "Close Spectrum Image"
         }
     }
 }
@@ -232,7 +234,8 @@ extension AppState {
     /// The document the room shows (`DocumentTarget.of`), nil when it shows none.
     var documentTarget: DocumentTarget? {
         DocumentTarget.of(area: navigation.workspaceArea, hasImage: openItems.selected != nil, hasDataset: ebsd.hasDataset,
-                          hasMap: maps.hasMap, hasEDS: edx.hasImage, hasEELS: eels.hasImage)
+                          hasMap: maps.hasMap, hasEDS: edx.hasImage, hasEELS: eels.hasImage,
+                          singleSpectrum: navigation.workspaceArea == .eels ? eels.isSingleSpectrum : edx.isSingleSpectrum)
     }
 
     /// Show in Finder's file: the shown document's (an Indexing run handed to Maps is the dataset's), nil when it has none (a generated demo).
@@ -263,7 +266,7 @@ extension AppState {
     }
 
     /// A reader's path as a file URL; nil for "" (a document made in memory).
-    private static func fileURL(path: String) -> URL? {
+    static func fileURL(path: String) -> URL? {
         path.isEmpty ? nil : URL(fileURLWithPath: path)
     }
 }

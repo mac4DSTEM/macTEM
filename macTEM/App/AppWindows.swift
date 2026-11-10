@@ -9,6 +9,7 @@
 //             window made the same promise by keeping its state on the app (ADR 007); with several windows the registry keeps it.
 //             A window closed with nothing to lose lets go of its files at once.
 //        The launch arguments' documents (`--demo-…`, `--open`) open in the first window only (`launchOptionsForNewWindow`).
+//        One file per window: a file opened into a window that holds one already gets a tab of its own (`openInTabs`).
 //
 
 import Foundation
@@ -26,13 +27,19 @@ final class AppWindows {
     private(set) weak var front: AppState?
     /// The launch arguments' documents have gone to a window.
     @ObservationIgnored private var launchDocumentsTaken = false
-    /// A Finder open that arrived with no window on screen.
-    @ObservationIgnored private var waitingURLs: [URL] = []
+    /// The batches waiting for a window, oldest first, each taken by one new window (`takeWaitingURLs`): a Finder open that arrived
+    /// with no window on screen, and each file that gets a tab of its own (`openInTabs`).
+    @ObservationIgnored private var waiting: [[URL]] = []
+    /// Opens another window of the scene (SwiftUI's `openWindow`, handed over by a window on screen: only a view has it). Nil until
+    /// a window has appeared; files then open in the window they were given to (`canOpenTabs`).
+    @ObservationIgnored var openWindow: (() -> Void)?
+    var canOpenTabs: Bool { openWindow != nil }
 
     /// A window appeared (or came back): it is known, and it is the front one.
     func enroll(_ state: AppState) {
         parked.removeAll { $0 === state }
         if !onScreen.contains(where: { $0 === state }) { onScreen.append(state) }
+        state.windows = self
         front = state
     }
 
@@ -45,21 +52,39 @@ final class AppWindows {
     /// A window closed: parked when closing it would lose something (`AppState.quitQuestion`), released otherwise.
     func withdraw(_ state: AppState) {
         onScreen.removeAll { $0 === state }
+        state.windows = nil
+        state.showWindow = nil
         if front === state { front = onScreen.last }
         if state.quitQuestion != nil, !parked.contains(where: { $0 === state }) { parked.append(state) }
+        // The last-session record follows the windows still on screen; with none left it keeps what the last one held.
+        (front ?? onScreen.last)?.recordLastSession()
+    }
+
+    /// Each file in a tab of its own (one file per window): a file a window on screen holds already comes forward there, not read
+    /// twice; every other waits as a batch of one for the window opened for it (`takeWaitingURLs`). The system makes that window a
+    /// tab of the one in front (`WindowTabbing`).
+    func openInTabs(_ urls: [URL]) {
+        for url in urls {
+            let path = url.standardizedFileURL.path
+            if let holder = onScreen.first(where: { $0.heldFiles.contains(path) }) {
+                holder.open(urls: [url])
+                holder.showWindow?()
+            } else if let openWindow {
+                waiting.append([url])
+                openWindow()
+            }
+        }
     }
 
     /// A Finder open's batch (`OpenURLRelay`): into the window in front, else the newest; with no window on screen it waits for the
     /// one the open brings up (`takeWaitingURLs`).
     func deliver(urls: [URL]) {
-        if let target = front ?? onScreen.last { target.open(urls: urls) } else { waitingURLs.append(contentsOf: urls) }
+        if let target = front ?? onScreen.last { target.open(urls: urls) } else { waiting.append(urls) }
     }
 
-    /// The files that arrived while no window was on screen, once.
+    /// The oldest batch waiting for a window, once: a new window takes one.
     func takeWaitingURLs() -> [URL]? {
-        guard !waitingURLs.isEmpty else { return nil }
-        defer { waitingURLs = [] }
-        return waitingURLs
+        waiting.isEmpty ? nil : waiting.removeFirst()
     }
 
     /// The state a new window shows: the oldest parked one, so what a closed window held comes back with the next window, else a new one.

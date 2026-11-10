@@ -3,7 +3,8 @@
 //  The app's windows as their states (`AppWindows`, one file per window, 2026-11-10): the front window is the one last brought
 //  forward; a window closed with marks not saved is parked and comes back with the next window, one with nothing to lose is let
 //  go; the quit question names what every window, open or parked, would lose; the launch's documents go to the first window only;
-//  a window's state is made once (`LazyAppState`). The planted fixture (Fixtures/planted-2d.dm4) is copied per test.
+//  a window's state is made once (`LazyAppState`); a batch is split one file per window, a second file gets a tab of its own, the
+//  last-session record covers every window, and a window is titled by its file. The planted fixture (Fixtures/planted-2d.dm4) is copied per test.
 //
 
 import XCTest
@@ -117,6 +118,87 @@ nonisolated final class AppWindowsTests: XCTestCase {
         XCTAssertEqual(a.openItems.items.map(\.url), [url])
         XCTAssertTrue(b.openItems.items.isEmpty)
         XCTAssertNil(windows.takeWaitingURLs())
+    }
+
+    /// One file per window: an empty window takes a batch's first file and each other file gets a tab; a window that holds a file,
+    /// or has an Open on its way in, takes none but the files it holds already. Red under: a batch of three in one window; a file
+    /// the window holds opened a second time in a tab.
+    func testABatchIsSplitOneFilePerWindow() {
+        func url(_ name: String) -> URL { URL(fileURLWithPath: "/tmp/mactem-per-window/\(name)") }
+        let a = url("a.dm4"), b = url("b.dm4"), c = url("c.dm4")
+        let empty = OpenBatch.perWindow([a, b, c], held: [], windowIsTaken: false)
+        XCTAssertEqual(empty.here, [a])
+        XCTAssertEqual(empty.elsewhere, [b, c])
+        let taken = OpenBatch.perWindow([b, c], held: [a.standardizedFileURL.path], windowIsTaken: true)
+        XCTAssertEqual(taken.here, [])
+        XCTAssertEqual(taken.elsewhere, [b, c])
+        let again = OpenBatch.perWindow([a, b], held: [a.standardizedFileURL.path], windowIsTaken: true)
+        XCTAssertEqual(again.here, [a], "a file the window holds is selected there, not opened in a tab")
+        XCTAssertEqual(again.elsewhere, [b])
+    }
+
+    /// A second file opened into a window that holds one asks for a new window and waits for it as its own batch; a file another
+    /// window holds comes forward there and no window is asked for; a state no window shows takes everything, as before. Red under:
+    /// both files as rows of one window; a window opened for a file that is open already.
+    @MainActor func testAFileOpenedIntoATakenWindowGetsATabOfItsOwn() async throws {
+        let windows = AppWindows()
+        var asked = 0
+        windows.openWindow = { asked += 1 }
+        let a = try plantedCopy(named: "a.dm4"), b = try plantedCopy(named: "b.dm4"), c = try plantedCopy(named: "c.dm4")
+        let first = AppState(launch: LaunchOptions(arguments: []))
+        windows.enroll(first)
+        await first.open(urls: [a, b])?.value
+        XCTAssertEqual(first.openItems.items.map(\.url), [a], "the window keeps one file")
+        XCTAssertEqual(asked, 1)
+        // The window the app opened for b: it takes b's batch, as `ImageWindow` does when it appears.
+        let second = AppState(launch: LaunchOptions(arguments: []))
+        windows.enroll(second)
+        await second.open(urls: try XCTUnwrap(windows.takeWaitingURLs()))?.value
+        XCTAssertEqual(second.openItems.items.map(\.url), [b])
+        XCTAssertNil(windows.takeWaitingURLs())
+        XCTAssertEqual(asked, 1)
+
+        var shown = 0
+        first.showWindow = { shown += 1 }
+        second.open(urls: [a])
+        await first.lastOpen?.value
+        XCTAssertEqual(asked, 1, "a is open in the first window: no new window")
+        XCTAssertEqual(shown, 1, "its window comes forward")
+        XCTAssertEqual(second.openItems.items.map(\.url), [b])
+
+        second.open(urls: [c])
+        XCTAssertEqual(asked, 2)
+        XCTAssertEqual(windows.takeWaitingURLs(), [c])
+
+        let alone = AppState(launch: LaunchOptions(arguments: []))
+        await alone.open(urls: [a, b])?.value
+        XCTAssertEqual(alone.openItems.items.map(\.url), [a, b], "a state no window shows takes the whole batch")
+    }
+
+    /// The last-session record covers every window on screen, in their order, and drops a closed window's file. Red under: the
+    /// record holding only the file of the window that changed last.
+    @MainActor func testTheLastSessionRecordCoversEveryWindow() async throws {
+        let windows = AppWindows()
+        let session = LastSession()
+        let a = try plantedCopy(named: "a.dm4"), b = try plantedCopy(named: "b.dm4")
+        let first = AppState(launch: LaunchOptions(arguments: []), lastSession: session)
+        let second = AppState(launch: LaunchOptions(arguments: []), lastSession: session)
+        windows.enroll(first)
+        windows.enroll(second)
+        await first.open(urls: [a])?.value
+        await second.open(urls: [b])?.value
+        XCTAssertEqual(session.current?.files.map(\.path), [a.standardizedFileURL.path, b.standardizedFileURL.path])
+        XCTAssertEqual(session.current?.selectedPath, b.standardizedFileURL.path)
+        windows.withdraw(second)
+        XCTAssertEqual(session.current?.files.map(\.path), [a.standardizedFileURL.path])
+    }
+
+    /// The window's title, and its tab's, is its file's. Red under: every tab titled "macTEM".
+    @MainActor func testAWindowIsTitledByItsFile() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        XCTAssertEqual(state.windowTitle, "macTEM")
+        await state.open(urls: [try plantedCopy(named: "lattice.dm4")])?.value
+        XCTAssertEqual(state.windowTitle, "lattice.dm4")
     }
 
     /// Red under: a state built before it is asked for, or built twice.
