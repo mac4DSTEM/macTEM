@@ -158,6 +158,20 @@ nonisolated final class FolderGrantsTests: XCTestCase {
         XCTAssertTrue(ask.contains("“acquisition”") && ask.contains("Setting.txt") && ask.contains("Pattern.dat"), ask)
     }
 
+    /// A folder granted earlier in an Open reaches a later scan in it or below it, and the Open asks nothing for that scan: two scans
+    /// in sibling folders, their common parent chosen for the first, ask once. A sibling folder's grant does not reach it, and with
+    /// nothing granted the folder is asked for. Red before: no `reaches`, and an Open asked once per scan folder whatever the
+    /// answer before had granted.
+    func testAFolderGrantedInAnOpenReachesALaterScanInsideIt() {
+        let session = URL(fileURLWithPath: "/data/session", isDirectory: true)
+        let first = session.appendingPathComponent("scan 1/Pattern.dat"), second = session.appendingPathComponent("scan 2/Pattern.dat")
+        XCTAssertNil(FolderGrants.panelRefusal(chosen: session, file: first), "the panel takes the folder around the first scan")
+        XCTAssertTrue(FolderGrants.reaches([FolderGrants.path(of: session)], file: second), "and its grant reaches the second scan")
+        XCTAssertTrue(FolderGrants.reaches([FolderGrants.path(of: second.deletingLastPathComponent())], file: second), "its own folder")
+        XCTAssertFalse(FolderGrants.reaches([FolderGrants.path(of: first.deletingLastPathComponent())], file: second), "a sibling folder")
+        XCTAssertFalse(FolderGrants.reaches([], file: second), "nothing granted yet: the folder is asked for")
+    }
+
     /// The Open's routing asks for no folder for a scan whose settings file a file mode refuses (it keeps the refusal that names
     /// the settings file: no folder grant changes a file mode), nor for a readable scan (the Patterns room's). Red under:
     /// `inventories` setting `asksForFolder` from the refusal alone.

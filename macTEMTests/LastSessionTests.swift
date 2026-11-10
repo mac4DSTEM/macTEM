@@ -123,6 +123,32 @@ nonisolated final class LastSessionTests: XCTestCase {
         XCTAssertNotNil(next.lastSession.previous, "a record with a file still there is kept")
     }
 
+    /// Reopen Last Session looks for the record's files inside the task it returns, off the main actor, not before it returns: with
+    /// every file deleted since, the call still answers a task and has touched nothing yet; when the task ends the status line names
+    /// the files and the record is forgotten, so the menu stops offering it. Red before: every bookmark was resolved and every file
+    /// looked for on the main actor inside the call (a sleeping share hung the menu once per file), which then returned nil.
+    @MainActor func testReopeningLooksForTheFilesInItsTaskAndForgetsARecordWhoseFilesAreGone() async throws {
+        let (a, b) = try twoFiles()
+        let defaults = try scratchDefaults()
+        let first = AppState(launch: LaunchOptions(arguments: []), lastSession: LastSession.stored(in: defaults))
+        await first.open(urls: [a, b])?.value
+        let record = try XCTUnwrap(first.lastSession.current)
+        try FileManager.default.removeItem(at: a)
+        try FileManager.default.removeItem(at: b)
+
+        let next = AppState(launch: LaunchOptions(arguments: []), lastSession: LastSession.stored(in: defaults))
+        let reopening = try XCTUnwrap(next.reopenLastSession(), "a record: the files are looked for in the task")
+        XCTAssertNotNil(next.lastSession.previous, "nothing was looked for before the call returned")
+        XCTAssertEqual(next.statusText, "")
+        await reopening.value
+        XCTAssertEqual(next.statusText, "a.dm4 and b.dm4 are no longer where they were (moved, renamed or deleted), so they were not reopened.")
+        XCTAssertNil(next.lastSession.previous, "every file is gone: the record is forgotten")
+        XCTAssertTrue(next.openItems.items.isEmpty)
+        let sorted = await AppState.lastSessionFiles(record.files)
+        XCTAssertEqual(sorted.gone, ["a.dm4", "b.dm4"])
+        XCTAssertTrue(sorted.found.isEmpty && sorted.offline.isEmpty)
+    }
+
     /// A bare `AppState` (a test's, a UI-testing launch's) keeps its record in memory and writes nothing to the standard defaults.
     /// Red under: the bare state writing to `UserDefaults.standard`.
     @MainActor func testABareAppStateWritesNothingToTheStandardDefaults() async throws {

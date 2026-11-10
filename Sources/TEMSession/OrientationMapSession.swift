@@ -60,13 +60,35 @@ package final class OrientationMapSession {
 
         package var fileName: String
         package var url: URL?
-        package var map: CrystalMap
+        /// The map, fixed once the document is made: the numbers below are worked out from it then.
+        package let map: CrystalMap
         package var source: Source
         /// "EDAX TSL .ang", "Oxford .ctf", "kikuchipy h5ebsd": who wrote the map, for Info.
         package var format: String
 
+        /// The map's grid (`OrientationMaps.gridShape`), steps (`dx`, `dy`), points in data, points not indexed and points in data
+        /// per phase id, worked out once here (off the main actor where `read` makes the document): the hover, the toolbar and the
+        /// inspector read them on every move and redraw, and reducing a large map's coordinates each time stalls the room.
+        package let rows: Int
+        package let columns: Int
+        package let dx: Double
+        package let dy: Double
+        package let size: Int
+        package let notIndexedCount: Int
+        package let phaseCounts: [Int: Int]
+
         package init(fileName: String, url: URL?, map: CrystalMap, source: Source, format: String) {
             self.fileName = fileName; self.url = url; self.map = map; self.source = source; self.format = format
+            let shape = OrientationMaps.gridShape(map)
+            rows = shape.rows
+            columns = shape.columns
+            dx = map.dx
+            dy = map.dy
+            size = map.size
+            var counts: [Int: Int] = [:]
+            for id in map.phaseIDs { counts[id, default: 0] += 1 }
+            phaseCounts = counts
+            notIndexedCount = counts[PhaseList.notIndexedID] ?? 0
         }
 
         package var id: ID { ID(fileName: fileName, source: source) }
@@ -169,7 +191,8 @@ package final class OrientationMapSession {
     package var fileName: String { document?.fileName ?? "" }
     package var map: CrystalMap? { document?.map }
     package var isBusy: Bool { isOpening || isDrawing || isSegmenting || isTexturing }
-    package var gridShape: (rows: Int, columns: Int) { document.map { OrientationMaps.gridShape($0.map) } ?? (0, 0) }
+    /// The map's grid as the document holds it (`Document.rows`, `columns`).
+    package var gridShape: (rows: Int, columns: Int) { document.map { (rows: $0.rows, columns: $0.columns) } ?? (0, 0) }
     /// The layers the map offers (`OrientationMaps.layers`).
     package var layers: [OrientationMapLayer] {
         guard let document else { return [] }
@@ -251,9 +274,9 @@ package final class OrientationMapSession {
     /// nil when the dataset has no map (or one of another size), and the room keeps what it showed.
     package static func patternsDocument(fileName: String, url: URL?, dataset: EBSDDataset) -> Document? {
         guard let map = dataset.crystalMap else { return nil }
-        let shape = OrientationMaps.gridShape(map)
-        guard shape.rows == dataset.scanRows, shape.columns == dataset.scanColumns else { return nil }
-        return Document(fileName: fileName, url: url, map: map, source: .patterns, format: dataset.format.rawValue)
+        let document = Document(fileName: fileName, url: url, map: map, source: .patterns, format: dataset.format.rawValue)
+        guard document.rows == dataset.scanRows, document.columns == dataset.scanColumns else { return nil }
+        return document
     }
 
     /// Starts the room over on `document` (and holds it as its kind's map): `layer` where the map has it, else IPF-Z; `pinned` where
@@ -268,7 +291,7 @@ package final class OrientationMapSession {
         sources.removeAll { $0.source.kind == document.source.kind }
         sources.append(document)
         sources.sort { $0.source.kind < $1.source.kind }
-        let (rows, columns) = OrientationMaps.gridShape(document.map)
+        let rows = document.rows, columns = document.columns
         self.pinned = pinned.isInside(rows: rows, columns: columns) ? pinned : .origin
         hovered = nil
         self.layer = OrientationMaps.layers(of: document.map).contains(layer) ? layer : .ipf(.z)
@@ -324,13 +347,14 @@ package final class OrientationMapSession {
         return shape.rows > 0 && shape.rows <= dataset.scanRows && shape.columns == dataset.scanColumns
     }
 
-    /// ⌘.: ends the open, Segment and the texture in flight; a layer's picture still lands. The texture's own loops run on to their end,
-    /// but what they make is dropped; the texture pane asks again the next time it appears.
+    /// ⌘.: ends the open, Segment and the texture in flight; a layer's picture still lands. Segment stops at its next row or grain and
+    /// stays busy until its pass has returned (`segmentEnded`), so a second one never runs beside it; what it made is dropped. The
+    /// texture's own loops run on to their end, but what they make is dropped; the texture pane asks again the next time it appears.
     package func stop() {
         if isOpening { openTask?.cancel(); isOpening = false; onEvent?("Stopped opening") }
-        if isSegmenting {
+        if isSegmenting, let task = segmentTask, !task.isCancelled {
             segmentGeneration += 1
-            segmentTask?.cancel(); isSegmenting = false
+            task.cancel()
             onEvent?("Stopped segmenting")
         }
         if isTexturing {
@@ -445,7 +469,7 @@ package final class OrientationMapSession {
     /// The status line's words for the point at `position` (`OrientationMaps.readout`).
     package func readout(at position: EBSDPosition) -> String? {
         guard let map else { return nil }
-        guard let base = OrientationMaps.readout(map, grid: grid, row: position.row, column: position.column) else { return nil }
+        guard let base = OrientationMaps.readout(map, grid: grid, row: position.row, column: position.column, shape: gridShape) else { return nil }
         guard let analysis else { return base }
         return base + Self.analysisReadout(analysis, row: position.row, column: position.column)
     }
@@ -487,14 +511,14 @@ package final class OrientationMapSession {
     /// Whether Segment can run: a map whose points fill its grid, and no Segment running.
     package var canSegment: Bool {
         guard let document, !isSegmenting else { return false }
-        return document.map.size == gridShape.rows * gridShape.columns
+        return document.size == document.rows * document.columns
     }
 
     /// Why Segment is off, in one sentence; nil when it can run.
     package var segmentBlocker: String? {
         guard let document else { return "Open a map first" }
         if isSegmenting { return "Segmenting" }
-        if document.map.size != gridShape.rows * gridShape.columns { return MapAnalysis.Refusal.notAGrid.errorDescription }
+        if document.size != document.rows * document.columns { return MapAnalysis.Refusal.notAGrid.errorDescription }
         return nil
     }
 
@@ -510,7 +534,8 @@ package final class OrientationMapSession {
                                    kamMaxDegrees: angle(settings.kamMaxDegrees, 5))
     }
 
-    /// Runs the grain analysis with the current settings off the main actor; the returned task ends when it has landed.
+    /// Runs the grain analysis with the current settings off the main actor; the returned task ends when it has landed (or was stopped
+    /// and its pass has returned).
     @discardableResult
     package func segment() -> Task<Void, Never> {
         guard let document, canSegment else { return Task {} }
@@ -523,16 +548,26 @@ package final class OrientationMapSession {
         let task = Task { [weak self] in
             do {
                 let result = try await MapAnalysis.runAsync(map, settings: settings)
-                guard let self, gen == self.segmentGeneration else { return }
-                self.landAnalysis(result)
+                self?.segmentEnded(generation: gen, result: result, failure: nil)
             } catch {
-                guard let self, gen == self.segmentGeneration else { return }
-                self.isSegmenting = false
-                if !(error is CancellationError) { self.onFailure?(error) }
+                self?.segmentEnded(generation: gen, result: nil, failure: error)
             }
         }
         segmentTask = task
         return task
+    }
+
+    /// A Segment's pass has returned, done, failed or stopped. Segment is free again only here, so a pass a Stop, a new map or a close
+    /// cancelled never runs beside the next one (one pass at a time: `canSegment` waits on `isSegmenting`). Its analysis lands, or its
+    /// failure shows, only when it is still the newest asked for on this map.
+    private func segmentEnded(generation gen: Int, result: MapAnalysis?, failure: (any Error)?) {
+        isSegmenting = false
+        guard gen == segmentGeneration else { return }
+        if let result {
+            landAnalysis(result)
+        } else if let failure, !(failure is CancellationError) {
+            onFailure?(failure)
+        }
     }
 
     private func landAnalysis(_ result: MapAnalysis) {
@@ -549,10 +584,12 @@ package final class OrientationMapSession {
         if case .derived = layer { draw() }
     }
 
+    /// Drops the analysis and the texture. A Segment in flight is cancelled and lands nothing; `isSegmenting` stays until its pass has
+    /// returned (`segmentEnded`).
     private func resetAnalysis() {
         segmentGeneration += 1
         segmentTask?.cancel(); textureTask?.cancel()
-        analysis = nil; isSegmenting = false; slip = []; setSelectedGrain(nil)
+        analysis = nil; slip = []; setSelectedGrain(nil)
         grainBoundaryEdges = []; phaseBoundaryEdges = []
         texture = nil; texturePhaseID = nil; isTexturing = false
     }
@@ -687,8 +724,8 @@ package final class OrientationMapSession {
         return task
     }
 
-    /// How many points of the map are not indexed.
-    package var notIndexedCount: Int { map?.phaseIDs.filter { $0 == PhaseList.notIndexedID }.count ?? 0 }
+    /// How many points of the map are not indexed (`Document.notIndexedCount`).
+    package var notIndexedCount: Int { document?.notIndexedCount ?? 0 }
 }
 
 /// A map file the Maps room could not read, in one sentence.

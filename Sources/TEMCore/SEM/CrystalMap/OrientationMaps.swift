@@ -179,9 +179,11 @@ package nonisolated enum OrientationMaps {
     // MARK: The hover
 
     /// The status line over the map (design §3): "row 12 · col 40 · austenite · φ₁ 12,3° Φ 44,0° φ₂ 271,5° · iq 24,4 · ci 0,799";
-    /// "· not indexed" for a point without a phase; nil off the map or where no point is.
-    package static func readout(_ map: CrystalMap, grid: [Int], row: Int, column: Int, locale: Locale = .autoupdatingCurrent) -> String? {
-        let (rows, columns) = gridShape(map)
+    /// "· not indexed" for a point without a phase; nil off the map or where no point is. `shape` is the map's `gridShape` where the
+    /// caller holds it (the hover asks on every move); nil works it out from the coordinates.
+    package static func readout(_ map: CrystalMap, grid: [Int], row: Int, column: Int, shape: (rows: Int, columns: Int)? = nil,
+                                locale: Locale = .autoupdatingCurrent) -> String? {
+        let (rows, columns) = shape ?? gridShape(map)
         guard row >= 0, row < rows, column >= 0, column < columns, grid.count == rows * columns else { return nil }
         let i = grid[row * columns + column]
         guard i >= 0 else { return nil }

@@ -22,9 +22,16 @@
 import Foundation
 
 package nonisolated struct HoughIndexer: Sendable {
-    package enum Error: Swift.Error, Equatable, Sendable {
+    package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {
         case noPhases
         case shape
+
+        package var errorDescription: String? {
+            switch self {
+            case .noPhases: "Hough indexing needs at least one phase."
+            case .shape: "Hough indexing needs a scan of at least one row and one column."
+            }
+        }
     }
 
     /// One pattern's solution for one phase (pyEBSDindex's index record).

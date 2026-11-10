@@ -4,6 +4,7 @@
 //  stopped, was refused or failed) and a file opened are spoken; a run's start line is not, the line that ends it says the outcome.
 //  Every session's event goes through `report`, which keeps the infobar line and the SEM rooms' session record as they were.
 //  Red before: no `SessionEventSpeech` and no `report(event:in:)`; the sessions' `onEvent` set the infobar only, never spoken.
+//  A line is spoken once and at default priority: not when an alert says the same failure, and not over what the person does next.
 //
 
 import XCTest
@@ -43,6 +44,35 @@ nonisolated final class SessionEventSpeechTests: XCTestCase {
             XCTAssertFalse(SessionEventSpeech.announces(line), line)
         }
         XCTAssertFalse(SessionEventSpeech.announces(""), "an empty line says nothing")
+    }
+
+    /// A master pattern that cannot be opened is said once. The session sends its line and then the failure, which the window shows as
+    /// an alert; VoiceOver reads the alert, so the line is kept (the Output pane, the Indexing room's session record) and not spoken as
+    /// well. Red before: `announces` was true for the line, so the failure was announced and then read again from the alert.
+    @MainActor func testAMasterPatternThatCannotBeOpenedIsSaidOnceByItsAlert() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        let scan = try XCTUnwrap(Bundle(for: SessionEventSpeechTests.self).url(forResource: "ebsd-kikuchipy-h5ebsd", withExtension: "h5"),
+                                 "ebsd-kikuchipy-h5ebsd.h5 is not in the test bundle")
+        await state.indexing.openMasterPattern(url: scan).value
+        let sentence = "ebsd-kikuchipy-h5ebsd.h5 is not an EMsoft master pattern file."
+        XCTAssertEqual(state.errorMessage, sentence, "the alert says why, and VoiceOver reads it")
+        let lines = state.semRecord.lines(of: .indexing).map(\.text)
+        XCTAssertEqual(lines, ["Master pattern: " + sentence], "the session record keeps the line")
+        for line in lines {
+            XCTAssertFalse(SessionEventSpeech.announces(line), "spoken as well as the alert: \(line)")
+        }
+        XCTAssertTrue(SessionEventSpeech.announces("Opened the master pattern ni.h5: 20 kV; Ni has no master pattern of its own"),
+                      "a master pattern that opened is still said")
+    }
+
+    /// A run's line is posted at default priority, as mac4DSTEM's announcements are: a run ends while the person works, and a line at
+    /// high priority cannot be interrupted once it starts. An export's and a save's line keep `ExportPanels.announcement` (posted as
+    /// their sheet goes away; ExportSnapshotTests pins its priority). Red before: `report` posted `ExportPanels.announcement(line)`.
+    func testARunsLineIsPostedAtDefaultPriority() throws {
+        let speech = try source("macTEM/App/SessionEventSpeech.swift")
+        XCTAssertTrue(speech.contains("AccessibilityNotification.Announcement(line).post()"))
+        XCTAssertFalse(speech.contains("Announcement(ExportPanels.announcement("), "no high priority for a line that ends a run")
+        XCTAssertFalse(speech.contains("accessibilitySpeechAnnouncementPriority"))
     }
 
     /// Each of the five sessions' `onEvent` goes through `report(event:in:)`. Red under: a closure that sets `statusText` itself again.

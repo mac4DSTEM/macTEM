@@ -3,7 +3,7 @@
 //  Role: open files into the window. Which files are open, which is selected and what each holds is
 //        `OpenItems`'; here are the reader it is given — the file, its metadata, the display copy, the row's thumbnail
 //        and a security-scoped bookmark, all off the main actor — the infobar's events, File > Open Recent's side
-//        (every file taken in is remembered with a bookmark; an entry is opened again through it) and File > Reopen Last
+//        (every file that opened is remembered with a bookmark; an entry is opened again through it) and File > Reopen Last
 //        Session's (the files open, the selected one and the room recorded as they change; the last launch's opened again).
 //
 
@@ -21,11 +21,14 @@ extension AppState {
     /// Every open ends here — the panel, a drop, Finder, Open Recent: one item per file not open yet, read one at a time in
     /// this order; a file open already is selected, not read twice; the first is selected at once (`OpenItems.open`). A
     /// failed read is reported by the alert (`onReadFailure`); the infobar says "Opened …" once the batch is in. Every
-    /// file that is not refused goes to the front of Open Recent (`recents`), with the bookmark made in its scope, and into the
-    /// last-session record once the batch is in (`recordLastSession`). The batch's refused files are one alert, a line each; the
-    /// files a one-document room left out are named after the batch.
+    /// file that opened goes to the front of Open Recent (`recents`) once the batch is in, with the bookmark made in its scope
+    /// (`rememberOpened`), and into the last-session record (`recordLastSession`). The batch's refused files are one alert, a line
+    /// each, after the lines of the files a drop did not hand over (`refused`: an extension macTEM does not open), and only once
+    /// every folder the Open asks for is answered: an alert up before would take the window's sheet, and the folder panel then
+    /// cannot show. The files a one-document room left out are named, and said to VoiceOver, once the rooms' own opens have
+    /// landed (`reportLeftOut`).
     @discardableResult
-    func open(urls: [URL]) -> Task<Void, Never>? {
+    func open(urls: [URL], refused: [String] = []) -> Task<Void, Never>? {
         guard !urls.isEmpty else { return nil }
         statusText = urls.count == 1 ? "Opening \(urls[0].lastPathComponent)…" : "Opening \(urls.count) files…"
         let task = Task {
@@ -35,16 +38,20 @@ extension AppState {
             // every room that has data in it (`FileInventory`), and the window lands in the room of the richest dataset.
             var inventories = await Self.inventories(urls)
             // A NORDIF scan whose settings file the sandbox refused asks for its folder, once per folder in an Open (`FolderPanels`): the
-            // grant is kept (`FolderGrants`) and the scan is routed again inside it. Declined, the scan keeps its refusal.
+            // grant is kept (`FolderGrants`) and the scan is routed again inside it. Declined, the scan keeps its refusal. A folder
+            // granted for an earlier scan of this Open that is around this one too (their common parent) reaches it: nothing is asked.
             var answered: [String: Bool] = [:]   // each folder asked for in this Open: granted or not
+            var granted: [String] = []           // the folders granted in this Open, by `FolderGrants.path`
             for index in inventories.indices where inventories[index].asksForFolder {
                 let url = inventories[index].url
                 let folder = FolderGrants.path(of: url.deletingLastPathComponent())
+                if answered[folder] == nil, FolderGrants.reaches(granted, file: url) { answered[folder] = true }
                 if answered[folder] == nil {
                     let chosen = await FolderPanels.askForFolder(of: url)
                     if let chosen {
                         let bookmark = try? SecurityScopedBookmark.make(for: chosen)
                         FolderGrants.store(bookmark, forFolder: chosen)
+                        if bookmark != nil { granted.append(FolderGrants.path(of: chosen)) }
                     }
                     answered[folder] = chosen != nil
                 }
@@ -54,11 +61,12 @@ extension AppState {
             var landing: FileInventory.Landing?
             var edsBatch: [URL] = [], eelsBatch: [URL] = [], ebsdBatch: [URL] = [], mapBatch: [URL] = []
             var refusals: [String] = []
+            var taken: [RecentFile] = []   // the files with a bookmark: Open Recent takes those that opened, once the batch is in
             for (url, inventory, bookmark, _) in inventories {
                 if let why = inventory.refusal { refusals.append(why); continue }
                 if let bookmark {
                     let file = RecentFile(path: url.standardizedFileURL.path, displayName: url.lastPathComponent, bookmark: bookmark)
-                    recents.remember(file)
+                    taken.append(file)
                     lastSession.remember(file)
                 }
                 if inventory.ebsdPatterns { ebsdBatch.append(url) }
@@ -70,22 +78,25 @@ extension AppState {
                 if inventory.eelsSpectrumImage { eelsFiles.insert(url); eelsBatch.append(url) }
                 if let found = inventory.landing, landing == nil || found.richness > landing!.richness { landing = found }
             }
-            presentRefusals(refusals)
+            presentRefusals(refused + refusals)
             // One file per spectrum room: the batch's first, the one Open Files selects when it is first in the list (the room followed the
             // selection only on the next click; two files at launch left the last in the room and the first selected, 2026-10-23). The others
             // are reached by selecting their row (`spectrumRoomsFollowSelection`).
-            if let first = edsBatch.first { edx.open(url: first) }
-            if let first = eelsBatch.first { eels.open(url: first) }
+            var roomOpens: [Task<Void, Never>] = []   // the rooms' own opens, each ending when its room has the file (or has failed)
+            if let first = edsBatch.first { roomOpens.append(edx.open(url: first)) }
+            if let first = eelsBatch.first { roomOpens.append(eels.open(url: first)) }
             // The Patterns room holds one dataset, as the spectrum rooms do; the batch's first is it. A NORDIF scan's settings and
             // background are read with the dataset: its folder's grant is held from before the read until the open ends (`FolderGrants`).
             if let first = ebsdBatch.first {
                 let folder = FolderGrants.hold(forFolderOf: first)
                 let opening = ebsd.open(url: first)
+                roomOpens.append(opening)
                 if let folder { Task { await opening.value; folder.release() } }
             }
             // The Maps room holds one map: an `.ang` or `.ctf` opened on its own (a dataset's map comes through the Patterns room).
-            if let first = mapBatch.first { maps.open(url: first) }
-            // The others of each room that no Open Files row reaches are named once the batch is in, not dropped without a word.
+            if let first = mapBatch.first { roomOpens.append(maps.open(url: first)) }
+            // The others of each room that no Open Files row reaches are named once the rooms' opens have landed (`reportLeftOut`),
+            // not dropped without a word.
             let leftOut = OpenBatch.leftOut(eds: edsBatch, eels: eelsBatch, ebsd: ebsdBatch, maps: mapBatch, imageRows: images)
             switch landing {
             case .patterns: if navigation.workspaceArea != .indexing { selectWorkspace(.patterns) }   // Indexing shows the scan too
@@ -94,34 +105,62 @@ extension AppState {
             case .eels: selectWorkspace(.eels)
             case .image, nil: break   // the image is selected below, once its item exists
             }
+            let roomFiles = [edsBatch.first, eelsBatch.first, ebsdBatch.first, mapBatch.first].compactMap { $0 }
             guard !images.isEmpty else {
-                if landing == .eds || landing == .eels || landing == .patterns || landing == .maps { statusText = leftOut ?? "" }
+                rememberOpened(taken, rooms: roomFiles, images: [], closed: [])
+                if landing == .eds || landing == .eels || landing == .patterns || landing == .maps { statusText = "" }
+                if let leftOut { await reportLeftOut(leftOut, after: roomOpens) }
                 return
             }
-            openItems.open(urls: images)
+            // The rows this Open makes: one that is gone once the reads are in did not open (its first read failed, or it was closed).
+            let made = openItems.open(urls: images).opened.compactMap { openItems.item($0) }.map { (id: $0.id, url: $0.url) }
             // From a spectrum or SEM room the image is not shown: land on it. From an image room, stay where the person was.
             if landing == .image, [.edx, .eels, .patterns, .indexing, .maps].contains(navigation.workspaceArea) { selectWorkspace(.image) }
             await openItems.settled()
+            rememberOpened(taken, rooms: roomFiles, images: images, closed: made.filter { openItems.item($0.id) == nil }.map { $0.url })
+            var opened: String?
             if let image = imageSession.image {
                 let suffix = openItems.selected.map(Self.sessionSuffix(of:)) ?? ""
                 let stack = openItems.selected?.stack.map { " · stack of \($0.frameCount) frames, read one at a time" } ?? ""
-                statusText = Self.openedLine(image) + stack + suffix
+                let line = Self.openedLine(image) + stack + suffix
+                statusText = line
+                opened = line
                 if openItems.selected?.sidecarNeedsAccess == true {
                     AccessibilityNotification.Announcement(Self.needsAccessSentence).post()
                 }
             }
-            if let leftOut { statusText = leftOut }
+            // With the image's "Opened …" line, not in its place.
+            if let leftOut { await reportLeftOut([opened, leftOut].compactMap { $0 }.joined(separator: " · "), after: roomOpens) }
         }
         lastOpen = task
         return task
     }
 
-    /// The refused files of one Open (the route's sentences, or a drop's) as one alert, a line each: a `present` per file left only
-    /// the last one up. The status line and Output take the same sentences on one line. Nothing for none.
+    /// The refused files of one Open (a drop's own lines, then the route's sentences) as one alert, a line each: a `present` per file
+    /// left only the last one up, and so did a second call while the first alert was up, which is why a drop hands its lines to its
+    /// Open (`open(urls:refused:)`). The status line and Output take the same sentences on one line. Nothing for none.
     func presentRefusals(_ sentences: [String]) {
         guard !sentences.isEmpty else { return }
         errorMessage = sentences.joined(separator: "\n")
         statusText = "Error: " + sentences.joined(separator: " ")
+    }
+
+    /// Says `line`, the files a one-document room left out of a batch (`OpenBatch.leftOut`), once the rooms' own opens have landed,
+    /// through `report(event:in:)`. Set while the opens had only started, the line flashed in the infobar until each room's
+    /// "Opened …" replaced it, and VoiceOver, which does not read the infobar, never said it. An open that failed or was replaced
+    /// by a newer one has ended too, so the wait returns.
+    private func reportLeftOut(_ line: String, after roomOpens: [Task<Void, Never>]) async {
+        for opening in roomOpens { await opening.value }
+        report(event: line, in: nil)
+    }
+
+    /// Open Recent takes the files of a batch that opened (`OpenBatch.opened`), in the batch's order, so the last is first in the
+    /// menu, with the bookmark made in each file's scope. Called once the batch is in, as mac4DSTEM remembers a dataset only once
+    /// its load has finished (`rememberOpenedDataset`): a file that did not open at the top of the list is backwards, and picking
+    /// it there fails again. `taken` are the batch's files with a bookmark, `rooms` the file each one-document room took, `closed`
+    /// the images whose row this Open made and that is gone.
+    private func rememberOpened(_ taken: [RecentFile], rooms: [URL], images: [URL], closed: [URL]) {
+        for file in OpenBatch.opened(taken, rooms: rooms, imageRows: images, closed: closed) { recents.remember(file) }
     }
 
     /// What each URL holds, by content, off the main actor and inside the URL's security scope, and for a file that is not refused
@@ -192,15 +231,45 @@ extension AppState {
     /// (resolved without mounting a volume or asking anything), opened as any other through `open(urls:)`; once they are in, the
     /// file that was selected and the room that was shown. A file that is gone, or on a disk that is not connected, is named in the
     /// status line and the others open; when none can be opened and no disk is waited for, the record is forgotten and the menu
-    /// stops offering it. Never run at launch: a mapped multi-GB file must not load before the person asks.
+    /// stops offering it. Never run at launch: a mapped multi-GB file must not load before the person asks. Nil only without a
+    /// record: which files are still there is found inside the returned task, off the main actor.
     @discardableResult
     func reopenLastSession() -> Task<Void, Never>? {
         guard let record = lastSession.previous else { return nil }
+        let task = Task {
+            // Which files are still there is asked off the main actor (`lastSessionFiles`): a share that is mounted but asleep answers
+            // slowly, once per file, and the menu must not wait for it.
+            let (found, gone, offline) = await Self.lastSessionFiles(record.files)
+            let missing = Self.notReopened(gone: gone, offline: offline)
+            guard !found.isEmpty else {
+                if offline.isEmpty { lastSession.forgetPrevious() }
+                report(event: missing ?? "", in: nil)   // the status line, and VoiceOver: with every file gone this line is the whole answer
+                return
+            }
+            let selectedPath = found.first { $0.path == record.selectedPath }?.url.standardizedFileURL.path
+            await open(urls: found.map { $0.url })?.value
+            if let selectedPath, let item = openItems.items.first(where: { $0.url.standardizedFileURL.path == selectedPath }) {
+                openItems.select(item.id)
+            }
+            if let room = WorkspaceArea(rawValue: record.room) { selectWorkspace(room) }
+            if let missing { report(event: missing, in: nil) }
+        }
+        lastOpen = task
+        return task
+    }
+
+    /// The last session's files by what became of each, off the main actor: `found` (the bookmark resolves and the file is there),
+    /// `offline` (on a disk that is not connected: the file's name and the volume's) and `gone` (the names of the others). Each file
+    /// costs a bookmark resolved and a look at the file system; on a share that is mounted but asleep every such call waits, and
+    /// on the main actor the menu hung once per file.
+    @concurrent
+    nonisolated static func lastSessionFiles(_ files: [RecentFile]) async
+        -> (found: [(path: String, url: URL)], gone: [String], offline: [(name: String, volume: String)]) {
         var found: [(path: String, url: URL)] = []
         var gone: [String] = []
         var offline: [(name: String, volume: String)] = []
-        for file in record.files {
-            if let url = Self.reachable(file) {
+        for file in files {
+            if let url = reachable(file) {
                 found.append((path: file.path, url: url))
             } else if let volume = RecentFiles.absentVolume(of: file.path) {
                 offline.append((name: file.displayName, volume: volume))
@@ -208,30 +277,12 @@ extension AppState {
                 gone.append(file.displayName)
             }
         }
-        let missing = Self.notReopened(gone: gone, offline: offline)
-        guard !found.isEmpty else {
-            if offline.isEmpty { lastSession.forgetPrevious() }
-            report(event: missing ?? "", in: nil)   // the status line, and VoiceOver: with every file gone this line is the whole answer
-            return nil
-        }
-        let selectedPath = found.first { $0.path == record.selectedPath }?.url.standardizedFileURL.path
-        let room = WorkspaceArea(rawValue: record.room)
-        let opening = open(urls: found.map { $0.url })
-        let task = Task {
-            await opening?.value
-            if let selectedPath, let item = openItems.items.first(where: { $0.url.standardizedFileURL.path == selectedPath }) {
-                openItems.select(item.id)
-            }
-            if let room { selectWorkspace(room) }
-            if let missing { report(event: missing, in: nil) }
-        }
-        lastOpen = task
-        return task
+        return (found: found, gone: gone, offline: offline)
     }
 
     /// The file a last-session entry's bookmark resolves to while it is still there; nil when the bookmark does not resolve or the
-    /// file it names is gone (looked at inside its security scope).
-    private static func reachable(_ file: RecentFile) -> URL? {
+    /// file it names is gone (looked at inside its security scope). Not the main actor's: `lastSessionFiles` calls it.
+    private nonisolated static func reachable(_ file: RecentFile) -> URL? {
         var stale = false
         guard let url = try? URL(resolvingBookmarkData: file.bookmark, options: [.withSecurityScope, .withoutUI, .withoutMounting],
                                  relativeTo: nil, bookmarkDataIsStale: &stale) else { return nil }
@@ -493,6 +544,17 @@ nonisolated enum OpenBatch {
             return "\(room.holds): \(Self.list(names)) \(names.count == 1 ? "was" : "were") not opened."
         }
         return sentences.isEmpty ? nil : sentences.joined(separator: " ")
+    }
+
+    /// The files of a batch that opened, in the batch's order, for Open Recent: the file each one-document room took (`rooms`, its
+    /// batch's first) and an image with a row in Open Files (`imageRows`). Not a file a room left out (`leftOut` names those), nor
+    /// an image whose row is gone (`closed`: its first read failed, or it was closed while it was read) unless a room took it.
+    /// `taken` are the batch's files with a bookmark, each by its standardised path.
+    static func opened(_ taken: [RecentFile], rooms: [URL], imageRows: [URL], closed: [URL]) -> [RecentFile] {
+        func key(_ url: URL) -> String { url.standardizedFileURL.path }
+        let gone = Set(closed.map(key))
+        let held = Set(rooms.map(key)).union(imageRows.map(key).filter { !gone.contains($0) })
+        return taken.filter { held.contains($0.path) }
     }
 
     /// "a", "a and b", "a, b and c".

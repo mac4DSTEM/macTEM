@@ -108,20 +108,24 @@ package nonisolated struct IndexingSource: Sendable {
     package var scanRows: Int { access.dataset.scanRows }
     package var scanColumns: Int { access.dataset.scanColumns }
 
-    /// One scan row of indexed patterns, in map order, each row-major (row 0 at the top) as the band detector takes it.
+    /// One scan row of indexed patterns, in map order, each row-major (row 0 at the top) as the band detector takes it. The row is read
+    /// once; its patterns go through the pipeline on every core (`ScanRowWork`), each in its column's place, so the values are the
+    /// serial loop's.
     package func patterns(row: Int) throws -> [[Double]] {
         let dataset = access.dataset
         let slab = try access.row(row)
         let size = dataset.patternPixels * slab.dataType.byteSize
         let bytes = slab.bytes, base = bytes.startIndex   // a slab may be a slice of a larger buffer: index from its start
-        var out: [[Double]] = []
-        out.reserveCapacity(dataset.scanColumns)
-        for column in 0..<dataset.scanColumns {
+        return try ScanRowWork.map(columns: dataset.scanColumns) { (column: Int) throws -> [Double] in
             let one = try FormatoArray(dataType: slab.dataType, shape: [dataset.patternRows, dataset.patternColumns],
                                        bytes: bytes.subdata(in: (base + column * size)..<(base + (column + 1) * size)))
-            out.append(try indexed(one))
+            do {
+                return try indexed(one)
+            } catch let refusal as PatternPipeline.Refusal {
+                // A stage that fails names the pattern, so a run over the scan says which one stopped it.
+                throw refusal.at(row: row, column: column)
+            }
         }
-        return out
     }
 
     /// The indexed pattern at one scan position.

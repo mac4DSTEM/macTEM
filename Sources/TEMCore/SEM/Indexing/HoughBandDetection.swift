@@ -22,10 +22,17 @@
 import Foundation
 
 package nonisolated struct HoughBandDetector: Sendable {
-    package enum Error: Swift.Error, Equatable, Sendable {
+    package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {
         /// A pattern or setting does not fit the plan (sizes, sigmas, the rho-mask fraction outside [0, 1)).
         case settings
         case shape
+
+        package var errorDescription: String? {
+            switch self {
+            case .settings: "The Hough settings do not fit a pattern of this size."
+            case .shape: "The pattern does not have the size the band detector was set up for."
+            }
+        }
     }
 
     /// pyEBSDindex's `EBSDIndexer` defaults: 90 rho and 180 theta bins, Gaussian sigmas of 1.2 rho bins and 1 theta bin,

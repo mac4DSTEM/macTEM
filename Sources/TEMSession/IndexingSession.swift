@@ -412,6 +412,8 @@ package final class IndexingSession {
                 self.masterTasks[id] = nil
                 self.isLoadingMaster = !self.masterTasks.isEmpty
                 guard !quietly else { return }
+                // The line is for the Output pane and the session record; the alert that follows is what VoiceOver reads, so the window
+                // does not speak this line as well (the app's `SessionEventSpeech.alertedPrefix` is how it starts).
                 self.onEvent?("Master pattern: " + ((error as? LocalizedError)?.errorDescription ?? error.localizedDescription))
                 self.onFailure?(error)
             }

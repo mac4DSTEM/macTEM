@@ -24,11 +24,18 @@
 import Foundation
 
 package nonisolated enum NLPAR {
-    package enum Error: Swift.Error, Equatable, Sendable {
+    package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {
         /// A count does not match the scan and pattern sizes, or a size is below 1.
         case shape
         /// A parameter is out of range (named).
         case parameter(String)
+
+        package var errorDescription: String? {
+            switch self {
+            case .shape: "NLPAR's patterns do not match the scan and pattern sizes."
+            case .parameter(let name): "NLPAR's \(name) is out of range for this scan."
+            }
+        }
     }
 
     /// The defaults of `pyebsdindex.nlpar.NLPAR` and `opt_lambda`.

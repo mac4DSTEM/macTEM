@@ -14,11 +14,18 @@
 import Foundation
 
 package nonisolated struct PatternWindow: Sendable, Equatable {
-    package enum Error: Swift.Error, Equatable, Sendable {
+    package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {
         /// A size below 1, or a weight count that is not `rows * columns`.
         case shape
         /// A parameter is not finite or not positive where it must be (cutoff, cutoff width, std).
         case parameter(String)
+
+        package var errorDescription: String? {
+            switch self {
+            case .shape: "A window needs at least one row and one column, and one weight per cell."
+            case .parameter(let name): "The window's \(name) must be a positive number."
+            }
+        }
     }
 
     /// The window's kind, as kikuchipy names it (`Window.name`).

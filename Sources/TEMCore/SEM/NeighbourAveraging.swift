@@ -17,11 +17,18 @@
 import Foundation
 
 package nonisolated enum NeighbourAveraging {
-    package enum Error: Swift.Error, Equatable, Sendable {
+    package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {
         /// A count does not match the scan and pattern sizes, or a size is below 1.
         case shape
         /// An averaged pattern is flat or not finite (e.g. a window whose weights inside the map sum to zero).
         case nonFinite
+
+        package var errorDescription: String? {
+            switch self {
+            case .shape: "The patterns to average do not match the scan and pattern sizes."
+            case .nonFinite: "An averaged pattern is flat, so it cannot be rescaled."
+            }
+        }
     }
 
     /// The integer sum of the window's weights inside the map at every scan position (`correlate(ones(int), window,
