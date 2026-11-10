@@ -294,6 +294,40 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
         assertBlock(try XCTUnwrap(r["static_background"] as? [String: Any]), bytes: background.pixels, shape: [background.height, background.width])
     }
 
+    /// A `Step size` of 0 or an `[Area] Width` of 0 px makes the scaling factor 0, and a step of NaN or one so small that a position
+    /// is more steps than an Int holds gives quotients no Int holds: no scaling then, as without a readable `Width`, and the values
+    /// as written stay. Red before: `Int(_:)` of the infinite, NaN or too large quotient trapped.
+    func testAZeroStepOrAZeroPixelWidthGivesNoScalingInsteadOfATrap() throws {
+        let lines = try NORDIFSettings.read(path: path("Setting.txt")).lines
+        XCTAssertEqual(lines[76], "Width\t4.500 (11)\tµm (px)")
+        XCTAssertEqual(lines[78], "Step size\t1.500\tµm")
+        var noPixels = lines
+        noPixels[76] = "Width\t4.500 (0)\tµm (px)"
+        var cases: [([String], NORDIFCalibrationPatterns.Point)] = [(noPixels, NORDIFCalibrationPatterns.Point(row: 11, column: 0))]
+        for step in ["0", "nan", "1e-300"] {
+            var edited = lines
+            edited[78] = "Step size\t\(step)\tµm"
+            cases.append((edited, NORDIFCalibrationPatterns.Point(row: 11, column: 11)))
+        }
+        for (edited, roiShape) in cases {
+            let settings = try NORDIFSettings.parse(lines: edited, fileName: "Setting.txt")
+            let c = NORDIFCalibrationPatterns.geometry(settings: settings, patterns: [], staticBackground: nil)
+            XCTAssertNil(c.positionsScaled, edited[78])
+            XCTAssertNil(c.areaShapeScaled, edited[78])
+            XCTAssertNil(c.roiOriginScaled, edited[78])
+            XCTAssertNil(c.roiShapeScaled, edited[78])
+            XCTAssertEqual(c.positions, [NORDIFSettings.Position(x: 425, y: 447), NORDIFSettings.Position(x: 294, y: 532)])
+            XCTAssertEqual(c.areaShape, NORDIFCalibrationPatterns.Point(row: 1000, column: 1000))
+            XCTAssertEqual(c.roiOrigin, NORDIFCalibrationPatterns.Point(row: 223, column: 152))
+            XCTAssertEqual(c.roiShape, roiShape)
+        }
+        // A usable factor scales as before (the reference values: testCalibrationPatternsReadWithTheirPositionsScaledAsKikuchipy).
+        let kept = NORDIFCalibrationPatterns.geometry(settings: try NORDIFSettings.parse(lines: lines, fileName: "Setting.txt"), patterns: [],
+                                                      staticBackground: nil)
+        XCTAssertEqual(kept.positionsScaled?.map { [$0.row, $0.column] }, [[122, 116], [145, 80]])
+        XCTAssertEqual(kept.roiShapeScaled, NORDIFCalibrationPatterns.Point(row: 3, column: 3))
+    }
+
     func testTheSettingsFilesWithoutCalibrationLinesAreRefusedWithTheReferenceSentence() throws {
         for file in ["Setting_bad1.txt", "Setting_bad2.txt"] {
             let r = calibration(file)
