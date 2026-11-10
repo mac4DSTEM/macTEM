@@ -130,8 +130,8 @@ reconcile_test_names() {  # <xcresult> <tests dir>
 
 unit_tests() (
   clear_test_host_geometry
-  # Never let an unsigned test build replace the app Xcode launches from its normal DerivedData. MACTEM_DERIVED_DATA
-  # (set by `tools/gate.sh unit --warm`, to <gate dir>/dd-unit, outside the tree) reuses a lane's own persistent scratch DerivedData; unset, the build is cold.
+  # Never let an unsigned test build replace the app Xcode launches from its normal DerivedData. MACTEM_DERIVED_DATA, when set
+  # (a folder outside the tree, such as <gate dir>/dd-unit), reuses a lane's own persistent scratch DerivedData; unset, the build is cold.
   # Tests run in parallel (-parallel-testing-enabled YES), adopted 2026-10-14 after a serial and a parallel run on the
   # same warm tree executed the same 853 names with the same 853/0/0 (26 s serial, 16 s parallel);
   # MACTEM_PARALLEL_TESTING=NO runs them serially, to compare when a test is suspected of depending on order.
@@ -139,7 +139,7 @@ unit_tests() (
   work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-unit-tests.XXXXXX")"
   trap 'rm -rf "$work"' EXIT
   local -a par=(-parallel-testing-enabled "${MACTEM_PARALLEL_TESTING:-YES}")
-  # MACTEM_TEST_WORKERS (set by tools/gate.sh: 8, or 4 while mac4DSTEM holds a heavy.* lock) caps the parallel workers.
+  # MACTEM_TEST_WORKERS, when set, caps the parallel workers; unset, xcodebuild chooses.
   [[ -n "${MACTEM_TEST_WORKERS:-}" ]] && par+=(-parallel-testing-worker-count "$MACTEM_TEST_WORKERS")
   # SWIFT_OPTIMIZATION_LEVEL=-O on the command line is the only setting that reaches a package target in the Test action
   # (the Test action stays Debug for testability): without it SpectroKit builds -Onone, where its hot loops are about 20x
@@ -360,9 +360,9 @@ inventory() {
   for name in "${all[@]}"; do
     [[ -d "$ROOT/tools/parity/$name" ]] || { echo "  MISSING tools/parity/$name (classified, not present)"; rc=1; }
   done
-  # tools/ holds the scripts, lib/, hooks/, drive/ (the guarded hand-drive helpers) and parity/; every folder under tools/parity/ is in exactly one array.
+  # tools/ holds the scripts, lib/ and parity/, and no other folder; every folder under tools/parity/ is in exactly one array.
   for dir in "$ROOT"/tools/*(/N); do
-    case "${dir:t}" in lib|hooks|parity|drive) ;; *) echo "  UNEXPECTED folder tools/${dir:t} — harnesses live in tools/parity/"; rc=1 ;; esac
+    case "${dir:t}" in lib|parity) ;; *) echo "  UNEXPECTED folder tools/${dir:t} — harnesses live in tools/parity/, helpers in tools/lib/"; rc=1 ;; esac
   done
   for dir in "$ROOT"/tools/parity/*(/N); do
     name="${dir:t}"

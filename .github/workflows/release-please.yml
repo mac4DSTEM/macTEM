@@ -4,8 +4,9 @@
 # creates the GitHub release. Tags are v-prefixed (v1.2.3), never moved.
 #
 # A PR opened with GITHUB_TOKEN starts no workflows, so this job dispatches CI on the Release PR's branch: the required
-# `test` check then reports on its head commit. Step env is evaluated even when `if` skips the step, so the PR JSON is
-# read with jq rather than fromJSON (empty on a run with no Release PR). Needs "Allow GitHub Actions to create and approve pull requests".
+# checks (ci.yml's unit, core, inventory and kit boundary jobs) then report on its head commit. Step env is evaluated even
+# when `if` skips the step, so the PR JSON is read with jq rather than fromJSON (empty on a run with no Release PR). Needs
+# "Allow GitHub Actions to create and approve pull requests".
 #
 # HELD (2026-11-10, docs/decisions.md): the next release is 2.0.0 and nothing ships before it, so while RELEASE_HELD is 'true'
 # a merge to main still updates the Release PR but starts no CI on it. That run took three macOS runners on every merge, for a

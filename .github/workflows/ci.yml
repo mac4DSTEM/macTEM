@@ -98,7 +98,7 @@ jobs:
           key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: swiftpm-${{ runner.os }}-
       - name: Ensure the Metal toolchain component
-        # Xcode 26 ships the Metal compiler as a separate download; the app compiles macTEM/Shaders/*.metal.
+        # Xcode 26 ships the Metal compiler as a separate download; the app build compiles MacEMUI's Colormaps.metal.
         run: |
           if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
             sudo xcodebuild -downloadComponent MetalToolchain
