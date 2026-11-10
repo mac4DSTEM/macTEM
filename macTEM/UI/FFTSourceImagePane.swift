@@ -368,7 +368,7 @@ struct FFTSourceImagePane: View {
     let image: CalibratedImage
     let canvas: CanvasPixels
     let item: OpenItem
-    /// The room's keys are for the pane pressed last; any press in this pane says it is this one (`FFTPanePress`).
+    /// The room's keys and View > Zoom are for the pane pressed last; any press in this pane says it is this one (`FFTPanePress`).
     @Binding var keyPane: FFTKeyPane?
     @State private var zoomModel = PaneZoomModel()
     private var zp: ZoomPan { zoomModel.state }
@@ -400,6 +400,8 @@ struct FFTSourceImagePane: View {
         .padding(8)
         .clipped()
         .modifier(FFTPanePress(pane: .source, keyPane: $keyPane))
+        // View > Zoom acts on the pane pressed last (the transform until a pane is pressed), and only on a picture that is drawn.
+        .zoomCommandTarget(zoomModel, isTarget: FFTZoomTarget.isTarget(pane: .source, lastClicked: keyPane, hasPicture: layer != nil))
         // Region, masked inverse, ABSF and Wiener are one size: their zoom survives the flip (the blink comparison); to or
         // from the file it is a different picture, and starts at fit.
         .onChange(of: view) { old, new in

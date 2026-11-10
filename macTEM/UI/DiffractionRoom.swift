@@ -3,7 +3,8 @@
 //  Role: the Diffraction room's centre: the pattern (log display), the centre, the
 //        annulus being dragged, the fitted rings and the clicked spots drawn over it, and the readout table under it. The selected file
 //        is the pattern; the state is `DiffractionAnalysis` (TEMSession, `OpenItem.diffraction`), every number DiffractoKit's.
-//        Pure SwiftUI. Zoom (control placement §6): the wheel and a pinch zoom about the pattern's centre, a double-click (Ring tool) fits again;
+//        Pure SwiftUI. Zoom (control placement §6): the wheel and a pinch zoom about the pattern's centre, a double-click (Ring tool) fits again,
+//        and View > Zoom In, Zoom Out and Zoom to Fit (⌘+, ⌘−, ⌘0) do the same from the menu (`DiffractionZoomCommands`);
 //        the view stays centred on the pattern, so there is no pan, and the drag belongs to the Ring tool. The R · q · d under the pointer is the
 //        status line's (§7); a fit in flight is the infobar's, with Stop (WorkspaceView). Not here yet (open-items): Find Spots, the predicted
 //        rings, the centre handle drag.
@@ -37,6 +38,7 @@ struct DiffractionRoom: View {
         VStack(spacing: 0) {
             DiffractionHeader(image: image, analysis: analysis, view: view)
             DiffractionPatternPane(image: image, analysis: analysis, view: view, rows: rows)
+                .modifier(DiffractionZoomCommands(image: image, view: view))
             Divider()
             DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                 .frame(height: LayoutPolicy.diffractionReadoutHeight)
@@ -263,6 +265,80 @@ private struct DiffractionPatternPane: View {
         let (ra, rb) = (r(a), r(b))
         guard abs(ra - rb) >= 1 else { return nil }
         return (min(ra, rb), max(ra, rb))
+    }
+}
+
+// MARK: - View > Zoom
+
+/// What View > Zoom In, Zoom Out or Zoom to Fit asks of the pattern. The commands act on a `PaneZoomModel` (ShellControls) and on
+/// nothing else, and the pattern's zoom is a half-side about its centre (`DiffractionViewState`), not a `ZoomPan`. So the room publishes
+/// a model of its own that follows the pane's zoom (the badge's number) and reads what the menu did to it, as MacEMUI's maps keep a
+/// model beside their shared transform. The rules are pure; the three steps below them are the whole round, on the real owners.
+nonisolated enum DiffractionZoomCommand: Equatable {
+    /// The half-side divided by this factor (`DiffractionViewState.zoom(by:image:)`).
+    case zoom(by: Double)
+    /// The pattern's own extent again (`DiffractionViewState.fitView`).
+    case fit
+
+    /// The zoom the menu's model holds while the pane shows `halfSide` and a fit shows `fitHalfSide`: the badge's number, held to the
+    /// model's own range (`ZoomPan.clampZoom`); 1 when either is not a positive number.
+    static func mirrored(fitHalfSide: Double, halfSide: Double) -> CGFloat {
+        guard fitHalfSide.isFinite, halfSide.isFinite, fitHalfSide > 0, halfSide > 0 else { return 1 }
+        return ZoomPan.clampZoom(CGFloat(fitHalfSide / halfSide))
+    }
+
+    /// What the menu asked for, from the model's zoom and the pane's (`mirrored`): nil when they agree (the model only followed the
+    /// pane, or the menu's step stopped at the model's limit), the fit at 1×, else the step as a factor on the pane's zoom.
+    static func asked(model: CGFloat, mirrored: CGFloat) -> DiffractionZoomCommand? {
+        guard model.isFinite, model > 0, mirrored > 0, model != mirrored else { return nil }
+        return model == 1 ? .fit : .zoom(by: Double(model / mirrored))
+    }
+
+    /// The pane's zoom as the model holds it.
+    @MainActor
+    static func mirrored(_ view: DiffractionViewState, image: CalibratedImage) -> CGFloat {
+        mirrored(fitHalfSide: view.fitHalfSide(for: image), halfSide: view.viewHalfSide(for: image))
+    }
+
+    /// The pane zoomed (the wheel, a pinch, a double-click, the pattern's extent found) or a menu step was performed: the model follows
+    /// what the pane shows, written only when it differs.
+    @MainActor
+    static func follow(_ view: DiffractionViewState, image: CalibratedImage, with model: PaneZoomModel) {
+        let shown = mirrored(view, image: image)
+        if model.state.zoom != shown { model.update { $0.zoom = shown } }
+    }
+
+    /// The model changed: when the menu did it, the same step on the pattern (the VoiceOver actions' step, a factor of 2).
+    @MainActor
+    static func perform(from model: PaneZoomModel, on view: DiffractionViewState, image: CalibratedImage) {
+        guard let command = asked(model: model.state.zoom, mirrored: mirrored(view, image: image)) else { return }
+        switch command {
+        case .zoom(let factor): view.zoom(by: factor, image: image)
+        case .fit: view.fitView()
+        }
+    }
+}
+
+/// Publishes the pattern's zoom to View > Zoom In, Zoom Out and Zoom to Fit while the room is shown. Its own modifier with the model as
+/// its state, so a zoom step re-evaluates this and not the room around it.
+private struct DiffractionZoomCommands: ViewModifier {
+    let image: CalibratedImage
+    let view: DiffractionViewState
+    @State private var model = PaneZoomModel()
+
+    func body(content: Content) -> some View {
+        content
+            .zoomCommandTarget(model, isTarget: true)
+            .onChange(of: DiffractionZoomCommand.mirrored(view, image: image), initial: true) {
+                DiffractionZoomCommand.follow(view, image: image, with: model)
+            }
+            // The step is performed, then the model is put back on what the pane shows: a step the pane takes in part or not at all
+            // (its 8 px limit, the whole image, a zoom past the model's range) changes no mirrored value, so the half above would not
+            // run and the model would stay off the pane's zoom, where the next step the other way does nothing.
+            .onChange(of: model.state.zoom) {
+                DiffractionZoomCommand.perform(from: model, on: view, image: image)
+                DiffractionZoomCommand.follow(view, image: image, with: model)
+            }
     }
 }
 

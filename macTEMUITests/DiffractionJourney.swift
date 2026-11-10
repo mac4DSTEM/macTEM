@@ -5,7 +5,7 @@
 //  find the rows in the Results room. Ends on the {220} d-spacing (planted 1.4419 Å) read from the spot's row.
 //  The annulus is dragged on the pane, from points computed from the pane's frame (the image fills it), never absolute. On the way (control
 //  placement §5–§7): the Display section's colormap and log switch, R · q · d in the status line, the wheel's zoom badge and the double-click
-//  fit (the fit's Stop is the infobar's; the unit tests pin that the header has none).
+//  fit, then View > Zoom In and Zoom to Fit from the menu bar (the fit's Stop is the infobar's; the unit tests pin that the header has none).
 //
 
 import XCTest
@@ -76,6 +76,12 @@ nonisolated final class DiffractionJourney: Journey {
         try step("the wheel zooms about the centre, a double-click fits again") {
             wheelZoom("diffraction.pane", until: "diffraction.zoomBadge")
             waitFor("diffraction.pane").doubleClick()
+            waitGone("diffraction.zoomBadge")
+        }
+        try step("View > Zoom In zooms the pattern, Zoom to Fit fits it again") {
+            try chooseViewCommand("Zoom In")
+            waitFor("diffraction.zoomBadge")
+            try chooseViewCommand("Zoom to Fit")
             waitGone("diffraction.zoomBadge")
         }
         try step("drag an annulus on the {111} ring and calibrate") {

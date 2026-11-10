@@ -4,7 +4,8 @@
 //  inspector, then take a Hann window and let Find Spots put the reflections on the transform; the first spot, again, must read the
 //  planted 0.235 nm within one FFT bin. The lattice repeats every 19.1 px, so its first spot is 512 / 19.1
 //  = 26.8 bins from the centre along x; one bin is 0.0098 nm of d here, which is the tolerance. The Display section is second and open
-//  (control placement §2): its histogram is there without a click.
+//  (control placement §2): its histogram is there without a click. Last, View > Zoom In and Zoom to Fit are chosen from the menu bar:
+//  the room offers them (the panes show no zoom badge, so what is checked is that the items are there and not dimmed).
 //
 
 import XCTest
@@ -47,6 +48,10 @@ nonisolated final class FFTJourney: Journey {
             find.click()
         }
         try step("read the spacing of the first found spot") { try readFirstSpacing() }
+        try step("View > Zoom In and Zoom to Fit are offered in the FFT room") {
+            try chooseViewCommand("Zoom In")
+            try chooseViewCommand("Zoom to Fit")
+        }
     }
 
     /// The spot list takes the keys after a click on a row: ↓ selects the next spot and Delete removes it, without a second click
