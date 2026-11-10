@@ -59,7 +59,8 @@ struct ContentView: View {
                 set: { if !$0 { appState.errorMessage = nil } }
             )
         ) {
-            Button("Copy Details") { copyToPasteboard(appState.errorMessage ?? "") }
+            // Through the app's one pasteboard writer (PaneKeys.swift), as a pane's ⌘C.
+            Button("Copy Details") { SystemPaneTextWriter().write(appState.errorMessage ?? "") }
             Button("OK", role: .cancel) { appState.errorMessage = nil }
         } message: {
             Text(appState.errorMessage ?? "")
@@ -145,11 +146,6 @@ struct ContentView: View {
         }
         appState.open(urls: drop.accepted, refused: drop.refusals)
         return true
-    }
-
-    private func copyToPasteboard(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
     }
 }
 

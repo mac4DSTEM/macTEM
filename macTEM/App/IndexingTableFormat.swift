@@ -46,15 +46,10 @@ nonisolated enum IndexingTableFormat {
     }
 
     /// ⌘C's text: the header line, then `rows` (in the order given: the table's), each its cells joined by tabs; a tab or line break in
-    /// a cell (a phase's name) becomes a space. "" for no rows.
+    /// a cell (a phase's name) becomes a space (`TSV.line`). "" for no rows.
     static func copyText(_ rows: [IndexingResult.Row], method: IndexingMethod, scoreTitle: String, locale: Locale = .autoupdatingCurrent) -> String {
         guard !rows.isEmpty else { return "" }
-        func line(_ cells: [String]) -> String {
-            cells.map { $0.replacingOccurrences(of: "\t", with: " ").replacingOccurrences(of: "\r\n", with: " ")
-                .replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }
-                .joined(separator: "\t")
-        }
-        return ([line(titles(method: method, scoreTitle: scoreTitle))] + rows.map { line(cells($0, method: method, locale: locale)) })
+        return ([TSV.line(titles(method: method, scoreTitle: scoreTitle))] + rows.map { TSV.line(cells($0, method: method, locale: locale)) })
             .joined(separator: "\n")
     }
 
