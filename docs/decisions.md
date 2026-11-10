@@ -24,6 +24,11 @@ Recording and Accessibility grants by path, and that path is what the Mac's own 
 (`workflow_dispatch` with its journey names) and attaches the artifact's screenshots to `release-assets/sem/`.
 `scientific` stays unrun in CI until the parity environment of the SEM program exists (`tools/parity`).
 
+**Amended 2026-11-10 (macTEM#391).** `ui.yml` never ran: its job-level `env` read the `runner` context, which a job-level
+`env` cannot, so GitHub refused the file and listed every push as a failed run of it. The gate folder is now set in a
+step. The nightly trigger is parked until Paul agrees to journeys driving the Mac's screen at night (other sessions
+drive it too); until then they run by hand. Reverse: put the `schedule` trigger back.
+
 **Reversal.** Set the jobs' `runs-on` back to the `vars.MACEM_MAC_RUNNER` expression (git history of ci.yml, before
 this entry) if the hosted macOS queue (free plan, few concurrent macOS jobs) becomes the slower path again.
 
