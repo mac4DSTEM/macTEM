@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """tools/parity/sem/check.py — the drift gate: emit every bundle into a scratch folder with the pinned stack and compare
-against the committed references/ within each array's committed tolerance.
+against the committed references/ within each array's committed tolerance (an array of rotations whose entry names a
+point group by its misorientation angle per point, lib/refbundle.py).
 
     check.py [--data References/sem-data] [--require-data]
 
