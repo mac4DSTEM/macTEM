@@ -11,7 +11,7 @@ nonisolated final class StackJourney: Journey {
     @MainActor func testTheSliderStepsThroughTheFrames() throws {
         try step("launch with the demo stack") {
             launch(["--demo-stack-fixture"])
-            XCTAssertTrue(app.staticTexts["Demo stack"].firstMatch.waitForExistence(timeout: 30) || element("sidebar.openItems").waitForExistence(timeout: 30))
+            XCTAssertTrue(app.staticTexts["Demo stack"].firstMatch.waitForExistence(timeout: 30) || element("toolbar.display.idle").waitForExistence(timeout: 30))
         }
         try step("show the inspector") {
             if !element("image.stack.frame").waitForExistence(timeout: 3) { app.typeKey("i", modifierFlags: [.command, .option]) }

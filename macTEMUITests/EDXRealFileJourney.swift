@@ -332,8 +332,10 @@ nonisolated final class EDXRealFileJourney: Journey {
         }
     }
 
-    // MARK: 11. Open Files
+    // MARK: 11. Two files, two tabs
 
+    /// One file per window (2026-11-10): the second `--open` file comes up in a tab of its own, and going to it (its window, from the
+    /// Window menu, which lists every tab) shows that file. Unverified on screen until a run on the Mac.
     @MainActor func test11_SwitchBetweenTwoOpenFiles() throws {
         try XCTSkipUnless(FileManager.default.fileExists(atPath: Self.file1840), "the second file is missing")
         try step("launch on two files") { openReal([Self.file1339, Self.file1840]); waitForRoomContent() }
@@ -344,15 +346,16 @@ nonisolated final class EDXRealFileJourney: Journey {
             first = text(display)
             attach("display", first)
         }
-        try step("click the other row") {
-            let list = waitFor("sidebar.openItems", timeout: 60)
+        try step("go to the other file's tab") {
             let target = first.contains("1840") ? "1339" : "1840"
-            let row = list.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", target)).firstMatch
-            XCTAssertTrue(row.waitForExistence(timeout: 120), "no open-items row for \(target)")
-            row.click()
-            // The other file is read again on the click (a spectrum image of this size takes tens of seconds), then the display is idle on it.
-            _ = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in display.exists && self.text(display).contains(target) }, object: nil)], timeout: 240)
-            attach("display after the click", text(display))
+            app.menuBars.menuBarItems["Window"].click()
+            let item = app.menuBars.menuItems.matching(NSPredicate(format: "title CONTAINS %@", target)).firstMatch
+            XCTAssertTrue(item.waitForExistence(timeout: 120), "no window for \(target) in the Window menu")
+            item.click()
+            // The other tab reads its own file (a spectrum image of this size takes tens of seconds), then its display is idle on it.
+            let shown = element("toolbar.display.idle")
+            _ = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in shown.exists && self.text(shown).contains(target) }, object: nil)], timeout: 240)
+            attach("display after the switch", text(shown))
         }
         XCTAssertTrue(text(display).contains(first.contains("1840") ? "1339" : "1840"), "the room's file did not change: \"\(text(display))\"")
     }

@@ -1,37 +1,22 @@
-//  Navigation and nothing else: the workspaces, the parts of the one in front, then the open files. The workspaces list is
-//  ShellLayout's `WorkspaceSidebarFrame` and `WorkspaceRoomsSection` (suite task 8, MacEMUI), in mac4DSTEM's shape: the workspaces,
-//  then a section titled by the workspace in front with its parts (mac4DSTEM: Crystal Maps over Strain, Orientation, Phase mapping).
-//  What stays here: the parts section, the open files below (two Lists, each with its own selection) and the list's height.
+//  Navigation and nothing else: the workspaces, then the parts of the one in front. The workspaces list is ShellLayout's
+//  `WorkspaceSidebarFrame` and `WorkspaceRoomsSection` (suite task 8, MacEMUI), in mac4DSTEM's shape: the workspaces, then a section
+//  titled by the workspace in front with its parts (mac4DSTEM: Crystal Maps over Strain, Orientation, Phase mapping). The open files
+//  are the window's tabs (one file per window, 2026-11-10), not a list here.
 import ShellLayout
 import SwiftUI
 import TEMSession
 
-/// Navigation and nothing else: the five workspaces, the parts of the one in front, then the open files. A workspace or a part the
-/// open files have nothing for is listed, dimmed, with its reason on hover, and cannot be selected.
+/// Navigation and nothing else: the five workspaces and the parts of the one in front, filling the column. A workspace or a part
+/// the window's file has nothing for is listed, dimmed, with its reason on hover, and cannot be selected.
 struct WorkspaceSidebar: View {
     @Environment(AppState.self) private var appState
-    /// The system's sidebar size (System Settings > Appearance), which sets the rows' pitch: the list's height
-    /// is a constant per size and per number of parts, never measured (`LayoutPolicy.sidebarRoomsListHeight`).
+    /// The system's sidebar size (System Settings > Appearance), which sets the rows' pitch.
     @Environment(\.sidebarRowSize) private var sidebarRowSize
 
     var body: some View {
-        // Two Lists, not one: a shared selection would drop the active room's highlight when a file is chosen. With
-        // files open the workspaces list is as tall as its rows and the files take the rest; with none it fills the column.
-        // The height is a constant per system sidebar size: measuring it from the rows' positions either left a gap on
-        // a first layout or, written to state during layout, crashed AppKit's layout loop guard (2026-10-13).
-        let hasItems = !appState.openItems.items.isEmpty
-        let group = appState.navigation.workspaceArea.group
-        VStack(spacing: 0) {
-            roomsList
-                .environment(\.defaultMinListRowHeight, LayoutPolicy.sidebarRoomRowHeight(sidebarRowSize))
-                // The workspaces are always all in view; only the files below scroll (the owner, 2026-10-13).
-                .scrollDisabled(hasItems)
-                .frame(height: hasItems ? LayoutPolicy.sidebarRoomsListHeight(sidebarRowSize, parts: group.hasParts ? group.parts.count : 0) : nil)
-                .frame(maxHeight: hasItems ? nil : .infinity)
-            if hasItems {
-                OpenItemsList()
-            }
-        }
+        roomsList
+            .environment(\.defaultMinListRowHeight, LayoutPolicy.sidebarRoomRowHeight(sidebarRowSize))
+            .frame(maxHeight: .infinity)
     }
 
     private var roomsList: some View {

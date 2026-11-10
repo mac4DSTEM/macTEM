@@ -134,6 +134,8 @@ final class AppState {
     /// to a tab of its own through them (`open(urls:refused:)`), and the last-session record is made over all of them. Nil for a
     /// state no window shows (a test's, or before the window appears): everything then opens here, as it did with one window.
     @ObservationIgnored weak var windows: AppWindows?
+    /// The launch's `--open` files after the first, each for a tab of its own once the window is on screen (taken once).
+    @ObservationIgnored var launchFilesForTabs: [URL] = []
     /// Opens whose routing or reads are still running: a window with one is taken, though it holds nothing yet.
     @ObservationIgnored var opensInFlight = 0
     /// Brings this state's window forward (`WindowTabbing`, the one place the `NSWindow` is known); nil while no window shows it.
@@ -239,7 +241,10 @@ final class AppState {
         if launch.demoEBSD, let document = try? DemoDocuments.ebsd() {   // the generated set: planted numbers for the journey
             ebsd.bind(document); navigation.workspaceArea = .patterns
         }
-        if !launch.openFiles.isEmpty { open(urls: launch.openFiles) }   // `--open`: the path a drop takes
+        // `--open`: the path a drop takes. One file per window: the first opens here, each other in a tab of its own once this window
+        // is on screen (`launchFilesForTabs`, taken by `ImageWindow`); a state no window shows (a test's) never hands them on.
+        if let first = launch.openFiles.first { open(urls: [first]) }
+        launchFilesForTabs = Array(launch.openFiles.dropFirst())
         reconcileRoom()
     }
 

@@ -1,8 +1,8 @@
 //
 //  SidebarLayoutTests.swift
-//  Pins the rooms list's height per system sidebar size (no gap under the rooms): the values measured on the
-//  2026-10-13 scratch builds, and that a larger sidebar size never gets a shorter list. Mutations each test must go red
-//  under: two sizes' heights swapped; a size falling through to another's height.
+//  The sidebar is the workspaces and their parts, filling the column (2026-11-10): the open files are the window's tabs, so the
+//  Open Files list, its fixed-height rooms list above it and the Image menu's file picker are gone. The rows keep their pitch per
+//  system sidebar size. Red under: the list back in the sidebar; the rooms list held to a height again; two sizes' rows swapped.
 //
 
 import ShellLayout
@@ -12,14 +12,25 @@ import XCTest
 
 nonisolated final class SidebarLayoutTests: XCTestCase {
 
-    @MainActor func testTheRoomsListHeightFollowsTheSystemSidebarSize() {
-        // Five workspaces (2026-11-10): one row per workspace and the header's 32 pt; a workspace with parts adds a row per part and
-        // its section header's 32 pt (EBSD: three parts).
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.small, parts: 0), 182)
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.medium, parts: 0), 202)
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.large, parts: 0), 242)
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.small, parts: 3), 304)
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.medium, parts: 3), 336)
-        XCTAssertEqual(LayoutPolicy.sidebarRoomsListHeight(.large, parts: 3), 400)
+    private func squeezed(_ path: String) throws -> String {
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
+            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    @MainActor func testTheRowsFollowTheSystemSidebarSize() {
+        XCTAssertEqual(LayoutPolicy.sidebarRoomRowHeight(.small), 30)
+        XCTAssertEqual(LayoutPolicy.sidebarRoomRowHeight(.medium), 34)
+        XCTAssertEqual(LayoutPolicy.sidebarRoomRowHeight(.large), 42)
+    }
+
+    func testTheSidebarIsTheWorkspacesAlone() throws {
+        let sidebar = try squeezed("macTEM/UI/WorkspaceSidebar.swift")
+        XCTAssertFalse(sidebar.contains("OpenItemsList"), "no Open Files list: the tabs are the open files")
+        XCTAssertFalse(sidebar.contains(".frame(height:"), "the workspaces fill the column")
+        XCTAssertTrue(sidebar.contains("roomsList .environment(\\.defaultMinListRowHeight, LayoutPolicy.sidebarRoomRowHeight(sidebarRowSize)) .frame(maxHeight: .infinity)"))
+        let app = try squeezed("macTEM/App/macTEMApp.swift")
+        XCTAssertFalse(app.contains("Picker(\"Open Images\""), "no file picker in the Image menu")
+        XCTAssertFalse(app.contains("Button(\"Previous Image\")") || app.contains("Button(\"Next Image\")"))
     }
 }

@@ -22,7 +22,7 @@ nonisolated final class SEMImageJourney: Journey {
     @MainActor func testTheAcquisitionRowsAndTheDatabarControl() throws {
         try step("launch with the demo SEM image") {
             launch(["--demo-sem-tiff-fixture"])
-            XCTAssertTrue(app.staticTexts["Demo SEM image.tif"].firstMatch.waitForExistence(timeout: 30) || element("sidebar.openItems").waitForExistence(timeout: 30))
+            XCTAssertTrue(app.staticTexts["Demo SEM image.tif"].firstMatch.waitForExistence(timeout: 30) || element("toolbar.display.idle").waitForExistence(timeout: 30))
         }
         try step("the Databar control is on Hide in Display") {
             showInspector(waitingFor: "image.sem.databar")

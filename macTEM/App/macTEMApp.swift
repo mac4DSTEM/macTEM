@@ -92,6 +92,11 @@ private struct ImageWindow: View {
             .onAppear {
                 windows.openWindow = { openWindow(id: "image") }
                 windows.enroll(appState)
+                // The launch's other `--open` files, each in a tab of its own (one file per window).
+                if !appState.launchFilesForTabs.isEmpty {
+                    windows.openInTabs(appState.launchFilesForTabs)
+                    appState.launchFilesForTabs = []
+                }
             }
             // New windows join the front window's tabs (`WindowTabbing`, AppKit). The tab's title is the window's (`AppState.windowTitle`).
             .background(WindowTabbing(state: appState, windows: windows))
@@ -216,12 +221,6 @@ private struct ImageCommands: Commands {
             .disabled(appState?.processAreaHasDocument != true)
         }
         CommandMenu("Image") {
-            Button("Previous Image") { appState?.openItems.selectPrevious() }
-                .keyboardShortcut("[", modifiers: [.command, .shift])
-                .disabled((appState?.openItems.items.count ?? 0) < 2)
-            Button("Next Image") { appState?.openItems.selectNext() }
-                .keyboardShortcut("]", modifiers: [.command, .shift])
-                .disabled((appState?.openItems.items.count ?? 0) < 2)
             // The Image room's measuring tools (V1-5), ⌃⌘1…4: a Toggle each, so the chosen tool carries the menu's
             // checkmark and a chosen one cannot be switched off (the Measure section's picker is the same state).
             // Listed only while the Image room is shown: the EDS room's region tools take ⌃⌘0…4 while that room is shown
@@ -234,18 +233,6 @@ private struct ImageCommands: Commands {
                         .keyboardShortcut(KeyEquivalent(tool.shortcutDigit), modifiers: [.command, .control])
                         .disabled(appState?.hasImage != true)
                 }
-            }
-            if let items = appState?.openItems, !items.items.isEmpty {
-                Divider()
-                Picker("Open Images", selection: Binding(get: { items.selection },
-                                                         set: { items.selection = $0 })) {
-                    // The sidebar's titles: two files of one name are told apart by their folder.
-                    let titles = items.displayTitles
-                    ForEach(items.items) { item in
-                        Text(titles[item.id] ?? item.url.lastPathComponent).tag(Optional(item.id))
-                    }
-                }
-                .pickerStyle(.inline)
             }
         }
         CommandMenu("Workspace") {

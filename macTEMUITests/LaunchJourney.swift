@@ -1,6 +1,6 @@
 //
 //  LaunchJourney.swift
-//  The app launches and the generated demo image opens: the sidebar lists it and the status bar says it opened.
+//  The app launches and the generated demo image opens: the toolbar names it and the status bar says it opened.
 //
 
 import XCTest
@@ -8,13 +8,17 @@ import XCTest
 nonisolated final class LaunchJourney: Journey {
     @MainActor func testTheDemoImageOpensAtLaunch() throws {
         try step("launch with the demo image") { launch(["--demo-fixture"]) }
-        try step("the demo image is listed") {
-            waitFor("sidebar.openItems", timeout: 30)
-            XCTAssertTrue(app.staticTexts["Demo lattice"].firstMatch.waitForExistence(timeout: 30), "the sidebar never listed Demo lattice")
+        try step("the demo image is shown") {
+            // The toolbar's display names the file (the open files are the window's tabs, not a sidebar list: one file per window).
+            let display = waitFor("toolbar.display.idle", timeout: 30)
+            let named = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                [display.label, (display.value as? String) ?? "", display.staticTexts.firstMatch.label].joined().contains("Demo lattice")
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [named], timeout: 30), .completed, "the toolbar never named Demo lattice")
         }
         try step("the status bar says it opened") {
             // While the pointer rests on the image the status line is its hover readout (control placement §7): rest it on the sidebar first.
-            waitFor("sidebar.openItems", timeout: 30).hover()
+            waitFor("workspace.imaging", timeout: 30).hover()
             let bar = waitFor("status.bar", timeout: 30)
             let predicate = NSPredicate(format: "label CONTAINS[c] 'Opened' OR value CONTAINS[c] 'Opened'")
             let done = XCTNSPredicateExpectation(predicate: predicate, object: bar)
