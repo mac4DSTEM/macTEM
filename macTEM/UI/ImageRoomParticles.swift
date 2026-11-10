@@ -74,6 +74,9 @@ struct ImageRoomParticlesSection: View {
                 Stepper(value: Binding(get: { settings.minimumArea }, set: { new in analysis.setSettings { $0.minimumArea = new } }), in: 1...100_000) {
                     Text("\(settings.minimumArea) px²").monospacedDigit()
                 }
+                // The stepper's label is its value on screen ("12 px²"), which VoiceOver took for its name: named and valued here.
+                .accessibilityLabel("Minimum area")
+                .accessibilityValue(UnitDisplay.count(settings.minimumArea, "square pixel", "square pixels"))
                 .accessibilityIdentifier("particles.minimumArea")
             }
             InspectorRow("Tint mask") {

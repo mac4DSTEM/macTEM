@@ -267,7 +267,7 @@ struct FFTSourceViewControl: View {
     var body: some View {
         HStack(spacing: 4) {
             if analysis.isFiltering {
-                ProgressView().controlSize(.small).help("Filtering…")
+                ProgressView().controlSize(.small).help("Filtering…").accessibilityLabel("Filtering")
             }
             Picker("View", selection: Binding(get: { analysis.sourceView }, set: { analysis.setSourceView($0) })) {
                 ForEach(Self.entries(for: analysis), id: \.view) { entry in
