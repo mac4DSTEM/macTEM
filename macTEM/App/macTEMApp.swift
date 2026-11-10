@@ -145,11 +145,13 @@ private struct ImageCommands: Commands {
             // The one key, also the toolbar button's (`InspectorToggleButton`): Opt-Cmd-I, as Mac apps with an inspector
             // have it (HIG, Keyboards). It was Ctrl-Cmd-I here and a hidden Opt-Cmd-0 on the button.
             .keyboardShortcut("i", modifiers: [.command, .option])
+            // On wherever the Output pane has a document to sit under, the pane's own rule: an image, or the EDS, EELS, Patterns,
+            // Indexing or Maps room's document with no image open (`ProcessAreaDocuments`).
             Button(appState?.navigation.panels.showProcessArea == true ? "Hide Output" : "Show Output") {
                 appState?.navigation.panels.showProcessArea.toggle()
             }
             .keyboardShortcut("l", modifiers: [.command, .control])
-            .disabled(appState?.hasImage != true)
+            .disabled(appState?.processAreaHasDocument != true)
         }
         CommandMenu("Image") {
             Button("Previous Image") { appState?.openItems.selectPrevious() }

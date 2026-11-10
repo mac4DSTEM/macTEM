@@ -14,18 +14,10 @@ import SpectroCore
 struct WorkspaceView: View {
     @Environment(AppState.self) private var appState
 
-    /// Whether the process area has a document to sit under: an open image, or a spectrum-image room (its document is the
-    /// spectrum image, which needs no open image; alignment design: Output is available there too). An image that is absent
-    /// or still loading forces the area shut regardless of the dragged fraction, which is NOT reset for it.
-    private var hasDocument: Bool {
-        switch appState.navigation.workspaceArea {
-        case .edx: appState.edx.hasImage
-        case .eels: appState.eels.hasImage
-        case .patterns, .indexing: appState.ebsd.hasDataset
-        case .maps: appState.maps.hasMap
-        default: appState.hasImage && !appState.imageSession.isLoading
-        }
-    }
+    /// Whether the process area has a document to sit under: the room's own (a spectrum image, the dataset, the map), else an open
+    /// image (`ProcessAreaDocuments`, View > Show Output's rule too). An image that is absent or still loading forces the area shut
+    /// regardless of the dragged fraction, which is NOT reset for it.
+    private var hasDocument: Bool { appState.processAreaHasDocument }
 
     var body: some View {
         WorkspaceColumn(
