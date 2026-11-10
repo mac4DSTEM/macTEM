@@ -9,7 +9,8 @@
 //  THE NODE of a mark (kind `distance`, `angle` or `profile`). Coordinates are image pixel coordinates: x the column, y
 //  the row, a pixel's centre at integers, the image from −0.5 to W − 0.5 and −0.5 to H − 0.5.
 //    parameters  x1 y1 x2 y2 (an angle also x3 y3; its VERTEX is point 2), a profile's `width` (1…25), `object` (the
-//                opened image's `CalibratedImage.source`), `frame` ("0": the frame the reader opened)
+//                opened image's `CalibratedImage.source`; an image stack's `SessionSourceIdentity.stackObject`, whichever
+//                frame the mark was drawn on), `frame` ("0": the frame the reader opened)
 //    results     what was measured when the mark was made or last changed, in the file's own units at full precision
 //                (never the display's rounded text): distance `pixels`, and `length` + `unit` when both axes are
 //                calibrated in one unit; angle `degrees` (absent for a zero-length arm) and `plane` (`physical` |

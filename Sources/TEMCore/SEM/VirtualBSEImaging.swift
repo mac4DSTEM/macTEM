@@ -7,7 +7,7 @@
 //        rectangular ROI slicing (`UniformDataAxis.value2index`: the grid's float edges rounded to the nearest pixel, half to even).
 //        Sums are float64 over the stored counts (exact for integer patterns); the RGB channels follow the reference's float32
 //        arithmetic so a count lands where kikuchipy's lands (docs/parity.md: atol 1). One pass over the scan in rows through
-//        `EBSDPatternAccess`; nothing here touches a view.
+//        `EBSDPatternAccess`, which can also sum the patterns for the scan's mean on the way; nothing here touches a view.
 //
 
 import Foundation
@@ -94,12 +94,23 @@ package nonisolated enum VirtualBSEImaging {
     /// pass over the scan in rows; `progress` after every row (0...1); `isCancelled` stops the pass with nil.
     package static func images(_ access: any EBSDPatternAccess, rects: [DetectorRect], progress: (Double) -> Void = { _ in },
                                isCancelled: () -> Bool = { false }) throws -> [[Double]]? {
+        try imagesAndPatternSum(access, rects: rects, sumsPatterns: false, progress: progress, isCancelled: isCancelled)?.images
+    }
+
+    /// `images`, and with `sumsPatterns` each detector pixel's sum over every pattern of the scan beside them (`patternPixels` long; nil
+    /// without), added in the same pass in `PatternPipeline.meanBackground`'s order (row by row, each row's patterns in map order), so
+    /// `PatternPipeline.meanBackground(sum:of:)` of it is the scan's mean exactly: a file without a static background is read once for
+    /// its map and its mean. nil when cancelled.
+    package static func imagesAndPatternSum(_ access: any EBSDPatternAccess, rects: [DetectorRect], sumsPatterns: Bool,
+                                            progress: (Double) -> Void = { _ in },
+                                            isCancelled: () -> Bool = { false }) throws -> (images: [[Double]], patternSum: [Double]?)? {
         let dataset = access.dataset
         let rows = dataset.scanRows, columns = dataset.scanColumns
         let pr = dataset.patternRows, pc = dataset.patternColumns, pixels = dataset.patternPixels
         let clamped = rects.map { $0.clamped(rows: pr, columns: pc) }
         var out = [[Double]](repeating: [Double](repeating: 0, count: rows * columns), count: rects.count)
-        guard pixels > 0 else { return out }
+        var patternSum = [Double](repeating: 0, count: sumsPatterns ? max(pixels, 0) : 0)
+        guard pixels > 0 else { return (images: out, patternSum: sumsPatterns ? patternSum : nil) }
         for row in 0..<rows {
             if isCancelled() { return nil }
             let values = try access.row(row).doubles()
@@ -113,10 +124,13 @@ package nonisolated enum VirtualBSEImaging {
                     }
                     out[k][row * columns + column] = sum
                 }
+                if sumsPatterns {
+                    for j in 0..<pixels { patternSum[j] += values[base + j] }
+                }
             }
             progress(Double(row + 1) / Double(rows))
         }
-        return out
+        return (images: out, patternSum: sumsPatterns ? patternSum : nil)
     }
 
     /// The RGB image of three channel images (`VirtualBSEImager.get_rgb_image` with its defaults: `normalize=True`, no percentiles, no

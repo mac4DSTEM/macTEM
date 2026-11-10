@@ -42,7 +42,7 @@ package nonisolated enum JEOLEDSReader {
             throw SEMEDSReadError("\(url.lastPathComponent) is missing (\(url.path)): the JEOL project names it but it is not beside the project file.")
         }
         do { return SEMEDSBytes([UInt8](try Data(contentsOf: url)), name: url.lastPathComponent) } catch {
-            throw SEMEDSReadError("\(url.lastPathComponent) could not be read.")
+            throw SEMEDSReadError("\(url.lastPathComponent) could not be read: \(ErrorDetail.text(error))")
         }
     }
 

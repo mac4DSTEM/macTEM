@@ -73,12 +73,32 @@ package nonisolated struct FileInventory: Equatable, Sendable {
 }
 
 package nonisolated enum FileRouting {
+    /// What an Open routes, by kind in words, with the extensions each comes with: `openableExtensions` is made from it, and so is the
+    /// sentence a file of any other extension is refused with (`openableSentence`), so a room's files are never left out of either.
+    package static let openableKinds: [(kind: String, extensions: [String])] = [
+        (kind: "TEM and SEM images", extensions: ImageOpening.readableExtensions),
+        (kind: "EDS and EELS spectra and spectrum images", extensions: EDXOpening.readableExtensions + EELSOpening.readableExtensions),
+        (kind: "EBSD patterns and orientation maps", extensions: EBSDOpening.readableExtensions),
+    ]
+
     /// Every extension an Open routes somewhere (an image, an EDS or EELS spectrum image, a single spectrum, EBSD patterns, an orientation map), each once:
     /// what the Open panel offers, a drop takes, and the app declares as document types for Finder's Open With.
     package static let openableExtensions: [String] = {
         var seen = Set<String>()
-        return (ImageOpening.readableExtensions + EDXOpening.readableExtensions + EELSOpening.readableExtensions + EBSDOpening.readableExtensions)
-            .filter { seen.insert($0).inserted }
+        return openableKinds.flatMap { $0.extensions }.filter { seen.insert($0).inserted }
+    }()
+
+    /// What macTEM opens, in words, from `openableKinds`, each extension once in its kind: "macTEM opens TEM and SEM images (.dm4, .dm3,
+    /// …), EDS and EELS spectra and spectrum images (.emd, .dm4, …), and EBSD patterns and orientation maps (.h5, …)."
+    package static let openableSentence: String = {
+        let kinds = openableKinds.map { entry -> String in
+            var seen = Set<String>()
+            let extensions = entry.extensions.filter { seen.insert($0).inserted }.map { "." + $0 }
+            return "\(entry.kind) (\(extensions.joined(separator: ", ")))"
+        }
+        guard let last = kinds.last else { return "" }
+        let head = kinds.dropLast().joined(separator: ", ")
+        return "macTEM opens " + (head.isEmpty ? last : head + ", and " + last) + "."
     }()
 
     package struct SpectrumReadError: Error, LocalizedError, Equatable {

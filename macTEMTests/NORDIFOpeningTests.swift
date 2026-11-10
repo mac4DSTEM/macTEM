@@ -122,4 +122,20 @@ nonisolated final class NORDIFOpeningTests: XCTestCase {
         XCTAssertNil(NORDIFOpening.unreadableSettingsRefusal(url("Pattern.dat")), "its Setting.txt opens")
         XCTAssertNil(NORDIFOpening.unreadableSettingsRefusal(settings), "not a .dat")
     }
+
+    /// The probe an Open decides by (the app's `FolderGrants.asksForFolder`): 0 for a settings file that opens, ENOENT for none
+    /// beside the `.dat`, the file mode's EACCES, nil for a file that is not a `.dat`; the sandbox's refusal is EPERM, which only a
+    /// signed build shows. Red under: the probe answering anything but the open's errno (a file mode would read as the sandbox's).
+    func testTheSettingsProbeTellsAReadableAMissingAndALockedSettingsFileApart() throws {
+        XCTAssertNotEqual(geteuid(), 0, "root reads a mode-000 file; run this as a user")
+        XCTAssertEqual(NORDIFOpening.settingsOpenError(url("Pattern.dat")), 0)
+        XCTAssertNil(NORDIFOpening.settingsOpenError(url("Setting.txt")), "not a .dat")
+        let lone = try folder(patternBytes: Data([1, 2, 3]), settings: nil)
+        XCTAssertEqual(NORDIFOpening.settingsOpenError(lone.appendingPathComponent("Pattern.dat")), ENOENT)
+        let locked = try folder(patternBytes: Data([1, 2, 3]))
+        let settings = locked.appendingPathComponent("Setting.txt")
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: settings.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: settings.path) }
+        XCTAssertEqual(NORDIFOpening.settingsOpenError(locked.appendingPathComponent("Pattern.dat")), EACCES)
+    }
 }

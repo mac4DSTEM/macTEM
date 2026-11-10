@@ -35,7 +35,7 @@ package nonisolated enum EDAXEDSReader {
             let d = read ?? Data()
             return SEMEDSBytes([UInt8](d), name: url.lastPathComponent)
         } catch {
-            throw SEMEDSReadError("\(url.lastPathComponent) could not be read.")
+            throw SEMEDSReadError("\(url.lastPathComponent) could not be read: \(ErrorDetail.text(error))")
         }
     }
 
@@ -189,7 +189,7 @@ package nonisolated enum EDAXEDSReader {
         }
 
         let handle: FileHandle
-        do { handle = try FileHandle(forReadingFrom: url) } catch { throw SEMEDSReadError("\(name) could not be read.") }
+        do { handle = try FileHandle(forReadingFrom: url) } catch { throw SEMEDSReadError("\(name) could not be read: \(ErrorDetail.text(error))") }
         defer { try? handle.close() }
         let pixelBytes = nz * countBytes
         // The counts the header states must fit in the file after dataOffset before anything is allocated for them; a file

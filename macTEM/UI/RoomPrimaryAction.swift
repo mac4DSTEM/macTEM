@@ -2,7 +2,8 @@
 //  RoomPrimaryAction.swift
 //  Role: the toolbar's one verb for the room that has one (design 2026-10-22, §2.2): EDS has Quantify, EELS has Run (the stages that are not current,
 //        in order), Patterns has Process, Indexing has Index, Maps has Segment; the Image, FFT, Diffraction and Results rooms have none yet. The button and its glass styles are ShellLayout's
-//        `PrimaryActionButton`; what the verb is, when it is enabled and what it says while blocked is this file's.
+//        `PrimaryActionButton`; what the verb is, when it is enabled and what it says while blocked is this file's. Workspace > Run (⌘R)
+//        runs the same verb from the menu, on exactly when the button can run it (`canRun`).
 //
 
 import ShellLayout
@@ -11,19 +12,35 @@ import TEMCore
 import TEMSession
 import ShellEDXModel
 
-/// How far the running spectrum-image work is, for the toolbar's busy display: the EDS room's open, or the EELS room's pass (align, thickness, fit); nil while idle
-/// or when the work reports no fraction.
+/// How far the running work is, for the toolbar's busy display: the EDS room's open, the EELS room's pass (align, thickness, fit), the
+/// Patterns room's run or pass, the Indexing room's run; nil while idle or when the work reports no fraction (the Maps room's Segment and
+/// texture report none).
 enum RoomProgress {
     @MainActor
     static func fraction(room: WorkspaceArea, appState: AppState) -> Double? {
         switch room {
         case .edx: appState.edx.isOpening ? appState.edx.openProgress : nil
         case .eels: appState.eels.isComputing ? min(max(appState.eels.progress, 0), 1) : nil
-        case .patterns: appState.ebsd.isProcessing ? min(max(appState.ebsd.processProgress, 0), 1)
-            : (appState.ebsd.isMapping ? min(max(appState.ebsd.mapProgress, 0), 1) : nil)
+        case .patterns: patternsFraction(appState.ebsd)
         case .indexing: appState.indexing.isIndexing ? min(max(appState.indexing.progress, 0), 1) : nil
         default: nil
         }
+    }
+
+    /// The Patterns room's running work in the order `BusyOperation.patterns` names it: Process, the map's pass, the quality pass.
+    @MainActor
+    private static func patternsFraction(_ session: EBSDSession) -> Double? {
+        let fraction: Double
+        if session.isProcessing {
+            fraction = session.processProgress
+        } else if session.isMapping {
+            fraction = session.mapProgress
+        } else if session.isQualityMapping {
+            fraction = session.qualityProgress
+        } else {
+            return nil
+        }
+        return min(max(fraction, 0), 1)
     }
 }
 
@@ -112,10 +129,42 @@ enum RoomPrimaryAction {
         }
     }
 
-    /// ⌘.: ends whatever the shown room is running.
+    /// Workspace > Run (⌘R): the shown room's verb as its title ("Process", "Index"), "Run" in a room without one or with no window.
+    @MainActor
+    static func runTitle(_ appState: AppState?) -> String {
+        appState.flatMap { current($0)?.title } ?? "Run"
+    }
+
+    /// Whether ⌘R runs `action` now: a verb that applies, is enabled and is not running. The toolbar button's own readiness, so ⌘R is
+    /// never a dead key (mac4DSTEM's Run Current Task).
+    @MainActor
+    static func canRun(_ action: PrimaryAction?) -> Bool {
+        guard let action, action.title != nil else { return false }
+        return action.isEnabled && !action.isRunning
+    }
+
+    /// ⌘R: runs the shown room's verb when it can run now.
+    @MainActor
+    static func runActive(_ appState: AppState) {
+        guard let action = current(appState), canRun(action) else { return }
+        action.run()
+    }
+
+    /// The room ⌘. acts on: the shown room while it runs something Stop ends; else the room whose run the toolbar shows in its place
+    /// (`BusyOperation.backgroundRoom`) when Stop ends it, so a run left going in another room can be stopped from any room; else the
+    /// shown room.
+    @MainActor
+    static func stopTarget(_ appState: AppState) -> WorkspaceArea {
+        let shown = appState.navigation.workspaceArea
+        guard !canStop(room: shown, appState: appState), let other = BusyOperation.backgroundRoom(appState),
+              canStop(room: other, appState: appState) else { return shown }
+        return other
+    }
+
+    /// ⌘.: ends whatever the shown room is running, or, while it is idle, the run of another room the toolbar shows (`stopTarget`).
     @MainActor
     static func stopActive(_ appState: AppState) {
-        switch appState.navigation.workspaceArea {
+        switch stopTarget(appState) {
         case .edx: appState.edx.stop()
         case .eels: appState.eels.stop()
         case .patterns: appState.ebsd.stop()
@@ -128,12 +177,25 @@ enum RoomPrimaryAction {
 
     @MainActor
     static func canStop(_ appState: AppState) -> Bool {
-        switch appState.navigation.workspaceArea {
+        canStop(room: stopTarget(appState), appState: appState)
+    }
+
+    /// The Stop item's title: "Stop" for the shown room's run, "Stop Indexing" for the run of another room (`stopTarget`).
+    @MainActor
+    static func stopTitle(_ appState: AppState) -> String {
+        let target = stopTarget(appState)
+        return target == appState.navigation.workspaceArea ? "Stop" : "Stop \(target.title)"
+    }
+
+    /// Whether `room` runs something Stop ends (a layer's picture in the Maps room is not stopped).
+    @MainActor
+    static func canStop(room: WorkspaceArea, appState: AppState) -> Bool {
+        switch room {
         case .edx: appState.edx.isBusy
         case .eels: appState.eels.isBusy
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy
-        case .maps: appState.maps.isOpening || appState.maps.isSegmenting
+        case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected?.diffraction.isFitting ?? false
         default: false
         }

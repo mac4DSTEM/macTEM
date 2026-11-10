@@ -36,7 +36,8 @@ package nonisolated final class BrukerSFS {
     package init(url: URL) throws {
         self.url = url
         let name = url.lastPathComponent
-        guard let handle = try? FileHandle(forReadingFrom: url) else { throw SEMEDSReadError("\(name) could not be opened.") }
+        let handle: FileHandle
+        do { handle = try FileHandle(forReadingFrom: url) } catch { throw SEMEDSReadError("\(name) could not be opened: \(ErrorDetail.text(error))") }
         self.handle = handle
         let fileLength = Int((try? handle.seekToEnd()) ?? 0)
         self.fileLength = fileLength
