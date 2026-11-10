@@ -25,7 +25,8 @@ extension AppState {
     /// (`rememberOpened`), and into the last-session record (`recordLastSession`). The batch's refused files are one alert, a line
     /// each, after the lines of the files a drop did not hand over (`refused`: an extension macTEM does not open), and only once
     /// every folder the Open asks for is answered: an alert up before would take the window's sheet, and the folder panel then
-    /// cannot show. The files a one-document room left out are named after the batch.
+    /// cannot show. The files a one-document room left out are named, and said to VoiceOver, once the rooms' own opens have
+    /// landed (`reportLeftOut`).
     @discardableResult
     func open(urls: [URL], refused: [String] = []) -> Task<Void, Never>? {
         guard !urls.isEmpty else { return nil }
@@ -77,18 +78,21 @@ extension AppState {
             // One file per spectrum room: the batch's first, the one Open Files selects when it is first in the list (the room followed the
             // selection only on the next click; two files at launch left the last in the room and the first selected, 2026-10-23). The others
             // are reached by selecting their row (`spectrumRoomsFollowSelection`).
-            if let first = edsBatch.first { edx.open(url: first) }
-            if let first = eelsBatch.first { eels.open(url: first) }
+            var roomOpens: [Task<Void, Never>] = []   // the rooms' own opens, each ending when its room has the file (or has failed)
+            if let first = edsBatch.first { roomOpens.append(edx.open(url: first)) }
+            if let first = eelsBatch.first { roomOpens.append(eels.open(url: first)) }
             // The Patterns room holds one dataset, as the spectrum rooms do; the batch's first is it. A NORDIF scan's settings and
             // background are read with the dataset: its folder's grant is held from before the read until the open ends (`FolderGrants`).
             if let first = ebsdBatch.first {
                 let folder = FolderGrants.hold(forFolderOf: first)
                 let opening = ebsd.open(url: first)
+                roomOpens.append(opening)
                 if let folder { Task { await opening.value; folder.release() } }
             }
             // The Maps room holds one map: an `.ang` or `.ctf` opened on its own (a dataset's map comes through the Patterns room).
-            if let first = mapBatch.first { maps.open(url: first) }
-            // The others of each room that no Open Files row reaches are named once the batch is in, not dropped without a word.
+            if let first = mapBatch.first { roomOpens.append(maps.open(url: first)) }
+            // The others of each room that no Open Files row reaches are named once the rooms' opens have landed (`reportLeftOut`),
+            // not dropped without a word.
             let leftOut = OpenBatch.leftOut(eds: edsBatch, eels: eelsBatch, ebsd: ebsdBatch, maps: mapBatch, imageRows: images)
             switch landing {
             case .patterns: if navigation.workspaceArea != .indexing { selectWorkspace(.patterns) }   // Indexing shows the scan too
@@ -100,7 +104,8 @@ extension AppState {
             let roomFiles = [edsBatch.first, eelsBatch.first, ebsdBatch.first, mapBatch.first].compactMap { $0 }
             guard !images.isEmpty else {
                 rememberOpened(taken, rooms: roomFiles, images: [], closed: [])
-                if landing == .eds || landing == .eels || landing == .patterns || landing == .maps { statusText = leftOut ?? "" }
+                if landing == .eds || landing == .eels || landing == .patterns || landing == .maps { statusText = "" }
+                if let leftOut { await reportLeftOut(leftOut, after: roomOpens) }
                 return
             }
             // The rows this Open makes: one that is gone once the reads are in did not open (its first read failed, or it was closed).
@@ -109,15 +114,19 @@ extension AppState {
             if landing == .image, [.edx, .eels, .patterns, .indexing, .maps].contains(navigation.workspaceArea) { selectWorkspace(.image) }
             await openItems.settled()
             rememberOpened(taken, rooms: roomFiles, images: images, closed: made.filter { openItems.item($0.id) == nil }.map { $0.url })
+            var opened: String?
             if let image = imageSession.image {
                 let suffix = openItems.selected.map(Self.sessionSuffix(of:)) ?? ""
                 let stack = openItems.selected?.stack.map { " · stack of \($0.frameCount) frames, read one at a time" } ?? ""
-                statusText = Self.openedLine(image) + stack + suffix
+                let line = Self.openedLine(image) + stack + suffix
+                statusText = line
+                opened = line
                 if openItems.selected?.sidecarNeedsAccess == true {
                     AccessibilityNotification.Announcement(Self.needsAccessSentence).post()
                 }
             }
-            if let leftOut { statusText = leftOut }
+            // With the image's "Opened …" line, not in its place.
+            if let leftOut { await reportLeftOut([opened, leftOut].compactMap { $0 }.joined(separator: " · "), after: roomOpens) }
         }
         lastOpen = task
         return task
@@ -130,6 +139,15 @@ extension AppState {
         guard !sentences.isEmpty else { return }
         errorMessage = sentences.joined(separator: "\n")
         statusText = "Error: " + sentences.joined(separator: " ")
+    }
+
+    /// Says `line`, the files a one-document room left out of a batch (`OpenBatch.leftOut`), once the rooms' own opens have landed,
+    /// through `report(event:in:)`. Set while the opens had only started, the line flashed in the infobar until each room's
+    /// "Opened …" replaced it, and VoiceOver, which does not read the infobar, never said it. An open that failed or was replaced
+    /// by a newer one has ended too, so the wait returns.
+    private func reportLeftOut(_ line: String, after roomOpens: [Task<Void, Never>]) async {
+        for opening in roomOpens { await opening.value }
+        report(event: line, in: nil)
     }
 
     /// Open Recent takes the files of a batch that opened (`OpenBatch.opened`), in the batch's order, so the last is first in the
