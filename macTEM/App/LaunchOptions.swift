@@ -69,6 +69,17 @@ struct LaunchOptions: Equatable {
         }
     }
 
+    /// These options for a window after the first: how the app was launched (UI testing, the appearance, the export folder), without
+    /// the documents the launch opens (`AppWindows.launchOptionsForNewWindow`).
+    var withoutDocuments: LaunchOptions {
+        var options = LaunchOptions(arguments: [])
+        options.isUITesting = isUITesting
+        options.appearance = appearance
+        options.exportDirectory = exportDirectory
+        options.exportDirectoryName = exportDirectoryName
+        return options
+    }
+
     /// The saved window geometry a UI test must not inherit: the keys `tools/run-tests.sh clear_test_host_geometry` clears, in code.
     static func clearSavedGeometry(in defaults: UserDefaults = .standard) {
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("NSWindow Frame") || key.hasPrefix("NSSplitView Subview Frames") {
