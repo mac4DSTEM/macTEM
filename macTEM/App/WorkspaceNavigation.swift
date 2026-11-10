@@ -196,6 +196,38 @@ nonisolated enum DocumentTarget: Equatable, Sendable {
     }
 }
 
+/// What File > Close (⌘W) and Close Window (⇧⌘W) act on, from the window that is key. The File menu's Close is replaced (it closes
+/// the document the room shows), so a window the replacement did not know of could not be closed from the keyboard: the Objects
+/// window (`ParticleTableWindow`), which holds no document, is now closed by both while it is key, as the system's Close would. In
+/// the image window ⌘W closes the document the room shows (`DocumentTarget`), or the window when it shows none, and ⇧⌘W the window.
+/// With no macTEM window key neither acts. Pure, so a test pins it.
+nonisolated enum CloseCommand: Equatable, Sendable {
+    case document(DocumentTarget)
+    case imageWindow
+    case objectsWindow
+    case unavailable
+
+    /// File > Close (⌘W).
+    static func close(objectsWindowKey: Bool, imageWindowFocused: Bool, shown: DocumentTarget?) -> CloseCommand {
+        if objectsWindowKey { return .objectsWindow }
+        guard imageWindowFocused else { return .unavailable }
+        if let shown { return .document(shown) }
+        return .imageWindow
+    }
+
+    /// File > Close Window (⇧⌘W).
+    static func closeWindow(objectsWindowKey: Bool, imageWindowFocused: Bool) -> CloseCommand {
+        if objectsWindowKey { return .objectsWindow }
+        return imageWindowFocused ? .imageWindow : .unavailable
+    }
+
+    /// The ⌘W item's title: the document's ("Close Image", "Close Dataset", …), else "Close".
+    var closeTitle: String {
+        if case .document(let target) = self { return target.closeTitle }
+        return "Close"
+    }
+}
+
 extension AppState {
     /// The document the room shows (`DocumentTarget.of`), nil when it shows none.
     var documentTarget: DocumentTarget? {

@@ -21,6 +21,16 @@ extension FocusedValues {
         get { self[FocusedAppStateKey.self] }
         set { self[FocusedAppStateKey.self] = newValue }
     }
+
+    /// True while the Objects window (`ParticleTableWindow`) is key: File > Close and Close Window close it (`CloseCommand`).
+    var isObjectsWindow: Bool? {
+        get { self[FocusedObjectsWindowKey.self] }
+        set { self[FocusedObjectsWindowKey.self] = newValue }
+    }
+}
+
+private struct FocusedObjectsWindowKey: FocusedValueKey {
+    typealias Value = Bool
 }
 
 /// The one window. The `AppState` is owned by `macTEMApp`, not here: a `Window` scene keeps its view state through
@@ -72,6 +82,7 @@ private struct ImageWindow: View {
 
 private struct ImageCommands: Commands {
     @FocusedValue(\.appState) private var appState
+    @FocusedValue(\.isObjectsWindow) private var objectsWindowIsKey
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     let menuRelay: MenuActionRelay
@@ -120,19 +131,17 @@ private struct ImageCommands: Commands {
         // Replaces the system's Close (⌘W), which would close the window: ⌘W closes the document the room shows (`DocumentTarget`:
         // Close Image, Close Dataset, Close Map, Close Spectrum Image) and ⇧⌘W the window (the owner, ADR 007); with nothing shown
         // ⌘W closes the window, as the system's would. Close is the part of the Save group that SwiftUI exposes. An image with
-        // unsaved marks asks first (`requestClose`).
+        // unsaved marks asks first (`requestClose`). While the Objects window is key, both close it (`CloseCommand`).
         CommandGroup(replacing: .saveItem) {
-            if let target = appState?.documentTarget {
-                Button(target.closeTitle) { appState?.closeDocument(target) }
-                    .keyboardShortcut("w", modifiers: .command)
-            } else {
-                Button("Close") { dismissWindow(id: "image") }
-                    .keyboardShortcut("w", modifiers: .command)
-                    .disabled(appState == nil)
-            }
-            Button("Close Window") { dismissWindow(id: "image") }
+            let close = CloseCommand.close(objectsWindowKey: objectsWindowIsKey == true, imageWindowFocused: appState != nil,
+                                           shown: appState?.documentTarget)
+            Button(close.closeTitle) { runClose(close) }
+                .keyboardShortcut("w", modifiers: .command)
+                .disabled(close == .unavailable)
+            let closeWindow = CloseCommand.closeWindow(objectsWindowKey: objectsWindowIsKey == true, imageWindowFocused: appState != nil)
+            Button("Close Window") { runClose(closeWindow) }
                 .keyboardShortcut("w", modifiers: [.command, .shift])
-                .disabled(appState == nil)
+                .disabled(closeWindow == .unavailable)
         }
         CommandGroup(replacing: .sidebar) {
             Button(appState?.navigation.panels.sidebarIsVisible == true ? "Hide Sidebar" : "Show Sidebar") {
@@ -229,6 +238,16 @@ private struct ImageCommands: Commands {
         } else {
             menuRelay.request(action)
             openWindow(id: "image")
+        }
+    }
+
+    /// File > Close and Close Window (`CloseCommand`): the shown document, the image window or the Objects window.
+    private func runClose(_ command: CloseCommand) {
+        switch command {
+        case .document(let target): appState?.closeDocument(target)
+        case .imageWindow: dismissWindow(id: "image")
+        case .objectsWindow: dismissWindow(id: ParticleTableWindow.id)
+        case .unavailable: break
         }
     }
 }
