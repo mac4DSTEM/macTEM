@@ -266,7 +266,7 @@ extension AppState {
     }
 
     /// A reader's path as a file URL; nil for "" (a document made in memory).
-    static func fileURL(path: String) -> URL? {
+    private static func fileURL(path: String) -> URL? {
         path.isEmpty ? nil : URL(fileURLWithPath: path)
     }
 }

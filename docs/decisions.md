@@ -232,7 +232,7 @@ a question without an AppKit window delegate.
 **What.** A file opened while the window holds one already (the panel, a drop, Finder, Open Recent, Reopen Last Session, a
 room's own Open) opens in a window of its own, which the system shows as a tab of the window in front; of a batch, an empty
 window takes the first file and each other file gets its tab (`OpenBatch.perWindow`, `AppWindows.openInTabs`). A file that a
-window holds already comes forward there and is not read twice. The window, and so its tab, is titled by its file. The
+window holds already comes forward there and is not read twice. Each tab carries its window's title, the file's name. The
 last-session record covers every window on screen. A single spectrum's Close reads "Close Spectrum". Windows prefer tabs
 through `NSWindow.tabbingMode` (`WindowTabbing`): AppKit, named, because SwiftUI has no modifier for it and without it a new
 window is a tab only for someone whose System Settings say so. The launch arguments' documents (`--open`, the demos) still

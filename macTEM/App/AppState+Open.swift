@@ -254,16 +254,6 @@ extension AppState {
     /// The window holds a document, or an Open is on its way into it: the next file opened gets a tab of its own.
     var isTaken: Bool { roomHoldings.hasDocument || opensInFlight > 0 }
 
-    /// The window's title, and its tab's: the selected file's (the sidebar's title, which tells two files of one name apart), else
-    /// the file a room holds, else the app's name (an empty window, a generated demo).
-    var windowTitle: String {
-        if let item = openItems.selected { return openItems.displayTitles[item.id] ?? item.url.lastPathComponent }
-        let dataset: URL? = ebsd.document?.url
-        let map: URL? = maps.document?.url
-        let files = [dataset, map, Self.fileURL(path: edx.source?.metadata.filePath ?? ""), Self.fileURL(path: eels.filePath)]
-        return files.compactMap { $0 }.first?.lastPathComponent ?? "macTEM"
-    }
-
     /// File > Reopen Last Session: the files the previous launch had open (`LastSession.previous`), each through its bookmark
     /// (resolved without mounting a volume or asking anything), opened as any other through `open(urls:)`; once they are in, the
     /// file that was selected and the room that was shown. A file that is gone, or on a disk that is not connected, is named in the

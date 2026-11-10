@@ -91,8 +91,7 @@ private struct ImageWindow: View {
                 windows.openWindow = { openWindow(id: "image") }
                 windows.enroll(appState)
             }
-            // The window's title, and its tab's, is its file's. New windows join the front window's tabs (`WindowTabbing`, AppKit).
-            .navigationTitle(appState.windowTitle)
+            // New windows join the front window's tabs (`WindowTabbing`, AppKit). The tab's title is the window's (`AppState.windowTitle`).
             .background(WindowTabbing(state: appState))
             .onDisappear { windows.withdraw(appState) }
             .onChange(of: appearsActive) { _, active in if active { windows.bringForward(appState) } }

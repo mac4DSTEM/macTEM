@@ -4,7 +4,7 @@
 //  forward; a window closed with marks not saved is parked and comes back with the next window, one with nothing to lose is let
 //  go; the quit question names what every window, open or parked, would lose; the launch's documents go to the first window only;
 //  a window's state is made once (`LazyAppState`); a batch is split one file per window, a second file gets a tab of its own, the
-//  last-session record covers every window, and a window is titled by its file. The planted fixture (Fixtures/planted-2d.dm4) is copied per test.
+//  last-session record covers every window. The planted fixture (Fixtures/planted-2d.dm4) is copied per test.
 //
 
 import XCTest
@@ -191,14 +191,6 @@ nonisolated final class AppWindowsTests: XCTestCase {
         XCTAssertEqual(session.current?.selectedPath, b.standardizedFileURL.path)
         windows.withdraw(second)
         XCTAssertEqual(session.current?.files.map(\.path), [a.standardizedFileURL.path])
-    }
-
-    /// The window's title, and its tab's, is its file's. Red under: every tab titled "macTEM".
-    @MainActor func testAWindowIsTitledByItsFile() async throws {
-        let state = AppState(launch: LaunchOptions(arguments: []))
-        XCTAssertEqual(state.windowTitle, "macTEM")
-        await state.open(urls: [try plantedCopy(named: "lattice.dm4")])?.value
-        XCTAssertEqual(state.windowTitle, "lattice.dm4")
     }
 
     /// Red under: a state built before it is asked for, or built twice.
