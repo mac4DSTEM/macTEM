@@ -2,6 +2,9 @@
 // or a Velox.emd with an EELS stream (`VeloxSpectrumImageSignals`; NOT yet verified on a real Velox EELS file). A single spectrum (a GMS EELS
 // object of dimensions [energy], an EMSA/MSA file of signal type ELS) opens as a 1 x 1 spectrum image.
 // The counts stay as stored. What the file states (E0, the two angles) rides along for the mean free path; nothing is assumed.
+// The room holds every count as a Double, so a file whose cubes would take more than half of the Mac's memory once read is refused in a
+// sentence (`memoryRefusal`): a GMS file before a cube is read, from its header; a Velox file once FormatoKit has read it and before a cube is
+// converted (its reader hands the shapes with the data).
 import Foundation
 import FormatoCore
 import FormatoDM
@@ -61,11 +64,14 @@ package struct LoadedEELS: Sendable {
 package enum EELSOpeningError: Error, Equatable, LocalizedError {
     case notEELS(String)
     case unsupportedShape(String)
+    /// The file's EELS cubes would take more than half of the Mac's memory once read: the sentence says how much (`EELSOpening.memoryRefusal`).
+    case tooLarge(String)
 
     package var errorDescription: String? {
         switch self {
         case .notEELS(let name): "\(name) holds no EELS spectrum or spectrum image."
         case .unsupportedShape(let why): why
+        case .tooLarge(let why): why
         }
     }
 }
@@ -73,10 +79,34 @@ package enum EELSOpeningError: Error, Equatable, LocalizedError {
 package enum EELSOpening {
     package static let readableExtensions = ["dm4", "emd", "msa"]
 
+    /// The bytes `cubes` EELS cubes of `nx` x `ny` pixels and `channels` channels take as the room holds them: every count a Double, 8 bytes. In
+    /// Double, so no file's size overflows it.
+    package static func estimatedBytes(nx: Int, ny: Int, channels: Int, cubes: Int = 1) -> Double {
+        Double(max(nx, 0)) * Double(max(ny, 0)) * Double(max(channels, 0)) * Double(max(cubes, 0)) * 8
+    }
+
+    /// The share of the Mac's memory a file's cubes may take once read: half. The other half is the reader's own copy of the cube it is converting,
+    /// what the room computes from the cubes, the app and the system (the Patterns room's rule for a processed scan, `PatternPipeline.processAdmission`).
+    package static let memoryShare = 0.5
+
+    /// The refusal of `name` when its `cubes` EELS cubes, `bytes` once read (`estimatedBytes`, summed over the cubes), take more than `memoryShare`
+    /// of a Mac of `physicalMemory` bytes; nil when the file is read. One sentence: what the file holds, what it would take and what the Mac has.
+    package static func memoryRefusal(name: String, cubes: Int, bytes: Double, physicalMemory: UInt64,
+                                      locale: Locale = .autoupdatingCurrent) -> EELSOpeningError? {
+        let memory = Double(physicalMemory)
+        guard bytes > memory * memoryShare else { return nil }
+        let gb = 1_073_741_824.0
+        let holds = cubes == 1 ? "an EELS spectrum image" : "\(cubes) EELS spectrum images"
+        let size = UnitDisplay.fixed(bytes / gb, places: 1, locale: locale), mac = UnitDisplay.fixed(memory / gb, places: 0, locale: locale)
+        return .tooLarge("\(name) holds \(holds) that would take about \(size) GB in memory, more than half of this Mac's \(mac) GB, so it is not opened: "
+                         + "crop or bin the spectrum image where it was acquired, or open it on a Mac with more memory.")
+    }
+
     /// Reads the EELS spectrum images of the file and gives each its role by its energy window: the first that holds 0 eV is the low loss (what the
     /// thickness map and the zero-loss alignment work on), the first that starts above it is the core loss (what the edge model fits). A file with
     /// one cube and no zero loss opens as the low loss, as before (its t/λ says why it has none). Off the main actor; the kit's reasons come through in its words.
-    package static func open(url: URL) throws -> LoadedEELS {
+    /// A file whose cubes would take more than half of `physicalMemory` once read is refused (`memoryRefusal`); a test hands a memory of its own.
+    package static func open(url: URL, physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory) throws -> LoadedEELS {
         let name = url.lastPathComponent
         var beam: Double?, convergence: Double?, collection: Double?
         var pixel: (size: Double, unit: String)?
@@ -86,6 +116,10 @@ package enum EELSOpening {
         case "dm4":
             let objects = try DM4Experiment.list(path: url.path).filter { $0.role == .eels }
             guard !objects.isEmpty else { throw EELSOpeningError.notEELS(name) }
+            // Before a cube is read: what the cubes take once read, from the object list (the header only; GMS writes [x, y, energy]).
+            let sized = objects.map(\.dimensions).filter { $0.count == 3 }
+            let bytes = sized.reduce(0.0) { $0 + Self.estimatedBytes(nx: $1[0], ny: $1[1], channels: $1[2]) }
+            if let refusal = memoryRefusal(name: name, cubes: sized.count, bytes: bytes, physicalMemory: physicalMemory) { throw refusal }
             var firstFailure: (any Error)?
             for object in objects {
                 // A spectrum saved alone ([energy]) is a 1 x 1 spectrum image; a line scan ([x, energy]) is refused in words.
@@ -110,9 +144,17 @@ package enum EELSOpening {
             }
             if cubes.isEmpty, let firstFailure { throw firstFailure }
         case "emd":
-            let signals = try VeloxSpectrumImageSignals(path: url.path).signals.filter { $0.signalType == "EELS" }
+            var signals = try VeloxSpectrumImageSignals(path: url.path).signals.filter { $0.signalType == "EELS" }
             guard !signals.isEmpty else { throw EELSOpeningError.notEELS(name) }
-            for (i, signal) in signals.enumerated() {
+            // FormatoKit's reader hands a Velox file's cubes with their data, so they are sized here, before any is converted to the room's Doubles.
+            let sized = signals.map(\.data.shape).filter { $0.count == 3 }
+            let bytes = sized.reduce(0.0) { $0 + Self.estimatedBytes(nx: $1[1], ny: $1[0], channels: $1[2]) }
+            if let refusal = memoryRefusal(name: name, cubes: sized.count, bytes: bytes, physicalMemory: physicalMemory) { throw refusal }
+            // Each of the kit's cubes is let go once it is converted, before the next one is: the kit's copy and the Doubles are in memory together
+            // for one cube at a time, not for all of them.
+            let count = signals.count
+            for i in 0..<count {
+                let signal = signals.removeFirst()
                 guard signal.data.shape.count == 3, signal.axes.count == 3 else {
                     throw EELSOpeningError.unsupportedShape("\(name): the EELS signal has \(signal.data.shape.count) dimensions, a spectrum image needs three.")
                 }
@@ -121,7 +163,7 @@ package enum EELSOpening {
                 if beam == nil, let kv = signal.metadata["Acquisition_instrument.TEM.beam_energy"]?.value.number, kv > 0 { beam = kv }
                 if pixel == nil, signal.axes[1].scale > 0, !signal.axes[1].units.isEmpty { pixel = (signal.axes[1].scale, signal.axes[1].units) }
                 cubes.append(EELSCube(nx: signal.data.shape[1], ny: signal.data.shape[0], channels: signal.data.shape[2], counts: signal.data.doubles(),
-                                      offsetEV: axis.offset, scaleEV: axis.scale, origin: "Velox EMD (EELS stream \(i + 1) of \(signals.count))"))
+                                      offsetEV: axis.offset, scaleEV: axis.scale, origin: "Velox EMD (EELS stream \(i + 1) of \(count))"))
             }
         case "msa":
             // An EMSA/MSA file holds one spectrum; FormatoKit's reader names its signal (`#SIGNALTYPE ELS` is EELS) and its axis.
