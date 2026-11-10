@@ -5,11 +5,20 @@
 //        centre, its time or that it was stopped, and its method's plan (Hough's libraries for the Bands table's families and the .ang,
 //        each phase's dictionary plan, its master pattern, orientations and detector, for Info, Best match and the method record,
 //        D-SEM-98). The room keeps the last run of each method (`IndexingSession.runs`), so a Dictionary run leaves the Hough one, its
-//        map, exports and Maps' view of it, as it was; Compare (#230) reads two of them side by side.
+//        map, exports and Maps' view of it, as it was; Compare (#230) reads two of them side by side. A refinement of the Dictionary
+//        run is a run too, with the record of what it refined, kept beside it (`IndexingSession.refinedRun`, D-SEM-109).
 //
 
 import Foundation
 import TEMCore
+
+/// What a refinement refined (D-SEM-109): the Dictionary run (its id), the settings, and the refined PCs.
+package nonisolated struct IndexingRefinementRecord: Sendable {
+    package let base: Int
+    package let settings: IndexingRefineSettings
+    /// The refined PCs (Bruker), one per refined point in map order; empty while the PC is held.
+    package internal(set) var projectionCenters: [SIMD3<Double>] = []
+}
 
 package nonisolated struct IndexingRun: Sendable {
     /// The room's run number when it started (`IndexingSession.runGeneration`): the Maps room and Compare name a run by it.
@@ -29,6 +38,8 @@ package nonisolated struct IndexingRun: Sendable {
     /// A dictionary run's plans once built, one per phase it indexed against in `result.phases` order (D-SEM-98): each phase's master
     /// pattern, orientations, detector and energy. Empty before they are built and for Hough.
     package internal(set) var dictionaryPlans: [DictionaryIndexingPlan] = []
+    /// A refinement's record (the Dictionary run it refined, its settings, its PCs; D-SEM-109); nil for a run as indexed.
+    package internal(set) var refinement: IndexingRefinementRecord?
 
     package init(id: Int, result: IndexingResult, inputs: IndexingInputs, source: IndexingSource.Kind, projectionCenter: SIMD3<Double>?) {
         self.id = id
@@ -39,4 +50,7 @@ package nonisolated struct IndexingRun: Sendable {
     }
 
     package var method: IndexingMethod { result.method }
+
+    /// "Hough", "Dictionary", "Dictionary · Refined".
+    package var title: String { refinement == nil ? method.title : "\(method.title) · Refined" }
 }

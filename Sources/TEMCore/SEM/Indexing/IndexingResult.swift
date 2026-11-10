@@ -123,6 +123,10 @@ package nonisolated struct IndexingResult: Sendable {
     /// A dictionary run's orientation similarity map of the rows landed, one per scan point in map order (NaN where no row has landed,
     /// and for Hough, which keeps one solution per point).
     package private(set) var similarity: [Float]
+    /// A refinement of a dictionary run (D-SEM-109): rows land in order as they are refined; it keeps the run's matches and OSM.
+    package private(set) var isRefined = false
+    /// A refinement's num_evals per point, 0 where not refined or not landed; empty otherwise.
+    package private(set) var evaluations: [Int] = []
 
     /// A Hough run (`metric` nil) or a dictionary run (`metric` its score).
     package init(scanRows: Int, scanColumns: Int, phases: [IndexingPhase], metric: DictionaryIndexing.Metric? = nil) {
@@ -203,6 +207,30 @@ package nonisolated struct IndexingResult: Sendable {
         for (i, block) in blocks.enumerated() { phaseSimulationIndices[i] += block.simulationIndices }
         rowsDone = rows.upperBound
         updateSimilarity(from: rows.lowerBound)
+    }
+
+    /// An empty refinement of `base`, a dictionary run against one phase (D-SEM-109): its score is the refined NCC whatever the
+    /// run's metric; it keeps the run's matches (Best match, the simulation index) and OSM (kikuchipy's, of the dictionary's matches,
+    /// which refinement does not change).
+    package init(refining base: IndexingResult) {
+        self.init(scanRows: base.scanRows, scanColumns: base.scanColumns, phases: base.phases, metric: .ncc)
+        dictionary = base.dictionary
+        similarity = base.similarity
+        isRefined = true
+        evaluations = [Int](repeating: 0, count: solutions.count)
+    }
+
+    /// Lands a refined block: the next rows, within the rows the run indexed. A block that does not follow or fit is dropped.
+    package mutating func landRefined(_ block: IndexingRefinedBlock) {
+        let rows = block.rows
+        guard isRefined, rows.lowerBound == rowsDone, rows.upperBound <= (dictionary?.navigationShape.first ?? 0),
+              block.solutions.count == rows.count * scanColumns, block.evaluations.count == block.solutions.count else { return }
+        let start = rows.lowerBound * scanColumns
+        for k in block.solutions.indices {
+            solutions[start + k] = block.solutions[k]
+            evaluations[start + k] = block.evaluations[k]
+        }
+        rowsDone = rows.upperBound
     }
 
     /// Appends a landed block's matches to `dictionary`.
@@ -327,9 +355,11 @@ package nonisolated struct IndexingResult: Sendable {
     /// `steps` (dy, dx) in `scanUnit`. A point the room does not index (no contrast, NaN score) is `not_indexed` with score 0, so the
     /// files hold numbers. With several phases (D-SEM-98) it is kikuchipy's merged map (`DictionaryMapMerge.Merged.crystalMap`): each
     /// point's phase by its index in `phases`, in the room's names and colours, a phase that wins no point left out as kikuchipy leaves
-    /// it. nil before a block has landed.
+    /// it. A refinement (D-SEM-109) is kikuchipy's refined map (`refinedCrystalMap`), never rebuilt from the dictionary's matches. nil
+    /// before a block has landed.
     package func crystalMap(steps: (dy: Double, dx: Double), scanUnit: String) throws -> CrystalMap? {
         guard method == .dictionary, rowsDone > 0, let dictionary, let phase = phases.first else { return nil }
+        if isRefined { return try refinedCrystalMap(steps: steps, scanUnit: scanUnit, isInData: dictionary.isInData, phase: phase) }
         if phases.count > 1 {
             let (x, y) = CrystalMap.coordinates(shape: (rowsDone, scanColumns), steps: (steps.dy, steps.dx))
             let ids = (0..<(rowsDone * scanColumns)).map { i in solutions[i].map { $0.phase >= 0 ? $0.phase : PhaseList.notIndexedID } ?? PhaseList.notIndexedID }
@@ -349,6 +379,29 @@ package nonisolated struct IndexingResult: Sendable {
         let ids = zip(map.allPhaseIDs, best).map { $1.isFinite ? $0 : PhaseList.notIndexedID }
         return try CrystalMap(rotations: map.rotations, phaseIDs: ids, x: map.allX, y: map.allY, phaseList: map.phases,
                               properties: properties, scanUnit: map.scanUnit, isInData: map.isInData)
+    }
+
+    /// A refinement's rows as kikuchipy's refine_orientation leaves its map (`EBSDRefinement.refinedMap`): the refined rotation and
+    /// phase 0 (the room's name and colour) at refined points, the identity and not_indexed elsewhere, `scores` (NCC, 0 where not
+    /// refined) and `num_evals`.
+    private func refinedCrystalMap(steps: (dy: Double, dx: Double), scanUnit: String, isInData: [Bool], phase: IndexingPhase) throws -> CrystalMap {
+        let n = rowsDone * scanColumns
+        let (x, y) = CrystalMap.coordinates(shape: (rowsDone, scanColumns), steps: (steps.dy, steps.dx))
+        var rotations = [SIMD4<Double>](repeating: SIMD4(1, 0, 0, 0), count: n)
+        var ids = [Int](repeating: PhaseList.notIndexedID, count: n)
+        var scores = [Double](repeating: 0, count: n)
+        for i in 0..<n {
+            if let s = solutions[i], s.phase >= 0 {
+                rotations[i] = s.quaternion
+                ids[i] = 0
+                scores[i] = s.confidence
+            }
+        }
+        var list = PhaseList([(id: 0, phase: phase.crystalPhase)])
+        if ids.contains(PhaseList.notIndexedID) { list.addNotIndexed() }
+        return try CrystalMap(rotations: rotations, phaseIDs: ids, x: x, y: y, phaseList: list,
+                              properties: ["scores": scores, "num_evals": evaluations.prefix(n).map(Double.init)],
+                              scanUnit: scanUnit, isInData: Array(isInData.prefix(n)))
     }
 
     /// The .ang columns of a dictionary crystal map (D-SEM-92): the confidence index from the best score (`scores`, as orix's writer

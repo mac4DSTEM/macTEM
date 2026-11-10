@@ -111,7 +111,8 @@ final class IndexingRoomState {
             report("Export failed: \(error.localizedDescription)"); return
         }
         exportLayer = session.layer
-        let record = Self.record(kind, data: data, layer: exportLayer, method: result.method, fileName: document.fileName)
+        let record = Self.record(kind, data: data, layer: exportLayer, method: result.method, refined: session.shownRun?.refinement != nil,
+                                 fileName: document.fileName)
         if let directory {
             let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(layer: exportLayer)
             let url = directory.appendingPathComponent(name).appendingPathExtension(kind.fileExtension)
@@ -130,19 +131,20 @@ final class IndexingRoomState {
         exporting = kind
     }
 
-    /// The export as the session record keeps it: what it is, the layer a map is of, the methods that made it, the PNG's bytes.
-    nonisolated static func record(_ kind: IndexingExportKind, data: Data, layer: IndexingLayer, method: IndexingMethod,
+    /// The export as the session record keeps it: what it is, the layer a map is of, the methods that made it (a refinement's, its
+    /// dictionary indexing then the refinement, D-SEM-109), the PNG's bytes.
+    nonisolated static func record(_ kind: IndexingExportKind, data: Data, layer: IndexingLayer, method: IndexingMethod, refined: Bool = false,
                                    fileName: String) -> SEMExportedFile {
-        let indexing: SEMMethod = method == .hough ? .houghIndexing : .dictionaryIndexing
+        let indexing: [SEMMethod] = method == .hough ? [.houghIndexing] : [.dictionaryIndexing] + (refined ? [.patternRefinement] : [])
         let methods: [SEMMethod]
         var fields: [SEMSessionField] = []
         switch kind {
         case .mapPNG:
             fields.append(SEMSessionField("Layer", layer.title))
-            methods = layer.direction != nil ? [indexing, .ipfColours] : [indexing]
-        case .resultsCSV, .methodJSON: methods = [indexing]
-        case .ang: methods = [indexing, .angWriter]
-        case .ctf: methods = [indexing, .ctfWriter]
+            methods = layer.direction != nil ? indexing + [.ipfColours] : indexing
+        case .resultsCSV, .methodJSON: methods = indexing
+        case .ang: methods = indexing + [.angWriter]
+        case .ctf: methods = indexing + [.ctfWriter]
         }
         return SEMExportedFile(room: "Indexing", what: SEMExportedFile.what(kind.title), source: fileName, fields: fields, methods: methods,
                                png: kind == .mapPNG ? data : nil)
@@ -195,8 +197,24 @@ enum IndexingInfoFormat {
     /// "1.234 s".
     nonisolated static func time(_ seconds: Double) -> String { "\(UnitDisplay.number(seconds, digits: 3)) s" }
 
+    /// A refinement's mean score over the refined points, as indexed and as refined (D-SEM-109): "NCC 0.412 → 0.453"; after an NDP
+    /// dictionary, "NDP 0.91 → NCC 0.453".
+    nonisolated static func refinementScores(_ s: (before: Double, after: Double, metric: String)) -> String {
+        let n = { (v: Double) in UnitDisplay.number(v, digits: 3) }
+        return s.metric == "NCC" ? "NCC \(n(s.before)) → \(n(s.after))" : "\(s.metric) \(n(s.before)) → NCC \(n(s.after))"
+    }
+
+    /// The refined PCs' mean ± standard deviation (Bruker): "(0.4214, 0.2142, 0.5013) ± (0.0012, 0.0009, 0.0011)".
+    nonisolated static func refinedProjectionCentre(_ pc: (mean: SIMD3<Double>, deviation: SIMD3<Double>)) -> String {
+        let t = { (v: SIMD3<Double>) in
+            "(\(UnitDisplay.number(v.x, digits: 4)), \(UnitDisplay.number(v.y, digits: 4)), \(UnitDisplay.number(v.z, digits: 4)))"
+        }
+        return "\(t(pc.mean)) ± \(t(pc.deviation))"
+    }
+
     /// The run's state: running, stopped, stale or current.
     static func state(_ result: IndexingResult, session: IndexingSession) -> String {
+        if session.isRefining { return "Refining, row \(result.rowsDone) of \(result.scanRows)" }
         if session.isIndexing, result.method == .dictionary {
             // With several phases, the phase whose dictionary is being matched (D-SEM-98).
             let phase = session.chunkPhase.map { " · \($0)" } ?? ""
@@ -217,12 +235,14 @@ enum IndexingInfoFormat {
     }
 
     /// Whether an Output line of the room is about a run of `method`: its "Indexed … with <Method>" or its "Stopped …" line, and for
-    /// a dictionary run the master pattern it opened.
+    /// a dictionary run the master pattern it opened and its refinement's "Refined …" and "Stopped refinement …" (D-SEM-109).
     nonisolated static func isLine(_ text: String, of method: IndexingMethod) -> Bool {
         if text.hasPrefix("Indexed ") { return text.contains(" with \(method.title) ") }
         switch method {
         case .hough: return text.hasPrefix("Stopped indexing ")
-        case .dictionary: return text.hasPrefix("Stopped dictionary indexing ") || text.hasPrefix("Opened the master pattern ")
+        case .dictionary:
+            return text.hasPrefix("Stopped dictionary indexing ") || text.hasPrefix("Opened the master pattern ")
+                || text.hasPrefix("Refined ") || text.hasPrefix("Stopped refinement ")
         }
     }
 }

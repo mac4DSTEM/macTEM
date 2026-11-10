@@ -174,16 +174,18 @@ struct IndexingMapPane: View {
         .clipped()
     }
 
-    /// "Indexed map · Hough · IPF-Z", with "· stale" once the inputs changed since the run (design §6).
+    /// "Indexed map · Hough · IPF-Z" ("Dictionary · Refined" for a refinement, D-SEM-109), with "· stale" once the inputs changed
+    /// since the run (design §6).
     private var title: String {
         guard let result = session.result else { return "Scan map · mean intensity, not indexed" }
-        return "Indexed map · \(result.method.title) · \(session.layer.title)" + (session.isStale ? " · stale" : "")
+        return "Indexed map · \(session.shownRun?.title ?? result.method.title) · \(session.layer.title)" + (session.isStale ? " · stale" : "")
     }
 
     /// "4 120 of 4 125 indexed", "1 875 of 4 125 reached" while it runs (a dictionary run's chunk first, and the phase matching when it
-    /// runs against several, D-SEM-98), "stopped at row 12 of 55".
+    /// runs against several, D-SEM-98; "450 of 4 125 refined" while Refine runs), "stopped at row 12 of 55".
     private var count: String? {
         guard let result = session.result else { return nil }
+        if session.isRefining { return "\(result.reachedCount.formatted()) of \(result.pointCount.formatted()) refined" }
         if session.isIndexing, result.method == .dictionary {
             let phase = session.chunkPhase.map { " · \($0)" } ?? ""
             return "chunk \(session.chunksDone) of \(session.chunksTotal)\(phase) · \(result.reachedCount.formatted()) of \(result.pointCount.formatted()) reached"

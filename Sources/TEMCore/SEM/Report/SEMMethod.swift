@@ -14,7 +14,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
     case patternReading
     case staticBackground, dynamicBackground, intensity, equalisation, fftFilter, binning, neighbourAveraging, nlpar
     case virtualBSE, imageQuality, averageDotProduct
-    case houghIndexing, dictionaryIndexing, orientationSimilarity, kikuchiOverlay, kinematicalSimulation
+    case houghIndexing, dictionaryIndexing, patternRefinement, orientationSimilarity, kikuchiOverlay, kinematicalSimulation
     case orientationMap, ipfColours
     case grains, kam, gos, gnd, schmid, texture
     case angWriter, ctfWriter
@@ -39,6 +39,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
         case .averageDotProduct: "Average dot product"
         case .houghIndexing: "Hough indexing"
         case .dictionaryIndexing: "Dictionary indexing"
+        case .patternRefinement: "Pattern matching refinement"
         case .orientationSimilarity: "Orientation similarity map"
         case .kikuchiOverlay: "Kikuchi overlay"
         case .kinematicalSimulation: "Kinematical simulation"
@@ -88,6 +89,8 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
             "Bands found in each pattern by the Radon transform, triplets of bands voted against the phase's reflectors, the orientation fitted by QUEST, as pyEBSDindex's EBSDIndexer does when kikuchipy's EBSD.hough_indexing drives it."
         case .dictionaryIndexing:
             "Every pattern compared with patterns simulated from a master pattern on a cubochoric sampling of orientations, the best matches kept by normalised cross-correlation or dot product, as kikuchipy's EBSD.dictionary_indexing does."
+        case .patternRefinement:
+            "Each indexed pattern's orientation, projection centre or both moved by the Nelder–Mead simplex to the best normalised cross-correlation with the pattern projected from the master pattern, as kikuchipy's EBSD.refine_orientation, refine_projection_center and refine_orientation_projection_center do."
         case .orientationSimilarity:
             "For each point, how many of its best dictionary matches its neighbours share, as kikuchipy's orientation_similarity_map does."
         case .kikuchiOverlay:
@@ -154,6 +157,8 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
              "Roşca, Morawiec and De Graef 2014, Modelling Simul. Mater. Sci. Eng. 22, 075013 (cubochoric sampling)",
              "Singh and De Graef 2016, Modelling Simul. Mater. Sci. Eng. 24, 085013",
              Self.kikuchipy]
+        case .patternRefinement:
+            ["Winkelmann et al. 2020, J. Microsc. 277, 79", "Ånes et al. 2020, Ultramicroscopy 218, 113087", Self.kikuchipy]
         case .orientationSimilarity:
             ["Marquardt et al. 2017, as kikuchipy's orientation_similarity_map cites it", Self.kikuchipy]
         case .kikuchiOverlay, .kinematicalSimulation:
@@ -193,6 +198,8 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
             SEMReferenceVersions.label("pyebsdindex") + " as " + SEMReferenceVersions.label("kikuchipy") + " drives it"
         case .dictionaryIndexing:
             SEMReferenceVersions.label("kikuchipy") + " and " + SEMReferenceVersions.label("orix")
+        case .patternRefinement:
+            SEMReferenceVersions.label("kikuchipy") + " with SciPy's Nelder-Mead"
         case .kikuchiOverlay:
             SEMReferenceVersions.label("kikuchipy") + " and " + SEMReferenceVersions.label("diffsims")
         case .kinematicalSimulation:

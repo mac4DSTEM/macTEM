@@ -211,7 +211,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         // Compare (#230, D-SEM-97): the run against the file's own indexing, the defaults. Each point indexed is compared as orix's
         // `angle_with` of the two orientations (m-3m both), every other point is left out; 1° bins up to 63° (432's largest
         // disorientation, 62.8°); the median under 1° (0.44° in the orix bundle `m4/indexing-compare-nickel-large`).
-        XCTAssertEqual(indexing.compareSources, [.hough, .dictionary, .file])
+        XCTAssertEqual(indexing.compareSources, [.hough, .dictionary, .refined, .file])
         XCTAssertEqual(indexing.compareA, .hough)
         XCTAssertEqual(indexing.compareB, .file)
         indexing.setShowsCompare(true)

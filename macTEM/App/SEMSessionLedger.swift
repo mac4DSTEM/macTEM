@@ -221,16 +221,18 @@ enum SEMSessionLedger {
         } else if result.method == .hough {
             fields += houghFields(run.inputs.settings)
         }
+        let refined = run.refinement   // a refinement of the Dictionary run (D-SEM-109)
+        if let refined { fields.append(SEMSessionField("Refine", refined.settings.words)) }
         fields.append(SEMSessionField("State", IndexingInfoFormat.state(of: run, session: session)))
         if let seconds = run.seconds { fields.append(SEMSessionField("Time", IndexingInfoFormat.time(seconds))) }
         let methods: [SEMMethod] = result.method == .hough
             ? [.houghIndexing, .orientationMap, .ipfColours]
-            : [.dictionaryIndexing, .orientationSimilarity, .orientationMap, .ipfColours]
+            : [.dictionaryIndexing] + (refined == nil ? [] : [.patternRefinement]) + [.orientationSimilarity, .orientationMap, .ipfColours]
         let log = record.lines(of: .indexing).filter { line in
             (since.map { line.time >= $0 } ?? true) && IndexingInfoFormat.isLine(line.text, of: result.method)
         }
-        let ended = log.last { $0.text.hasPrefix("Indexed ") || $0.text.hasPrefix("Stopped ") }
-        return SEMSessionRow(id: id, kind: .indexing, label: "\(result.method.title) indexing",
+        let ended = log.last { $0.text.hasPrefix(refined == nil ? "Indexed " : "Refined ") || $0.text.hasPrefix("Stopped ") }
+        return SEMSessionRow(id: id, kind: .indexing, label: refined == nil ? "\(result.method.title) indexing" : "Refined dictionary indexing",
                              value: "\(IndexingInfoFormat.indexed(result)) indexed · \(result.phases.map(\.name).joined(separator: ", "))",
                              source: "Indexing · \(document.fileName)", time: ended?.time, fields: fields, methods: methods, log: log)
     }

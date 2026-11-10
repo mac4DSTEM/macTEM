@@ -6,7 +6,7 @@
 //        switch over a scalar layer's colormap, window, gamma and scale bar, D-SEM-96, or the pattern pane's own contrast), Phases (the list indexed
 //        against, each with its colour and its switch; a preset or a CIF added), Method (Hough or Dictionary, D-SEM-91), then the
 //        method's own section: Hough (pyEBSDindex's `EBSDIndexer` parameters) or Dictionary (the master pattern, kikuchipy's
-//        `dictionary_indexing` settings and orix's sampling), and Export (the map, the results, the method; `Open in Maps` hands the
+//        `dictionary_indexing` settings and orix's sampling) with Refine under it (kikuchipy's `refine_*`, D-SEM-109), and Export (the map, the results, the method; `Open in Maps` hands the
 //        run to the Maps room, D-SEM-99). Info: the dataset's rows
 //        (Patterns › Info) and the run's, with the other method's run held. Presentation only: the state is `IndexingSession`'s (TEMSession), the phases
 //        `IndexingPhase`'s and the dictionary's `DictionaryIndexingPlan`'s (TEMCore).
@@ -35,8 +35,11 @@ struct IndexingRoomSettings: View {
             IndexingPhasesSection(session: session)
             IndexingMethodSection(session: session)
             switch session.method {
-            case .hough: IndexingHoughSection(session: session)
-            case .dictionary: IndexingDictionarySection(session: session)
+            case .hough:
+                IndexingHoughSection(session: session)
+            case .dictionary:
+                IndexingDictionarySection(session: session)
+                IndexingRefineSection(session: session)
             }
             IndexingSimulationSection(session: session)
             IndexingExportSection(session: session, state: appState.indexingRoom)
@@ -506,6 +509,88 @@ private struct IndexingHoughSection: View {
                     .accessibilityIdentifier("indexing.hough.refusal")
             } else {
                 InspectorNote("pyEBSDindex's Hough indexing on the CPU in double precision: Radon band detection, triplet voting, QUEST.")
+            }
+        }
+    }
+}
+
+// MARK: - Refine
+
+/// kikuchipy's refinement (design §3, §4, D-SEM-109): a stage after Dictionary that Index runs while the switch is on (Index →
+/// Refine, the stale stages in order; a current Dictionary run is refined alone): what moves, the trust region (kikuchipy's
+/// tutorial's 2° and 0.05), the one solver ported (D-SEM-86), and the held refinement's mean score before and after and its PC.
+private struct IndexingRefineSection: View {
+    let session: IndexingSession
+
+    private static let decimal = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...3))
+
+    private var settings: IndexingRefineSettings { session.refineSettings }
+    private var defaults: IndexingRefineSettings { .roomDefault }
+    private var status: String? {
+        session.refinesAfterIndexing && session.isRefinementStale ? "stale" : (settings == defaults ? nil : "edited")
+    }
+
+    var body: some View {
+        InspectorSection("Refine", status: status, startsExpanded: false) {
+            InspectorRow("After indexing") {
+                Toggle("Refine after indexing", isOn: Binding(get: { session.refinesAfterIndexing }, set: { session.setRefinesAfterIndexing($0) }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("Index refines every indexed pattern against the master pattern after the dictionary run; on shows the refinement, off the run as indexed")
+                    .accessibilityIdentifier("indexing.refine.isOn")
+            }
+            SegmentedPicker(label: "Refine", items: IndexingRefineSettings.Target.allCases.map { target in
+                (target, .title(target.title, help: target.help))
+            }, selection: Binding(get: { settings.target }, set: { target in session.editRefineSettings { $0.target = target } }))
+                .accessibilityIdentifier("indexing.refine.target")
+            InspectorRow("Angle trust") {
+                OptionalNumericField(title: "Orientation trust region", value: settings.trustAngle, format: Self.decimal, unit: "°",
+                                     prompt: defaults.trustAngle.formatted(Self.decimal)) { v in
+                    session.editRefineSettings { $0.trustAngle = v }
+                }
+                .disabled(settings.target == .projectionCenter)
+                .help(settings.target == .projectionCenter ? "PC holds each point's orientation"
+                    : "± around each indexed Euler angle (kikuchipy's trust_region)")
+                .accessibilityIdentifier("indexing.refine.trustAngle")
+            }
+            InspectorRow("PC trust") {
+                OptionalNumericField(title: "Projection centre trust region", value: settings.trustPC, format: Self.decimal,
+                                     prompt: defaults.trustPC.formatted(Self.decimal)) { v in
+                    session.editRefineSettings { $0.trustPC = v }
+                }
+                .disabled(settings.target == .orientation)
+                .help(settings.target == .orientation ? "Orientation holds the detector's PC"
+                    : "± around each of PCx, PCy, PCz from the detector's mean (Bruker fractions)")
+                .accessibilityIdentifier("indexing.refine.trustPC")
+            }
+            InspectorValueRow("Solver", "Nelder–Mead")
+                .help("SciPy's minimize(method=\"Nelder-Mead\"), kikuchipy's default, at its tolerances (1e-4); Powell and NLopt are not ported")
+                .accessibilityIdentifier("indexing.refine.solver")
+            if let scores = session.refinementScores {
+                let words = IndexingInfoFormat.refinementScores(scores)
+                InspectorValueRow("Mean score", words)
+                    .help("The mean over the refined points, as indexed and as refined")
+                    .accessibilityIdentifier("indexing.refine.score")
+                    .accessibilityValue(words)
+            }
+            if let pc = session.refinedProjectionCentre {
+                let words = IndexingInfoFormat.refinedProjectionCentre(pc)
+                InspectorValueRow("Refined PC", words, mono: true)
+                    .help("The refined PCs' mean ± standard deviation (Bruker); Patterns keeps the file's")
+                    .accessibilityIdentifier("indexing.refine.pc")
+                    .accessibilityValue(words)
+            }
+            InspectorActionRow {
+                Button("Reset Refine") { session.resetRefineSettings() }
+                    .disabled(settings == defaults)
+                    .help(settings == defaults ? "The settings are kikuchipy's tutorial trust region: Orientation, ±2° and ±0.05"
+                        : "Back to Orientation, ±2° and ±0.05, kikuchipy's tutorial trust region")
+                    .accessibilityIdentifier("indexing.refine.reset")
+            }
+            if let why = session.refineRefusal {
+                InspectorWarning(why)
+                    .accessibilityIdentifier("indexing.refine.refusal")
+            } else {
+                InspectorNote("kikuchipy's refinement: each indexed pattern against the pattern projected from its master pattern, the simplex moving to the best NCC, on the CPU.")
             }
         }
     }
