@@ -19,6 +19,7 @@
 //
 
 import Foundation
+import Synchronization
 import FormatoCore
 
 package nonisolated enum EBSDRefinement {
@@ -471,24 +472,27 @@ package nonisolated enum EBSDRefinement {
     }
 
     /// Per-pattern results written from many threads, each to its own slot.
-    private final class ResultBox<T: Sendable>: @unchecked Sendable {
-        private var slots: [T?]
-        private var firstError: (index: Int, error: Swift.Error)?
-        private let lock = NSLock()
+    private final class ResultBox<T: Sendable>: Sendable {
+        private let state: Mutex<(slots: [T?], firstError: (index: Int, error: Swift.Error)?)>
 
-        init(count: Int) { slots = Array(repeating: nil, count: count) }
+        init(count: Int) {
+            let none: (index: Int, error: Swift.Error)? = nil
+            state = Mutex((slots: [T?](repeating: nil, count: count), firstError: none))
+        }
 
         func set(_ i: Int, _ value: T) {
-            lock.lock(); slots[i] = value; lock.unlock()
+            state.withLock { $0.slots[i] = value }
         }
 
         func fail(_ i: Int, _ error: Swift.Error) {
-            lock.lock()
-            if firstError == nil || i < firstError!.index { firstError = (i, error) }
-            lock.unlock()
+            state.withLock { s -> Void in
+                if let first = s.firstError, first.index <= i { return }
+                s.firstError = (index: i, error: error)
+            }
         }
 
         func values() throws -> [T] {
+            let (slots, firstError) = state.withLock { $0 }
             if let firstError {
                 if firstError.error is CancellationError || firstError.error is EBSDRefinement.Error { throw firstError.error }
                 throw EBSDRefinement.Error.solver(firstError.index, firstError.error.localizedDescription)
