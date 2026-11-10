@@ -274,12 +274,15 @@ private struct ImageCommands: Commands {
         }
         // Generated documents for someone with no microscope file at hand, App Review first (macTEM#105, DemoData.swift).
         CommandGroup(after: .help) {
+            // As Open Image…: with no window focused it opens one and the document there (`MenuActionRelay`).
             Menu("Open Demo Data") {
                 ForEach(DemoDocument.allCases) { demo in
-                    Button(demo.title) { appState?.openDemo(demo) }
+                    Button(demo.title) { perform(.openDemo(demo)) }
                 }
             }
-            .disabled(appState == nil || appState?.imageSession.isLoading == true)
+            .disabled(!MenuActionRelay.isEnabled(
+                hasFocusedWindow: appState != nil,
+                blocked: appState?.imageSession.isLoading == true))
         }
     }
 

@@ -77,4 +77,15 @@ nonisolated final class MenuActionRelayTests: XCTestCase {
                            "focused \(focused), blocked \(blocked)")
         }
     }
+
+    /// Help > Open Demo Data goes through the relay as Open Image… does, so it is enabled and works with no window focused (#355).
+    /// Red under: the entries calling the focused window's `openDemo`, disabled with no window.
+    func testTheDemoMenuGoesThroughTheRelay() throws {
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        let app = try String(contentsOf: root.appendingPathComponent("macTEM/App/macTEMApp.swift"), encoding: .utf8)
+            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        XCTAssertTrue(app.contains("Menu(\"Open Demo Data\") { ForEach(DemoDocument.allCases) { demo in Button(demo.title) { perform(.openDemo(demo)) } } }"
+            + " .disabled(!MenuActionRelay.isEnabled( hasFocusedWindow: appState != nil, blocked: appState?.imageSession.isLoading == true))"))
+        XCTAssertFalse(app.contains("appState?.openDemo(demo)"))
+    }
 }
