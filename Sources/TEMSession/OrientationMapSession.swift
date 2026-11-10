@@ -475,13 +475,15 @@ package final class OrientationMapSession {
         return base + Self.analysisReadout(analysis, row: position.row, column: position.column)
     }
 
-    /// The analysis words the status line adds at a grid cell: " · grain 12 · KAM 0.84°" (the KAM where the point has one).
-    nonisolated package static func analysisReadout(_ analysis: MapAnalysis, row: Int, column: Int) -> String {
+    /// The analysis words the status line adds at a grid cell: " · grain 12 · KAM 0.84°" (the KAM where the point has one), the KAM
+    /// through `UnitDisplay.fixed` as the room's tables write an angle: printf's digits in `locale`'s decimal mark.
+    nonisolated package static func analysisReadout(_ analysis: MapAnalysis, row: Int, column: Int,
+                                                    locale: Locale = .autoupdatingCurrent) -> String {
         guard row >= 0, row < analysis.rows, column >= 0, column < analysis.columns else { return "" }
         var out = ""
         if let grain = analysis.grain(atRow: row, column: column) { out += " · grain \(grain)" }
         let kam = analysis.grains.kam[row * analysis.columns + column]
-        if kam.isFinite { out += " · KAM " + (kam * 180 / Double.pi).formatted(.number.grouping(.never).precision(.fractionLength(2))) + "°" }
+        if kam.isFinite { out += " · KAM " + UnitDisplay.fixed(kam * 180 / Double.pi, places: 2, locale: locale) + "°" }
         return out
     }
 
