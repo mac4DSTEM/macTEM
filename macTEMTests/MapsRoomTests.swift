@@ -194,7 +194,7 @@ nonisolated final class MapsRoomTests: XCTestCase {
     @MainActor func testTheMapFigureIsWritten() async throws {
         let session = OrientationMapSession()
         await session.open(url: Self.sdss).value
-        for _ in 0..<4000 where session.keys.isEmpty { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the map's colour keys", seconds: 20) { !session.keys.isEmpty }
         let state = MapsRoomState()
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("maps-export-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }

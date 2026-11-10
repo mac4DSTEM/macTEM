@@ -54,9 +54,6 @@ package nonisolated struct HoughBandDetector: Sendable {
             self.rhoMaskFraction = rhoMaskFraction
             self.bands = bands
         }
-
-        /// kikuchipy's Hough indexing tutorial: 10 bands, both sigmas 2.
-        package static let kikuchipyTutorial = Settings(thetaSigma: 2, rhoSigma: 2, bands: 10)
     }
 
     /// One detected band (pyEBSDindex's band record; positions in Radon cells of the unpadded transform).

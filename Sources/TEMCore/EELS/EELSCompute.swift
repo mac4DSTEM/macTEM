@@ -2,6 +2,7 @@
 // words made from it. Nothing here is a number of macTEM's own: every value is a `ThicknessPixel` field.
 import CryptoKit
 import Foundation
+import ImagoCore
 import SpectroCore
 import SpectroEELS
 
@@ -144,7 +145,7 @@ extension EELSCompute {
     /// Per-pixel diagnostics, the kit's fields: x, y, t/λ, σ, I_0, I_total, ZLP centre, threshold, t (nm), and the reason where there is none.
     package static func diagnosticsCSV(_ map: ThicknessMap, fileName: String) -> String {
         func g(_ v: Double?) -> String { v.map { String(format: "%.9g", $0) } ?? "" }
-        var out = ["# macTEM EELS thickness, file: \(fileName), method: \(map.method), reference: \(ResultRow.Product.eelsThicknessReference)",
+        var out = ["# macTEM EELS thickness, file: \(CSVText.headerValue(fileName)), method: \(map.method), reference: \(ResultRow.Product.eelsThicknessReference)",
                    "x,y,t_over_lambda,sigma_counting,i0,i_total,zlp_centre_eV,threshold_eV,thickness_nm,unavailable"]
         for y in 0..<map.ny {
             for x in 0..<map.nx {

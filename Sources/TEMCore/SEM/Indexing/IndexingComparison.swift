@@ -125,9 +125,8 @@ package nonisolated struct IndexingComparison: Sendable {
         }
     }
 
-    /// The fraction's threshold and the bins' width, degrees.
+    /// The fraction's threshold, degrees (the bins are one degree wide: `edges(top:)`).
     package static let thresholdDegrees = 2.0
-    package static let binWidthDegrees = 1.0
 
     package let a: Side
     package let b: Side

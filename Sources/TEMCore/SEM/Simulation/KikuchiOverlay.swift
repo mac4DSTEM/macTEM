@@ -146,14 +146,6 @@ package nonisolated enum KikuchiOverlay {
         return Bands(reflectors: reflectors, families: reps, labels: reps.map { millerText($0, brackets: "{}") })
     }
 
-    /// The bands of explicit families (kikuchipy's tutorial: `ReciprocalLatticeVector(phase, hkl=families).symmetrise()`).
-    package static func bands(for phase: CrystalPhase, families: [SIMD3<Int>]) -> Bands? {
-        guard let lattice = lattice(of: phase) else { return nil }
-        let reflectors = KikuchiReflectors.symmetrised(families.map { SIMD3(Double($0.x), Double($0.y), Double($0.z)) }, lattice: lattice,
-                                                       pointGroup: pointGroup(of: phase)).reflectors
-        return Bands(reflectors: reflectors, families: families, labels: families.map { millerText($0, brackets: "{}") })
-    }
-
     // MARK: One position
 
     /// The largest r_max over the dataset's projection centres (the circle every line ends on).

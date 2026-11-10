@@ -60,8 +60,6 @@ package nonisolated struct VirtualBSEGrid: Sendable, Hashable {
     /// `n` x `n`.
     package init(_ n: Int) { self.init(rows: n, columns: n) }
 
-    package static let whole = VirtualBSEGrid(1)
-
     package var tileCount: Int { rows * columns }
 
     /// The `count + 1` edges of `side` pixels cut in `count`.

@@ -10,40 +10,53 @@
 //        `.asw` — the project file, which names the views' files and reads each in turn.
 //        The app reads a `.pts` with `SI_dtype=np.uint32` and `read_em_image=True` (decision D-SEM in docs/decisions.md): every count
 //        kept, where rsciio's uint8 default refuses a channel's 255th X-ray. The counts accumulate as sorted (pixel, channel) keys
-//        merged frame by frame, so memory follows the X-rays recorded, not the 512 x 512 x 4096 cube.
+//        merged frame by frame, so memory follows the X-rays recorded, not the 512 x 512 x 4096 cube. The `.pts` file is mapped where
+//        that is safe, not read into memory, and its event words are decoded from the file's bytes as each sweep is read; the read
+//        reports the share of the stream read after each sweep and stops with `CancellationError` once its task is cancelled.
 //
 
 import Foundation
 
 package nonisolated enum JEOLEDSReader {
     package static let readableExtensions = ["pts", "eds", "img", "map", "asw"]
-    /// The extensions whose files hold a spectrum or spectrum image (the others hold images).
-    package static let spectralExtensions = ["pts", "eds", "asw"]
 
-    package static func read(url: URL) throws -> SEMEDSFile {
-        let signals = try signals(url: url)
+    /// The file's signals. `progress` (0 ... 1) is reported while a `.pts` spectrum image is read, after each of its sweeps; the
+    /// calling task's cancellation stops that read between sweeps with `CancellationError`.
+    package static func read(url: URL, progress: (@Sendable (Double) -> Void)? = nil) throws -> SEMEDSFile {
+        let signals = try signals(url: url, progress: progress)
         return SEMEDSFile(url: url, signals: signals)
     }
 
     /// The signals of one file; `projects` are the project files already open on the way to it (a project's members are read
     /// through here).
-    static func signals(url: URL, projects: [String] = []) throws -> [SEMEDSSignal] {
+    static func signals(url: URL, projects: [String] = [], progress: (@Sendable (Double) -> Void)? = nil) throws -> [SEMEDSSignal] {
         switch url.pathExtension.lowercased() {
-        case "pts": return try readPTS(url: url)
+        case "pts": return try readPTS(url: url, progress: progress)
         case "eds": return try [readEDS(url: url)]
         case "img", "map": return try [readIMG(url: url)]
-        case "asw": return try readASW(url: url, projects: projects)
+        case "asw": return try readASW(url: url, projects: projects, progress: progress)
         default: return []
         }
     }
 
-    static func load(_ url: URL) throws -> SEMEDSBytes {
+    /// The file's bytes; `mapped` leaves them in the file where that is safe (a local volume) instead of reading them into memory.
+    static func contents(_ url: URL, mapped: Bool = false) throws -> Data {
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw SEMEDSReadError("\(url.lastPathComponent) is missing (\(url.path)): the JEOL project names it but it is not beside the project file.")
         }
-        do { return SEMEDSBytes([UInt8](try Data(contentsOf: url)), name: url.lastPathComponent) } catch {
+        do { return try Data(contentsOf: url, options: mapped ? .mappedIfSafe : []) } catch {
             throw SEMEDSReadError("\(url.lastPathComponent) could not be read: \(ErrorDetail.text(error))")
         }
+    }
+
+    static func load(_ url: URL) throws -> SEMEDSBytes {
+        SEMEDSBytes([UInt8](try contents(url)), name: url.lastPathComponent)
+    }
+
+    /// `progress` as part `index` of `count` equal parts reports it: the part's own fraction becomes its share of the whole.
+    static func part(_ index: Int, of count: Int, _ progress: (@Sendable (Double) -> Void)?) -> (@Sendable (Double) -> Void)? {
+        guard let progress else { return nil }
+        return { fraction in progress((Double(index) + fraction) / Double(count)) }
     }
 
     // MARK: - The header tree (`_parsejeol`)
@@ -57,11 +70,6 @@ package nonisolated enum JEOLEDSReader {
         package var typeCode: Character?
 
         package subscript(_ key: String) -> Node? { children[key] }
-
-        func child(_ key: String) -> Node {
-            if let c = children[key] { return c }
-            let c = Node(); children[key] = c; keys.append(key); return c
-        }
 
         func set(_ key: String, _ node: Node) {
             if children[key] == nil { keys.append(key) }
@@ -340,15 +348,20 @@ package nonisolated enum JEOLEDSReader {
 
     // MARK: - .pts
 
-    static func readPTS(url: URL) throws -> [SEMEDSSignal] {
+    /// A `.pts` spectrum image, and the S(T)EM image of its stream when it holds one. The file is mapped, and the event words are
+    /// decoded from its bytes sweep by sweep. `progress` gets the share of the stream read after each complete sweep; the calling
+    /// task's cancellation is asked before each sweep, and a cancelled read throws `CancellationError`.
+    static func readPTS(url: URL, progress: (@Sendable (Double) -> Void)? = nil) throws -> [SEMEDSSignal] {
         let name = url.lastPathComponent
-        let b = try load(url)
-        guard b.bytes.count >= 304, try b.u32(0) == 304 else {
+        let data = try contents(url, mapped: true)
+        // The fixed header is the first 304 bytes: the only ones copied for these bounds-checked reads.
+        let b = SEMEDSBytes([UInt8](data.prefix(304)), name: name)
+        guard data.count >= 304, try b.u32(0) == 304 else {
             throw SEMEDSReadError("\(name) is not a JEOL spectrum image (its first word is not 304), as RosettaSciIO finds too.")
         }
         let headPos = Int(try b.u32(20)), dataPos = Int(try b.u32(28))
         let fileDate = try b.f64(296)
-        let header = try parseTree(b, at: headPos + 12).root
+        let header = try ptsHeader(data, headPos: headPos, dataPos: dataPos, name: name)
         let meas = try node(header, "PTTD Data", "AnalyzableMap MeasData", file: name)
         let pixelsText = try string(meas, "Meas Cond", "Pixels", file: name)
         let wh = pixelsText.split(separator: "x").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
@@ -369,23 +382,15 @@ package nonisolated enum JEOLEDSReader {
             throw SEMEDSReadError("\(name) states \(sweepValue) sweeps, which is not a count.")
         }
 
-        // The event stream, frame by frame.
-        let words = (b.bytes.count - min(dataPos, b.bytes.count)) / 2
-        let raw: [UInt16] = (0..<words).map { k in UInt16(b.bytes[dataPos + 2 * k]) | UInt16(b.bytes[dataPos + 2 * k + 1]) << 8 }
-        var accumulated: [(key: Int, count: UInt32)] = []
-        var em = [UInt32](repeating: 0, count: width * height)
-        var hasEM = false
-        var start = 0
-        for _ in 0...max(sweep, 0) {
-            let frame = readFrame(raw, from: start, width: width, height: height, widthNorm: widthNorm, heightNorm: heightNorm,
-                                  channels: channels)
-            hasEM = hasEM || frame.hasEM
-            if frame.length == 0 { break }
-            guard frame.valid else { break }
-            accumulated = merge(accumulated, frame.keys.sorted())
-            for (p, v) in frame.em { em[p] &+= v }
-            start += frame.length
+        // The event stream, frame by frame: 16-bit words from `dataPos` to the end of the file, decoded where they lie.
+        let streamStart = min(dataPos, data.count)
+        let words = (data.count - streamStart) / 2
+        let events = try data.withUnsafeBytes { (file: UnsafeRawBufferPointer) throws -> Events in
+            let stream = UnsafeRawBufferPointer(rebasing: file[streamStart..<(streamStart + 2 * words)])
+            return try readEvents(stream, sweeps: sweep, width: width, height: height, widthNorm: widthNorm, heightNorm: heightNorm,
+                                  channels: channels, progress: progress)
         }
+        let accumulated = events.counts, em = events.em, hasEM = events.hasEM
         var builder = try CSRSpectrumImageBuilder(ny: height, nx: width, channels: channels)
         var k = 0
         for p in 0..<(width * height) {
@@ -432,6 +437,48 @@ package nonisolated enum JEOLEDSReader {
         return signals
     }
 
+    /// The header tree of a `.pts`. It lies before the event stream, so it is parsed from a copy of the bytes before the stream; a
+    /// damaged file whose tree runs on into the stream (or starts after it) is parsed from the whole file, so it reads or is refused
+    /// exactly as it was when the whole file was in memory.
+    static func ptsHeader(_ data: Data, headPos: Int, dataPos: Int, name: String) throws -> Node {
+        let beforeStream = SEMEDSBytes([UInt8](data.prefix(min(dataPos, data.count))), name: name)
+        if let root = try? parseTree(beforeStream, at: headPos + 12).root { return root }
+        return try parseTree(SEMEDSBytes([UInt8](data), name: name), at: headPos + 12).root
+    }
+
+    /// What the complete sweeps of an event stream add up to: the X-ray counts as sorted (pixel, channel) keys, the S(T)EM image's
+    /// sums and whether the stream holds one.
+    struct Events {
+        var counts: [(key: Int, count: UInt32)]
+        var em: [UInt32]
+        var hasEM: Bool
+    }
+
+    /// Every complete sweep of `stream` (the event words, 16-bit little-endian) summed, up to `sweeps` + 1 frames as `_readcube`
+    /// walks them: a frame of no events or an incomplete one ends the read. The calling task's cancellation is asked before each
+    /// sweep (`CancellationError`); `progress` gets the share of the stream read after each complete sweep.
+    static func readEvents(_ stream: UnsafeRawBufferPointer, sweeps: Int, width: Int, height: Int, widthNorm: Int, heightNorm: Int,
+                           channels: Int, progress: (@Sendable (Double) -> Void)?) throws -> Events {
+        let words = stream.count / 2
+        var accumulated: [(key: Int, count: UInt32)] = []
+        var em = [UInt32](repeating: 0, count: width * height)
+        var hasEM = false
+        var start = 0
+        for _ in 0...max(sweeps, 0) {
+            try Task.checkCancellation()
+            let frame = readFrame(stream, from: start, width: width, height: height, widthNorm: widthNorm, heightNorm: heightNorm,
+                                  channels: channels)
+            hasEM = hasEM || frame.hasEM
+            if frame.length == 0 { break }
+            guard frame.valid else { break }
+            accumulated = merge(accumulated, frame.keys.sorted())
+            for (p, v) in frame.em { em[p] &+= v }
+            start += frame.length
+            progress?(Double(start) / Double(words))
+        }
+        return Events(counts: accumulated, em: em, hasEM: hasEM)
+    }
+
     struct Frame {
         var length: Int
         var keys: [Int]
@@ -440,15 +487,17 @@ package nonisolated enum JEOLEDSReader {
         var valid: Bool
     }
 
-    /// One frame (`_readframe_dense` with no shift and no energy binning): the events up to where y steps back.
-    static func readFrame(_ raw: [UInt16], from start: Int, width: Int, height: Int, widthNorm: Int, heightNorm: Int,
+    /// One frame (`_readframe_dense` with no shift and no energy binning): the events up to where y steps back. `stream` is the event
+    /// stream's bytes, one 16-bit little-endian word an event, read from word `start`.
+    static func readFrame(_ stream: UnsafeRawBufferPointer, from start: Int, width: Int, height: Int, widthNorm: Int, heightNorm: Int,
                           channels: Int) -> Frame {
+        let words = stream.count / 2
         var x = 0, y = 0, previousX = 0, previousY = -1, count = 0
         var hasEM = false
         var keys: [Int] = [], em: [(Int, UInt32)] = []
         var i = start
-        while i < raw.count {
-            let value = Int(raw[i])
+        while i < words {
+            let value = Int(UInt16(littleEndian: stream.loadUnaligned(fromByteOffset: 2 * i, as: UInt16.self)))
             let type = value & 0xF000, v = value & 0x0FFF
             if type == 0x8000 {
                 x = v / widthNorm
@@ -508,7 +557,8 @@ package nonisolated enum JEOLEDSReader {
 
     /// A project file and the files it names, in order. `projects` are the project files already open on the way here: a
     /// project that names one of them, or nests deeper than `projectDepth`, is refused rather than followed round a loop.
-    static func readASW(url: URL, projects: [String] = []) throws -> [SEMEDSSignal] {
+    /// `progress` counts the files named as equal parts: a `.pts` among them reports its sweeps inside its own part.
+    static func readASW(url: URL, projects: [String] = [], progress: (@Sendable (Double) -> Void)? = nil) throws -> [SEMEDSSignal] {
         let name = url.lastPathComponent
         let path = url.standardizedFileURL.path
         guard !projects.contains(path) else {
@@ -524,18 +574,23 @@ package nonisolated enum JEOLEDSReader {
         let tree = try parseTree(b, at: 12).root
         guard let samples = tree["SampleInfo"] else { return [] }
         let folder = url.deletingLastPathComponent()
-        var out: [SEMEDSSignal] = []
+        // The names first (the tree is in memory), so each member's progress is its share of the project's.
+        var members: [String] = []
         for i in samples.keys {
             guard let views = samples[i]?["ViewInfo"] else { continue }
             for j in views.keys {
                 guard let data = views[j]?["ViewData"] else { continue }
                 for k in data.keys {
-                    guard let file = data[k]?["Filename"]?.string else { continue }
-                    let sub = try projectMember(folder: folder, filename: file)
-                    guard readableExtensions.contains(sub.pathExtension.lowercased()) else { continue }
-                    out += try signals(url: sub, projects: projects + [path])
+                    if let file = data[k]?["Filename"]?.string { members.append(file) }
                 }
             }
+        }
+        var out: [SEMEDSSignal] = []
+        for (m, file) in members.enumerated() {
+            let sub = try projectMember(folder: folder, filename: file)
+            guard readableExtensions.contains(sub.pathExtension.lowercased()) else { continue }
+            out += try signals(url: sub, projects: projects + [path], progress: part(m, of: members.count, progress))
+            progress?(Double(m + 1) / Double(members.count))
         }
         return out
     }

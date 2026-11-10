@@ -289,10 +289,21 @@ nonisolated final class EELSRealFileJourney: Journey {
         }
 
         line(9, "regions: draw, move, resize, delete") {
-            try step("the region tool; no Regions list in the inspector") {
+            try step("the region tool: Select and the four shapes") {
                 showSettings(waitingFor: "eels.tool")
-                XCTAssertTrue(isAbsent("regions.list"), "the inspector still lists the regions")
-                XCTAssertGreaterThan(element("eels.tool").radioButtons.count + element("eels.tool").buttons.count, 1, "the region tool offers no shapes")
+                // What the inspector holds for regions is this one control, a segment per tool (the regions themselves are on the maps and in
+                // the results' Regions table). The Regions list it once held left the sources with its identifier, so its absence is not a
+                // check that could fail.
+                let tool = element("eels.tool")
+                let segments = tool.radioButtons.allElementsBoundByIndex + tool.buttons.allElementsBoundByIndex
+                XCTAssertGreaterThanOrEqual(segments.count, 5, "the region tool offers \(segments.count) segments, not Select and the four shapes")
+                // The segments are symbols, and whether each reports its name to the runner is unverified on screen (the EDS journeys pick
+                // this control's segments by index), so the names are held where the control reports any; the attachment says what it read.
+                let offered = segments.map { $0.label }.filter { !$0.isEmpty }
+                attach("region tool segments", "\(segments.count) segments; named: \(offered.joined(separator: ", "))")
+                for title in ["Select", "Rectangle", "Ellipse", "Polygon", "Line"] where !offered.isEmpty {
+                    XCTAssertTrue(offered.contains(title), "the region tool has no \(title) segment; it offers \(offered)")
+                }
             }
             unverifiedDrag("drawing, moving and resizing a region on the colour mix, and the spectrum following")
         }

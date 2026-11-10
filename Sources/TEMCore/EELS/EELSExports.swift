@@ -4,6 +4,7 @@
 import Foundation
 import FormatoCore
 import FormatoMSA
+import ImagoCore
 import ShellEDXModel
 
 /// The literature each EELS method follows, as the room's tooltips, the figure subtitle and every export name it. A method is named with its
@@ -33,7 +34,7 @@ package nonisolated enum EELSExports {
     /// `unavailable` cell, and so does a row with no at% (the table's tooltip and the Results room give the same words).
     package static func resultsCSV(_ rows: [EELSEdgeRow], fileName: String, regionName: String, thickness: String, method: String,
                                    deconvolution: String? = nil, quality: String? = nil) -> String {
-        var out = ["# macTEM EELS results, file: \(fileName), region: \(regionName), \(EELSLiterature.headerLine)",
+        var out = ["# macTEM EELS results, file: \(CSVText.headerValue(fileName)), region: \(CSVText.headerValue(regionName)), \(EELSLiterature.headerLine)",
                    "# \(thickness)",
                    "# \(method)"]
         if let deconvolution { out.append("# deconvolution: \(deconvolution)") }
@@ -51,7 +52,8 @@ package nonisolated enum EELSExports {
 
     /// The shown spectrum: the low loss then the core loss, each channel's energy and counts, and the model where the fit holds one.
     package static func spectrumCSV(_ plot: EELSPlotData, fileName: String) -> String {
-        var out = ["# macTEM EELS spectrum, file: \(fileName), region: \(plot.regionName), \(plot.pixels) px, counts summed over the region",
+        var out = ["# macTEM EELS spectrum, file: \(CSVText.headerValue(fileName)), region: \(CSVText.headerValue(plot.regionName)), \(plot.pixels) px, "
+                   + "counts summed over the region",
                    "segment,energy_eV,counts,model"]
         for (i, c) in plot.low.counts.enumerated() { out.append("low_loss,\(g(plot.low.energy(i))),\(g(c)),") }
         if let d = plot.lowDeconvolved {
@@ -118,7 +120,7 @@ package nonisolated enum EELSExports {
         let edges = rows.flatMap(\.edges).reduce(into: [String]()) { out, e in if !out.contains(e.title) { out.append(e.title) } }
         var header = ["region", "pixels", "i_total", "t_over_lambda"]
         for e in edges { header += ["\(e) intensity", "\(e) intensity_sigma", "\(e) atomic_percent", "\(e) atomic_percent_sigma"].map(quoted) }
-        var out = ["# macTEM EELS regions, file: \(fileName), \(EELSLiterature.headerLine)", header.joined(separator: ",")]
+        var out = ["# macTEM EELS regions, file: \(CSVText.headerValue(fileName)), \(EELSLiterature.headerLine)", header.joined(separator: ",")]
         for r in rows {
             var cells = [quoted(r.pin.name), "\(r.pixels)", g(r.totalCounts), g(r.tOverLambda)]
             for e in edges {

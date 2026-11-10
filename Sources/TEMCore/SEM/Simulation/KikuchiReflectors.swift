@@ -114,13 +114,6 @@ package nonisolated struct KikuchiReflectors: Sendable, Equatable {
         return close(lattice.alpha, 90) && close(lattice.beta, 90) && close(lattice.gamma, 120)
     }
 
-    /// The reflectors at the indices given.
-    package func subset(_ indices: [Int]) -> KikuchiReflectors {
-        KikuchiReflectors(lattice: lattice, hkl: indices.map { hkl[$0] }, family: indices.map { family[$0] })
-    }
-
-    /// |g| of each plane, in the inverse of the lattice's unit.
-    package var gSpacing: [Double] { hkl.map { lattice.rnorm($0) } }
     /// d = 1 / |g| of each plane.
     package var dSpacing: [Double] { hkl.map { lattice.dSpacing($0) } }
 

@@ -25,6 +25,7 @@
 //
 
 import Foundation
+import ImagoCore
 
 /// The Indexing room's map layers (D-SEM-84, D-SEM-96).
 package nonisolated enum IndexingLayer: String, Sendable, CaseIterable, Identifiable, Codable {
@@ -458,16 +459,15 @@ package nonisolated struct IndexingResult: Sendable {
         return out
     }
 
-    /// The reached points as CSV (locale-free numbers, one header line): row, column, x and y in the scan unit, phase, the Euler
-    /// angles in degrees, then for Hough CI, fit, matched bands, pattern quality, for a dictionary the score (named by its metric), the
-    /// simulation index and the OSM.
+    /// The reached points as CSV (locale-free numbers, one header line): row, column, x and y in the scan unit, phase (an RFC 4180 cell,
+    /// ImagoKit's `CSVText.quoted`, so a name holding a comma or a quote stays one cell), the Euler angles in degrees, then for Hough CI,
+    /// fit, matched bands, pattern quality, for a dictionary the score (named by its metric), the simulation index and the OSM.
     package func csv(stepX: Double, stepY: Double) -> String {
         let tail = method == .dictionary ? "\((metric ?? .ncc).rawValue),simulation_index,osm" : "ci,fit_deg,matched_bands,pattern_quality"
         var lines = ["row,column,x,y,phase,phi1_deg,Phi_deg,phi2_deg," + tail]
         func number(_ v: Double) -> String { v.isFinite ? String(format: "%.6g", v) : "" }
         for r in rows {
-            let phase = r.phase.contains(",") ? "\"\(r.phase)\"" : r.phase
-            var fields = [String(r.row), String(r.column), number(Double(r.column) * stepX), number(Double(r.row) * stepY), phase,
+            var fields = [String(r.row), String(r.column), number(Double(r.column) * stepX), number(Double(r.row) * stepY), CSVText.quoted(r.phase),
                           number(r.phi1), number(r.capitalPhi), number(r.phi2), number(r.confidence)]
             if method == .dictionary {
                 fields += [r.simulationIndex >= 0 ? String(r.simulationIndex) : "", number(r.similarity)]

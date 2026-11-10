@@ -8,12 +8,25 @@
 # stays green. Delete the code or, for a false positive, write the baseline again in the same PR:
 #   periphery scan --project macTEM.xcodeproj --schemes macTEM --retain-codable-properties \
 #     --write-baseline .periphery-baseline.json -- CODE_SIGNING_ALLOWED=NO
+# Without a Mac: run this workflow by hand on the PR's branch with `write_baseline` ticked, from the Actions page or with
+#   gh workflow run periphery.yml --ref <branch> -f write_baseline=true
+# That run does the scan above on GitHub's runner, uploads the file it wrote as the artifact periphery-baseline-<run> and
+# leaves the weekly issue alone; download the artifact and commit the file in the PR. It records every finding of that
+# tree as kept, so triage first: what should go is deleted before the baseline is written, not after.
+# BREW: Homebrew has deprecated the periphery formula and disables it on 2027-08-12. Until then `brew install periphery`
+# still installs it and prints the notice; before that date the install steps below need another source.
 name: Periphery
 
 on:
   schedule:
     - cron: "17 3 * * 0"
   workflow_dispatch:
+    inputs:
+      write_baseline:
+        description: "Write .periphery-baseline.json afresh and upload it as an artifact (no issue update)"
+        type: boolean
+        required: false
+        default: false
   pull_request:
     paths: ["**.swift", ".periphery-baseline.json", ".github/workflows/periphery.yml"]
 
@@ -23,7 +36,8 @@ permissions:
 
 jobs:
   scan:
-    if: github.event_name != 'pull_request'
+    # The weekly run and a plain run by hand; a run by hand that writes the baseline does only that (the job below).
+    if: github.event_name != 'pull_request' && !inputs.write_baseline
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -80,3 +94,40 @@ jobs:
             -- CODE_SIGNING_ALLOWED=NO | tee periphery.txt
           count=$(grep -c '^::warning' periphery.txt || true)
           echo "Periphery: ${count} new finding(s) against .periphery-baseline.json" >> "$GITHUB_STEP_SUMMARY"
+
+  baseline:
+    name: Write the baseline (artifact)
+    # By hand only, with the input ticked: the pull-request scan's flags with --write-baseline in place of --baseline, so
+    # the file holds exactly what that scan would otherwise report. Nothing is committed from here: the token is read-only.
+    if: github.event_name == 'workflow_dispatch' && inputs.write_baseline
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Ensure the Metal toolchain component
+        run: |
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            sudo xcodebuild -downloadComponent MetalToolchain
+          fi
+      - name: Install Periphery
+        run: brew install periphery && periphery version
+      - name: Build, scan and write the baseline
+        run: |
+          periphery scan --project macTEM.xcodeproj --schemes macTEM --retain-codable-properties \
+            --write-baseline .periphery-baseline.json --relative-results \
+            -- CODE_SIGNING_ALLOWED=NO
+          # How the written file differs from the committed one, for the log; the count is for the summary and never fails the step.
+          git diff --stat -- .periphery-baseline.json
+          entries=$(python3 -c 'import json; print(len(json.load(open(".periphery-baseline.json"))["v1"]["usrs"]))' || echo "?")
+          echo "Periphery: baseline written with ${entries} entries at ${GITHUB_SHA::7}; the artifact periphery-baseline-${GITHUB_RUN_NUMBER} holds the file to commit" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the baseline
+        uses: actions/upload-artifact@v7
+        with:
+          name: periphery-baseline-${{ github.run_number }}
+          path: .periphery-baseline.json
+          # The file's name starts with a dot, and upload-artifact leaves such files out unless told otherwise.
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14

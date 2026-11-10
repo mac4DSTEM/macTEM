@@ -28,8 +28,12 @@ nonisolated extension SessionSidecarFileTests {
         func state(_ url: URL) throws -> (Data, Date?) {
             (try bytes(url), try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date)
         }
+        // Each file's modification time is moved an hour back: a read that wrote the file would stamp the present, which differs
+        // from it whatever the file system's resolution, so nothing waits for the clock.
+        let anHourAgo = Date(timeIntervalSinceNow: -3600)
+        for url in urls { try FileManager.default.setAttributes([.modificationDate: anHourAgo], ofItemAtPath: url.path) }
         let before = try urls.map(state)
-        Thread.sleep(forTimeInterval: 1.1)       // a changed file would carry a later modification time
+        XCTAssertTrue(before.allSatisfy { ($0.1 ?? .distantFuture) < Date(timeIntervalSinceNow: -1800) }, "setup: the times were moved back")
         for url in urls { _ = try? Sidecar.read(url: url) }
         let after = try urls.map(state)
         for (index, url) in urls.enumerated() {

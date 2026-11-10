@@ -469,11 +469,6 @@ package nonisolated struct HoughIndexer: Sendable {
             self.scanRows = scanRows; self.scanColumns = scanColumns; self.solutions = solutions
         }
 
-        /// The fraction of points indexed (phase >= 0).
-        package var indexedFraction: Double {
-            solutions.isEmpty ? 0 : Double(solutions.filter { $0.phase >= 0 }.count) / Double(solutions.count)
-        }
-
         /// The orientations as orix's `Rotation` takes them (kikuchipy's `xmap_from_hough_indexing_data`): identity where
         /// not indexed.
         package var rotations: [Rotation] {

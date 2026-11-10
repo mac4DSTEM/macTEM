@@ -121,15 +121,6 @@ package nonisolated struct GrainOrientationStatistics: Sendable, Equatable {
     /// GOS per grain: the mean GROD angle, radians.
     package var gos: [Double] { grod.map { $0.isEmpty ? .nan : $0.reduce(0, +) / Double($0.count) } }
 
-    /// The GROD of every point as a map (radians), NaN outside the grains.
-    package func grodMap(_ segmentation: GrainSegmentation) -> [Double] {
-        var out = [Double](repeating: .nan, count: segmentation.rows * segmentation.columns)
-        for (g, grain) in segmentation.grains.enumerated() {
-            for (k, i) in grain.points.enumerated() { out[i] = grod[g][k] }
-        }
-        return out
-    }
-
     /// The GOS of every point's grain as a map (radians), NaN outside the grains.
     package func gosMap(_ segmentation: GrainSegmentation) -> [Double] {
         let values = gos

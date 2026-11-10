@@ -46,10 +46,10 @@ nonisolated final class EDXJourney: Journey {
         }
         let haadf = app.groups["HAADF map"].firstMatch
         let mg = app.groups["Mg map, Kα"].firstMatch
-        try step("there is no tile size control") {
+        // The maps scale with the panes. The tile size control left the sources with its identifier, so its absence is not a check that could fail.
+        try step("the HAADF and Mg tiles are up") {
             XCTAssertTrue(haadf.waitForExistence(timeout: 30))
             XCTAssertTrue(mg.waitForExistence(timeout: 60))
-            XCTAssertTrue(isAbsent("maps.tileSize"), "the maps scale with the panes")
         }
         // The scale bar's spoken length ("Scale bar, 5 pixels"): the one thing on a tile that says its zoom. Since MacEMUI 0.4.0 the bar is one
         // Button whose label is that length, with no StaticText inside, so the journey reads the button label.
