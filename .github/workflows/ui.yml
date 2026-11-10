@@ -52,10 +52,20 @@ jobs:
           xcode-select -p
           xcodebuild -version
       - name: Run the UI journeys
-        # The journey list reaches the shell as a variable, never spliced into the script; unquoted so it splits into names.
+        # The dispatch input reaches the shell as data in JOURNEYS, never as script text, and only as names: letters, digits,
+        # `_` and `/` (Class or Class/testMethod), separated by spaces; anything else is refused before xcodebuild runs. A dispatch
+        # without names runs all but PerformanceJourney.
+        shell: bash
         env:
           JOURNEYS: ${{ inputs.journeys }}
-        run: tools/run-tests.sh ui $JOURNEYS
+        run: |
+          names='^[A-Za-z0-9_/ ]*$'
+          if [[ ! "$JOURNEYS" =~ $names ]]; then
+            echo "ui.yml: journeys must be class names separated by spaces; refused: $JOURNEYS" >&2
+            exit 64
+          fi
+          # Unquoted on purpose: one argument per name.
+          tools/run-tests.sh ui $JOURNEYS
       - name: Upload the screenshots
         if: always()
         uses: actions/upload-artifact@v7

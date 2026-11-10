@@ -191,6 +191,34 @@ nonisolated final class SEMTextureParityTests: XCTestCase {
         SEMAssertParity(values.reduce(0, +) / Double(values.count), ref, scalar: "odf_mean_over_uniform_sample")
     }
 
+    // MARK: - Smoothing
+
+    /// scipy's `gaussian_filter` smooths an axis only when its sigma is above 1e-15 and raises on an infinite one: a sigma of 0, −5 and
+    /// NaN return the counts as they are, the default 5° smooths, and the texture refuses an infinite sigma, or one whose kernel passes
+    /// the cap, with one sentence. Red before: sigma 0 filled the map with NaN (a kernel of exp(−∞ · 0)), −5 trapped on the kernel's
+    /// range and NaN in its conversion to `Int`, and the texture's infinite sigma trapped there too.
+    func testSmoothingAtTheEdgesOfSigmaFollowsScipy() throws {
+        let counts = (0..<EqualAreaGrid(resolution: 1).binCount).map { Double($0 % 7) }
+        for sigma in [0, -5, Double.nan] {
+            XCTAssertEqual(PoleDensityFunction.density(counts: counts, sigma: sigma, mrd: false).values, counts, "sigma \(sigma) smooths nothing")
+        }
+        XCTAssertNotEqual(PoleDensityFunction.density(counts: counts, mrd: false).values, counts, "the default 5° smooths")
+        XCTAssertTrue(PoleDensityFunction.smoothingFits(sigma: 512, symmetry: PointGroup.oh), "512° fits the inverse pole figure's 0.5° bins")
+        XCTAssertFalse(PoleDensityFunction.smoothingFits(sigma: 513, symmetry: PointGroup.oh))
+        XCTAssertTrue(PoleDensityFunction.smoothingFits(sigma: 1024), "and 1024° a pole figure's 1° bins")
+
+        let points = CrystalMap.coordinates(shape: (rows: 4, columns: 4), steps: (dy: 1.5, dx: 1.5))
+        let ni = CrystalPhase(name: "Ni", spaceGroup: 225, pointGroup: "m-3m", lattice: [3.524, 3.524, 3.524, 90, 90, 90])
+        let map = try CrystalMap(euler: Array(repeating: SIMD3<Double>(0.1, 0.2, 0.3), count: 16), phaseIDs: Array(repeating: 0, count: 16),
+                                 x: points.x, y: points.y, phaseList: PhaseList([(0, ni)]), scanUnit: "um")
+        let refusal = MapAnalysis.Refusal.grains("The texture's smoothing sigma must be a finite number of degrees, at most 512°.")
+        for sigma in [Double.infinity, 1e6] {
+            XCTAssertThrowsError(try MapTexture.compute(map, phaseID: 0, sigma: sigma), "sigma \(sigma)") { error in
+                XCTAssertEqual(error as? MapAnalysis.Refusal, refusal)
+            }
+        }
+    }
+
     // MARK: - Rasters
 
     /// The Texture tab's canvases: the pole figure drawn over the unit disk (NaN outside), every drawn pixel the value of its

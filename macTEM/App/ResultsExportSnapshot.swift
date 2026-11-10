@@ -14,7 +14,8 @@ import TEMSession
 nonisolated struct ExportResultsSnapshot: Sendable {
     let rows: [ResultRow]
     let source: ExportSource
-    /// The Image room's state line for the file's marks ("Not saved…", "Saved at 14:03…").
+    /// The Image room's state line for the file's marks, its time in ISO 8601 (`ExportSnapshot.sessionHeader`: "Not saved…",
+    /// "Saved at 2026-11-10T14:03:00+01:00…").
     let session: String
     let defaultName: String
     let directory: URL?
@@ -42,9 +43,18 @@ extension SessionTailInput {
 
 extension ExportSnapshot {
     /// The sentence that says where the file's marks are kept: the first line of the Image room's tail, else the Results
-    /// room's own words for a file with no mark.
+    /// room's own words for a file with no mark. A saved time on the reader's clock, as the tail writes it (the Results room's header).
     static func sessionSentence(of item: OpenItem) -> String {
         ResultsFormat.session(firstLine: SessionFormat.tail(SessionTailInput(item: item)).lines.first?.text)
+    }
+
+    /// The same sentence for the results CSV's `session:` header: a saved time in ISO 8601 in `timeZone` with its offset ("Saved at
+    /// 2026-11-10T14:03:00+01:00 to …"), so the header names the day and reads the same in every locale, where the reader's clock
+    /// wrote "2:03 PM" in one and "14:03" in another.
+    static func sessionHeader(_ input: SessionTailInput, timeZone: TimeZone = .current) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = timeZone
+        return ResultsFormat.session(firstLine: SessionFormat.tail(input, savedTime: { formatter.string(from: $0) }).lines.first?.text)
     }
 
     /// Export Results… for a file's owners; nil when it has no finished measurement or no pixels.
@@ -55,7 +65,7 @@ extension ExportSnapshot {
         guard !rows.isEmpty else { return nil }
         let groups = ResultRow.Group.allCases.filter { group in rows.contains { $0.group == group } }
         return ExportResultsSnapshot(
-            rows: rows, source: ExportSource(image: image, software: software), session: sessionSentence(of: item),
+            rows: rows, source: ExportSource(image: image, software: software), session: sessionHeader(SessionTailInput(item: item)),
             defaultName: ResultsFormat.exportName(fileName: image.fileName),
             directory: item.url.deletingLastPathComponent(),
             message: ResultsFormat.exportMessage(rows: rows.count, groups: groups))

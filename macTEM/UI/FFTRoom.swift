@@ -12,6 +12,7 @@
 //  Work"); leaving the room releases the products (`onDisappear`), so the selected file's megabytes go with the room.
 //  `WorkspaceView` keys the room by the item's id, so a file switch is a new room. The room's accessibility identifier is
 //  `fft.room`; `fft.view` is the View menu's (the design note's list), `fft.sourcePane` and `fft.spectrumPane` the panes'.
+//  The window's View > Zoom commands act on the pane pressed last (`FFTZoomTarget`).
 //
 //  The inspector's two sections are lane C2's (FFTRoomInspector.swift); the two forwarders below are the mount points
 //  the shell's switches call.
@@ -29,6 +30,7 @@ struct FFTRoom: View {
     let canvas: CanvasPixels
     let item: OpenItem
     /// The pane the keys are for: the one pressed last, nil until one is (`PaneKeys.swift`). Owned here, written by the panes on a press.
+    /// View > Zoom acts on the same pane (`FFTZoomTarget`).
     @State private var keyPane: FFTKeyPane?
 
     var body: some View {
@@ -74,6 +76,16 @@ nonisolated enum FFTPaneGeometry {
     static func make(box: CGSize, width: Int, height: Int, zoom: CGFloat, offset: CGSize) -> MarkGeometry {
         MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box, zoom: zoom, offset: offset),
                      imageWidth: width, imageHeight: height)
+    }
+}
+
+/// Which pane View > Zoom In, Zoom Out and Zoom to Fit (⌘+, ⌘−, ⌘0) act on: the one pressed last (the room's `keyPane`, which the
+/// keys follow too), and the transform until a pane has been pressed, since the transform is the room's own picture. A pane with
+/// no picture drawn offers no zoom. Each pane publishes its `PaneZoomModel` by this rule (`zoomCommandTarget`), so exactly one
+/// answers the menu; mac4DSTEM's two panes do the same by their last-clicked pane.
+nonisolated enum FFTZoomTarget {
+    static func isTarget(pane: FFTKeyPane, lastClicked: FFTKeyPane?, hasPicture: Bool) -> Bool {
+        hasPicture && pane == (lastClicked ?? .spectrum)
     }
 }
 

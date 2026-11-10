@@ -7,6 +7,7 @@
 //  functions laid out as the room draws them. Red before P5-04: none of these types or the Segment verb exists.
 //
 
+import FormatoCore
 import Foundation
 import TEMCore
 import ShellLayout
@@ -178,6 +179,8 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         XCTAssertNotNil(MapsFigure.textureImage(texture.poleFigures[0].raster))
         let png = try MapsFigure.texturePNG(texture, fileName: "sdss.ang", side: 80)
         XCTAssertEqual(Array(png.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
+        // The file's name is the figure's Title (#331).
+        XCTAssertEqual(try FormatoPNG.textEntries(in: png).first { $0.keyword == "Title" }?.value, "sdss.ang")
     }
 
     // MARK: - The session and the room
@@ -369,5 +372,19 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         var reports: [String] = []
         state.exportHistogram(from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported ebsd-sdss-ferrite-austenite histogram GOS.csv"])
+    }
+
+    /// A texture that cannot be made says why in the status line. Red before: the reason was dropped and the line read "No texture for
+    /// this phase".
+    @MainActor func testATextureThatCannotBeMadeSaysWhy() async throws {
+        let session = OrientationMapSession()
+        await session.open(url: Self.sdss).value
+        var events: [String] = []
+        session.onEvent = { events.append($0) }
+        XCTAssertNil(session.document?.map.phases[id: 99], "no phase 99 in the map")
+        await session.showTexture(phaseID: 99).value
+        XCTAssertNil(session.texture)
+        XCTAssertFalse(session.isTexturing)
+        XCTAssertEqual(events.last, "No texture for this phase: The phase has no point group: no texture.", "\(events)")
     }
 }

@@ -20,10 +20,7 @@ nonisolated final class BusyLineJourney: Journey {
     @MainActor func testQuantifyNamesItselfOnTheBusyLine() throws {
         try step("open the real file in the EDS room") {
             launch(["--open", Self.file])
-            if !element("edx.room").waitForExistence(timeout: 20) {
-                let sidebar = element("workspace.edx")
-                if sidebar.waitForExistence(timeout: 120), sidebar.isEnabled { sidebar.click() }
-            }
+            if !element("edx.room").waitForExistence(timeout: 20) { bringToFront(room: "edx", in: "spectroscopy", timeout: 120) }
             waitFor("edx.room", timeout: 120)
             waitFor("edx.spectrum", timeout: 120)
             XCTAssertTrue(app.groups.matching(NSPredicate(format: "label BEGINSWITH %@", "Colour mix map")).firstMatch.waitForExistence(timeout: 120),

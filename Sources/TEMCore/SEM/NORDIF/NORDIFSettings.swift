@@ -10,8 +10,9 @@
 //  decodes it so; a UTF-8 copy reads with mojibake in the unit column, which no value reads from). kikuchipy reads each
 //  value from a fixed line offset below its section header; this reader looks the key up within its section, which
 //  gives the same values on every file of the parity set, including the three damaged ones, and refuses a file whose
-//  required line is missing where kikuchipy would fail on `float("")`, or whose acquisition resolution or number of
-//  samples has a size below 1, which no reader can lay out.
+//  required line is missing where kikuchipy would fail on `float("")`, whose acquisition resolution or number of
+//  samples has a size below 1, which no reader can lay out, or whose patterns together are more bytes than an Int
+//  counts, which no reader can size.
 //
 //  Conventions kept from kikuchipy, each with its line in `_api.py`:
 //  - `Number of samples	3x3` reads as rows x columns (ny, nx); `Resolution	60x60` as width x height (sx, sy).
@@ -107,6 +108,8 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
         case missing(section: String, key: String)
         case notANumber(section: String, key: String, value: String)
         case notPositive(section: String, key: String, value: String)
+        /// The number of samples and the acquisition resolution, as written, whose bytes overflow an Int.
+        case tooLarge(samples: String, resolution: String)
         case noCalibrationPatterns
 
         /// The app's words, after "<file> cannot be read: ".
@@ -116,6 +119,9 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
             case .missing(let section, let key): "its [\(section)] section has no '\(key)' line."
             case .notANumber(let section, let key, let value): "its [\(section)] '\(key)' value '\(value)' is not a number."
             case .notPositive(let section, let key, let value): "its [\(section)] '\(key)' value '\(value)' has a size below 1."
+            case .tooLarge(let samples, let resolution):
+                "its [Area] 'Number of samples' value '\(samples)' with its [Acquisition settings] 'Resolution' value '\(resolution)' "
+                    + "is more bytes than can be counted."
             case .noCalibrationPatterns: "it lists no calibration patterns (no 'Calibration (x,y)' line under [Calibration patterns])."
             }
         }
@@ -179,6 +185,10 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
         if file.has("Calibration settings") { calibration = try patternSettings(file, section: "Calibration settings", sized: false) }
         let samples = try file.required("Area", "Number of samples")
         let (rows, columns) = try sizes(samples, section: "Area", key: "Number of samples")
+        // Every reader multiplies these four into the scan's byte count (uint8): a product beyond Int is refused here, before one traps.
+        guard ReaderNumber.product([rows, columns, acquisition.resolution.width, acquisition.resolution.height]) != nil else {
+            throw Refusal.tooLarge(samples: samples, resolution: file.value("Acquisition settings", "Resolution") ?? "")
+        }
         let area = Area(top: measure(file, "Top"), left: measure(file, "Left"), width: measure(file, "Width"), height: measure(file, "Height"),
                         stepUM: try file.number("Area", "Step size"), rows: rows, columns: columns, scanTime: file.value("Area", "Scan time"))
 

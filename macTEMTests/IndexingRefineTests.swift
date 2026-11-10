@@ -332,13 +332,13 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         XCTAssertNil(indexing.staleness(ofRun: shown.id, method: .dictionary))
         let exported = IndexingRoomState.record(.ang, data: Data(), layer: .ipfZ, method: .dictionary, refined: true, fileName: "patterns_v2.h5")
         XCTAssertEqual(exported.methods, [.dictionaryIndexing, .patternRefinement, .angWriter])
-        let rows = SEMSessionLedger.indexingRows(indexing, record: record, since: nil)
+        let rows = SEMSessionLedger.indexingRows(indexing, record: record, since: nil, locale: Locale(identifier: "en_US_POSIX"))
         XCTAssertEqual(rows.first?.label, "Refined dictionary indexing")
         XCTAssertEqual(rows.first.map { Array($0.methods.prefix(2)) }, [.dictionaryIndexing, .patternRefinement])
         XCTAssertEqual(rows.first?.fields.first { $0.name == "Refine" }?.value, "Orientation · ±2° · Nelder–Mead")
         XCTAssertTrue(rows.first?.log.contains { $0.text.hasPrefix("Refined ") } == true)
-        XCTAssertEqual(rows.first?.fields.first { $0.name == "Time" }?.value, IndexingInfoFormat.time(try XCTUnwrap(dictionary.seconds)))
-        XCTAssertEqual(rows.first?.fields.first { $0.name == "Refine time" }?.value, IndexingInfoFormat.time(try XCTUnwrap(shown.seconds)))
+        XCTAssertEqual(rows.first?.fields.first { $0.name == "Time" }?.value, IndexingInfoFormat.time(try XCTUnwrap(dictionary.seconds), locale: Locale(identifier: "en_US_POSIX")))
+        XCTAssertEqual(rows.first?.fields.first { $0.name == "Refine time" }?.value, IndexingInfoFormat.time(try XCTUnwrap(shown.seconds), locale: Locale(identifier: "en_US_POSIX")))
         XCTAssertEqual(rows.first?.time, record.lines(of: .indexing).last { $0.text.hasPrefix("Refined ") }?.time)
 
         // Compare: the Dictionary run against its refinement, within the trust region.
@@ -387,8 +387,8 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         let pcRun = indexing.index()
         XCTAssertTrue(indexing.isRefining)
         XCTAssertEqual(indexing.staleness(ofRun: shown.id, method: .dictionary), "Stale: the Indexing room has started another refinement since.")
-        let landing = Observations { @MainActor in (indexing.refinedRun?.result.rowsDone ?? 0, indexing.isRefining) }
-        for await (rowsLanded, refining) in landing where rowsLanded > 0 || !refining { break }
+        // The suite's wait, not `Observations`: Swift 6.3.3 (Xcode 26.6, CI) crashes in IRGen on a `@MainActor` `Observations` closure.
+        try await waitUntil("the first refined block lands", seconds: 60) { (indexing.refinedRun?.result.rowsDone ?? 0) > 0 || !indexing.isRefining }
         indexing.stop()
         await pcRun.value
         let kept = try XCTUnwrap(indexing.refinedRun)
@@ -457,7 +457,7 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         XCTAssertEqual(indexing.staleness(ofRun: shown.id, method: .dictionary), "Stale: the Indexing room has started another refinement since.",
                        "no offer to show the run on screen, older than the refinement in Maps")
         // The session report's Dictionary row is the run as indexed: none of the refinements' lines, its own end.
-        let indexedRow = try XCTUnwrap(SEMSessionLedger.indexingRows(indexing, record: record, since: nil).first)
+        let indexedRow = try XCTUnwrap(SEMSessionLedger.indexingRows(indexing, record: record, since: nil, locale: Locale(identifier: "en_US_POSIX")).first)
         XCTAssertEqual(indexedRow.label, "Dictionary indexing")
         XCTAssertFalse(indexedRow.log.contains { $0.text.hasPrefix("Refined ") || $0.text.hasPrefix("Stopped refinement ") }, "\(indexedRow.log)")
         XCTAssertEqual(indexedRow.time, record.lines(of: .indexing).last { $0.text.hasPrefix("Indexed ") }?.time)

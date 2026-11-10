@@ -3,7 +3,8 @@
 //  A NORDIF acquisition at the Patterns room's door (NORDIFOpening through EBSDOpening and FileRouting): `Pattern.dat` opens as an
 //  `EBSDDataset` whose patterns are read from the file by map position and equal NORDIFScan's bit for bit (the scan's parity against
 //  kikuchipy 0.13.1 is NORDIFReaderTests); a `.dat` counts only with a NORDIF `Setting.txt` beside it; a short pattern file reads its
-//  whole records and the rest as 0, with a note; a `Setting.txt` that is there and may not be read is named in the refusal.
+//  whole records and the rest as 0, with a note; a background bitmap that is there and cannot be read is named in a note the Info
+//  rows show; a `Setting.txt` that is there and may not be read is named in the refusal, at the routing and at the open.
 //
 
 import XCTest
@@ -102,6 +103,41 @@ nonisolated final class NORDIFOpeningTests: XCTestCase {
         }
     }
 
+    /// A `Background acquisition pattern.bmp` that is there and cannot be read leaves the scan without a static background and says
+    /// so in one note that names the bitmap and why, which the Info tab shows as a row; a folder without one keeps no note (kikuchipy
+    /// reads on without it). File mode 000 stands in for the sandbox. Red before: the bitmap was dropped with its reason, no note.
+    func testABackgroundThatIsThereAndCannotBeReadIsNamedInANote() throws {
+        XCTAssertNotEqual(geteuid(), 0, "root reads a mode-000 file; run this as a user")
+        let whole = try Data(contentsOf: url("Pattern.dat"))
+        let none = try folder(patternBytes: whole)
+        let (plain, _) = try EBSDOpening.open(url: none.appendingPathComponent("Pattern.dat"))
+        XCTAssertNil(plain.staticBackground)
+        XCTAssertEqual(plain.notes, [], "no bitmap there: no note")
+        XCTAssertFalse(EBSDBrowsing.infoRows(plain, fileName: "Pattern.dat").contains { $0.label == "Note" })
+
+        let locked = try folder(patternBytes: whole)
+        let bitmap = locked.appendingPathComponent("Background acquisition pattern.bmp")
+        try FileManager.default.copyItem(at: url("Background acquisition pattern.bmp"), to: bitmap)
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: bitmap.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: bitmap.path) }
+        let (dataset, _) = try EBSDOpening.open(url: locked.appendingPathComponent("Pattern.dat"))
+        XCTAssertNil(dataset.staticBackground)
+        XCTAssertEqual(dataset.notes.count, 1)
+        let note = try XCTUnwrap(dataset.notes.first)
+        XCTAssertTrue(note.hasPrefix("Background acquisition pattern.bmp beside Pattern.dat could not be read, so the scan's mean pattern "
+            + "stands in for it: "), note)
+        let rows = EBSDBrowsing.infoRows(dataset, fileName: "Pattern.dat")
+        XCTAssertEqual(rows.filter { $0.label == "Note" }.map(\.value), [note])
+        XCTAssertEqual(rows.first { $0.label == "Static background" }?.value, "None in the file")
+
+        // A bitmap the decoder refuses is named in the decoder's own sentence.
+        let broken = try folder(patternBytes: whole)
+        try Data("not a bitmap".utf8).write(to: broken.appendingPathComponent("Background acquisition pattern.bmp"))
+        let (refused, _) = try EBSDOpening.open(url: broken.appendingPathComponent("Pattern.dat"))
+        XCTAssertNil(refused.staticBackground)
+        XCTAssertEqual(refused.notes, ["Background acquisition pattern.bmp is not a Windows bitmap. The scan's mean pattern stands in for it."])
+    }
+
     /// A `Setting.txt` that is there and may not be read (the sandbox's case: a signed build is granted the picked `Pattern.dat`, not
     /// its folder) is named in the refusal, with the folder; file mode 000 stands in for the sandbox. A `.dat` with no settings file,
     /// or with one that opens, gets no such sentence. Red before: the general "is not a format macTEM opens".
@@ -117,6 +153,10 @@ nonisolated final class NORDIFOpeningTests: XCTestCase {
             + "a NORDIF scan needs the acquisition's folder, not Pattern.dat alone."
         XCTAssertEqual(NORDIFOpening.unreadableSettingsRefusal(pattern), sentence)
         XCTAssertEqual(FileRouting.inventory(path: pattern.path), FileInventory(refusal: sentence))
+        // An open that skips the routing (or whose access changed after it) gives the same sentence, not Foundation's error.
+        XCTAssertThrowsError(try EBSDOpening.open(url: pattern)) { error in
+            XCTAssertEqual(error as? EBSDReadError, EBSDReadError(text: sentence))
+        }
         let lone = try self.folder(patternBytes: Data([1, 2, 3]), settings: nil)
         XCTAssertNil(NORDIFOpening.unreadableSettingsRefusal(lone.appendingPathComponent("Pattern.dat")), "no Setting.txt beside it")
         XCTAssertNil(NORDIFOpening.unreadableSettingsRefusal(url("Pattern.dat")), "its Setting.txt opens")

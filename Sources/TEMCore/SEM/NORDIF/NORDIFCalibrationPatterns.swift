@@ -8,7 +8,9 @@
 //        `Background calibration pattern.bmp` as the static background. Parity: reference.json (NORDIFReaderTests).
 //
 //  The scaling is kikuchipy's: `factor = step * width_px / width_um` from the `[Area] Width` line, and every scaled
-//  value is `round(value / factor)` with NumPy's round-half-to-even. Without a readable `Width` there is no scaling.
+//  value is `round(value / factor)` with NumPy's round-half-to-even. Without a readable `Width` there is no scaling,
+//  nor with a factor of 0 or one that is not finite (a `Step size` of 0 or NaN, a `Width` of 0 px), nor when a scaled
+//  value is beyond an Int: the scaled values stay nil where a division by such a factor would trap.
 //  An `[Area]` corner the file does not carry counts as 0 in `roiOrigin`, as kikuchipy's default; `settings.area`
 //  keeps it nil.
 //
@@ -39,7 +41,8 @@ package nonisolated struct NORDIFCalibrationPatterns: Equatable, Sendable {
     /// `[Area]` Top, Left (the origin) and Height, Width (the shape) in pixels of the electron image.
     package var roiOrigin: Point
     package var roiShape: Point
-    /// The same in scan steps (kikuchipy's `indices_scaled`, `shape_scaled`, `origin_scaled`); nil without a readable width.
+    /// The same in scan steps (kikuchipy's `indices_scaled`, `shape_scaled`, `origin_scaled`); nil without a readable width or a usable
+    /// factor.
     package var positionsScaled: [Point]?
     package var areaShapeScaled: Point?
     package var roiOriginScaled: Point?
@@ -82,15 +85,30 @@ package nonisolated struct NORDIFCalibrationPatterns: Equatable, Sendable {
         var result = NORDIFCalibrationPatterns(settings: settings, positions: positions, patterns: patterns,
                                                staticBackground: staticBackground, areaShape: areaShape,
                                                roiOrigin: roiOrigin, roiShape: roiShape)
-        if let width = area.width, width.micrometres != 0 {
-            let factor = area.stepUM * Double(width.pixels) / width.micrometres
-            func steps(_ value: Int) -> Int { Int((Double(value) / factor).rounded(.toNearestOrEven)) }
-            func steps(of point: Point) -> Point { Point(row: steps(point.row), column: steps(point.column)) }
-            result.positionsScaled = positions.map { Point(row: steps($0.y), column: steps($0.x)) }
-            result.areaShapeScaled = areaShape.map(steps(of:))
-            result.roiOriginScaled = steps(of: roiOrigin)
-            result.roiShapeScaled = steps(of: roiShape)
+        guard let width = area.width, width.micrometres != 0 else { return result }
+        let factor = area.stepUM * Double(width.pixels) / width.micrometres
+        guard factor.isFinite, factor != 0 else { return result }
+        // `Int(exactly:)`, as `ReaderNumber.int`: a quotient no Int holds means no scaling, where `Int(_:)` would trap.
+        func steps(_ value: Int) -> Int? { Int(exactly: (Double(value) / factor).rounded(.toNearestOrEven)) }
+        func steps(of point: Point) -> Point? {
+            guard let row = steps(point.row), let column = steps(point.column) else { return nil }
+            return Point(row: row, column: column)
         }
+        var positionsScaled: [Point] = []
+        for position in positions {
+            guard let scaled = steps(of: Point(row: position.y, column: position.x)) else { return result }
+            positionsScaled.append(scaled)
+        }
+        var areaShapeScaled: Point?
+        if let areaShape {
+            guard let scaled = steps(of: areaShape) else { return result }
+            areaShapeScaled = scaled
+        }
+        guard let roiOriginScaled = steps(of: roiOrigin), let roiShapeScaled = steps(of: roiShape) else { return result }
+        result.positionsScaled = positionsScaled
+        result.areaShapeScaled = areaShapeScaled
+        result.roiOriginScaled = roiOriginScaled
+        result.roiShapeScaled = roiShapeScaled
         return result
     }
 }

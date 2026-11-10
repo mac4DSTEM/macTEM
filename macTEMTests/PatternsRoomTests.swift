@@ -178,10 +178,10 @@ nonisolated final class PatternsRoomTests: XCTestCase {
     @MainActor func testTheQualityMapsLandOnTheScanMapAsKikuchipysNumbers() async throws {
         let session = EBSDSession()
         await session.open(url: try fixture("ebsd-kikuchipy-h5ebsd", "h5")).value
-        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the map pass to end", seconds: 20) { !session.isMapping }
         session.showMap(.imageQuality)
         XCTAssertTrue(session.isQualityMapping || session.imageQualityMap != nil)
-        for _ in 0..<4000 where session.isQualityMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the quality pass to end", seconds: 20) { !session.isQualityMapping }
         let ref = try SEMParityReference.load("m2/quality-kikuchipy-h5ebsd")
         let iq = try XCTUnwrap(session.chosenImage).map(Double.init)
         SEMAssertParity(iq, try ref.array("raw_iq"))
@@ -262,7 +262,7 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         let png = try Data(contentsOf: dir.appendingPathComponent("Demo EBSD pattern r0 c0.png"))
         XCTAssertEqual([UInt8](png.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
         // The map, once the pass has landed: the mean, then the colour mix through its own encoder.
-        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the map pass to end", seconds: 20) { !session.isMapping }
         state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.last, "Exported Demo EBSD map mean.png")
         for (channel, column) in [1, 2, 3].enumerated() { session.setMixTile(VirtualBSETile(row: 2, column: column), channel: channel) }

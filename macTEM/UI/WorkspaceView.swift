@@ -169,7 +169,7 @@ struct WelcomeWorkspace: View {
                         .accessibilityHidden(true)
                     Text("macTEM")
                         .font(.largeTitle.weight(.semibold))
-                    Text("Calibrated TEM images and electron diffraction, native on the Mac.")
+                    Text("TEM and SEM images, EDS and EELS spectra, electron diffraction and EBSD, native on the Mac.")
                         .font(.title3)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

@@ -282,4 +282,30 @@ nonisolated final class EDAXBinaryReaderTests: XCTestCase {
         XCTAssertEqual([scan.scanRows, scan.scanColumns], [3, 4])
         XCTAssertThrowsError(try EDAXOpening.open(url: ang))
     }
+
+    /// A companion `.ang` that reads but whose coordinates make no grid (here a second x that is NaN) is left out with the door's
+    /// note, as an unreadable one is; the patterns open on their own. The `.ang` opened itself still fails. Red before: the open of
+    /// the `.up2` threw the crystal map's refusal, which names neither file, and the patterns did not open.
+    func testACompanionAngWhoseCoordinatesMakeNoGridLeavesANote() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("edax-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let up2 = folder.appendingPathComponent("scan.up2")
+        try FileManager.default.copyItem(at: Self.fixture("ebsd-edax-binary.up2"), to: up2)
+        let header = try String(contentsOf: Self.fixture("ebsd-tsl.ang"), encoding: .utf8).split(separator: "\n").filter { $0.hasPrefix("#") }
+            .map(String.init)
+        let rows = ["0.1 0.2 0.3 0 0 100.0 0.5 1 1000 0.5", "0.1 0.2 0.3 nan 0 100.0 0.5 1 1000 0.5"]
+        let ang = folder.appendingPathComponent("scan.ang")
+        try (header + rows).joined(separator: "\n").appending("\n").write(to: ang, atomically: true, encoding: .utf8)
+        XCTAssertThrowsError(try ANGReader.read(url: ang)) { error in
+            XCTAssertEqual(error as? CrystalMap.Refusal, .coordinates("x holds a value that is not a finite number"))
+        }
+        let scan = try EDAXOpening.open(url: up2)
+        XCTAssertNil(scan.crystalMap)
+        XCTAssertEqual([scan.scanRows, scan.scanColumns], [3, 4])
+        XCTAssertEqual(scan.notes, ["scan.ang next to it was not read: The crystal map's coordinates make no grid: x holds a value that is not "
+            + "a finite number."])
+        XCTAssertEqual(try EBSDOpening.open(url: up2).dataset, scan)
+        XCTAssertThrowsError(try EDAXOpening.open(url: ang), "the map opened itself keeps failing")
+    }
 }

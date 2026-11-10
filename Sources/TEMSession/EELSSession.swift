@@ -10,6 +10,7 @@
 
 import Foundation
 import Observation
+import Synchronization
 import SpectroCore
 import SpectroEDX
 import SpectroEELS
@@ -901,10 +902,14 @@ package final class EELSSession {
     }
 
     /// The results footer of the fit on screen (the results panel draws the same call).
-    package var fitFooter: String {
+    package var fitFooter: String { footer(deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.line($0) }) }
+
+    /// The footer as the results CSV records it: the deconvolution in its record words, a point (`EELSDeconvolveCompute.recordLine`).
+    private var recordedFitFooter: String { footer(deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.recordLine($0) }) }
+
+    private func footer(deconvolution: String?) -> String {
         EELSRoomFormat.fitFooter(hasFit: model != nil, convolved: model?.convolved ?? false, model: model?.model ?? .exactNNLS,
-                                 deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.line($0) } ?? "no deconvolution",
-                                 references: modelReferenceNames.count)
+                                 deconvolution: deconvolution ?? "no deconvolution", references: modelReferenceNames.count)
     }
 
     /// What the fit on screen says about its own numbers, the results footer's notes: the rows on screen (the selected region's or the whole map's),
@@ -1262,16 +1267,18 @@ package final class EELSSession {
     package var resultsCSV: String? {
         let rows = resultRows
         guard !rows.isEmpty, let plot else { return nil }
+        let posix = Locale(identifier: "en_US_POSIX")
         let thickness = EELSRoomFormat.thicknessLine(plot.thickness, lambdaNM: map?.meanFreePathNM, lambdaSource: EELSRoomFormat.lambdaSource(meanFreePath),
                                                      locale: Locale(identifier: "en_US_POSIX"))
-        return EELSExports.resultsCSV(rows, fileName: fileName, regionName: plot.regionName, thickness: thickness, method: fitFooter,
+        return EELSExports.resultsCSV(rows, fileName: fileName, regionName: plot.regionName, thickness: thickness, method: recordedFitFooter,
                                       deconvolution: modelDeconvolution.map(Self.deconvolutionRecord),
-                                      quality: resultQuality.map { EELSRoomFormat.fitQuality($0, locale: Locale(identifier: "en_US_POSIX")) })
+                                      quality: resultQuality.map { EELSRoomFormat.fitQuality($0, locale: posix) })
     }
 
-    /// The deconvolution as the results CSV records it: the line, then its parameters as key=value.
+    /// The deconvolution as the results CSV records it: the line (its FWHM in en_US_POSIX, as `parameters` writes `fwhm_eV`), then its
+    /// parameters as key=value.
     private static func deconvolutionRecord(_ d: EELSDeconvolutionResult) -> String {
-        EELSDeconvolveCompute.line(d) + "; " + EELSDeconvolveCompute.parameters(d).sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
+        EELSDeconvolveCompute.recordLine(d) + "; " + EELSDeconvolveCompute.parameters(d).sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
     }
     /// The shown spectrum (the selected region's, else the whole map's), with the model where the fit holds one.
     package var spectrumCSV: String? { plot.map { EELSExports.spectrumCSV($0, fileName: fileName) } }
@@ -1306,15 +1313,19 @@ package final class EELSSession {
 }
 
 /// Lets a progress fraction through when it has moved by a percent since the last one that went (and at the end). Called from the compute
-/// thread; the lock makes it safe to share.
-private nonisolated final class ProgressGate: @unchecked Sendable {
-    private let lock = NSLock()
-    private var last = -1.0
+/// thread; the last fraction that went is behind a mutex, so the compiler checks that the gate is safe to share.
+private nonisolated final class ProgressGate: Sendable {
+    private let last: Mutex<Double>   // the last fraction that went; -1 before any
+
+    init() {
+        last = Mutex(-1.0)
+    }
 
     func shouldReport(_ fraction: Double) -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        guard fraction >= 1 || fraction - last >= 0.01 else { return false }
-        last = fraction
-        return true
+        last.withLock { sent -> Bool in
+            guard fraction >= 1 || fraction - sent >= 0.01 else { return false }
+            sent = fraction
+            return true
+        }
     }
 }

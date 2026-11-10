@@ -29,7 +29,7 @@ nonisolated final class IndexingCompareTests: XCTestCase {
         let state = AppState(launch: LaunchOptions(arguments: []))
         await state.ebsd.bind(try DemoDocuments.ebsd()).value
         let ebsd = state.ebsd
-        for _ in 0..<6000 where ebsd.isMapping || ebsd.isComputingMean || ebsd.isProcessing { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the demo scan's passes to end", seconds: 30) { !ebsd.isMapping && !ebsd.isComputingMean && !ebsd.isProcessing }
         return state
     }
 

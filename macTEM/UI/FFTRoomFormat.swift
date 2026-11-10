@@ -111,7 +111,7 @@ nonisolated enum FFTRoomFormat {
     static func nyquist(spacing: Double, count: Int, units: String, locale: Locale = .autoupdatingCurrent) -> String {
         let q = spacing * Double(count) / 2
         let d = FFTUnits.length(1 / q, unit: realUnit(ofSpectrumUnit: units))
-        return "\(frequency(q, units: units, locale: locale)) · d \(number(d.value, locale: locale)) \(d.label)"
+        return "\(frequency(q, units: units, locale: locale)) · d \(UnitDisplay.number(d.value, digits: 4, locale: locale)) \(d.label)"
     }
 
     /// The unit of the image a spectrum unit came from: "1/nm" → "nm", "1/px" → "px"; a diffraction image's spectrum, in "nm",
@@ -126,7 +126,7 @@ nonisolated enum FFTRoomFormat {
 
     private static func frequency(_ q: Double, units: String, locale: Locale) -> String {
         let shown = FFTUnits.spectrumUnit(units)
-        return "\(number(q * shown.factor, locale: locale)) \(shown.label)"
+        return "\(UnitDisplay.number(q * shown.factor, digits: 4, locale: locale)) \(shown.label)"
     }
 
     // MARK: Spots (R3; R4)
@@ -137,13 +137,20 @@ nonisolated enum FFTRoomFormat {
     /// A length in the image's unit as shown, "0.4 nm" (R8).
     static func length(_ d: Double, unit: String, locale: Locale = .autoupdatingCurrent) -> String {
         let shown = FFTUnits.length(d, unit: unit)
-        return "\(number(shown.value, locale: locale)) \(shown.label)"
+        return "\(UnitDisplay.number(shown.value, digits: 4, locale: locale)) \(shown.label)"
     }
 
     /// A spatial frequency, in the reciprocal of the image's unit, as shown, "2.5 nm⁻¹" (R8).
     static func reciprocal(_ q: Double, realUnit unit: String, locale: Locale = .autoupdatingCurrent) -> String {
         let shown = FFTUnits.reciprocal(q, realUnit: unit)
-        return "\(number(shown.value, locale: locale)) \(shown.label)"
+        return "\(UnitDisplay.number(shown.value, digits: 4, locale: locale)) \(shown.label)"
+    }
+
+    /// A measured spot's d as its row's accessibility value: the number and the unit it was measured in, "0.23514 nm". Five significant
+    /// digits, one more than the row draws, in the reader's locale as the row is (#329: the value kept a point under a row that read
+    /// "0,2351 nm"). A UI journey reads it and parses the reader's decimal mark.
+    static func spacingValue(d: Double, unit: String, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(UnitDisplay.number(d, digits: 5, locale: locale)) \(unit)"
     }
 
     /// A spot's two numbers, "d 0.4 nm" and "|q| 2.5 nm⁻¹", for a row that stacks them when it is narrow.
@@ -235,10 +242,10 @@ nonisolated enum FFTRoomFormat {
         "Measured on a Hann-windowed copy of \(transformed(crop, imageWidth: imageWidth, imageHeight: imageHeight, withPosition: false))."
     }
 
-    /// The accuracy `SpotMeasurement` measured under 256 px (1–5 % at 64 px, 0.5–3 % at 128 px); nil from 256 px up, where the
-    /// noise-free band holds. The smaller side decides: a whole image may be any shape.
-    static func accuracyNote(width: Int, height: Int) -> String? {
-        min(width, height) < 256 ? "With noise, d is good to 1–5 % at 64 px and 0.5–3 % at 128 px." : nil
+    /// The accuracy `SpotMeasurement` measured under 256 px (1–5 % at 64 px, 0.5–3 % at 128 px), the 0.5 in `locale` (the spots CSV
+    /// passes POSIX); nil from 256 px up, where the noise-free band holds. The smaller side decides: a whole image may be any shape.
+    static func accuracyNote(width: Int, height: Int, locale: Locale = .autoupdatingCurrent) -> String? {
+        min(width, height) < 256 ? "With noise, d is good to 1–5 % at 64 px and \(UnitDisplay.number(0.5, digits: 1, locale: locale))–3 % at 128 px." : nil
     }
 
     /// The bins Measure at… takes, whole bins from the centre: the bin (h/2 + ky, w/2 + kx), so kx runs from −w/2 to
@@ -303,22 +310,22 @@ nonisolated enum FFTRoomFormat {
     /// "|q| 0.75 – 1 nm⁻¹ · mean |F|² 3.21 × 10⁵ · 128 px": bin k spans [k·w, (k + 1)·w) in the profile's unit. A profile bin
     /// is not a ring, so there is no d here. `binWidth` is in the shown unit.
     static func readout(_ sample: ChartSample, binWidth: Double, label: String, locale: Locale = .autoupdatingCurrent) -> String {
-        let low = number(Double(sample.bin) * binWidth, locale: locale)
-        let high = number(Double(sample.bin + 1) * binWidth, locale: locale)
+        let low = UnitDisplay.number(Double(sample.bin) * binWidth, digits: 4, locale: locale)
+        let high = UnitDisplay.number(Double(sample.bin + 1) * binWidth, digits: 4, locale: locale)
         return "|q| \(low) – \(high) \(label) · mean |F|² \(power(sample.mean, locale: locale)) · \(sample.count) px"
     }
 
     /// "Bin width 0.3125 nm⁻¹ · region 256 × 256 px · bin 0 (the DC) is not drawn".
     static func caption(binWidth: Double, label: String, what: String, locale: Locale = .autoupdatingCurrent) -> String {
-        "Bin width \(number(binWidth, locale: locale)) \(label) · \(what) · bin 0 (the DC) is not drawn"
+        "Bin width \(UnitDisplay.number(binWidth, digits: 4, locale: locale)) \(label) · \(what) · bin 0 (the DC) is not drawn"
     }
 
     /// The chart's spoken overview.
     static func profileSummary(_ samples: [ChartSample], label: String, locale: Locale = .autoupdatingCurrent) -> String {
         guard let first = samples.first, let last = samples.last,
               let low = samples.map(\.mean).min(), let high = samples.map(\.mean).max() else { return "No bins" }
-        return "\(samples.count) \(samples.count == 1 ? "bin" : "bins") from \(number(first.q, locale: locale)) to "
-            + "\(number(last.q, locale: locale)) \(label); mean |F|² from \(power(low, locale: locale)) to \(power(high, locale: locale))"
+        return "\(samples.count) \(samples.count == 1 ? "bin" : "bins") from \(UnitDisplay.number(first.q, digits: 4, locale: locale)) to "
+            + "\(UnitDisplay.number(last.q, digits: 4, locale: locale)) \(label); mean |F|² from \(power(low, locale: locale)) to \(power(high, locale: locale))"
     }
 
     /// A power as three digits and a decade: "3.21 × 10⁵", a whole decade "10⁵", decade 0 the digits alone. The power spans
@@ -334,7 +341,7 @@ nonisolated enum FFTRoomFormat {
         // Three digits can round up into the next decade (9.996 → 10.0).
         mantissa = (mantissa * 100).rounded() / 100
         if abs(mantissa) >= 10 { mantissa /= 10; exponent += 1 }
-        let digits = number(mantissa, 3, locale: locale)
+        let digits = UnitDisplay.number(mantissa, digits: 3, locale: locale)
         guard exponent != 0 else { return digits }
         let decade = "10" + superscript(exponent)
         return abs(mantissa) == 1 ? (mantissa < 0 ? "-" : "") + decade : "\(digits) × \(decade)"
@@ -397,7 +404,7 @@ nonisolated enum FFTRoomFormat {
 
         /// "0–50 %".
         func rangeText(locale: Locale = .autoupdatingCurrent) -> String {
-            let low = FFTRoomFormat.number(range.lowerBound, locale: locale), high = FFTRoomFormat.number(range.upperBound, locale: locale)
+            let low = UnitDisplay.number(range.lowerBound, digits: 4, locale: locale), high = UnitDisplay.number(range.upperBound, digits: 4, locale: locale)
             return "\(low)–\(high)" + (unit.map { " \($0)" } ?? "")
         }
 
@@ -454,7 +461,7 @@ nonisolated enum FFTRoomFormat {
     /// "512 × 512 px · 37 passes · 5.1 % flagged": the run's size, its passes and the share of bins flagged when the loop
     /// stopped.
     static func filterStatus(n: Int, passes: Int, finalDelta: Double, locale: Locale = .autoupdatingCurrent) -> String {
-        let share = finalDelta.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(1)))
+        let share = UnitDisplay.fixed(finalDelta, places: 1, locale: locale)
         return "\(n) × \(n) px · \(passes) \(passes == 1 ? "pass" : "passes") · \(share) % flagged"
     }
 
@@ -465,13 +472,6 @@ nonisolated enum FFTRoomFormat {
     // MARK: The spectrum's display
 
     static let displayValueNote = "Values are log₁₀(|F|² ÷ (W·H)²), as drawn. The window changes the picture, never a number."
-
-    // MARK: Numbers
-
-    /// `digits` significant digits (four for a d, a |q| and a frequency), the reader's decimal mark, no grouping.
-    fileprivate static func number(_ value: Double, _ digits: Int = 4, locale: Locale) -> String {
-        UnitDisplay.number(value, digits: digits, locale: locale)
-    }
 }
 
 // MARK: - The Settings tab's sections, in order

@@ -192,7 +192,6 @@ nonisolated final class EELSRoomTests: XCTestCase {
 
     /// The EELS room is built, sits right after the EDS room in the Spectroscopy workspace (⌘2), and is entered with no image open.
     @MainActor func testTheEELSRoomIsBuiltAndFifth() {
-        XCTAssertTrue(WorkspaceArea.eels.isBuilt)
         XCTAssertEqual(WorkspaceArea.allCases[3], .eels)
         XCTAssertEqual(WorkspaceGroup.spectroscopy.parts, [.edx, .eels])
         XCTAssertEqual(WorkspaceGroup.spectroscopy.shortcutDigit, "2")
@@ -251,6 +250,15 @@ nonisolated final class EELSRoomTests: XCTestCase {
         await task.value
         await appState.eels.settled()
         XCTAssertNil(RoomProgress.fraction(room: .eels, appState: appState), "finished: no fraction")
+    }
+
+    /// The gate that lets one progress report through per percent is shared with the compute thread behind a mutex, so the compiler checks that it
+    /// is safe to share, and the session's file marks nothing `@unchecked Sendable`. Red under: a lock beside a `var` the compiler was told not to check.
+    func testTheProgressGateIsCheckedByTheCompiler() throws {
+        let session = squeezed(try source("Sources/TEMSession/EELSSession.swift"))
+        XCTAssertTrue(session.contains("private nonisolated final class ProgressGate: Sendable { private let last: Mutex<Double>"))
+        XCTAssertFalse(session.contains("@unchecked Sendable"), "nothing in the session is taken on trust")
+        XCTAssertFalse(session.contains("NSLock"))
     }
 
     // MARK: The chassis (slice 1, docs/design/eels-room.md)
@@ -462,8 +470,8 @@ nonisolated final class EELSRoomTests: XCTestCase {
 
     /// The Processing section's line says what Align did or that it has not run.
     func testTheProcessingLineSaysWhatAlignDid() {
-        XCTAssertEqual(EELSRoomFormat.processingLine(align: .notRun, thickness: .current, alignmentReadout: nil), "Align —: Run aligns the zero-loss peak.")
-        XCTAssertEqual(EELSRoomFormat.processingLine(align: .current, thickness: .current, alignmentReadout: "offset -1.000 → 0.000 eV, 9 of 10 channels kept"),
+        XCTAssertEqual(EELSRoomFormat.processingLine(align: .notRun, alignmentReadout: nil), "Align —: Run aligns the zero-loss peak.")
+        XCTAssertEqual(EELSRoomFormat.processingLine(align: .current, alignmentReadout: "offset -1.000 → 0.000 eV, 9 of 10 channels kept"),
                        "Aligned: offset -1.000 → 0.000 eV, 9 of 10 channels kept")
     }
 
@@ -807,9 +815,9 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertFalse(inspector.contains(".pickerStyle(.segmented)"), "no centred pill")
         XCTAssertTrue(inspector.contains("EELSReferencesBlock(session: session)"))
         for label in ["From region", "Import…", "Remove"] { XCTAssertTrue(inspector.contains("\"\(label)\""), label) }
-        XCTAssertEqual(EELSRoomFormat.processingNote(align: .current, thickness: .current, alignmentReadout: "offset -1 → 0 eV, 9 of 10 channels kept", coreAligned: true),
+        XCTAssertEqual(EELSRoomFormat.processingNote(align: .current, alignmentReadout: "offset -1 → 0 eV, 9 of 10 channels kept", coreAligned: true),
                        "Aligned: offset -1 → 0 eV, 9 of 10 channels kept The core loss is aligned with it.")
-        XCTAssertEqual(EELSRoomFormat.processingNote(align: .notRun, thickness: .current, alignmentReadout: nil, coreAligned: false),
+        XCTAssertEqual(EELSRoomFormat.processingNote(align: .notRun, alignmentReadout: nil, coreAligned: false),
                        "Align —: Run aligns the zero-loss peak.")
     }
 

@@ -6,7 +6,8 @@
 //  `histogram2d`), smoothed by scipy's `ndimage.gaussian_filter` (sigma / resolution bins, truncate 4, `wrap` in azimuth and
 //  `reflect` in polar), folded into a point group's fundamental sector when one is given (counted at half the resolution,
 //  the bin centres moved into the sector and summed onto the full-resolution grid, the bins outside the sector masked), and
-//  given in multiples of a random distribution (the mean unmasked bin is 1).
+//  given in multiples of a random distribution (the mean unmasked bin is 1). A sigma not above 1e-15 bins smooths nothing, as
+//  scipy skips such an axis; the kernel is capped (`maximumKernelRadius`), where scipy raises only on an infinite sigma.
 //
 //  A vector within about 1e-12 rad of a bin edge goes to either neighbour depending on the last bit of atan2 and arccos,
 //  which differ between libms; the parity bundles count those vectors and the tests allow each one bin (D-SEM-68).
@@ -118,9 +119,6 @@ package nonisolated struct PoleDensityMap: Sendable {
     /// The symmetry whose sector the map was folded into, nil for a pole figure on a hemisphere.
     package let symmetry: PointGroup?
 
-    package var azimuthBins: Int { grid.azimuthBins }
-    package var polarBins: Int { grid.polarBins }
-
     /// The largest unmasked value (the top of the colour bar).
     package var maximum: Double { zip(values, mask).filter { !$0.1 }.map(\.0).max() ?? 0 }
 
@@ -205,10 +203,38 @@ package nonisolated enum PoleDensityFunction {
 
     // MARK: - scipy.ndimage.gaussian_filter
 
+    /// scipy's `gaussian_filter` smooths an axis only when its sigma (in bins) is above this: 0, a negative sigma and NaN leave the
+    /// counts as they are.
+    static let smallestSigma = 1e-15
+
+    /// The widest smoothing kernel, 2¹² bins on each side of its centre: wider than a whole turn of any grid a texture is binned on
+    /// (720 bins at the inverse pole figure's 0.5°), so every sigma a texture can mean passes (up to 512° at 0.5°, 1024° at a pole
+    /// figure's 1°). `MapTexture.compute` refuses a wider one before any figure is made; here it is a precondition, as a sigma of
+    /// 1e19 bins would trap in the conversion of its radius to `Int` and a smaller huge one would ask for a kernel of 8 sigma values.
+    package static let maximumKernelRadius = 1 << 12
+
+    /// Whether `density` smooths at `sigma` degrees on the working grid of `resolution` (half of it with a symmetry) within
+    /// `maximumKernelRadius`: true for a sigma that smooths nothing (scipy's rule, `smallestSigma`) and for one whose kernel fits;
+    /// false for an infinite sigma and for one past the cap.
+    package static func smoothingFits(sigma: Double, resolution: Double = 1, symmetry: PointGroup? = nil) -> Bool {
+        let bins = sigma / (symmetry == nil ? resolution : resolution / 2)
+        return !(bins > smallestSigma) || kernelRadius(sigma: bins) != nil
+    }
+
+    /// scipy's kernel radius int(truncate σ + 0.5) for a sigma in bins that smooths (above `smallestSigma`) and whose radius is at
+    /// most `maximumKernelRadius`; nil for any other sigma (NaN, infinite, past the cap, or one that smooths nothing).
+    static func kernelRadius(sigma: Double, truncate: Double = 4) -> Int? {
+        let extent = truncate * sigma + 0.5
+        guard sigma > smallestSigma, extent < Double(maximumKernelRadius + 1) else { return nil }
+        return Int(extent)
+    }
+
     /// scipy's `_gaussian_kernel1d(sigma, 0, radius)`: exp(−x² / 2σ²) for x in −radius...radius, normalised to sum 1,
-    /// radius = int(4 σ + 0.5).
+    /// radius = int(4 σ + 0.5). The sigma smooths and its radius is at most `maximumKernelRadius` (`kernelRadius`).
     static func gaussianKernel(sigma: Double, truncate: Double = 4) -> [Double] {
-        let radius = Int(truncate * sigma + 0.5)
+        guard let radius = kernelRadius(sigma: sigma, truncate: truncate) else {
+            preconditionFailure("a kernel sigma above 1e-15 bins whose radius is at most maximumKernelRadius bins")
+        }
         let factor = -0.5 / (sigma * sigma)
         var w = (-radius...radius).map { exp(factor * Double($0 * $0)) }
         let s = w.reduce(0, +)
@@ -218,7 +244,9 @@ package nonisolated enum PoleDensityFunction {
 
     /// `gaussian_filter(h, sigma, mode=("wrap", "reflect"))` on a rows x columns array (rows = azimuth bins, wrapped;
     /// columns = polar bins, reflected about the outer edges as scipy's half-sample "reflect": d c b a | a b c d | d c b a).
+    /// A sigma that is not above `smallestSigma` (0, negative, NaN) returns `h` as it is, as scipy skips such an axis.
     static func gaussianFilter(_ h: [Double], rows: Int, columns: Int, sigma: Double) -> [Double] {
+        guard sigma > smallestSigma else { return h }
         let w = gaussianKernel(sigma: sigma)
         let r = w.count / 2
         var pass = [Double](repeating: 0, count: h.count)

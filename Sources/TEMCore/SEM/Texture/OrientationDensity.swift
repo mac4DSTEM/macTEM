@@ -22,6 +22,7 @@
 //
 
 import Foundation
+import Synchronization
 
 /// One φ2 section of the ODF: values (mrd) at the nodes φ1 x Φ, φ1-major (node (i, j) at i * Φ.count + j).
 package nonisolated struct ODFSection: Sendable, Equatable {
@@ -131,28 +132,15 @@ package nonisolated enum OrientationDensity {
                           values: values(orientations, at: grid, halfWidthDegrees: halfWidthDegrees), halfWidthDegrees: halfWidthDegrees)
     }
 
-    /// Sections off the caller's actor.
-    @concurrent package static func sectionsAsync(_ orientations: Orientations, phi2Degrees: [Double], stepDegrees: Double = 5,
-                                                  halfWidthDegrees: Double = defaultHalfWidthDegrees) async -> [ODFSection] {
-        phi2Degrees.map { section(orientations, phi2Degrees: $0, stepDegrees: stepDegrees, halfWidthDegrees: halfWidthDegrees) }
-    }
+    private nonisolated final class ValueBands: Sendable {
+        private let storage: Mutex<[Double]>
 
-    private nonisolated final class ValueBands: @unchecked Sendable {
-        private var storage: [Double]
-        private let lock = NSLock()
-
-        init(count: Int) { storage = [Double](repeating: 0, count: count) }
+        init(count: Int) { storage = Mutex([Double](repeating: 0, count: count)) }
 
         func set(_ start: Int, _ values: [Double]) {
-            lock.lock()
-            storage.replaceSubrange(start..<(start + values.count), with: values)
-            lock.unlock()
+            storage.withLock { $0.replaceSubrange(start..<(start + values.count), with: values) }
         }
 
-        var values: [Double] {
-            lock.lock()
-            defer { lock.unlock() }
-            return storage
-        }
+        var values: [Double] { storage.withLock { $0 } }
     }
 }

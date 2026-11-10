@@ -240,7 +240,7 @@ private struct DiffractionExportSection: View {
             }
         }
         .fileExporter(isPresented: $exporting, document: document, contentType: .commaSeparatedText,
-                      defaultFilename: ((image.fileName as NSString).deletingPathExtension) + " diffraction") { result in
+                      defaultFilename: DiffractionReadoutExport.baseName(of: image.fileName)) { result in
             if case .failure(let error) = result { appState.present(error) }
         }
     }
@@ -248,9 +248,10 @@ private struct DiffractionExportSection: View {
     private func export() {
         let text = analysis.exportText(image: image)
         if let directory = appState.exportDirectory {
-            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let url = directory.appendingPathComponent(((image.fileName as NSString).deletingPathExtension) + " diffraction.csv")
-            do { try Data(text.utf8).write(to: url); appState.statusText = "Exported \(url.lastPathComponent)" } catch { appState.present(error) }
+            do {
+                let url = try DiffractionReadoutExport.write(text, imageFileName: image.fileName, into: directory)
+                appState.statusText = "Exported \(url.lastPathComponent)"
+            } catch { appState.present(error) }
         } else {
             document = CSVTextDocument(text: text)
             exporting = true
@@ -265,15 +266,4 @@ struct CSVTextDocument: FileDocument {
     init(text: String) { self.text = text }
     init(configuration: ReadConfiguration) throws { text = String(decoding: configuration.file.regularFileContents ?? Data(), as: UTF8.self) }
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: Data(text.utf8)) }
-}
-
-/// Opens a CIF off the main actor inside the file's security scope (the kit's refusals in its words, its 5 MB cap).
-enum DiffractionCIF {
-    @concurrent
-    nonisolated static func load(_ url: URL) async throws -> LoadedCrystal {
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        let data = try Data(contentsOf: url)
-        return try CrystalLoading.load(bytes: data, fileName: url.lastPathComponent)
-    }
 }

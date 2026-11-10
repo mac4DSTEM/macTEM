@@ -1,0 +1,294 @@
+//
+//  RoomExports.swift
+//  Role: the File menu's exports of the rooms that hold a document of their own: when a room's items are listed, which of them
+//        are enabled, and the call each makes. A room's items are in the menu only while that room shows its document (the rule is
+//        nil anywhere else), as mac4DSTEM lists its Spectroscopy exports, and each is enabled by the rule of its button in the room's
+//        inspector. An item goes through the room state's own export, the call that button makes, so the menu and the inspector
+//        write the same file through the room's own save panel, or into a UI journey's export folder. The rules are pure functions,
+//        pinned without a window; `ExportCommands` draws the items.
+//
+//        The rooms: EDS (the shared room's `EDXRoomState.export`), EELS (`EELSRoomState.export`), Patterns
+//        (`PatternsRoomState.export`), Indexing (`IndexingRoomState.export`) and Maps (`MapsRoomState`'s four calls, one a file).
+//
+
+import ShellEDXModel
+import ShellSpectroscopy
+import TEMCore
+import TEMSession
+
+// MARK: - EDS
+
+/// Which of the EDS room's File-menu exports are enabled, by the rules of the room's own Export buttons (the shared room's inspector).
+nonisolated struct EDSExportAvailability: Sendable, Equatable {
+    /// Export Spectrum CSV…: the shown spectrum has channels.
+    let spectrum: Bool
+    /// Export Maps…: maps are shown (a single spectrum has none).
+    let maps: Bool
+    /// Export Results CSV… and Export Method JSON…: a fit is in, and neither a fit nor its check is running.
+    let results: Bool
+    /// Export Regions CSV…: a region is kept.
+    let regions: Bool
+}
+
+extension ExportSnapshot {
+    /// The EDS room's exports are listed only while that room shows a spectrum image: nil in any other room and with none open, and
+    /// the menu then lists none. Exhaustive over the rooms on purpose, as `availability` is.
+    static func edsAvailability(area: WorkspaceArea, hasSpectrumImage: Bool, spectrumChannels: Int, shownMaps: Int, hasFit: Bool,
+                                fitRunning: Bool, keptRegions: Int) -> EDSExportAvailability? {
+        let inRoom: Bool
+        switch area {
+        case .edx: inRoom = true
+        case .image, .fft, .diffraction, .results, .eels, .patterns, .indexing, .maps: inRoom = false
+        }
+        guard inRoom, hasSpectrumImage else { return nil }
+        return EDSExportAvailability(spectrum: spectrumChannels > 0, maps: shownMaps > 0, results: hasFit && !fitRunning,
+                                     regions: keptRegions > 0)
+    }
+
+    static func edsAvailability(of appState: AppState) -> EDSExportAvailability? {
+        // The session is read only where it decides something: in the EDS room.
+        let area = appState.navigation.workspaceArea
+        guard area == .edx else { return nil }
+        let session = appState.edx
+        return edsAvailability(area: area, hasSpectrumImage: session.hasImage, spectrumChannels: session.spectrumCounts.count,
+                               shownMaps: session.shownTiles.count, hasFit: session.fit != nil,
+                               fitRunning: session.isFitting || session.isChecking, keptRegions: session.pins.count)
+    }
+}
+
+// MARK: - EELS
+
+/// Which of the EELS room's File-menu exports are enabled, by the rules of the room's own Export buttons (`EELSExportSection`).
+nonisolated struct EELSExportAvailability: Sendable, Equatable {
+    /// Spectrum CSV… and Spectrum MSA…: a spectrum is plotted.
+    let spectrum: Bool
+    /// Maps… and Per-pixel CSV…: the thickness map is there.
+    let maps: Bool
+    /// Results CSV…: an edge is fitted.
+    let results: Bool
+    /// Method JSON…: there is a method to record.
+    let method: Bool
+    /// Regions CSV…: a kept region has its row.
+    let regions: Bool
+
+    /// The menu's items in order: the EDS room's five where the EELS room has them, the `.msa` after the CSV, the per-pixel table last.
+    static let menuKinds: [EELSExportKind] = [.spectrum, .spectrumMSA, .mapsPNG, .results, .method, .regions, .diagnostics]
+
+    /// Whether the item of `kind` is enabled.
+    func isEnabled(_ kind: EELSExportKind) -> Bool {
+        switch kind {
+        case .spectrum, .spectrumMSA: spectrum
+        case .mapsPNG, .diagnostics: maps
+        case .results: results
+        case .method: method
+        case .regions: regions
+        }
+    }
+}
+
+extension ExportSnapshot {
+    /// The EELS room's exports are listed only while that room shows a spectrum image: nil in any other room and with none open.
+    /// Exhaustive over the rooms on purpose, as `availability` is.
+    static func eelsAvailability(area: WorkspaceArea, hasSpectrumImage: Bool, hasSpectrum: Bool, hasThicknessMap: Bool, fittedEdges: Int,
+                                 hasMethodRecord: Bool, regionRows: Int) -> EELSExportAvailability? {
+        let inRoom: Bool
+        switch area {
+        case .eels: inRoom = true
+        case .image, .fft, .diffraction, .results, .edx, .patterns, .indexing, .maps: inRoom = false
+        }
+        guard inRoom, hasSpectrumImage else { return nil }
+        return EELSExportAvailability(spectrum: hasSpectrum, maps: hasThicknessMap, results: fittedEdges > 0, method: hasMethodRecord,
+                                      regions: regionRows > 0)
+    }
+
+    static func eelsAvailability(of appState: AppState) -> EELSExportAvailability? {
+        // The session is read only where it decides something: in the EELS room.
+        let area = appState.navigation.workspaceArea
+        guard area == .eels else { return nil }
+        let session = appState.eels
+        return eelsAvailability(area: area, hasSpectrumImage: session.hasImage, hasSpectrum: session.plot != nil,
+                                hasThicknessMap: session.map != nil, fittedEdges: session.resultRows.count,
+                                hasMethodRecord: session.hasMethodRecord, regionRows: session.pinRows.count)
+    }
+}
+
+// MARK: - Patterns
+
+/// Which of the Patterns room's File-menu exports are enabled. The menu follows the facts that change when the person does something
+/// to the room, never the pattern under the pointer (the menu would be made again at every scan point the pointer passes): where
+/// the room's own button also asks for a pattern or an overlay at that point, the item stays enabled and the room's export says in
+/// the status line what is missing, as it does for its button.
+nonisolated struct PatternsExportAvailability: Sendable, Equatable {
+    /// Map PNG…: the map has landed.
+    let map: Bool
+    /// Pattern with Overlay… and Overlay CSV…: the Kikuchi overlay is on and the dataset has the orientations it is drawn from.
+    let overlay: Bool
+
+    /// Whether the item of `kind` is enabled; the pattern and the two JSON files are there whenever a dataset is.
+    func isEnabled(_ kind: PatternsExportKind) -> Bool {
+        switch kind {
+        case .mapPNG: map
+        case .overlayPNG, .overlayCSV: overlay
+        case .patternPNG, .metadataJSON, .methodJSON: true
+        }
+    }
+}
+
+extension ExportSnapshot {
+    /// The Patterns room's exports are listed only while that room shows a dataset: nil in any other room and with none open.
+    /// Exhaustive over the rooms on purpose, as `availability` is.
+    static func patternsAvailability(area: WorkspaceArea, hasDataset: Bool, mapLanded: Bool, overlayOn: Bool,
+                                     canOverlay: Bool) -> PatternsExportAvailability? {
+        let inRoom: Bool
+        switch area {
+        case .patterns: inRoom = true
+        case .image, .fft, .diffraction, .results, .edx, .eels, .indexing, .maps: inRoom = false
+        }
+        guard inRoom, hasDataset else { return nil }
+        return PatternsExportAvailability(map: mapLanded, overlay: overlayOn && canOverlay)
+    }
+
+    static func patternsAvailability(of appState: AppState) -> PatternsExportAvailability? {
+        // The session is read only where it decides something: in the Patterns room.
+        let area = appState.navigation.workspaceArea
+        guard area == .patterns else { return nil }
+        let session = appState.ebsd
+        return patternsAvailability(area: area, hasDataset: session.hasDataset, mapLanded: session.mapPresentation.canvas != nil,
+                                    overlayOn: session.overlayOn, canOverlay: session.canOverlay)
+    }
+}
+
+// MARK: - Indexing
+
+/// Whether the Indexing room's File-menu exports are enabled, by the one rule of the room's own Export buttons (`IndexingExportSection`).
+nonisolated struct IndexingExportAvailability: Sendable, Equatable {
+    /// All five (the map, the results, the .ang, the .ctf and the method): the run on screen has reached a point.
+    let indexed: Bool
+}
+
+extension ExportSnapshot {
+    /// The Indexing room's exports are listed only while that room shows a dataset: nil in any other room and with none open.
+    /// Exhaustive over the rooms on purpose, as `availability` is.
+    static func indexingAvailability(area: WorkspaceArea, hasDataset: Bool, reachedPoints: Int) -> IndexingExportAvailability? {
+        let inRoom: Bool
+        switch area {
+        case .indexing: inRoom = true
+        case .image, .fft, .diffraction, .results, .edx, .eels, .patterns, .maps: inRoom = false
+        }
+        guard inRoom, hasDataset else { return nil }
+        return IndexingExportAvailability(indexed: reachedPoints > 0)
+    }
+
+    static func indexingAvailability(of appState: AppState) -> IndexingExportAvailability? {
+        // The session is read only where it decides something: in the Indexing room.
+        let area = appState.navigation.workspaceArea
+        guard area == .indexing else { return nil }
+        let session = appState.indexing
+        return indexingAvailability(area: area, hasDataset: session.hasDataset, reachedPoints: session.result?.reachedCount ?? 0)
+    }
+}
+
+// MARK: - Maps
+
+/// The Maps room's four files, named as the room's Export buttons are (`MapsExportSection`); the room state has one call for each.
+nonisolated enum MapsExportKind: String, CaseIterable, Identifiable, Sendable {
+    case map, grains, histogram, texture
+
+    var id: String { rawValue }
+
+    /// The inspector button's title.
+    var title: String {
+        switch self {
+        case .map: "Map PNG…"
+        case .grains: "Grains CSV…"
+        case .histogram: "Histogram CSV…"
+        case .texture: "Texture PNG…"
+        }
+    }
+}
+
+/// Which of the Maps room's File-menu exports are enabled, by the rules of the room's own Export buttons (`MapsExportSection`).
+nonisolated struct MapsExportAvailability: Sendable, Equatable {
+    /// Map PNG…: the map's picture has landed.
+    let map: Bool
+    /// Grains CSV… and Histogram CSV…: the map is segmented.
+    let grains: Bool
+    /// Texture PNG…: the texture has landed.
+    let texture: Bool
+
+    /// Whether the item of `kind` is enabled.
+    func isEnabled(_ kind: MapsExportKind) -> Bool {
+        switch kind {
+        case .map: map
+        case .grains, .histogram: grains
+        case .texture: texture
+        }
+    }
+}
+
+extension ExportSnapshot {
+    /// The Maps room's exports are listed only while that room shows a map: nil in any other room and with none open.
+    /// Exhaustive over the rooms on purpose, as `availability` is.
+    static func mapsAvailability(area: WorkspaceArea, hasMap: Bool, hasPicture: Bool, isSegmented: Bool,
+                                 hasTexture: Bool) -> MapsExportAvailability? {
+        let inRoom: Bool
+        switch area {
+        case .maps: inRoom = true
+        case .image, .fft, .diffraction, .results, .edx, .eels, .patterns, .indexing: inRoom = false
+        }
+        guard inRoom, hasMap else { return nil }
+        return MapsExportAvailability(map: hasPicture, grains: isSegmented, texture: hasTexture)
+    }
+
+    static func mapsAvailability(of appState: AppState) -> MapsExportAvailability? {
+        // The session is read only where it decides something: in the Maps room.
+        let area = appState.navigation.workspaceArea
+        guard area == .maps else { return nil }
+        let session = appState.maps
+        return mapsAvailability(area: area, hasMap: session.hasMap, hasPicture: session.raster != nil,
+                                isSegmented: session.analysis != nil, hasTexture: session.texture != nil)
+    }
+}
+
+// MARK: - The calls
+
+/// What a room's File-menu export does: the room state's own export, as the room's inspector button calls it.
+enum RoomExports {
+    /// The EDS room's: the bytes of `kind` to the room's save panel, or into a UI journey's export folder, with the room's line in
+    /// the status line. The returned task ends when the bytes are made and handed over (a test awaits it).
+    @discardableResult
+    static func eds(_ kind: EDXExportKind, appState: AppState) -> Task<Void, Never> {
+        Task { await appState.edxRoom.export(kind, from: appState.edx, directory: appState.exportDirectory) { appState.statusText = $0 } }
+    }
+
+    /// The EELS room's: the bytes of `kind`, the maps as the Maps control shows them, to the room's save panel or into a UI journey's
+    /// export folder, with the room's line in the status line.
+    static func eels(_ kind: EELSExportKind, appState: AppState) {
+        appState.eelsRoom.export(kind, from: appState.eels, maps: EELSMapsBlock.shownMaps(appState.eels, appState.eelsRoom),
+                                 directory: appState.exportDirectory) { appState.statusText = $0 }
+    }
+
+    /// The Patterns room's: the bytes of `kind` at the pattern on screen, to the room's save panel or into a UI journey's export
+    /// folder, with the room's line in the status line (what is missing, when there is nothing to write).
+    static func patterns(_ kind: PatternsExportKind, appState: AppState) {
+        appState.patternsRoom.export(kind, from: appState.ebsd, directory: appState.exportDirectory) { appState.statusText = $0 }
+    }
+
+    /// The Indexing room's: the bytes of `kind` from the run on screen, to the room's save panel or into a UI journey's export
+    /// folder, with the room's line in the status line.
+    static func indexing(_ kind: IndexingExportKind, appState: AppState) {
+        appState.indexingRoom.export(kind, from: appState.indexing, directory: appState.exportDirectory) { appState.statusText = $0 }
+    }
+
+    /// The Maps room's: the file of `kind` (the histogram the Histogram tab counts) to the room's save panel or into a UI journey's
+    /// export folder, with the room's line in the status line.
+    static func maps(_ kind: MapsExportKind, appState: AppState) {
+        let room = appState.mapsRoom
+        switch kind {
+        case .map: room.exportMap(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+        case .grains: room.exportGrains(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+        case .histogram: room.exportHistogram(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+        case .texture: room.exportTexture(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+        }
+    }
+}

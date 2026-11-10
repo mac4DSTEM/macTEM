@@ -61,7 +61,8 @@ nonisolated struct SessionTail: Equatable {
 }
 
 enum SessionFormat {
-    static func tail(_ input: SessionTailInput, locale: Locale = .autoupdatingCurrent) -> SessionTail {
+    /// The tail's words. A saved time as `savedTime` writes it (an export's header passes ISO 8601), else the reader's clock in `locale`.
+    static func tail(_ input: SessionTailInput, locale: Locale = .autoupdatingCurrent, savedTime: ((Date) -> String)? = nil) -> SessionTail {
         let name = input.fileName ?? "the session file"
         var tail = SessionTail()
         if input.needsAccess {
@@ -106,7 +107,8 @@ enum SessionFormat {
                 tail.lines.append(.init(kind: .note, text: input.isDirty
                     ? "Changed since restored from \(name)." : "Restored from \(name)."))
             case .saved:
-                let at = input.savedAt.map { " at " + $0.formatted(.dateTime.hour().minute().locale(locale)) } ?? ""
+                let clock: (Date) -> String = savedTime ?? { $0.formatted(.dateTime.hour().minute().locale(locale)) }
+                let at = input.savedAt.map { " at " + clock($0) } ?? ""
                 tail.lines.append(.init(kind: .note, text: input.isDirty
                     ? "Changed since saved\(at)." : "Saved\(at) to \(name)."))
             case .refused:
@@ -139,10 +141,8 @@ enum SessionFormat {
 
     /// The Replace alert's two sentences, for a session file another app changed since this window read it.
     static func replaceTitle(name: String) -> String { "\(name) has changed since this window read it." }
-    static func replaceDetail(name: String) -> String {
-        "Another app wrote it. Replace it with the marks in this window, or cancel and keep it as it is. "
-            + "Replacing loses what the other file holds."
-    }
+    static let replaceDetail = "Another app wrote it. Replace it with the marks in this window, or cancel and keep it as it is. "
+        + "Replacing loses what the other file holds."
 
     /// The Save Anyway alert's two sentences, for an image read again with other pixels than the marks were drawn on.
     static func pixelsChangedTitle(image: String) -> String { "\(image) has changed since the marks were drawn." }

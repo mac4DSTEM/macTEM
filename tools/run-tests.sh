@@ -5,11 +5,21 @@
 #   unit        the XCTest suite (macTEMTests), unsigned, in a scratch DerivedData; then the executed tests are
 #               reconciled BY NAME (Class.method, from the result bundle) against the `func test…()` declarations,
 #               and any difference fails (a stale bundle, a renamed test or one in the wrong class passes a count);
-#               each skipped test is named with its XCTSkip's reason
+#               each skipped test is named with its XCTSkip's reason, and one that tools/unit-skips.allow does not list
+#               fails (tools/lib/unit-skips.sh); the compiler warnings in the app's own sources and tests are listed and
+#               counted (not yet a gate)
 #   core        `swift build` of the package from a fresh scratch path: TEMCore and TEMSession — the layering gate
 #               (a package target cannot reach the app's App/ or UI/), the Swift 6 gate, and zero warnings
-#   scientific  the reference harnesses (the `scientific` array below), fail-fast
+#   scientific  the reference harnesses (the `scientific` array below): every one runs, a red one does not stop the rest,
+#               and the run fails at the end naming each red one (tools/lib/run-harnesses.sh)
 #   inventory   the repo's own review: the checks below; no build
+#   release-build
+#               the Release configuration built the way the release scripts archive it, signed ad hoc, then the app
+#               checked (release_build below): nightly in CI, so a Release-only failure shows before a tag
+#   ui [Journey ...]
+#               the UI journeys (macTEMUITests) on this Mac's screen: the real app, signed, one screenshot per step
+#   ui-build    the UI journeys compiled and not run (`build-for-testing` of the macTEMUI scheme, unsigned): needs no
+#               screen, so CI runs it on a pull request that touches the journeys or the project
 #
 # Read the exit code from the script itself, never through a pipe: redirect to a log, `echo $?` on its own line.
 set -euo pipefail
@@ -17,6 +27,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/tools/lib/developer-dir.sh"
 resolve_mactem_developer_dir
+# run_harnesses <root> <name>...: keeps going past a red harness and fails at the end, naming every red one.
+. "$ROOT/tools/lib/run-harnesses.sh"
+# skipped_tests_from_json, and unlisted_skips / listed_not_skipped <allow file>: the skips, held to tools/unit-skips.allow.
+. "$ROOT/tools/lib/unit-skips.sh"
 
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
 scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
@@ -66,19 +80,6 @@ executed_tests_from_json() {
          .testNodes[] | cases("?")' | sed -E 's#\(\)$##; s#/#.#'
 }
 
-# The tests a result bundle skipped, one line each, sorted: "unit: SKIPPED Class.method: <reason>", named as above. The reason is
-# the case's first "Failure Message" node (where xcresulttool puts the XCTSkip message), or "no reason recorded" without one.
-skipped_tests_from_json() {
-  jq -r 'def skips($suite): (if .nodeType == "Test Suite" then .name else $suite end) as $s
-           | if .nodeType == "Test Case" then
-               (select(.result == "Skipped")
-                | ((.nodeIdentifier // ($s + "/" + .name)) | sub("\\(\\)$"; "") | sub("/"; ".")) as $t
-                | ([.. | objects | select(.nodeType == "Failure Message") | .name] | first // "no reason recorded") as $why
-                | "unit: SKIPPED " + $t + ": " + ($why | gsub("\n"; " ")))
-             else (.children[]? | skips($s)) end;
-         .testNodes[] | skips("?")' | LC_ALL=C sort -u
-}
-
 # The tests macTEMTests declares, as Class.method: each `func test…()` (no parameters: XCTest runs no other) under
 # the top-level type declared before it in its file. A helper type or a top-level func named test… is attributed
 # to the wrong name on purpose: it then fails the reconciliation instead of being counted. A name is everything up to
@@ -124,8 +125,8 @@ reconcile_test_names() {  # <xcresult> <tests dir>
 
 unit_tests() (
   clear_test_host_geometry
-  # Never let an unsigned test build replace the app Xcode launches from its normal DerivedData. MACTEM_DERIVED_DATA
-  # (set by `tools/gate.sh unit --warm`, to <gate dir>/dd-unit, outside the tree) reuses a lane's own persistent scratch DerivedData; unset, the build is cold.
+  # Never let an unsigned test build replace the app Xcode launches from its normal DerivedData. MACTEM_DERIVED_DATA, when set
+  # (a folder outside the tree, such as <gate dir>/dd-unit), reuses a lane's own persistent scratch DerivedData; unset, the build is cold.
   # Tests run in parallel (-parallel-testing-enabled YES), adopted 2026-10-14 after a serial and a parallel run on the
   # same warm tree executed the same 853 names with the same 853/0/0 (26 s serial, 16 s parallel);
   # MACTEM_PARALLEL_TESTING=NO runs them serially, to compare when a test is suspected of depending on order.
@@ -133,7 +134,7 @@ unit_tests() (
   work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-unit-tests.XXXXXX")"
   trap 'rm -rf "$work"' EXIT
   local -a par=(-parallel-testing-enabled "${MACTEM_PARALLEL_TESTING:-YES}")
-  # MACTEM_TEST_WORKERS (set by tools/gate.sh: 8, or 4 while mac4DSTEM holds a heavy.* lock) caps the parallel workers.
+  # MACTEM_TEST_WORKERS, when set, caps the parallel workers; unset, xcodebuild chooses.
   [[ -n "${MACTEM_TEST_WORKERS:-}" ]] && par+=(-parallel-testing-worker-count "$MACTEM_TEST_WORKERS")
   # SWIFT_OPTIMIZATION_LEVEL=-O on the command line is the only setting that reaches a package target in the Test action
   # (the Test action stays Debug for testability): without it SpectroKit builds -Onone, where its hot loops are about 20x
@@ -159,6 +160,15 @@ unit_tests() (
   # A compiler crash prints no `error:` either: its signal and stack dump are the reason.
   grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/unit.log" | head -40 || true
   echo "unit: xcodebuild exit $rc"
+  # The app's own compiler warnings, listed and counted, not yet a gate: `core` holds TEMCore and TEMSession to zero, and nothing
+  # held macTEM/App, macTEM/UI or the tests. Each distinct `warning:` line whose path is under this tree's macTEM/ or macTEMTests/
+  # (not a package checkout, not DerivedData), once, the first 200 of them, then the count. `${ROOT:A}` as well: the compiler names a
+  # file by its resolved path where the tree is reached through a symlink. The number is a cold build's (CI): a warm DerivedData
+  # recompiles little and so prints few. awk exits 0 with or without a match, and `|| true` keeps this from ever changing the verdict.
+  awk -v root="$ROOT/" -v real="${ROOT:A}/" '
+    function under(dir) { return index($0, root dir "/") == 1 || index($0, real dir "/") == 1 }
+    (under("macTEM") || under("macTEMTests")) && index($0, ": warning:") && !seen[$0]++ { if (++n <= 200) print }
+    END { if (n > 200) print "  (" (n - 200) " more, not listed)"; print "unit: " (n + 0) " app warnings (not yet a gate)" }' "$work/unit.log" || true
   # Counted from the result bundle, not the log: Xcode 27's parallel runner prints no suite summary, and its
   # stdout can drop a result line when its own debug output interleaves (measured 2026-10-12).
   if ! xcrun xcresulttool get test-results summary --path "$work/unit.xcresult" > "$work/summary.json" 2>/dev/null; then
@@ -180,10 +190,15 @@ unit_tests() (
       | sort -u | head -60
   fi
   # Name the skips too, each with its XCTSkip's reason: a count alone hides which tests lacked their data (sem-data, an opt-in
-  # real-data variable) or their device (Metal), so a check the runner never ran reads like one that passed.
+  # real-data variable) or their device (Metal), so a check the runner never ran reads like one that passed. Kept for the allow check.
+  local skips="" skips_named=1
   if [[ "$skipped" != 0 ]]; then
-    xcrun xcresulttool get test-results tests --path "$work/unit.xcresult" | skipped_tests_from_json \
-      || echo "unit: cannot list the skipped tests from the result bundle"
+    # A count with no name (the bundle's JSON unreadable, or no case it marks Skipped) is a check that cannot run, not a pass.
+    if skips="$(xcrun xcresulttool get test-results tests --path "$work/unit.xcresult" | skipped_tests_from_json)" && [[ -n "$skips" ]]; then
+      print -r -- "$skips"
+    else
+      skips_named=0; echo "unit: cannot list the skipped tests from the result bundle"
+    fi
   fi
   if [[ -n "${MACTEM_ONLY_TESTING:-}" ]]; then
     echo "unit (filtered to ${MACTEM_ONLY_TESTING}): $failed failed of $total"
@@ -198,12 +213,32 @@ unit_tests() (
   fi
   (( rc == 0 )) || return $rc
   # A skipped test is a declared XCTSkip (the opt-in real-data tests without their data or variable, a fixture that is absent): it ran by name
-  # and said why (each is named above with its reason), so it is not a failure of the gate; a failure is.
+  # and said why (each is named above with its reason), so it is not a failure of the gate when tools/unit-skips.allow lists it; a failure is.
   if [[ "$total" != "$MACTEM_TESTS_MATCHED" || "$failed" != 0 || $(( passed + skipped )) != "$total" ]]; then
     echo "unit: $passed of $total passed, $skipped skipped, $MACTEM_TESTS_MATCHED matched by name — a failed test, or a summary that disagrees with the test list"
     return 1
   fi
-  echo "unit: $passed tests passed, $skipped skipped by their own XCTSkip, every declared test ran by name"
+  # Each skip must be one tools/unit-skips.allow lists (tools/lib/unit-skips.sh): a test that starts to skip (a fixture that moved, a
+  # guard that turned false, a device the runner lacks) fails here by name instead of landing green as one more SKIPPED line. With
+  # MACTEM_REQUIRE_SEM_DATA=1, which the nightly sets once it has fetched the SEM data, a sem-data entry allows none. A listed test
+  # that ran is named and passes. A MACTEM_ONLY_TESTING run returned above and is not checked.
+  local allow="$ROOT/tools/unit-skips.allow" unlisted listed_ran hint="" allowed=0
+  if (( ! skips_named )); then
+    echo "unit: $skipped tests skipped and none could be named, so none was checked against tools/unit-skips.allow"; return 1
+  fi
+  unlisted="$(print -r -- "$skips" | unlisted_skips "$allow")" || allowed=$?
+  if (( allowed > 1 )); then echo "unit: tools/unit-skips.allow could not be read (above), so no skip was checked"; return 1; fi
+  if (( allowed == 1 )); then
+    # An array, so one name counts as one and not as its length in letters.
+    local -a refused=("${(@f)unlisted}")
+    print -r -- "$unlisted" | sed 's/^/unit: SKIP NOT ALLOWED /'
+    [[ "${MACTEM_REQUIRE_SEM_DATA:-}" == 1 ]] && hint=" (MACTEM_REQUIRE_SEM_DATA=1: a sem-data entry allows none)"
+    echo "unit: ${#refused} of $skipped skipped tests not allowed by tools/unit-skips.allow${hint}: list each there with its condition and reason, or make it run"
+    return 1
+  fi
+  listed_ran="$(print -r -- "$skips" | listed_not_skipped "$allow")" || true
+  [[ -z "$listed_ran" ]] || print -r -- "$listed_ran" | sed 's/^/unit: listed in tools\/unit-skips.allow, and ran: /'
+  echo "unit: $passed tests passed, $skipped skipped as tools/unit-skips.allow allows, every declared test ran by name"
 )
 
 # The UI journeys (macTEMUITests, scheme macTEMUI): the real app, signed, walked as a user would, one screenshot per step. Never part of
@@ -240,15 +275,30 @@ ui_tests() (
   return $(( rc == 0 && failed == 0 && total > 0 ? 0 : 1 ))
 )
 
-run_harnesses() {
-  local name started
-  for name in "$@"; do
-    started=$(date +%s)
-    echo "==> $name"
-    "$ROOT/tools/parity/$name/run.sh"
-    echo "<== $name ($(( $(date +%s) - started )) s)"
-  done
-}
+# The UI journeys compiled and not run: `build-for-testing` of the macTEMUI scheme, which builds the app and macTEMUITests. The journeys
+# import only XCTest, `unit` builds macTEMTests alone and `ui` needs the Mac's screen, so no gate a pull request waits on compiled them:
+# a journey edit with a type error merged green and first failed in the next UI run. Unsigned like `unit` (CODE_SIGNING_ALLOWED=NO, for
+# a build that is never launched) and from a scratch DerivedData; SWIFT_OPTIMIZATION_LEVEL=-O as `ui` passes it, so this compiles what
+# `ui` runs. xcodebuild's exit status is the verdict; the test bundle must also be there, because a scheme that lost its testable
+# builds the app alone and exits 0.
+ui_build() (
+  local work rc
+  work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-ui-build.XXXXXX")"
+  trap 'rm -rf "$work"' EXIT
+  xcodebuild build-for-testing -project "$ROOT/macTEM.xcodeproj" -scheme macTEMUI -configuration Debug -destination 'platform=macOS' \
+    -derivedDataPath "$work/DerivedData" SWIFT_OPTIMIZATION_LEVEL=-O CODE_SIGNING_ALLOWED=NO > "$work/ui-build.log" 2>&1 && rc=0 || rc=$?
+  grep -E "error:|: error|BUILD (SUCCEEDED|FAILED)" "$work/ui-build.log" | tail -40 || true
+  grep -A12 "^The following build commands failed:" "$work/ui-build.log" | head -30 || true
+  # A compiler crash prints no `error:`: its signal and stack dump are the reason.
+  grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/ui-build.log" | head -40 || true
+  echo "ui-build: xcodebuild exit $rc"
+  (( rc == 0 )) || return $rc
+  local -a bundles=("$work"/DerivedData/Build/Products/**/macTEMUITests.xctest(N/))
+  if (( ${#bundles} == 0 )); then
+    echo "ui-build: the build wrote no macTEMUITests.xctest: the macTEMUI scheme no longer builds the journeys"; return 1
+  fi
+  echo "ui-build: the app and the UI journeys (macTEMUITests) compiled; nothing was launched and no journey ran"
+)
 
 # From a fresh scratch path every run: an incremental build compiles nothing and so prints none of the warnings it
 # emitted the first time (a second run on the same tree printed 0 of 2, review 2026-10-12). Any `warning:` fails.
@@ -268,17 +318,108 @@ core_build() (
   echo "core: TEMCore + TEMSession built from scratch, 0 warnings"
 )
 
+# The Release configuration, built the way tools/release.sh and tools/release-store.sh archive it, before a tag exists: whole-module
+# and the hardened runtime (the project's Release), the generic destination, ARCHS=arm64 on the command line (the project's setting
+# does not reach the package targets) and the store build's MACEM_STORE_BUILD=YES. Every other gate builds Debug for the concrete
+# `platform=macOS`, which picks the architecture itself: in mac4DSTEM that hid an archive that would not compile, and a universal
+# v2.5.1 (its tools/lib/release-arch.sh). `build`, not `archive`, and signed ad hoc with no team: no certificate is needed, and the
+# signature still carries the entitlements to read back. Then the product is checked, not the settings, as mac4DSTEM's
+# tools/harnesses/package-test/run.sh does: what both scripts check on their archive short of the signing identity, and what the
+# App Store asks of the bundle. Every check runs and each failure is named; the run fails at the end.
+release_build() (
+  local work rc app info macho archs library document key want got version failures=0
+  work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-release-build.XXXXXX")"
+  trap 'rm -rf "$work"' EXIT
+  xcodebuild build -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configuration Release \
+    -destination 'generic/platform=macOS' -derivedDataPath "$work/DerivedData" ARCHS=arm64 \
+    CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= MACEM_STORE_BUILD=YES > "$work/release.log" 2>&1 && rc=0 || rc=$?
+  grep -E "error:|: error|BUILD (SUCCEEDED|FAILED)" "$work/release.log" | tail -40 || true
+  grep -A12 "^The following build commands failed:" "$work/release.log" | head -30 || true
+  # A compiler crash prints no `error:`: its signal and stack dump are the reason (whole-module Release can crash where Debug does not).
+  grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/release.log" | head -40 || true
+  echo "release-build: xcodebuild exit $rc"
+  (( rc == 0 )) || return $rc
+  app="$work/DerivedData/Build/Products/Release/macTEM.app"
+  info="$app/Contents/Info.plist"
+  [[ -f "$info" ]] || { echo "release-build: the build wrote no app at Build/Products/Release/macTEM.app"; return 1; }
+
+  # Each Mach-O a user receives, named: the executable and FormatoKit's three HDF5 frameworks, each present and arm64 alone. Named,
+  # not globbed: a glob that matches nothing passes an app that lost them (mac4DSTEM's release-arch.sh), and FormatoKit loads
+  # libhdf5 at run time, so such an app launches and then fails every HDF5, EMD and h5ebsd open. No load command may name a
+  # machine-local library either.
+  local -a machos=("$app/Contents/MacOS/macTEM")
+  for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do machos+=("$app/Contents/Frameworks/$library.framework/$library"); done
+  for macho in "${machos[@]}"; do
+    if [[ ! -f "$macho" ]]; then echo "  MISSING   ${macho#$app/}"; failures=1; continue; fi
+    archs="$(lipo -archs "$macho" 2>/dev/null || true)"
+    [[ "$archs" == arm64 ]] || { echo "  ARCH      ${macho#$app/} is '${archs:-unreadable}', not arm64 alone"; failures=1; }
+    # grep reads to the end (no -q): an early exit would fail the pipe under pipefail and hide the match.
+    if otool -L "$macho" | tail -n +2 | grep -E '^[[:space:]]+/(opt/homebrew|usr/local|Users)/' >/dev/null; then
+      echo "  ABSPATH   ${macho#$app/} links a machine-local library"; failures=1
+    fi
+  done
+  [[ ! -e "$app/Contents/Frameworks/Sparkle.framework" ]] || { echo "  SPARKLE   the store build (MACEM_STORE_BUILD=YES) embeds Sparkle"; failures=1; }
+
+  # What the bundle says, against what the project declares; the version and build number are read from the project, never a
+  # literal (mac4DSTEM's audit asserted a literal version and went red at every bump). The identifier is the App Store record's.
+  want="$(sed -n 's/^MARKETING_VERSION = \([0-9.]*\).*/\1/p' "$ROOT/Config/Version.xcconfig")"
+  got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info" 2>/dev/null || true)"
+  [[ -n "$want" && "$got" == "$want" ]] || { echo "  VERSION   the app says '$got', Config/Version.xcconfig '$want'"; failures=1; }
+  version="$got"
+  want="$(grep -m1 'CURRENT_PROJECT_VERSION = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/' || true)"
+  got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info" 2>/dev/null || true)"
+  [[ -n "$want" && "$got" == "$want" ]] || { echo "  BUILD     the app's build number is '$got', the project's '$want'"; failures=1; }
+  want="$(grep -m1 'MACOSX_DEPLOYMENT_TARGET = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/' || true)"
+  got="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$info" 2>/dev/null || true)"
+  [[ -n "$want" && "$got" == "$want" ]] || { echo "  FLOOR     the app asks for macOS '$got', the project's floor is '$want'"; failures=1; }
+  got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$info" 2>/dev/null || true)"
+  [[ "$got" == com.mac4dstem.macTEM ]] || { echo "  BUNDLEID  the app is '$got', not com.mac4dstem.macTEM"; failures=1; }
+
+  # The store's asks of the bundle (release-store.sh checks the same on its archive): the privacy manifest, the export-compliance
+  # answer; and the program's own licence beside its dependencies' (a GPL binary ships the GPL).
+  [[ -f "$app/Contents/Resources/PrivacyInfo.xcprivacy" ]] || { echo "  PRIVACY   the app has no PrivacyInfo.xcprivacy"; failures=1; }
+  got="$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$info" 2>/dev/null || true)"
+  [[ "$got" == false ]] || { echo "  EXPORT    ITSAppUsesNonExemptEncryption is '$got', not false"; failures=1; }
+  for document in LICENSE NOTICE; do
+    [[ -s "$app/Contents/Resources/$document" ]] || { echo "  LICENCE   the app is missing $document"; failures=1; }
+  done
+  grep -q 'GNU GENERAL PUBLIC LICENSE' "$app/Contents/Resources/LICENSE" 2>/dev/null \
+    || { echo "  LICENCE   Contents/Resources/LICENSE is not the GPL"; failures=1; }
+
+  # The signature: valid through every nested framework, the sandbox and its two file entitlements, and no get-task-allow.
+  codesign --verify --deep --strict "$app" || { echo "  SIGNATURE the ad hoc signature does not verify (codesign --verify --deep --strict)"; failures=1; }
+  codesign -d --entitlements :- "$app" > "$work/entitlements.plist" 2>/dev/null || true
+  for key in com.apple.security.app-sandbox com.apple.security.files.user-selected.read-write com.apple.security.files.bookmarks.app-scope; do
+    got="$(/usr/libexec/PlistBuddy -c "Print :$key" "$work/entitlements.plist" 2>/dev/null || true)"
+    [[ "$got" == true ]] || { echo "  ENTITLE   $key is '$got', not true"; failures=1; }
+  done
+  if /usr/libexec/PlistBuddy -c 'Print :com.apple.security.get-task-allow' "$work/entitlements.plist" >/dev/null 2>&1; then
+    echo "  ENTITLE   the Release app carries get-task-allow"; failures=1
+  fi
+
+  if (( failures != 0 )); then echo "release-build: the Release app FAILED the checks above"; return 1; fi
+  echo "release-build: macTEM $version built Release for generic/platform=macOS;" \
+       "arm64 alone with its three frameworks, version, build, floor and identifier as the project declares, privacy manifest," \
+       "export answer, licences, sandbox entitlements and a verified signature"
+)
+
 inventory() {
   local rc=0 name dir src f
+
+  echo "== the harness runner keeps going past a red harness"
+  "$ROOT/tools/lib/run-harnesses-selftest.sh" || rc=1
+
+  echo "== the unit gate fails a skip that tools/unit-skips.allow does not list"
+  "$ROOT/tools/lib/unit-skips-selftest.sh" || rc=1
 
   echo "== tools classification"
   local -a all=("${scientific[@]}" "${diagnostic[@]}" "${owner_only[@]}" "${retired[@]}" "${support[@]}" "${references[@]}")
   for name in "${all[@]}"; do
     [[ -d "$ROOT/tools/parity/$name" ]] || { echo "  MISSING tools/parity/$name (classified, not present)"; rc=1; }
   done
-  # tools/ holds the scripts, lib/, hooks/, drive/ (the guarded hand-drive helpers) and parity/; every folder under tools/parity/ is in exactly one array.
+  # tools/ holds the scripts, lib/ and parity/, and no other folder; every folder under tools/parity/ is in exactly one array.
   for dir in "$ROOT"/tools/*(/N); do
-    case "${dir:t}" in lib|hooks|parity|drive) ;; *) echo "  UNEXPECTED folder tools/${dir:t} — harnesses live in tools/parity/"; rc=1 ;; esac
+    case "${dir:t}" in lib|parity) ;; *) echo "  UNEXPECTED folder tools/${dir:t} — harnesses live in tools/parity/, helpers in tools/lib/"; rc=1 ;; esac
   done
   for dir in "$ROOT"/tools/parity/*(/N); do
     name="${dir:t}"
@@ -356,21 +497,29 @@ inventory() {
   fi
 
   echo "== the UI contract"
+  # Every Swift file under macTEM/UI and under macTEM/App, at any depth: `**/` is zsh's recursive glob (the folder itself and every
+  # folder below it), so a room's files moved into a subfolder (UI/SEM/) stay under the rules below. A list must not be empty, and
+  # each grep also names /dev/null: a grep without a file reads stdin, and with one file it drops the name the exemptions match on.
+  local -a ui_sources=("$ROOT"/macTEM/UI/**/*.swift(N.))
+  local -a app_sources=("$ROOT"/macTEM/App/**/*.swift(N.))
+  (( ${#ui_sources} && ${#app_sources} )) || { echo "  NOT CHECKED  no Swift file under macTEM/UI or under macTEM/App"; rc=1; }
   # SwiftUI only: no split views (HSplitView was half of a launch crash in mac4DSTEM), no AppKit in UI/. Comment lines
-  # are exempt.
-  if grep -nE '^[^/]*\b(HSplitView|VSplitView|NSSplitView|NSSplitViewController)\b' "$ROOT"/macTEM/UI/*.swift; then
+  # are exempt. The split ban holds in App/ too, which declares view modifiers and hosts an AppKit accessory view; the name of the
+  # defaults key AppKit saves a split's geometry under (LaunchOptions clears it) is a string, not a split.
+  if grep -nE '^[^/]*\b(HSplitView|VSplitView|NSSplitView|NSSplitViewController)\b' "${ui_sources[@]}" "${app_sources[@]}" /dev/null \
+       | grep -vF '"NSSplitView Subview Frames"'; then
     echo "  ^ a split banned by the UI contract (docs/architecture.md)"; rc=1
   fi
   if grep -rnE --include='*.swift' "${imports}(AppKit|Cocoa)([^[:alnum:]_]|$)" "$ROOT/macTEM/UI"; then
     echo "  ^ AppKit imported in UI (docs/architecture.md)"; rc=1
   fi
   # Rule 3: the chrome draws no bar or wash of its own; the science panes are exempt.
-  if grep -nE '\.background\((\.bar\)|Color\.[a-zA-Z]+\.opacity)' "$ROOT"/macTEM/UI/*.swift \
+  if grep -nE '\.background\((\.bar\)|Color\.[a-zA-Z]+\.opacity)' "${ui_sources[@]}" /dev/null \
        | grep -vE 'PaneOverlays|MetalImageView|ImagePane'; then
     echo "  ^ custom bar or opacity wash in the chrome (UI contract rule 3)"; rc=1
   fi
   # Rule 4: a numeric `.frame(...)` in the chrome comes from LayoutPolicy; the panes and overlays are exempt.
-  if grep -nE '\.frame\([^)]*: *[0-9]' "$ROOT"/macTEM/UI/*.swift \
+  if grep -nE '\.frame\([^)]*: *[0-9]' "${ui_sources[@]}" /dev/null \
        | grep -vE 'PaneOverlays|ImagePane|LayoutPolicy' | grep -vE 'LayoutPolicy\.|// science'; then
     echo "  ^ a fixed frame outside the science (UI contract rule 4)"; rc=1
   fi
@@ -469,12 +618,17 @@ inventory() {
     done
   done
 
-  # Every accessibility identifier a UI journey uses exists in the app's sources (a dynamic one, "edx.composition.Mg", by its prefix
-  # "edx.composition.\(…)"), so a renamed identifier fails here before it fails on screen.
+  # Every accessibility identifier a UI journey uses exists in the app's sources, so a renamed identifier fails here before it fails
+  # on screen. An identifier is every quoted dotted literal in macTEMUITests, whatever it is passed to (waitFor, a journey's own
+  # waitWords, label or segment, a subscript, waitGone, isAbsent), as mac4DSTEM's check reads them: the three call forms this once
+  # read left every other call's identifiers unchecked. The pattern also takes the bundle identifier and PerformanceJourney's
+  # signpost names, which the sources hold as literals, so a renamed signpost fails here as well; a file name a journey reads in the
+  # status line ("grains.csv") is no identifier and is left out. An identifier a journey only checks to be absent is held to the
+  # same rule: once no source declares it, its absence cannot fail on screen, and the journey asserts on what took its place.
   echo "== UI journey identifiers"
   # The shared package's sources: the sibling checkout during development, else the tag-pinned checkout SwiftPM made (the CI runner has no
   # ../MacEMUI; nightly review 2026-10-23), else none and only this repo's sources are searched.
-  local shared="$ROOT/../MacEMUI/Sources" id parent
+  local shared="$ROOT/../MacEMUI/Sources" id parent grand
   if [[ ! -d "$shared" ]]; then
     # (N): a pattern with no match drops out instead of stopping zsh with "no matches found" (CI, 2026-10-27).
     local -a found=( "$ROOT"/.build/checkouts/MacEMUI/Sources(N/) "$ROOT"/../*/SourcePackages/checkouts/MacEMUI/Sources(N/) \
@@ -483,14 +637,25 @@ inventory() {
     [[ -n "$shared" ]] || echo "  (no MacEMUI checkout beside this repo: the shell's identifiers are not checked here)"
   fi
   local -a where=("$ROOT/macTEM" "$ROOT/Sources"); [[ -n "$shared" ]] && where+=("$shared")
-  for id in $(grep -rhoE '(waitFor|waitValue|element)\("[a-zA-Z]+(\.[a-zA-Z]+)+"' "$ROOT/macTEMUITests" 2>/dev/null | sed -E 's/^[a-zA-Z]+\("//; s/"$//' | sort -u); do
+  # A dynamic identifier is declared with an interpolation, and resolves by the literal text around it, inside the
+  # accessibilityIdentifier call: "edx.composition.Mg" by `"edx.composition.\(…)"`, where the interpolation ends the string, and
+  # "edx.composition.Mg.wt" by `"edx.composition.\(…).wt"`, where the identifier's own last part follows it. A bare prefix anywhere
+  # in the sources is not enough: "indexing.\(…)", a session ledger row's id, passed every indexing.x.y, and
+  # "maps.\(…).\(…)" every maps.x. `interpolation` is `.\(…)` as an ERE: a dot, then an interpolation with no string inside it.
+  local ids=0 interpolation='\.\\\([^"]*\)'
+  for id in $(grep -rhoE '"[a-z][A-Za-z]*\.[A-Za-z][A-Za-z0-9.]*"' "$ROOT/macTEMUITests" 2>/dev/null | tr -d '"' | sort -u); do
+    if [[ "$id" == *.csv ]]; then continue; fi   # an exported file's name, read in the status line
+    ids=$(( ids + 1 ))
     # The shell's chrome (status bar, rooms, the verb, Output) is MacEMUI's: its identifiers are declared there.
     if grep -rqF "\"$id\"" "${where[@]}"; then continue; fi
-    parent="${id%.*}"
-    if grep -rqF "\"$parent.\\(" "${where[@]}"; then continue; fi
-    if grep -rqF "\"${id%.*.*}.\\(" "${where[@]}"; then continue; fi
+    # The identifier's dots, escaped for the two patterns; its letters and digits need no escape.
+    parent="${${id%.*}//./\\.}"; grand="${${id%.*.*}//./\\.}"
+    if grep -rqE 'accessibilityIdentifier\("'"$parent$interpolation"'"\)' "${where[@]}"; then continue; fi
+    if grep -rqE 'accessibilityIdentifier\("'"$grand$interpolation"'\.'"${id##*.}"'"\)' "${where[@]}"; then continue; fi
     echo "  MISSING   identifier $id is used by a UI journey and no source declares it"; rc=1
   done
+  # No identifier read is a check that did not run (the journeys moved, or the pattern no longer fits them), not a pass.
+  if (( ids == 0 )); then echo "  NOT CHECKED  no identifier read from macTEMUITests"; rc=1; else echo "  $ids identifiers checked"; fi
 
   # mac4DSTEM's check of its live docs: a doc that says work is held uncommitted is stale once the tree is clean. Status claims
   # only ("held uncommitted", "still uncommitted"), and only positive ones: "nothing is uncommitted" is true on a clean tree. On a
@@ -512,8 +677,10 @@ inventory() {
 case "${1:-unit}" in
   unit) require_free_space 4 "the xcodebuild unit suite"; unit_tests ;;
   core) core_build ;;
-  scientific) require_free_space 4 "the science harnesses"; run_harnesses "${scientific[@]}" ;;
+  scientific) require_free_space 4 "the science harnesses"; run_harnesses "$ROOT/tools/parity" "${scientific[@]}" ;;
   inventory) inventory ;;
+  release-build) require_free_space 4 "the Release build"; release_build ;;
   ui) shift; require_free_space 4 "the UI journeys"; ui_tests "$@" ;;
-  *) echo "Usage: tools/run-tests.sh [unit|core|scientific|inventory|ui [Journey ...]]" >&2; exit 64 ;;
+  ui-build) require_free_space 4 "the UI journeys' build"; ui_build ;;
+  *) echo "Usage: tools/run-tests.sh [unit|core|scientific|inventory|release-build|ui [Journey ...]|ui-build]" >&2; exit 64 ;;
 esac

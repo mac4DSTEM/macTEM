@@ -26,7 +26,9 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         patterns.onBind = { indexing.bind($0) }
         patterns.onClose = { indexing.close() }
         await patterns.open(url: url).value
-        for _ in 0..<6000 where patterns.isMapping || patterns.isComputingMean || patterns.isProcessing { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the nickel scan's passes to end", seconds: 30) {
+            !patterns.isMapping && !patterns.isComputingMean && !patterns.isProcessing
+        }
         return (patterns, indexing)
     }
 
@@ -162,6 +164,10 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         var shared = patterns.overlaySettings
         shared.kinematical = true
         patterns.setOverlaySettings(shared)
+        // The lines at once; the master pattern is made off the main actor, and the simulation joins them when it lands.
+        guard case .success(let lines)? = indexing.simulationOverlay else { return XCTFail("no overlay") }
+        XCTAssertNil(lines.simulated, "the simulation waits for its master pattern")
+        await indexing.overlayMastersReady().value
         guard case .success(let blended)? = indexing.simulationOverlay else { return XCTFail("no kinematical overlay") }
         XCTAssertEqual(blended.simulated?.count, indexing.patternShape.rows * indexing.patternShape.columns,
                        "the kinematical simulation on the indexed pattern's detector")

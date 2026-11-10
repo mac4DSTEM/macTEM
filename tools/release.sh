@@ -4,14 +4,16 @@
 #
 #   tools/release.sh
 #
-# Needs the "Developer ID Application" certificate in the login keychain and a notarytool keychain profile
-# (default macem-notary; override with NOTARY_PROFILE). Output: build/release/<stamp>/macTEM-<version>.dmg and a copy
-# named macTEM.dmg for the "latest" link. The steps follow mac4DSTEM's tools/release (build-developer-id.sh,
-# notarize.sh, make-dmg.sh); the DMG here is a plain hdiutil image with an Applications link, no dmgbuild.
+# Needs the "Developer ID Application" certificate in the login keychain (DEVELOPER_ID_APPLICATION overrides its name; the
+# built app's signature is checked against that name) and a notarytool keychain profile (default macem-notary; override
+# with NOTARY_PROFILE). Output: build/release/<stamp>/macTEM-<version>.dmg and a copy named macTEM.dmg for the "latest"
+# link. The steps follow mac4DSTEM's tools/release (build-developer-id.sh, notarize.sh, make-dmg.sh); the DMG here is a
+# plain hdiutil image with an Applications link, no dmgbuild.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/tools/lib/developer-dir.sh"
+. "$ROOT/tools/lib/release-checks.sh"
 resolve_mactem_developer_dir
 
 IDENTITY="${DEVELOPER_ID_APPLICATION:-Developer ID Application: Paul Lobpreis (3B8SMSSAX4)}"
@@ -39,10 +41,12 @@ xcodebuild archive -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configurati
   || { tail -30 "$OUT/archive.log"; exit 1; }
 
 echo "== Check the app"
-for binary in "$APP/Contents/MacOS/macTEM" "$APP"/Contents/Frameworks/{FormatoLibHDF5,FormatoLibSZ,FormatoLibAEC}.framework/{FormatoLibHDF5,FormatoLibSZ,FormatoLibAEC}(N); do
-  [[ "$(lipo -archs "$binary")" == "arm64" ]] || { echo "Not arm64 alone: $binary" >&2; exit 1; }
-done
-[[ -d "$APP/Contents/Frameworks/FormatoLibHDF5.framework" ]] || { echo "The app is missing FormatoLibHDF5.framework." >&2; exit 1; }
+# The executable and the three HDF5 frameworks, each by name, and the shipped demo files (tools/lib/release-checks.sh).
+assert_mactem_bundle_arm64_only "$APP"
+assert_mactem_demo_data "$APP"
+# What notarization refuses, found before the upload instead of after it: the app and each of the three frameworks signed by the
+# Developer ID certificate, with the hardened runtime and a secure timestamp.
+assert_mactem_bundle_developer_id_signed "$APP" "$IDENTITY"
 codesign --verify --deep --strict "$APP"
 codesign -d --entitlements :- "$APP" 2>/dev/null | grep -q "get-task-allow" && { echo "The app carries get-task-allow." >&2; exit 1; }
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
@@ -53,6 +57,7 @@ echo "== Notarize the app"
 ditto -c -k --keepParent "$APP" "$OUT/macTEM-submission.zip"
 xcrun notarytool submit "$OUT/macTEM-submission.zip" --keychain-profile "$PROFILE" --wait
 xcrun stapler staple "$APP"
+xcrun stapler validate "$APP"
 spctl --assess --type execute "$APP"
 
 echo "== DMG"
@@ -67,6 +72,7 @@ codesign --sign "$IDENTITY" --timestamp "$DMG"
 echo "== Notarize the DMG"
 xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
 xcrun stapler staple "$DMG"
+xcrun stapler validate "$DMG"
 spctl --assess --type open --context context:primary-signature "$DMG"
 cp "$DMG" "$OUT/macTEM.dmg"
 

@@ -25,6 +25,7 @@
 //
 
 import Foundation
+import ImagoCore
 
 /// The Indexing room's map layers (D-SEM-84, D-SEM-96).
 package nonisolated enum IndexingLayer: String, Sendable, CaseIterable, Identifiable, Codable {
@@ -451,9 +452,10 @@ package nonisolated struct IndexingResult: Sendable {
 
     // MARK: - The status line
 
+    /// A number of the status line, written as the Results table under it writes the same value (`UnitDisplay.fixed`): printf's digits
+    /// in `locale`'s decimal mark, no sign on a value that rounds to zero, `UnitDisplay.noValue` where there is none.
     private static func fixed(_ v: Double, _ digits: Int, _ locale: Locale) -> String {
-        guard v.isFinite else { return "—" }
-        return v.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(digits)))
+        UnitDisplay.fixed(v, places: digits, locale: locale)
     }
 
     /// The status line over the map: "row 12 · col 40 · Ni · φ₁ 12,3° Φ 44,0° φ₂ 271,5° · CI 0,82 · fit 0,6° · bands 9 of 10"; a point
@@ -530,10 +532,11 @@ package nonisolated struct IndexingResult: Sendable {
         return out
     }
 
-    /// The reached points as CSV (locale-free numbers, one header line): row, column, x and y in the scan unit, phase, the Euler
-    /// angles in degrees, then for Hough CI, fit, matched bands, pattern quality, for a dictionary the score (named by its metric), the
-    /// simulation index and the OSM. A refinement's (D-SEM-109): the refined NCC and num_evals, then the dictionary's best match and
-    /// OSM under their own names (the refined orientation is no dictionary entry), and each refined PC (Bruker) when the PC moved.
+    /// The reached points as CSV (locale-free numbers, one header line): row, column, x and y in the scan unit, phase (an RFC 4180 cell,
+    /// ImagoKit's `CSVText.quoted`, so a name holding a comma or a quote stays one cell), the Euler angles in degrees, then for Hough CI,
+    /// fit, matched bands, pattern quality, for a dictionary the score (named by its metric), the simulation index and the OSM. A
+    /// refinement's (D-SEM-109): the refined NCC and num_evals, then the dictionary's best match and OSM under their own names (the
+    /// refined orientation is no dictionary entry), and each refined PC (Bruker) when the PC moved.
     package func csv(stepX: Double, stepY: Double) -> String {
         let hasPCs = isRefined && !projectionCenters.isEmpty
         let tail = switch method {
@@ -545,8 +548,7 @@ package nonisolated struct IndexingResult: Sendable {
         var lines = ["row,column,x,y,phase,phi1_deg,Phi_deg,phi2_deg," + tail]
         func number(_ v: Double) -> String { v.isFinite ? String(format: "%.6g", v) : "" }
         for r in rows {
-            let phase = r.phase.contains(",") ? "\"\(r.phase)\"" : r.phase
-            var fields = [String(r.row), String(r.column), number(Double(r.column) * stepX), number(Double(r.row) * stepY), phase,
+            var fields = [String(r.row), String(r.column), number(Double(r.column) * stepX), number(Double(r.row) * stepY), CSVText.quoted(r.phase),
                           number(r.phi1), number(r.capitalPhi), number(r.phi2), number(r.confidence)]
             if method == .dictionary {
                 if isRefined { fields.append(evaluations.indices.contains(r.id) ? String(evaluations[r.id]) : "0") }

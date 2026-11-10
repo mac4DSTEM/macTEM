@@ -1,7 +1,7 @@
 //
 //  RoomAvailability.swift
 //  Role: which rooms the window's documents fill. The FILE decides, not the room the person is in (`FileInventory`): once anything is
-//        open, a room with data for it is enabled, and every other is disabled with a one-line reason; with nothing open every built room
+//        open, a room with data for it is enabled, and every other is disabled with a one-line reason; with nothing open every room
 //        stays enterable (the welcome canvas and the rooms' own Open buttons). Switching rooms never reloads or drops data: the sessions
 //        (`OpenItems`, `edx`, `eels`, `ebsd`, `maps`) are the window's, not the room's.
 //
@@ -34,7 +34,6 @@ nonisolated struct RoomHoldings: Equatable, Sendable {
 nonisolated enum RoomAvailability {
     /// Why `area` cannot be entered now, or nil when it can.
     static func reason(_ area: WorkspaceArea, holdings: RoomHoldings) -> String? {
-        guard area.isBuilt else { return "Not built yet" }
         guard holdings.hasDocument else { return nil }
         switch area {
         case .edx: return holdings.eds ? nil : "No file open holds an EDS spectrum image"

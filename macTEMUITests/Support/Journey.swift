@@ -74,8 +74,9 @@ nonisolated class Journey: XCTestCase {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
 
-    /// True when no element carries this identifier: the check that a control the app or MacEMUI removed stays gone. The inventory's
-    /// identifier check reads `element(`/`waitFor(` only, so an id that no source declares any more is checked here without being flagged.
+    /// True when no element carries this identifier: for a control the sources declare and this state must not show (the EELS maps on a
+    /// 1 x 1 file). The inventory's identifier check reads this identifier like any other, so one that no source declares any more fails
+    /// there: the absence of a deleted control cannot fail on screen, and a journey asserts on what took its place instead.
     @MainActor
     func isAbsent(_ id: String) -> Bool {
         !element(id).exists
@@ -129,6 +130,20 @@ nonisolated class Journey: XCTestCase {
     func waitGone(_ id: String, timeout: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
         let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element(id))
         XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: timeout), .completed, "\(id) is still there", file: file, line: line)
+    }
+
+    /// Brings a room to the front when an open did not: the room's own row when the sidebar lists it, else its workspace's row. Since the
+    /// five workspaces (2026-11-10) the sidebar lists Imaging, Spectroscopy, Diffraction, EBSD and Results, and a part's row (Image, FFT,
+    /// EDS, EELS, Patterns, Indexing, Maps) only while its workspace is in front; a workspace's row goes to the room it was last in, or
+    /// to its first one that can be entered. A row that cannot be entered is left alone: the caller's wait on the room says what is missing.
+    @MainActor
+    func bringToFront(room: String, in workspace: String, timeout: TimeInterval = 0) {
+        let part = element("workspace.\(room)")
+        if !part.exists {
+            let row = element("workspace.\(workspace)")
+            if row.waitForExistence(timeout: timeout), row.isEnabled { row.click() }
+        }
+        if part.waitForExistence(timeout: 5), part.isEnabled { part.click() }
     }
 
     /// Shows the inspector when the launch left it hidden, and waits for a control of the room that is entered (an identifier of it).

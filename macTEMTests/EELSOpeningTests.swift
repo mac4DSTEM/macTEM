@@ -2,6 +2,7 @@
 //  EELSOpeningTests.swift
 //  The EELS room's document: every EELS cube of a file is read and gets its role by its energy window (a window that holds 0 eV is the low
 //  loss, one that starts above it the core loss), so a Dual-EELS file opens with both. The real Velox example (3 cubes) is read from References.
+//  A file whose cubes would take more than half of the Mac's memory once read is refused in a sentence, before a cube is read.
 //
 
 import ShellLayout
@@ -38,6 +39,45 @@ nonisolated final class EELSOpeningTests: XCTestCase {
         XCTAssertEqual(core.energyScaleEV, low.energyScaleEV, accuracy: 1e-9)
         XCTAssertEqual(core.nx, low.nx); XCTAssertEqual(core.ny, low.ny)
         XCTAssertNotNil(loaded.coreLossOrigin)
+    }
+
+    // MARK: Memory
+
+    /// What a file's cubes take once read is counted first (every count a Double), and a file whose cubes would take more than half of the Mac's
+    /// memory is refused in one sentence: a 512 x 512 x 2048 Dual EELS (two cubes of 4 GiB each) on a Mac of 8 GB. The demo cube is read, and so is
+    /// a file at exactly half the memory. The reader asks before it reads a cube. Red under: no estimate and no refusal (the read started, and the
+    /// Mac swapped until the app was killed).
+    func testAFileWhoseCubesWouldNotFitInMemoryIsRefusedInASentence() throws {
+        let gib = 1_073_741_824.0
+        let mac = UInt64(8) * 1_073_741_824
+        let english = Locale(identifier: "en_US")
+        XCTAssertEqual(EELSOpening.estimatedBytes(nx: 512, ny: 512, channels: 2048), 4 * gib)
+        XCTAssertEqual(EELSOpening.estimatedBytes(nx: 512, ny: 512, channels: 2048, cubes: 2), 8 * gib)
+        XCTAssertEqual(EELSOpening.estimatedBytes(nx: 3, ny: 2, channels: 5), 240)
+
+        let dual = EELSOpening.memoryRefusal(name: "dual.dm4", cubes: 2, bytes: EELSOpening.estimatedBytes(nx: 512, ny: 512, channels: 2048, cubes: 2),
+                                             physicalMemory: mac, locale: english)
+        let sentence = "dual.dm4 holds 2 EELS spectrum images that would take about 8.0 GB in memory, more than half of this Mac's 8 GB, so it is not opened: "
+            + "crop or bin the spectrum image where it was acquired, or open it on a Mac with more memory."
+        XCTAssertEqual(dual, .tooLarge(sentence))
+        XCTAssertEqual(dual?.errorDescription, sentence, "the alert shows the sentence")
+        let single = EELSOpening.memoryRefusal(name: "big.dm4", cubes: 1, bytes: 4.5 * gib, physicalMemory: mac, locale: Locale(identifier: "de_DE"))
+        XCTAssertEqual(single?.errorDescription?.hasPrefix("big.dm4 holds an EELS spectrum image that would take about 4,5 GB in memory, more than half of this Mac's 8 GB"),
+                       true, "one cube, in the reader's decimal mark: \(single?.errorDescription ?? "not refused")")
+
+        let side = DemoDocuments.Truth.eelsSide
+        let demo = EELSOpening.estimatedBytes(nx: side, ny: side, channels: DemoDocuments.Truth.eelsChannels)
+        XCTAssertNil(EELSOpening.memoryRefusal(name: "demo", cubes: 1, bytes: demo, physicalMemory: mac), "the demo cube (2 MB) is read")
+        XCTAssertNil(EELSOpening.memoryRefusal(name: "half.dm4", cubes: 1, bytes: 4 * gib, physicalMemory: mac), "half the memory is still read")
+        XCTAssertNil(EELSOpening.memoryRefusal(name: "dual.dm4", cubes: 2, bytes: 8 * gib, physicalMemory: 2 * mac), "the same file on a Mac of 16 GB")
+
+        // Through the reader, on the committed 3 x 2 x 5 cube: a memory of one byte refuses it by name, this Mac's memory reads it.
+        let planted = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/eels-planted.dm4")
+        XCTAssertThrowsError(try EELSOpening.open(url: planted, physicalMemory: 1)) { error in
+            guard case .tooLarge(let why)? = error as? EELSOpeningError else { return XCTFail("not refused for its size: \(error)") }
+            XCTAssertTrue(why.hasPrefix("eels-planted.dm4 holds "), why)
+        }
+        XCTAssertEqual(try EELSOpening.open(url: planted).image.channels, 5)
     }
 
     // MARK: The pipeline (Align, then Thickness)

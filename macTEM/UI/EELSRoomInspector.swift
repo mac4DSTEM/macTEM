@@ -289,7 +289,7 @@ struct EELSProcessingSection: View {
                     .accessibilityIdentifier("eels.deconvolution.readout")
             }
             // One line for the section; the pixels the kit refused are its tooltip.
-            InspectorNote(EELSRoomFormat.processingNote(align: session.alignState, thickness: session.thicknessState, alignmentReadout: session.alignmentReadout,
+            InspectorNote(EELSRoomFormat.processingNote(align: session.alignState, alignmentReadout: session.alignmentReadout,
                                                         coreAligned: session.source?.coreLoss != nil && session.alignment != nil))
                 .help(session.unavailableReasons.map { "\($0.count) px: \($0.reason)" }.joined(separator: "\n"))
                 .accessibilityIdentifier("eels.alignReadout")
@@ -441,8 +441,10 @@ private struct EELSReferencesBlock: View {
                     .background(selected == reference.id ? Color.accentColor.opacity(0.25) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
                     .contentShape(Rectangle())
                     .onTapGesture { selected = reference.id }
+                    // A row that selects on a click is a button to VoiceOver, with the click as its action (the Patterns room's tile cells).
                     .accessibilityElement(children: .combine)
-                    .accessibilityAddTraits(selected == reference.id ? .isSelected : [])
+                    .accessibilityAddTraits(selected == reference.id ? [.isButton, .isSelected] : .isButton)
+                    .accessibilityAction(.default) { selected = reference.id }
                 }
             }
             InspectorActionRow {

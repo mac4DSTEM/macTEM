@@ -52,7 +52,7 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
         let one = String(format: "%.1f", e.phi1), two = String(format: "%.1f", e.capitalPhi), three = String(format: "%.1f", e.phi2)
         XCTAssertEqual(text, ["Row\tCol\tPhase\tφ₁ °\tΦ °\tφ₂ °\tCI\tFit °\tBands\tPQ",
                               "0\t0\tNi\t\(one)\t\(two)\t\(three)\t0.823\t0.51\t9\t12350",
-                              "0\t1\tnot indexed\t–\t–\t–\t0.000\t–\t2\t812.4"].joined(separator: "\n"))
+                              "0\t1\tnot indexed\t—\t—\t—\t0.000\t—\t2\t812.4"].joined(separator: "\n"))
     }
 
     /// A dictionary row copies the score (titled by its metric), the simulation index and the OSM; a point the run did not index (no
@@ -70,7 +70,7 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
         XCTAssertEqual(lines.count, 3)
         XCTAssertEqual(lines[0], "Row\tCol\tPhase\tφ₁ °\tΦ °\tφ₂ °\tNCC\tSimulation\tOSM")
         XCTAssertEqual(lines[1].split(separator: "\t").suffix(3).map(String.init), ["0.412", "17", String(format: "%.2f", osm)])
-        XCTAssertEqual(lines[2], "0\t1\tnot indexed\t–\t–\t–\t0.000\t3\t–")
+        XCTAssertEqual(lines[2], "0\t1\tnot indexed\t—\t—\t—\t0.000\t3\t—")
     }
 
     /// No rows copy nothing (the table offers no Copy then); a tab or line break in a phase's name does not break the columns.
@@ -94,7 +94,7 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
         XCTAssertEqual(Array(cells.suffix(4)), ["0,823", "0,51", "9", "12350"])
         XCTAssertEqual(IndexingTableFormat.number(1234.7, locale: Self.de), "1235")
         XCTAssertEqual(IndexingTableFormat.angle(271.54, locale: Self.de), "271,5")
-        XCTAssertEqual(IndexingTableFormat.angle(.nan, locale: Self.de), "–")
+        XCTAssertEqual(IndexingTableFormat.angle(.nan, locale: Self.de), UnitDisplay.noValue)
     }
 
     /// A click (one row in place of others), a ⌘-click that adds one, or ⇧ by one row pins that row; a click inside a wide selection

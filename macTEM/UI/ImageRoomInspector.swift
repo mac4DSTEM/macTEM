@@ -126,7 +126,9 @@ enum ImageInfoFormat {
 /// The frame of an image stack: "Frame 12 of 100", a slider and the two steps. One frame is read at a time, off the main actor
 /// (`OpenItems.showFrame`); the slider moves at once and the image follows when the frame has been read. The sandbox scope of the
 /// file is held while the item is open. Previous and Next are the arrow keys' step (`OpenItems.stepFrame`), so after a frame that
-/// could not be read they go on from that frame, as the keys do; the slider stays on the frame shown.
+/// could not be read they go on from that frame, as the keys do. The slider stays on the frame shown, and its own one-frame move
+/// onto the frame that failed (VoiceOver's increment, its arrow keys, a one-tick drag: the setter cannot tell them apart) is that
+/// step too (`OpenItems.slideFrame`); a longer move asks for the frame it names.
 struct ImageRoomStackSection: View {
     let item: OpenItem
     let items: OpenItems
@@ -140,7 +142,7 @@ struct ImageRoomStackSection: View {
                 InspectorValueRow("Frame", "\(wanted + 1) of \(stack.frameCount)")
                     .accessibilityIdentifier("image.stack.frame")
                     .accessibilityValue("\(shown + 1)")
-                Slider(value: Binding(get: { Double(wanted) }, set: { items.showFrame(item, to: Int($0.rounded())) }),
+                Slider(value: Binding(get: { Double(wanted) }, set: { items.slideFrame(item, to: Int($0.rounded())) }),
                        in: 0...Double(max(stack.frameCount - 1, 1)), step: 1)
                     .accessibilityLabel("Frame")
                     .accessibilityValue("\(wanted + 1) of \(stack.frameCount)")

@@ -26,10 +26,7 @@ nonisolated final class EDXRealFileJourney: Journey {
 
     @MainActor func openReal(_ files: [String] = [file1339], extra: [String] = []) {
         launch(files.flatMap { ["--open", $0] } + ["--export-dir", Self.exportName] + extra)
-        if !element("edx.room").waitForExistence(timeout: 20) {
-            let sidebar = element("workspace.edx")
-            if sidebar.waitForExistence(timeout: 120), sidebar.isEnabled { sidebar.click() }
-        }
+        if !element("edx.room").waitForExistence(timeout: 20) { bringToFront(room: "edx", in: "spectroscopy", timeout: 120) }
         waitFor("edx.room", timeout: 120)
     }
 
@@ -57,9 +54,10 @@ nonisolated final class EDXRealFileJourney: Journey {
         let a = XCTAttachment(string: string); a.name = name; a.lifetime = .keepAlways; add(a)
     }
 
-    /// Real mouse events posted from the runner (XCUITest's own drag does not reach SwiftUI's DragGesture), with tools/drive/drag.sh's
-    /// guard: nothing is sent unless macTEM is the foreground app and both points lie inside its window. (drag.sh itself cannot run from
-    /// the runner: System Events refuses the sandboxed runner, "Application isn't running".) Returns false when nothing was sent.
+    /// Real mouse events posted from the runner (XCUITest's own drag does not reach SwiftUI's DragGesture), behind the suite's guard
+    /// for synthetic events: nothing is sent unless macTEM is the foreground app and both points lie inside its window. (A System Events
+    /// script cannot drive the drag from the runner: System Events refuses the sandboxed runner, "Application isn't running".) Returns
+    /// false when nothing was sent.
     @MainActor func realDrag(from a: CGPoint, to b: CGPoint) -> Bool {
         guard app.state == .runningForeground else { attach("drag refused", "macTEM is not frontmost"); return false }
         let w = app.windows.firstMatch.frame

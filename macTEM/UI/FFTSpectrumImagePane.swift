@@ -447,7 +447,7 @@ private struct FFTRefusalNote: View {
 
 struct FFTSpectrumImagePane: View {
     let analysis: FFTAnalysis
-    /// The room's keys are for the pane pressed last; any press in this pane says it is this one (`FFTPanePress`).
+    /// The room's keys and View > Zoom are for the pane pressed last; any press in this pane says it is this one (`FFTPanePress`).
     @Binding var keyPane: FFTKeyPane?
     @State private var zoomModel = PaneZoomModel()
     private var zp: ZoomPan { zoomModel.state }
@@ -475,6 +475,9 @@ struct FFTSpectrumImagePane: View {
         .padding(8)
         .clipped()
         .modifier(FFTPanePress(pane: .spectrum, keyPane: $keyPane))
+        // View > Zoom acts on the pane pressed last, this one until a pane is pressed, and only on a spectrum that is drawn.
+        .zoomCommandTarget(zoomModel, isTarget: FFTZoomTarget.isTarget(pane: .spectrum, lastClicked: keyPane,
+                                                                       hasPicture: spectrum != nil && failure == nil))
         // Restarts on every change of the flag and cancels with the view; a result that lands within the delay never dims.
         .task(id: isUpdating) { await dim(isUpdating) }
     }

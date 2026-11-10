@@ -220,6 +220,56 @@ mac4DSTEM's, unchanged (its `docs/architecture.md`, "The UI contract"):
    that is the column's divider, the process area), the inspector (Settings · Info). The file, the room and the room's
    verb live in the toolbar. Below the 915-pt floor a panel closes before a science pane shrinks past its minimum.
 
+## Numbers and dates: the screen and the files
+
+The interface is English and is not translated (the project's only language is `en`). What follows the reader's Mac is
+how a number and a time are written, and that depends on where they go (#302).
+
+- **On screen: the reader's locale.** A number a person reads goes through `Num` (`macTEM/UI/NumberFormat.swift`),
+  which writes through `UnitDisplay` (`Sources/TEMCore/Data/UnitDisplay.swift`): printf's digits, so the screen shows
+  the last digit the CSV writes, with the locale's decimal mark, no grouping separator and no exponent. The EELS room's
+  `EELSRoomFormat` (`Sources/TEMCore/EELS/EELSRoomChassis.swift`) writes the reader's mark without grouping as well.
+  These helpers take a `locale` that defaults to `.autoupdatingCurrent`: right for a view, wrong for a file. A count in
+  a sentence ("4,125 of 4,125 indexed") and a clock time are the reader's too.
+- **In every file the app writes: `en_US_POSIX`.** A decimal point, no grouping, and dates that do not depend on the
+  Mac's region, so a figure, a table and a report made on a German Mac read as those made on an American one, and a
+  script reads either. A writer never calls a display helper at its default. It passes `ExportSnapshot.labelLocale`
+  (`macTEM/App/ExportSnapshot.swift`, the app's constant for `en_US_POSIX`; TEMCore and TEMSession cannot see it and
+  name the locale themselves) to a helper that takes a `locale`, or it uses a format that has none: `String(format:)`
+  without a locale argument writes a point whatever the process locale is, and so do `JSONEncoder`,
+  `JSONSerialization` and a Swift number's `description`.
+
+Which of the two each writer uses:
+
+| File | Written by | Its numbers and dates |
+|---|---|---|
+| Image PNG | `ImageExport` (`Sources/TEMCore/Data/ImageExport.swift`), from `ExportSnapshot` | Mark labels: `MarkFormat.value(…, locale: labelLocale)`. Scale bar: ImagoKit's `ScaleBarMath` writes the number, `UnitDisplay.label` the unit. Description chunk: JSON built by hand, numbers by `description`. |
+| Line profile, results, radial profile and spots CSV | `Sources/TEMCore/Data/ProfileCSV.swift`, `ResultsCSV.swift` and `FFTExport.swift`, over ImagoKit's CSV writers | `%.17g` (`CSVText.number`). The results CSV's `session:` line: `ExportSnapshot.sessionHeader` (`macTEM/App/ResultsExportSnapshot.swift`), ISO 8601 with the zone's offset. The spots CSV's note: `FFTRoomFormat.accuracyNote(…, locale: labelLocale)` (`macTEM/App/FFTExportSnapshot.swift`). |
+| Maps and Texture PNG | `MapsFigure` (`macTEM/App/MapsRoomState.swift`) | `scaleBarLabel`, `rangeLabel` and `mrdLabel`, whose `locale` defaults to `labelLocale`. |
+| EELS maps PNG | `macTEM/UI/EELSRoom.swift` | Each tile's `EELSMapTile.detailText(locale: labelLocale)`. |
+| Grains and histogram CSV | `MapsRoomFormat.grainsCSV` and `histogramCSV` (`macTEM/App/MapsRoomState.swift`) | `String(format:)`, `%.6g`. |
+| Indexing results CSV, `.ang`, `.ctf` | `IndexingResult.csv` (`Sources/TEMCore/SEM/Indexing/IndexingResult.swift`), `ANGWriter` and `CTFWriter` (`Sources/TEMCore/SEM/Export/`) | `String(format:)`. |
+| Kikuchi overlay CSV | `KikuchiOverlay.csv` (`Sources/TEMCore/SEM/Simulation/KikuchiOverlay.swift`) | A number's `description`. |
+| Method and metadata JSON | `methodJSON` of `IndexingPlan`, `DictionaryIndexingPlan`, `PatternPipeline` and `EELSCompute`; `EBSDBrowsing.metadataJSON` | `JSONEncoder` or `JSONSerialization`. |
+| EELS CSV and MSA | `EELSExports` (`Sources/TEMCore/EELS/EELSExports.swift`) | `%.9g`; the `.msa` is FormatoKit's `MSAWriter`. The results CSV's thickness, fit quality and deconvolution lines are made in `en_US_POSIX` (`EELSSession.resultsCSV`, `EELSDeconvolveCompute.recordLine`). |
+| Diffraction CSV | `DiffractionExport` (`Sources/TEMCore/Diffraction/DiffractionExport.swift`) | `%.9g`. |
+| Particles CSV | `ParticleFormat.csv` (`Sources/TEMCore/Particles/ParticleCompute.swift`) | `String(format:)`. |
+| EDX CSV and MSA | MacEMUI's `ShellEDXModel` | `String(format:)` in the CSVs; the `.msa` is FormatoKit's `MSAWriter` (`EDXExports.msa`). |
+| Session report, Markdown and PDF | `SEMSessionReport` (`Sources/TEMCore/SEM/Report/SEMSessionReport.swift`), from `ExportPanels.exportSessionReport` | Rows: `SEMSessionLedger.rows(of:locale:)` with `labelLocale`. Dates: `SEMSessionReport.Clock`, a `DateFormatter` in `en_US_POSIX` on the Gregorian calendar ("2026-11-07 16:42"). |
+| Session sidecar | `SessionSidecarFile` and `SessionLineage` (`Sources/TEMCore/Data/`) | `JSONEncoder`: integers, times as milliseconds. |
+
+A test holds each writer that passes a locale: the file's string is the `en_US_POSIX` one, and the same value in `de_DE`
+reads differently, so the literal separates the two on any Mac (`ExportSnapshotTests`, `MapsFigureLabelTests`,
+`SEMSessionLedgerTests`, `EELSFitTextTests`, `ResultsWiringTests`; `FFTExportSnapshotTests` with `NumberFormatTests` for
+the spots CSV's note). `ProfileCSVTests` holds `String(format:)` under a German C locale. A new writer comes with
+its own.
+
+The session report quotes two things as the room wrote them at the time, in the reader's locale: the Output lines, and
+the settings a room recorded with an exported file. Not yet in `en_US_POSIX` (#302): the report's SEM-EDS rows, until
+the EDS room's rework (#267), and the dictionary's energy words (`DictionaryIndexingPlan.energyWords`), which reach
+the report's Energy and master rows and the `energy` string of the dictionary method JSON; `energyKeV` beside it is
+the number.
+
 ## Requirements, build, test
 
 - macOS 26 or later on Apple silicon (`MACOSX_DEPLOYMENT_TARGET = 26.0`, `.macOS(.v26)`, lowered from 27 on 2026-10-28);

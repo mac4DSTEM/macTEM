@@ -328,19 +328,19 @@ nonisolated enum MarkFormat {
         switch mark.kind {
         case .distance:
             let length = ImageMeasurement.distance(p[0], p[1], x: axes.x, y: axes.y)
-            let pixels = "\(number(length.pixels, 4, locale)) px"
+            let pixels = "\(UnitDisplay.number(length.pixels, digits: 4, locale: locale)) px"
             guard let physical = length.physical, let unit = length.unit else { return pixels }
-            return "\(number(physical, 4, locale)) \(UnitDisplay.label(unit)) · \(pixels)"
+            return "\(UnitDisplay.number(physical, digits: 4, locale: locale)) \(UnitDisplay.label(unit)) · \(pixels)"
         case .angle:
             guard let angle = ImageMeasurement.angle(p[0], vertex: p[1], p[2], x: axes.x, y: axes.y) else { return "—" }
-            let degrees = angle.degrees.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(1)))
+            let degrees = UnitDisplay.fixed(angle.degrees, places: 1, locale: locale)
             return angle.plane == .pixel ? "\(degrees)° (pixel grid)" : "\(degrees)°"
         case .profile:
             let length = ImageMeasurement.distance(p[0], p[1], x: axes.x, y: axes.y)
             guard let physical = length.physical, let unit = length.unit else {
-                return "Profile · \(number(length.pixels, 3, locale)) px"
+                return "Profile · \(UnitDisplay.number(length.pixels, digits: 3, locale: locale)) px"
             }
-            return "Profile · \(number(physical, 3, locale)) \(UnitDisplay.label(unit))"
+            return "Profile · \(UnitDisplay.number(physical, digits: 3, locale: locale)) \(UnitDisplay.label(unit))"
         }
     }
 
@@ -378,11 +378,7 @@ nonisolated enum MarkFormat {
         guard let low = profile.samples.min(), let high = profile.samples.max() else { return "No samples" }
         let length = positions.last ?? 0
         let spokenUnit = unit == "px" ? "pixels" : unit
-        return "\(profile.samples.count) samples over \(number(length, 3, locale)) \(spokenUnit); "
-            + "lowest \(number(low, 6, locale)), highest \(number(high, 6, locale))"
-    }
-
-    private static func number(_ value: Double, _ digits: Int, _ locale: Locale) -> String {
-        UnitDisplay.number(value, digits: digits, locale: locale)
+        return "\(profile.samples.count) samples over \(UnitDisplay.number(length, digits: 3, locale: locale)) \(spokenUnit); "
+            + "lowest \(UnitDisplay.number(low, digits: 6, locale: locale)), highest \(UnitDisplay.number(high, digits: 6, locale: locale))"
     }
 }

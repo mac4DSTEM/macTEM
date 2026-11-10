@@ -12,8 +12,9 @@ import SpectroCore
 import SwiftUI
 import TEMSession
 
-/// The six rooms 1.0 ships, in the order the work goes: the image, its transform, the spectrum images, the diffraction pattern,
-/// the numbers. Prepare (calibration, stacks and alignment) was listed unbuilt until 1.0 and is gone (the owner, 2026-10-23).
+/// macTEM's nine rooms, in the order the work goes: the image, its transform, the spectrum images, the diffraction pattern, the EBSD
+/// scan with its indexing and maps, the numbers. Prepare (calibration, stacks and alignment) was listed unbuilt until 1.0 and is gone
+/// (the owner, 2026-10-23).
 nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, WorkspaceRoom {
     case image
     case fft
@@ -48,9 +49,9 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .diffraction: "Camera length, d-spacings, indexing and zone axis"
         case .results: "Review and export the numbers"
         case .edx: "Spectrum images: elements, maps, spectrum and composition"
-        case .eels: "Low-loss spectrum images: thickness (t/λ) maps"
+        case .eels: "EELS spectrum images: thickness (t/λ) maps, core-loss edges and composition"
         case .patterns: "EBSD and TKD patterns: the scan, its mean-intensity map and the live pattern"
-        case .indexing: "Hough indexing of the scan: orientation maps, the solution at each point and its bands"
+        case .indexing: "Hough or dictionary indexing of the scan: orientation maps, the solution at each point and its bands"
         case .maps: "Orientation maps: IPF and phase maps, the colour key and the pattern or unit cell at each point"
         }
     }
@@ -71,13 +72,6 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
 
     /// The shell's name for `systemImage` (`WorkspaceRoom`).
     var symbolName: String { systemImage }
-
-    /// `WorkspaceRoom`: a room that is not built is listed dimmed and cannot be selected.
-    var isAvailable: Bool { isBuilt }
-
-    /// Whether the room exists yet. A room that is not built is listed, so the window shows where the app is
-    /// going, and cannot be entered.
-    var isBuilt: Bool { true }
 
     /// The workspace this room is a part of (`WorkspaceGroup`): the sidebar lists the workspaces and, under the one in front, its parts.
     var group: WorkspaceGroup {
@@ -171,17 +165,19 @@ nonisolated enum DocumentTarget: Equatable, Sendable {
     case image
     case ebsdDataset
     case orientationMap
-    case eds
-    case eels
+    /// `single`: the file is one spectrum (an .msa, one pixel), not a spectrum image; only the menu's title differs.
+    case eds(single: Bool)
+    case eels(single: Bool)
 
     /// What `area` shows, given what the window holds; nil when it shows nothing (⌘W then closes the window, as the system's would).
-    static func of(area: WorkspaceArea, hasImage: Bool, hasDataset: Bool, hasMap: Bool, hasEDS: Bool, hasEELS: Bool) -> DocumentTarget? {
+    static func of(area: WorkspaceArea, hasImage: Bool, hasDataset: Bool, hasMap: Bool, hasEDS: Bool, hasEELS: Bool,
+                   singleSpectrum: Bool = false) -> DocumentTarget? {
         switch area {
         case .image, .fft, .diffraction, .results: return hasImage ? .image : nil
         case .patterns, .indexing: return hasDataset ? .ebsdDataset : nil
         case .maps: return hasMap ? .orientationMap : nil
-        case .edx: return hasEDS ? .eds : nil
-        case .eels: return hasEELS ? .eels : nil
+        case .edx: return hasEDS ? .eds(single: singleSpectrum) : nil
+        case .eels: return hasEELS ? .eels(single: singleSpectrum) : nil
         }
     }
 
@@ -191,7 +187,7 @@ nonisolated enum DocumentTarget: Equatable, Sendable {
         case .image: "Close Image"
         case .ebsdDataset: "Close Dataset"
         case .orientationMap: "Close Map"
-        case .eds, .eels: "Close Spectrum Image"
+        case .eds(let single), .eels(let single): single ? "Close Spectrum" : "Close Spectrum Image"
         }
     }
 }
@@ -232,7 +228,8 @@ extension AppState {
     /// The document the room shows (`DocumentTarget.of`), nil when it shows none.
     var documentTarget: DocumentTarget? {
         DocumentTarget.of(area: navigation.workspaceArea, hasImage: openItems.selected != nil, hasDataset: ebsd.hasDataset,
-                          hasMap: maps.hasMap, hasEDS: edx.hasImage, hasEELS: eels.hasImage)
+                          hasMap: maps.hasMap, hasEDS: edx.hasImage, hasEELS: eels.hasImage,
+                          singleSpectrum: navigation.workspaceArea == .eels ? eels.isSingleSpectrum : edx.isSingleSpectrum)
     }
 
     /// Show in Finder's file: the shown document's (an Indexing run handed to Maps is the dataset's), nil when it has none (a generated demo).

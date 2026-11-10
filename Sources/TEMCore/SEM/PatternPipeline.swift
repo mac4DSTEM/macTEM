@@ -443,6 +443,10 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             out.detector.columns = dataset.detector.columns / binning
             out.detector.binning = dataset.detector.binning * binning
             if let bg = dataset.staticBackground {
+                // try? OK: the binned background only travels with the processed scan as kikuchipy's `downsample` keeps it, and
+                // nothing reads it (the run removed the background it used, and Indexing reads the processed scan without one, or
+                // the stored patterns with the session's). One that does not bin (flat, or not the patterns' shape and type) is
+                // left out rather than failing a run that never needed it.
                 out.staticBackground = try? Self.binned(bg, rows: dataset.patternRows, columns: dataset.patternColumns, factor: binning)
             }
         }

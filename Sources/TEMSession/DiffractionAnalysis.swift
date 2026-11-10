@@ -377,7 +377,4 @@ package final class DiffractionAnalysis {
         }
         return out
     }
-
-    /// Cancels work and lets go (the file closed).
-    package func close() { stop() }
 }

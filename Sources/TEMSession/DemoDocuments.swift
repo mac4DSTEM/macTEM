@@ -161,7 +161,6 @@ package nonisolated enum DemoDocuments {
         /// (pyxem/orix-data). The Maps room's demo without patterns (design §7, `--demo-ang`) and the input of figure F6.
         package static let duplexSteelMap = ShippedFile(relativePath: "sdss_ferrite_austenite.ang", bytes: 651_687,
                                                         md5: "0c45548b82445657fbd52d882a27f2fd", title: "Duplex Steel Orientation Map (orix)")
-        package static let duplexSteelMapRows = 100, duplexSteelMapColumns = 117
 
         package static let all = [nickelEBSD, semEDSSpectrum, nickelMasterPattern, duplexSteelMap]
     }
@@ -327,12 +326,13 @@ package nonisolated enum DemoDocuments {
         return lines.joined(separator: "\r\n") + "\r\n"
     }
 
-    /// Writes the demo SEM image and returns its URL in the temporary folder.
+    /// Writes the demo SEM image and returns its URL in the temporary folder. The write is atomic: Help > Open Demo Data can ask for
+    /// the file again while a window is still reading the one written before, and a reader never sees half a file.
     package static func semImageFile() throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macTEM-demo-sem")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("Demo SEM image.tif")
-        try semTIFF().write(to: url)
+        try semTIFF().write(to: url, options: .atomic)
         return url
     }
 

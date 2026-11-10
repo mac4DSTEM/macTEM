@@ -180,7 +180,6 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
 
     /// orix's `shape`: rows then columns of the points in data, from their coordinates.
     package var shape: [Int] { shape(onlyInData: true) }
-    package var ndim: Int { shape.count }
 
     /// orix's `is_indexed` per point in data.
     package var isIndexed: [Bool] { phaseIDs.map { $0 != PhaseList.notIndexedID } }
@@ -342,14 +341,16 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
     }
 
     /// The whole map's row-major array cut to the current data extent (orix's `reshaped_array[slices]`, offset by where the
-    /// whole map starts).
+    /// whole map starts). A cell past the last point is NaN, with one axis as with two: a scan stopped mid-row, or a one-row map
+    /// whose coordinates leave a gap, spans more cells than it has points, and the array keeps the grid's length.
     private func cropToExtent(_ full: [Double]) -> [Double] {
         let original = originalShape
         let extents = slices(onlyInData: true)
         let base = slices(onlyInData: false)
         guard original.count == 2, extents.count == 2, base.count == 2 else {
             guard let e = extents.first, let b = base.first else { return full }
-            return Array(full[max(e.start - b.start, 0)..<min(e.stop - b.start, full.count)])
+            let start = max(e.start - b.start, 0), stop = max(e.stop - b.start, start)
+            return (start..<stop).map { $0 < full.count ? full[$0] : .nan }
         }
         var out: [Double] = []
         out.reserveCapacity((extents[0].stop - extents[0].start) * (extents[1].stop - extents[1].start))

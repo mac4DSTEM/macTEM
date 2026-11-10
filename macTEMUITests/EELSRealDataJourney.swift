@@ -168,10 +168,7 @@ nonisolated final class EELSRealDataJourney: Journey {
         check("opens in the EELS room") {
             launch(["--open", file, "--export-dir", exportDir])
             _ = app.windows.firstMatch.waitForExistence(timeout: 200)
-            if !element("eels.room").waitForExistence(timeout: 180) {
-                let sidebar = element("workspace.eels")
-                if sidebar.exists, sidebar.isEnabled { sidebar.click() }
-            }
+            if !element("eels.room").waitForExistence(timeout: 180) { bringToFront(room: "eels", in: "spectroscopy") }
             waitFor("eels.room", timeout: 60)
             opened = waitFor("eels.spectrum", timeout: 900).exists
             shot("room open")

@@ -25,9 +25,6 @@ package nonisolated enum EBSDOpening {
         return vendorExtensions.contains(ext)
     }
 
-    /// The orientation maps the Maps room opens on their own (P3-04): EDAX `.ang` and Oxford `.ctf`.
-    package static let mapExtensions = ANGReader.readableExtensions + OxfordOpening.mapExtensions
-
     /// Whether `url` is an `.ang` or `.ctf` without the pattern file of its name next to it: an orientation map alone, which opens in the
     /// Maps room (the pattern doors refuse it, D-SEM-25; FileRouting sends it to the Maps room instead).
     package static func isLoneMap(_ url: URL) -> Bool {

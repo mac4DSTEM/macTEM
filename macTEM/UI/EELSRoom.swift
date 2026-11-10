@@ -5,7 +5,7 @@
 //        below (the region's low loss and core loss on one energy axis with a marked gap) with the results beside it; a single spectrum (a 1 x 1 file) is the
 //        spectrum and its results alone, as the EDS room's. The tools, the Maps control, the edges,
 //        the processing and fitting choices and the exports are the inspector's (`EELSRoomInspector.swift`). The room has its own document, the spectrum image,
-//        opened from here and held by `EELSSession` (TEMSession). Presentation only: every number is SpectroKit's through the session, its method and reference named (`EELSLiterature`);
+//        opened through the app's Open (the room's own button too: `EELSDoor`) and held by `EELSSession` (TEMSession). Presentation only: every number is SpectroKit's through the session, its method and reference named (`EELSLiterature`);
 //        the pure parts (which tile goes where, the axis, the thickness line) are `TEMCore/EELS/EELSRoomChassis.swift`.
 //        The maps block, the spectrum and the results panel live in this file because the room's file list is fixed for slice 1; they move out with slice 2.
 //
@@ -76,7 +76,8 @@ extension EELSSession {
             let flat = EELSMapScale.isFlat(tile.values)
             let values = flat ? EELSMapScale.flatValues(tile.values) : EELSMapScale.scaled(tile.values, mode: EELSMapScale.mode(forTileID: tile.id)).values
             let coloring = flat ? MapColoring.colormap(.gray) : appearance.coloring(for: tile.id, default: EELSTileStyle.defaultColoring(tile.id))
-            cells.append(EDXFigureCell(id: tile.id, title: tile.title, detail: tile.detailText ?? "",
+            // The PNG's words are in the export's locale, not the reader's (`ExportSnapshot.labelLocale`).
+            cells.append(EDXFigureCell(id: tile.id, title: tile.title, detail: tile.detailText(locale: ExportSnapshot.labelLocale) ?? "",
                                        rgba: MapRaster.rgba(values: values, coloring: coloring, upper: 1, adjustment: flat ? MapAdjustment() : appearance.adjustment(for: tile.id)),
                                        width: tile.width, height: tile.height, footer: tile.footer))
         }
@@ -85,6 +86,31 @@ extension EELSSession {
                                 nx: image.nx, ny: image.ny, bar: EDXExports.scaleBar(pixelSize: scanPixel?.size, unit: scanPixel?.unit, nx: image.nx, ny: image.ny),
                                 showsScaleBar: scaleBar, showsRegion: regions, cells: cells)
     }
+}
+
+/// The EELS room's own Open, through the app's one Open (`AppState.open(urls:)`) as File > Open, a drop, Open Recent and the Patterns, Indexing and Maps
+/// rooms' buttons: the file is routed by what it holds, so its image gets its Open Files row, the Results room lists the room's numbers under it, Open
+/// Recent and the last session remember it, and a refusal is the window's one alert. The app's Open hands the file to the EELS session, once; the
+/// door itself reads nothing.
+enum EELSDoor {
+    /// Opens `url` and, once the Open is in, brings the EELS room back in front where the Open landed in the EDS room though the file opened here too
+    /// (`returnsToFront`). The returned task ends then (a test awaits it); nil when the Open started nothing.
+    @discardableResult
+    static func open(_ url: URL, in appState: AppState) -> Task<Void, Never>? {
+        guard let opening = appState.open(urls: [url]) else { return nil }
+        return Task {
+            await opening.value
+            let room = appState.navigation.workspaceArea
+            if Self.returnsToFront(inEELS: appState.eelsFiles.contains(url), inEDS: appState.edsFiles.contains(url), room: room) {
+                appState.selectWorkspace(.eels)
+            }
+        }
+    }
+
+    /// Whether the door's room comes back in front: the file opened into the EELS room and into the EDS room too, and the window is in the EDS room,
+    /// where an Open lands for a file that holds both cubes. A file with an EELS cube and no EDS cube lands in the EELS room by itself; in any other
+    /// room the person has moved on, and stays there. Pure, so a test holds it.
+    nonisolated static func returnsToFront(inEELS: Bool, inEDS: Bool, room: WorkspaceArea) -> Bool { inEELS && inEDS && room == .edx }
 }
 
 struct EELSRoom: View {
@@ -101,6 +127,7 @@ struct EELSRoom: View {
                 // Opening: a bar in the centre and Stop (the toolbar's Stop and ⌘. do the same).
                 VStack(spacing: 12) {
                     ProgressView().progressViewStyle(.linear).frame(maxWidth: EDXLayout.openingBarWidth)
+                        .accessibilityLabel("Opening spectrum image")
                     Text("Opening spectrum image").font(.headline)
                     Button("Stop") { session.stop() }
                         .keyboardShortcut(.cancelAction)
@@ -137,7 +164,7 @@ struct EELSRoom: View {
         .onChange(of: session.fileName) { state.reset() }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: importTypes, allowsMultipleSelection: false) { result in
             switch result {
-            case .success(let urls): if let url = urls.first { session.open(url: url) }
+            case .success(let urls): if let url = urls.first { EELSDoor.open(url, in: appState) }
             case .failure(let error): appState.present(error)
             }
         }
@@ -254,7 +281,7 @@ struct EELSMapsBlock: View {
                         Label(failure, systemImage: "xmark.octagon.fill").font(.callout).foregroundStyle(.red).multilineTextAlignment(.center)
                             .accessibilityIdentifier("eels.failure")
                     } else {
-                        ProgressView().controlSize(.regular)
+                        ProgressView().controlSize(.regular).accessibilityLabel("Mapping the thickness")
                         Text("Mapping the thickness…").foregroundStyle(.secondary)
                     }
                 }
@@ -356,7 +383,10 @@ private struct EELSMapTileHost: View {
             .task(id: key) {
                 guard !members.isEmpty else { image = nil; return }
                 let count = w * h
-                image = await Task.detached(priority: .userInitiated) { EDXMapRaster.cgImage(rgba: MapRaster.mix(layers, count: count), width: w, height: h) }.value
+                let made: CGImage? = await Task.detached(priority: .userInitiated) { EDXMapRaster.cgImage(rgba: MapRaster.mix(layers, count: count), width: w, height: h) }.value
+                // A newer key cancelled this render while it ran (the detached work does not see it): it lands nothing over the newer one.
+                guard !Task.isCancelled else { return }
+                image = made
             }
     }
 
@@ -377,7 +407,7 @@ private struct EELSMapTileHost: View {
             .task(id: "\(tile.id)-\(tile.version)-\(coloring.hashValue)-\(adjustment.hashValue)-\(filtered ? filter.rawValue : "raw")") {
                 let raw = tile, coloring = coloring, adjustment = adjustment, w = tile.width, h = tile.height
                 let mode = EELSMapScale.mode(forTileID: tile.id)
-                image = await Task.detached(priority: .userInitiated) {
+                let made: CGImage? = await Task.detached(priority: .userInitiated) {
                     let values = EELSMapDisplay.shownValues(raw, filter: filter)
                     // NaN (a pixel the kit refused) stays at the bottom of the scale; a stale tile is drawn as it was. A map whose pixels are all one value has no range:
                     // it is drawn at the middle of a neutral grey ramp (never the white of a diverging scale's centre) and the tile's detail names the value.
@@ -387,6 +417,10 @@ private struct EELSMapTileHost: View {
                     let scaled = EELSMapScale.scaled(values, mode: mode)
                     return EDXMapRaster.cgImage(rgba: MapRaster.rgba(values: scaled.values, coloring: coloring, upper: 1, adjustment: adjustment), width: w, height: h)
                 }.value
+                // Every slider tick starts a render: one cancelled by a newer tick while it ran lands nothing, so the tile never ends on an
+                // earlier tick's window.
+                guard !Task.isCancelled else { return }
+                image = made
             }
     }
 }
@@ -432,7 +466,10 @@ private struct EELSMapPopover: View {
             .formStyle(.grouped).scrollContentBackground(.hidden).fixedSize(horizontal: false, vertical: true)
             .task(id: "\(tile.id)-\(tile.version)") {
                 let values = tile.values, mode = EELSMapScale.mode(forTileID: tile.id)
-                shown = await Task.detached(priority: .userInitiated) { Self.histogram(values: values, mode: mode) }.value
+                let made: Shown? = await Task.detached(priority: .userInitiated) { Self.histogram(values: values, mode: mode) }.value
+                // A newer tile version's histogram is on its way: this one, cancelled while it ran, lands nothing.
+                guard !Task.isCancelled else { return }
+                shown = made
             }
     }
 
@@ -565,8 +602,8 @@ nonisolated enum EELSSpectrumLayout {
         CGRect(x: left, y: top, width: max(size.width - left - right, 1), height: max(size.height - top - bottom, 1))
     }
 
-    /// The legend's frame in a spectrum of `size`, for a legend of `legend` size.
-    static func legendFrame(in size: CGSize, legend: CGSize) -> CGRect {
+    /// The legend's frame in the spectrum, for a legend of `legend` size: at a fixed offset from the top-left corner, whatever the spectrum's size.
+    static func legendFrame(legend: CGSize) -> CGRect {
         CGRect(x: legendLeading, y: legendInset, width: legend.width, height: legend.height)
     }
 
@@ -607,6 +644,8 @@ struct EELSWindowItem: Equatable {
 /// The region's low loss and core loss on one energy axis (a marked gap when the windows leave energies out), counts on a log axis: the zero-loss mask hatched, each picked edge's
 /// background and signal windows shaded and draggable with the background extrapolated under the signal, the kit's model curve in the accent, its power-law background dashed,
 /// the references dashed. Hover reads energy and counts into the status line, snapped to an edge onset within 5 eV.
+/// Without a pointer: its accessibility value says the energies shown and each edge's windows (the energy and counts under the pointer while there is
+/// one, `ReadoutAccessibilityValue`), every window is an adjustable element under it (`EELSWindowElements`), and the zoom and the pan are named actions.
 private struct EELSSpectrumView: View {
     let plot: EELSPlotData?
     let items: [EELSWindowItem]
@@ -624,6 +663,8 @@ private struct EELSSpectrumView: View {
     @State private var pinchStart: ClosedRange<Double>?
 
     private static let right = EELSSpectrumLayout.right, gapWidth: CGFloat = 30, handleReach: CGFloat = 5
+    /// One "Zoom in" halves the energies shown; one "Pan" moves them by a quarter of the window.
+    private static let zoomStep = 2.0, panStep = 0.25
 
     /// The counts scale over the energies shown: log10 from 1 to the next power of ten above the largest value, or linear from 0; the counts zoom lowers the top.
     private struct Scale {
@@ -658,6 +699,23 @@ private struct EELSSpectrumView: View {
         return EELSOneAxis(low: cut.low, core: cut.core, width: Double(max(width - left - Self.right, 1)), gapWidth: Double(Self.gapWidth))
     }
 
+    /// The zoom and the pan without a pointer (the named accessibility actions): about the middle of the window, clamped as the gestures' are.
+    private func zoom(closer: Bool, window w: ClosedRange<Double>, plot: EELSPlotData) {
+        let factor = closer ? Self.zoomStep : 1 / Self.zoomStep
+        state.spectrumWindow = EDXSpectrumWindow.zoomed(w, factor: factor, anchor: 0.5, domain: domain(plot), minimumSpan: minimumSpan(plot))
+    }
+
+    private func pan(towardHigherEnergy up: Bool, window w: ClosedRange<Double>, plot: EELSPlotData) {
+        let fraction = up ? Self.panStep : -Self.panStep
+        state.spectrumWindow = EDXSpectrumWindow.panned(w, byFraction: fraction, domain: domain(plot), minimumSpan: minimumSpan(plot))
+    }
+
+    /// The whole spectrum again (a double click off the windows, and the named accessibility action).
+    private func showWholeSpectrum() {
+        state.spectrumWindow = nil
+        state.spectrumYZoom = 1
+    }
+
     /// Where a point sits in the window, 0...1 (the zoom's anchor); the middle in the gap.
     private func anchor(_ x: CGFloat, axis: EELSOneAxis, left: CGFloat, window w: ClosedRange<Double>) -> Double {
         guard let e = axis.energy(atX: Double(x - left)), w.upperBound > w.lowerBound else { return 0.5 }
@@ -678,6 +736,8 @@ private struct EELSSpectrumView: View {
                     if let fitted = plot.backgrounds.first(where: { $0.edgeID == EELSFitCompute.id(item.edge) }), fitted.windows == item.windows { return fitted.curve }
                     return plot.core.flatMap { EELSBackgroundFit.extrapolation(of: $0, windows: item.windows, over: item.windows.background.lowerBound...item.windows.signal.upperBound) }
                 }
+                // What the plot shows, in words (its accessibility value while no pointer is over it): the energies shown and each edge's windows.
+                let spoken = EELSRoomFormat.windowsSpeech(items: items.map { (title: EELSFitCompute.title($0.edge), windows: $0.windows) }, shown: w)
                 Canvas { context, size in
                     Self.draw(&context, size: size, left: left, plot: plot, axis: axis, shown: w, scale: scale, isLog: isLog, items: items, backgrounds: backgrounds,
                               references: references, layers: layers)
@@ -686,9 +746,9 @@ private struct EELSSpectrumView: View {
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let p):
-                        guard p.x >= left, p.x <= geo.size.width - Self.right, let e = axis.energy(atX: Double(p.x - left)) else { state.readout = nil; return }
-                        state.readout = Self.readout(at: e, plot: plot)
-                    case .ended: state.readout = nil
+                        guard p.x >= left, p.x <= geo.size.width - Self.right, let e = axis.energy(atX: Double(p.x - left)) else { state.setSpectrumReadout(nil); return }
+                        state.setSpectrumReadout(Self.readout(at: e, plot: plot))
+                    case .ended: state.setSpectrumReadout(nil)
                     }
                 }
                 .gesture(MagnifyGesture()
@@ -744,7 +804,7 @@ private struct EELSSpectrumView: View {
                     if let e = axis.energy(atX: Double(p.x - left)), let item = items.first(where: { $0.windows.background.contains(e) || $0.windows.signal.contains(e) }) {
                         onResetWindows(item.edge)
                     } else {
-                        state.spectrumWindow = nil; state.spectrumYZoom = 1
+                        showWholeSpectrum()
                     }
                 }
                 .contextMenu {
@@ -769,6 +829,18 @@ private struct EELSSpectrumView: View {
                 .accessibilityElement()
                 .accessibilityLabel("Spectrum of \(plot.regionName), \(isLog ? "log" : "linear") counts")
                 .accessibilityIdentifier("eels.spectrum")
+                // The energy and counts under the pointer while it is over the plot, else `spoken`; read in the modifier, so a pointer move redraws no plot.
+                .modifier(ReadoutAccessibilityValue(readout: { state.spectrumReadout }, fallback: spoken))
+                // The windows without a drag: two adjustable elements per edge under the spectrum (nothing is drawn).
+                .accessibilityChildren {
+                    if let core = plot.core { EELSWindowElements(items: items, core: core, onWindows: onWindows) }
+                }
+                // The pinch, the scroll and the drags, as named actions.
+                .accessibilityAction(named: "Zoom in") { zoom(closer: true, window: w, plot: plot) }
+                .accessibilityAction(named: "Zoom out") { zoom(closer: false, window: w, plot: plot) }
+                .accessibilityAction(named: "Pan left") { pan(towardHigherEnergy: false, window: w, plot: plot) }
+                .accessibilityAction(named: "Pan right") { pan(towardHigherEnergy: true, window: w, plot: plot) }
+                .accessibilityAction(named: "Show whole spectrum") { showWholeSpectrum() }
             } else {
                 Text("The spectrum appears once the file is read.").foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -944,6 +1016,45 @@ private struct EELSSpectrumView: View {
     }
 }
 
+/// The edges' windows as VoiceOver meets them under the spectrum (its `accessibilityChildren`; nothing here is drawn): two elements per edge, the
+/// background window and the signal window, each with its energies as its value. Adjusting one moves the whole window up or down the axis by one step
+/// (`EELSWindowStep.stride`); "Widen" and "Narrow" move its upper end by the same step. Every change is the drag's own (`EELSEdgeWindows.moved`
+/// through `EELSWindowStep.stepped`, handed to the same `onWindows`), so a step stops where a drag would.
+private struct EELSWindowElements: View {
+    let items: [EELSWindowItem]
+    let core: EELSPlotCurve
+    let onWindows: (CoreLossEdge, EELSEdgeWindows) -> Void
+
+    var body: some View {
+        let step = EELSWindowStep.stride(core: core)
+        ForEach(items.map { (id: EELSFitCompute.id($0.edge), item: $0) }, id: \.id) { entry in
+            element(entry.item, isSignal: false, step: step)
+            element(entry.item, isSignal: true, step: step)
+        }
+    }
+
+    private func element(_ item: EELSWindowItem, isSignal: Bool, step: Double) -> some View {
+        let whole: EELSEdgeWindows.Handle = isSignal ? .signalBody : .backgroundBody
+        let upper: EELSEdgeWindows.Handle = isSignal ? .signalUpper : .backgroundUpper
+        func move(_ handle: EELSEdgeWindows.Handle, up: Bool) {
+            onWindows(item.edge, EELSWindowStep.stepped(item.windows, handle: handle, increment: up, step: step, within: core.range))
+        }
+        return Rectangle()
+            .accessibilityElement()
+            .accessibilityLabel(EELSRoomFormat.windowName(edge: EELSFitCompute.title(item.edge), isSignal: isSignal))
+            .accessibilityValue(EELSRoomFormat.energySpan(isSignal ? item.windows.signal : item.windows.background))
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: move(whole, up: true)
+                case .decrement: move(whole, up: false)
+                @unknown default: break
+                }
+            }
+            .accessibilityAction(named: "Widen") { move(upper, up: true) }
+            .accessibilityAction(named: "Narrow") { move(upper, up: false) }
+    }
+}
+
 /// The minimum widths of the results table's columns, as the EDS room's `EDXResultsColumns`: the longest cell `EELSRoomFormat` writes inside the bounds
 /// `EELSResultsColumnsTests` states, measured in the cell font, plus the cell's own inset. Narrower columns cut at% and wt% off ("95,88…", "not de…").
 nonisolated enum EELSResultsColumns {
@@ -955,6 +1066,21 @@ nonisolated enum EELSResultsColumns {
     static let intensityMinimum: CGFloat = 134
     /// at% and wt%: "100.000 ± 0.010", 104 pt (the EDS room's at% and wt% columns); "below detection" is 97 pt.
     static let percentMinimum: CGFloat = 116
+}
+
+/// A column header that is a symbol on screen, with the words VoiceOver says for it (pure, so a test reads the words): the results table's I, at% and
+/// wt%, the Regions table's I total and t/λ. What is drawn stays as it was.
+nonisolated enum EELSColumnSpeech {
+    static let words: [String: String] = ["I": "intensity", "at%": "atomic percent", "wt%": "weight percent", "I total": "total counts", "t/λ": "t over lambda"]
+
+    /// The words for the header drawn as `drawn`; a header that is a word already ("Edge", "Pixels") is said as it is drawn.
+    static func spoken(_ drawn: String) -> String { words[drawn] ?? drawn }
+
+    /// An edge's column in the Regions table: "Fe L2,3 intensity", "Fe L2,3 atomic percent".
+    static func spoken(edge: String, column: String) -> String { "\(edge) \(spoken(column))" }
+
+    /// The header as the table draws it, said in words.
+    @MainActor static func header(_ drawn: String) -> Text { Text(drawn).accessibilityLabel(spoken(drawn)) }
 }
 
 /// The results beside the spectrum: the thickness line, one row per edge (I, at%, wt%), the regions' table, the refusal if there is one, and the footer
@@ -979,7 +1105,7 @@ struct EELSResultsPanel: View {
                     .background(.quaternary, in: Capsule())
                     .help(EELSLiterature.tooltip)
                     .accessibilityIdentifier("eels.methodsTag")
-                if session.isComputing { ProgressView().controlSize(.small) }
+                if session.isComputing { ProgressView().controlSize(.small).accessibilityLabel(EELSStage.spinnerLabel(session.computingStage)) }
             }
             .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
             .frame(height: LayoutPolicy.paneHeaderHeight)
@@ -1004,12 +1130,12 @@ struct EELSResultsPanel: View {
                                 if let why = r.unavailable { Image(systemName: "exclamationmark.circle").foregroundStyle(.secondary).help(why).accessibilityLabel(why) }
                             }
                         }.width(min: EELSResultsColumns.edgeMinimum, ideal: EELSResultsColumns.edgeMinimum + 6)
-                        TableColumn("I") { r in
+                        TableColumn(EELSColumnSpeech.header("I")) { r in
                             Text(EELSRoomFormat.intensityText(r)).monospacedDigit().lineLimit(1)
                                 .help("± is 1σ from the counts, carried through the background fit (counts taken as Poisson)"
                                       + (r.exponent.map { "\nPower-law exponent r under this edge: \(EELSRoomFormat.sig($0, 4))" } ?? ""))
                         }.width(min: EELSResultsColumns.intensityMinimum, ideal: EELSResultsColumns.intensityMinimum + 6)
-                        TableColumn("at%") { r in
+                        TableColumn(EELSColumnSpeech.header("at%")) { r in
                             Text(EELSRoomFormat.atomicText(r)).monospacedDigit().lineLimit(1)
                                 .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
                                 .help(r.fitOnly ? EELSEdgeRow.fitOnlyWords
@@ -1018,7 +1144,7 @@ struct EELSResultsPanel: View {
                                       : r.atomicPercent == nil ? (r.atomicUnavailable ?? EELSEdgeRow.atomicNeedsTwo)
                                       : r.atomicSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "The kit gives no σ for an amount: at% without σ")
                         }.width(min: EELSResultsColumns.percentMinimum, ideal: EELSResultsColumns.percentMinimum + 6)
-                        TableColumn("wt%") { r in
+                        TableColumn(EELSColumnSpeech.header("wt%")) { r in
                             Text(EELSRoomFormat.weightText(r)).monospacedDigit().lineLimit(1)
                                 .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
                                 .help(r.weightSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "")

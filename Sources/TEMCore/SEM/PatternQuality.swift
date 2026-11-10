@@ -22,6 +22,7 @@
 //
 
 import Foundation
+import Synchronization
 import FormatoCore
 import ImagoCore
 
@@ -100,11 +101,6 @@ package nonisolated enum PatternQuality {
             }
             return 1 - (weighted / total) / inertiaMax
         }
-    }
-
-    /// `get_image_quality(pattern, normalize)` for one pattern.
-    package static func imageQuality(_ pattern: [Double], rows: Int, columns: Int, normalize: Bool = true) throws -> Double {
-        try ImageQuality(rows: rows, columns: columns)(pattern, normalize: normalize)
     }
 
     /// `EBSD.get_image_quality(normalize)`: one value per map point, row-major over the scan. `pattern(row, column)` hands
@@ -282,19 +278,19 @@ extension PatternQuality {
 
 /// One scan row of patterns at a time from an `EBSDPatternAccess` (one slab read per row), as doubles; the map functions ask in row
 /// order, so the last few rows are all that is kept.
-private nonisolated final class RowPatterns: @unchecked Sendable {
+private nonisolated final class RowPatterns: Sendable {
     private let access: any EBSDPatternAccess
     private let pixels: Int
-    private let lock = NSLock()
-    private var rows: [Int: [Double]] = [:]
+    private let kept: Mutex<[Int: [Double]]>
 
     init(_ access: any EBSDPatternAccess) {
         self.access = access
         pixels = access.dataset.patternPixels
+        kept = Mutex([:])
     }
 
     func pattern(row: Int, column: Int) throws -> [Double] {
-        try lock.withLock {
+        try kept.withLock { rows throws -> [Double] in
             if rows[row] == nil {
                 rows[row] = try access.row(row).doubles()
                 for key in rows.keys where key < row - 2 { rows[key] = nil }

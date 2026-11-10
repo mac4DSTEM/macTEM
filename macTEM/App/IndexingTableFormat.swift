@@ -10,20 +10,16 @@ import Foundation
 import TEMCore
 
 nonisolated enum IndexingTableFormat {
-    /// An angle (or any value shown to a fixed number of decimals): "12,3"; "–" where there is none (NaN).
+    /// An angle (or any value shown to a fixed number of decimals): "12,3"; `UnitDisplay.noValue` where there is none (NaN).
     static func angle(_ v: Double, digits: Int = 1, locale: Locale = .autoupdatingCurrent) -> String {
-        guard v.isFinite else { return "–" }
-        return v.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(digits)))
+        UnitDisplay.fixed(v, places: digits, locale: locale)
     }
 
     /// A fraction (CI, a score): three decimals.
     static func fraction(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { angle(v, digits: 3, locale: locale) }
 
     /// A value of any size (pattern quality, a Radon peak): up to four significant digits.
-    static func number(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String {
-        guard v.isFinite else { return "–" }
-        return v.formatted(.number.locale(locale).grouping(.never).precision(.significantDigits(1...4)))
-    }
+    static func number(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { UnitDisplay.number(v, digits: 4, locale: locale) }
 
     /// The table's column titles: Row, Col, Phase, the Euler angles, then Hough's CI, Fit, Bands, PQ or a dictionary's score (named by
     /// its metric, `scoreTitle`), Simulation, OSM.
@@ -44,21 +40,16 @@ nonisolated enum IndexingTableFormat {
             return head + [fraction(row.confidence, locale: locale), angle(row.fit, digits: 2, locale: locale), String(row.bands),
                            number(row.patternQuality, locale: locale)]
         case .dictionary:
-            return head + [fraction(row.confidence, locale: locale), row.simulationIndex >= 0 ? String(row.simulationIndex) : "–",
+            return head + [fraction(row.confidence, locale: locale), row.simulationIndex >= 0 ? String(row.simulationIndex) : UnitDisplay.noValue,
                            angle(row.similarity, digits: 2, locale: locale)]
         }
     }
 
     /// ⌘C's text: the header line, then `rows` (in the order given: the table's), each its cells joined by tabs; a tab or line break in
-    /// a cell (a phase's name) becomes a space. "" for no rows.
+    /// a cell (a phase's name) becomes a space (`TSV.line`). "" for no rows.
     static func copyText(_ rows: [IndexingResult.Row], method: IndexingMethod, scoreTitle: String, locale: Locale = .autoupdatingCurrent) -> String {
         guard !rows.isEmpty else { return "" }
-        func line(_ cells: [String]) -> String {
-            cells.map { $0.replacingOccurrences(of: "\t", with: " ").replacingOccurrences(of: "\r\n", with: " ")
-                .replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }
-                .joined(separator: "\t")
-        }
-        return ([line(titles(method: method, scoreTitle: scoreTitle))] + rows.map { line(cells($0, method: method, locale: locale)) })
+        return ([TSV.line(titles(method: method, scoreTitle: scoreTitle))] + rows.map { TSV.line(cells($0, method: method, locale: locale)) })
             .joined(separator: "\n")
     }
 

@@ -135,12 +135,13 @@ enum SessionPanels {
     /// WHY APPKIT: SwiftUI's alert cannot be raised from here, `ContentView`'s alert (the shell, frozen) has no second
     /// choice, and `NSAlert` gives the destructive role and the sheet. True when the user chose Replace.
     private static func confirmReplace(name: String, on window: NSWindow) async -> Bool {
-        await confirm(title: SessionFormat.replaceTitle(name: name), detail: SessionFormat.replaceDetail(name: name),
+        await confirm(title: SessionFormat.replaceTitle(name: name), detail: SessionFormat.replaceDetail,
                       action: "Replace", on: window)
     }
 
-    /// A warning sheet with a destructive `action` and Cancel (Esc); true when the user chose `action`.
-    private static func confirm(title: String, detail: String, action: String, on window: NSWindow) async -> Bool {
+    /// A warning sheet with a destructive `action` and Cancel (Esc); true when the user chose `action`. A window closed under it
+    /// is Cancel (`sheetButton`), so the save that asked ends, and the file's next ⌘S asks again.
+    static func confirm(title: String, detail: String, action: String, on window: NSWindow) async -> Bool {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = title
@@ -149,9 +150,25 @@ enum SessionPanels {
         replace.hasDestructiveAction = true
         let cancel = alert.addButton(withTitle: "Cancel")
         cancel.keyEquivalent = "\u{1b}"
-        return await withCheckedContinuation { continuation in
-            alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertFirstButtonReturn) }
+        return await sheetButton(alert, on: window) == 0
+    }
+
+    /// `alert` as a sheet on `window`, and the index of the button that ended it (0 the first). A window that closes under its
+    /// sheet takes the sheet with it and never calls the completion handler (`ExportPanels.present`), so the await would hang for
+    /// the life of the process, holding the save that asked and its file's place in `panelItems`: the sheet is ended as `.cancel`
+    /// when the window is about to close, an index outside the buttons, and the observer goes when the sheet is over.
+    private static func sheetButton(_ alert: NSAlert, on window: NSWindow) async -> Int {
+        let observer = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window,
+                                                              queue: .main) { _ in
+            MainActor.assumeIsolated {
+                if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel) }
+            }
         }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        let response: Int = await withCheckedContinuation { continuation in
+            alert.beginSheetModal(for: window) { continuation.resume(returning: $0.rawValue) }
+        }
+        return response - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
     }
 
     private static func finish(_ saved: SessionSaving.Saved, item: OpenItem, appState: AppState) {
@@ -197,9 +214,8 @@ enum SessionPanels {
     }
 
     /// The close question as a warning sheet, its buttons `CloseGuard.closeButtons`' (Save to Session, the destructive Don't Save,
-    /// Cancel on Esc; with no save offered Cancel comes first and takes Return). A window that closes under its sheet takes the
-    /// sheet with it and never calls the completion handler (`ExportPanels.present`), so the sheet is ended as Cancel when the
-    /// window is about to close.
+    /// Cancel on Esc; with no save offered Cancel comes first and takes Return). A window that closes under its sheet is Cancel
+    /// (`sheetButton`).
     private static func closeAnswer(_ request: CloseRequest, on window: NSWindow) async -> CloseGuard.Answer {
         let alert = NSAlert()
         alert.alertStyle = .warning
@@ -211,17 +227,7 @@ enum SessionPanels {
             if answer == .discard { button.hasDestructiveAction = true }
             if answer == .cancel, index > 0 { button.keyEquivalent = "\u{1b}" }
         }
-        let observer = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window,
-                                                              queue: .main) { _ in
-            MainActor.assumeIsolated {
-                if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel) }
-            }
-        }
-        defer { NotificationCenter.default.removeObserver(observer) }
-        let response: Int = await withCheckedContinuation { continuation in
-            alert.beginSheetModal(for: window) { continuation.resume(returning: $0.rawValue) }
-        }
-        let index = response - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        let index = await sheetButton(alert, on: window)
         return answers.indices.contains(index) ? answers[index] : .cancel
     }
 

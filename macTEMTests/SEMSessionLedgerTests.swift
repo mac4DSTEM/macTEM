@@ -7,6 +7,7 @@
 //  keeps a panel's export only once the panel has written it; the Results room opens on SEM results alone.
 //  Red before the record: no row for an export, no time on the dataset. Red under: an export recorded before its panel wrote it; the
 //  Results room refused to a window with only an EBSD dataset; the report's figure re-rendered instead of the exported bytes.
+//  The report's numbers are in `ExportSnapshot.labelLocale` on every Mac, the Results room's in the reader's (macTEM#267).
 //
 
 import Foundation
@@ -31,7 +32,7 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
         let state = AppState(launch: LaunchOptions(arguments: ["--export-dir", directory.path]))
         await state.open(urls: [url])?.value
-        for _ in 0..<4000 where !state.ebsd.hasDataset { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the nickel scan to open in the Patterns room", seconds: 20) { state.ebsd.hasDataset }
         try await waitIdle(state)
         XCTAssertTrue(state.ebsd.hasDataset)
         await state.ebsd.process().value
@@ -76,7 +77,8 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
             XCTAssertTrue(text.contains("\n\(heading)\n"), heading)
         }
         XCTAssertTrue(text.contains("![Figure 1](patterns_v2%20indexed%20IPF-Z.png)"), "the figure is linked by its name next to the report")
-        XCTAssertTrue(text.contains("| Indexed | \(result.indexedCount.formatted()) of \(result.pointCount.formatted()) |"))
+        // The report writes its numbers one way on every Mac (`ExportSnapshot.labelLocale`): "4125 of 4125", never "4,125" or "4.125".
+        XCTAssertTrue(text.contains("| Indexed | \(result.indexedCount) of \(result.pointCount) |"), "the report's counts are not grouped")
         XCTAssertTrue(text.contains("| patterns_v2 indexed.ang | EDAX ANG | Indexing · patterns_v2.h5 |"))
 
         // The PDF of the same session draws the exported bytes.
@@ -264,6 +266,50 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         XCTAssertEqual(stale.value, MapsRoomFormat.grainSummary(analysis) + " · stale")
         XCTAssertEqual(field(stale, "State"), "Stale: the Grains or Misorientation settings changed after Segment")
         XCTAssertEqual(field(stale, "Boundary"), "10°", "the settings it ran with")
+    }
+
+    /// The rows' numbers are in the locale the caller passes: the reader's in the Results room, `ExportSnapshot.labelLocale` in the
+    /// session report, so a report reads the same whatever the Mac's region. NLPAR's λ follows its neighbours, so one German row never
+    /// reads "std 1,5 px … λ 0.123". Red before: no locale to pass, λ always written with a point.
+    func testTheRowsWriteEveryNumberInOneLocale() throws {
+        let german = Locale(identifier: "de_DE"), report = ExportSnapshot.labelLocale
+        let dataset = try DemoDocuments.ebsd().dataset
+        var pipeline = PatternPipeline()
+        pipeline.dynamicStage.std = 1.5
+        pipeline.nlpar.isOn = true
+        func fields(_ locale: Locale) -> [String: String] {
+            let made = SEMSessionLedger.processingFields(pipeline, dataset: dataset, lambda: 0.1234, locale: locale)
+            return Dictionary(made.map { ($0.name, $0.value) }, uniquingKeysWith: { first, _ in first })
+        }
+        let radius = "radius \(pipeline.nlpar.searchRadius) px"
+        XCTAssertEqual(fields(german)["Dynamic background"], "Subtract · Gaussian · std 1,5 px · truncate 4 std")
+        XCTAssertEqual(fields(german)["NLPAR"], "\(radius) · λ 0,123")
+        XCTAssertEqual(fields(report)["Dynamic background"], "Subtract · Gaussian · std 1.5 px · truncate 4 std")
+        XCTAssertEqual(fields(report)["NLPAR"], "\(radius) · λ 0.123")
+
+        // The Indexing room's Info words: grouped as a German reader groups, plain in the report.
+        let ni = try XCTUnwrap(IndexingPhase.presets.first { $0.name == "Ni" })
+        var result = IndexingResult(scanRows: 55, scanColumns: 75, phases: [ni])
+        var indexed = HoughIndexer.Solution()
+        indexed.phase = 0
+        for row in 0..<55 { result.land(Array(repeating: indexed, count: 75), at: row) }
+        XCTAssertEqual(IndexingInfoFormat.indexed(result, locale: report), "4125 of 4125")
+        XCTAssertEqual(IndexingInfoFormat.indexed(result, locale: german), "4.125 of 4.125")
+        XCTAssertEqual(IndexingInfoFormat.points(3812, locale: report), "3812 points")
+        XCTAssertEqual(IndexingInfoFormat.time(1.25, locale: german), "1,25 s")
+
+        // The Patterns room's Calibration rows and the Maps room's words take the same locale.
+        XCTAssertEqual(EBSDBrowsing.calibrationRows(dataset, locale: german).first?.value, "1,5 µm × 1,5 µm")
+        XCTAssertEqual(EBSDBrowsing.calibrationRows(dataset, locale: report).first?.value, "1.5 µm × 1.5 µm")
+        let settings = MapAnalysisSettings(boundaryDegrees: 2.5, minimumSize: 10, kamMaxDegrees: 5)
+        XCTAssertEqual(MapsRoomFormat.analysisFields(settings, locale: german).map(\.value), ["2,5°", "10 points", "5°"])
+        XCTAssertEqual(MapsRoomFormat.angle(1.234, digits: 2, locale: german), "1,23")
+
+        // The SEM-EDS rows' words take it too, and never group their counts.
+        XCTAssertEqual(SEMEDSFormat.keV(5.8987, locale: german), "5,899")
+        XCTAssertEqual(SEMEDSFormat.keV(5.8987, locale: report), "5.899")
+        XCTAssertEqual(SEMEDSFormat.counts(12345, locale: german), "12345")
+        XCTAssertEqual(SEMEDSFormat.counts(12345, locale: report), "12345")
     }
 
     /// The record keeps a room's lines with their times, not the "…ing" lines of a run in flight.

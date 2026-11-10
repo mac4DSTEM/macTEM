@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import ImageIO
 import ImagoCore
 import Observation
 import ShellSpectroscopy
@@ -98,10 +97,16 @@ final class PatternsRoomState {
                       session.overlayOn, case .success(let overlay)? = session.overlay else {
                     report("Nothing to export yet: no Kikuchi overlay is on the pattern."); return
                 }
+                // The kinematical master pattern is made off the main actor: until it lands, the picture would leave the simulation out.
+                if session.overlaySettings.kinematical, overlay.simulated == nil, session.isMakingOverlayMaster {
+                    report("Nothing to export yet: the kinematical simulation is still being made.")
+                    return
+                }
                 exportPosition = position
                 let plain = try Self.patternPNG(canvas: canvas, presentation: session.patternPresentation, dataset: document.dataset,
                                                 fileName: document.fileName, position: position)
-                guard let png = KikuchiOverlayExport.png(patternPNG: plain, overlay: overlay, settings: session.overlaySettings) else {
+                guard let png = KikuchiOverlayExport.png(patternPNG: plain, fileName: document.fileName, overlay: overlay,
+                                                         settings: session.overlaySettings) else {
                     report("Export failed: the pattern with its overlay could not be encoded."); return
                 }
                 data = png
@@ -118,7 +123,7 @@ final class PatternsRoomState {
                 }
                 exportMap = Self.mapName(session.mapChoice)
                 if session.mapChoice == .mix, let rgba = session.mixRGBA {
-                    guard let png = Self.mixPNG(rgba: rgba, width: canvas.width, height: canvas.height) else {
+                    guard let png = Self.mixPNG(rgba: rgba, width: canvas.width, height: canvas.height, fileName: document.fileName) else {
                         report("Export failed: the colour mix could not be encoded."); return
                     }
                     data = png
@@ -171,9 +176,9 @@ final class PatternsRoomState {
         case .overlayPNG, .overlayCSV:
             let overlay = session.overlaySettings
             let drawsSimulation = kind == .overlayPNG && overlay.kinematical && session.canDrawBandWidth
-            // The Simulation section's words: Overlay, Blend, Min d, Band width.
+            // The Simulation section's words: Overlay, Blend (two decimals, as its slider), Min d, Band width, in one locale.
             fields = [position, SEMSessionField("Overlay", drawsSimulation ? "Kinematical" : "Geometrical")]
-            if drawsSimulation { fields.append(SEMSessionField("Blend", String(format: "%.2f", overlay.blend))) }
+            if drawsSimulation { fields.append(SEMSessionField("Blend", Num.fixed(overlay.blend, 2))) }
             fields.append(SEMSessionField("Min d", "\(UnitDisplay.number(overlay.minDSpacing)) Å"))
             fields.append(SEMSessionField("Band width", overlay.bandWidth && session.canDrawBandWidth ? "On" : "Off"))
             methods = [.kikuchiOverlay] + (drawsSimulation ? [.kinematicalSimulation] : [])
@@ -187,13 +192,11 @@ final class PatternsRoomState {
                                png: isPicture ? data : nil)
     }
 
-    /// The colour mix's RGBA bytes as a PNG (ImageIO), one pixel per scan point.
-    nonisolated static func mixPNG(rgba: [UInt8], width: Int, height: Int) -> Data? {
+    /// The colour mix's RGBA bytes as a PNG, one pixel per scan point, through the app's one encoder (`ImageExport.encodePNG`) with
+    /// `fileName` as Title and macTEM as Software, as the map PNG carries them.
+    nonisolated static func mixPNG(rgba: [UInt8], width: Int, height: Int, fileName: String) -> Data? {
         guard let image = EDXMapRaster.cgImage(rgba: rgba, width: width, height: height) else { return nil }
-        let encoded = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(encoded as CFMutableData, UTType.png.identifier as CFString, 1, nil) else { return nil }
-        CGImageDestinationAddImage(destination, image, nil)
-        return CGImageDestinationFinalize(destination) ? encoded as Data : nil
+        return try? ImageExport.encodePNG(image, title: fileName, software: "macTEM")
     }
 
     static func mapName(_ choice: EBSDSession.MapChoice) -> String {

@@ -300,8 +300,9 @@ nonisolated enum ResultsSessionFormat {
         row.kind == .export ? "Written by the room named in Source; export again there." : "Change it in the \(row.kind.room) room."
     }
 
-    /// ⌘C: one line per row, tab-separated: result, value, source, time, method.
+    /// ⌘C: one line per row, tab-separated: result, value, source, time, method; a tab or line break in a column (a file's name)
+    /// becomes a space (`TSV.line`), so every pasted row keeps its five columns.
     static func copyText(_ rows: [SEMSessionRow]) -> String {
-        rows.map { [$0.label, $0.value, $0.source, time($0.time), $0.methodTitle].joined(separator: "\t") }.joined(separator: "\n")
+        rows.map { TSV.line([$0.label, $0.value, $0.source, time($0.time), $0.methodTitle]) }.joined(separator: "\n")
     }
 }

@@ -89,11 +89,6 @@ package nonisolated enum OrientationSampling {
         }
     }
 
-    /// `local(resolution:center:gridWidth:)` off the caller's actor.
-    @concurrent package static func localSample(resolution: Double, center: Rotation? = nil, gridWidth: Double = 10) async throws -> [Rotation] {
-        try local(resolution: resolution, center: center, gridWidth: gridWidth)
-    }
-
     // MARK: - The grid
 
     /// `_cubochoric_sampling_loop` with a filter applied as each point is made: the unit quaternions the filter keeps, in
@@ -138,22 +133,17 @@ package nonisolated enum OrientationSampling {
     }
 
     /// The bands' outputs, each written once by its own band.
-    private nonisolated final class BandResults: @unchecked Sendable {
-        private var bands: [[SIMD4<Double>]]
-        private let lock = NSLock()
+    private nonisolated final class BandResults: Sendable {
+        private let bands: Mutex<[[SIMD4<Double>]]>
 
-        init(count: Int) { bands = Array(repeating: [], count: count) }
+        init(count: Int) { bands = Mutex([[SIMD4<Double>]](repeating: [], count: count)) }
 
         func set(_ band: Int, _ values: [SIMD4<Double>]) {
-            lock.lock()
-            bands[band] = values
-            lock.unlock()
+            bands.withLock { $0[band] = values }
         }
 
         func joined() -> [SIMD4<Double>] {
-            lock.lock()
-            defer { lock.unlock() }
-            return bands.flatMap { $0 }
+            bands.withLock { all -> [SIMD4<Double>] in all.flatMap { $0 } }
         }
     }
 

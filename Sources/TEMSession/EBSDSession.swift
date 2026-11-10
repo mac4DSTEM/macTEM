@@ -10,8 +10,8 @@
 //  meanwhile (`mapGeneration`), and that sums the patterns for the scan's mean on the way when the file carries no static background,
 //  so such a file is read once at open; the scan's mean asked for later, Process and the quality pass land only for the dataset they
 //  started on (`generation`), so a new grid never drops them; the hovered pattern in a task that is cancelled by the next hover, so a
-//  fast sweep over the map reads the pattern the pointer rests on, not every one it passed. Patterns read once stay in a bounded cache
-//  by map index.
+//  fast sweep over the map reads the pattern the pointer rests on, not every one it passed. Patterns read once stay in a cache by map
+//  index that is bounded by their bytes (`cacheBudget`) and lets the least recently shown go first.
 //
 //  Processing (docs/sem/design/pattern-processing.md): `pipeline` holds the stages' settings (`PatternPipeline`, TEMCore). The pattern pane
 //  shows the shown pattern raw or through the current pipeline (`patternDisplay`), computed on the fly from the raw pattern, so a change of
@@ -105,6 +105,10 @@ package final class EBSDSession {
     /// The kinematical master pattern (Lambert, for the simulation) and its stereographic picture per phase id, for the current bands.
     @ObservationIgnored var overlayMasters: [Int: EBSDMasterPattern] = [:]
     @ObservationIgnored var overlayPictures: [Int: [Double]] = [:]
+    /// The master patterns being made off the main actor, by phase id, and how many have landed: the overlay reads the count, so a
+    /// master that lands draws the simulation (EBSDSession+Overlay.swift).
+    @ObservationIgnored var overlayMasterTasks: [Int: Task<Void, Never>] = [:]
+    var overlayMastersLanded = 0
 
     // MARK: Processing
 
@@ -270,28 +274,32 @@ package final class EBSDSession {
     }
 
     /// The scan's mean in its own pass, when the source is switched to it after the map's pass (or the patterns cannot be summed, which
-    /// it says at once). A stopped pass lands nothing.
+    /// it says at once, with the reason). A stopped pass lands nothing.
     private func startMean(_ document: Document) {
         let gen = generation
         isComputingMean = true
         let access = document.access
         meanTask = Task.detached(priority: .userInitiated) { [weak self] in
             let mean: FormatoArray?
+            let failure: String?
             do {
                 guard let summed = try PatternPipeline.meanBackground(access, isCancelled: { Task.isCancelled }) else { return }
                 mean = summed
+                failure = nil
             } catch {
                 mean = nil
+                failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
-            await self?.landMean(mean, generation: gen)
+            await self?.landMean(mean, failure: failure, generation: gen)
         }
     }
 
-    private func landMean(_ mean: FormatoArray?, generation gen: Int) {
+    /// The scan's mean landed, or could not be made: then the status line says so with the reader's or the stage's sentence (`failure`).
+    private func landMean(_ mean: FormatoArray?, failure: String?, generation gen: Int) {
         guard gen == generation else { return }
         isComputingMean = false
         scanMeanBackground = mean
-        if mean == nil { onEvent?("The scan's mean pattern could not be computed.") }
+        if mean == nil { onEvent?("The scan's mean pattern could not be computed" + (failure.map { ": " + $0 } ?? ".")) }
         if patternDisplay == .processed { showPattern(at: shown) }
     }
 
@@ -342,10 +350,15 @@ package final class EBSDSession {
     /// The processing run's own count: Process and Stop move it on, and a run's progress and result land only while it is the latest,
     /// so Stop then Process never lands the stopped run as the new one.
     @ObservationIgnored private var processRun = 0
-    /// Raw patterns read so far, by map index; cleared when it grows past `cacheLimit` and with every new dataset.
+    /// Raw patterns read so far, by map index, and their indices from the least recently shown to the most (`cacheOrder`): a cached
+    /// pattern shown again moves to the end, and the front is let go while the patterns hold more than `cacheBudget` bytes. Emptied
+    /// with every new dataset.
     @ObservationIgnored private var cache: [Int: FormatoArray] = [:]
     @ObservationIgnored private var cacheOrder: [Int] = []
-    package static let cacheLimit = 512
+    /// The bytes the cached patterns hold.
+    @ObservationIgnored package private(set) var cacheBytes = 0
+    /// The most the cached patterns may hold: 64 MB, which is 128 patterns of 512 x 512 uint16 or 26 of 1244 x 1024.
+    package static let cacheBudget = 64 << 20
 
     package init() {}
 
@@ -503,7 +516,7 @@ package final class EBSDSession {
         mapGeneration += 1
         mapTask?.cancel(); patternTask?.cancel()
         self.document = document
-        cache = [:]; cacheOrder = []
+        cache = [:]; cacheOrder = []; cacheBytes = 0
         pinned = .origin; hovered = nil
         patternPosition = nil; meanIntensities = nil; mapFailure = nil; mapProgress = 0
         virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
@@ -562,7 +575,7 @@ package final class EBSDSession {
         mapGeneration += 1
         openTask?.cancel(); mapTask?.cancel(); patternTask?.cancel()
         isOpening = false; isMapping = false
-        document = nil; cache = [:]; cacheOrder = []
+        document = nil; cache = [:]; cacheOrder = []; cacheBytes = 0
         meanIntensities = nil; mapFailure = nil; patternPosition = nil; hovered = nil; pinned = .origin
         virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
         qualityTask?.cancel(); imageQualityMap = nil; dotProductMap = nil; isQualityMapping = false; qualityProgress = 0; showsTiles = false
@@ -600,11 +613,18 @@ package final class EBSDSession {
                 let mean = sums[0].map { Float($0 / pixels) }
                 let images = sums.map { $0.map(Float.init) }
                 var scanMean: FormatoArray?
-                if let patternSum = pass.patternSum { scanMean = try? PatternPipeline.meanBackground(sum: patternSum, of: dataset) }
-                await self?.landMap(mean, images: images, scanMean: scanMean, failure: nil, mapGeneration: gen)
+                var meanFailure: String?
+                if let patternSum = pass.patternSum {
+                    do {
+                        scanMean = try PatternPipeline.meanBackground(sum: patternSum, of: dataset)
+                    } catch {
+                        meanFailure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    }
+                }
+                await self?.landMap(mean, images: images, scanMean: scanMean, meanFailure: meanFailure, failure: nil, mapGeneration: gen)
             } catch {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                await self?.landMap(nil, images: nil, scanMean: nil, failure: words, mapGeneration: gen)
+                await self?.landMap(nil, images: nil, scanMean: nil, meanFailure: nil, failure: words, mapGeneration: gen)
             }
         }
     }
@@ -653,9 +673,10 @@ package final class EBSDSession {
         mapProgress = f
     }
 
-    /// The map's pass landed (or failed); the scan's mean that rode on it lands with it, or stops computing when the pass failed (the
-    /// map's error says why). A stopped mean (`stop()` lowered `meanRidesMap`) does not land.
-    private func landMap(_ map: [Float]?, images: [[Float]]?, scanMean: FormatoArray?, failure: String?, mapGeneration gen: Int) {
+    /// The map's pass landed (or failed); the scan's mean that rode on it lands with it (or `meanFailure` says why it could not be made),
+    /// or stops computing when the pass failed (the map's error says why). A stopped mean (`stop()` lowered `meanRidesMap`) does not land.
+    private func landMap(_ map: [Float]?, images: [[Float]]?, scanMean: FormatoArray?, meanFailure: String?, failure: String?,
+                         mapGeneration gen: Int) {
         guard gen == mapGeneration else { return }
         isMapping = false
         mapProgress = map == nil ? mapProgress : 1
@@ -671,7 +692,7 @@ package final class EBSDSession {
         guard meanRidesMap else { return }
         meanRidesMap = false
         if map != nil {
-            landMean(scanMean, generation: generation)
+            landMean(scanMean, failure: meanFailure, generation: generation)
         } else {
             isComputingMean = false
         }
@@ -731,6 +752,7 @@ package final class EBSDSession {
             return Task {}
         }
         let cached = cache[index]
+        if cached != nil { touch(index) }
         if let cached, pipeline == nil {
             patternPresentation.show(Self.canvas(cached))
             patternPosition = position
@@ -780,12 +802,30 @@ package final class EBSDSession {
         return CanvasPixels.make(width: columns, height: rows, pixels: EBSDBrowsing.pixels(pattern))
     }
 
+    /// Keeps `pattern` as the most recently shown, then lets the least recently shown go while the cache holds more than `cacheBudget`
+    /// bytes. The pattern just read always stays, so one larger than the budget is the cache's only entry.
     private func remember(_ pattern: FormatoArray, at index: Int) {
-        if cache.count >= Self.cacheLimit, let oldest = cacheOrder.first {
-            cache[oldest] = nil
-            cacheOrder.removeFirst()
+        if let replaced = cache[index] {
+            cacheBytes -= replaced.bytes.count
+            cacheOrder.removeAll { $0 == index }
         }
         cache[index] = pattern
+        cacheOrder.append(index)
+        cacheBytes += pattern.bytes.count
+        var dropped = 0
+        while cacheBytes > Self.cacheBudget, dropped < cacheOrder.count - 1 {
+            let oldest = cacheOrder[dropped]
+            cacheBytes -= cache[oldest]?.bytes.count ?? 0
+            cache[oldest] = nil
+            dropped += 1
+        }
+        cacheOrder.removeFirst(dropped)
+    }
+
+    /// The cached pattern at `index` is shown again: it becomes the most recently shown, the last to be let go.
+    private func touch(_ index: Int) {
+        guard cacheOrder.last != index, let place = cacheOrder.firstIndex(of: index) else { return }
+        cacheOrder.remove(at: place)
         cacheOrder.append(index)
     }
 }

@@ -110,12 +110,4 @@ package nonisolated enum NyeTensor {
         }
         return Result(rows: rows, columns: columns, gnd: gnd, alpha: alpha)
     }
-
-    /// `compute` off the caller's actor: a 1000 x 1000 map runs 48 million symmetry products.
-    @concurrent package static func computing(quaternions: [SIMD4<Double>], rows: Int, columns: Int, stepMicrons: Double,
-                                              structure: DefDAPCrystalStructure, derivatives: Derivatives = .separate,
-                                              burgersVector: Double = defaultBurgersVector) async -> Result {
-        compute(quaternions: quaternions, rows: rows, columns: columns, stepMicrons: stepMicrons, structure: structure,
-                derivatives: derivatives, burgersVector: burgersVector)
-    }
 }
