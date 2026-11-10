@@ -244,10 +244,6 @@ package nonisolated struct SlipPhase: Sendable, Equatable {
         }
     }
 
-    /// The slip systems the app's Schmid-factor and slip-trace views use: DefDAP's, without systems whose direction leaves
-    /// their plane (`SlipSystemSet.consistent`).
-    package var analysisSlipSystems: SlipSystemSet? { slipSystems?.consistent }
-
     /// `Phase.c_over_a`: c / a for a hexagonal phase, nil otherwise.
     package var cOverA: Double? {
         if case .hexagonal(let r) = crystal { return r }

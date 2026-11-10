@@ -180,7 +180,6 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
 
     /// orix's `shape`: rows then columns of the points in data, from their coordinates.
     package var shape: [Int] { shape(onlyInData: true) }
-    package var ndim: Int { shape.count }
 
     /// orix's `is_indexed` per point in data.
     package var isIndexed: [Bool] { phaseIDs.map { $0 != PhaseList.notIndexedID } }

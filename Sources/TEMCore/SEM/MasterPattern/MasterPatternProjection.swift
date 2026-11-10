@@ -61,11 +61,6 @@ package nonisolated enum MasterPatternProjection {
         package var columns: Int
         package var outputType: OutputType
         package var values: [Double]
-
-        package func pattern(_ i: Int) -> ArraySlice<Double> {
-            let n = rows * columns
-            return values[i * n ..< (i + 1) * n]
-        }
     }
 
     package enum Error: Swift.Error, LocalizedError, Equatable {

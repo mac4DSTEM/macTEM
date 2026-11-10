@@ -118,9 +118,6 @@ package nonisolated struct PoleDensityMap: Sendable {
     /// The symmetry whose sector the map was folded into, nil for a pole figure on a hemisphere.
     package let symmetry: PointGroup?
 
-    package var azimuthBins: Int { grid.azimuthBins }
-    package var polarBins: Int { grid.polarBins }
-
     /// The largest unmasked value (the top of the colour bar).
     package var maximum: Double { zip(values, mask).filter { !$0.1 }.map(\.0).max() ?? 0 }
 

@@ -242,8 +242,6 @@ package nonisolated struct IPFColorKeyTSL: Sendable {
     package func color(of quaternions: [SIMD4<Double>]) -> [SIMD3<Double>] {
         directionKey.color(of: quaternions.map { Rotation(unit: $0) * direction })
     }
-
-    package func color(of orientations: Orientations) -> [SIMD3<Double>] { color(of: orientations.quaternions) }
 }
 
 /// orix's `EulerColorKey`: (φ1, Φ, φ2) in the Euler fundamental region of the proper subgroup, each over its maximum,

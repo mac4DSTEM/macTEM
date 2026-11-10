@@ -33,11 +33,6 @@ package nonisolated struct Rotation: Sendable, Equatable {
 
     package static let identity = Rotation(unit: SIMD4(1, 0, 0, 0))
 
-    package var a: Double { q[0] }
-    package var b: Double { q[1] }
-    package var c: Double { q[2] }
-    package var d: Double { q[3] }
-
     // MARK: - Quaternion algebra
 
     /// orix's `qu_multiply`: the Hamilton product q1 q2.
@@ -79,9 +74,6 @@ package nonisolated struct Rotation: Sendable, Equatable {
         let n = RotationConversions.norm(q)
         return Rotation(Rotation.conjugate(q) / (n * n), improper: improper)
     }
-
-    /// `Rotation.__neg__`: the same quaternion with the improper flag flipped.
-    package var negated: Rotation { Rotation(unit: q, improper: !improper) }
 
     /// The antipodal quaternion −q (the same rotation).
     package var antipode: Rotation { Rotation(unit: -q, improper: improper) }

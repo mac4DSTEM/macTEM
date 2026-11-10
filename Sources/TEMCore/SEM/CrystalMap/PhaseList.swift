@@ -91,7 +91,6 @@ package nonisolated struct PhaseList: Sendable, Equatable {
     }
 
     package var count: Int { ids.count }
-    package var isEmpty: Bool { ids.isEmpty }
     package var names: [String] { phases.map(\.name) }
     package var colors: [String] { phases.map(\.color) }
     package var pointGroupNames: [String?] { phases.map(\.pointGroupName) }

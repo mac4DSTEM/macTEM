@@ -102,11 +102,6 @@ package nonisolated enum PatternQuality {
         }
     }
 
-    /// `get_image_quality(pattern, normalize)` for one pattern.
-    package static func imageQuality(_ pattern: [Double], rows: Int, columns: Int, normalize: Bool = true) throws -> Double {
-        try ImageQuality(rows: rows, columns: columns)(pattern, normalize: normalize)
-    }
-
     /// `EBSD.get_image_quality(normalize)`: one value per map point, row-major over the scan. `pattern(row, column)` hands
     /// each pattern (detector row-major, `patternRows * patternColumns` values) and is asked row by row, in map order on the
     /// calling task (it need not be thread safe); each row's image qualities are computed on every core (`ScanRowWork`), each

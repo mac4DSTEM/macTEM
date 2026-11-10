@@ -260,8 +260,6 @@ package nonisolated struct CSRSpectrumImageBuilder {
         rowOffsets.reserveCapacity(pixels.partialValue + 1)
     }
 
-    package var pixelsAppended: Int { rowOffsets.count - 1 }
-
     /// The next pixel's spectrum (`channels` counts).
     package mutating func append(spectrum: UnsafeBufferPointer<UInt32>) {
         for c in 0..<channels where spectrum[c] != 0 {

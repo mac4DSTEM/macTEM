@@ -96,10 +96,6 @@ package nonisolated enum EBSDRefinement {
         package init(count: Int, pixels: Int, values: [Float], isFloat32: Bool) {
             self.count = count; self.pixels = pixels; self.values = values; self.isFloat32 = isFloat32
         }
-
-        package init<P: BinaryInteger>(count: Int, pixels: Int, integers: [P]) {
-            self.init(count: count, pixels: pixels, values: integers.map { Float($0) }, isFloat32: false)
-        }
     }
 
     /// The solver's settings (`refine_*`'s `trust_region`, `signal_mask` and SciPy's options).

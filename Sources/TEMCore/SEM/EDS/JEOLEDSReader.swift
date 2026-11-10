@@ -17,8 +17,6 @@ import Foundation
 
 package nonisolated enum JEOLEDSReader {
     package static let readableExtensions = ["pts", "eds", "img", "map", "asw"]
-    /// The extensions whose files hold a spectrum or spectrum image (the others hold images).
-    package static let spectralExtensions = ["pts", "eds", "asw"]
 
     package static func read(url: URL) throws -> SEMEDSFile {
         let signals = try signals(url: url)
@@ -57,11 +55,6 @@ package nonisolated enum JEOLEDSReader {
         package var typeCode: Character?
 
         package subscript(_ key: String) -> Node? { children[key] }
-
-        func child(_ key: String) -> Node {
-            if let c = children[key] { return c }
-            let c = Node(); children[key] = c; keys.append(key); return c
-        }
 
         func set(_ key: String, _ node: Node) {
             if children[key] == nil { keys.append(key) }
