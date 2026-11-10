@@ -298,8 +298,11 @@ package nonisolated enum EBSDH5Reader {
             x = grid.x
             y = scan.rows > 1 ? grid.y : nil
         }
+        // orix's `dict2crystalmap` takes the map's length unit from `header/scan_unit` ("um" in kikuchipy's files, NUL-padded); its
+        // default "px" stands only when the header has none. Without it a µm map drew its scale bar and grain sizes in px.
+        let unit = try header.string("scan_unit")?.trimmingCharacters(in: CharacterSet(charactersIn: "\0").union(.whitespaces))
         return try CrystalMap(euler: euler, phaseIDs: Array(phaseIDs.prefix(n)), x: x, y: y, phaseList: phases.isEmpty ? nil : PhaseList(phases),
-                              properties: properties)
+                              properties: properties, scanUnit: unit.flatMap { $0.isEmpty ? nil : $0 } ?? "px")
     }
 
     // MARK: - Bruker Nano

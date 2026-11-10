@@ -77,13 +77,8 @@ nonisolated final class EDXRoomTests: XCTestCase {
     @MainActor func testTheRoomsListInTheOrderTheWorkGoes() {
         XCTAssertEqual(WorkspaceArea.allCases.map(\.title), ["Image", "FFT", "EDS", "EELS", "Diffraction", "Patterns", "Indexing", "Maps", "Results"])
         XCTAssertTrue(WorkspaceArea.edx.isBuilt)
-        XCTAssertEqual(WorkspaceArea.edx.shortcutDigit, "3")
-        XCTAssertEqual(WorkspaceArea.eels.shortcutDigit, "4")
-        XCTAssertEqual(WorkspaceArea.diffraction.shortcutDigit, "5")
-        XCTAssertEqual(WorkspaceArea.patterns.shortcutDigit, "6")
-        XCTAssertEqual(WorkspaceArea.indexing.shortcutDigit, "7")
-        XCTAssertEqual(WorkspaceArea.maps.shortcutDigit, "8")
-        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "9")
+        XCTAssertEqual(WorkspaceGroup.allCases.map(\.title), ["Imaging", "Spectroscopy", "Diffraction", "EBSD", "Results"])
+        XCTAssertEqual(WorkspaceGroup.allCases.map(\.shortcutDigit), ["1", "2", "3", "4", "5"])
     }
 
     /// The spectrum rooms follow the selected file: a file that opened into the EDS room is reopened there when its row is selected while another file
@@ -100,7 +95,7 @@ nonisolated final class EDXRoomTests: XCTestCase {
         // The list's URL is resolved and standardised (drive 6 on screen: the raw URL never matched it).
         let viaTmp = URL(fileURLWithPath: "/tmp/../data/SI 1339.emd")
         XCTAssertEqual(AppState.roomsToFollow(selected: viaTmp, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eds, true, "another spelling of the same path")
-        XCTAssertTrue(squeezed((try? source("macTEM/App/AppState.swift")) ?? "").contains("openItems.onSelect = { [weak self] _ in self?.spectrumRoomsFollowSelection() }"),
+        XCTAssertTrue(squeezed((try? source("macTEM/App/AppState.swift")) ?? "").contains("openItems.onSelect = { [weak self] _ in self?.spectrumRoomsFollowSelection() self?.recordLastSession() }"),
                       "the selection reaches the rooms through the list's own callback, not a view's observation (it did not fire on screen)")
     }
 
@@ -151,7 +146,7 @@ nonisolated final class EDXRoomTests: XCTestCase {
         let app = try source("macTEM/App/AppState.swift")
         XCTAssertEqual(app.components(separatedBy: "EDXSession(host: .macTEM)").count - 1, 1)
         XCTAssertEqual(app.components(separatedBy: "EDXRoomState()").count - 1, 1)
-        XCTAssertTrue(app.contains("edx.onEvent = { [weak self] in self?.statusText = $0 }"))
+        XCTAssertTrue(app.contains("edx.onEvent = { [weak self] in self?.report(event: $0, in: nil) }"))
         XCTAssertTrue(app.contains("edx.onFailure = { [weak self] in self?.present($0) }"))
         let menu = squeezed(try source("macTEM/App/macTEMApp.swift"))
         XCTAssertTrue(menu.contains(".disabled(appState.map { $0.roomUnavailableReason(area) != nil } ?? true)"), "the file decides which rooms open")

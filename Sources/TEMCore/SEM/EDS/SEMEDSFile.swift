@@ -106,10 +106,13 @@ package nonisolated enum SEMEDSSignal: Sendable {
     case image(SEMEDSImage)
 }
 
-/// A read file: its signals in rsciio's order.
+/// A read file: its signals in rsciio's order, and what it opened without.
 package nonisolated struct SEMEDSFile: Sendable {
     package var url: URL
     package var signals: [SEMEDSSignal]
+    /// A sentence for each companion beside the file that is there but could not be read (the sandboxed app is given the
+    /// picked file only): it is left out as a missing one is, and said here. Empty when nothing was left out.
+    package var notes: [String] = []
 
     package var spectrumImages: [SEMEDSSpectrumImage] {
         signals.compactMap { if case .spectrumImage(let s) = $0 { s } else { nil } }

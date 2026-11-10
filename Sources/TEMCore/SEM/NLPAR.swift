@@ -159,7 +159,7 @@ package nonisolated enum NLPAR {
         return out
     }
 
-    /// The tile's buffers handed to the parallel columns; each column writes only its own patterns of `out`.
+    /// The tile's buffers handed to the parallel columns; each column writes only its own patterns of `out` (the scan's result).
     private struct Shared: @unchecked Sendable {
         let data: UnsafePointer<Float>
         let indices: UnsafePointer<Int>
@@ -170,9 +170,10 @@ package nonisolated enum NLPAR {
     // MARK: - Noise estimate (`sigma_numba`, `calcsigma_cpu`)
 
     /// `sigma_numba` with nn = 1 on one tile of `rows` x `columns` patterns: σ per pattern (the square root of the smallest
-    /// d² / 2n over its neighbours), the normalised distances and the neighbour counts (9 per pattern).
-    static func tileSigma(_ data: [Float], rows: Int, columns: Int, pixels: Int, indices: [Int], saturationProtect: Bool)
-        -> (sigma: [Float], distances: [Float], counts: [Float]) {
+    /// d² / 2n over its neighbours), the normalised distances and the neighbour counts (9 per pattern). `isCancelled` is asked
+    /// before each row; a yes ends the tile with `CancellationError`.
+    static func tileSigma(_ data: [Float], rows: Int, columns: Int, pixels: Int, indices: [Int], saturationProtect: Bool,
+                          isCancelled: () -> Bool) throws -> (sigma: [Float], distances: [Float], counts: [Float]) {
         let nn = 1, slots = 9
         let n = rows * columns
         var sigma = [Float](repeating: 0, count: n)
@@ -182,6 +183,7 @@ package nonisolated enum NLPAR {
         let n0 = Float(pixels)
         let top = Double(data.max() ?? 0)
         let mxval = saturationProtect ? top * 0.9961 : top + 1.0
+        var stopped = false
         data.withUnsafeBufferPointer { d in
             indices.withUnsafeBufferPointer { idx in
                 sigma.withUnsafeMutableBufferPointer { sg in
@@ -189,6 +191,10 @@ package nonisolated enum NLPAR {
                         nout.withUnsafeMutableBufferPointer { nOut in
                             dij.withUnsafeMutableBufferPointer { dIJ in
                                 for j in 0..<rows {
+                                    if isCancelled() {
+                                        stopped = true
+                                        return
+                                    }
                                     let r0 = max(j - nn, 0), r1 = min(j + nn, rows - 1) + 1
                                     for i in 0..<columns {
                                         let c0 = max(i - nn, 0), c1 = min(i + nn, columns - 1) + 1
@@ -241,12 +247,15 @@ package nonisolated enum NLPAR {
                 }
             }
         }
+        if stopped { throw CancellationError() }
         return (sigma, dout, nout)
     }
 
     /// `calcsigma_cpu(nn=1)`: the tile estimates merged as pyebsdindex merges them (σ the smaller one where tiles overlap, the
-    /// distances of the later tile wherever it has a neighbour).
-    package static func estimateNoise(_ scan: Scan, mask: [UInt8]? = nil, saturationProtect: Bool = true) throws -> NoiseEstimate {
+    /// distances of the later tile wherever it has a neighbour). `isCancelled` is asked before each tile and each of its rows; a yes
+    /// ends the estimate with `CancellationError`.
+    package static func estimateNoise(_ scan: Scan, mask: [UInt8]? = nil, saturationProtect: Bool = true,
+                                      isCancelled: () -> Bool = { false }) throws -> NoiseEstimate {
         let px = scan.pixels
         let m = mask ?? autoMask(patternRows: scan.patternRows, patternColumns: scan.patternColumns)
         guard m.count == px else { throw Error.shape }
@@ -257,8 +266,10 @@ package nonisolated enum NLPAR {
         let t = tiles(rows: rows, columns: columns, patternRows: scan.patternRows, patternColumns: scan.patternColumns, overlap: 1)
         for rr in t.rows {
             for cc in t.columns {
+                if isCancelled() { throw CancellationError() }
                 let data = tile(scan, rows: rr, columns: cc)
-                let est = tileSigma(data, rows: rr.count, columns: cc.count, pixels: px, indices: indices, saturationProtect: saturationProtect)
+                let est = try tileSigma(data, rows: rr.count, columns: cc.count, pixels: px, indices: indices, saturationProtect: saturationProtect,
+                                        isCancelled: isCancelled)
                 for (lj, j) in rr.enumerated() {
                     for (li, i) in cc.enumerated() {
                         let l = lj * cc.count + li, g = j * columns + i
@@ -412,86 +423,95 @@ package nonisolated enum NLPAR {
 
     /// `nlpar_nb` on one tile: each pattern of the calculation region replaced by the weighted average of the (2r + 1)² patterns
     /// of its search window (shifted inward at the tile's edges), weights exp(−max(d̃² − dthresh, 0) / λ²) normalised to one,
-    /// d̃² the noise-normalised distance and the pattern itself weighted 1.
+    /// d̃² the noise-normalised distance and the pattern itself weighted 1. Each average is summed straight into its place in `out`,
+    /// the scan's result (`scanColumns` patterns wide, the tile's first pattern at `origin`), from zero in the same order as
+    /// pyebsdindex's tile buffer, so the values are the same and no tile-sized output is held. Each column asks `isCancelled` before
+    /// each row and stops at a yes, leaving the tile unfinished (the caller asks again and throws).
     static func tileAverage(_ data: [Float], rows: Int, columns: Int, pixels: Int, sigma: [Float], lambda: Float, searchRadius sr: Int,
-                            dthresh: Float, indices: [Int], saturationProtect: Bool, calcColumns: Range<Int>, calcRows: Range<Int>) -> [Float] {
+                            dthresh: Float, indices: [Int], saturationProtect: Bool, calcColumns: Range<Int>, calcRows: Range<Int>,
+                            into out: UnsafeMutablePointer<Float>, origin: (row: Int, column: Int), scanColumns: Int,
+                            isCancelled: @Sendable () -> Bool) {
         let lam2 = 1.0 / Double(lambda * lambda)
-        var out = [Float](repeating: 0, count: data.count)
+        let (row0, column0) = origin
         let top = data.max() ?? 0
         let mxval: Float = saturationProtect ? top * Float(Double(0.999)) : top + Float(1.0)
         let winsz = (2 * sr + 1) * (2 * sr + 1)
         data.withUnsafeBufferPointer { d in
             indices.withUnsafeBufferPointer { idx in
                 sigma.withUnsafeBufferPointer { sg in
-                    out.withUnsafeMutableBufferPointer { o in
-                        let shared = Shared(data: d.baseAddress!, indices: idx.baseAddress!, sigma: sg.baseAddress!, out: o.baseAddress!)
-                        let nIdx = idx.count
-                        DispatchQueue.concurrentPerform(iterations: calcColumns.count) { ii in
-                            let dp = shared.data, ip = shared.indices, sp = shared.sigma, op = shared.out
-                            let i = calcColumns.lowerBound + ii
-                            let wx0 = max(i - sr, 0) - max(i + sr - (columns - 1), 0)
-                            let wx1 = min(i + sr, columns - 1) + max(sr - i, 0) + 1
-                            var weights = [Float](repeating: 0, count: winsz)
-                            var neighbour = [Int](repeating: 0, count: winsz)
-                            for j in calcRows {
-                                let wy0 = max(j - sr, 0) - max(j + sr - (rows - 1), 0)
-                                let wy1 = min(j + sr, rows - 1) + max(sr - j, 0) + 1
-                                let a = i + columns * j
-                                let s0 = sp[a] * sp[a]
-                                var c = 0
-                                for jn in wy0..<wy1 {
-                                    for inn in wx0..<wx1 {
-                                        let b = inn + columns * jn
-                                        neighbour[c] = b
-                                        if b == a {
-                                            weights[c] = -1.0e6
-                                        } else {
-                                            let s1 = sp[b] * sp[b]
-                                            var d2: Float = 0, n2: Float = 0
-                                            let pa = a * pixels, pb = b * pixels
-                                            for k in 0..<nIdx {
-                                                let q = ip[k]
-                                                let d0 = dp[pa + q], d1 = dp[pb + q]
-                                                if d1 < mxval && d0 < mxval {
-                                                    n2 += 1
-                                                    let df = d0 - d1
-                                                    d2 += df * df
-                                                }
+                    let shared = Shared(data: d.baseAddress!, indices: idx.baseAddress!, sigma: sg.baseAddress!, out: out)
+                    let nIdx = idx.count
+                    DispatchQueue.concurrentPerform(iterations: calcColumns.count) { ii in
+                        let dp = shared.data, ip = shared.indices, sp = shared.sigma, op = shared.out
+                        let i = calcColumns.lowerBound + ii
+                        let wx0 = max(i - sr, 0) - max(i + sr - (columns - 1), 0)
+                        let wx1 = min(i + sr, columns - 1) + max(sr - i, 0) + 1
+                        var weights = [Float](repeating: 0, count: winsz)
+                        var neighbour = [Int](repeating: 0, count: winsz)
+                        for j in calcRows {
+                            if isCancelled() { return }
+                            let wy0 = max(j - sr, 0) - max(j + sr - (rows - 1), 0)
+                            let wy1 = min(j + sr, rows - 1) + max(sr - j, 0) + 1
+                            let a = i + columns * j
+                            let s0 = sp[a] * sp[a]
+                            var c = 0
+                            for jn in wy0..<wy1 {
+                                for inn in wx0..<wx1 {
+                                    let b = inn + columns * jn
+                                    neighbour[c] = b
+                                    if b == a {
+                                        weights[c] = -1.0e6
+                                    } else {
+                                        let s1 = sp[b] * sp[b]
+                                        var d2: Float = 0, n2: Float = 0
+                                        let pa = a * pixels, pb = b * pixels
+                                        for k in 0..<nIdx {
+                                            let q = ip[k]
+                                            let d0 = dp[pa + q], d1 = dp[pb + q]
+                                            if d1 < mxval && d0 < mxval {
+                                                n2 += 1
+                                                let df = d0 - d1
+                                                d2 += df * df
                                             }
-                                            d2 -= n2 * (s0 + s1)
-                                            let dnorm = (s1 + s0) * (Float(2) * n2).squareRoot()
-                                            if dnorm > Float(Double(1e-8)) { d2 /= dnorm } else { d2 = Float(Double(1e6)) * n2 }
-                                            weights[c] = d2
                                         }
-                                        c += 1
+                                        d2 -= n2 * (s0 + s1)
+                                        let dnorm = (s1 + s0) * (Float(2) * n2).squareRoot()
+                                        if dnorm > Float(Double(1e-8)) { d2 /= dnorm } else { d2 = Float(Double(1e6)) * n2 }
+                                        weights[c] = d2
                                     }
+                                    c += 1
                                 }
-                                var sum: Float = 0
-                                for k in 0..<winsz {
-                                    let v = max(weights[k] - dthresh, Float(0))
-                                    let w = Float(exp(-1.0 * Double(v) * lam2))
-                                    weights[k] = w
-                                    sum += w
-                                }
-                                let pa = a * pixels
-                                for k in 0..<winsz {
-                                    let w = weights[k] / sum
-                                    let pb = neighbour[k] * pixels
-                                    for q in 0..<pixels { op[pa + q] += dp[pb + q] * w }
-                                }
+                            }
+                            var sum: Float = 0
+                            for k in 0..<winsz {
+                                let v = max(weights[k] - dthresh, Float(0))
+                                let w = Float(exp(-1.0 * Double(v) * lam2))
+                                weights[k] = w
+                                sum += w
+                            }
+                            // The pattern's place in the scan's result, summed from zero as the tile buffer was.
+                            let g = ((row0 + j) * scanColumns + column0 + i) * pixels
+                            for q in 0..<pixels { op[g + q] = 0 }
+                            for k in 0..<winsz {
+                                let w = weights[k] / sum
+                                let pb = neighbour[k] * pixels
+                                for q in 0..<pixels { op[g + q] += dp[pb + q] * w }
                             }
                         }
                     }
                 }
             }
         }
-        return out
     }
 
     /// `calcnlpar_cpu`: every pattern replaced by its NLPAR average, tile by tile as pyebsdindex runs it (each tile computes its
-    /// interior, the later tile's values standing where interiors overlap). `sigma` is the noise estimate's σ.
+    /// interior, the later tile's values standing where interiors overlap). `sigma` is the noise estimate's σ. `isCancelled` is asked
+    /// before and after each tile and, on the worker threads, before each row; a yes ends the run with `CancellationError`. It is
+    /// read on threads that run no task, so it reads a flag (`CancellationFlag`), not `Task.isCancelled`, and once it has said yes
+    /// it keeps saying yes.
     package static func denoise(_ scan: Scan, lambda: Double, sigma: [Float], searchRadius: Int = defaultSearchRadius, dthresh: Float = 0,
-                                mask: [UInt8]? = nil, saturationProtect: Bool = true) throws -> Scan {
+                                mask: [UInt8]? = nil, saturationProtect: Bool = true,
+                                isCancelled: @Sendable () -> Bool = { false }) throws -> Scan {
         let (rows, columns, px) = (scan.rows, scan.columns, scan.pixels)
         guard sigma.count == rows * columns else { throw Error.shape }
         guard searchRadius >= 0, 2 * searchRadius + 1 <= rows, 2 * searchRadius + 1 <= columns else { throw Error.parameter("search radius") }
@@ -511,6 +531,7 @@ package nonisolated enum NLPAR {
             let rStart = ri > 0 ? sr : 0
             let rEnd = ri < t.rows.count - 1 ? rr.count - sr : rr.count
             for (ci, cc) in t.columns.enumerated() {
+                if isCancelled() { throw CancellationError() }
                 let cStart = ci > 0 ? sr : 0
                 let cEnd = ci < t.columns.count - 1 ? cc.count - sr : cc.count
                 let data = tile(scan, rows: rr, columns: cc)
@@ -518,33 +539,30 @@ package nonisolated enum NLPAR {
                 for (lj, j) in rr.enumerated() {
                     for (li, i) in cc.enumerated() { tileSigma[lj * cc.count + li] = sigma[j * columns + i] }
                 }
-                let out = tileAverage(data, rows: rr.count, columns: cc.count, pixels: px, sigma: tileSigma, lambda: Float(lambda),
-                                      searchRadius: sr, dthresh: dthresh, indices: indices, saturationProtect: saturationProtect,
-                                      calcColumns: cStart..<cEnd, calcRows: rStart..<rEnd)
                 result.values.withUnsafeMutableBufferPointer { dst in
-                    for lj in rStart..<rEnd {
-                        for li in cStart..<cEnd {
-                            let g = ((rr.lowerBound + lj) * columns + cc.lowerBound + li) * px
-                            let l = (lj * cc.count + li) * px
-                            for q in 0..<px { dst[g + q] = out[l + q] }
-                        }
-                    }
+                    tileAverage(data, rows: rr.count, columns: cc.count, pixels: px, sigma: tileSigma, lambda: Float(lambda),
+                                searchRadius: sr, dthresh: dthresh, indices: indices, saturationProtect: saturationProtect,
+                                calcColumns: cStart..<cEnd, calcRows: rStart..<rEnd, into: dst.baseAddress!,
+                                origin: (row: rr.lowerBound, column: cc.lowerBound), scanColumns: columns, isCancelled: isCancelled)
                 }
+                if isCancelled() { throw CancellationError() }
             }
         }
         return result
     }
 
     /// pyebsdindex's documented run: `opt_lambda()` (λ the median of the three), then `calcnlpar()` with that λ and the estimate.
+    /// `isCancelled` (Stop) is asked between the tiles and rows of both and before λ; a yes ends the run with `CancellationError`.
     package static func run(_ scan: Scan, searchRadius: Int = defaultSearchRadius, targetWeights: [Double] = defaultTargetWeights,
-                            dthresh: Float = 0, saturationProtect: Bool = true) throws -> Result {
+                            dthresh: Float = 0, saturationProtect: Bool = true, isCancelled: @Sendable () -> Bool = { false }) throws -> Result {
         let mask = autoMask(patternRows: scan.patternRows, patternColumns: scan.patternColumns)
-        let estimate = try estimateNoise(scan, mask: mask, saturationProtect: saturationProtect)
+        let estimate = try estimateNoise(scan, mask: mask, saturationProtect: saturationProtect, isCancelled: isCancelled)
+        if isCancelled() { throw CancellationError() }
         let lambdas = optimiseLambda(estimate, targetWeights: targetWeights, dthresh: dthresh)
         let sorted = lambdas.sorted()
         let lambda = sorted.count % 2 == 1 ? sorted[sorted.count / 2] : (sorted[sorted.count / 2 - 1] + sorted[sorted.count / 2]) / 2
         let denoised = try denoise(scan, lambda: lambda, sigma: estimate.sigma, searchRadius: searchRadius, dthresh: dthresh, mask: mask,
-                                   saturationProtect: saturationProtect)
+                                   saturationProtect: saturationProtect, isCancelled: isCancelled)
         return Result(lambdas: lambdas, lambda: lambda, estimate: estimate, denoised: denoised)
     }
 }

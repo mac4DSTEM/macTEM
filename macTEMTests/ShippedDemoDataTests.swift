@@ -49,6 +49,16 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertEqual(UInt64(all.reduce(0, +)), DemoDocuments.Shipped.nickelEBSDPixelSum)
     }
 
+    /// The nickel file's crystal map is in µm, as its `header/scan_unit` says and orix reads it: the Maps room's scale bar and grain sizes
+    /// are lengths, not pixels. Mutation: the reader ignores `scan_unit` (the map falls back to orix's "px").
+    func testTheNickelCrystalMapReadsItsScanUnit() throws {
+        let url = try XCTUnwrap(DemoDocuments.Shipped.nickelEBSD.url)
+        let map = try XCTUnwrap(try EBSDH5Reader.read(url: url).crystalMap)
+        XCTAssertEqual(map.scanUnit, "um")
+        XCTAssertEqual(map.dx, 1.5, accuracy: 1e-12)
+        XCTAssertEqual(EBSDBrowsing.unitLabel(map.scanUnit), "µm")
+    }
+
     /// The Ni master pattern through the EMsoft reader: an EBSD master pattern of nickel (space group 225) at 20 kV, 401 x 401 px in
     /// both hemispheres, each Lambert hemisphere's sum as h5py read it; projectable (Lambert, both hemispheres).
     func testTheNickelMasterPatternReadsBackToItsTruth() throws {
@@ -115,6 +125,23 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
     }
 
     /// Help > Open Demo Data and `--demo-sem-eds` open the shipped spectrum into the EDS room through the app's own Open.
+    /// The shipped SEM spectrum is quantified by the shared EDS room (D-SEM-107): once the room has opened it and Auto ID has answered,
+    /// the five elements the file names are picked, so the room's Quantify is offered; exspy's line table is read for Info. A second call
+    /// adds nothing. Mutation: the elements are not picked (Quantify stays off, as before D-SEM-107 with no Auto ID pick at 10 kV).
+    @MainActor func testTheSEMSpectrumOpensWithItsElementsPickedForTheRoomsQuantify() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        let url = try XCTUnwrap(DemoDocuments.Shipped.semEDSSpectrum.url)
+        await state.edx.open(url: url).value
+        await state.semEDS.load(path: state.edx.source?.metadata.filePath)
+        XCTAssertTrue(state.semEDS.isSEMSpectrum)
+        XCTAssertEqual(state.semEDS.rows.map(\.line), ["Al_Ka", "C_Ka", "Cu_La", "Mn_La", "Zr_La"])
+        await state.semEDS.pickFileElements(in: state.edx)
+        XCTAssertEqual(Set(state.edx.picks.map(\.symbol)), ["Al", "C", "Cu", "Mn", "Zr"])
+        XCTAssertTrue(state.edx.canQuantify, state.edx.quantifyBlocker ?? "")
+        await state.semEDS.pickFileElements(in: state.edx)
+        XCTAssertEqual(state.edx.picks.count, 5)
+    }
+
     @MainActor func testTheSpectrumOpensFromTheMenuAndTheLaunchArgument() async throws {
         let state = AppState(launch: LaunchOptions(arguments: []))
         await state.openDemo(.semSpectrum)?.value

@@ -1,15 +1,20 @@
 //
 //  BusyOperationTests.swift
 //  The toolbar's busy line names the work that is running (`BusyOperation`), never the last status sentence: during Quantify it read
-//  "Opened … · 4096 channels", because the fit sets no sentence when it starts.
+//  "Opened … · 4096 channels", because the fit sets no sentence when it starts. The Patterns toolbar read "Reading the scan for the
+//  map…" during Process and the quality pass, the Maps toolbar showed the file while Segment and the texture ran, and ⌘. did not
+//  reach the texture.
 //
 
 import XCTest
 import TEMCore
+import TEMSession
 @testable import macTEM
 
 nonisolated final class BusyOperationTests: XCTestCase {
     private let opened = "Opened map.emd — 1024 × 1024 px, 4096 channels"
+    private static let sdss = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .appendingPathComponent("Fixtures").appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")
 
     private func source(_ path: String) throws -> String {
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
@@ -67,5 +72,147 @@ nonisolated final class BusyOperationTests: XCTestCase {
         XCTAssertTrue(view.contains(".busy(operation: BusyOperation.name(room: room, appState: appState) ?? room.title,"))
         let verb = try source("macTEM/UI/RoomPrimaryAction.swift")
         XCTAssertFalse(verb.contains("operationName: appState.statusText"))
+    }
+
+    /// The Patterns room names its open, its run, the map's pass and the quality pass, in the order the map pane's header shows them.
+    /// Red before: the quality pass had no name (the verb's Cancel said nothing) and the open was the toolbar's own literal.
+    func testEachPatternsWorkHasItsName() {
+        func patterns(open: Bool = false, process: Bool = false, map: Bool = false, quality: Bool = false) -> String? {
+            BusyOperation.patterns(opening: open, processing: process, mapping: map, qualityMapping: quality, stage: .dynamicBackground)
+        }
+        XCTAssertEqual(patterns(open: true, map: true), "Opening the dataset…")
+        XCTAssertEqual(patterns(process: true, map: true, quality: true), "Processing: Dynamic background…")
+        XCTAssertEqual(BusyOperation.patterns(opening: false, processing: true, mapping: false, qualityMapping: false, stage: nil),
+                       "Processing the patterns…")
+        XCTAssertEqual(patterns(map: true, quality: true), "Reading the scan…")
+        XCTAssertEqual(patterns(quality: true), "Computing the quality maps…")
+        XCTAssertEqual(BusyOperation.patterns(opening: false, processing: false, mapping: false, qualityMapping: false, computingMean: true, stage: nil),
+                       "Computing the scan's mean pattern…")
+        XCTAssertNil(patterns())
+    }
+
+    /// The Maps room names its open, Segment, the texture and a layer's picture. Red before: only Segment had a name.
+    func testEachMapsWorkHasItsName() {
+        func maps(open: Bool = false, segment: Bool = false, texture: Bool = false, draw: Bool = false) -> String? {
+            BusyOperation.maps(opening: open, segmenting: segment, texturing: texture, drawing: draw)
+        }
+        XCTAssertEqual(maps(open: true, segment: true), "Opening the orientation map…")
+        XCTAssertEqual(maps(segment: true, texture: true, draw: true), "Segmenting grains…")
+        XCTAssertEqual(maps(texture: true, draw: true), "Computing the texture…")
+        XCTAssertEqual(maps(draw: true), "Drawing the map…")
+        XCTAssertNil(maps())
+    }
+
+    /// The Patterns and Maps toolbars take their busy line from `BusyOperation`. Red before: the Patterns case read "Reading the scan for
+    /// the map…" whatever ran, and the Maps case was busy only while opening.
+    func testThePatternsAndMapsToolbarsReadTheRunningWork() throws {
+        let view = squeezed(try source("macTEM/UI/ContentView.swift"))
+        XCTAssertFalse(view.contains("Reading the scan for the map…"))
+        XCTAssertFalse(view.contains("if session.isOpening {"), "the Maps toolbar is busy for more than its open")
+        let busy = "if let operation = BusyOperation.toolbarOperation(room: room, appState: appState) { return .busy(operation: operation, "
+        XCTAssertTrue(view.contains(busy + "progress: RoomProgress.fraction(room: room, appState: appState),"), "the Patterns case")
+        XCTAssertTrue(view.contains(busy + "progress: nil,"), "the Maps case")
+    }
+
+    /// The Patterns toolbar names the pass that runs, and the quality pass reports its own fraction. The demo's map pass starts as it is
+    /// bound; stopped, the quality pass runs alone. Red before: the line read "Reading the scan for the map…" and the fraction was nil.
+    @MainActor func testThePatternsToolbarNamesTheQualityPass() throws {
+        let state = AppState()
+        XCTAssertNil(BusyOperation.toolbarOperation(room: .patterns, appState: state), "idle without a dataset")
+        state.ebsd.bind(try DemoDocuments.ebsd())
+        XCTAssertEqual(BusyOperation.toolbarOperation(room: .patterns, appState: state), "Reading the scan…")
+        state.ebsd.stop()
+        XCTAssertNil(BusyOperation.toolbarOperation(room: .patterns, appState: state))
+        state.ebsd.showMap(.imageQuality)
+        XCTAssertTrue(state.ebsd.isQualityMapping)
+        XCTAssertEqual(BusyOperation.toolbarOperation(room: .patterns, appState: state), "Computing the quality maps…")
+        XCTAssertEqual(RoomProgress.fraction(room: .patterns, appState: state), 0)
+        state.ebsd.stop()
+        XCTAssertNil(BusyOperation.toolbarOperation(room: .patterns, appState: state))
+        XCTAssertNil(RoomProgress.fraction(room: .patterns, appState: state))
+    }
+
+    /// The Maps toolbar names Segment and the texture while they run, and ⌘. ends the texture: its result never lands. Red before: the
+    /// toolbar showed the file, Stop was off during the texture, and `stop()` left it running.
+    @MainActor func testTheMapsToolbarNamesSegmentAndTheTextureAndStopEndsIt() async {
+        let state = AppState()
+        state.navigation.workspaceArea = .maps
+        await state.maps.open(url: Self.sdss).value
+        XCTAssertNil(BusyOperation.toolbarOperation(room: .maps, appState: state), "idle once the map is drawn")
+
+        let segmenting = state.maps.segment()
+        XCTAssertEqual(BusyOperation.toolbarOperation(room: .maps, appState: state), "Segmenting grains…")
+        RoomPrimaryAction.stopActive(state)
+        await segmenting.value
+        XCTAssertNil(BusyOperation.toolbarOperation(room: .maps, appState: state))
+
+        let texturing = state.maps.showTexture()
+        XCTAssertEqual(BusyOperation.toolbarOperation(room: .maps, appState: state), "Computing the texture…")
+        XCTAssertTrue(RoomPrimaryAction.canStop(state), "⌘. reaches the texture")
+        RoomPrimaryAction.stopActive(state)
+        XCTAssertFalse(state.maps.isTexturing)
+        XCTAssertFalse(RoomPrimaryAction.canStop(state))
+        XCTAssertNil(BusyOperation.toolbarOperation(room: .maps, appState: state))
+        XCTAssertEqual(state.statusText, "Stopped the texture")
+        await texturing.value
+        XCTAssertNil(state.maps.texture, "a stopped texture does not land")
+    }
+
+    // MARK: A run in another room
+
+    /// The room whose run the toolbar shows and ⌘. stops in place of an idle shown room: the first busy room in the Workspace menu's
+    /// order; none while the shown room is busy itself or nothing else runs. Red before: no such room, so a run elsewhere showed nowhere.
+    func testTheBackgroundRoomIsTheFirstBusyOtherRoom() {
+        XCTAssertEqual(BusyOperation.backgroundRoom(shown: .maps, busy: [.indexing]), .indexing)
+        XCTAssertEqual(BusyOperation.backgroundRoom(shown: .image, busy: [.maps, .indexing, .eels]), .eels)
+        XCTAssertNil(BusyOperation.backgroundRoom(shown: .maps, busy: [.maps, .indexing]), "a busy shown room keeps its own")
+        XCTAssertNil(BusyOperation.backgroundRoom(shown: .maps, busy: []))
+        XCTAssertNil(BusyOperation.backgroundRoom(shown: .image, busy: [.diffraction]), "the ring fit is stopped in its own room")
+    }
+
+    /// An Index left running while the Maps room is shown: the toolbar names it under its room, ⌘. is on, says which room it stops and
+    /// stops it; with the Indexing room shown the run is its own again. Red before: `canStop` was false outside the Indexing room and
+    /// ⌘. reached only the shown room.
+    @MainActor func testAnIndexRunningBehindTheMapsRoomShowsAndStops() async throws {
+        let state = AppState()
+        await state.ebsd.bind(try DemoDocuments.ebsd()).value
+        for _ in 0..<6000 where state.ebsd.isBusy || state.ebsd.isComputingMean || state.maps.isBusy {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        state.navigation.workspaceArea = .maps
+        XCTAssertNil(BusyOperation.backgroundRoom(state), "nothing runs")
+        XCTAssertFalse(RoomPrimaryAction.canStop(state))
+        XCTAssertEqual(RoomPrimaryAction.stopTitle(state), "Stop")
+        XCTAssertTrue(state.indexing.canIndex, state.indexing.refusal ?? "")
+
+        let run = state.indexing.index()
+        XCTAssertTrue(state.indexing.isIndexing)
+        XCTAssertEqual(BusyOperation.backgroundRoom(state), .indexing)
+        let line = try XCTUnwrap(BusyOperation.backgroundOperation(room: .indexing, appState: state))
+        XCTAssertTrue(line.hasPrefix("Indexing · Hough · "), line)
+        XCTAssertTrue(RoomPrimaryAction.canStop(state), "⌘. reaches the run")
+        XCTAssertEqual(RoomPrimaryAction.stopTitle(state), "Stop Indexing")
+
+        state.navigation.workspaceArea = .indexing
+        XCTAssertNil(BusyOperation.backgroundRoom(state), "the shown room's run is its own")
+        XCTAssertEqual(RoomPrimaryAction.stopTitle(state), "Stop")
+
+        state.navigation.workspaceArea = .maps
+        RoomPrimaryAction.stopActive(state)
+        XCTAssertFalse(state.indexing.isIndexing)
+        await run.value
+        XCTAssertTrue(state.indexing.wasStopped)
+        XCTAssertNil(BusyOperation.backgroundRoom(state))
+        XCTAssertFalse(RoomPrimaryAction.canStop(state))
+    }
+
+    /// The toolbar shows the other room's run while the shown room is idle, and the Stop item takes its title. Red under: the toolbar
+    /// built from the shown room alone, the item titled "Stop" whatever it stops.
+    func testTheToolbarAndTheStopItemReachARunInAnotherRoom() throws {
+        let view = squeezed(try source("macTEM/UI/ContentView.swift"))
+        XCTAssertTrue(view.contains("if let other = BusyOperation.backgroundRoom(appState), let operation = BusyOperation.backgroundOperation(room: other, appState: appState) {"))
+        XCTAssertTrue(view.contains("metrics: { now in RunClock.reading(since: appState.busySince[other], progress: RoomProgress.fraction(room: other, appState: appState), now: now) }"))
+        let menu = squeezed(try source("macTEM/App/macTEMApp.swift"))
+        XCTAssertTrue(menu.contains("Button(appState.map { RoomPrimaryAction.stopTitle($0) } ?? \"Stop\") { if let appState { RoomPrimaryAction.stopActive(appState) } }"))
     }
 }

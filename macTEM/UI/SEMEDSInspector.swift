@@ -1,29 +1,14 @@
 //
 //  SEMEDSInspector.swift
-//  Role: the EDS room's SEM rows (docs/sem/design/sem-eds-room.md §4) for an SEM spectrum, drawn by macTEM below MacEMUI's own EDS
-//        sections: "Line Intensities" (the background-windows switch, the window widths, one value row per line with its windows and
-//        counts) and "Window Quantification" (a k-factor per line, Quantify, wt% and at%), and in Info the SEM conditions with the
-//        take-off angle. The numbers are `SEMEDSState`'s (exspy's window path, TEMCore `SEMEDSLines`). Nothing shows for a TEM file.
+//  Role: the EDS room's Info rows for an SEM spectrum (docs/sem/design/sem-eds-room.md §4, D-SEM-107): "SEM Conditions" (the take-off angle
+//        exspy computes) and "Line Windows", exspy's background-window line table read-only, to check the room's fit against exspy. The
+//        spectrum is quantified by the shared EDS room's own Quantify, with the file's elements picked on open (`SEMEDSState`). Nothing shows
+//        for a TEM file.
 //
 
 import ShellInspector
 import SwiftUI
 import TEMCore
-
-private let semNumber = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...4))
-
-/// The Settings rows for an SEM spectrum. The table is loaded by `WorkspaceView` when the EDS room's file changes, not here: a
-/// `.task` on this view never starts while it draws nothing, which is every time before the first load.
-struct SEMEDSSettings: View {
-    let state: SEMEDSState
-
-    var body: some View {
-        if state.isSEMSpectrum {
-            SEMEDSLinesSection(state: state)
-            SEMEDSQuantSection(state: state)
-        }
-    }
-}
 
 nonisolated enum SEMEDSFormat {
     static func keV(_ v: Double) -> String { v.formatted(.number.precision(.fractionLength(3))) }
@@ -47,35 +32,15 @@ nonisolated enum SEMEDSFormat {
     }
 }
 
-/// Line intensities with exspy's background windows (`get_lines_intensity(background_windows=…)`), live as the widths change.
-struct SEMEDSLinesSection: View {
-    @Bindable var state: SEMEDSState
+/// exspy's line table for an SEM spectrum, read-only in Info: each line's integration window and background windows and its counts
+/// (`get_lines_intensity(background_windows=…)` with the tutorial's widths), to check the shared room's fitted net counts against exspy.
+/// The room's own Quantify (the toolbar) quantifies the spectrum, as for a TEM one (Paul, 2026-11-10: the SEM spectrum goes through the
+/// shared EDS room).
+struct SEMEDSLineWindowsSection: View {
+    let state: SEMEDSState
 
     var body: some View {
-        InspectorSection("Line Intensities") {
-            InspectorRow("Background windows") {
-                Toggle("Background windows", isOn: $state.backgroundWindows).labelsHidden().toggleStyle(.switch)
-                    .help("Subtract the counts of two windows beside each line, scaled to the line's window (exspy's estimate_background_windows).")
-                    .accessibilityIdentifier("edx.sem.backgroundWindows")
-            }
-            InspectorRow("Window width") {
-                OptionalNumericField(title: "Window width", value: state.integrationWidth, format: semNumber, unit: "× FWHM") {
-                    if $0 > 0 { state.integrationWidth = $0 }
-                }
-                .accessibilityIdentifier("edx.sem.windowWidth")
-            }
-            if state.backgroundWindows {
-                InspectorRow("Background left") {
-                    OptionalNumericField(title: "Background left", value: state.backgroundLeft, format: semNumber, unit: "× FWHM") {
-                        if $0 >= 0 { state.backgroundLeft = $0 }
-                    }
-                }
-                InspectorRow("Background right") {
-                    OptionalNumericField(title: "Background right", value: state.backgroundRight, format: semNumber, unit: "× FWHM") {
-                        if $0 >= 0 { state.backgroundRight = $0 }
-                    }
-                }
-            }
+        InspectorSection("Line Windows", startsExpanded: false) {
             ForEach(state.rows) { row in
                 VStack(alignment: .leading, spacing: 2) {
                     InspectorValueRow(SEMEDSFormat.lineTitle(row.line), SEMEDSFormat.counts(row.intensity) + " counts", mono: true)
@@ -91,39 +56,7 @@ struct SEMEDSLinesSection: View {
             } else if state.rows.isEmpty {
                 InspectorNote("The file names no element with a line below the beam energy.")
             } else {
-                InspectorNote(state.backgroundWindows ? "Counts in each line's window minus the scaled background windows (exspy)."
-                                                      : "Counts in each line's window, no background subtracted (exspy).")
-            }
-        }
-    }
-}
-
-/// Cliff-Lorimer on the window intensities with typed k-factors (exspy `quantification(method="CL")`); validation: none beyond exspy.
-struct SEMEDSQuantSection: View {
-    let state: SEMEDSState
-
-    var body: some View {
-        InspectorSection("Window Quantification") {
-            ForEach(state.rows) { row in
-                InspectorRow("k " + SEMEDSFormat.lineTitle(row.line)) {
-                    OptionalNumericField(title: "k-factor \(SEMEDSFormat.lineTitle(row.line))", value: state.kFactors[row.line], format: semNumber,
-                                         prompt: "Type k") { state.setKFactor($0, for: row.line) }
-                        .accessibilityIdentifier("edx.sem.k.\(row.line)")
-                }
-            }
-            InspectorActionRow {
-                Button("Quantify") { state.quantify() }
-                    .disabled(state.quantifyDisabledReason != nil)
-                    .help(state.quantifyDisabledReason ?? "Cliff-Lorimer on the line intensities above with these k-factors.")
-                    .accessibilityIdentifier("edx.sem.quantify")
-            }
-            if let composition = state.composition {
-                ForEach(composition) { c in
-                    InspectorValueRow(c.element, "\(SEMEDSFormat.percent(c.weightPercent)) wt% · \(SEMEDSFormat.percent(c.atomicPercent)) at%", mono: true)
-                        .accessibilityIdentifier("edx.sem.composition.\(c.element)")
-                }
-                InspectorNote(state.compositionIsStale ? "Stale: a window or a k-factor changed; press Quantify."
-                                                       : "Cliff-Lorimer with typed k-factors, no absorption correction (exspy). Not validated against a standard.")
+                InspectorNote("Counts in each line's window minus the scaled background windows, as exspy's tutorial reads them; the results beside the spectrum are the room's fit.")
             }
         }
     }
@@ -146,6 +79,7 @@ struct SEMEDSInfo: View {
                 InspectorValueRow("Resolution", "\(c.energyResolutionMnKaEV.formatted()) eV at Mn Kα")
                 if let live = c.liveTimeS { InspectorValueRow("Live time", "\(live.formatted(.number.precision(.fractionLength(1)))) s") }
             }
+            SEMEDSLineWindowsSection(state: state)
         }
     }
 }

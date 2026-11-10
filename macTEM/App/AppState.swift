@@ -6,7 +6,7 @@
 //
 //  Owners: `navigation` (rooms and panes, App/), `openItems` (the files open in the window, each with its own
 //  session, presentation, marks and viewport, TEMSession), `activityLog` (the Output pane, App/), `imageRoomTools`
-//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession), `semRecord` (the SEM rooms' exports and Output lines for the session report, App/). `imageSession`, `presentation` and `measurements` are the selected
+//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession), `semRecord` (the SEM rooms' exports and Output lines for the session report, App/), `recents` (File > Open Recent's last eight files, TEMSession), `lastSession` (File > Reopen Last Session's record, TEMSession). `imageSession`, `presentation` and `measurements` are the selected
 //  item's, forwarded, so the views that read them did not change with V1-13.
 //
 
@@ -41,6 +41,13 @@ final class AppState {
     /// What the SEM rooms did that none of them keeps: every file they wrote and their Output lines with times (App/), for the Results
     /// room's session rows and the session report.
     let semRecord = SEMSessionRecord()
+    /// File > Open Recent's list (TEMSession): every file `open(urls:)` takes in, with the bookmark that opens it again. The app passes
+    /// the list kept in UserDefaults (`RecentFiles.stored()`); a bare `AppState()`, a test's, keeps one in memory and writes nothing.
+    let recents: RecentFiles
+    /// File > Reopen Last Session's record (TEMSession): the files open, the selected one and the room, written as they change
+    /// (`recordLastSession`), and the previous launch's, which the menu offers. The app passes the record kept in UserDefaults
+    /// (`LastSession.stored()`); a bare `AppState()`, a test's, keeps one in memory and writes nothing.
+    let lastSession: LastSession
 
     /// The window's title: the file of the room that is shown (the spectrum image in the EDX and EELS rooms, the image elsewhere).
     var windowTitle: String {
@@ -110,21 +117,30 @@ final class AppState {
         return dir.path.hasPrefix("/") && !launch.exportDirectoryIsRelative ? dir : FileManager.default.temporaryDirectory.appendingPathComponent(launch.exportDirectoryName ?? "export", isDirectory: true)
     }
 
-    init(launch: LaunchOptions = LaunchOptions()) {
+    init(launch: LaunchOptions = LaunchOptions(), recents: RecentFiles? = nil, lastSession: LastSession? = nil) {
         self.launch = launch
+        self.recents = recents ?? RecentFiles()
+        self.lastSession = lastSession ?? LastSession()
         let ebsd = EBSDSession()
         self.ebsd = ebsd
         indexing = IndexingSession(patterns: ebsd)
-        // The spectrum rooms follow the selected file through the list's own callback (a view's observation did not fire on screen, drive 6).
-        openItems.onSelect = { [weak self] _ in self?.spectrumRoomsFollowSelection() }
+        // The spectrum rooms follow the selected file through the list's own callback (a view's observation did not fire on screen, drive 6),
+        // and the last-session record takes the new selection.
+        openItems.onSelect = { [weak self] _ in
+            self?.spectrumRoomsFollowSelection()
+            self?.recordLastSession()
+        }
         openItems.onReadFailure = { [weak self] _, error in self?.present(error) }
-        edx.onEvent = { [weak self] in self?.statusText = $0 }
+        // A stack frame that could not be read: the status line, Output and VoiceOver say which and why (the slider is back on the frame shown).
+        openItems.onFrameFailure = { [weak self] in self?.report(event: $0, in: nil) }
+        // Every session's event line: the infobar, the SEM rooms' session record, and VoiceOver for a line that ends something.
+        edx.onEvent = { [weak self] in self?.report(event: $0, in: nil) }
         edx.onFailure = { [weak self] in self?.present($0) }
-        eels.onEvent = { [weak self] in self?.statusText = $0 }
+        eels.onEvent = { [weak self] in self?.report(event: $0, in: nil) }
         eels.onFailure = { [weak self] in self?.present($0) }
-        ebsd.onEvent = { [weak self] in self?.statusText = $0; self?.semRecord.note($0, in: .patterns) }
+        ebsd.onEvent = { [weak self] in self?.report(event: $0, in: .patterns) }
         ebsd.onFailure = { [weak self] in self?.present($0) }
-        maps.onEvent = { [weak self] in self?.statusText = $0; self?.semRecord.note($0, in: .maps) }
+        maps.onEvent = { [weak self] in self?.report(event: $0, in: .maps) }
         maps.onFailure = { [weak self] in self?.present($0) }
         // Every dataset the Patterns room binds: the Indexing room starts over on it, and the Maps room drops the old dataset's maps
         // (its own and an Indexing run on it) and shows the new one's crystal map with the patterns beside (a map opened on its own
@@ -139,7 +155,7 @@ final class AppState {
             self?.indexing.close()
             self?.maps.patternsClosed()
         }
-        indexing.onEvent = { [weak self] in self?.statusText = $0; self?.semRecord.note($0, in: .indexing) }
+        indexing.onEvent = { [weak self] in self?.report(event: $0, in: .indexing) }
         // Every file the SEM rooms write is kept for the Results room and the session report (D-SEM-104).
         patternsRoom.onWritten = { [weak self] in self?.semRecord.wrote($0) }
         indexingRoom.onWritten = { [weak self] in self?.semRecord.wrote($0) }
@@ -190,6 +206,15 @@ final class AppState {
     func selectWorkspace(_ area: WorkspaceArea) {
         guard roomUnavailableReason(area) == nil else { return }
         navigation.workspaceArea = area
+        recordLastSession()
+    }
+
+    /// Go to a workspace: the room it was last in when that can still be entered, else its first room that can. A workspace none of
+    /// whose rooms can be entered is not entered (`workspaceUnavailableReason`).
+    func selectWorkspaceGroup(_ group: WorkspaceGroup) {
+        guard group != navigation.workspaceArea.group else { return }
+        let candidates = [navigation.lastRoom[group]].compactMap { $0 } + group.parts
+        if let room = candidates.first(where: { roomUnavailableReason($0) == nil }) { navigation.workspaceArea = room }
     }
 
     /// Indexing's `Open in Maps` (D-SEM-99): the last run's crystal map to the Maps room without a file, at the pattern pinned in
@@ -239,8 +264,10 @@ final class AppState {
                        exportDirectory: { [weak self] in self?.exportDirectory })
     }
 
+    /// The alert and the status line for `error`: its sentence, and for a system error its domain, code and underlying error
+    /// (`ErrorDetail`), so a sandbox denial and a missing file read apart.
     func present(_ error: any Error) {
-        let detail = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        let detail = ErrorDetail.text(error)
         errorMessage = detail
         statusText = "Error: \(detail)"
     }

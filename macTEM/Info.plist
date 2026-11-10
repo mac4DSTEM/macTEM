@@ -44,6 +44,9 @@
 				<string>hspy</string>
 			</array>
 		</dict>
+		<!-- Related items: a vendor scan's pattern file and the map beside it (.up1/.up2 and .ang, .ebsp and .ctf) are read
+		     together by name, and the sandbox grants only the file the person picked. NSIsRelatedItemType lets the app read
+		     the other one (macTEM/App/RelatedFileAccess.swift); the extensions declared do not change. -->
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>EBSD pattern dataset</string>
@@ -51,6 +54,8 @@
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
+			<key>NSIsRelatedItemType</key>
+			<true/>
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>h5</string>
@@ -65,6 +70,8 @@
 				<string>dat</string>
 			</array>
 		</dict>
+		<!-- Related items: an EDAX .spd or .lsd reads its energy axis from the .spc of its name beside it (and the map
+		     reads its .ipr, the line scan its .csv, below). The extensions declared do not change. -->
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>SEM-EDS map</string>
@@ -72,6 +79,8 @@
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
+			<key>NSIsRelatedItemType</key>
+			<true/>
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>bcf</string>
@@ -82,6 +91,25 @@
 				<string>spx</string>
 				<string>spc</string>
 				<string>eds</string>
+			</array>
+		</dict>
+		<!-- Companion files that macTEM never opens on their own: an EDAX map's .ipr (its pixel size) and a line scan's .csv
+		     (its distances). NSIsRelatedItemType lets the sandboxed app read the one beside the file the person picked
+		     (macTEM/App/RelatedFileAccess.swift). Role and rank None: this claims nothing, so macTEM stays out of the Open
+		     With menu of every CSV file. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>SEM-EDS companion file</string>
+			<key>CFBundleTypeRole</key>
+			<string>None</string>
+			<key>LSHandlerRank</key>
+			<string>None</string>
+			<key>NSIsRelatedItemType</key>
+			<true/>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>ipr</string>
+				<string>csv</string>
 			</array>
 		</dict>
 	</array>

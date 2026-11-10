@@ -7,8 +7,10 @@
 //        `.spc` — one spectrum (version-dependent header: dataStart, numPts, evPerChan, startEnergy, liveTime, tilt, detReso,
 //        azimuth, elevation, kV, the identified elements). The `.spc` of the same name gives an `.spd`/`.lsd` its energy axis and
 //        detector metadata; the `.ipr` named after the electron image (`fName` with `.ipr`) gives the map its µm per pixel. Without
-//        them rsciio's fallbacks hold (scale 1, offset 1, no units), as here. Float32 header values are carried as their exact
-//        doubles.
+//        them rsciio's fallbacks hold (scale 1, offset 1, no units), as here. An `.ipr` or `.csv` that is there but cannot be read
+//        (the sandboxed app is given the picked file only) is left out the same way, with a note in the file's `notes`; an
+//        unreadable `.spc` still fails the read in words, since the map has no energy axis without it. Float32 header values
+//        are carried as their exact doubles.
 //
 
 import Foundation
@@ -33,7 +35,7 @@ package nonisolated enum EDAXEDSReader {
             let d = read ?? Data()
             return SEMEDSBytes([UInt8](d), name: url.lastPathComponent)
         } catch {
-            throw SEMEDSReadError("\(url.lastPathComponent) could not be read.")
+            throw SEMEDSReadError("\(url.lastPathComponent) could not be read: \(ErrorDetail.text(error))")
         }
     }
 
@@ -110,6 +112,18 @@ package nonisolated enum EDAXEDSReader {
         return FileManager.default.fileExists(atPath: candidate.path) ? candidate : nil
     }
 
+    /// `companion` when it can be opened. One that is there but cannot be (macOS has not given the sandboxed app access to it,
+    /// a disk error) is nil, as a missing one is, and `notes` says what the file at `url` opens without: rsciio's fallback.
+    static func readable(_ companion: URL?, beside url: URL, notes: inout [String], lacking: String) -> URL? {
+        guard let companion else { return nil }
+        guard let handle = try? FileHandle(forReadingFrom: companion) else {
+            notes.append("\(companion.lastPathComponent) beside \(url.lastPathComponent) could not be read: \(lacking).")
+            return nil
+        }
+        try? handle.close()
+        return companion
+    }
+
     static func readMap(url: URL) throws -> SEMEDSFile {
         let name = url.lastPathComponent
         let lineScan = url.pathExtension.lowercased() == "lsd"
@@ -142,6 +156,7 @@ package nonisolated enum EDAXEDSReader {
         let (rows, cols): (Int, Int)
         var axes: [SEMEDSAxis]
         let shape: [Int]
+        var notes: [String] = []
         if lineScan {
             // nx · ny overflows only far above any nSpectra (an Int32), which then is the smaller.
             let grid = nx.multipliedReportingOverflow(by: ny)
@@ -149,7 +164,8 @@ package nonisolated enum EDAXEDSReader {
             rows = 1; cols = max(kept, 0)
             md.title = "EDS Line Scan"
             var scale = 1.0, offset = 0.0, units: String?
-            if let csv = companion(url, name: url.deletingPathExtension().lastPathComponent + ".csv") {
+            let csvName = url.deletingPathExtension().lastPathComponent + ".csv"
+            if let csv = readable(companion(url, name: csvName), beside: url, notes: &notes, lacking: "the line scan has no distances") {
                 let distances = try lineScanDistances(csv)
                 if distances.count >= 2 { offset = distances[0]; scale = distances[1] - distances[0]; units = "nm" }
                 else if let first = distances.first { offset = first; units = "nm" }
@@ -162,7 +178,7 @@ package nonisolated enum EDAXEDSReader {
             md.title = "EDS Spectrum Image"
             let iprName = pythonStem(fName) + ".ipr"
             var mppX: Float?, mppY: Float?
-            if let ipr = companion(url, name: iprName) {
+            if let ipr = readable(companion(url, name: iprName), beside: url, notes: &notes, lacking: "the map has no pixel size") {
                 let b = try bytes(ipr, limit: 264)
                 mppX = try b.f32(64); mppY = try b.f32(68)
             }
@@ -173,7 +189,7 @@ package nonisolated enum EDAXEDSReader {
         }
 
         let handle: FileHandle
-        do { handle = try FileHandle(forReadingFrom: url) } catch { throw SEMEDSReadError("\(name) could not be read.") }
+        do { handle = try FileHandle(forReadingFrom: url) } catch { throw SEMEDSReadError("\(name) could not be read: \(ErrorDetail.text(error))") }
         defer { try? handle.close() }
         let pixelBytes = nz * countBytes
         // The counts the header states must fit in the file after dataOffset before anything is allocated for them; a file
@@ -215,7 +231,7 @@ package nonisolated enum EDAXEDSReader {
         }
         let cube = builder.finish()
         return SEMEDSFile(url: url, signals: [.spectrumImage(SEMEDSSpectrumImage(shape: shape, axes: axes, dtype: "uint\(countBytes * 8)",
-                                                                                cube: cube, metadata: md))])
+                                                                                cube: cube, metadata: md))], notes: notes)
     }
 
     /// The "Distance (nm)" column of an EDAX line-scan `.csv`: 14 header lines, then a table (rsciio reads it with `csv.DictReader`).

@@ -258,7 +258,7 @@ private struct IndexingCompareHistogram: View {
     }
 
     private func chart(_ comparison: IndexingComparison, _ histogram: AngleHistogram) -> some View {
-        let bins = IndexingCompareFormat.bins(histogram)
+        let bins = IndexingCompareFormat.drawnBins(histogram)
         let top = histogram.edges.last ?? 1
         let hoveredAngle = session.hovered.flatMap { p -> Double? in
             guard let columns = session.patterns.dataset?.scanColumns else { return nil }

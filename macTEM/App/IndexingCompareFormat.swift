@@ -23,6 +23,12 @@ nonisolated enum IndexingCompareFormat {
         histogram.counts.indices.map { Bin(id: $0, low: histogram.edges[$0], high: histogram.edges[$0 + 1], count: histogram.counts[$0]) }
     }
 
+    /// The bins the chart draws: the occupied ones. Swift Charts draws a bar of count 0 as a dot on the axis, so a scan whose
+    /// disorientations sit under 2° drew a row of 60 dots along 0 (drive 2026-11-08). The hover readout still names an empty bin.
+    static func drawnBins(_ histogram: AngleHistogram) -> [Bin] {
+        bins(histogram).filter { $0.count > 0 }
+    }
+
     /// "Compare · Hough against File · IPF-Z".
     static func mapsTitle(a: IndexingCompareSource, b: IndexingCompareSource, layer: IndexingLayer) -> String {
         "Compare · \(a.title) against \(b.title) · \(layer.title)"

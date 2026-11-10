@@ -42,6 +42,11 @@ nonisolated final class ImageStackTests: XCTestCase {
 
     final class Counter: @unchecked Sendable { private let lock = NSLock(); private var n = 0; func add() { lock.lock(); n += 1; lock.unlock() }; var value: Int { lock.lock(); defer { lock.unlock() }; return n } }
 
+    /// What a frame reader planted to fail says.
+    nonisolated struct FrameFailure: LocalizedError, Sendable {
+        var errorDescription: String? { "the page is cut short." }
+    }
+
     // MARK: Reading
 
     /// A stack opens with its frame count, size and no pixels read; frame N is that page's pixels exactly and is the only frame read.
@@ -174,6 +179,45 @@ nonisolated final class ImageStackTests: XCTestCase {
         for _ in 0..<2000 where item.frame != 5 { try await Task.sleep(for: .milliseconds(5)) }
         XCTAssertEqual(item.frame, 5)
         XCTAssertNotEqual(item.summary?.thumbnail, first, "the thumbnail is of frame 6 now")
+    }
+
+    /// A frame that cannot be read says so and can be asked for again: the picture stays on the frame shown and the slider goes back
+    /// to it, the item and the window's status line name the frame and why, and the same frame asked again is read, which clears the
+    /// failure. Red before: the read's error was swallowed (`try?`), `requestedFrame` stayed on the frame that failed (the slider said
+    /// frame 3 over frame 1's picture), and asking for frame 3 again was dropped by `n != requestedFrame`.
+    @MainActor func testAFrameThatCannotBeReadSaysSoAndCanBeAskedForAgain() async throws {
+        let url = try Self.tempStack(frames: 6)
+        let attempts = Counter()
+        let items = OpenItems(frameReader: { stack, frame in
+            if frame == 2 {
+                attempts.add()
+                if attempts.value == 1 { throw FrameFailure() }
+            }
+            return try await AppState.readFrame(stack, frame)
+        }, reader: AppState.read(_:))
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        items.onFrameFailure = state.openItems.onFrameFailure   // the window's own wiring, into its status line
+        items.open(urls: [url])
+        await items.settled()
+        let item = try XCTUnwrap(items.selected)
+        XCTAssertNotNil(item.stack, "opened as a stack: \(item.readFailure ?? "no failure")")
+
+        items.showFrame(item, to: 2)
+        XCTAssertEqual(item.requestedFrame, 2)
+        for _ in 0..<2000 where item.frameFailure == nil { try await Task.sleep(for: .milliseconds(5)) }
+        let sentence = "Frame 3 of 6 could not be read: the page is cut short."
+        XCTAssertEqual(item.frameFailure, sentence)
+        XCTAssertEqual(item.requestedFrame, 0, "the slider goes back to the frame shown")
+        XCTAssertEqual(item.frame, 0)
+        XCTAssertEqual(item.session.image?.source, "frame 1 of 6", "the picture is still the frame shown")
+        XCTAssertEqual(state.statusText, sentence, "the status line says which frame and why")
+
+        items.showFrame(item, to: 2)
+        XCTAssertEqual(item.requestedFrame, 2, "the same frame is asked for again, not dropped")
+        for _ in 0..<2000 where item.frame != 2 { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(item.frame, 2)
+        XCTAssertEqual(attempts.value, 2)
+        XCTAssertNil(item.frameFailure, "a frame that lands clears it")
     }
 
     /// Closing an item that holds a stack releases its scope. Red under: the scope leaked until the process ends.

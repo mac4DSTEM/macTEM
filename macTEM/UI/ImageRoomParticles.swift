@@ -277,5 +277,7 @@ struct ParticleTableWindow: View {
             }
         }
         .environment(appState)
+        // While it is key, File > Close (⌘W) and Close Window (⇧⌘W) close it (`CloseCommand`).
+        .focusedSceneValue(\.isObjectsWindow, true)
     }
 }
