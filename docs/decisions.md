@@ -26,8 +26,7 @@ Recording and Accessibility grants by path, and that path is what the Mac's own 
 
 **Amended 2026-11-10 (macTEM#391).** `ui.yml` never ran: its job-level `env` read the `runner` context, which a job-level
 `env` cannot, so GitHub refused the file and listed every push as a failed run of it. The gate folder is now set in a
-step. The nightly trigger is parked until Paul agrees to journeys driving the Mac's screen at night (other sessions
-drive it too); until then they run by hand. Reverse: put the `schedule` trigger back.
+step. The nightly trigger does not come back: see the 2026-11-10 CI entry below.
 
 **Reversal.** Set the jobs' `runs-on` back to the `vars.MACEM_MAC_RUNNER` expression (git history of ci.yml, before
 this entry) if the hosted macOS queue (free plan, few concurrent macOS jobs) becomes the slower path again.
@@ -173,3 +172,31 @@ mac4DSTEM does it". The flat list was drift, not a decision: the first rooms had
 (design D1). One way of finding things in both apps.
 
 **Reverse it.** Paul names other workspaces or another grouping after his drive; the names live in `WorkspaceGroup.title`.
+
+## 2026-11-10 — CI: the UI journeys run by hand only
+
+**What.** `ui.yml` keeps `workflow_dispatch` only; the nightly `schedule` trigger (03:30 UTC) that macTEM#391 parked
+does not come back.
+
+**Why.** The journeys drive the Mac's screen, which Paul and other sessions use at any hour; a nightly run would fight
+them for the window.
+
+**Reversal.** Put the `schedule` trigger (cron "30 3 * * *") back once the Mac has a screen of its own for the journeys.
+
+## 2026-11-10 — Release: the next macTEM release is 2.0.0
+
+**What.** The open Release PR stays unmerged. The next release is 2.0.0, after the quality pass and the design fixes
+land; nothing ships before then.
+
+**Why.** The SEM rooms changed what the app is (the `feat!` commits already make the next version 2.0.0), and one major
+release with the new rooms, the quality pass and the design fixes is simpler for users than a 2.0.0 now and large
+changes soon after.
+
+**Also decided.** `CITATION.cff` names the last release, 1.3.0 of 2026-11-05, and is kept by hand, as mac4DSTEM's is.
+release-please updates neither app's `CITATION.cff`: in both, its only extra file is `Config/Version.xcconfig`. A
+`yaml` extra file for `$.version` would keep the version current but not `date-released`, so the two fields would
+disagree after every release. Adding it to one app and not the other would split the suite. A `docs:` PR moves both
+fields once a release is tagged, starting with 2.0.0.
+
+**Reversal.** Merge the Release PR as it is. For the citation: add `{"type": "yaml", "path": "CITATION.cff",
+"jsonpath": "$.version"}` to the extra files of both apps' `release-please-config.json` and drop `date-released`.

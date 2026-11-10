@@ -4,12 +4,12 @@
 #
 # WHAT RUNS: `tools/run-tests.sh ui` — the XCUITest journeys (macTEMUITests, scheme macTEMUI): the real app, signed,
 # walked as a user would, one screenshot per step. The screenshots and the result bundle are uploaded as artifacts of
-# the run; this is the nightly on-screen record a review reads, and the source of a room PR's release-assets shots.
+# the run; this is the on-screen record a review reads, and the source of a room PR's release-assets shots.
 #
-# WHEN: by hand for now; nightly at 03:30 UTC once Paul agrees (the Mac is not in use then; the journeys drive the screen
-# and must not run under a person's hands). By hand with an optional list of journeys. The job targets the Mac by label, with no fallback to a GitHub
-# runner: while the Mac is offline the job queues, and runs when the Mac is back (GitHub drops a job no runner has
-# taken within 24 hours, so an offline night is skipped, not doubled).
+# WHEN: by hand only (docs/decisions.md, 2026-11-10): the journeys drive the screen and must not run under a person's
+# hands, and the Mac is in use at any hour. A run takes an optional list of journeys. The job targets the Mac by label,
+# with no fallback to a GitHub runner: while the Mac is offline the job queues, and runs when the Mac is back (GitHub
+# drops a job no runner has taken within 24 hours).
 #
 # XCODE: the Mac's selected Xcode (xcode-select), the one the app is driven and released with, not ci.yml's pinned
 # 26.6: the UI runner app at ~/Library/Caches/macEM-ui-tests/macTEM holds its Screen Recording and Accessibility grants
@@ -17,7 +17,7 @@
 name: UI journeys
 
 on:
-  # The nightly (cron "30 3 * * *") waits for Paul's word: the journeys drive the Mac's screen.
+  # By hand only (decided 2026-11-10, docs/decisions.md): the journeys drive the Mac's screen, which is in use at any hour.
   workflow_dispatch:
     inputs:
       journeys:
