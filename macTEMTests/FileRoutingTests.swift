@@ -185,6 +185,28 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertNil(state.roomUnavailableReason(.fft))
     }
 
+    // MARK: A drop
+
+    /// A drop hands on the files of an extension an Open routes, in its order, and names each of the others once, with what macTEM
+    /// opens once after them; a drop of routed files alone refuses nothing, and a dragged web link is not a file. One file's own
+    /// sentence is as it was. Red before: no `FileRouting.dropped` and no `fileClause`, and every refused file's line carried the
+    /// whole list of formats (three files, the list three times in the alert and in the one-line status bar).
+    func testADropNamesEachRefusedFileOnceAndTheFormatsOnce() throws {
+        func file(_ name: String) -> URL { URL(fileURLWithPath: "/data/nordif/\(name)") }
+        let drop = FileRouting.dropped([file("Setting.txt"), file("Pattern.dat"), file("Background.BMP"), file("README")])
+        XCTAssertEqual(drop.accepted, [file("Pattern.dat")])
+        XCTAssertEqual(drop.refusals, ["Setting.txt is a .txt file.", "Background.BMP is a .bmp file.", "README is a file without an extension.",
+                                       FileRouting.openableSentence])
+        XCTAssertEqual(drop.refusals.joined(separator: " ").components(separatedBy: "macTEM opens").count, 2, "the formats are named once")
+        let routed = FileRouting.dropped([file("a.dm4"), file("b.TIF")])
+        XCTAssertEqual(routed.accepted, [file("a.dm4"), file("b.TIF")])
+        XCTAssertEqual(routed.refusals, [])
+        let link = try XCTUnwrap(URL(string: "https://example.org/scan.tif"))
+        XCTAssertEqual(FileRouting.dropped([link]).accepted, [], "a web link ending in .tif is not a file")
+        XCTAssertEqual(ImageOpening.Refusal.unreadableFormat(file: "notes.txt", ext: "txt").errorDescription,
+                       "notes.txt is a .txt file. " + FileRouting.openableSentence, "one file's own sentence is as it was")
+    }
+
     /// The rooms a window's documents fill: with nothing open every built room stays enterable; with an image only, the spectrum rooms say
     /// why not; with a spectrum cube only, the image rooms do; the room that loses its data gives way to one that has some.
     func testRoomAvailabilityFollowsTheDocuments() {

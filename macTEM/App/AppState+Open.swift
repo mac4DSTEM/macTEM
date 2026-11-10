@@ -38,16 +38,20 @@ extension AppState {
             // every room that has data in it (`FileInventory`), and the window lands in the room of the richest dataset.
             var inventories = await Self.inventories(urls)
             // A NORDIF scan whose settings file the sandbox refused asks for its folder, once per folder in an Open (`FolderPanels`): the
-            // grant is kept (`FolderGrants`) and the scan is routed again inside it. Declined, the scan keeps its refusal.
+            // grant is kept (`FolderGrants`) and the scan is routed again inside it. Declined, the scan keeps its refusal. A folder
+            // granted for an earlier scan of this Open that is around this one too (their common parent) reaches it: nothing is asked.
             var answered: [String: Bool] = [:]   // each folder asked for in this Open: granted or not
+            var granted: [String] = []           // the folders granted in this Open, by `FolderGrants.path`
             for index in inventories.indices where inventories[index].asksForFolder {
                 let url = inventories[index].url
                 let folder = FolderGrants.path(of: url.deletingLastPathComponent())
+                if answered[folder] == nil, FolderGrants.reaches(granted, file: url) { answered[folder] = true }
                 if answered[folder] == nil {
                     let chosen = await FolderPanels.askForFolder(of: url)
                     if let chosen {
                         let bookmark = try? SecurityScopedBookmark.make(for: chosen)
                         FolderGrants.store(bookmark, forFolder: chosen)
+                        if bookmark != nil { granted.append(FolderGrants.path(of: chosen)) }
                     }
                     answered[folder] = chosen != nil
                 }
@@ -227,15 +231,45 @@ extension AppState {
     /// (resolved without mounting a volume or asking anything), opened as any other through `open(urls:)`; once they are in, the
     /// file that was selected and the room that was shown. A file that is gone, or on a disk that is not connected, is named in the
     /// status line and the others open; when none can be opened and no disk is waited for, the record is forgotten and the menu
-    /// stops offering it. Never run at launch: a mapped multi-GB file must not load before the person asks.
+    /// stops offering it. Never run at launch: a mapped multi-GB file must not load before the person asks. Nil only without a
+    /// record: which files are still there is found inside the returned task, off the main actor.
     @discardableResult
     func reopenLastSession() -> Task<Void, Never>? {
         guard let record = lastSession.previous else { return nil }
+        let task = Task {
+            // Which files are still there is asked off the main actor (`lastSessionFiles`): a share that is mounted but asleep answers
+            // slowly, once per file, and the menu must not wait for it.
+            let (found, gone, offline) = await Self.lastSessionFiles(record.files)
+            let missing = Self.notReopened(gone: gone, offline: offline)
+            guard !found.isEmpty else {
+                if offline.isEmpty { lastSession.forgetPrevious() }
+                report(event: missing ?? "", in: nil)   // the status line, and VoiceOver: with every file gone this line is the whole answer
+                return
+            }
+            let selectedPath = found.first { $0.path == record.selectedPath }?.url.standardizedFileURL.path
+            await open(urls: found.map { $0.url })?.value
+            if let selectedPath, let item = openItems.items.first(where: { $0.url.standardizedFileURL.path == selectedPath }) {
+                openItems.select(item.id)
+            }
+            if let room = WorkspaceArea(rawValue: record.room) { selectWorkspace(room) }
+            if let missing { report(event: missing, in: nil) }
+        }
+        lastOpen = task
+        return task
+    }
+
+    /// The last session's files by what became of each, off the main actor: `found` (the bookmark resolves and the file is there),
+    /// `offline` (on a disk that is not connected: the file's name and the volume's) and `gone` (the names of the others). Each file
+    /// costs a bookmark resolved and a look at the file system; on a share that is mounted but asleep every such call waits, and
+    /// on the main actor the menu hung once per file.
+    @concurrent
+    nonisolated static func lastSessionFiles(_ files: [RecentFile]) async
+        -> (found: [(path: String, url: URL)], gone: [String], offline: [(name: String, volume: String)]) {
         var found: [(path: String, url: URL)] = []
         var gone: [String] = []
         var offline: [(name: String, volume: String)] = []
-        for file in record.files {
-            if let url = Self.reachable(file) {
+        for file in files {
+            if let url = reachable(file) {
                 found.append((path: file.path, url: url))
             } else if let volume = RecentFiles.absentVolume(of: file.path) {
                 offline.append((name: file.displayName, volume: volume))
@@ -243,30 +277,12 @@ extension AppState {
                 gone.append(file.displayName)
             }
         }
-        let missing = Self.notReopened(gone: gone, offline: offline)
-        guard !found.isEmpty else {
-            if offline.isEmpty { lastSession.forgetPrevious() }
-            report(event: missing ?? "", in: nil)   // the status line, and VoiceOver: with every file gone this line is the whole answer
-            return nil
-        }
-        let selectedPath = found.first { $0.path == record.selectedPath }?.url.standardizedFileURL.path
-        let room = WorkspaceArea(rawValue: record.room)
-        let opening = open(urls: found.map { $0.url })
-        let task = Task {
-            await opening?.value
-            if let selectedPath, let item = openItems.items.first(where: { $0.url.standardizedFileURL.path == selectedPath }) {
-                openItems.select(item.id)
-            }
-            if let room { selectWorkspace(room) }
-            if let missing { report(event: missing, in: nil) }
-        }
-        lastOpen = task
-        return task
+        return (found: found, gone: gone, offline: offline)
     }
 
     /// The file a last-session entry's bookmark resolves to while it is still there; nil when the bookmark does not resolve or the
-    /// file it names is gone (looked at inside its security scope).
-    private static func reachable(_ file: RecentFile) -> URL? {
+    /// file it names is gone (looked at inside its security scope). Not the main actor's: `lastSessionFiles` calls it.
+    private nonisolated static func reachable(_ file: RecentFile) -> URL? {
         var stale = false
         guard let url = try? URL(resolvingBookmarkData: file.bookmark, options: [.withSecurityScope, .withoutUI, .withoutMounting],
                                  relativeTo: nil, bookmarkDataIsStale: &stale) else { return nil }

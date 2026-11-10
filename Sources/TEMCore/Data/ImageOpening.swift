@@ -30,13 +30,20 @@ package nonisolated enum ImageOpening {
         case velox(file: String, VeloxImageReader.Refusal)
         case jeol(file: String, reason: String)
 
-        /// A file of another extension (a refused drop says the same) names what macTEM opens from the table every Open routes by
+        /// "notes.txt is a .txt file.", "README is a file without an extension.": what names a file of an extension macTEM does not
+        /// open, without the formats it does. A drop of several such files names each with it and the formats once after them
+        /// (`FileRouting.dropped`).
+        package static func fileClause(file: String, ext: String) -> String {
+            let what = ext.isEmpty ? "a file without an extension" : "a .\(ext) file"
+            return "\(file) is \(what)."
+        }
+
+        /// A file of another extension names what macTEM opens from the table every Open routes by
         /// (`FileRouting.openableSentence`), so the sentence keeps up with the rooms.
         package var errorDescription: String? {
             switch self {
             case .unreadableFormat(let file, let ext):
-                let what = ext.isEmpty ? "a file without an extension" : "a .\(ext) file"
-                return "\(file) is \(what). " + FileRouting.openableSentence
+                return Self.fileClause(file: file, ext: ext) + " " + FileRouting.openableSentence
             case .noImage(let file, let objects):
                 return "\(file) holds no 2D image (\(objects)). Image stacks in DM files, and spectrum images in .dm3 files, are not read yet."
             case .tiff(let file, let refusal):

@@ -127,23 +127,18 @@ struct ContentView: View {
         }
     }
 
-    /// Opens the dropped files macTEM reads; every dropped file it does not read is refused by name in one alert, a line each. With
-    /// files to open the lines go to the Open, which shows them once with the files its routing refuses, after any folder it asks
-    /// for (`AppState.open(urls:refused:)`): an alert raised here first lost its lines to the Open's, and kept the folder panel of a
-    /// NORDIF scan from showing. With none to open the alert is raised here.
+    /// Opens the dropped files macTEM reads; every dropped file it does not read is refused by name in one alert, a line each, and
+    /// what macTEM opens is said once after them (`FileRouting.dropped`). With files to open the lines go to the Open, which shows
+    /// them once with the files its routing refuses, after any folder it asks for (`AppState.open(urls:refused:)`): an alert raised
+    /// here first lost its lines to the Open's, and kept the folder panel of a NORDIF scan from showing. With none to open the
+    /// alert is raised here.
     private func openDropped(_ urls: [URL]) -> Bool {
-        let readable = FileRouting.openableExtensions
-        // A file of a readable format; a dragged web link ending in .tif is not a file.
-        let isReadable = { (url: URL) in url.isFileURL && readable.contains(url.pathExtension.lowercased()) }
-        let accepted = urls.filter(isReadable)
-        let lines = urls.filter { !isReadable($0) }.map { url in
-            ErrorDetail.text(ImageOpening.Refusal.unreadableFormat(file: url.lastPathComponent, ext: url.pathExtension.lowercased()))
-        }
-        guard !accepted.isEmpty else {
-            appState.presentRefusals(lines)
+        let drop = FileRouting.dropped(urls)
+        guard !drop.accepted.isEmpty else {
+            appState.presentRefusals(drop.refusals)
             return false
         }
-        appState.open(urls: accepted, refused: lines)
+        appState.open(urls: drop.accepted, refused: drop.refusals)
         return true
     }
 

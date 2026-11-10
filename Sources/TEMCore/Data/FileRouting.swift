@@ -101,6 +101,18 @@ package nonisolated enum FileRouting {
         return "macTEM opens " + (head.isEmpty ? last : head + ", and " + last) + "."
     }()
 
+    /// What a drop on the window asks for: the files of an extension an Open routes (`accepted`, in the drop's order; a dragged web
+    /// link ending in .tif is not a file), and the lines that refuse the others (`refusals`): each named once ("notes.txt is a .txt
+    /// file."), then what macTEM opens, once (`openableSentence`). A line per file with the whole list of formats in each said it
+    /// three times for three files, in the alert and in the one-line status bar. No lines when every file is routed.
+    package static func dropped(_ urls: [URL]) -> (accepted: [URL], refusals: [String]) {
+        func routes(_ url: URL) -> Bool { url.isFileURL && openableExtensions.contains(url.pathExtension.lowercased()) }
+        let clauses = urls.filter { !routes($0) }.map {
+            ImageOpening.Refusal.fileClause(file: $0.lastPathComponent, ext: $0.pathExtension.lowercased())
+        }
+        return (accepted: urls.filter(routes), refusals: clauses.isEmpty ? [] : clauses + [openableSentence])
+    }
+
     package struct SpectrumReadError: Error, LocalizedError, Equatable {
         package var text: String
         package var errorDescription: String? { text }
