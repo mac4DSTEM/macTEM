@@ -30,10 +30,12 @@ package nonisolated enum UnitDisplay {
 
     /// A number as the reader's locale writes it, at most `digits` significant digits, no grouping, no exponent ("0,25" in de_DE,
     /// where `%g` always printed "0.25"). The digits are printf's, so the screen shows the last digit the CSV writes: FormatStyle
-    /// rounded the shortest decimal spelling instead of the binary value (2.675 read "2.68" there, "2.67" in `%.3g`). DISPLAY ONLY:
-    /// provenance, sidecar and export strings keep their own locale-free spelling.
+    /// rounded the shortest decimal spelling instead of the binary value (2.675 read "2.68" there, "2.67" in `%.3g`). A zero is "0"
+    /// whatever its sign: `%e` keeps a negative zero's, which read "-0". DISPLAY ONLY: provenance, sidecar and export strings keep
+    /// their own locale-free spelling.
     package static func number(_ value: Double, digits: Int = 6, locale: Locale = .autoupdatingCurrent) -> String {
         guard value.isFinite else { return noValue }
+        guard value != 0 else { return "0" }
         return marked(significant(value, digits: max(digits, 1)), locale: locale)
     }
 

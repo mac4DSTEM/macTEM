@@ -21,6 +21,23 @@ nonisolated final class NumberFormatTests: XCTestCase {
         XCTAssertEqual(Num.signed(-0.0, 2, locale: de), "0,00")
     }
 
+    /// A zero written by significant digits has no sign either: a negative zero (the literal, or a value rounded to zero from below)
+    /// reads "0" through `UnitDisplay.number` and through every formatter routed to it. Red before: `%e` kept the sign, so each of
+    /// these read "-0" (and the triple "(-0, 0, 0.5)"). No value that is not zero rounds to zero at significant digits, so a small
+    /// negative keeps its sign and its digits.
+    func testAZeroBySignificantDigitsHasNoSign() {
+        XCTAssertEqual(UnitDisplay.number(-0.0, locale: en), "0")
+        XCTAssertEqual(UnitDisplay.number(-0.0, digits: 3, locale: de), "0")
+        XCTAssertEqual(UnitDisplay.number((-0.4).rounded(), locale: en), "0", "a value rounded to zero from below is a negative zero")
+        XCTAssertEqual(Num.sig(-0.0, 4, locale: de), "0")
+        XCTAssertEqual(MapsRoomFormat.number(-0.0, locale: en), "0")
+        XCTAssertEqual(IndexingTableFormat.number(-0.0, locale: en), "0")
+        XCTAssertEqual(UnitDisplay.triple(SIMD3<Double>(-0.0, 0, 0.5), locale: en), "(0, 0, 0.5)")
+        XCTAssertEqual(UnitDisplay.number(0, locale: en), "0")
+        XCTAssertEqual(UnitDisplay.number(-0.0000123, digits: 3, locale: en), "-0.0000123")
+        XCTAssertEqual(UnitDisplay.number(-4.5, locale: de), "-4,5")
+    }
+
     func testSignsAndDecimalsOtherwiseAreUnchanged() {
         XCTAssertEqual(Num.signed(0.5, 1, locale: en), "+0.5")
         XCTAssertEqual(Num.signed(-0.06, 2, locale: en), "-0.06")
