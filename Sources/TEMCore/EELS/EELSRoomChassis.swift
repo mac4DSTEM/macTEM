@@ -125,10 +125,11 @@ package nonisolated enum EELSMapsComposition {
     /// The scan's width over its height, which `AnchoredMapsBlock` fits every tile to (the EDS block passes the same); 1 until a file is open.
     package static func aspect(nx: Int?, ny: Int?) -> Double { Double(max(nx ?? 1, 1)) / Double(max(ny ?? 1, 1)) }
 
-    /// Whether a tile is from a stage that needs a new run (it stays drawn, dimmed).
+    /// Whether a tile is from a stage that needs a new run (it stays drawn, dimmed): an edge's, at% or wt% tile with the fit, the ZLP-shift tile
+    /// with Align (its shifts are the last run's, made with the Signal range and Crop of then), every other tile with the thickness.
     package static func isStale(_ id: String, thickness: EELSStageState, fit: EELSStageState, align: EELSStageState) -> Bool {
         if id.hasPrefix("edge-") || id.hasPrefix("at-") || id.hasPrefix("wt-") { return fit == .stale }
-        if id == "zlpShift" { return false }
+        if id == "zlpShift" { return align == .stale }
         return thickness == .stale
     }
 }
@@ -618,8 +619,8 @@ extension EELSRoomFormat {
     }
 
     /// The Processing section's one note: the line, and that the core loss follows the alignment when the file has one.
-    package static func processingNote(align: EELSStageState, thickness: EELSStageState, alignmentReadout: String?, coreAligned: Bool) -> String {
-        processingLine(align: align, thickness: thickness, alignmentReadout: alignmentReadout) + (coreAligned ? " The core loss is aligned with it." : "")
+    package static func processingNote(align: EELSStageState, alignmentReadout: String?, coreAligned: Bool) -> String {
+        processingLine(align: align, alignmentReadout: alignmentReadout) + (coreAligned ? " The core loss is aligned with it." : "")
     }
 
     /// What Align moved: "shifts up to 1.25 eV", or, when no pixel moved by half a channel, "already aligned in the file, max |shift| 0 eV" (GMS aligns the
@@ -630,8 +631,9 @@ extension EELSRoomFormat {
         return largest < channelEV / 2 ? "already aligned in the file, max |shift| " + text : "shifts up to " + text
     }
 
-    /// The Processing section's one line under its rows.
-    package static func processingLine(align: EELSStageState, thickness: EELSStageState, alignmentReadout: String?) -> String {
+    /// The Processing section's one line under its rows: what Align did, or that it has not run. The thickness has its own state on the section's
+    /// title row and on the Maps control, so the line takes none.
+    package static func processingLine(align: EELSStageState, alignmentReadout: String?) -> String {
         if let alignmentReadout { return "Aligned: " + alignmentReadout + (align == .stale ? " · needs a new run" : "") }
         if align == .notRun { return "Align —: Run aligns the zero-loss peak." }
         return "Align " + align.word + "."

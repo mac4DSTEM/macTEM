@@ -46,7 +46,7 @@ nonisolated final class EELSSpectrumLegendTests: XCTestCase {
                     for junction in stride(from: area.minX, through: area.maxX, by: 3) {
                         let names = EELSSpectrumLayout.sectionLabelFrames(area: area, junction: junction, low: low, core: core)
                         for l in legends {
-                            let frame = EELSSpectrumLayout.legendFrame(in: size, legend: l)
+                            let frame = EELSSpectrumLayout.legendFrame(legend: l)
                             checked += 1
                             guard !frame.intersects(names.low), !frame.intersects(names.core) else {
                                 return XCTFail("\(size), left \(left), junction \(junction): the legend \(frame) covers \(names.low) or \(names.core)")
@@ -62,8 +62,7 @@ nonisolated final class EELSSpectrumLegendTests: XCTestCase {
     /// The legend sits top left above the plot, as in the EDS room: inside the band the titles share, clear of the counts axis title on its left.
     @MainActor func testTheLegendSitsInTheBandAboveThePlot() {
         let l = legend(["Whole map", "Region 1"])
-        let size = CGSize(width: 480, height: 260)
-        let frame = EELSSpectrumLayout.legendFrame(in: size, legend: l)
+        let frame = EELSSpectrumLayout.legendFrame(legend: l)
         XCTAssertLessThanOrEqual(frame.maxY, EELSSpectrumLayout.top, "above the plot")
         XCTAssertGreaterThanOrEqual(frame.minY, 0)
         let title = fitting(Text("log counts").font(.caption2))

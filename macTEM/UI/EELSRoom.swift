@@ -602,8 +602,8 @@ nonisolated enum EELSSpectrumLayout {
         CGRect(x: left, y: top, width: max(size.width - left - right, 1), height: max(size.height - top - bottom, 1))
     }
 
-    /// The legend's frame in a spectrum of `size`, for a legend of `legend` size.
-    static func legendFrame(in size: CGSize, legend: CGSize) -> CGRect {
+    /// The legend's frame in the spectrum, for a legend of `legend` size: at a fixed offset from the top-left corner, whatever the spectrum's size.
+    static func legendFrame(legend: CGSize) -> CGRect {
         CGRect(x: legendLeading, y: legendInset, width: legend.width, height: legend.height)
     }
 

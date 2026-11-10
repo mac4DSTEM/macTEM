@@ -461,8 +461,8 @@ nonisolated final class EELSRoomTests: XCTestCase {
 
     /// The Processing section's line says what Align did or that it has not run.
     func testTheProcessingLineSaysWhatAlignDid() {
-        XCTAssertEqual(EELSRoomFormat.processingLine(align: .notRun, thickness: .current, alignmentReadout: nil), "Align —: Run aligns the zero-loss peak.")
-        XCTAssertEqual(EELSRoomFormat.processingLine(align: .current, thickness: .current, alignmentReadout: "offset -1.000 → 0.000 eV, 9 of 10 channels kept"),
+        XCTAssertEqual(EELSRoomFormat.processingLine(align: .notRun, alignmentReadout: nil), "Align —: Run aligns the zero-loss peak.")
+        XCTAssertEqual(EELSRoomFormat.processingLine(align: .current, alignmentReadout: "offset -1.000 → 0.000 eV, 9 of 10 channels kept"),
                        "Aligned: offset -1.000 → 0.000 eV, 9 of 10 channels kept")
     }
 
@@ -806,9 +806,9 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertFalse(inspector.contains(".pickerStyle(.segmented)"), "no centred pill")
         XCTAssertTrue(inspector.contains("EELSReferencesBlock(session: session)"))
         for label in ["From region", "Import…", "Remove"] { XCTAssertTrue(inspector.contains("\"\(label)\""), label) }
-        XCTAssertEqual(EELSRoomFormat.processingNote(align: .current, thickness: .current, alignmentReadout: "offset -1 → 0 eV, 9 of 10 channels kept", coreAligned: true),
+        XCTAssertEqual(EELSRoomFormat.processingNote(align: .current, alignmentReadout: "offset -1 → 0 eV, 9 of 10 channels kept", coreAligned: true),
                        "Aligned: offset -1 → 0 eV, 9 of 10 channels kept The core loss is aligned with it.")
-        XCTAssertEqual(EELSRoomFormat.processingNote(align: .notRun, thickness: .current, alignmentReadout: nil, coreAligned: false),
+        XCTAssertEqual(EELSRoomFormat.processingNote(align: .notRun, alignmentReadout: nil, coreAligned: false),
                        "Align —: Run aligns the zero-loss peak.")
     }
 

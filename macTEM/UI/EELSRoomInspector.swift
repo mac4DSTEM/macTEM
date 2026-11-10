@@ -289,7 +289,7 @@ struct EELSProcessingSection: View {
                     .accessibilityIdentifier("eels.deconvolution.readout")
             }
             // One line for the section; the pixels the kit refused are its tooltip.
-            InspectorNote(EELSRoomFormat.processingNote(align: session.alignState, thickness: session.thicknessState, alignmentReadout: session.alignmentReadout,
+            InspectorNote(EELSRoomFormat.processingNote(align: session.alignState, alignmentReadout: session.alignmentReadout,
                                                         coreAligned: session.source?.coreLoss != nil && session.alignment != nil))
                 .help(session.unavailableReasons.map { "\($0.count) px: \($0.reason)" }.joined(separator: "\n"))
                 .accessibilityIdentifier("eels.alignReadout")
