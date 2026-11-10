@@ -33,4 +33,9 @@ nonisolated enum Num {
         let text = fixed(value, places, locale: locale)
         return value > 0 && text.contains(where: { $0 >= "1" && $0 <= "9" }) ? "+" + text : text
     }
+
+    /// The typed fields' styles the rooms share: a whole number (a size in points or pixels, a radius) and a decimal of up to four
+    /// significant digits (an angle, a threshold).
+    static let wholeField = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0))
+    static let decimalField = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...4))
 }

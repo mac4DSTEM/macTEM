@@ -42,8 +42,6 @@ struct PatternsProcessingSections: View {
         nlparSection
     }
 
-    private static let integer = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0))
-
     /// NLPAR's λ as the row reads it: three decimals in the reader's locale, as the session report writes it ("0,123" in de_DE, where
     /// `%.3f` always printed a point beside the locale's fields).
     nonisolated static func lambdaText(_ lambda: Double, locale: Locale = .autoupdatingCurrent) -> String {
@@ -138,7 +136,7 @@ struct PatternsProcessingSections: View {
             }
             InspectorRow("Radius") {
                 OptionalNumericField(title: "Search radius", value: Double(pipeline.nlpar.searchRadius),
-                                     format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0)), unit: "px",
+                                     format: Num.wholeField, unit: "px",
                                      prompt: "\(NLPAR.defaultSearchRadius)") { v in session.editPipeline { $0.nlpar.searchRadius = max(1, TypedWholeNumber.value(v)) } }
                     .disabled(!pipeline.nlpar.isOn)
                     .help("The neighbourhood searched around each scan point: (2 r + 1) × (2 r + 1) patterns")
@@ -287,7 +285,7 @@ struct PatternsProcessingSections: View {
             }
             if pipeline.intensity.equalize {
                 InspectorRow("Kernel") {
-                    OptionalNumericField(title: "Equalisation kernel", value: pipeline.intensity.equalizeKernel.map(Double.init), format: Self.integer,
+                    OptionalNumericField(title: "Equalisation kernel", value: pipeline.intensity.equalizeKernel.map(Double.init), format: Num.wholeField,
                                          unit: "px", prompt: "\(dataset.patternColumns / 4)") { v in
                         session.editPipeline { $0.intensity.equalizeKernel = max(1, TypedWholeNumber.value(v)) }
                     }

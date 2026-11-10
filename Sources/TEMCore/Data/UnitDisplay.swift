@@ -25,19 +25,22 @@ package nonisolated enum UnitDisplay {
         return LengthUnit.reciprocalAngstromsPerPixel(scale: axis.scale, unit: axis.unit)
     }
 
+    /// What a number with no value (a NaN, an infinity) shows: one dash for every room's tables and lines.
+    package static let noValue = "—"
+
     /// A number as the reader's locale writes it, at most `digits` significant digits, no grouping, no exponent ("0,25" in de_DE,
     /// where `%g` always printed "0.25"). The digits are printf's, so the screen shows the last digit the CSV writes: FormatStyle
     /// rounded the shortest decimal spelling instead of the binary value (2.675 read "2.68" there, "2.67" in `%.3g`). DISPLAY ONLY:
     /// provenance, sidecar and export strings keep their own locale-free spelling.
     package static func number(_ value: Double, digits: Int = 6, locale: Locale = .autoupdatingCurrent) -> String {
-        guard value.isFinite else { return "—" }
+        guard value.isFinite else { return noValue }
         return marked(significant(value, digits: max(digits, 1)), locale: locale)
     }
 
     /// `value` with exactly `places` decimals as `%.<places>f` rounds it, in the reader's decimal mark, no grouping; a value that
-    /// rounds to zero has no sign ("0,00", never "-0,00"). A value that is not finite is "—" (`Num.fixed` keeps its own words for it).
+    /// rounds to zero has no sign ("0,00", never "-0,00"). A value that is not finite is `noValue` (`Num.fixed` keeps its own words for it).
     package static func fixed(_ value: Double, places: Int, locale: Locale = .autoupdatingCurrent) -> String {
-        guard value.isFinite else { return "—" }
+        guard value.isFinite else { return noValue }
         var text = String(format: "%.\(max(places, 0))f", value)
         if text.hasPrefix("-"), !text.contains(where: { $0 >= "1" && $0 <= "9" }) { text.removeFirst() }
         return marked(text, locale: locale)

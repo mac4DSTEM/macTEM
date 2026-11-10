@@ -43,10 +43,6 @@ nonisolated enum ResultsFormat {
 
     // MARK: A row
 
-    private static func number(_ value: Double, _ digits: Int, _ locale: Locale) -> String {
-        UnitDisplay.number(value, digits: digits, locale: locale)
-    }
-
     /// The Value column: a mark as the Image room's row reads (`MarkFormat.value`), a spot as the FFT room's (`FFTRoomFormat`),
     /// a refusal its words. `x`, `y`: the FILE's axes, which decide the unit a metre length is shown in.
     static func value(_ row: ResultRow, x: AxisCalibration?, y: AxisCalibration?, locale: Locale = .autoupdatingCurrent) -> String {
@@ -54,31 +50,31 @@ nonisolated enum ResultsFormat {
         switch row.product {
         case .distance:
             guard let pixels = row.entry("length_px")?.value else { return "—" }
-            let px = "\(number(pixels, 4, locale)) px"
+            let px = "\(UnitDisplay.number(pixels, digits: 4, locale: locale)) px"
             guard let length = row.entry("length"), let physical = length.value else { return px }
             let shown = lengthShown(physical, unit: length.unit, x: x, y: y)
-            return "\(number(shown.value, 4, locale)) \(shown.unit) · \(px)"
+            return "\(UnitDisplay.number(shown.value, digits: 4, locale: locale)) \(shown.unit) · \(px)"
         case .angle:
             guard let angle = row.entry("angle"), let degrees = angle.value else { return "—" }
-            let text = degrees.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(1)))
+            let text = UnitDisplay.fixed(degrees, places: 1, locale: locale)
             return angle.text.hasSuffix("pixel grid") ? "\(text)° (pixel grid)" : "\(text)°"
         case .profile:
             guard let pixels = row.entry("length_px")?.value else { return "—" }
             guard let length = row.entry("length"), let physical = length.value else {
-                return "Profile · \(number(pixels, 3, locale)) px"
+                return "Profile · \(UnitDisplay.number(pixels, digits: 3, locale: locale)) px"
             }
             let shown = lengthShown(physical, unit: length.unit, x: x, y: y)
-            return "Profile · \(number(shown.value, 3, locale)) \(shown.unit)"
+            return "Profile · \(UnitDisplay.number(shown.value, digits: 3, locale: locale)) \(shown.unit)"
         case .spot:
             guard let d = row.entry("d"), let dv = d.value, let q = row.entry("q")?.value else { return "—" }
             return FFTRoomFormat.spotValue(d: dv, q: q, unit: d.unit, locale: locale)
         case .calibration:
             guard let dq = row.entry("delta_q")?.value else { return "—" }
-            return "Δq \(number(dq, 5, locale)) 1/Å per px"
+            return "Δq \(UnitDisplay.number(dq, digits: 5, locale: locale)) 1/Å per px"
         case .ring:
             guard let d = row.entry("d")?.value else { return "—" }
             let family = row.entry("family")?.text ?? ""
-            return "d \(number(d, 5, locale)) Å\(family.isEmpty ? "" : " · \(family)")"
+            return "d \(UnitDisplay.number(d, digits: 5, locale: locale)) Å\(family.isEmpty ? "" : " · \(family)")"
         case .edsComposition:
             return edsValue(row, locale: locale)
         case .eelsThickness:
@@ -125,15 +121,15 @@ nonisolated enum ResultsFormat {
         if let net = row.entry("net"), net.text == ResultRow.edsAtBound { return "Not detected: " + net.text }
         func percent(_ name: String) -> String? {
             guard let value = row.entry(name)?.value else { return nil }
-            let sigma = row.entry(name + "_sigma")?.value.map { " ± \(number($0, 2, locale))" } ?? ""
-            return "\(number(value, 3, locale))\(sigma) \(name)%"
+            let sigma = row.entry(name + "_sigma")?.value.map { " ± \(UnitDisplay.number($0, digits: 2, locale: locale))" } ?? ""
+            return "\(UnitDisplay.number(value, digits: 3, locale: locale))\(sigma) \(name)%"
         }
         let parts = [percent("at"), percent("wt")].compactMap { $0 }
         if !parts.isEmpty { return parts.joined(separator: " · ") }
         guard let net = row.entry("net")?.value else { return "—" }
-        let sigma = row.entry("net_sigma")?.value.map { " ± \(number($0, 3, locale))" } ?? ""
+        let sigma = row.entry("net_sigma")?.value.map { " ± \(UnitDisplay.number($0, digits: 3, locale: locale))" } ?? ""
         let why = row.entry("at")?.text ?? ""
-        return "net \(number(net, 4, locale))\(sigma) counts" + (why.isEmpty ? "" : " · at%: \(why)")
+        return "net \(UnitDisplay.number(net, digits: 4, locale: locale))\(sigma) counts" + (why.isEmpty ? "" : " · at%: \(why)")
     }
 
     /// A length in the file's unit as the Image room shows it: a metre axis in nm, µm or mm (`MarkFormat.shown`), any other unit
@@ -197,7 +193,7 @@ nonisolated enum ResultsFormat {
 
     /// One entry of a row as a field: its name as the CSV has it and "value unit", up to 6 significant digits.
     static func field(_ entry: ResultRow.Entry, locale: Locale = .autoupdatingCurrent) -> (name: String, text: String) {
-        var text = entry.value.map { number($0, 6, locale) } ?? ""
+        var text = entry.value.map { UnitDisplay.number($0, digits: 6, locale: locale) } ?? ""
         if let value = entry.value, value.isFinite, !entry.unit.isEmpty {
             text += entry.unit == "deg" ? "°" : " \(UnitDisplay.label(entry.unit))"
         }

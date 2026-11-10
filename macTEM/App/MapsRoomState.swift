@@ -227,20 +227,19 @@ nonisolated enum MapsRoomFormat {
 
     // MARK: Analysis words (P5-04)
 
-    // The numbers are in the reader's locale unless the caller passes one: the session report passes `ExportSnapshot.labelLocale`.
+    // The numbers are in the reader's locale unless the caller passes one (the session report passes `ExportSnapshot.labelLocale`), written
+    // as `UnitDisplay` writes every number: printf's digits, no grouping, `UnitDisplay.noValue` where there is none.
 
-    static let decimal = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...4))
-    static let whole = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0))
+    static let decimal = Num.decimalField
+    static let whole = Num.wholeField
 
     static func angle(_ v: Double, digits: Int = 1, locale: Locale = .autoupdatingCurrent) -> String {
-        v.isFinite ? v.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(digits))) : "–"
+        UnitDisplay.fixed(v, places: digits, locale: locale)
     }
 
-    static func number(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String {
-        v.isFinite ? v.formatted(.number.locale(locale).grouping(.never).precision(.significantDigits(1...4))) : "–"
-    }
+    static func number(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { UnitDisplay.number(v, digits: 4, locale: locale) }
 
-    static func fraction(_ v: Double) -> String { v.isFinite ? v.formatted(.number.precision(.fractionLength(3))) : "–" }
+    static func fraction(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { UnitDisplay.fixed(v, places: 3, locale: locale) }
 
     /// "102 grains · mean ECD 3.1 µm · ASTM 14.2".
     static func grainSummary(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> String {
