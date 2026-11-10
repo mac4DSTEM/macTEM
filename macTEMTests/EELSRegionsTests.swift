@@ -71,4 +71,28 @@ nonisolated final class EELSRegionsTests: XCTestCase {
         for v in thickness.samples { XCTAssertEqual(v, DemoDocuments.Truth.eelsTOverLambda, accuracy: 2e-3) }
         XCTAssertNil(session.drawLine(from: PixelPoint(x: 1, y: 1), to: PixelPoint(x: 1.2, y: 1)), "shorter than a pixel")
     }
+
+    /// VoiceOver names every cell of the Regions table by its region and its column, as the EDS room's table does, with the number the cell shows, and a
+    /// hidden region says so in words. Red under: an edge cell with an identifier and no label ("1.2e4" with no region or edge); a hidden region told
+    /// from a shown one by its dimming alone.
+    func testEveryCellOfTheRegionsTableIsNamedByItsRegionAndItsColumn() throws {
+        XCTAssertEqual(EELSRegionSpeech.cellLabel(region: "Region 1", edge: "Fe L2,3", kind: .atomic), "Region 1 Fe L2,3 at%")
+        XCTAssertEqual(EELSRegionSpeech.cellLabel(region: "Region 1", edge: "Fe L2,3", kind: .intensity), "Region 1 Fe L2,3 intensity")
+        XCTAssertEqual(EELSRegionSpeech.cellValue(12345.678, kind: .intensity, locale: Locale(identifier: "en_US")), "12350", "the four figures the cell shows")
+        XCTAssertEqual(EELSRegionSpeech.cellValue(44.44, kind: .atomic, locale: Locale(identifier: "de_DE")), "44,4", "in the reader's decimal mark, as the cell")
+        XCTAssertEqual(EELSRegionSpeech.cellValue(nil, kind: .intensity), "none", "a dash is not read as a number")
+        XCTAssertEqual(EELSRegionSpeech.cellValue(nil, kind: .atomic), "none")
+        XCTAssertEqual(EELSRegionSpeech.visibility(isVisible: false), "hidden")
+        XCTAssertEqual(EELSRegionSpeech.visibility(isVisible: true), "")
+
+        let source = try FFTRoomWiringTests.squeezedUI("EELSRegionsTable.swift")
+        XCTAssertTrue(source.contains(".accessibilityLabel(EELSRegionSpeech.cellLabel(region: pin.name, edge: edge.title, kind: .intensity)) "
+                                      + ".accessibilityValue(EELSRegionSpeech.cellValue(value, kind: .intensity)) "
+                                      + ".accessibilityIdentifier(\"eels.regionTable.\\(pin.name).\\(edge.id)\")"), "the intensity cell")
+        XCTAssertTrue(source.contains(".accessibilityLabel(EELSRegionSpeech.cellLabel(region: pin.name, edge: edge.title, kind: .atomic)) "
+                                      + ".accessibilityValue(EELSRegionSpeech.cellValue(value, kind: .atomic)) "
+                                      + ".accessibilityIdentifier(\"eels.regionTable.\\(pin.name).\\(edge.id).at\")"), "the at% cell")
+        XCTAssertTrue(source.contains(".accessibilityElement(children: .combine) .accessibilityValue(EELSRegionSpeech.visibility(isVisible: pin.isVisible))"),
+                      "the name cell is one element that says when its region is hidden")
+    }
 }
