@@ -6,8 +6,8 @@
 //        (`ExportSnapshot.availability`), Export Transform… (⌥⌘E), Export Radial Profile… and Export Spots… in the FFT room
 //        (`ExportSnapshot.fftAvailability`), and Export Session Report… wherever the SEM rooms hold a result. Listed only while
 //        their room shows its document, as mac4DSTEM lists its Spectroscopy exports: the EDS room's five
-//        (`ExportSnapshot.edsAvailability`) and the EELS room's seven (`eelsAvailability`), each through the room's own export
-//        (`RoomExports`), the call its inspector button makes.
+//        (`ExportSnapshot.edsAvailability`), the EELS room's seven (`eelsAvailability`) and the Patterns room's six
+//        (`patternsAvailability`), each through the room's own export (`RoomExports`), the call its inspector button makes.
 //
 //        PLACEMENT: after the Save group, which this app's File menu fills with Close Image and Close Window (`ImageCommands`
 //        replaces it) — the anchor already known to render here. `.importExport`, the HIG's home of Export, would put the items
@@ -30,6 +30,7 @@ struct ExportCommands: Commands {
         let session = appState.map(SEMSessionLedger.hasRows(_:))
         let eds = appState.flatMap(ExportSnapshot.edsAvailability(of:))
         let eels = appState.flatMap(ExportSnapshot.eelsAvailability(of:))
+        let patterns = appState.flatMap(ExportSnapshot.patternsAvailability(of:))
         CommandGroup(after: .saveItem) {
             Divider()
             Button("Export Image…") {
@@ -73,6 +74,8 @@ struct ExportCommands: Commands {
             if let appState, let eds { edsItems(eds, appState: appState) }
             // The EELS room's seven, on the same terms.
             if let appState, let eels { eelsItems(eels, appState: appState) }
+            // The Patterns room's six, while that room shows a dataset.
+            if let appState, let patterns { patternsItems(patterns, appState: appState) }
         }
     }
 
@@ -101,6 +104,17 @@ struct ExportCommands: Commands {
         ForEach(EELSExportAvailability.menuKinds) { kind in
             Button("Export \(kind.title)") { RoomExports.eels(kind, appState: appState) }
                 .disabled(!eels.isEnabled(kind))
+        }
+    }
+
+    /// The Patterns room's exports, each named "Export" and its inspector button's title, in the inspector's order: the map and the
+    /// overlay items enabled by `ExportSnapshot.patternsAvailability`, each written by the room's own export. No keys.
+    @ViewBuilder
+    private func patternsItems(_ patterns: PatternsExportAvailability, appState: AppState) -> some View {
+        Divider()
+        ForEach(PatternsExportKind.allCases) { kind in
+            Button("Export \(kind.title)") { RoomExports.patterns(kind, appState: appState) }
+                .disabled(!patterns.isEnabled(kind))
         }
     }
 }

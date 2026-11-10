@@ -7,7 +7,8 @@
 //        write the same file through the room's own save panel, or into a UI journey's export folder. The rules are pure functions,
 //        pinned without a window; `ExportCommands` draws the items.
 //
-//        The rooms: EDS (the shared room's `EDXRoomState.export`) and EELS (`EELSRoomState.export`).
+//        The rooms: EDS (the shared room's `EDXRoomState.export`), EELS (`EELSRoomState.export`) and Patterns
+//        (`PatternsRoomState.export`).
 //
 
 import ShellEDXModel
@@ -110,6 +111,52 @@ extension ExportSnapshot {
     }
 }
 
+// MARK: - Patterns
+
+/// Which of the Patterns room's File-menu exports are enabled. The menu follows the facts that change when the person does something
+/// to the room, never the pattern under the pointer (the menu would be made again at every scan point the pointer passes): where
+/// the room's own button also asks for a pattern or an overlay at that point, the item stays enabled and the room's export says in
+/// the status line what is missing, as it does for its button.
+nonisolated struct PatternsExportAvailability: Sendable, Equatable {
+    /// Map PNG…: the map has landed.
+    let map: Bool
+    /// Pattern with Overlay… and Overlay CSV…: the Kikuchi overlay is on and the dataset has the orientations it is drawn from.
+    let overlay: Bool
+
+    /// Whether the item of `kind` is enabled; the pattern and the two JSON files are there whenever a dataset is.
+    func isEnabled(_ kind: PatternsExportKind) -> Bool {
+        switch kind {
+        case .mapPNG: map
+        case .overlayPNG, .overlayCSV: overlay
+        case .patternPNG, .metadataJSON, .methodJSON: true
+        }
+    }
+}
+
+extension ExportSnapshot {
+    /// The Patterns room's exports are listed only while that room shows a dataset: nil in any other room and with none open.
+    /// Exhaustive over the rooms on purpose, as `availability` is.
+    static func patternsAvailability(area: WorkspaceArea, hasDataset: Bool, mapLanded: Bool, overlayOn: Bool,
+                                     canOverlay: Bool) -> PatternsExportAvailability? {
+        let inRoom: Bool
+        switch area {
+        case .patterns: inRoom = true
+        case .image, .fft, .diffraction, .results, .edx, .eels, .indexing, .maps: inRoom = false
+        }
+        guard inRoom, hasDataset else { return nil }
+        return PatternsExportAvailability(map: mapLanded, overlay: overlayOn && canOverlay)
+    }
+
+    static func patternsAvailability(of appState: AppState) -> PatternsExportAvailability? {
+        // The session is read only where it decides something: in the Patterns room.
+        let area = appState.navigation.workspaceArea
+        guard area == .patterns else { return nil }
+        let session = appState.ebsd
+        return patternsAvailability(area: area, hasDataset: session.hasDataset, mapLanded: session.mapPresentation.canvas != nil,
+                                    overlayOn: session.overlayOn, canOverlay: session.canOverlay)
+    }
+}
+
 // MARK: - The calls
 
 /// What a room's File-menu export does: the room state's own export, as the room's inspector button calls it.
@@ -126,5 +173,11 @@ enum RoomExports {
     static func eels(_ kind: EELSExportKind, appState: AppState) {
         appState.eelsRoom.export(kind, from: appState.eels, maps: EELSMapsBlock.shownMaps(appState.eels, appState.eelsRoom),
                                  directory: appState.exportDirectory) { appState.statusText = $0 }
+    }
+
+    /// The Patterns room's: the bytes of `kind` at the pattern on screen, to the room's save panel or into a UI journey's export
+    /// folder, with the room's line in the status line (what is missing, when there is nothing to write).
+    static func patterns(_ kind: PatternsExportKind, appState: AppState) {
+        appState.patternsRoom.export(kind, from: appState.ebsd, directory: appState.exportDirectory) { appState.statusText = $0 }
     }
 }
