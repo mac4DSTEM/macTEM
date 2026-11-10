@@ -9,8 +9,12 @@
 # pin, a fixture, or emit.py changed, and the bundle must be regenerated on purpose (`emit.py --out references`) and
 # committed with the reason.
 #
-# The Swift side (macTEMTests/SEMParity*.swift) runs in the unit job of ci.yml on every PR: it holds the ports to these
-# bundles. This job holds the bundles to the stack. Both red on drift; neither per session on a Mac.
+# The Swift side is the macTEMTests that call SEMParityReference.load, in the unit job of ci.yml. A test that compares
+# a bundle runs on every pull request when the bundle's input is a committed fixture or the shipped demo scan, and only
+# nightly and on dispatch when fetch-data.sh downloads its input (ci.yml's NIGHTLY paragraph says which run then).
+# Those tests hold the ports to the bundles a test compares; this job holds every committed bundle to the stack, on the
+# pull requests and pushes to main that touch tools/parity/sem or this file, and on dispatch. Both red on drift;
+# neither per session on a Mac.
 
 name: SEM parity references
 
