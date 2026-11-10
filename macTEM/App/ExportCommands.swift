@@ -1,11 +1,12 @@
 //
 //  ExportCommands.swift
-//  Role: (⇧⌥⌘E; below the FFT room's three.) The File menu's two export items: Export Image… (⇧⌘E)
-//        and Export Profile… (no key). Their own `Commands`, so `ImageCommands` and `AppState` stay as they are; the scene
-//        adds `ExportCommands()` to its `.commands`. They act on the focused window's `AppState`, and are enabled by
-//        `ExportSnapshot.availability`: an image with its pixels in the Image room, no read running, and for the second a
-//        profile with samples selected. This is where a later room's export goes: the rule switches on the workspace area,
-//        and only the Image room exports.
+//  Role: the File menu's export items, in their own `Commands`, so `ImageCommands` and `AppState` stay as they are; the scene adds
+//        `ExportCommands()` to its `.commands`. They act on the focused window's `AppState`. Listed always, each enabled only where
+//        it can act: Export Image… (⇧⌘E) and Export Profile… in the Image room and Export Results… (⇧⌥⌘E) in the Results room
+//        (`ExportSnapshot.availability`), Export Transform… (⌥⌘E), Export Radial Profile… and Export Spots… in the FFT room
+//        (`ExportSnapshot.fftAvailability`), and Export Session Report… wherever the SEM rooms hold a result. Listed only while
+//        their room shows its document, as mac4DSTEM lists its Spectroscopy exports: the EDS room's five
+//        (`ExportSnapshot.edsAvailability`), each through the room's own export (`RoomExports`), the call its inspector button makes.
 //
 //        PLACEMENT: after the Save group, which this app's File menu fills with Close Image and Close Window (`ImageCommands`
 //        replaces it) — the anchor already known to render here. `.importExport`, the HIG's home of Export, would put the items
@@ -15,6 +16,7 @@
 //        for Find).
 //
 
+import ShellSpectroscopy
 import SwiftUI
 
 struct ExportCommands: Commands {
@@ -25,6 +27,7 @@ struct ExportCommands: Commands {
         let availability = appState.map(ExportSnapshot.availability(of:))
         let fft = appState.map(ExportSnapshot.fftAvailability(of:))
         let session = appState.map(SEMSessionLedger.hasRows(_:))
+        let eds = appState.flatMap(ExportSnapshot.edsAvailability(of:))
         CommandGroup(after: .saveItem) {
             Divider()
             Button("Export Image…") {
@@ -64,6 +67,25 @@ struct ExportCommands: Commands {
                 if let appState { ExportPanels.exportSessionReport(appState: appState) }
             }
             .disabled(session != true)
+            // The EDS room's five, in the menu only while that room shows a spectrum image.
+            if let appState, let eds { edsItems(eds, appState: appState) }
         }
+    }
+
+    /// The EDS room's exports, named and ordered as mac4DSTEM's Spectroscopy exports are: each enabled by the rule of its button in
+    /// the room's inspector (`ExportSnapshot.edsAvailability`) and written by the room's own export (`RoomExports.eds`). No keys.
+    @ViewBuilder
+    private func edsItems(_ eds: EDSExportAvailability, appState: AppState) -> some View {
+        Divider()
+        Button("Export Spectrum CSV…") { RoomExports.eds(.spectrum, appState: appState) }
+            .disabled(!eds.spectrum)
+        Button("Export Maps…") { RoomExports.eds(.mapsPNG, appState: appState) }
+            .disabled(!eds.maps)
+        Button("Export Results CSV…") { RoomExports.eds(.results, appState: appState) }
+            .disabled(!eds.results)
+        Button("Export Method JSON…") { RoomExports.eds(.method, appState: appState) }
+            .disabled(!eds.results)
+        Button("Export Regions CSV…") { RoomExports.eds(.pins, appState: appState) }
+            .disabled(!eds.regions)
     }
 }
