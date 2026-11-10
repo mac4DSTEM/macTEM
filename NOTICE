@@ -69,7 +69,10 @@ The vectors, projections and colour keys beside it (SphericalVectors, Miller, Fu
 0.15.0's orix.vector (vector3d, miller, fundamental_sector, spherical_region), orix.projections.stereographic,
 orix.plot.direction_color_keys and orix.plot.orientation_color_keys, and the lattice alignment of
 orix.crystal_map._phase, same copyright and licence; the TSL key follows MTEX (GPL-2.0-or-later, as orix states) and
-Nolze & Hielscher (2016), J. Appl. Cryst. 49, 1786. The HSV conversion is matplotlib's hsv_to_rgb (PSF-style licence).
+Nolze & Hielscher (2016), J. Appl. Cryst. 49, 1786. The HSV conversion (ColorKeys.hsvToRGB) follows matplotlib 3.11.2's
+colors.hsv_to_rgb (https://matplotlib.org), Copyright (c) 2012- Matplotlib Development Team; All Rights Reserved, under the
+Matplotlib License Agreement (PSF-style, https://github.com/matplotlib/matplotlib/blob/v3.11.2/LICENSE/LICENSE). Changes:
+rewritten in Swift for one colour at a time instead of an array.
 
 The map pictures of the Maps room (Sources/TEMCore/SEM/CrystalMap/OrientationMaps.swift) follow orix 0.15.0's
 CrystalMap.plot and get_map_data with its IPF colour keys, same copyright and licence.
@@ -230,8 +233,8 @@ histogram. Its references are NumPy, SciPy and scikit-image; none of their code 
 MacEMUI (a Swift package the app is built with)
 ================================================================================
 
-The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.5.0, commit
-b16c95d4888b86568ef4e24ba41d8f51c95ae1f9), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
+The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.5.1, commit
+7abd010de8868cbe7be326ba96542f7ff9ae9bac), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
 inspector, the controls, the Metal image view and the EDS room macTEM shares with mac4DSTEM.
 
 ================================================================================
@@ -261,7 +264,7 @@ The full license text for each ships in the application bundle at `Contents/Reso
 directory in this repository.
 
 Identity of the three binaries, so that what is redistributed is stated rather than described. SHA-256 of the vendored
-files (FormatoKit 0.5.0, tools/xcframework/vendored/) the frameworks are built from; the HDF5 library version string reads
+files (FormatoKit 0.12.1, tools/xcframework/vendored/) the frameworks are built from; the HDF5 library version string reads
 "HDF5 library version: 2.1.1", libaec 1.1.7:
 
     libhdf5.dylib   d3789c224e6664cd487016a7ef5e71005984f8a04f69a7f643fcdf0332a33491
@@ -323,6 +326,33 @@ unpacker, `rsciio/edax`, `rsciio/jeol`), Copyright 2007-2026 The HyperSpy develo
 GPL-3.0; each file names the module it ports in its first lines. tools/parity/sem/fixtures/rsciio holds RosettaSciIO's
 own test files of these formats unchanged (GPL-3.0-or-later), and EDAX and JEOL files cut from them by
 tools/parity/sem/make_fixtures.py (the cut is named in docs/data-sources.md).
+
+================================================================================
+NexusLIMS (the Tescan TIFF header is read as its extractor reads it; its test file is a fixture)
+================================================================================
+
+The Tescan branch of the SEM TIFF metadata reader in Sources/TEMCore/SEM/SEMImageMetadata.swift reads the embedded header
+(TIFF tag 50431) in the five steps of NexusLIMS's `tescan_tif` extractor (https://github.com/datasophos/NexusLIMS,
+`nexusLIMS/extractors/plugins/tescan_tif.py`, main of 2026-11-07) and converts its fields with that extractor's unit
+factors, rewritten in Swift. Its reference, tools/parity/sem/sem-image/tescan_reference.py, transcribes the same pipeline in
+Python. The fixture macTEMTests/Fixtures/sem-tiff/tescan-pfib_dataZeroed.50431.bin is tag 50431 of NexusLIMS's test file
+tescan-pfib_dataZeroed.tif (`tests/unit/files/tescan-pfib_dataZeroed.tar.gz`), byte for byte. NexusLIMS is Datasophos's fork of the NIST project of the
+same name, whose original work is in the public domain in the United States; the fork is licensed under the MIT License:
+
+    Copyright (c) 2025 Datasophos
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+    persons to whom the Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+    Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+    WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+    COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ================================================================================
 Validation references (used by the test harnesses; not part of the app)
