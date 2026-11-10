@@ -3,8 +3,9 @@
 //  Role: a NORDIF acquisition at the Patterns room's door, as one `EBSDDataset`. `Pattern.dat` is the scan: the settings beside it
 //        (`Setting.txt`, `NORDIFSettings`) give the grid, the step, the pattern size, the detector and the SEM header; the patterns are
 //        read from the file by map position (`EBSDPatternSource.Layout.records`: no header, one uint8 record of sy x sx bytes per
-//        position, in map order); `Background acquisition pattern.bmp` is the static background. The readers and their parity against
-//        kikuchipy 0.13.1 are NORDIFSettings, NORDIFScan and NORDIFBitmap (NORDIFReaderTests); this file maps them onto the dataset.
+//        position, in map order); `Background acquisition pattern.bmp` is the static background, and one that is there and cannot be
+//        read leaves the scan without one, with a note that says why. The readers and their parity against kikuchipy 0.13.1 are
+//        NORDIFSettings, NORDIFScan and NORDIFBitmap (NORDIFReaderTests); this file maps them onto the dataset.
 //
 //  A `.dat` is NORDIF's only when a NORDIF `Setting.txt` (first line `[NORDIF]`) sits beside it; any other `.dat` is not this door's
 //  and keeps the general routing. Whole records only: a file shorter than its scan reads its complete patterns and the rest as 0,
@@ -13,7 +14,7 @@
 //  A signed build is sandboxed: an Open grants the file the user picked, not the folder around it, so a `Setting.txt` beside the
 //  picked `Pattern.dat` can be there and still not open. The app then asks for the folder once and keeps the grant (`FolderGrants`);
 //  without it that `.dat` is refused with a sentence that names the settings file and the folder (`unreadableSettingsRefusal`,
-//  FileRouting), not as a format macTEM does not know.
+//  FileRouting), not as a format macTEM does not know, and an open that finds the settings file so refused gives the same sentence.
 //
 
 import Darwin
@@ -78,7 +79,16 @@ package nonisolated enum NORDIFOpening {
     }
 
     private static func dataset(patternFile: URL, settingsFile: URL) throws -> EBSDDataset {
-        let settings = try NORDIFSettings.read(path: settingsFile.path)
+        let settings: NORDIFSettings
+        do { settings = try NORDIFSettings.read(path: settingsFile.path) } catch {
+            // The settings file beside the scan is there and may not be read (the sandbox without the folder's grant, a file mode): the
+            // routing's sentence, which names the folder. Any other error goes on as it is (a refusal in `open`'s words, a Foundation
+            // error with its domain and code).
+            if settingsFile.path == settingsURL(besides: patternFile).path, let sentence = unreadableSettingsRefusal(patternFile) {
+                throw EBSDReadError(text: sentence)
+            }
+            throw error
+        }
         let size = (try FileManager.default.attributesOfItem(atPath: patternFile.path)[.size] as? NSNumber)?.intValue ?? 0
         guard size > 0 else { throw NORDIFScan.Refusal.empty(patternFile.lastPathComponent) }
         let rows = settings.area.rows, columns = settings.area.columns
@@ -95,8 +105,25 @@ package nonisolated enum NORDIFOpening {
                 + "\(width) x \(height) px from the settings; the rest is not read.")
         }
         // A missing or unreadable background is no refusal: kikuchipy warns and reads on, and the room offers the mean pattern instead.
-        let background = try? NORDIFBitmap.read(path: patternFile.deletingLastPathComponent()
-            .appendingPathComponent("Background acquisition pattern.bmp").path)
+        // One that is there and cannot be read (a bitmap NORDIFBitmap refuses, a file mode, the sandbox without the folder's grant) is
+        // named in a note with why, so the scan does not read as an acquisition without one.
+        let backgroundFile = patternFile.deletingLastPathComponent().appendingPathComponent("Background acquisition pattern.bmp")
+        let background: NORDIFBitmap.Image?
+        do {
+            background = try NORDIFBitmap.read(path: backgroundFile.path)
+        } catch let refusal as NORDIFBitmap.Refusal {
+            background = nil
+            notes.append("\(refusal.reason) The scan's mean pattern stands in for it.")
+        } catch {
+            background = nil
+            let code = (error as NSError).code, domain = (error as NSError).domain
+            let missing = (domain == NSCocoaErrorDomain && code == NSFileReadNoSuchFileError)
+                || (domain == NSPOSIXErrorDomain && code == Int(ENOENT))
+            if !missing {
+                notes.append("\(backgroundFile.lastPathComponent) beside \(patternFile.lastPathComponent) could not be read, so the scan's mean "
+                    + "pattern stands in for it: \((error as NSError).localizedDescription)")
+            }
+        }
         let detector = settings.detector
         return EBSDDataset(
             format: .nordif, manufacturer: "NORDIF", version: settings.softwareVersion ?? "", scanGroup: "", scanGroups: [],

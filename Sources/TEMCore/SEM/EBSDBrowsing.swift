@@ -2,8 +2,9 @@
 //  EBSDBrowsing.swift
 //  Role: the pure part of the Patterns room (docs/sem/design/ebsd-patterns-room.md): a map position and the arrow-key arithmetic, a
 //        pattern as the canvas takes it, the navigation map (the mean intensity of every pattern, one pass over the scan in rows),
-//        the status line's words, the Calibration and Info rows, and the Metadata JSON export. Nothing here touches a view or a
-//        session, so a test pins every row. The mean is a float64 sum over the stored counts, as numpy's `mean` over the pattern axes.
+//        the status line's words, the Calibration and Info rows (the reader's notes among them), and the Metadata JSON export.
+//        Nothing here touches a view or a session, so a test pins every row. The mean is a float64 sum over the stored counts, as
+//        numpy's `mean` over the pattern axes.
 //
 
 import Foundation
@@ -146,7 +147,8 @@ package nonisolated enum EBSDBrowsing {
         return rows
     }
 
-    /// The Info tab (design §5): what the file is.
+    /// The Info tab (design §5): what the file is, then one "Note" row for each sentence its reader left in `notes` (a short pattern
+    /// file, a map beside it left out, a background that could not be read).
     package static func infoRows(_ dataset: EBSDDataset, fileName: String) -> [Row] {
         var rows = [
             Row("File", fileName),
@@ -163,6 +165,7 @@ package nonisolated enum EBSDBrowsing {
             let n = map.phases.ids.filter { $0 != PhaseList.notIndexedID }.count
             return "\(n) \(n == 1 ? "phase" : "phases") in the file"
         } ?? "Not in the file"))
+        rows += dataset.notes.map { Row("Note", $0) }
         return rows
     }
 
