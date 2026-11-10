@@ -93,14 +93,15 @@ private struct DiffractionHeader: View {
             Text(summary(calibration: calibration, volts: volts))
                 .font(.callout).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
                 .accessibilityIdentifier("diffraction.scale")
-                .accessibilityValue(calibration.map { String(format: "%.5f", $0.deltaQ) } ?? "")
+                .accessibilityValue(DiffractionValueFormat.scale(calibration?.deltaQ))
             Spacer(minLength: 8)
-            // What the pane shows about the centre, in words (a header holds words only); its value is the half-side for the journey.
+            // What the pane shows about the centre, in words (a header holds words only); its value is the half-side to three decimals,
+            // which a journey maps its drags by.
             let half = view.viewHalfSide(for: image)
             Text("view ±\(Num.fixed(half, 0)) px")
                 .font(.callout.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1).fixedSize()
                 .accessibilityIdentifier("diffraction.view")
-                .accessibilityValue(String(format: "%.3f", half))
+                .accessibilityValue(DiffractionValueFormat.halfSide(half))
         }
         .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
         .frame(height: LayoutPolicy.paneHeaderHeight)
@@ -422,7 +423,8 @@ private struct DiffractionOverlay: View {
 
 /// The rings and spots as a system `Table` with a selection: arrow keys, ⌫ (removes the selected row), ⌘C (copies it, tab-separated under
 /// the column titles), column resizing and VoiceOver rows come with it. The titles and the cells are `DiffractionReadoutFormat`'s, so the
-/// copied text is what the table shows. A value a journey reads is a cell's accessibility value (`diffraction.row.<kind><n>.<column>`).
+/// copied text is what the table shows. A value a journey reads is a cell's accessibility value (`diffraction.row.<kind><n>.<column>`);
+/// the d there has one decimal more than the cell (`DiffractionValueFormat.spacing`).
 private struct DiffractionReadoutTable: View {
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
@@ -443,7 +445,7 @@ private struct DiffractionReadoutTable: View {
             TableColumn(Column.d.title) { row in
                 Text(DiffractionReadoutFormat.cell(.d, row)).monospacedDigit()
                     .accessibilityIdentifier("diffraction.row.\(row.kind.rawValue)\(row.number).d")
-                    .accessibilityValue(row.d.map { String(format: "%.5f", $0) } ?? "")
+                    .accessibilityValue(DiffractionValueFormat.spacing(row.d))
             }.width(min: 52, ideal: 56)
             TableColumn(Column.family.title) { row in
                 Text(DiffractionReadoutFormat.cell(.family, row))
@@ -476,5 +478,28 @@ private struct DiffractionReadoutTable: View {
         let picked = rows.filter { $0.id == selected }
         guard !picked.isEmpty else { return [] }
         return [NSItemProvider(object: DiffractionReadoutFormat.copyText(picked) as NSString)]
+    }
+}
+
+// MARK: - The values beside the words
+
+/// The numbers the room hands accessibility beside the text it draws: the scale (Δq, Å⁻¹ per pixel), the half-side the pane shows (px)
+/// and a row's d (Å). Each is one number with more decimals than the text, written in the reader's locale as the text is (#329:
+/// VoiceOver spoke "0.01250" under a header that read "0,01250"), never grouped. A UI journey reads them and parses the reader's
+/// decimal mark. Pure.
+nonisolated enum DiffractionValueFormat {
+    /// Δq to five decimals, "0,01250" in a comma locale; "" while there is no scale.
+    static func scale(_ deltaQ: Double?, locale: Locale = .autoupdatingCurrent) -> String {
+        deltaQ.map { Num.fixed($0, 5, locale: locale) } ?? ""
+    }
+
+    /// The half-side to three decimals, "79,412".
+    static func halfSide(_ half: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        Num.fixed(half, 3, locale: locale)
+    }
+
+    /// A row's d to five decimals, "2,03910"; "" for a row that has none.
+    static func spacing(_ d: Double?, locale: Locale = .autoupdatingCurrent) -> String {
+        d.map { Num.fixed($0, 5, locale: locale) } ?? ""
     }
 }

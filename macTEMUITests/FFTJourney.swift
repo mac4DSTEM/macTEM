@@ -86,12 +86,13 @@ nonisolated final class FFTJourney: Journey {
         }
     }
 
-    /// The first spot's d from the inspector: "0.2351 nm", a number and its unit, within one bin of the planted 0.235 nm.
+    /// The first spot's d from the inspector: "0.2351 nm" ("0,2351 nm" on a German Mac), a number in the reader's locale and its unit,
+    /// within one bin of the planted 0.235 nm.
     @MainActor private func readFirstSpacing() throws {
         let value = waitValue("fft.spotSpacing", timeout: 60) { !$0.isEmpty }
         let parts = value.split(separator: " ")
         XCTAssertEqual(parts.last.map(String.init), "nm", "unit in \"\(value)\"")
-        let d = try XCTUnwrap(parts.first.flatMap { Double($0) }, "no number in \"\(value)\"")
+        let d = try XCTUnwrap(parts.first.flatMap { Journey.number(String($0)) }, "no number in \"\(value)\"")
         XCTAssertEqual(d, 0.235, accuracy: 0.0098, "d = \(d) nm")
     }
 }
