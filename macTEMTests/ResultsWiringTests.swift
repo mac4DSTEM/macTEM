@@ -7,9 +7,9 @@
 //  native `Table` with a `Section` per group and ⌘C through `onCopyCommand`. Each fix is right in its pure function while reverting
 //  the one line that uses it leaves every pure test green; these go red when that line reverts. Tier 2.
 //
-//  Mutations sampled (each alone, the named test went red): `isBuilt` without `.results`; the Export Results… item without its
-//  `.disabled`; the room's switch branch removed; the availability enabled outside the Results room; the snapshot taking all open files;
-//  the selection kept across files.
+//  Mutations sampled (each alone, the named test went red): the Export Results… item without its `.disabled`; the room's switch
+//  branch removed; the availability enabled outside the Results room; the snapshot taking all open files; the selection kept across
+//  files.
 //
 
 import ImagoCore
@@ -52,14 +52,14 @@ nonisolated final class ResultsWiringTests: XCTestCase {
 
     // MARK: The room is built
 
-    /// The rooms 1.0 ships, every one built, in the order of the work; Prepare is not among them (the owner, 2026-10-23: "It shouldn't ship
-    /// in macTEM"). Red under: Prepare back in the list, a room listed but not built, Results not the last workspace (⌘5 since
+    /// The rooms 1.0 ships, in the order of the work, Results enterable with nothing open; Prepare is not among them (the owner, 2026-10-23:
+    /// "It shouldn't ship in macTEM"). Red under: Prepare back in the list, Results not enterable, Results not the last workspace (⌘5 since
     /// the workspaces, 2026-11-10).
     @MainActor func testTheResultsRoomIsBuiltAndCanBeEntered() {
         XCTAssertEqual(WorkspaceArea.allCases, [.image, .fft, .edx, .eels, .diffraction, .patterns, .indexing, .maps, .results])
         XCTAssertNil(WorkspaceArea(rawValue: "prepare"), "a window that saved Prepare opens in the default room")
-        XCTAssertTrue(WorkspaceArea.allCases.allSatisfy(\.isBuilt))
         let state = AppState()
+        XCTAssertNil(state.roomUnavailableReason(.results), "with nothing open every room can be entered")
         state.selectWorkspace(.results)
         XCTAssertEqual(state.navigation.workspaceArea, .results)
         state.selectWorkspace(.diffraction)

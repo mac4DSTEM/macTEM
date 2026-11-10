@@ -192,7 +192,6 @@ nonisolated final class EELSRoomTests: XCTestCase {
 
     /// The EELS room is built, sits right after the EDS room in the Spectroscopy workspace (⌘2), and is entered with no image open.
     @MainActor func testTheEELSRoomIsBuiltAndFifth() {
-        XCTAssertTrue(WorkspaceArea.eels.isBuilt)
         XCTAssertEqual(WorkspaceArea.allCases[3], .eels)
         XCTAssertEqual(WorkspaceGroup.spectroscopy.parts, [.edx, .eels])
         XCTAssertEqual(WorkspaceGroup.spectroscopy.shortcutDigit, "2")
