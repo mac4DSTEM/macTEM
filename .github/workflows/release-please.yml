@@ -6,6 +6,12 @@
 # A PR opened with GITHUB_TOKEN starts no workflows, so this job dispatches CI on the Release PR's branch: the required
 # `test` check then reports on its head commit. Step env is evaluated even when `if` skips the step, so the PR JSON is
 # read with jq rather than fromJSON (empty on a run with no Release PR). Needs "Allow GitHub Actions to create and approve pull requests".
+#
+# HELD (2026-11-10, docs/decisions.md): the next release is 2.0.0 and nothing ships before it, so while RELEASE_HELD is 'true'
+# a merge to main still updates the Release PR but starts no CI on it. That run took three macOS runners on every merge, for a
+# PR nobody was going to merge, while open PRs waited for a runner. Running this workflow by hand starts CI on the Release PR
+# whatever the switch says. To release: run it by hand and merge the Release PR when its checks are green, or set the switch to
+# 'false' so every merge checks the Release PR again.
 name: release-please
 
 on:
@@ -22,6 +28,9 @@ concurrency:
   group: release-please
   cancel-in-progress: false
 
+env:
+  RELEASE_HELD: 'true'
+
 jobs:
   release-please:
     runs-on: ubuntu-latest
@@ -32,7 +41,7 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
       - name: Run CI on the Release PR
-        if: steps.release.outputs.pr
+        if: steps.release.outputs.pr && (env.RELEASE_HELD != 'true' || github.event_name == 'workflow_dispatch')
         run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$(jq -r .headBranchName <<<"$PR")"
         env:
           PR: ${{ steps.release.outputs.pr }}

@@ -390,24 +390,73 @@ inventory() {
     fi
   done < <(cd "$ROOT" && print -rn -- "$listing" | xargs -0 stat -f '%z%t%N' 2>/dev/null)
 
-  # mac4DSTEM's two checks of what the bundle redistributes (its run-tests.sh at 5ba712a0), ported with the dylibs
-  # (ADR 008, ADR 019): NOTICE names and hashes each committed dylib, no load command names an absolute path, and every
-  # file under a bundled folder reference (Licenses/) is tracked, so a clone builds the bundle a release ships.
+  # mac4DSTEM's two checks of what the bundle redistributes (its run-tests.sh), ported: NOTICE names and hashes each
+  # redistributed dylib, no load command names an absolute path, and every file under a bundled folder reference (Licenses/,
+  # DemoData/) is tracked, so a clone builds the bundle a release ships. macTEM commits no dylib: the binaries are FormatoKit's
+  # three frameworks, built from the vendored dylibs whose SHA-256 NOTICE states, so those are read from the pinned checkout
+  # `swift package resolve` makes (the inventory job runs it), else the sibling ../FormatoKit during development. No folder,
+  # or one without a dylib, fails: the glob over this repo's root that this replaced matched nothing and checked nothing.
   echo "== redistributed binaries (NOTICE names and hashes each)"
-  local dl sum
-  for dl in "$ROOT"/*.dylib(N); do
-    dl="${dl:t}"; sum="$(shasum -a 256 "$ROOT/$dl" | cut -d' ' -f1)"
-    if ! grep -q "$dl" "$ROOT/NOTICE"; then
-      echo "  UNNAMED   $dl is redistributed and NOTICE does not name it"; rc=1
-    elif ! grep -q "$sum" "$ROOT/NOTICE"; then
-      echo "  HASH      $dl is $sum; NOTICE states a different one"; rc=1
+  local dl sum hd="" vendored
+  for vendored in "$ROOT/.build/checkouts/FormatoKit/tools/xcframework/vendored" "$ROOT/../FormatoKit/tools/xcframework/vendored"; do
+    if [[ -d "$vendored" ]]; then hd="$vendored"; break; fi
+  done
+  local -a dylibs=()
+  if [[ -z "$hd" ]]; then
+    echo "  NOT CHECKED  no FormatoKit checkout (.build/checkouts/FormatoKit or ../FormatoKit); run swift package resolve"; rc=1
+  else
+    dylibs=("$hd"/*.dylib(N))
+    echo "  reading ${hd#$ROOT/}"
+    (( ${#dylibs} )) || { echo "  NOT CHECKED  ${hd#$ROOT/} holds no dylib"; rc=1; }
+  fi
+  for dl in "${dylibs[@]}"; do
+    sum="$(shasum -a 256 "$dl" | cut -d' ' -f1)"
+    # The hash on the line that names the file, as NOTICE lists them ("    libhdf5.dylib   <sha256>"), not anywhere in it.
+    if ! grep -qF "${dl:t}" "$ROOT/NOTICE"; then
+      echo "  UNNAMED   ${dl:t} is redistributed and NOTICE does not name it"; rc=1
+    elif ! awk -v n="${dl:t}" -v s="$sum" '$1 == n && $2 == s { f = 1 } END { exit !f }' "$ROOT/NOTICE"; then
+      echo "  HASH      ${dl:t} is $sum; NOTICE states a different one"; rc=1
     else
-      printf "  %-36s %s\n" "$dl" "${sum[1,16]}…"
+      printf "  %-36s %s\n" "${dl:t}" "${sum[1,16]}…"
     fi
-    if otool -L "$ROOT/$dl" | tail -n +2 | grep -qE '^\s+/(opt|usr/local|Users)/'; then
-      echo "  ABSPATH   $dl links against an absolute path; a relocated bundle will not load it"; rc=1
+    # grep reads to the end (no -q): an early exit would fail the pipe under pipefail and hide the match.
+    if otool -L "$dl" | tail -n +2 | grep -E '^[[:space:]]+/(opt|usr/local|Users)/' >/dev/null; then
+      echo "  ABSPATH   ${dl:t} links against an absolute path; a relocated bundle will not load it"; rc=1
     fi
   done
+
+  # The demo data the app ships unchanged (DemoData/, a bundled folder reference): NOTICE gives each file's source and licence,
+  # and its md5 on the line that names it ("nickel_ebsd_large/patterns_v2.h5 (15,368,325 bytes, md5 <md5>)").
+  echo "== shipped demo data (NOTICE names each file and its md5)"
+  local shipped md
+  local -a demos=(${(f)"$(git -C "$ROOT" ls-files -- DemoData)"})
+  (( ${#demos} )) || { echo "  NOT CHECKED  git lists no file under DemoData/"; rc=1; }
+  for shipped in "${demos[@]}"; do
+    md="$(md5 -q "$ROOT/$shipped")"
+    if ! grep -qF "${shipped#DemoData/} (" "$ROOT/NOTICE"; then
+      echo "  UNNAMED   $shipped ships in the app and NOTICE does not name it"; rc=1
+    elif ! awk -v n="${shipped#DemoData/} (" -v m="md5 $md)" 'index($0, n) == 1 && index($0, m) { f = 1 } END { exit !f }' "$ROOT/NOTICE"; then
+      echo "  MD5       $shipped is $md; NOTICE states a different one"; rc=1
+    else
+      printf "  %-36s %s\n" "${shipped#DemoData/}" "$md"
+    fi
+  done
+
+  # Each package the app links, as both Package.resolved files pin it: NOTICE's "(<location>, tag <version>, commit" and the
+  # commit's full hash, so a package update that leaves NOTICE naming the old tag fails here (MacEMUI 0.5.0 after 0.5.1, 2026-11).
+  echo "== linked packages (NOTICE names each pinned tag and commit)"
+  local resolved loc ver rev pins=0
+  for resolved in "$ROOT/Package.resolved" "$ROOT/macTEM.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"; do
+    [[ -f "$resolved" ]] || { echo "  MISSING   ${resolved#$ROOT/}"; rc=1; continue; }
+    while read -r loc ver rev; do
+      pins=$(( pins + 1 ))
+      if ! grep -qF "$loc, tag $ver, commit" "$ROOT/NOTICE" || ! grep -qF "$rev" "$ROOT/NOTICE"; then
+        echo "  STALE     ${resolved#$ROOT/} pins ${loc:t} $ver ($rev); NOTICE does not name that tag and commit"; rc=1
+      fi
+    done < <(awk -F'"' '/"location"/ { loc = $4 } /"revision"/ { rev = $4 } /"version" *: *"/ { print loc, $4, rev }' "$resolved")
+  done
+  if (( pins == 0 )); then echo "  NOT CHECKED  no pin read from Package.resolved"; rc=1; else echo "  $pins pins checked"; fi
+
   echo "== bundled folder references (every file must be tracked)"
   local ref bf why
   for ref in $(grep 'lastKnownFileType = folder' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed -nE 's/.*path = ([^;]+);.*/\1/p' | tr -d '"'); do
