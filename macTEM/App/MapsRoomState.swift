@@ -241,26 +241,50 @@ nonisolated enum MapsRoomFormat {
 
     static func fraction(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { UnitDisplay.fixed(v, places: 3, locale: locale) }
 
-    /// "102 grains · mean ECD 3.1 µm · ASTM 14.2".
+    /// A grain length in the scan unit (an ECD, a mean intercept), two decimals wherever the room writes one: the table's column, the
+    /// summary and the Grains rows read alike ("10,70 · 10,16 · 21,00", where significant digits read "10,7 · 10,16 · 21").
+    static func length(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { UnitDisplay.fixed(v, places: 2, locale: locale) }
+
+    /// The orientation pane's Bunge angles from radians, one decimal each as the status line beside it writes them
+    /// (`OrientationMaps.degrees`): "φ₁ 12.3°  Φ 44.0°  φ₂ 271.5°", never "-0.0°".
+    static func eulerText(_ radians: SIMD3<Double>, locale: Locale = .autoupdatingCurrent) -> String {
+        let d = radians * (180 / Double.pi)
+        return "φ₁ \(angle(d.x, locale: locale))°  Φ \(angle(d.y, locale: locale))°  φ₂ \(angle(d.z, locale: locale))°"
+    }
+
+    /// A phase's point group and its points, as the Phases rows, the phase legend and the Info tab write them: "m-3m · 1 point";
+    /// `missing` stands for a phase without a point group.
+    static func phasePoints(_ phase: CrystalPhase, count: Int, missing: String = "no point group") -> String {
+        "\(phase.pointGroupName ?? missing) · \(UnitDisplay.count(count, "point", "points"))"
+    }
+
+    /// The histogram's spoken label: "Histogram of KAM, 1 value in 40 bins".
+    static func histogramSpoken(_ kind: MapAnalysis.HistogramKind, histogram: AngleHistogram) -> String {
+        let n = histogram.counts.reduce(0, +)
+        return "Histogram of \(kind.rawValue), \(UnitDisplay.count(n, "value", "values")) in \(UnitDisplay.count(histogram.counts.count, "bin", "bins"))"
+    }
+
+    /// "102 grains · mean ECD 3.14 µm · ASTM 14.2".
     static func grainSummary(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> String {
         var parts = [UnitDisplay.count(analysis.table.count, "grain", "grains")]
         if let mean = analysis.meanDiameter {
-            parts.append("mean ECD \(number(mean.byNumber, locale: locale)) \(EBSDBrowsing.unitLabel(analysis.scanUnit))")
+            parts.append("mean ECD \(length(mean.byNumber, locale: locale)) \(EBSDBrowsing.unitLabel(analysis.scanUnit))")
         }
         if let g = analysis.astmGrainSizeNumber { parts.append("ASTM \(angle(g, locale: locale))") }
         return parts.joined(separator: " · ")
     }
 
-    /// The Grains section's summary rows.
+    /// The Grains section's summary rows; the lengths at two decimals, as the grain table's ECD column.
     static func grainRows(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
         let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
         let n = { (v: Double) in Self.number(v, locale: locale) }
+        let l = { (v: Double) in Self.length(v, locale: locale) }
         var out = [EBSDBrowsing.Row("Grains", "\(analysis.table.count)")]
         if let mean = analysis.meanDiameter {
-            out.append(EBSDBrowsing.Row("Mean ECD", "\(n(mean.byNumber)) \(unit)"))
-            out.append(EBSDBrowsing.Row("Area-weighted", "\(n(mean.byArea)) \(unit)"))
+            out.append(EBSDBrowsing.Row("Mean ECD", "\(l(mean.byNumber)) \(unit)"))
+            out.append(EBSDBrowsing.Row("Area-weighted", "\(l(mean.byArea)) \(unit)"))
         }
-        if let l = analysis.meanLinealIntercept { out.append(EBSDBrowsing.Row("Mean intercept", "\(n(l)) \(unit)")) }
+        if let intercept = analysis.meanLinealIntercept { out.append(EBSDBrowsing.Row("Mean intercept", "\(l(intercept)) \(unit)")) }
         if let g = analysis.astmGrainSizeNumber { out.append(EBSDBrowsing.Row("ASTM E112", angle(g, locale: locale))) }
         let s = analysis.settings
         out.append(EBSDBrowsing.Row("Made with", "\(n(s.boundaryDegrees))° · ≥ \(UnitDisplay.count(s.minimumSize, "point", "points")) · KAM ≤ \(n(s.kamMaxDegrees))°"))
@@ -367,7 +391,7 @@ nonisolated enum MapsRoomFormat {
         let ids = map.phaseIDs
         for (id, phase) in indexedPhases(map) {
             let count = ids.filter { $0 == id }.count
-            out.append(EBSDBrowsing.Row("Phase", "\(phaseName(phase, id: id)) · \(phase.pointGroupName ?? "no point group") · \(UnitDisplay.count(count, "point", "points"))"))
+            out.append(EBSDBrowsing.Row("Phase", "\(phaseName(phase, id: id)) · \(phasePoints(phase, count: count))"))
         }
         out.append(EBSDBrowsing.Row("Euler angles", Self.infoEuler(document.source)))
         out.append(EBSDBrowsing.Row("IPF colours", "TSL key of each phase's Laue group (Nolze and Hielscher 2016), as orix 0.15.0"))

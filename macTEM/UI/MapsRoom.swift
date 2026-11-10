@@ -338,7 +338,7 @@ struct OrientationPane: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(verbatim: "\(found.phase.name) · \(found.phase.pointGroupName ?? "no point group") · IPF-\(found.direction.rawValue.uppercased())")
                             .font(.callout)
-                        Text(verbatim: eulerText(found.euler)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                        Text(verbatim: MapsRoomFormat.eulerText(found.euler)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 0)
                 }
@@ -351,12 +351,6 @@ struct OrientationPane: View {
         .padding(8)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("maps.orientation")
-    }
-
-    private func eulerText(_ e: SIMD3<Double>) -> String {
-        let d = e * (180 / Double.pi)
-        func f(_ v: Double) -> String { v.formatted(.number.grouping(.never).precision(.fractionLength(1))) + "°" }
-        return "φ₁ \(f(d.x))  Φ \(f(d.y))  φ₂ \(f(d.z))"
     }
 }
 
@@ -453,7 +447,8 @@ struct MapsKeyPane: View {
                     Rectangle().fill(Color(red: rgb.x, green: rgb.y, blue: rgb.z))
                         .frame(width: LayoutPolicy.mapsPhaseSwatchSize, height: LayoutPolicy.mapsPhaseSwatchSize)
                         .overlay(Rectangle().stroke(Color.secondary.opacity(0.5), lineWidth: 0.5))
-                    Text(verbatim: "\(MapsRoomFormat.phaseName(entry.phase, id: entry.id)) · \(entry.phase.pointGroupName ?? "—") · \(ids.filter { $0 == entry.id }.count) points")
+                    Text(verbatim: "\(MapsRoomFormat.phaseName(entry.phase, id: entry.id)) · "
+                         + MapsRoomFormat.phasePoints(entry.phase, count: ids.filter { $0 == entry.id }.count, missing: UnitDisplay.noValue))
                         .font(.callout.monospacedDigit())
                 }
                 .accessibilityElement(children: .combine)
