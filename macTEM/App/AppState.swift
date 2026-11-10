@@ -41,7 +41,7 @@ final class AppState {
     /// What the SEM rooms did that none of them keeps: every file they wrote and their Output lines with times (App/), for the Results
     /// room's session rows and the session report.
     let semRecord = SEMSessionRecord()
-    /// File > Open Recent's list (TEMSession): every file `open(urls:)` takes in, with the bookmark that opens it again. The app passes
+    /// File > Open Recent's list (TEMSession): every file an Open has opened (`rememberOpened`), with the bookmark that opens it again. The app passes
     /// the list kept in UserDefaults (`RecentFiles.stored()`); a bare `AppState()`, a test's, keeps one in memory and writes nothing.
     let recents: RecentFiles
     /// File > Reopen Last Session's record (TEMSession): the files open, the selected one and the room, written as they change
