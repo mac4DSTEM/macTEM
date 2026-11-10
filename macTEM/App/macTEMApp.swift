@@ -4,6 +4,8 @@ import ShellControls
 import SwiftUI
 import AppKit
 import TEMSession
+import ShellEDXModel
+import ShellSpectroscopy
 
 /// Finder integration stays in App/; the window and its controls stay SwiftUI.
 @MainActor enum DatasetLocationActions {
@@ -222,13 +224,16 @@ private struct ImageCommands: Commands {
                 .disabled((appState?.openItems.items.count ?? 0) < 2)
             // The Image room's measuring tools (V1-5), ⌃⌘1…4: a Toggle each, so the chosen tool carries the menu's
             // checkmark and a chosen one cannot be switched off (the Measure section's picker is the same state).
-            // Listed always, as the Workspace menu lists its rooms: with no image open, or in another room, disabled.
-            Divider()
-            ForEach(ImageRoomTools.Tool.allCases) { tool in
-                Toggle(tool.title, isOn: Binding(get: { appState?.imageRoomTools.tool == tool },
-                                                 set: { if $0 { appState?.imageRoomTools.tool = tool } }))
-                    .keyboardShortcut(KeyEquivalent(tool.shortcutDigit), modifiers: [.command, .control])
-                    .disabled(appState?.hasImage != true || appState?.navigation.workspaceArea != .image)
+            // Listed only while the Image room is shown: the EDS room's region tools take ⌃⌘0…4 while that room is shown
+            // (Workspace menu), and two items in the menu bar never share a key. With no image open, disabled.
+            if appState?.navigation.workspaceArea == .image {
+                Divider()
+                ForEach(ImageRoomTools.Tool.allCases) { tool in
+                    Toggle(tool.title, isOn: Binding(get: { appState?.imageRoomTools.tool == tool },
+                                                     set: { if $0 { appState?.imageRoomTools.tool = tool } }))
+                        .keyboardShortcut(KeyEquivalent(tool.shortcutDigit), modifiers: [.command, .control])
+                        .disabled(appState?.hasImage != true)
+                }
             }
             if let items = appState?.openItems, !items.items.isEmpty {
                 Divider()
@@ -271,6 +276,23 @@ private struct ImageCommands: Commands {
             Button(appState.map { RoomPrimaryAction.stopTitle($0) } ?? "Stop") { if let appState { RoomPrimaryAction.stopActive(appState) } }
                 .keyboardShortcut(".", modifiers: .command)
                 .disabled(appState.map { !RoomPrimaryAction.canStop($0) } ?? true)
+            // The EDS room's region tools and Pin Region from the keyboard, as mac4DSTEM's Analysis menu lists them: in the menu
+            // only while that room shows a spectrum image (the inspector's Tools control is the pointer's way).
+            if let appState, appState.navigation.workspaceArea == .edx, appState.edx.hasImage {
+                Divider()
+                Button("Select Tool") { appState.edxRoom.tool = .pointer }
+                    .keyboardShortcut("0", modifiers: [.command, .control])
+                Button("Rectangle Region Tool") { appState.edxRoom.tool = .rectangle }
+                    .keyboardShortcut("1", modifiers: [.command, .control])
+                Button("Ellipse Region Tool") { appState.edxRoom.tool = .ellipse }
+                    .keyboardShortcut("2", modifiers: [.command, .control])
+                Button("Polygon Region Tool") { appState.edxRoom.tool = .polygon }
+                    .keyboardShortcut("3", modifiers: [.command, .control])
+                Button("Line Tool") { appState.edxRoom.tool = .line }
+                    .keyboardShortcut("4", modifiers: [.command, .control])
+                Button("Pin Region") { appState.edx.pinRegion() }
+                    .disabled(appState.edx.selectedPin != nil)
+            }
         }
         // Generated documents for someone with no microscope file at hand, App Review first (macTEM#105, DemoData.swift).
         CommandGroup(after: .help) {

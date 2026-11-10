@@ -244,3 +244,14 @@ anyways and should stay like this."
 session report cover the window's file, and a map file opened beside a Patterns dataset is its own tab.
 
 **Reverse it.** Drop the split at the top of `AppState.open(urls:refused:)`: every file then opens in the window it was given to.
+
+## 2026-11-10 — The EDS room's region tools on ⌃⌘0…4, the Image room's tools only in the Image room's menu
+
+**What.** The Workspace menu lists Select Tool, Rectangle, Ellipse, Polygon and Line on ⌃⌘0…4 and Pin Region while the EDS
+room shows a spectrum image, as mac4DSTEM's Analysis menu does; the Image menu's measuring tools (⌃⌘1…4) are listed only while
+the Image room is shown. No key is in the menu bar twice. The Image room's Pan stays ⌃⌘1, not ⌃⌘0 as the EDS room's pointer:
+its tools were numbered before, and the two lists are never in the menu bar together.
+
+**Why.** macTEM#317: the EDS region tools were reachable only by the pointer.
+
+**Reverse it.** Remove the EDS block from the Workspace menu and the room condition around the Image tools.
