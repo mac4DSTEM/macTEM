@@ -33,12 +33,28 @@ extension AppState {
             // By content (FormatoKit's sniff), off the main actor: an HDF5 file is opened under the HDF5 lock. The sniff runs inside the
             // security scope the panel, a drop or Finder granted. The FILE decides, not the room the person is in: a file is opened into
             // every room that has data in it (`FileInventory`), and the window lands in the room of the richest dataset.
-            let inventories = await Self.inventories(urls)
+            var inventories = await Self.inventories(urls)
+            // A NORDIF scan whose settings file the sandbox refused asks for its folder, once per folder in an Open (`FolderPanels`): the
+            // grant is kept (`FolderGrants`) and the scan is routed again inside it. Declined, the scan keeps its refusal.
+            var answered: [String: Bool] = [:]   // each folder asked for in this Open: granted or not
+            for index in inventories.indices where inventories[index].asksForFolder {
+                let url = inventories[index].url
+                let folder = FolderGrants.path(of: url.deletingLastPathComponent())
+                if answered[folder] == nil {
+                    let chosen = await FolderPanels.askForFolder(of: url)
+                    if let chosen {
+                        let bookmark = try? SecurityScopedBookmark.make(for: chosen)
+                        FolderGrants.store(bookmark, forFolder: chosen)
+                    }
+                    answered[folder] = chosen != nil
+                }
+                if answered[folder] == true, let again = await Self.inventories([url]).first { inventories[index] = again }
+            }
             var images: [URL] = []
             var landing: FileInventory.Landing?
             var edsBatch: [URL] = [], eelsBatch: [URL] = [], ebsdBatch: [URL] = [], mapBatch: [URL] = []
             var refusals: [String] = []
-            for (url, inventory, bookmark) in inventories {
+            for (url, inventory, bookmark, _) in inventories {
                 if let why = inventory.refusal { refusals.append(why); continue }
                 if let bookmark {
                     let file = RecentFile(path: url.standardizedFileURL.path, displayName: url.lastPathComponent, bookmark: bookmark)
@@ -60,8 +76,13 @@ extension AppState {
             // are reached by selecting their row (`spectrumRoomsFollowSelection`).
             if let first = edsBatch.first { edx.open(url: first) }
             if let first = eelsBatch.first { eels.open(url: first) }
-            // The Patterns room holds one dataset, as the spectrum rooms do; the batch's first is it.
-            if let first = ebsdBatch.first { ebsd.open(url: first) }
+            // The Patterns room holds one dataset, as the spectrum rooms do; the batch's first is it. A NORDIF scan's settings and
+            // background are read with the dataset: its folder's grant is held from before the read until the open ends (`FolderGrants`).
+            if let first = ebsdBatch.first {
+                let folder = FolderGrants.hold(forFolderOf: first)
+                let opening = ebsd.open(url: first)
+                if let folder { Task { await opening.value; folder.release() } }
+            }
             // The Maps room holds one map: an `.ang` or `.ctf` opened on its own (a dataset's map comes through the Patterns room).
             if let first = mapBatch.first { maps.open(url: first) }
             // The others of each room that no Open Files row reaches are named once the batch is in, not dropped without a word.
@@ -107,17 +128,21 @@ extension AppState {
     /// the security-scoped bookmark Open Recent keeps (made in the same scope; nil when none can be made, and then the file is not
     /// remembered). The generated demo image is an image, in memory, with no bookmark. The file a vendor file is read with (an EBSD
     /// scan's `.ang` or `.ctf` beside its patterns, and back) is granted first, inside that scope: the sandbox grants the picked file
-    /// only, and the routing already reads the other (`RelatedFileAccess`).
+    /// only, and the routing already reads the other (`RelatedFileAccess`). A NORDIF scan's folder granted at an earlier Open is held
+    /// for its routing (`FolderGrants`); `asksForFolder` is set for one whose settings file the sandbox refused without a grant.
     @concurrent
-    nonisolated static func inventories(_ urls: [URL]) async -> [(URL, FileInventory, Data?)] {
+    nonisolated static func inventories(_ urls: [URL]) async -> [(url: URL, inventory: FileInventory, bookmark: Data?, asksForFolder: Bool)] {
         urls.map { url in
-            if DemoDocuments.isDemo(url) { return (url, FileInventory(image: true), nil) }
+            if DemoDocuments.isDemo(url) { return (url: url, inventory: FileInventory(image: true), bookmark: nil, asksForFolder: false) }
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             RelatedFileAccess.grant(for: url)
+            let folder = FolderGrants.hold(forFolderOf: url)
+            defer { folder?.release() }
             let inventory = FileRouting.inventory(path: url.path)
             let bookmark = inventory.refusal == nil ? (try? SecurityScopedBookmark.make(for: url)) : nil
-            return (url, inventory, bookmark)
+            let asks = FolderGrants.asksForFolder(refused: inventory.refusal != nil, settingsError: NORDIFOpening.settingsOpenError(url))
+            return (url: url, inventory: inventory, bookmark: bookmark, asksForFolder: asks)
         }
     }
 
