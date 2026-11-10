@@ -327,12 +327,13 @@ package nonisolated enum DemoDocuments {
         return lines.joined(separator: "\r\n") + "\r\n"
     }
 
-    /// Writes the demo SEM image and returns its URL in the temporary folder.
+    /// Writes the demo SEM image and returns its URL in the temporary folder. The write is atomic: Help > Open Demo Data can ask for
+    /// the file again while a window is still reading the one written before, and a reader never sees half a file.
     package static func semImageFile() throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macTEM-demo-sem")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("Demo SEM image.tif")
-        try semTIFF().write(to: url)
+        try semTIFF().write(to: url, options: .atomic)
         return url
     }
 
