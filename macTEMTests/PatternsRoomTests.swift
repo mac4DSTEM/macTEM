@@ -261,6 +261,8 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         let info = Dictionary(EBSDBrowsing.infoRows(dataset, fileName: "x.h5", locale: de).map { ($0.label, $0.value) },
                               uniquingKeysWith: { first, _ in first })
         XCTAssertEqual(info["Detector pixel"], "\(UnitDisplay.number(dataset.detector.pixelSize, locale: de)) µm")
+        // The fixture's pixel size is 1 µm, the same in every locale; its working distance, 24.7 mm, shows the German comma.
+        XCTAssertEqual(info["Working distance"], "24,7 mm")
         XCTAssertEqual(info["Indexed"], "1 phase in the file")
     }
 

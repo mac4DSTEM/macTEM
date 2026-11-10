@@ -173,6 +173,7 @@ struct MapsGrainsTable: View {
         Group {
             if let analysis = session.analysis {
                 let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
+                let places = MapsRoomFormat.lengthPlaces(analysis)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: MapsRoomFormat.grainSummary(analysis))
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
@@ -181,7 +182,7 @@ struct MapsGrainsTable: View {
                         TableColumn("Grain", value: \.id) { Text(verbatim: "\($0.id)").monospacedDigit() }
                         TableColumn("Phase", value: \.phaseName)
                         TableColumn("Points", value: \.points) { Text(verbatim: "\($0.points)").monospacedDigit() }
-                        TableColumn("ECD \(unit)", value: \.diameter) { Text(MapsRoomFormat.length($0.diameter)).monospacedDigit() }
+                        TableColumn("ECD \(unit)", value: \.diameter) { Text(MapsRoomFormat.length($0.diameter, places: places)).monospacedDigit() }
                         TableColumn("φ₁ °", value: \.phi1) { Text(MapsRoomFormat.angle($0.phi1)).monospacedDigit() }
                         TableColumn("Φ °", value: \.capitalPhi) { Text(MapsRoomFormat.angle($0.capitalPhi)).monospacedDigit() }
                         TableColumn("φ₂ °", value: \.phi2) { Text(MapsRoomFormat.angle($0.phi2)).monospacedDigit() }
