@@ -34,6 +34,11 @@ final class EELSRoomState {
     var mapFilter: EELSMapFilter = .mean3x3
     /// The status line's cursor readout: the pixel and its values over a map, the energy and counts over the spectrum; nil when the pointer is elsewhere.
     var readout: String?
+    /// What the spectrum last wrote to `readout` (`setSpectrumReadout`).
+    private var spectrumText: String?
+    /// `readout` while it is the spectrum's own (the energy and the counts under the pointer); nil while it is a map's pixel, or nothing. The spectrum's
+    /// accessibility value says this, so it never speaks a map's pixel as its own.
+    var spectrumReadout: String? { readout != nil && readout == spectrumText ? readout : nil }
     /// The map pixel under the pointer (nil off the maps), and whether ⌥ is down: while both hold, the plot draws that pixel's spectra as a temporary
     /// layer (control placement §7), gone when the key is released.
     var hoverPixel: EELSHoverPixel?
@@ -87,8 +92,15 @@ final class EELSRoomState {
 
     func requestImport() { importRequest &+= 1 }
 
+    /// The spectrum's hover: the status line's readout, marked as the spectrum's (`spectrumReadout`); nil when the pointer leaves the plot.
+    func setSpectrumReadout(_ text: String?) {
+        spectrumText = text
+        readout = text
+    }
+
     /// A new file starts the view over.
     func reset() {
         soloTile = nil; mapView.reset(); appearance = MapAppearance(); maps = .tOverLambda; mapsNotice = nil; readout = nil; hoverPixel = nil; spectrumWindow = nil; spectrumYZoom = 1
+        spectrumText = nil
     }
 }

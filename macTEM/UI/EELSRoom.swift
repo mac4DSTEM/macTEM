@@ -618,8 +618,8 @@ struct EELSWindowItem: Equatable {
 /// The region's low loss and core loss on one energy axis (a marked gap when the windows leave energies out), counts on a log axis: the zero-loss mask hatched, each picked edge's
 /// background and signal windows shaded and draggable with the background extrapolated under the signal, the kit's model curve in the accent, its power-law background dashed,
 /// the references dashed. Hover reads energy and counts into the status line, snapped to an edge onset within 5 eV.
-/// Without a pointer: its accessibility value says the energies shown and each edge's windows, every window is an adjustable element under it
-/// (`EELSWindowElements`), and the zoom and the pan are named actions.
+/// Without a pointer: its accessibility value says the energies shown and each edge's windows (the energy and counts under the pointer while there is
+/// one, `ReadoutAccessibilityValue`), every window is an adjustable element under it (`EELSWindowElements`), and the zoom and the pan are named actions.
 private struct EELSSpectrumView: View {
     let plot: EELSPlotData?
     let items: [EELSWindowItem]
@@ -710,7 +710,7 @@ private struct EELSSpectrumView: View {
                     if let fitted = plot.backgrounds.first(where: { $0.edgeID == EELSFitCompute.id(item.edge) }), fitted.windows == item.windows { return fitted.curve }
                     return plot.core.flatMap { EELSBackgroundFit.extrapolation(of: $0, windows: item.windows, over: item.windows.background.lowerBound...item.windows.signal.upperBound) }
                 }
-                // What a pointer reads off the plot, in words: the energies shown and each edge's windows.
+                // What the plot shows, in words (its accessibility value while no pointer is over it): the energies shown and each edge's windows.
                 let spoken = EELSRoomFormat.windowsSpeech(items: items.map { (title: EELSFitCompute.title($0.edge), windows: $0.windows) }, shown: w)
                 Canvas { context, size in
                     Self.draw(&context, size: size, left: left, plot: plot, axis: axis, shown: w, scale: scale, isLog: isLog, items: items, backgrounds: backgrounds,
@@ -720,9 +720,9 @@ private struct EELSSpectrumView: View {
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let p):
-                        guard p.x >= left, p.x <= geo.size.width - Self.right, let e = axis.energy(atX: Double(p.x - left)) else { state.readout = nil; return }
-                        state.readout = Self.readout(at: e, plot: plot)
-                    case .ended: state.readout = nil
+                        guard p.x >= left, p.x <= geo.size.width - Self.right, let e = axis.energy(atX: Double(p.x - left)) else { state.setSpectrumReadout(nil); return }
+                        state.setSpectrumReadout(Self.readout(at: e, plot: plot))
+                    case .ended: state.setSpectrumReadout(nil)
                     }
                 }
                 .gesture(MagnifyGesture()
@@ -803,7 +803,8 @@ private struct EELSSpectrumView: View {
                 .accessibilityElement()
                 .accessibilityLabel("Spectrum of \(plot.regionName), \(isLog ? "log" : "linear") counts")
                 .accessibilityIdentifier("eels.spectrum")
-                .accessibilityValue(spoken)
+                // The energy and counts under the pointer while it is over the plot, else `spoken`; read in the modifier, so a pointer move redraws no plot.
+                .modifier(ReadoutAccessibilityValue(readout: { state.spectrumReadout }, fallback: spoken))
                 // The windows without a drag: two adjustable elements per edge under the spectrum (nothing is drawn).
                 .accessibilityChildren {
                     if let core = plot.core { EELSWindowElements(items: items, core: core, onWindows: onWindows) }
