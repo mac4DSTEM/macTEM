@@ -193,6 +193,40 @@ nonisolated final class AppWindowsTests: XCTestCase {
         XCTAssertEqual(session.current?.files.map(\.path), [a.standardizedFileURL.path])
     }
 
+    /// A window asked for by `openInTabs` is a tab request, taken once by the window that comes up; a file another window holds asks
+    /// for none. Red under: the new window left a window of its own (driven 2026-11-10); every new window, New Window too, made a tab.
+    @MainActor func testOnlyAWindowOpenedForAFileIsMadeATab() async throws {
+        let windows = AppWindows()
+        windows.openWindow = {}
+        XCTAssertFalse(windows.takeTabRequest(), "File > New Window and a restored window stay windows of their own")
+        let a = try plantedCopy(named: "a.dm4"), b = try plantedCopy(named: "b.dm4")
+        let first = AppState(launch: LaunchOptions(arguments: []))
+        windows.enroll(first)
+        await first.open(urls: [a, b])?.value
+        XCTAssertTrue(windows.takeTabRequest(), "b's window is a tab")
+        XCTAssertFalse(windows.takeTabRequest(), "once")
+        first.open(urls: [a])
+        XCTAssertFalse(windows.takeTabRequest(), "a is open here: no window, no tab")
+    }
+
+    /// Quitting closes every window: the record keeps them all. Red under: the record left with the last window's file (driven
+    /// 2026-11-10: Reopen Last Session brought back one of two files).
+    @MainActor func testQuittingKeepsEveryWindowInTheLastSession() async throws {
+        let windows = AppWindows()
+        let session = LastSession()
+        let a = try plantedCopy(named: "a.dm4"), b = try plantedCopy(named: "b.dm4")
+        let first = AppState(launch: LaunchOptions(arguments: []), lastSession: session)
+        let second = AppState(launch: LaunchOptions(arguments: []), lastSession: session)
+        windows.enroll(first)
+        windows.enroll(second)
+        await first.open(urls: [a])?.value
+        await second.open(urls: [b])?.value
+        windows.isTerminating = true
+        windows.withdraw(first)
+        windows.withdraw(second)
+        XCTAssertEqual(session.current?.files.map(\.path), [a.standardizedFileURL.path, b.standardizedFileURL.path])
+    }
+
     /// Red under: a state built before it is asked for, or built twice.
     @MainActor func testAWindowsStateIsMadeOnce() {
         var made = 0

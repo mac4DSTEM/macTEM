@@ -92,7 +92,7 @@ private struct ImageWindow: View {
                 windows.enroll(appState)
             }
             // New windows join the front window's tabs (`WindowTabbing`, AppKit). The tab's title is the window's (`AppState.windowTitle`).
-            .background(WindowTabbing(state: appState))
+            .background(WindowTabbing(state: appState, windows: windows))
             .onDisappear { windows.withdraw(appState) }
             .onChange(of: appearsActive) { _, active in if active { windows.bringForward(appState) } }
             // Info.plist declares CFBundleDocumentTypes, which puts macTEM in Finder's "Open With" — this is

@@ -34,6 +34,12 @@ final class AppWindows {
     /// a window has appeared; files then open in the window they were given to (`canOpenTabs`).
     @ObservationIgnored var openWindow: (() -> Void)?
     var canOpenTabs: Bool { openWindow != nil }
+    /// Windows asked for by `openInTabs` that have not come up yet: each one, when it enters its window, is put in the front
+    /// window's tab group (`takeTabRequest`, `WindowTabbing`). A window from File > New Window or a restored launch is not.
+    @ObservationIgnored private var tabRequests = 0
+    /// The app is quitting (`AppDelegate`): the windows closing on the way out leave the last-session record as it is, so it keeps
+    /// every window's files, not the last one's (driven 2026-11-10: Reopen Last Session brought back one of two files).
+    @ObservationIgnored var isTerminating = false
 
     /// A window appeared (or came back): it is known, and it is the front one.
     func enroll(_ state: AppState) {
@@ -56,8 +62,9 @@ final class AppWindows {
         state.showWindow = nil
         if front === state { front = onScreen.last }
         if state.quitQuestion != nil, !parked.contains(where: { $0 === state }) { parked.append(state) }
-        // The last-session record follows the windows still on screen; with none left it keeps what the last one held.
-        (front ?? onScreen.last)?.recordLastSession()
+        // The last-session record follows the windows still on screen; with none left it keeps what the last one held. Not while
+        // quitting: every window closes then, and the record must keep them all.
+        if !isTerminating { (front ?? onScreen.last)?.recordLastSession() }
     }
 
     /// Each file in a tab of its own (one file per window): a file a window on screen holds already comes forward there, not read
@@ -71,6 +78,7 @@ final class AppWindows {
                 holder.showWindow?()
             } else if let openWindow {
                 waiting.append([url])
+                tabRequests += 1
                 openWindow()
             }
         }
@@ -80,6 +88,13 @@ final class AppWindows {
     /// one the open brings up (`takeWaitingURLs`).
     func deliver(urls: [URL]) {
         if let target = front ?? onScreen.last { target.open(urls: urls) } else { waiting.append(urls) }
+    }
+
+    /// Whether the window coming up was asked for as a tab (`openInTabs`), once per request.
+    func takeTabRequest() -> Bool {
+        guard tabRequests > 0 else { return false }
+        tabRequests -= 1
+        return true
     }
 
     /// The oldest batch waiting for a window, once: a new window takes one.

@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// app, and a modal question would hold it.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let windows = Self.windows, !LaunchOptions().isUITesting, let question = windows.quitQuestion else {
+            Self.windows?.isTerminating = true
             return .terminateNow
         }
         let alert = NSAlert()
@@ -38,6 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quit.hasDestructiveAction = true
         let cancel = alert.addButton(withTitle: "Cancel")
         cancel.keyEquivalent = "\u{1b}"
-        return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+        guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
+        windows.isTerminating = true
+        return .terminateNow
     }
 }
