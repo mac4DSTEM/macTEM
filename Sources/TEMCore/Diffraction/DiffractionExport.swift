@@ -2,10 +2,12 @@
 //  DiffractionExport.swift
 //  Role: the Diffraction room's readout as one CSV (design section 6): comment lines (file, centre and where it came from, the
 //        calibration and its source, the crystal and its sha256, k_max, the tolerance) then one row per ring or spot.
-//        Pure text; the numbers are what `DiffractionReadout` rows hold, which are the kit's.
+//        Pure text; the numbers are what `DiffractionReadout` rows hold, which are the kit's. The text cells are RFC 4180 and the file
+//        name is one header line (ImagoKit's `CSVText.quoted` and `CSVText.headerValue`).
 //
 
 import Foundation
+import ImagoCore
 
 /// One line of the readout: a ring or a spot with what the kit says about it.
 package nonisolated struct DiffractionReadoutRow: Sendable, Equatable, Identifiable {
@@ -63,18 +65,18 @@ package nonisolated enum DiffractionExport {
 
     package static func text(rows: [DiffractionReadoutRow], header h: DiffractionExportHeader) -> String {
         func g(_ v: Double?) -> String { v.map { String(format: "%.9g", $0) } ?? "" }
-        func cell(_ s: String) -> String { s.contains(",") || s.contains("\"") || s.contains("\n") ? "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : s }
         var lines = [
             "# macTEM diffraction readout",
-            "# file: \(h.fileName)",
+            "# file: \(CSVText.headerValue(h.fileName))",
             "# centre: row \(g(h.centreRow)), column \(g(h.centreColumn)) (\(h.centreSource))",
             "# calibration: \(h.calibration); delta_q \(g(h.deltaQ)) per A per px; wavelength \(g(h.wavelengthAngstroms)) A; L \(g(h.lengthPixels)) px; L \(g(h.lengthMM)) mm; fit versus file \(g(h.fitVersusFilePercent)) %",
             "# crystal: \(h.crystal)\(h.crystalSHA256.map { " sha256 \($0)" } ?? ""); k_max \(g(h.kMax)) per A; tolerance \(g(h.tolerancePercent)) % of q",
         ]
         lines.append(columns)
         for r in rows {
-            lines.append([r.kind.rawValue, "\(r.number)", g(r.radiusPx), g(r.q), g(r.d), cell(r.family ?? ""), g(r.dListed), g(r.deltaPercent),
-                          cell(r.oddsText ?? ""), cell(r.verdict), r.isCalibrating ? "yes" : ""].joined(separator: ","))
+            lines.append([r.kind.rawValue, "\(r.number)", g(r.radiusPx), g(r.q), g(r.d), CSVText.quoted(r.family ?? ""), g(r.dListed),
+                          g(r.deltaPercent), CSVText.quoted(r.oddsText ?? ""), CSVText.quoted(r.verdict),
+                          r.isCalibrating ? "yes" : ""].joined(separator: ","))
         }
         return lines.joined(separator: "\n") + "\n"
     }
