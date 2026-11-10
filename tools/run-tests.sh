@@ -14,6 +14,10 @@
 #   release-build
 #               the Release configuration built the way the release scripts archive it, signed ad hoc, then the app
 #               checked (release_build below): nightly in CI, so a Release-only failure shows before a tag
+#   ui [Journey ...]
+#               the UI journeys (macTEMUITests) on this Mac's screen: the real app, signed, one screenshot per step
+#   ui-build    the UI journeys compiled and not run (`build-for-testing` of the macTEMUI scheme, unsigned): needs no
+#               screen, so CI runs it on a pull request that touches the journeys or the project
 #
 # Read the exit code from the script itself, never through a pipe: redirect to a log, `echo $?` on its own line.
 set -euo pipefail
@@ -244,6 +248,31 @@ ui_tests() (
   fi
   "$ROOT/tools/lib/ui-screenshots.sh" "$result" "$gate" || true
   return $(( rc == 0 && failed == 0 && total > 0 ? 0 : 1 ))
+)
+
+# The UI journeys compiled and not run: `build-for-testing` of the macTEMUI scheme, which builds the app and macTEMUITests. The journeys
+# import only XCTest, `unit` builds macTEMTests alone and `ui` needs the Mac's screen, so no gate a pull request waits on compiled them:
+# a journey edit with a type error merged green and first failed in the next UI run. Unsigned like `unit` (CODE_SIGNING_ALLOWED=NO, for
+# a build that is never launched) and from a scratch DerivedData; SWIFT_OPTIMIZATION_LEVEL=-O as `ui` passes it, so this compiles what
+# `ui` runs. xcodebuild's exit status is the verdict; the test bundle must also be there, because a scheme that lost its testable
+# builds the app alone and exits 0.
+ui_build() (
+  local work rc
+  work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-ui-build.XXXXXX")"
+  trap 'rm -rf "$work"' EXIT
+  xcodebuild build-for-testing -project "$ROOT/macTEM.xcodeproj" -scheme macTEMUI -configuration Debug -destination 'platform=macOS' \
+    -derivedDataPath "$work/DerivedData" SWIFT_OPTIMIZATION_LEVEL=-O CODE_SIGNING_ALLOWED=NO > "$work/ui-build.log" 2>&1 && rc=0 || rc=$?
+  grep -E "error:|: error|BUILD (SUCCEEDED|FAILED)" "$work/ui-build.log" | tail -40 || true
+  grep -A12 "^The following build commands failed:" "$work/ui-build.log" | head -30 || true
+  # A compiler crash prints no `error:`: its signal and stack dump are the reason.
+  grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/ui-build.log" | head -40 || true
+  echo "ui-build: xcodebuild exit $rc"
+  (( rc == 0 )) || return $rc
+  local -a bundles=("$work"/DerivedData/Build/Products/**/macTEMUITests.xctest(N/))
+  if (( ${#bundles} == 0 )); then
+    echo "ui-build: the build wrote no macTEMUITests.xctest: the macTEMUI scheme no longer builds the journeys"; return 1
+  fi
+  echo "ui-build: the app and the UI journeys (macTEMUITests) compiled; nothing was launched and no journey ran"
 )
 
 # From a fresh scratch path every run: an incremental build compiles nothing and so prints none of the warnings it
@@ -624,5 +653,6 @@ case "${1:-unit}" in
   inventory) inventory ;;
   release-build) require_free_space 4 "the Release build"; release_build ;;
   ui) shift; require_free_space 4 "the UI journeys"; ui_tests "$@" ;;
-  *) echo "Usage: tools/run-tests.sh [unit|core|scientific|inventory|release-build|ui [Journey ...]]" >&2; exit 64 ;;
+  ui-build) require_free_space 4 "the UI journeys' build"; ui_build ;;
+  *) echo "Usage: tools/run-tests.sh [unit|core|scientific|inventory|release-build|ui [Journey ...]|ui-build]" >&2; exit 64 ;;
 esac

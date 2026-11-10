@@ -1,0 +1,71 @@
+# UI journeys, compiled and not run: `tools/run-tests.sh ui-build` on GitHub's runner, for the pull requests that can
+# break their build.
+#
+# WHY: the journeys (macTEMUITests, scheme macTEMUI) import only XCTest. ci.yml's unit job builds macTEMTests alone, and
+# the journeys themselves run on the org's Mac by hand (ui.yml), never on a pull request. Until this job a journey edit
+# with a type error merged green and first failed in the next UI run, with nothing tying the failure to its pull request.
+#
+# WHAT RUNS: `xcodebuild build-for-testing` of the macTEMUI scheme (the app and the journeys), unsigned, from a scratch
+# DerivedData. Nothing is launched and no journey runs: a green run says the journeys compile, not that they pass.
+# On-screen verification stays with ui.yml and with a person.
+#
+# WHEN: a pull request that touches the journeys, the Xcode project, the gate script or this file, and by hand. A change
+# to the app's sources alone cannot break the journeys' build (they import no app module), so it takes no macOS runner
+# here. ci.yml runs the same gate nightly, on main. Not a required check, and not fit to be one as it stands: a workflow
+# with a paths filter reports nothing on a pull request outside its paths, and a required check that never reports
+# holds that pull request for good.
+#
+# XCODE: 26.6, as ci.yml (DEVELOPER_DIR below), never the image's default.
+name: UI journeys build
+
+on:
+  pull_request:
+    paths:
+      - 'macTEMUITests/**'
+      - 'macTEM.xcodeproj/**'
+      - 'tools/run-tests.sh'
+      - '.github/workflows/ui-build.yml'
+  workflow_dispatch:
+
+# Read-only token: the job reads the checkout and the cache and writes nothing back.
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-build-${{ github.ref }}
+  # A superseded run of the same pull request cancels; a run dispatched on main completes.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  # Pinned: the macos-26 image's Xcode 26.6 (Swift 6.3, macOS 26 SDK), ci.yml's. Bump the two together, on purpose.
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+jobs:
+  ui-build:
+    name: UI journeys build (compiled, not run)
+    runs-on: macos-26
+    # Margin, not measurement: the app and the kits at -O from a cold DerivedData, then the journeys. Tighten it from
+    # the first green runs.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain on record
+        run: |
+          sw_vers
+          xcode-select -p
+          xcodebuild -version
+      - name: Restore the SwiftPM repository cache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-
+      - name: Ensure the Metal toolchain component
+        # As in ci.yml's unit job: the app build compiles MacEMUI's Colormaps.metal, and Xcode 26 ships the Metal compiler separately.
+        run: |
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            sudo xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun -sdk macosx metal --version
+      - name: Compile the UI journeys
+        run: tools/run-tests.sh ui-build

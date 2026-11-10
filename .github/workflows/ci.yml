@@ -32,6 +32,9 @@
 #     other build here is Debug for the concrete platform=macOS, so without it a Release-only failure first shows on the
 #     owner's Mac after the tag exists. release-please.yml dispatches CI on each Release PR, so it runs there too, before
 #     the merge that tags. Not a required check.
+#   * `tools/run-tests.sh ui-build` — the UI journeys (macTEMUITests) compiled and not run. On a pull request
+#     ui-build.yml runs it, for the paths that can break the journeys' build, and it is not a required check there, so a
+#     pull request can merge with it red; this run is what then says main no longer compiles them. Not a required check.
 # Every other job skips the schedule event. Dispatch CI on a branch to run them before merging, and on main before a tag.
 #
 # XCODE: every macOS job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
@@ -64,7 +67,7 @@ on:
     tags: ['*']
   pull_request:
   workflow_dispatch:
-  # Nightly: the unit job with the SEM reference data, `scientific` and `release-build` (every other job skips the schedule event).
+  # Nightly: the unit job with the SEM reference data, `scientific`, `release-build` and `ui-build` (every other job skips the schedule event).
   schedule:
     - cron: "0 1 * * *"
 
@@ -203,6 +206,38 @@ jobs:
           xcrun -sdk macosx metal --version
       - name: Build Release the way the release scripts do, and check the app
         run: tools/run-tests.sh release-build
+
+  ui-build:
+    # Named apart from ui-build.yml's job: on a pull request this one reports as skipped, and GitHub tells required checks apart by
+    # job name alone, so two jobs of one name could not be required or read apart.
+    name: UI journeys build, nightly (compiled, not run)
+    # Nightly and by hand only: a pull request that can break the journeys' build runs this gate through ui-build.yml.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    # Margin, not measurement (ui-build.yml's): the app and the kits at -O from a cold DerivedData, then the journeys.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain on record
+        run: |
+          sw_vers
+          xcode-select -p
+          xcodebuild -version
+      - name: Restore the SwiftPM repository cache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-
+      - name: Ensure the Metal toolchain component
+        # As in the unit job: the build compiles MacEMUI's Colormaps.metal, and Xcode 26 ships the Metal compiler separately.
+        run: |
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            sudo xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun -sdk macosx metal --version
+      - name: Compile the UI journeys
+        run: tools/run-tests.sh ui-build
 
   inventory:
     name: inventory (repo review)
