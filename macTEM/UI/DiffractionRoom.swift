@@ -44,9 +44,14 @@ struct DiffractionRoom: View {
         .task(id: DisplayKey(id: item.id, log: view.useLog, width: image.width, height: image.height)) {
             analysis.bind(image)
             let centre = analysis.centre ?? .imageCentre(width: image.width, height: image.height)
-            view.setAutoExtent(await Self.extent(pixels: image.pixels, width: image.width, height: image.height, centre: centre))
+            let radius = await Self.extent(pixels: image.pixels, width: image.width, height: image.height, centre: centre)
+            // A quick Log toggle or another file cancels this pass while it computes: it writes nothing, so the newer pass's extent
+            // and canvas are the ones left on screen.
+            guard !Task.isCancelled else { return }
+            view.setAutoExtent(radius)
             let pixels = image.pixels, w = image.width, h = image.height, log = view.useLog
             let canvas = await Self.makeCanvas(pixels: pixels, width: w, height: h, log: log)
+            guard !Task.isCancelled else { return }
             // A window in log values means nothing in linear ones: the range starts whole again.
             if view.presentation.canvas.map({ $0.contentVersion != canvas.contentVersion }) ?? false { view.presentation.resetWindow() }
             view.presentation.show(canvas)
@@ -224,7 +229,7 @@ private struct DiffractionPatternPane: View {
             .accessibilityElement(children: .ignore)
             .accessibilityIdentifier("diffraction.pane")
             .accessibilityLabel("Diffraction pattern")
-            .accessibilityValue("\(image.width) by \(image.height) pixels, \(analysis.rings.count) rings, \(analysis.spots.count) spots")
+            .accessibilityValue("\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))")
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }

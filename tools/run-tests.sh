@@ -8,8 +8,12 @@
 #               each skipped test is named with its XCTSkip's reason
 #   core        `swift build` of the package from a fresh scratch path: TEMCore and TEMSession — the layering gate
 #               (a package target cannot reach the app's App/ or UI/), the Swift 6 gate, and zero warnings
-#   scientific  the reference harnesses (the `scientific` array below), fail-fast
+#   scientific  the reference harnesses (the `scientific` array below): every one runs, a red one does not stop the rest,
+#               and the run fails at the end naming each red one (tools/lib/run-harnesses.sh)
 #   inventory   the repo's own review: the checks below; no build
+#   release-build
+#               the Release configuration built the way the release scripts archive it, signed ad hoc, then the app
+#               checked (release_build below): nightly in CI, so a Release-only failure shows before a tag
 #
 # Read the exit code from the script itself, never through a pipe: redirect to a log, `echo $?` on its own line.
 set -euo pipefail
@@ -17,6 +21,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/tools/lib/developer-dir.sh"
 resolve_mactem_developer_dir
+# run_harnesses <root> <name>...: keeps going past a red harness and fails at the end, naming every red one.
+. "$ROOT/tools/lib/run-harnesses.sh"
 
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
 scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
@@ -124,8 +130,8 @@ reconcile_test_names() {  # <xcresult> <tests dir>
 
 unit_tests() (
   clear_test_host_geometry
-  # Never let an unsigned test build replace the app Xcode launches from its normal DerivedData. MACTEM_DERIVED_DATA
-  # (set by `tools/gate.sh unit --warm`, to <gate dir>/dd-unit, outside the tree) reuses a lane's own persistent scratch DerivedData; unset, the build is cold.
+  # Never let an unsigned test build replace the app Xcode launches from its normal DerivedData. MACTEM_DERIVED_DATA, when set
+  # (a folder outside the tree, such as <gate dir>/dd-unit), reuses a lane's own persistent scratch DerivedData; unset, the build is cold.
   # Tests run in parallel (-parallel-testing-enabled YES), adopted 2026-10-14 after a serial and a parallel run on the
   # same warm tree executed the same 853 names with the same 853/0/0 (26 s serial, 16 s parallel);
   # MACTEM_PARALLEL_TESTING=NO runs them serially, to compare when a test is suspected of depending on order.
@@ -133,7 +139,7 @@ unit_tests() (
   work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-unit-tests.XXXXXX")"
   trap 'rm -rf "$work"' EXIT
   local -a par=(-parallel-testing-enabled "${MACTEM_PARALLEL_TESTING:-YES}")
-  # MACTEM_TEST_WORKERS (set by tools/gate.sh: 8, or 4 while mac4DSTEM holds a heavy.* lock) caps the parallel workers.
+  # MACTEM_TEST_WORKERS, when set, caps the parallel workers; unset, xcodebuild chooses.
   [[ -n "${MACTEM_TEST_WORKERS:-}" ]] && par+=(-parallel-testing-worker-count "$MACTEM_TEST_WORKERS")
   # SWIFT_OPTIMIZATION_LEVEL=-O on the command line is the only setting that reaches a package target in the Test action
   # (the Test action stays Debug for testability): without it SpectroKit builds -Onone, where its hot loops are about 20x
@@ -240,16 +246,6 @@ ui_tests() (
   return $(( rc == 0 && failed == 0 && total > 0 ? 0 : 1 ))
 )
 
-run_harnesses() {
-  local name started
-  for name in "$@"; do
-    started=$(date +%s)
-    echo "==> $name"
-    "$ROOT/tools/parity/$name/run.sh"
-    echo "<== $name ($(( $(date +%s) - started )) s)"
-  done
-}
-
 # From a fresh scratch path every run: an incremental build compiles nothing and so prints none of the warnings it
 # emitted the first time (a second run on the same tree printed 0 of 2, review 2026-10-12). Any `warning:` fails.
 core_build() (
@@ -268,17 +264,105 @@ core_build() (
   echo "core: TEMCore + TEMSession built from scratch, 0 warnings"
 )
 
+# The Release configuration, built the way tools/release.sh and tools/release-store.sh archive it, before a tag exists: whole-module
+# and the hardened runtime (the project's Release), the generic destination, ARCHS=arm64 on the command line (the project's setting
+# does not reach the package targets) and the store build's MACEM_STORE_BUILD=YES. Every other gate builds Debug for the concrete
+# `platform=macOS`, which picks the architecture itself: in mac4DSTEM that hid an archive that would not compile, and a universal
+# v2.5.1 (its tools/lib/release-arch.sh). `build`, not `archive`, and signed ad hoc with no team: no certificate is needed, and the
+# signature still carries the entitlements to read back. Then the product is checked, not the settings, as mac4DSTEM's
+# tools/harnesses/package-test/run.sh does: what both scripts check on their archive short of the signing identity, and what the
+# App Store asks of the bundle. Every check runs and each failure is named; the run fails at the end.
+release_build() (
+  local work rc app info macho archs library document key want got version failures=0
+  work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-release-build.XXXXXX")"
+  trap 'rm -rf "$work"' EXIT
+  xcodebuild build -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configuration Release \
+    -destination 'generic/platform=macOS' -derivedDataPath "$work/DerivedData" ARCHS=arm64 \
+    CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= MACEM_STORE_BUILD=YES > "$work/release.log" 2>&1 && rc=0 || rc=$?
+  grep -E "error:|: error|BUILD (SUCCEEDED|FAILED)" "$work/release.log" | tail -40 || true
+  grep -A12 "^The following build commands failed:" "$work/release.log" | head -30 || true
+  # A compiler crash prints no `error:`: its signal and stack dump are the reason (whole-module Release can crash where Debug does not).
+  grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/release.log" | head -40 || true
+  echo "release-build: xcodebuild exit $rc"
+  (( rc == 0 )) || return $rc
+  app="$work/DerivedData/Build/Products/Release/macTEM.app"
+  info="$app/Contents/Info.plist"
+  [[ -f "$info" ]] || { echo "release-build: the build wrote no app at Build/Products/Release/macTEM.app"; return 1; }
+
+  # Each Mach-O a user receives, named: the executable and FormatoKit's three HDF5 frameworks, each present and arm64 alone. Named,
+  # not globbed: a glob that matches nothing passes an app that lost them (mac4DSTEM's release-arch.sh), and FormatoKit loads
+  # libhdf5 at run time, so such an app launches and then fails every HDF5, EMD and h5ebsd open. No load command may name a
+  # machine-local library either.
+  local -a machos=("$app/Contents/MacOS/macTEM")
+  for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do machos+=("$app/Contents/Frameworks/$library.framework/$library"); done
+  for macho in "${machos[@]}"; do
+    if [[ ! -f "$macho" ]]; then echo "  MISSING   ${macho#$app/}"; failures=1; continue; fi
+    archs="$(lipo -archs "$macho" 2>/dev/null || true)"
+    [[ "$archs" == arm64 ]] || { echo "  ARCH      ${macho#$app/} is '${archs:-unreadable}', not arm64 alone"; failures=1; }
+    # grep reads to the end (no -q): an early exit would fail the pipe under pipefail and hide the match.
+    if otool -L "$macho" | tail -n +2 | grep -E '^[[:space:]]+/(opt/homebrew|usr/local|Users)/' >/dev/null; then
+      echo "  ABSPATH   ${macho#$app/} links a machine-local library"; failures=1
+    fi
+  done
+  [[ ! -e "$app/Contents/Frameworks/Sparkle.framework" ]] || { echo "  SPARKLE   the store build (MACEM_STORE_BUILD=YES) embeds Sparkle"; failures=1; }
+
+  # What the bundle says, against what the project declares; the version and build number are read from the project, never a
+  # literal (mac4DSTEM's audit asserted a literal version and went red at every bump). The identifier is the App Store record's.
+  want="$(sed -n 's/^MARKETING_VERSION = \([0-9.]*\).*/\1/p' "$ROOT/Config/Version.xcconfig")"
+  got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info" 2>/dev/null || true)"
+  [[ -n "$want" && "$got" == "$want" ]] || { echo "  VERSION   the app says '$got', Config/Version.xcconfig '$want'"; failures=1; }
+  version="$got"
+  want="$(grep -m1 'CURRENT_PROJECT_VERSION = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/' || true)"
+  got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info" 2>/dev/null || true)"
+  [[ -n "$want" && "$got" == "$want" ]] || { echo "  BUILD     the app's build number is '$got', the project's '$want'"; failures=1; }
+  want="$(grep -m1 'MACOSX_DEPLOYMENT_TARGET = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/' || true)"
+  got="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$info" 2>/dev/null || true)"
+  [[ -n "$want" && "$got" == "$want" ]] || { echo "  FLOOR     the app asks for macOS '$got', the project's floor is '$want'"; failures=1; }
+  got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$info" 2>/dev/null || true)"
+  [[ "$got" == com.mac4dstem.macTEM ]] || { echo "  BUNDLEID  the app is '$got', not com.mac4dstem.macTEM"; failures=1; }
+
+  # The store's asks of the bundle (release-store.sh checks the same on its archive): the privacy manifest, the export-compliance
+  # answer; and the program's own licence beside its dependencies' (a GPL binary ships the GPL).
+  [[ -f "$app/Contents/Resources/PrivacyInfo.xcprivacy" ]] || { echo "  PRIVACY   the app has no PrivacyInfo.xcprivacy"; failures=1; }
+  got="$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$info" 2>/dev/null || true)"
+  [[ "$got" == false ]] || { echo "  EXPORT    ITSAppUsesNonExemptEncryption is '$got', not false"; failures=1; }
+  for document in LICENSE NOTICE; do
+    [[ -s "$app/Contents/Resources/$document" ]] || { echo "  LICENCE   the app is missing $document"; failures=1; }
+  done
+  grep -q 'GNU GENERAL PUBLIC LICENSE' "$app/Contents/Resources/LICENSE" 2>/dev/null \
+    || { echo "  LICENCE   Contents/Resources/LICENSE is not the GPL"; failures=1; }
+
+  # The signature: valid through every nested framework, the sandbox and its two file entitlements, and no get-task-allow.
+  codesign --verify --deep --strict "$app" || { echo "  SIGNATURE the ad hoc signature does not verify (codesign --verify --deep --strict)"; failures=1; }
+  codesign -d --entitlements :- "$app" > "$work/entitlements.plist" 2>/dev/null || true
+  for key in com.apple.security.app-sandbox com.apple.security.files.user-selected.read-write com.apple.security.files.bookmarks.app-scope; do
+    got="$(/usr/libexec/PlistBuddy -c "Print :$key" "$work/entitlements.plist" 2>/dev/null || true)"
+    [[ "$got" == true ]] || { echo "  ENTITLE   $key is '$got', not true"; failures=1; }
+  done
+  if /usr/libexec/PlistBuddy -c 'Print :com.apple.security.get-task-allow' "$work/entitlements.plist" >/dev/null 2>&1; then
+    echo "  ENTITLE   the Release app carries get-task-allow"; failures=1
+  fi
+
+  if (( failures != 0 )); then echo "release-build: the Release app FAILED the checks above"; return 1; fi
+  echo "release-build: macTEM $version built Release for generic/platform=macOS;" \
+       "arm64 alone with its three frameworks, version, build, floor and identifier as the project declares, privacy manifest," \
+       "export answer, licences, sandbox entitlements and a verified signature"
+)
+
 inventory() {
   local rc=0 name dir src f
+
+  echo "== the harness runner keeps going past a red harness"
+  "$ROOT/tools/lib/run-harnesses-selftest.sh" || rc=1
 
   echo "== tools classification"
   local -a all=("${scientific[@]}" "${diagnostic[@]}" "${owner_only[@]}" "${retired[@]}" "${support[@]}" "${references[@]}")
   for name in "${all[@]}"; do
     [[ -d "$ROOT/tools/parity/$name" ]] || { echo "  MISSING tools/parity/$name (classified, not present)"; rc=1; }
   done
-  # tools/ holds the scripts, lib/, hooks/, drive/ (the guarded hand-drive helpers) and parity/; every folder under tools/parity/ is in exactly one array.
+  # tools/ holds the scripts, lib/ and parity/, and no other folder; every folder under tools/parity/ is in exactly one array.
   for dir in "$ROOT"/tools/*(/N); do
-    case "${dir:t}" in lib|hooks|parity|drive) ;; *) echo "  UNEXPECTED folder tools/${dir:t} — harnesses live in tools/parity/"; rc=1 ;; esac
+    case "${dir:t}" in lib|parity) ;; *) echo "  UNEXPECTED folder tools/${dir:t} — harnesses live in tools/parity/, helpers in tools/lib/"; rc=1 ;; esac
   done
   for dir in "$ROOT"/tools/parity/*(/N); do
     name="${dir:t}"
@@ -512,8 +596,9 @@ inventory() {
 case "${1:-unit}" in
   unit) require_free_space 4 "the xcodebuild unit suite"; unit_tests ;;
   core) core_build ;;
-  scientific) require_free_space 4 "the science harnesses"; run_harnesses "${scientific[@]}" ;;
+  scientific) require_free_space 4 "the science harnesses"; run_harnesses "$ROOT/tools/parity" "${scientific[@]}" ;;
   inventory) inventory ;;
+  release-build) require_free_space 4 "the Release build"; release_build ;;
   ui) shift; require_free_space 4 "the UI journeys"; ui_tests "$@" ;;
-  *) echo "Usage: tools/run-tests.sh [unit|core|scientific|inventory|ui [Journey ...]]" >&2; exit 64 ;;
+  *) echo "Usage: tools/run-tests.sh [unit|core|scientific|inventory|release-build|ui [Journey ...]]" >&2; exit 64 ;;
 esac

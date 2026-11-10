@@ -88,7 +88,8 @@ final class IndexingRoomState {
                                                         fileName: document.fileName, map: "indexed \(session.layer.title)")
                 } else {
                     guard let rgba = session.mapRGBA,
-                          let png = PatternsRoomState.mixPNG(rgba: rgba, width: result.scanColumns, height: result.scanRows) else {
+                          let png = PatternsRoomState.mixPNG(rgba: rgba, width: result.scanColumns, height: result.scanRows,
+                                                             fileName: document.fileName) else {
                         report("Export failed: the map could not be encoded."); return
                     }
                     data = png
@@ -151,7 +152,8 @@ final class IndexingRoomState {
 
 // MARK: - Words
 
-/// The Indexing room's Info words, one wording for the inspector's Info tab, the Results room's session rows and the session report.
+/// The Indexing room's Info words, one wording for the inspector's Info tab, the Results room's session rows and the session report. The
+/// numbers are in the reader's locale; the session report passes `ExportSnapshot.labelLocale` ("4125 of 4125").
 enum IndexingInfoFormat {
     /// "Hough (pyEBSDindex 0.3.10.1)", "Dictionary (kikuchipy 0.13.1)".
     nonisolated static func method(_ method: IndexingMethod) -> String {
@@ -159,24 +161,26 @@ enum IndexingInfoFormat {
     }
 
     /// "4,125 of 4,125".
-    nonisolated static func indexed(_ result: IndexingResult) -> String {
-        "\(result.indexedCount.formatted()) of \(result.pointCount.formatted())"
+    nonisolated static func indexed(_ result: IndexingResult, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(result.indexedCount.formatted(.number.locale(locale))) of \(result.pointCount.formatted(.number.locale(locale)))"
     }
 
-    /// "3,812 points".
-    nonisolated static func points(_ count: Int) -> String { "\(count.formatted()) points" }
+    /// "3,812 points", "1 point".
+    nonisolated static func points(_ count: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(count.formatted(.number.locale(locale))) \(UnitDisplay.noun(count, "point", "points"))"
+    }
 
-    /// "(0.4215, 0.2163, 0.5323) · mean of the file's".
-    nonisolated static func projectionCentre(_ pc: SIMD3<Double>) -> String {
-        "(\(UnitDisplay.number(pc.x, digits: 4)), \(UnitDisplay.number(pc.y, digits: 4)), \(UnitDisplay.number(pc.z, digits: 4))) · mean of the file's"
+    /// "(0.4215, 0.2163, 0.5323) · mean of the file's"; "(0,4215; 0,2163; 0,5323) · …" where the decimal mark is a comma.
+    nonisolated static func projectionCentre(_ pc: SIMD3<Double>, locale: Locale = .autoupdatingCurrent) -> String {
+        UnitDisplay.triple(pc, digits: 4, locale: locale) + " · mean of the file's"
     }
 
     /// "Ni.h5 · Ni · 20 kV · Lambert · 401 × 401".
     nonisolated static func master(_ plan: DictionaryIndexingPlan) -> String { "\(plan.master.fileName) · \(plan.master.summary)" }
 
     /// "10,000 patterns at 4° · NCC · keep 20".
-    nonisolated static func dictionary(_ plan: DictionaryIndexingPlan) -> String {
-        "\(plan.rotations.count.formatted()) patterns at \(UnitDisplay.number(plan.settings.resolution))° · \(plan.settings.metric.title) · keep \(min(plan.settings.keep, plan.rotations.count))"
+    nonisolated static func dictionary(_ plan: DictionaryIndexingPlan, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(plan.rotations.count.formatted(.number.locale(locale))) patterns at \(UnitDisplay.number(plan.settings.resolution, locale: locale))° · \(plan.settings.metric.title) · keep \(min(plan.settings.keep, plan.rotations.count))"
     }
 
     /// A run against several phases (D-SEM-98), one phase's master pattern: "Ni.h5 · 20 kV, the master pattern's one energy".
@@ -184,16 +188,18 @@ enum IndexingInfoFormat {
 
     /// The dictionaries of a run: one plan's as `dictionary(_:)`; several, each phase's size: "10,000 + 10,000 patterns at 4° · NCC ·
     /// keep 5".
-    nonisolated static func dictionaries(_ plans: [DictionaryIndexingPlan]) -> String {
+    nonisolated static func dictionaries(_ plans: [DictionaryIndexingPlan], locale: Locale = .autoupdatingCurrent) -> String {
         guard let first = plans.first else { return "–" }
-        guard plans.count > 1 else { return dictionary(first) }
-        let sizes = plans.map { $0.rotations.count.formatted() }.joined(separator: " + ")
+        guard plans.count > 1 else { return dictionary(first, locale: locale) }
+        let sizes = plans.map { $0.rotations.count.formatted(.number.locale(locale)) }.joined(separator: " + ")
         let keep = plans.map { min(first.settings.keep, $0.rotations.count) }.min() ?? first.settings.keep
-        return "\(sizes) patterns at \(UnitDisplay.number(first.settings.resolution))° · \(first.settings.metric.title) · keep \(keep)"
+        return "\(sizes) patterns at \(UnitDisplay.number(first.settings.resolution, locale: locale))° · \(first.settings.metric.title) · keep \(keep)"
     }
 
     /// "1.234 s".
-    nonisolated static func time(_ seconds: Double) -> String { "\(UnitDisplay.number(seconds, digits: 3)) s" }
+    nonisolated static func time(_ seconds: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(UnitDisplay.number(seconds, digits: 3, locale: locale)) s"
+    }
 
     /// The run's state: running, stopped, stale or current.
     static func state(_ result: IndexingResult, session: IndexingSession) -> String {

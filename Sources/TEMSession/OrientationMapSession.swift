@@ -299,7 +299,8 @@ package final class OrientationMapSession {
         resetAnalysis()
         slipFiles = Self.defaultSlipFiles(document.map)
         grid = OrientationMaps.pointIndexGrid(document.map)
-        onEvent?("Opened \(document.fileName) — orientation map \(rows) × \(columns), \(document.map.phasesInData.names.filter { $0 != PhaseList.notIndexedName }.count) phases")
+        let phases = document.map.phasesInData.names.filter { $0 != PhaseList.notIndexedName }.count
+        onEvent?("Opened \(document.fileName) — orientation map \(rows) × \(columns), \(UnitDisplay.count(phases, "phase", "phases"))")
         startKeys(document)
         return draw()
     }
@@ -474,13 +475,15 @@ package final class OrientationMapSession {
         return base + Self.analysisReadout(analysis, row: position.row, column: position.column)
     }
 
-    /// The analysis words the status line adds at a grid cell: " · grain 12 · KAM 0.84°" (the KAM where the point has one).
-    nonisolated package static func analysisReadout(_ analysis: MapAnalysis, row: Int, column: Int) -> String {
+    /// The analysis words the status line adds at a grid cell: " · grain 12 · KAM 0.84°" (the KAM where the point has one), the KAM
+    /// through `UnitDisplay.fixed` as the room's tables write an angle: printf's digits in `locale`'s decimal mark.
+    nonisolated package static func analysisReadout(_ analysis: MapAnalysis, row: Int, column: Int,
+                                                    locale: Locale = .autoupdatingCurrent) -> String {
         guard row >= 0, row < analysis.rows, column >= 0, column < analysis.columns else { return "" }
         var out = ""
         if let grain = analysis.grain(atRow: row, column: column) { out += " · grain \(grain)" }
         let kam = analysis.grains.kam[row * analysis.columns + column]
-        if kam.isFinite { out += " · KAM " + (kam * 180 / Double.pi).formatted(.number.grouping(.never).precision(.fractionLength(2))) + "°" }
+        if kam.isFinite { out += " · KAM " + UnitDisplay.fixed(kam * 180 / Double.pi, places: 2, locale: locale) + "°" }
         return out
     }
 
@@ -579,7 +582,8 @@ package final class OrientationMapSession {
         updateSlip()
         followPinnedGrain()
         let s = result.settings
-        onEvent?("Segmented \(result.table.count) grains (boundaries above \(Self.degrees(s.boundaryDegrees))°, at least \(s.minimumSize) points)")
+        onEvent?("Segmented \(UnitDisplay.count(result.table.count, "grain", "grains")) (boundaries above \(Self.degrees(s.boundaryDegrees))°, "
+                 + "at least \(UnitDisplay.count(s.minimumSize, "point", "points")))")
         if case .derived(let d) = layer, !derivedLayers.contains(d) { layer = .derived(.grains) }
         if case .derived = layer { draw() }
     }
@@ -714,11 +718,18 @@ package final class OrientationMapSession {
         textureTask?.cancel()
         let map = document.map
         let task = Task { [weak self] in
-            let made = try? await MapTexture.computeAsync(map, phaseID: id)
+            var made: MapTexture?
+            var failure = ""
+            do {
+                made = try await MapTexture.computeAsync(map, phaseID: id)
+            } catch {
+                failure = ": " + ((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+            }
             guard let self, !Task.isCancelled, self.texturePhaseID == id, self.document?.fileName == document.fileName else { return }
             self.texture = made
             self.isTexturing = false
-            if made == nil { self.onEvent?("No texture for this phase") }
+            // The texture's own sentence (a phase without a point group, orientations that cannot be read) says why.
+            if made == nil { self.onEvent?("No texture for this phase" + failure) }
         }
         textureTask = task
         return task

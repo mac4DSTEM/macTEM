@@ -11,7 +11,6 @@ import AppKit
 import Foundation
 import ImageIO
 import TEMCore
-import UniformTypeIdentifiers
 
 nonisolated enum KikuchiOverlayExport {
     /// The smallest side the figure is enlarged to (a 60 px pattern becomes 480 px): whole-pixel enlargement, at least 1.
@@ -23,9 +22,10 @@ nonisolated enum KikuchiOverlayExport {
     }
 
     /// The figure as PNG bytes: `patternPNG` (one pixel per detector pixel) enlarged by `scale(width:height:)` with the overlay drawn in
-    /// `accent`; nil when the PNG cannot be read or written.
-    @MainActor static func png(patternPNG: Data, overlay: KikuchiOverlay.Pattern, settings: KikuchiOverlay.Settings,
-                    accent: CGColor = CGColor(srgbRed: 0.04, green: 0.52, blue: 1, alpha: 1)) -> Data? {
+    /// `accent`, through the app's one encoder (`ImageExport.encodePNG`) with `fileName` as Title, macTEM as Software and what is
+    /// drawn as Description; nil when the PNG cannot be read or written.
+    @MainActor static func png(patternPNG: Data, fileName: String, overlay: KikuchiOverlay.Pattern, settings: KikuchiOverlay.Settings,
+                               accent: CGColor = CGColor(srgbRed: 0.04, green: 0.52, blue: 1, alpha: 1)) -> Data? {
         guard let source = CGImageSourceCreateWithData(patternPNG as CFData, nil),
               let pattern = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
         let s = scale(width: pattern.width, height: pattern.height)
@@ -106,13 +106,10 @@ nonisolated enum KikuchiOverlayExport {
             }
         }
         guard let image = context.makeImage() else { return nil }
-        let out = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(out as CFMutableData, UTType.png.identifier as CFString, 1, nil) else { return nil }
-        let description = "Kikuchi overlay of \(overlay.phase): \(overlay.simulation.lines.count) bands, \(overlay.simulation.zoneAxes.count) zone axes; "
+        let description = "Kikuchi overlay of \(overlay.phase): \(overlay.drawnWords); "
             + "pattern enlarged \(s)x; macTEM"
-        let properties = [kCGImagePropertyPNGDictionary as String: [kCGImagePropertyPNGDescription as String: description]]
-        CGImageDestinationAddImage(destination, image, properties as CFDictionary)
-        return CGImageDestinationFinalize(destination) ? out as Data : nil
+        // A tEXt Description, as the Image room's PNGs carry theirs: ImageIO's PNG property would become an XMP packet instead.
+        return try? ImageExport.encodePNG(image, title: fileName, software: "macTEM", description: description)
     }
 
     /// A label centred on `point` with a dark shadow, so it reads on any part of the pattern.

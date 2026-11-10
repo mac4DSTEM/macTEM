@@ -114,9 +114,10 @@ enum ExportPanels {
 
     /// File > Export Session Report… and the Results inspector's Export Report…: the SEM session as one PDF or Markdown report
     /// (D-SEM-103), with the Report section's choices. The rows and the context are taken when the panel opens; a Markdown report links
-    /// the figures from the folder it is written to, so it is set after OK.
+    /// the figures from the folder it is written to, so it is set after OK. The rows' numbers are in `ExportSnapshot.labelLocale`, as the
+    /// figures' labels are, so the report reads the same on every Mac; the Results room shows them in the reader's.
     static func exportSessionReport(appState: AppState) {
-        let rows = SEMSessionLedger.rows(of: appState)
+        let rows = SEMSessionLedger.rows(of: appState, locale: ExportSnapshot.labelLocale)
         guard !rows.isEmpty else { return }
         let options = appState.resultsRoom.reportOptions(rows)
         let context = SEMReportFile.context(namesAuthor: appState.resultsRoom.reportNamesAuthor)
@@ -132,11 +133,12 @@ enum ExportPanels {
         Task.immediate { await presentSessionReportPanel(rows, options: options, context: context, stem: stem, on: window, appState: appState) }
     }
 
-    /// The report's panel, in the folder of the first file the session read; the write after OK.
+    /// The report's panel, in the folder of the first file the session read that is not a demo's (`defaultFolder(for:)`), else
+    /// where the system puts it; the write after OK.
     private static func presentSessionReportPanel(_ rows: [SEMSessionRow], options: SEMSessionReport.Options,
                                                   context: SEMSessionReport.Context, stem: String, on window: NSWindow,
                                                   appState: AppState) async {
-        let folder = rows.first { $0.kind != .export && $0.file != nil }?.file?.deletingLastPathComponent()
+        let folder = rows.filter { $0.kind != .export }.compactMap { defaultFolder(for: $0.file) }.first
         let panel = savePanel(type: SEMReportFile.contentType(options.format), name: stem, directory: folder,
                               message: "Export the SEM session as one \(options.format.title) report")
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
@@ -159,6 +161,16 @@ enum ExportPanels {
         } catch {
             appState.present(error)
         }
+    }
+
+    /// The folder a panel opens in for a file the session read: the file's own, or nil (the system's choice) for a shipped demo,
+    /// whose folder is inside the app's bundle (an App Store install cannot be written to, and a write would change the signed
+    /// bundle), and for a generated demo, whose `/macTEM-demo/` path does not exist.
+    nonisolated static func defaultFolder(for file: URL?) -> URL? {
+        guard let file, !DemoDocuments.isDemo(file) else { return nil }
+        let folder = file.deletingLastPathComponent()
+        let bundle = Bundle.main.bundleURL.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        return folder.resolvingSymlinksInPath().standardizedFileURL.pathComponents.starts(with: bundle) ? nil : folder
     }
 
     /// The window the sheet is presented on: the main window, unless it has a sheet already.

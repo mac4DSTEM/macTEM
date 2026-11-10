@@ -79,6 +79,15 @@ package nonisolated enum KikuchiOverlay {
         /// The simulated pattern's shape (the detector's), 0 without one.
         package var simulatedRows = 0
         package var simulatedColumns = 0
+
+        /// What it draws, counted (`drawnWords(bands:zoneAxes:)`): the Simulation sections' summaries and the exported figure's
+        /// Description say it in these words.
+        package var drawnWords: String { KikuchiOverlay.drawnWords(bands: simulation.lines.count, zoneAxes: simulation.zoneAxes.count) }
+    }
+
+    /// An overlay's bands and zone axes, counted, one in the singular: "12 bands, 4 zone axes", "1 band, 1 zone axis".
+    package static func drawnWords(bands: Int, zoneAxes: Int) -> String {
+        UnitDisplay.count(bands, "band", "bands") + ", " + UnitDisplay.count(zoneAxes, "zone axis", "zone axes")
     }
 
     // MARK: Bands
@@ -181,6 +190,16 @@ package nonisolated enum KikuchiOverlay {
     package static func masterPatternPicture(_ bands: Bands, beamEnergyKeV: Double, halfSize: Int = 100) -> [Double] {
         KinematicMasterPattern.calculate(reflectors: bands.reflectors, theta: braggAngles(bands, beamEnergyKeV: beamEnergyKeV), structureFactor: [],
                                          halfSize: halfSize, hemisphere: .upper, scaling: .none)[0]
+    }
+
+    /// `masterPattern` and, with `picture`, `masterPatternPicture` of the same bands, off the caller's actor: the overlay's
+    /// kinematical simulation is made once per phase and spacing, and the 401 × 401 Lambert grid of every band would stall the pane
+    /// that asked for it. The numbers are those two functions'.
+    @concurrent package static func kinematicalMaster(_ bands: Bands, phase: CrystalPhase, beamEnergyKeV: Double,
+                                                      picture: Bool) async -> (master: EBSDMasterPattern, picture: [Double]?) {
+        let master = masterPattern(bands, phase: phase, beamEnergyKeV: beamEnergyKeV)
+        let stereographic: [Double]? = picture ? masterPatternPicture(bands, beamEnergyKeV: beamEnergyKeV) : nil
+        return (master: master, picture: stereographic)
     }
 
     /// The overlay at `position`, or why there is none. `bands` maps a phase id to its bands (the session caches them per phase).

@@ -215,6 +215,12 @@ nonisolated final class FFTExportTests: XCTestCase {
                             lut: (0..<1024).map { (i: Int) -> UInt8 in i % 4 == 3 ? 255 : UInt8(i / 4) }, colormap: "gray")
     }
 
+    /// What `description(_:)` throws when the PNG has no Description chunk: a plain error, so the calling test fails (an `XCTSkip`
+    /// would pass it silently).
+    private nonisolated struct NoDescriptionChunk: Error, CustomStringConvertible {
+        var description: String { "the PNG has no Description chunk" }
+    }
+
     private func description(_ png: Data) throws -> [String: Any] {
         let bytes = [UInt8](png)
         var offset = 8
@@ -235,7 +241,7 @@ nonisolated final class FFTExportTests: XCTestCase {
             }
             offset += 12 + length
         }
-        throw XCTSkip("no Description chunk")
+        throw NoDescriptionChunk()
     }
 
     private func pixels(_ png: Data) throws -> (width: Int, height: Int, rgb: [UInt8]) {
@@ -287,6 +293,22 @@ nonisolated final class FFTExportTests: XCTestCase {
         XCTAssertEqual(fractional.y, 72.0, accuracy: 0.15)
         XCTAssertEqual(fractional.marks.first?["kind"] as? String, "spot")
         XCTAssertEqual(fractional.marks.first?["label"] as? String, "7")
+    }
+
+    /// A PNG with text chunks but no Description (the encoder given a title and a software line only) is an error that fails the
+    /// test reading it, never a skip: a path that stopped writing the chunk would otherwise pass as skipped. Red under: the
+    /// helper's `throw XCTSkip`.
+    func testAPNGWithoutADescriptionIsAFailureNotASkip() throws {
+        let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        let context = try XCTUnwrap(CGContext(data: nil, width: 2, height: 2, bitsPerComponent: 8, bytesPerRow: 8, space: space,
+                                              bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        let image = try XCTUnwrap(context.makeImage())
+        let png = try ImageExport.encodePNG(image, title: "plant", software: Self.software)
+        XCTAssertTrue(String(decoding: png, as: UTF8.self).contains("Software"), "the PNG carries text chunks, only not the Description")
+        XCTAssertThrowsError(try description(png)) { error in
+            XCTAssertFalse(error is XCTSkip, "a missing chunk fails the test, it does not skip it")
+            XCTAssertTrue(error is NoDescriptionChunk)
+        }
     }
 
     /// A spot with a non-finite coordinate or with two points is not drawn and is counted as skipped, as the other marks.

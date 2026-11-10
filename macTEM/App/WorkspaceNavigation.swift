@@ -72,13 +72,6 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
     /// The shell's name for `systemImage` (`WorkspaceRoom`).
     var symbolName: String { systemImage }
 
-    /// `WorkspaceRoom`: a room that is not built is listed dimmed and cannot be selected.
-    var isAvailable: Bool { isBuilt }
-
-    /// Whether the room exists yet. A room that is not built is listed, so the window shows where the app is
-    /// going, and cannot be entered.
-    var isBuilt: Bool { true }
-
     /// The workspace this room is a part of (`WorkspaceGroup`): the sidebar lists the workspaces and, under the one in front, its parts.
     var group: WorkspaceGroup {
         switch self {

@@ -61,7 +61,8 @@ nonisolated struct SessionTail: Equatable {
 }
 
 enum SessionFormat {
-    static func tail(_ input: SessionTailInput, locale: Locale = .autoupdatingCurrent) -> SessionTail {
+    /// The tail's words. A saved time as `savedTime` writes it (an export's header passes ISO 8601), else the reader's clock in `locale`.
+    static func tail(_ input: SessionTailInput, locale: Locale = .autoupdatingCurrent, savedTime: ((Date) -> String)? = nil) -> SessionTail {
         let name = input.fileName ?? "the session file"
         var tail = SessionTail()
         if input.needsAccess {
@@ -106,7 +107,8 @@ enum SessionFormat {
                 tail.lines.append(.init(kind: .note, text: input.isDirty
                     ? "Changed since restored from \(name)." : "Restored from \(name)."))
             case .saved:
-                let at = input.savedAt.map { " at " + $0.formatted(.dateTime.hour().minute().locale(locale)) } ?? ""
+                let clock: (Date) -> String = savedTime ?? { $0.formatted(.dateTime.hour().minute().locale(locale)) }
+                let at = input.savedAt.map { " at " + clock($0) } ?? ""
                 tail.lines.append(.init(kind: .note, text: input.isDirty
                     ? "Changed since saved\(at)." : "Saved\(at) to \(name)."))
             case .refused:

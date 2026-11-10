@@ -378,9 +378,10 @@ package nonisolated struct IndexingResult: Sendable {
 
     // MARK: - The status line
 
+    /// A number of the status line, written as the Results table under it writes the same value (`UnitDisplay.fixed`): printf's digits
+    /// in `locale`'s decimal mark, no sign on a value that rounds to zero, `UnitDisplay.noValue` where there is none.
     private static func fixed(_ v: Double, _ digits: Int, _ locale: Locale) -> String {
-        guard v.isFinite else { return "—" }
-        return v.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(digits)))
+        UnitDisplay.fixed(v, places: digits, locale: locale)
     }
 
     /// The status line over the map: "row 12 · col 40 · Ni · φ₁ 12,3° Φ 44,0° φ₂ 271,5° · CI 0,82 · fit 0,6° · bands 9 of 10"; a point

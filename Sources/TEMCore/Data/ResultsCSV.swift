@@ -18,7 +18,7 @@ import ImagoCore
 
 package nonisolated enum ResultsCSV {
     /// The whole file (UTF-8, LF), or nil without a row. `session` is the sentence that says where the file's marks are kept
-    /// ("Not saved…", "Saved at 14:03…"); `source` states the file and its calibration as the file does.
+    /// ("Not saved…", "Saved at 2026-11-10T14:03:00+01:00…"); `source` states the file and its calibration as the file does.
     package static func text(_ rows: [ResultRow], source: ExportSource, session: String) -> String? {
         let kitRows = rows.map { row in
             TidyResultsCSV.Row(group: row.group.rawValue, id: row.id, label: row.label, product: row.product.rawValue,

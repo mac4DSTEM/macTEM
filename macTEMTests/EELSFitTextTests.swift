@@ -22,6 +22,16 @@ nonisolated final class EELSFitTextTests: XCTestCase {
     private let en = Locale(identifier: "en_US")
     private let de = Locale(identifier: "de_DE")
 
+    /// The deconvolution's fixed threshold reads in the locale on screen, beside the FWHM that already did; the words the method JSON and the
+    /// results CSV record keep Swift's point. Red before: "fixed threshold 12.5 eV" in every locale, next to "FWHM 1,23 eV".
+    func testTheDeconvolutionThresholdReadsInTheLocaleOnScreenOnly() {
+        XCTAssertEqual(EELSDeconvolveCompute.thresholdWords(.fixed(12.5), locale: de), "fixed threshold 12,5 eV")
+        XCTAssertEqual(EELSDeconvolveCompute.thresholdWords(.fixed(12.5), locale: en), "fixed threshold 12.5 eV")
+        XCTAssertEqual(EELSDeconvolveCompute.thresholdWords(.estimated, locale: de), "estimated threshold")
+        XCTAssertEqual(EELSDeconvolveCompute.thresholdWords(.fixed(2.5)), "fixed threshold 2.5 eV", "the record's words")
+        XCTAssertEqual(EELSDeconvolveCompute.line(nil, locale: de), "no deconvolution")
+    }
+
     /// The drive's case: RSS 1.373e19 and χ²/dof 2.3e7 over 162 degrees of freedom. On screen the χ² is written "χ²/dof" (the subscript r drew as a
     /// comma in the caption font) with the EDS room's significant figures, in the locale's decimal mark. Red under: "χ²ᵣ 23000000 (Pearson, 162 dof)".
     func testTheFitQualityReadsAsTheEDSRoomsInEnglishAndGerman() {
@@ -62,6 +72,34 @@ nonisolated final class EELSFitTextTests: XCTestCase {
         XCTAssertEqual(json["rss"] as? Double, regionQuality.rss)
         XCTAssertEqual(json["chi2_reduced_pearson"] as? Double, regionQuality.reducedChiSquared)
         XCTAssertEqual(json["degrees_of_freedom"] as? Int, regionQuality.degreesOfFreedom)
+    }
+
+    /// The results CSV writes the Fourier-ratio FWHM with a decimal point in its method line and its deconvolution line, as it writes its other numbers;
+    /// the screen's line takes the reader's mark. The planted Fourier-ratio run of `EELSControlsTests`. Red before: `line` took no locale, so on a German
+    /// Mac the CSV read "FWHM 1,23 eV" beside "fwhm_eV=1.23…" and the POSIX thickness and quality lines.
+    @MainActor func testTheResultsCSVWritesTheFWHMWithADecimalPoint() async throws {
+        let loaded = LoadedEELS(fileName: "fwhm.dm4", image: try EELSRoomTests.image(), beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: 10,
+                                origin: "planted", coreLoss: try EELSControlsTests.core(), coreLossOrigin: "planted core")
+        let session = EELSSession()
+        await session.bind(loaded).value
+        session.setThreshold(.fixed(2.5))
+        await session.settled()
+        session.setConvolveLowLoss(false)
+        for (edge, _) in EELSControlsTests.amounts { session.toggleEdge(edge) }
+        session.setConvolveLowLoss(true)
+        session.setDeconvolution(.fourierRatio)
+        await session.run().value
+        await session.settled()
+        let d = try XCTUnwrap(session.modelDeconvolution, session.failure ?? session.fitRefusal ?? "no fit of the deconvolved core loss")
+        let fwhm = try XCTUnwrap(d.fwhmEV)
+        let posix = Locale(identifier: "en_US_POSIX")
+        XCTAssertTrue(EELSDeconvolveCompute.line(d, locale: de).contains("FWHM \(EELSRoomFormat.sig(fwhm, 3, locale: de)) eV, "))
+        XCTAssertTrue(EELSDeconvolveCompute.line(d, locale: en).contains("FWHM \(EELSRoomFormat.sig(fwhm, 3, locale: en)) eV, "))
+        let line = EELSDeconvolveCompute.line(d, locale: posix)
+        XCTAssertTrue(line.contains("FWHM \(EELSRoomFormat.sig(fwhm, 3, locale: posix)) eV, "), line)
+        let csv = try XCTUnwrap(session.resultsCSV)
+        XCTAssertTrue(csv.contains(" · " + line + "\n"), csv)
+        XCTAssertTrue(csv.contains("# deconvolution: " + line + "; "), csv)
     }
 
     /// The footer line, measured in the caption font, fits the results column at its minimum width (padding and chevron taken off), with many notes, a
@@ -122,13 +160,15 @@ nonisolated final class EELSFitTextTests: XCTestCase {
         XCTAssertEqual(EELSRoomFormat.tileReadout(x: 5, y: 5, tiles: [c], refusal: nil, locale: en), "row 5 · col 5", "off the grid: no values")
     }
 
-    /// The results panel at the room's minimum results width, after an MLLS fit: the footer reads in full. The picture goes to the shots folder.
+    /// The results panel at the room's minimum results width, after an MLLS fit: the footer reads in full. The picture goes to `MACEM_SHOT_DIR`
+    /// when the runner sets it.
     @MainActor func testThePanelDrawsAtItsMinimumWidth() async throws {
         let session = try await EELSFitNotesTests.fittedSession(.mlls)
         try Self.save(EELSResultsPanel(session: session), name: "macTEM-fittext-footer.png", size: NSSize(width: EDXLayout.resultsWidth.min, height: 300))
     }
 
-    /// Draws `view` offscreen (a borderless window never shown) and writes it to ~/GitHub/.worktrees/shots when that folder exists.
+    /// Draws `view` offscreen (a borderless window never shown) and writes it to `MACEM_SHOT_DIR` when the runner sets it
+    /// (TEST_RUNNER_MACEM_SHOT_DIR), as the other EELS screenshots do; otherwise only checks that it renders.
     @MainActor static func save(_ view: some View, name: String, size: NSSize? = nil) throws {
         let host = NSHostingView(rootView: view.background(Color(nsColor: .windowBackgroundColor)).environment(\.colorScheme, .light))
         let frame = size ?? host.fittingSize
@@ -140,8 +180,7 @@ nonisolated final class EELSFitTextTests: XCTestCase {
         let rep = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: rep)
         XCTAssertGreaterThan(rep.pixelsWide, 0)
-        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("GitHub/.worktrees/shots")
-        guard FileManager.default.fileExists(atPath: dir.path) else { return }
-        try XCTUnwrap(rep.representation(using: .png, properties: [:])).write(to: dir.appendingPathComponent(name))
+        guard let dir = ProcessInfo.processInfo.environment["MACEM_SHOT_DIR"] else { return }
+        try XCTUnwrap(rep.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
     }
 }

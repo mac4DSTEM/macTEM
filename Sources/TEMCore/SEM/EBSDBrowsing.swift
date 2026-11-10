@@ -112,22 +112,25 @@ package nonisolated enum EBSDBrowsing {
         package init(_ label: String, _ value: String) { self.label = label; self.value = value }
     }
 
-    /// The Calibration section (design §4): the geometry the file states, in its own words; a value the file lacks says so.
-    package static func calibrationRows(_ dataset: EBSDDataset) -> [Row] {
+    /// The Calibration section (design §4): the geometry the file states, in its own words; a value the file lacks says so. The numbers
+    /// are in `locale`: the reader's on screen, the one fixed locale of the session report in the report.
+    package static func calibrationRows(_ dataset: EBSDDataset, locale: Locale = .autoupdatingCurrent) -> [Row] {
         let unit = unitLabel(dataset.scanUnit)
         let detector = dataset.detector
+        let n = { (v: Double) in UnitDisplay.number(v, locale: locale) }
+        let four = { (v: Double) in UnitDisplay.number(v, digits: 4, locale: locale) }
         var rows = [
-            Row("Step", "\(UnitDisplay.number(dataset.stepX)) \(unit) × \(UnitDisplay.number(dataset.stepY)) \(unit)"),
+            Row("Step", "\(n(dataset.stepX)) \(unit) × \(n(dataset.stepY)) \(unit)"),
             Row("Scan", "\(dataset.scanRows) × \(dataset.scanColumns)"),
             Row("Pattern", "\(dataset.patternRows) × \(dataset.patternColumns) px" + (detector.binning > 1 ? " · binned \(detector.binning)×" : "")),
-            Row("Beam", dataset.sem.beamEnergyKeV.map { "\(UnitDisplay.number($0)) kV" } ?? "None in the file"),
-            Row("Sample tilt", "\(UnitDisplay.number(detector.sampleTilt))°"),
-            Row("Detector tilt", "\(UnitDisplay.number(detector.tilt))°"),
+            Row("Beam", dataset.sem.beamEnergyKeV.map { "\(n($0)) kV" } ?? "None in the file"),
+            Row("Sample tilt", "\(n(detector.sampleTilt))°"),
+            Row("Detector tilt", "\(n(detector.tilt))°"),
         ]
-        if detector.azimuthal != 0 { rows.append(Row("Azimuthal", "\(UnitDisplay.number(detector.azimuthal))°")) }
-        if detector.twist != 0 { rows.append(Row("Twist", "\(UnitDisplay.number(detector.twist))°")) }
+        if detector.azimuthal != 0 { rows.append(Row("Azimuthal", "\(n(detector.azimuthal))°")) }
+        if detector.twist != 0 { rows.append(Row("Twist", "\(n(detector.twist))°")) }
         if let pc = detector.projectionCenters.first {
-            let one = "(\(UnitDisplay.number(pc.x, digits: 4)), \(UnitDisplay.number(pc.y, digits: 4)), \(UnitDisplay.number(pc.z, digits: 4)))"
+            let one = UnitDisplay.triple(pc, digits: 4, locale: locale)
             rows.append(Row("Projection centre", detector.projectionCenters.count > 1 ? "\(one) · first of \(detector.projectionCenters.count)" : one))
         } else {
             rows.append(Row("Projection centre", "None in the file"))
@@ -136,7 +139,7 @@ package nonisolated enum EBSDBrowsing {
         if let map = dataset.crystalMap {
             for (id, phase) in map.phases.entries where id != PhaseList.notIndexedID {
                 var words = phase.name
-                if let group = phase.spaceGroup { words += " (space group \(group)" + (phase.lattice?.first.map { ", \(UnitDisplay.number($0, digits: 4)) Å" } ?? "") + ")" }
+                if let group = phase.spaceGroup { words += " (space group \(group)" + (phase.lattice?.first.map { ", \(four($0)) Å" } ?? "") + ")" }
                 rows.append(Row("Phase", words))
             }
         }

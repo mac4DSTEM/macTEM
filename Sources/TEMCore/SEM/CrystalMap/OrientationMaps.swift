@@ -204,9 +204,10 @@ package nonisolated enum OrientationMaps {
         return text
     }
 
-    /// One decimal and the degree sign, as the design's status line writes an angle.
+    /// One decimal and the degree sign, as the design's status line writes an angle, through `UnitDisplay.fixed` as the room's tables
+    /// write theirs: printf's digits in `locale`'s decimal mark, no sign on an angle that rounds to zero.
     static func degrees(_ value: Double, _ locale: Locale) -> String {
-        value.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(1))) + "°"
+        UnitDisplay.fixed(value, places: 1, locale: locale) + "°"
     }
 
     // MARK: The colour key

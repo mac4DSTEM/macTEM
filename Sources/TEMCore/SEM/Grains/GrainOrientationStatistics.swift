@@ -228,10 +228,4 @@ package nonisolated struct GrainAnalysis: Sendable, Equatable {
         }
         return GrainAnalysis(boundaries: boundaries, segmentation: segmentation, neighbours: neighbours, kam: kam, statistics: statistics)
     }
-
-    /// The same off the caller's actor (a 1000 × 1000 map is a few seconds of CPU); a cancelled task stops at its next row or grain.
-    @concurrent package static func runAsync(_ map: GrainMap, boundaryDegrees: Double = 10, minimumSize: Int = 10,
-                                             kam method: KernelAverageMisorientation.Method = .symmetric(thresholdDegrees: 5)) async throws -> GrainAnalysis {
-        try run(map, boundaryDegrees: boundaryDegrees, minimumSize: minimumSize, kam: method, isCancelled: { Task.isCancelled })
-    }
 }

@@ -18,7 +18,7 @@ struct IndexingSimulationSection: View {
         guard session.showsSimulation, let overlay = session.simulationOverlay else { return nil }
         switch overlay {
         case .success(let p):
-            return "\(p.phase): \(p.simulation.lines.count) bands, \(p.simulation.zoneAxes.count) zone axes on this pattern, from the run's solution here and its mean projection centre."
+            return "\(p.phase): \(p.drawnWords) on this pattern, from the run's solution here and its mean projection centre."
         case .failure(let absence):
             return absence.sentence + " at this point."
         }

@@ -207,6 +207,10 @@ package final class IndexingSession {
     @ObservationIgnored var overlayBands: [IndexingOverlayKey: KikuchiOverlay.Bands?] = [:]
     @ObservationIgnored var overlayMasters: [IndexingOverlayKey: EBSDMasterPattern] = [:]
     @ObservationIgnored var overlayMemo: (key: IndexingOverlayMemo, value: Result<KikuchiOverlay.Pattern, KikuchiOverlay.Absence>)?
+    /// The master patterns being made off the main actor, by phase and spacing, and how many have landed: the overlay reads the
+    /// count, so a master that lands draws the simulation.
+    @ObservationIgnored var overlayMasterTasks: [IndexingOverlayKey: Task<Void, Never>] = [:]
+    var overlayMastersLanded = 0
 
     package init(patterns: EBSDSession) {
         self.patterns = patterns
@@ -281,6 +285,8 @@ package final class IndexingSession {
         hovered = nil; patternPosition = nil; detectedBands = []; patternFailure = nil; patternShape = (rows: 0, columns: 0)
         bestMatchPosition = nil; bestMatchFailure = nil; bestMatchKey = nil
         overlayBands = [:]; overlayMasters = [:]; overlayMemo = nil
+        for task in overlayMasterTasks.values { task.cancel() }
+        overlayMasterTasks = [:]
         phases = []; skippedPhases = []; settings = .roomDefault; layer = .ipfZ
         method = .hough; dictionarySettings = .roomDefault; dictionarySizes = [:]; masterPicks = [:]
     }
@@ -481,14 +487,24 @@ package final class IndexingSession {
             guard samplingTasks[key] == nil else { continue }
             samplingTasks[key] = Task { [weak self] in
                 var rotations: [SIMD4<Double>]?
+                var failure: String?
                 if let group = PointGroup.named(key.pointGroup) {
-                    rotations = try? await DictionaryIndexingPlan.sample(resolution: key.resolution, pointGroup: group)
+                    do {
+                        rotations = try await DictionaryIndexingPlan.sample(resolution: key.resolution, pointGroup: group)
+                    } catch {
+                        failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    }
                 }
                 // A cancelled task was taken out of `samplingTasks` by whoever cancelled it; any other ends its own entry, landed or
                 // not, so a later refresh samples the group again.
                 guard let self, !Task.isCancelled else { return }
                 self.samplingTasks[key] = nil
-                if let rotations { self.keepSampled([key: rotations]) }
+                if let rotations {
+                    self.keepSampled([key: rotations])
+                } else if let failure {
+                    // The group's dictionary size stays blank; the status line says why.
+                    self.onEvent?("Dictionary (\(key.pointGroup)): \(failure)")
+                }
             }
         }
         dictionarySizes = sizes

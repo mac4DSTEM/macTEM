@@ -10,7 +10,6 @@
 import CoreGraphics
 import CoreText
 import Foundation
-import ImageIO
 import ImagoCore
 import Observation
 import ShellMetal
@@ -161,11 +160,11 @@ nonisolated enum MapsRoomFormat {
         }
     }
 
-    /// The Grains and Misorientation sections' settings an analysis ran with, in their words.
-    static func analysisFields(_ settings: MapAnalysisSettings) -> [SEMSessionField] {
-        [SEMSessionField("Boundary", "\(UnitDisplay.number(settings.boundaryDegrees))°"),
-         SEMSessionField("Smallest", "\(settings.minimumSize) points"),
-         SEMSessionField("KAM maximum", "\(UnitDisplay.number(settings.kamMaxDegrees))°")]
+    /// The Grains and Misorientation sections' settings an analysis ran with, in their words, the numbers in `locale`.
+    static func analysisFields(_ settings: MapAnalysisSettings, locale: Locale = .autoupdatingCurrent) -> [SEMSessionField] {
+        [SEMSessionField("Boundary", "\(UnitDisplay.number(settings.boundaryDegrees, locale: locale))°"),
+         SEMSessionField("Smallest", UnitDisplay.count(settings.minimumSize, "point", "points")),
+         SEMSessionField("KAM maximum", "\(UnitDisplay.number(settings.kamMaxDegrees, locale: locale))°")]
     }
 
     /// A map figure's settings for the session report: the layer, and for a layer the analysis makes, the settings it ran with (and the
@@ -228,37 +227,43 @@ nonisolated enum MapsRoomFormat {
 
     // MARK: Analysis words (P5-04)
 
-    static let decimal = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...4))
-    static let whole = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0))
+    // The numbers are in the reader's locale unless the caller passes one (the session report passes `ExportSnapshot.labelLocale`), written
+    // as `UnitDisplay` writes every number: printf's digits, no grouping, `UnitDisplay.noValue` where there is none.
 
-    static func angle(_ v: Double, digits: Int = 1) -> String {
-        v.isFinite ? v.formatted(.number.grouping(.never).precision(.fractionLength(digits))) : "–"
+    static let decimal = Num.decimalField
+    static let whole = Num.wholeField
+
+    static func angle(_ v: Double, digits: Int = 1, locale: Locale = .autoupdatingCurrent) -> String {
+        UnitDisplay.fixed(v, places: digits, locale: locale)
     }
 
-    static func number(_ v: Double) -> String { v.isFinite ? v.formatted(.number.grouping(.never).precision(.significantDigits(1...4))) : "–" }
+    static func number(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { UnitDisplay.number(v, digits: 4, locale: locale) }
 
-    static func fraction(_ v: Double) -> String { v.isFinite ? v.formatted(.number.precision(.fractionLength(3))) : "–" }
+    static func fraction(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { UnitDisplay.fixed(v, places: 3, locale: locale) }
 
     /// "102 grains · mean ECD 3.1 µm · ASTM 14.2".
-    static func grainSummary(_ analysis: MapAnalysis) -> String {
-        var parts = ["\(analysis.table.count) grains"]
-        if let mean = analysis.meanDiameter { parts.append("mean ECD \(number(mean.byNumber)) \(EBSDBrowsing.unitLabel(analysis.scanUnit))") }
-        if let g = analysis.astmGrainSizeNumber { parts.append("ASTM \(angle(g))") }
+    static func grainSummary(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> String {
+        var parts = [UnitDisplay.count(analysis.table.count, "grain", "grains")]
+        if let mean = analysis.meanDiameter {
+            parts.append("mean ECD \(number(mean.byNumber, locale: locale)) \(EBSDBrowsing.unitLabel(analysis.scanUnit))")
+        }
+        if let g = analysis.astmGrainSizeNumber { parts.append("ASTM \(angle(g, locale: locale))") }
         return parts.joined(separator: " · ")
     }
 
     /// The Grains section's summary rows.
-    static func grainRows(_ analysis: MapAnalysis) -> [EBSDBrowsing.Row] {
+    static func grainRows(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
         let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
+        let n = { (v: Double) in Self.number(v, locale: locale) }
         var out = [EBSDBrowsing.Row("Grains", "\(analysis.table.count)")]
         if let mean = analysis.meanDiameter {
-            out.append(EBSDBrowsing.Row("Mean ECD", "\(number(mean.byNumber)) \(unit)"))
-            out.append(EBSDBrowsing.Row("Area-weighted", "\(number(mean.byArea)) \(unit)"))
+            out.append(EBSDBrowsing.Row("Mean ECD", "\(n(mean.byNumber)) \(unit)"))
+            out.append(EBSDBrowsing.Row("Area-weighted", "\(n(mean.byArea)) \(unit)"))
         }
-        if let l = analysis.meanLinealIntercept { out.append(EBSDBrowsing.Row("Mean intercept", "\(number(l)) \(unit)")) }
-        if let g = analysis.astmGrainSizeNumber { out.append(EBSDBrowsing.Row("ASTM E112", angle(g))) }
+        if let l = analysis.meanLinealIntercept { out.append(EBSDBrowsing.Row("Mean intercept", "\(n(l)) \(unit)")) }
+        if let g = analysis.astmGrainSizeNumber { out.append(EBSDBrowsing.Row("ASTM E112", angle(g, locale: locale))) }
         let s = analysis.settings
-        out.append(EBSDBrowsing.Row("Made with", "\(number(s.boundaryDegrees))° · ≥ \(s.minimumSize) points · KAM ≤ \(number(s.kamMaxDegrees))°"))
+        out.append(EBSDBrowsing.Row("Made with", "\(n(s.boundaryDegrees))° · ≥ \(UnitDisplay.count(s.minimumSize, "point", "points")) · KAM ≤ \(n(s.kamMaxDegrees))°"))
         return out
     }
 
@@ -301,12 +306,12 @@ nonisolated enum MapsRoomFormat {
     /// "KAM · 11700 points · mean ≈ 0.62 ° · 40 bins": what the histogram counts and its centre.
     static func histogramCaption(_ kind: MapAnalysis.HistogramKind, histogram: AngleHistogram, unit: String) -> String {
         let n = histogram.counts.reduce(0, +)
-        let what = kind == .kam ? "points" : "grains"
         guard n > 0 else { return "\(kind.rawValue) · no values" }
+        let what = kind == .kam ? UnitDisplay.count(n, "point", "points") : UnitDisplay.count(n, "grain", "grains")
         // The centre from the bins (each value at its bin's middle), the precision the bars show.
         var sum = 0.0
         for (k, c) in histogram.counts.enumerated() { sum += Double(c) * (histogram.edges[k] + histogram.edges[k + 1]) / 2 }
-        return "\(kind.rawValue) · \(n) \(what) · mean ≈ \(number(sum / Double(n))) \(unit) · \(histogram.counts.count) bins"
+        return "\(kind.rawValue) · \(what) · mean ≈ \(number(sum / Double(n))) \(unit) · \(UnitDisplay.count(histogram.counts.count, "bin", "bins"))"
     }
 
     /// The histogram as CSV: one line per bin, its edges and its count.
@@ -321,11 +326,12 @@ nonisolated enum MapsRoomFormat {
 
     /// The texture tab's caption: the points it used and the kernel.
     static func textureCaption(_ texture: MapTexture, odf: Bool) -> String {
+        let points = UnitDisplay.count(texture.points, "point", "points")
         if odf {
-            let used = texture.odfPoints == texture.points ? "all \(texture.points) points" : "\(texture.odfPoints) of \(texture.points) points (every \((texture.points + texture.odfPoints - 1) / max(texture.odfPoints, 1))th)"
+            let used = texture.odfPoints == texture.points ? "all \(points)" : "\(texture.odfPoints) of \(points) (every \((texture.points + texture.odfPoints - 1) / max(texture.odfPoints, 1))th)"
             return "\(texture.phaseName): ODF φ₂ sections from \(used), de la Vallée Poussin kernel 10°, multiples of random."
         }
-        return "\(texture.phaseName): \(texture.points) points, upper hemisphere, 1° bins smoothed 5°, multiples of random. IPF-Z in the colour key's sector."
+        return "\(texture.phaseName): \(points), upper hemisphere, 1° bins smoothed 5°, multiples of random. IPF-Z in the colour key's sector."
     }
 
     /// The grain table as CSV: one header line, one line per grain; lengths in the scan unit, angles in degrees.
@@ -343,8 +349,8 @@ nonisolated enum MapsRoomFormat {
         return lines.joined(separator: "\n") + "\n"
     }
 
-    /// The Info tab (design §5): what the map is, where it came from and how its colours are made.
-    static func infoRows(_ document: OrientationMapSession.Document) -> [EBSDBrowsing.Row] {
+    /// The Info tab (design §5): what the map is, where it came from and how its colours are made; the step in `locale`.
+    static func infoRows(_ document: OrientationMapSession.Document, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
         let map = document.map
         let (rows, columns) = OrientationMaps.gridShape(map)
         let unit = EBSDBrowsing.unitLabel(map.scanUnit)
@@ -353,7 +359,7 @@ nonisolated enum MapsRoomFormat {
             EBSDBrowsing.Row("Format", document.format),
             EBSDBrowsing.Row("Source", Self.infoSource(document.source)),
             EBSDBrowsing.Row("Map", "\(rows) × \(columns)"),
-            EBSDBrowsing.Row("Step", "\(UnitDisplay.number(map.dx)) \(unit) × \(UnitDisplay.number(map.dy)) \(unit)"),
+            EBSDBrowsing.Row("Step", "\(UnitDisplay.number(map.dx, locale: locale)) \(unit) × \(UnitDisplay.number(map.dy, locale: locale)) \(unit)"),
             EBSDBrowsing.Row("Points", "\(map.size)"),
         ]
         let notIndexed = map.phaseIDs.filter { $0 == PhaseList.notIndexedID }.count
@@ -361,7 +367,7 @@ nonisolated enum MapsRoomFormat {
         let ids = map.phaseIDs
         for (id, phase) in indexedPhases(map) {
             let count = ids.filter { $0 == id }.count
-            out.append(EBSDBrowsing.Row("Phase", "\(phaseName(phase, id: id)) · \(phase.pointGroupName ?? "no point group") · \(count) points"))
+            out.append(EBSDBrowsing.Row("Phase", "\(phaseName(phase, id: id)) · \(phase.pointGroupName ?? "no point group") · \(UnitDisplay.count(count, "point", "points"))"))
         }
         out.append(EBSDBrowsing.Row("Euler angles", Self.infoEuler(document.source)))
         out.append(EBSDBrowsing.Row("IPF colours", "TSL key of each phase's Laue group (Nolze and Hielscher 2016), as orix 0.15.0"))
@@ -416,6 +422,26 @@ nonisolated enum MapsFigure {
         let power = pow(10, floor(log10(target)))
         for m in [5.0, 2, 1] where m * power <= target { return m * power }
         return power
+    }
+
+    // MARK: Labels
+
+    // The words burned into the PNGs are in `ExportSnapshot.labelLocale`, not the reader's: a de_DE reader still gets "0.5 µm" in a
+    // figure, as from the Image room. A test passes another locale; the figures take the default.
+
+    /// The scale bar's label: "0.5 µm" (the files write "um").
+    static func scaleBarLabel(length: Double, unit: String, locale: Locale = ExportSnapshot.labelLocale) -> String {
+        "\(UnitDisplay.number(length, locale: locale)) \(EBSDBrowsing.unitLabel(unit))"
+    }
+
+    /// A property or derived layer's value range in the legend: "0.5 to 2.25".
+    static func rangeLabel(_ range: ClosedRange<Double>, locale: Locale = ExportSnapshot.labelLocale) -> String {
+        "\(UnitDisplay.number(range.lowerBound, digits: 4, locale: locale)) to \(UnitDisplay.number(range.upperBound, digits: 4, locale: locale))"
+    }
+
+    /// A texture figure's colour bar: "0 to 3.21 MRD" (multiples of random).
+    static func mrdLabel(_ maximum: Double, locale: Locale = ExportSnapshot.labelLocale) -> String {
+        "0 to \(UnitDisplay.number(maximum, digits: 3, locale: locale)) MRD"
     }
 
     /// An image of premultiplied RGBA bytes.
@@ -487,7 +513,7 @@ nonisolated enum MapsFigure {
             let y = mapRect.maxY + 12
             ctx.setFillColor(CGColor(gray: 0, alpha: 1))
             ctx.fill(CGRect(x: mapRect.minX, y: y, width: barW, height: 4))
-            text("\(UnitDisplay.number(length)) \(EBSDBrowsing.unitLabel(map.scanUnit))", at: CGPoint(x: mapRect.minX + barW + 8, y: y - 4), size: 12, ctx: ctx)
+            text(scaleBarLabel(length: length, unit: map.scanUnit), at: CGPoint(x: mapRect.minX + barW + 8, y: y - 4), size: 12, ctx: ctx)
         }
 
         // The legend.
@@ -527,30 +553,32 @@ nonisolated enum MapsFigure {
             text(name, at: CGPoint(x: x, y: y), size: 12, ctx: ctx)
             y += 18
             if let range = raster.valueRange {
-                text("\(UnitDisplay.number(range.lowerBound, digits: 4)) to \(UnitDisplay.number(range.upperBound, digits: 4))", at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
+                text(rangeLabel(range), at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
             }
         case .derived(.grains):
             text("Grains", at: CGPoint(x: x, y: y), size: 12, ctx: ctx)
             y += 18
-            text("\(grainCount ?? 0) grains, each its own colour", at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
+            text("\(UnitDisplay.count(grainCount ?? 0, "grain", "grains")), each its own colour", at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
             y += 16
             text("grey: below the smallest grain", at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
         case .derived(let derived):
             text(derived.unit.isEmpty ? derived.title : "\(derived.title) (\(derived.unit))", at: CGPoint(x: x, y: y), size: 12, ctx: ctx)
             y += 18
             if let range = raster.valueRange {
-                text("\(UnitDisplay.number(range.lowerBound, digits: 4)) to \(UnitDisplay.number(range.upperBound, digits: 4))", at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
+                text(rangeLabel(range), at: CGPoint(x: x, y: y), size: 11, ctx: ctx)
             }
         }
-        _ = fileName
         guard let image = ctx.makeImage() else { throw Failure(text: "The figure could not be drawn.") }
-        let encoded = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(encoded as CFMutableData, UTType.png.identifier as CFString, 1, nil) else {
+        return try encoded(image, fileName: fileName)
+    }
+
+    /// A figure as PNG bytes through the app's one encoder (`ImageExport.encodePNG`), the file's name as its Title and macTEM as
+    /// its Software, as the Patterns room's map PNG carries them.
+    private static func encoded(_ image: CGImage, fileName: String) throws -> Data {
+        guard let png = try? ImageExport.encodePNG(image, title: fileName, software: "macTEM") else {
             throw Failure(text: "The figure could not be encoded.")
         }
-        CGImageDestinationAddImage(destination, image, nil)
-        guard CGImageDestinationFinalize(destination) else { throw Failure(text: "The figure could not be encoded.") }
-        return encoded as Data
+        return png
     }
 
     /// The legend column's height: a title and a key per phase, a row per phase, or two lines.
@@ -608,7 +636,7 @@ nonisolated enum MapsFigure {
         ctx.scaleBy(x: 1, y: -1)
         ctx.setFillColor(CGColor(gray: 1, alpha: 1))
         ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
-        text("\(fileName) · \(texture.phaseName) · \(texture.points) points", at: CGPoint(x: margin, y: margin), size: 13, ctx: ctx)
+        text("\(fileName) · \(texture.phaseName) · \(UnitDisplay.count(texture.points, "point", "points"))", at: CGPoint(x: margin, y: margin), size: 13, ctx: ctx)
         text("Pole figures: upper hemisphere, 1° bins smoothed 5°. ODF: φ₁ across, Φ down, de la Vallée Poussin 10°. Densities in multiples of random.",
              at: CGPoint(x: margin, y: margin + 17), size: 10, ctx: ctx)
         let bar = colourBarImage()
@@ -634,19 +662,13 @@ nonisolated enum MapsFigure {
                     ctx.interpolationQuality = .high
                     draw(bar, in: CGRect(x: x, y: y, width: CGFloat(side), height: CGFloat(barH)), ctx: ctx)
                 }
-                text("0 to \(UnitDisplay.number(figure.maximum, digits: 3)) MRD", at: CGPoint(x: x, y: y + CGFloat(barH) + 2), size: 10, ctx: ctx)
+                text(mrdLabel(figure.maximum), at: CGPoint(x: x, y: y + CGFloat(barH) + 2), size: 10, ctx: ctx)
             }
         }
         row(top, y0: margin + captionH, odf: false)
         if !bottom.isEmpty { row(bottom, y0: margin + captionH + cellH + gap, odf: true) }
         guard let image = ctx.makeImage() else { throw Failure(text: "The figure could not be drawn.") }
-        let encoded = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(encoded as CFMutableData, UTType.png.identifier as CFString, 1, nil) else {
-            throw Failure(text: "The figure could not be encoded.")
-        }
-        CGImageDestinationAddImage(destination, image, nil)
-        guard CGImageDestinationFinalize(destination) else { throw Failure(text: "The figure could not be encoded.") }
-        return encoded as Data
+        return try encoded(image, fileName: fileName)
     }
 
     /// A property layer through the pane's colormap, window and gamma (`ExportSnapshot.display`, the Image room's exporter's mapping).

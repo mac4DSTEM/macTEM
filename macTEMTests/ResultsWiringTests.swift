@@ -7,9 +7,9 @@
 //  native `Table` with a `Section` per group and ⌘C through `onCopyCommand`. Each fix is right in its pure function while reverting
 //  the one line that uses it leaves every pure test green; these go red when that line reverts. Tier 2.
 //
-//  Mutations sampled (each alone, the named test went red): `isBuilt` without `.results`; the Export Results… item without its
-//  `.disabled`; the room's switch branch removed; the availability enabled outside the Results room; the snapshot taking all open files;
-//  the selection kept across files.
+//  Mutations sampled (each alone, the named test went red): the Export Results… item without its `.disabled`; the room's switch
+//  branch removed; the availability enabled outside the Results room; the snapshot taking all open files; the selection kept across
+//  files.
 //
 
 import ImagoCore
@@ -52,14 +52,14 @@ nonisolated final class ResultsWiringTests: XCTestCase {
 
     // MARK: The room is built
 
-    /// The rooms 1.0 ships, every one built, in the order of the work; Prepare is not among them (the owner, 2026-10-23: "It shouldn't ship
-    /// in macTEM"). Red under: Prepare back in the list, a room listed but not built, Results not the last workspace (⌘5 since
+    /// The rooms 1.0 ships, in the order of the work, Results enterable with nothing open; Prepare is not among them (the owner, 2026-10-23:
+    /// "It shouldn't ship in macTEM"). Red under: Prepare back in the list, Results not enterable, Results not the last workspace (⌘5 since
     /// the workspaces, 2026-11-10).
     @MainActor func testTheResultsRoomIsBuiltAndCanBeEntered() {
         XCTAssertEqual(WorkspaceArea.allCases, [.image, .fft, .edx, .eels, .diffraction, .patterns, .indexing, .maps, .results])
         XCTAssertNil(WorkspaceArea(rawValue: "prepare"), "a window that saved Prepare opens in the default room")
-        XCTAssertTrue(WorkspaceArea.allCases.allSatisfy(\.isBuilt))
         let state = AppState()
+        XCTAssertNil(state.roomUnavailableReason(.results), "with nothing open every room can be entered")
         state.selectWorkspace(.results)
         XCTAssertEqual(state.navigation.workspaceArea, .results)
         state.selectWorkspace(.diffraction)
@@ -158,6 +158,29 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         let sentence = ExportSnapshot.sessionSentence(of: a)
         XCTAssertEqual(sentence, SessionFormat.tail(SessionTailInput(item: a)).lines.first?.text)
         XCTAssertTrue(sentence.hasPrefix("Not saved. Save to Session (⌘S) keeps the marks in "), sentence)
+    }
+
+    /// The results CSV's `session:` header writes a saved time in ISO 8601 with its zone's offset, the same in every locale and with the day; the
+    /// Image room's tail (and the Results room's header) keep the reader's clock. Export Results… takes the header. Red before: the header was the
+    /// tail's line, "Saved at 1:03 PM to …" in en_US and "Saved at 13:03 to …" in de_DE.
+    @MainActor func testTheSessionHeaderWritesTheSavedTimeInISO8601() throws {
+        let saved = Date(timeIntervalSince1970: 1_794_315_780) // 2026-11-10 13:03:00 UTC
+        var input = SessionTailInput(fileName: "a.dm4.mactem.h5", sidecar: .saved, notes: [], needsAccess: false, newerVersion: nil,
+                                     hasMarks: true, isDirty: false, canSave: false, isSaving: false, savedAt: saved)
+        let utc = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let berlin = try XCTUnwrap(TimeZone(identifier: "Europe/Berlin"))
+        XCTAssertEqual(ExportSnapshot.sessionHeader(input, timeZone: utc), "Saved at 2026-11-10T13:03:00Z to a.dm4.mactem.h5.")
+        XCTAssertEqual(ExportSnapshot.sessionHeader(input, timeZone: berlin), "Saved at 2026-11-10T14:03:00+01:00 to a.dm4.mactem.h5.")
+        for locale in [Locale(identifier: "en_US"), Locale(identifier: "de_DE")] {
+            let screen = try XCTUnwrap(SessionFormat.tail(input, locale: locale).lines.first?.text)
+            XCTAssertTrue(screen.hasPrefix("Saved at ") && !screen.contains("2026-11-10T"), "the screen keeps the reader's clock: \(screen)")
+        }
+        input.isDirty = true
+        XCTAssertEqual(ExportSnapshot.sessionHeader(input, timeZone: utc), "Changed since saved at 2026-11-10T13:03:00Z.")
+        input.sidecar = .none
+        XCTAssertEqual(ExportSnapshot.sessionHeader(input, timeZone: utc), SessionFormat.tail(input).lines.first?.text, "no time: the tail's words")
+        XCTAssertTrue(squeezed(try source("macTEM/App/ResultsExportSnapshot.swift")).contains("session: sessionHeader(SessionTailInput(item: item))"),
+                      "Export Results… writes the header, not the screen's sentence")
     }
 
     // MARK: The room's state

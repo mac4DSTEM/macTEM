@@ -4,7 +4,8 @@
 //        the file's canvas at its own pixels through the display mapping, an
 //        optional scale bar and optional marks drawn over it (`ImageExport+Overlays.swift`), and one JSON text chunk that says
 //        exactly what was drawn. Pure compute on values the app snapshots when the panel opens; `export` renders and writes
-//        off the main actor.
+//        off the main actor. `encodePNG` is the app's one PNG encoder: the SEM rooms' figures go through it too, with their
+//        file's name as Title.
 //
 //  WHAT THE PNG IS: W × H pixels exactly (sides above `maximumSide` are refused by name), export pixel (i, j) = image pixel
 //  (column i, row j), 8-bit RGB tagged sRGB, no alpha. The colours are the DISPLAY's — the window, the gamma, the colormap,
@@ -194,20 +195,31 @@ package nonisolated enum ImageExport {
         let barLeftOut = options.scaleBar && layout == nil
 
         guard let image = context.makeImage() else { throw ExportFile.Failure.encodeFailed }
+        let description = metadata(source: source, display: display, marks: marks, options: options, plan: plan,
+                                   layout: layout, overlayScale: u, provenance: provenance)
+        let png = try encodePNG(image, title: source.fileName, software: source.software, description: description)
+        return Rendered(png: png, width: width, height: height, bar: plan, barLeftOut: barLeftOut)
+    }
+
+    /// `image` as PNG bytes, the app's one PNG encoder (this file's exports and the SEM rooms' figures): ImageIO writes the
+    /// pixels as they stand, then `title`, `software` and `description` go in as text chunks in that order, each left out when
+    /// nil (THE METADATA above: tEXt when ASCII, iTXt otherwise). Each value is one line: a control character becomes a space
+    /// (`CSVText.headerValue`), so no value can make its chunk unwritable; `metadata`'s JSON escapes those characters already
+    /// and goes in unchanged. Throws `ExportFile.Failure.encodeFailed` if ImageIO refuses.
+    package static func encodePNG(_ image: CGImage, title: String? = nil, software: String? = nil,
+                                  description: String? = nil) throws -> Data {
         let encoded = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(encoded as CFMutableData, UTType.png.identifier as CFString, 1, nil)
         else { throw ExportFile.Failure.encodeFailed }
         CGImageDestinationAddImage(destination, image, nil)
         guard CGImageDestinationFinalize(destination) else { throw ExportFile.Failure.encodeFailed }
 
-        let description = metadata(source: source, display: display, marks: marks, options: options, plan: plan,
-                                   layout: layout, overlayScale: u, provenance: provenance)
-        let text = [("Title", CSVText.headerValue(source.fileName)),
-                    ("Software", CSVText.headerValue(source.software)),
-                    ("Description", description)]
-        guard let png = try? FormatoPNG.inserting(text.map { PNGTextEntry(keyword: $0.0, value: $0.1) }, into: encoded as Data)
-        else { throw ExportFile.Failure.encodeFailed }
-        return Rendered(png: png, width: width, height: height, bar: plan, barLeftOut: barLeftOut)
+        var text: [PNGTextEntry] = []
+        for (keyword, value) in [("Title", title), ("Software", software), ("Description", description)] {
+            if let value { text.append(PNGTextEntry(keyword: keyword, value: CSVText.headerValue(value))) }
+        }
+        guard let png = try? FormatoPNG.inserting(text, into: encoded as Data) else { throw ExportFile.Failure.encodeFailed }
+        return png
     }
 
     /// Render, then `ExportFile.write`, off the main actor (a 4096² export maps 16 M pixels and encodes tens of MB).

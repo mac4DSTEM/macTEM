@@ -13,6 +13,27 @@
 #   * `tools/run-tests.sh inventory` — the repo's own review. Its checks are listed in tools/run-tests.sh, not
 #     here, so this comment cannot go stale. It needs no sibling checkout and no reference venv.
 #
+# NIGHTLY (cron 01:00 UTC) and by hand (workflow_dispatch) only, never on a push, a tag or a pull request:
+#   * the unit job first restores and fetches the SEM reference datasets (tools/parity/sem/fetch-data.sh into the
+#     gitignored References/sem-data, sem-parity.yml's cache), so the parity cases whose input is a fetched dataset
+#     run instead of skipping: the whole-map figures F7, F11/F12 and F13 and the large SEM-EDS reader bundles. A push
+#     or pull-request run skips those, and its log names them.
+#   * `tools/run-tests.sh scientific` — the TEM parity harnesses (the `scientific` array in tools/run-tests.sh is the
+#     roster; no count here, so this comment cannot go stale). Each builds its harness through SwiftPM and compares
+#     TEMCore against a reference it computes from the pinned Python stack: a venv that tools/lib/python.sh builds on
+#     CPython 3.14 from tools/lib/references-lock.txt (the full closure, as wheels), and the pinned sources fetched
+#     into the gitignored References/ (fetch-rsciio.sh, fetch-py4dstem-scattering.sh, and the beta'' CIF that
+#     tools/parity/crystal-structures writes). Every harness runs even after a red one; the job fails at the end and
+#     names each red one. Not a required check.
+#   * `tools/run-tests.sh release-build` — the Release configuration built as tools/release.sh and tools/release-store.sh
+#     archive it (generic/platform=macOS, ARCHS=arm64, MACEM_STORE_BUILD=YES), signed ad hoc with no team, never
+#     notarized or uploaded, then the app checked: arm64 alone with FormatoKit's three frameworks, the version that
+#     Config/Version.xcconfig sets, the privacy manifest, the export-compliance answer, the sandbox entitlements. Every
+#     other build here is Debug for the concrete platform=macOS, so without it a Release-only failure first shows on the
+#     owner's Mac after the tag exists. release-please.yml dispatches CI on each Release PR, so it runs there too, before
+#     the merge that tags. Not a required check.
+# Every other job skips the schedule event. Dispatch CI on a branch to run them before merging, and on main before a tag.
+#
 # XCODE: every macOS job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
 # change the toolchain on an unchanged tree.
 #
@@ -20,18 +41,19 @@
 # Package.resolved pins the exact versions. The SwiftPM repository cache is restored per Package.resolved so the clones
 # are not fetched again on an unchanged pin set; the builds themselves start from scratch (the warnings gate needs that).
 #
-# NOT RUN YET: `scientific`. Its reference stack is a venv that tools/lib/python.sh builds on CPython 3.14 from
-# tools/lib/references-lock.txt (the full closure, as wheels), and the harnesses fetch further pinned sources
-# into the gitignored References/. No job sets that up yet, so every parity number is a local, dated run.
-#
 # EXCLUDED: on-screen verification by a person. The UI journeys run on the Mac (ui.yml); Paul's own drive of a build
-# is what ships a room.
+# is what ships a room. And the owner's Ceta TIFFs (References/example_files/): metadata-parity gates them where they
+# are present and its summary says how many; the runner has none.
 #
 # KNOWN CAVEATS, so a green run is not made to claim too much:
 #   * CI builds with Xcode 26.6 and its macOS 26 SDK; the dev Mac builds with Xcode 27. A source that uses an API only in the macOS 27 SDK, or a Swift 6 language
 #     mode diagnostic (now including a warning) only one of the two compilers emits, will part the two results;
 #     that is the runner's limit, stated here, not a flake.
 #   * Measured 2026-11-06 on macos-26: unit 8-10 min, core about 3 min, inventory under 1 min. The timeouts are margin.
+#     The scientific job's has not been measured off the dev Mac: tighten it from the `<== name (N s)` lines its first
+#     green runs print. Nor has release-build's: tighten it from its first green runs.
+#   * release-build signs ad hoc, so it cannot see a certificate, provisioning or notarization failure; those stay with
+#     the release scripts on the owner's Mac.
 
 name: CI
 
@@ -42,9 +64,19 @@ on:
     tags: ['*']
   pull_request:
   workflow_dispatch:
+  # Nightly: the unit job with the SEM reference data, `scientific` and `release-build` (every other job skips the schedule event).
+  schedule:
+    - cron: "0 1 * * *"
+
+# Read-only token: no job here writes to the repository, its issues or its PRs (checkout reads; actions/cache needs no
+# token scope). release-please.yml dispatches this workflow with its own token.
+permissions:
+  contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # A nightly or dispatched run (it carries `scientific`, up to three hours) has its own group, so it never queues behind,
+  # or holds up, a push run on the same ref.
+  group: ci-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'nightly-' || '' }}${{ github.ref }}
   # Superseded branch/PR runs cancel; main runs always complete: on main each commit's finished run is the record.
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
@@ -71,17 +103,110 @@ jobs:
           key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: swiftpm-${{ runner.os }}-
       - name: Ensure the Metal toolchain component
-        # Xcode 26 ships the Metal compiler as a separate download; the app compiles macTEM/Shaders/*.metal.
+        # Xcode 26 ships the Metal compiler as a separate download; the app build compiles MacEMUI's Colormaps.metal.
         run: |
           if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
             sudo xcodebuild -downloadComponent MetalToolchain
           fi
           xcrun -sdk macosx metal --version
+      - name: Restore the SEM reference data (nightly and by hand)
+        # sem-parity.yml's cache of what fetch-data.sh downloads; the next step fetches whatever it lacks.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: actions/cache@v5
+        with:
+          path: References/sem-data
+          key: sem-data-${{ hashFiles('tools/parity/sem/data-manifest.txt') }}
+      - name: Fetch the SEM reference data (nightly and by hand)
+        # Checked against data-manifest.txt's sha256; the Zenodo lines are "manual" and are listed, never fetched.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: tools/parity/sem/fetch-data.sh
       - name: Run the unit gate
         run: tools/run-tests.sh unit
 
+  scientific:
+    name: scientific (TEM parity harnesses)
+    # Nightly and by hand only: the slowest job, and not a required check.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    # Margin, not measurement (mac4DSTEM's for its own roster): export-parity and sidecar-parity build many mutants.
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain on record
+        run: |
+          sw_vers
+          xcode-select -p
+          xcodebuild -version
+          swift --version
+      - name: Restore the SwiftPM repository cache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-
+      - name: Ensure the Metal toolchain component
+        run: |
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            sudo xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun -sdk macosx metal --version
+      - name: CPython 3.14, the base of the reference venv
+        id: python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - name: Restore the reference venv
+        # tools/lib/python.sh uses it only while it is exactly tools/lib/references-lock.txt, and builds it afresh otherwise.
+        uses: actions/cache@v5
+        with:
+          path: References/python-venv
+          key: python-venv-${{ runner.os }}-${{ steps.python.outputs.python-version }}-${{ hashFiles('tools/lib/references-lock.txt') }}
+      - name: Fetch the pinned references
+        # The harnesses call the two fetch scripts themselves; run here first, a network failure is named as one. The beta''
+        # CIF is written from the paper's values (tools/parity/crystal-structures), never downloaded.
+        run: |
+          tools/lib/fetch-rsciio.sh
+          tools/lib/fetch-py4dstem-scattering.sh
+          python3 -I -B tools/parity/crystal-structures/make_beta_double_prime.py
+      - name: Run the scientific gate
+        env:
+          # Mutants run at a time in export-parity and fft-export-parity: the runner's three cores, not the dev Mac's default 6.
+          MACTEM_PARITY_JOBS: 3
+        run: tools/run-tests.sh scientific
+
+  release-build:
+    name: release build (Release configuration, signed ad hoc)
+    # Nightly and by hand only, never on a push or a pull request: it cannot hold a PR, and it is not a required check.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    # Margin, not measurement: a whole-module Release build of the app and the kits from a cold DerivedData.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain on record
+        run: |
+          sw_vers
+          xcode-select -p
+          xcodebuild -version
+      - name: Restore the SwiftPM repository cache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-
+      - name: Ensure the Metal toolchain component
+        # As in the unit job: the build compiles MacEMUI's Colormaps.metal, and Xcode 26 ships the Metal compiler separately.
+        run: |
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            sudo xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun -sdk macosx metal --version
+      - name: Build Release the way the release scripts do, and check the app
+        run: tools/run-tests.sh release-build
+
   inventory:
     name: inventory (repo review)
+    if: github.event_name != 'schedule'
     runs-on: macos-26
     timeout-minutes: 10
     steps:
@@ -105,6 +230,7 @@ jobs:
 
   core:
     name: core (TEMCore + TEMSession package build)
+    if: github.event_name != 'schedule'
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -124,6 +250,7 @@ jobs:
 
   kit-boundary:
     name: kit boundary (no numerics frameworks in the app)
+    if: github.event_name != 'schedule'
     # Plain bash, grep and awk: Linux runs it (checked with mawk), off the macOS runner queue.
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -135,7 +262,9 @@ jobs:
 
   lint:
     name: Lint (shared SwiftLint and SwiftFormat config)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - name: SwiftLint
@@ -145,11 +274,18 @@ jobs:
 
   private-refs:
     name: No private references
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - name: Scan tracked files
         run: |
           if git grep -n -I -E '_archive|CLAUDE\.md|memcap|macEM-suite|setup-python-refs' -- ':!.gitignore' ':!.github/workflows/ci.yml'; then
             echo "Private references above; this repo is public."; exit 1
+          fi
+          # Key material: an App Store Connect key file's name, or any PEM private key. The release scripts read the key's ID
+          # and issuer from the environment and the .p8 from the owner's Mac; none of it is ever committed.
+          if git grep -n -I -E 'AuthKey_[A-Z0-9]{10}\.p8|BEGIN ([A-Z]+ )?PRIVATE KEY' -- ':!.github/workflows/ci.yml'; then
+            echo "Key material above; it never belongs in a repository."; exit 1
           fi

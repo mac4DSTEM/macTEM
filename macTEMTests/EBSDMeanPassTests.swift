@@ -121,8 +121,31 @@ nonisolated final class EBSDMeanPassTests: XCTestCase {
         let reference = try XCTUnwrap(PatternPipeline.meanBackground(demo.access))
         assertSameArray(mean, reference, "the mean summed after Stop")
         XCTAssertEqual(gated.rowReads, 2 + demo.dataset.scanRows, "one row for each stopped pass, then the whole scan once")
-        XCTAssertFalse(events.contains("The scan's mean pattern could not be computed."), "\(events)")
+        XCTAssertFalse(events.contains { $0.hasPrefix("The scan's mean pattern could not be computed") }, "\(events)")
         XCTAssertNil(session.processingRefusal)
+    }
+
+    /// Float32 patterns cannot be summed into a mean background: the mean's own pass says so with the reason, not only that it could
+    /// not be computed. Red before: the reason was dropped and the line read "The scan's mean pattern could not be computed."
+    @MainActor func testAMeanThatCannotBeComputedSaysWhy() async throws {
+        let rows = 2, columns = 3, side = 10
+        let dataset = EBSDDataset(format: .generated, manufacturer: "test", version: "", scanGroup: "s", scanGroups: ["s"], scanRows: rows,
+                                  scanColumns: columns, patternRows: side, patternColumns: side, dataType: .float32, stepY: 1, stepX: 1,
+                                  detector: EBSDDetectorGeometry(rows: side, columns: side, projectionCenters: []),
+                                  patterns: EBSDPatternSource(url: URL(fileURLWithPath: "/planted"), datasetPath: "",
+                                                              fileShape: [rows, columns, side, side], dataType: .float32))
+        let access = try EBSDMemoryPatterns(dataset: dataset, bytes: Data(count: rows * columns * side * side * 4))
+        let session = EBSDSession()
+        var events: [String] = []
+        session.onEvent = { events.append($0) }
+        let firstPattern = session.bind(EBSDSession.Document(fileName: "planted.h5", url: nil, dataset: dataset, access: access))
+        await firstPattern.value
+        for _ in 0..<6000 where session.isMapping || session.isComputingMean { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertFalse(session.isComputingMean)
+        XCTAssertNil(session.scanMeanBackground)
+        let line = events.first { $0.hasPrefix("The scan's mean pattern could not be computed") }
+        XCTAssertEqual(line, "The scan's mean pattern could not be computed: Processing reads 8 and 16 bit unsigned patterns; these are float32.",
+                       "\(events)")
     }
 }
 

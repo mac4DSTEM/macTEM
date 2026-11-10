@@ -407,15 +407,6 @@ package nonisolated enum EBSDRefinement {
         return (refined, out)
     }
 
-    /// `@concurrent` twins for the room: the work is seconds to minutes.
-    @concurrent package static func refineOrientationsAsync(map: CrystalMap, patterns: Patterns, detector: EBSDDetectorGeometry,
-                                                            master: Master, settings: Settings = Settings(),
-                                                            pseudoSymmetry ops: [SIMD4<Double>] = [],
-                                                            isCancelled: @escaping @Sendable () -> Bool = { false }) async throws -> CrystalMap {
-        try refineOrientations(map: map, patterns: patterns, detector: detector, master: master, settings: settings,
-                               pseudoSymmetry: ops, isCancelled: isCancelled)
-    }
-
     // MARK: - Helpers
 
     private static func check(_ patterns: Patterns, count: Int, detector: EBSDDetectorGeometry) throws {

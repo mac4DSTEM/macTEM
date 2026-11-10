@@ -162,6 +162,10 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         var shared = patterns.overlaySettings
         shared.kinematical = true
         patterns.setOverlaySettings(shared)
+        // The lines at once; the master pattern is made off the main actor, and the simulation joins them when it lands.
+        guard case .success(let lines)? = indexing.simulationOverlay else { return XCTFail("no overlay") }
+        XCTAssertNil(lines.simulated, "the simulation waits for its master pattern")
+        await indexing.overlayMastersReady().value
         guard case .success(let blended)? = indexing.simulationOverlay else { return XCTFail("no kinematical overlay") }
         XCTAssertEqual(blended.simulated?.count, indexing.patternShape.rows * indexing.patternShape.columns,
                        "the kinematical simulation on the indexed pattern's detector")

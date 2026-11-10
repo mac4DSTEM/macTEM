@@ -207,11 +207,11 @@ nonisolated final class FileRoutingTests: XCTestCase {
                        "notes.txt is a .txt file. " + FileRouting.openableSentence, "one file's own sentence is as it was")
     }
 
-    /// The rooms a window's documents fill: with nothing open every built room stays enterable; with an image only, the spectrum rooms say
+    /// The rooms a window's documents fill: with nothing open every room stays enterable; with an image only, the spectrum rooms say
     /// why not; with a spectrum cube only, the image rooms do; the room that loses its data gives way to one that has some.
     func testRoomAvailabilityFollowsTheDocuments() {
         let none = RoomHoldings()
-        for area in WorkspaceArea.allCases where area.isBuilt { XCTAssertNil(RoomAvailability.reason(area, holdings: none), "\(area)") }
+        for area in WorkspaceArea.allCases { XCTAssertNil(RoomAvailability.reason(area, holdings: none), "\(area)") }
         let image = RoomHoldings(images: true)
         XCTAssertNil(RoomAvailability.reason(.fft, holdings: image))
         XCTAssertNotNil(RoomAvailability.reason(.edx, holdings: image))

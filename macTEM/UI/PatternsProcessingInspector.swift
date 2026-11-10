@@ -42,7 +42,11 @@ struct PatternsProcessingSections: View {
         nlparSection
     }
 
-    private static let integer = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0))
+    /// NLPAR's λ as the row reads it: three decimals in the reader's locale, as the session report writes it ("0,123" in de_DE, where
+    /// `%.3f` always printed a point beside the locale's fields).
+    nonisolated static func lambdaText(_ lambda: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        Num.fixed(lambda, 3, locale: locale)
+    }
 
     private var fftSection: some View {
         let s = status(.fftFilter)
@@ -132,7 +136,7 @@ struct PatternsProcessingSections: View {
             }
             InspectorRow("Radius") {
                 OptionalNumericField(title: "Search radius", value: Double(pipeline.nlpar.searchRadius),
-                                     format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0)), unit: "px",
+                                     format: Num.wholeField, unit: "px",
                                      prompt: "\(NLPAR.defaultSearchRadius)") { v in session.editPipeline { $0.nlpar.searchRadius = max(1, TypedWholeNumber.value(v)) } }
                     .disabled(!pipeline.nlpar.isOn)
                     .help("The neighbourhood searched around each scan point: (2 r + 1) × (2 r + 1) patterns")
@@ -140,7 +144,7 @@ struct PatternsProcessingSections: View {
             }
             refusalNote(.nlpar)
             if let lambda = session.nlparLambda, session.stageState(.nlpar) == .current {
-                InspectorValueRow("λ", String(format: "%.3f", lambda))
+                InspectorValueRow("λ", Self.lambdaText(lambda))
                     .accessibilityIdentifier("patterns.nlpar.lambda")
             }
             InspectorNote("λ is chosen from the scan's noise (opt_lambda, the median of three). NLPAR needs the neighbours, so it shows on the pattern once Process has run.")
@@ -281,7 +285,7 @@ struct PatternsProcessingSections: View {
             }
             if pipeline.intensity.equalize {
                 InspectorRow("Kernel") {
-                    OptionalNumericField(title: "Equalisation kernel", value: pipeline.intensity.equalizeKernel.map(Double.init), format: Self.integer,
+                    OptionalNumericField(title: "Equalisation kernel", value: pipeline.intensity.equalizeKernel.map(Double.init), format: Num.wholeField,
                                          unit: "px", prompt: "\(dataset.patternColumns / 4)") { v in
                         session.editPipeline { $0.intensity.equalizeKernel = max(1, TypedWholeNumber.value(v)) }
                     }

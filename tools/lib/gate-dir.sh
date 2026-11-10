@@ -4,8 +4,8 @@
 #   mactem_gate_dir <tree root>   prints $MACTEM_GATE_DIR, else $TMPDIR/macTEM-gates/<tree's basename>-<8 hex of
 #                                 sha256 of its absolute path>
 #
-# tools/gate.sh keeps its logs, last-green stamps and the warm DerivedData (dd-unit) there; tools/hooks/pre-push keeps
-# its log and DerivedData in prepush/ below it. The hash keeps two trees of the same name (a scratch mirror and the repo)
+# `tools/run-tests.sh ui` keeps its log, result bundle and screenshots there, and tools/lib/harness.sh its harness builds
+# and mirror (harness-build/, harness-mirror/). The hash keeps two trees of the same name (a scratch mirror and the repo)
 # apart. Nothing is written inside the tree for this.
 mactem_gate_dir() {  # <tree root>
   local root="$1" hash

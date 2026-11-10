@@ -35,10 +35,7 @@ nonisolated final class EDXRegionsRealFileJourney: Journey {
 
     @MainActor func open(_ file: String) {
         launch(["--open", file, "--export-dir", Self.exportName])
-        if !element("edx.room").waitForExistence(timeout: 60) {
-            let sidebar = element("workspace.edx")
-            if sidebar.waitForExistence(timeout: 300), sidebar.isEnabled { sidebar.click() }
-        }
+        if !element("edx.room").waitForExistence(timeout: 60) { bringToFront(room: "edx", in: "spectroscopy", timeout: 300) }
         waitFor("edx.room", timeout: 300)
         XCTAssertTrue(mixTile().waitForExistence(timeout: 600), "the colour mix tile never appeared")
         waitFor("edx.spectrum", timeout: 120)

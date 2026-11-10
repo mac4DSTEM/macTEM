@@ -6,9 +6,9 @@
 # anywhere, and on a .metal file not listed. Numerics belong in the kits; a new line here needs a reason that is display,
 # not science, or a lineage/marks record (app-side provenance).
 
-# Display only: the one Metal pipeline that draws the image and its colormap.
-
-# Tests of the display pipeline and the harness's crystal geometry.
+# The display pipeline is MacEMUI's (its Colormaps.metal); the app holds no .metal file. The test of its export twin:
 macTEMTests/ImageExportGPUTests.swift	Metal	GPU image export vs CPU rendering
+
+# SEM: the float32 GPU paths of two numeric ports in TEMCore.
 Sources/TEMCore/SEM/MasterPattern/MasterPatternProjectionMetal.swift	Metal	SEM master pattern projection: the float32 GPU path of a numeric port that lives in TEMCore because the SEM program changes no kit; checked against the float64 CPU path
 Sources/TEMCore/SEM/Indexing/DictionaryIndexingMetal.swift	Metal	SEM dictionary indexing: the float32 GPU matrix product of a numeric port that lives in TEMCore because the SEM program changes no kit; checked against the float64 CPU path

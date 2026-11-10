@@ -38,15 +38,20 @@ package struct EELSMapTile: Identifiable, Equatable, Sendable {
     package let version: Int
     /// "12 px: I_0 <= 0 …": why pixels are hatched.
     package let footer: String?
-    /// The one value every finite pixel has, in words ("0 eV"): a flat tile has no range to draw. Nil when the pixels differ.
-    package var flatValueText: String? {
+    /// The one value every finite pixel has, in words ("0 eV"), as the reader's locale writes it: a flat tile has no range to draw.
+    /// Nil when the pixels differ.
+    package var flatValueText: String? { self.flatValueText(locale: .autoupdatingCurrent) }
+    /// `flatValueText` in `locale`: the maps figure burns its words in the export's locale, not the reader's.
+    package func flatValueText(locale: Locale) -> String? {
         let finite = values.filter { $0.isFinite }
         guard let lo = finite.min(), let hi = finite.max(), lo == hi else { return nil }
-        return EELSRoomFormat.sig(lo, 3) + (unit.isEmpty ? "" : " \(unit)")
+        return EELSRoomFormat.sig(lo, 3, locale: locale) + (unit.isEmpty ? "" : " \(unit)")
     }
-    /// The tile's one line under its name: "every pixel 0 eV" for a flat map, else its unit.
-    package var detailText: String? {
-        if let flat = flatValueText { return "every pixel \(flat)" }
+    /// The tile's one line under its name: "every pixel 0 eV" for a flat map, else its unit; in the reader's locale.
+    package var detailText: String? { self.detailText(locale: .autoupdatingCurrent) }
+    /// `detailText` in `locale` (the maps figure passes the export's).
+    package func detailText(locale: Locale) -> String? {
+        if let flat = self.flatValueText(locale: locale) { return "every pixel \(flat)" }
         return unit.isEmpty ? nil : unit
     }
     package init(id: String, title: String, unit: String, width: Int, height: Int, values: [Double], version: Int, footer: String?) {

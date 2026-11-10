@@ -6,7 +6,9 @@
 //        parity `m6/geometrical-simulation-nickel`) fed with the solution's rotation and phase instead of the file's: the run's mean
 //        projection centre, the dataset's detector angles at the indexed pattern's shape (binned when the pipeline bins). What is drawn
 //        (Min d, Band width, Zone axes, Labels, Kinematical and Blend) is the Patterns room's Simulation section, one set of settings
-//        for both panes. Bands and kinematical master patterns are made once per phase and spacing; the last overlay is kept.
+//        for both panes. Bands and kinematical master patterns are made once per phase and spacing; the last overlay is kept. A
+//        master pattern is made off the main actor (`KikuchiOverlay.kinematicalMaster`): the lines draw at once, and the simulation
+//        joins them when the master lands (`overlayMastersLanded`), the same numbers as when the pane waited for it.
 //
 
 import Foundation
@@ -38,6 +40,8 @@ extension IndexingSession {
     package var simulationOverlay: Result<KikuchiOverlay.Pattern, KikuchiOverlay.Absence>? {
         guard showsSimulation, let result, let position = patternPosition, let dataset = patterns.dataset,
               patternShape.rows > 0, patternShape.columns > 0 else { return nil }
+        // Read so the pane draws again when a master pattern lands (the memo is dropped then).
+        _ = overlayMastersLanded
         guard let pc = resultProjectionCenter else { return .failure(.noOrientations) }
         guard let solution = result.solution(at: position), solution.phase >= 0, let phase = result.phase(of: solution) else {
             return .failure(.notIndexed)
@@ -52,11 +56,9 @@ extension IndexingSession {
         let value: Result<KikuchiOverlay.Pattern, KikuchiOverlay.Absence>
         if let bands = overlayBandsFor(phase, key: key) {
             let detector = Self.indexedDetector(dataset.detector, rows: patternShape.rows, columns: patternShape.columns, pc: pc)
-            var master: EBSDMasterPattern?
-            if kinematical {
-                master = overlayMasters[key] ?? KikuchiOverlay.masterPattern(bands, phase: phase.crystalPhase, beamEnergyKeV: kv)
-                overlayMasters[key] = master
-            }
+            let master: EBSDMasterPattern? = kinematical ? overlayMasters[key] : nil
+            // Not made yet: the lines now, the simulation once the master lands.
+            if kinematical, master == nil { makeOverlayMaster(key, phase: phase.crystalPhase, bands: bands, beamEnergyKeV: kv) }
             value = .success(KikuchiOverlay.pattern(phase: phase.name, rotation: solution.quaternion, bands: bands, detector: detector, pc: pc,
                                                     maxR: detector.rMax(pc), beamEnergyKeV: bandWidth ? kv : nil, master: master))
         } else {
@@ -64,6 +66,30 @@ extension IndexingSession {
         }
         overlayMemo = (memo, value)
         return value
+    }
+
+    /// The master patterns being made now, as one task that ends when they have all landed (at once when none is): what a test
+    /// waits on before it reads the simulation.
+    package func overlayMastersReady() -> Task<Void, Never> {
+        let running = Array(overlayMasterTasks.values)
+        return Task {
+            for task in running { await task.value }
+        }
+    }
+
+    /// Makes the kinematical master pattern of `key`'s phase off the main actor, once (a second ask while it is being made changes
+    /// nothing); when it lands the memo goes and the overlay draws its simulation. A new dataset cancels it, and a cancelled one
+    /// lands nothing.
+    private func makeOverlayMaster(_ key: IndexingOverlayKey, phase: CrystalPhase, bands: KikuchiOverlay.Bands, beamEnergyKeV kv: Double) {
+        guard overlayMasterTasks[key] == nil else { return }
+        overlayMasterTasks[key] = Task { [weak self] in
+            let made = await KikuchiOverlay.kinematicalMaster(bands, phase: phase, beamEnergyKeV: kv, picture: false)
+            guard let self, !Task.isCancelled else { return }
+            self.overlayMasterTasks[key] = nil
+            self.overlayMasters[key] = made.master
+            self.overlayMemo = nil
+            self.overlayMastersLanded += 1
+        }
     }
 
     /// The overlay's bands of a run's phase, made once per phase and spacing.

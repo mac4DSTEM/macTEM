@@ -71,19 +71,6 @@ package nonisolated enum PoleFigures {
         PoleDensityFunction.compute(crystalDirections(orientations, sampleDirection: sampleDirection), resolution: resolution,
                                     sigma: sigma, symmetry: laue)
     }
-
-    /// The pole figures of several families off the caller's actor (a 1000 x 1000 map is a million orientations times
-    /// up to 24 poles per family).
-    @concurrent package static func poleFiguresAsync(_ orientations: Orientations, families: [[SIMD3<Double>]], resolution: Double = 1,
-                                                     sigma: Double = 5) async -> [PoleDensityMap] {
-        families.map { poleFigure(orientations, poles: $0, resolution: resolution, sigma: sigma) }
-    }
-
-    /// `inversePoleFigure` off the caller's actor.
-    @concurrent package static func inversePoleFigureAsync(_ orientations: Orientations, sampleDirection: SIMD3<Double> = Vector3.z,
-                                                           laue: PointGroup, resolution: Double = 1, sigma: Double = 5) async -> PoleDensityMap {
-        inversePoleFigure(orientations, sampleDirection: sampleDirection, laue: laue, resolution: resolution, sigma: sigma)
-    }
 }
 
 /// A density drawn on a square canvas: `values` row-major from the top row, Float, NaN where nothing is drawn; `low` and

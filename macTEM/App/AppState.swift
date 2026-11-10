@@ -6,7 +6,7 @@
 //
 //  Owners: `navigation` (rooms and panes, App/), `openItems` (the files open in the window, each with its own
 //  session, presentation, marks and viewport, TEMSession), `activityLog` (the Output pane, App/), `imageRoomTools`
-//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession), `semRecord` (the SEM rooms' exports and Output lines for the session report, App/), `recents` (File > Open Recent's last eight files, TEMSession), `lastSession` (File > Reopen Last Session's record, TEMSession). `imageSession`, `presentation` and `measurements` are the selected
+//  (the Image room's measuring tool, App/), `resultsRoom` (the Results room's selection and shown groups, App/), `edx` (the EDX room's spectrum image, picks and fit, TEMSession) and `edxRoom` (its spectrum window and export in flight, App/), `ebsd` (the Patterns room's dataset) and `indexing` (the Indexing room's run on it, TEMSession), `semRecord` (the SEM rooms' exports and Output lines for the session report, App/), `recents` (File > Open Recent's last eight files, TEMSession), `lastSession` (File > Reopen Last Session's record, TEMSession), `runActivity` (the activity held while a room works, App/). `imageSession`, `presentation` and `measurements` are the selected
 //  item's, forwarded, so the views that read them did not change with V1-13.
 //
 
@@ -48,6 +48,9 @@ final class AppState {
     /// (`recordLastSession`), and the previous launch's, which the menu offers. The app passes the record kept in UserDefaults
     /// (`LastSession.stored()`); a bare `AppState()`, a test's, keeps one in memory and writes nothing.
     let lastSession: LastSession
+    /// The `ProcessInfo` activity held while any room works (`RunActivity`), so App Nap and idle sleep never slow a long run; a test
+    /// passes one that counts.
+    let runActivity: RunActivity
 
     /// The window's title: the file of the room that is shown (the spectrum image in the EDX and EELS rooms, the image elsewhere).
     var windowTitle: String {
@@ -117,10 +120,12 @@ final class AppState {
         return dir.path.hasPrefix("/") && !launch.exportDirectoryIsRelative ? dir : FileManager.default.temporaryDirectory.appendingPathComponent(launch.exportDirectoryName ?? "export", isDirectory: true)
     }
 
-    init(launch: LaunchOptions = LaunchOptions(), recents: RecentFiles? = nil, lastSession: LastSession? = nil) {
+    init(launch: LaunchOptions = LaunchOptions(), recents: RecentFiles? = nil, lastSession: LastSession? = nil,
+         runActivity: RunActivity? = nil) {
         self.launch = launch
         self.recents = recents ?? RecentFiles()
         self.lastSession = lastSession ?? LastSession()
+        self.runActivity = runActivity ?? RunActivity()
         let ebsd = EBSDSession()
         self.ebsd = ebsd
         indexing = IndexingSession(patterns: ebsd)
@@ -162,6 +167,7 @@ final class AppState {
         mapsRoom.onWritten = { [weak self] in self?.semRecord.wrote($0) }
         indexing.onFailure = { [weak self] in self?.present($0) }
         applyLaunchOptions(launch)
+        holdActivityWhileRoomsWork()
     }
 
     /// Whether the databar a Thermo or Tescan SEM TIFF's vendor drew under the scan is hidden (`SEMImageSettings`, on by default).

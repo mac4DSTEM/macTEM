@@ -85,8 +85,10 @@ package nonisolated struct EELSDeconvolutionResult: Sendable {
     package let fwhmEV: Double?
     package let taperedChannels: Int
     package let methodName: String
-    /// The threshold rule Fourier-ratio cut I₀ with (the room's), or the one the map's zero-loss peaks were cut at.
+    /// The threshold rule Fourier-ratio cut I₀ with (the room's), or the one the map's zero-loss peaks were cut at, in the method JSON's words.
     package let thresholdText: String
+    /// That rule, for the footer's words in the reader's locale (`EELSDeconvolveCompute.line`).
+    package let threshold: EELSThresholdChoice
 
     package var unavailableCount: Int { unavailable.filter { $0 != nil }.count }
     /// The pixels the kit answered (the rest are zeros in its image and must not be summed or fitted).
@@ -127,26 +129,38 @@ package nonisolated enum EELSDeconvolveCompute {
             let d = try EELSDeconvolution.fourierRatio(coreLoss: core, lowLoss: low, options: FourierRatioOptions(threshold: threshold.rule),
                                                        cancelled: cancelled, progress: progress)
             return EELSDeconvolutionResult(choice: choice, lowLoss: nil, coreLoss: d.image, unavailable: d.unavailable, fftSize: d.fftSize, fwhmEV: d.fwhmEV,
-                                           taperedChannels: d.taperedChannels, methodName: d.methodName, thresholdText: thresholdWords(threshold))
+                                           taperedChannels: d.taperedChannels, methodName: d.methodName, thresholdText: thresholdWords(threshold),
+                                           threshold: threshold)
         case .fourierLog:
             guard let low, let map else { throw EELSDeconvolveRefusal.needs("Fourier-log needs the low loss and its thickness map (Run the Thickness stage first).") }
             let zlp = try zeroLoss(low, map: map)
             let d = try EELSDeconvolution.fourierLog(low, zeroLoss: zlp.image, cancelled: cancelled, progress: progress)
             return EELSDeconvolutionResult(choice: choice, lowLoss: d.image, coreLoss: nil, unavailable: merge(d.unavailable, zlp.noThreshold), fftSize: d.fftSize,
-                                           fwhmEV: nil, taperedChannels: d.taperedChannels, methodName: d.methodName, thresholdText: thresholdWords(threshold))
+                                           fwhmEV: nil, taperedChannels: d.taperedChannels, methodName: d.methodName, thresholdText: thresholdWords(threshold),
+                                           threshold: threshold)
         case .richardsonLucy(let iterations):
             guard let low, let map else { throw EELSDeconvolveRefusal.needs("Richardson-Lucy needs the low loss and its thickness map (Run the Thickness stage first).") }
             let zlp = try zeroLoss(low, map: map, channels: low.channels)
             let d = try EELSDeconvolution.richardsonLucy(low, psf: zlp.image, options: RichardsonLucyOptions(iterations: iterations), cancelled: cancelled, progress: progress)
             return EELSDeconvolutionResult(choice: choice, lowLoss: d.image, coreLoss: nil, unavailable: merge(d.unavailable, zlp.noThreshold), fftSize: d.fftSize,
-                                           fwhmEV: nil, taperedChannels: d.taperedChannels, methodName: d.methodName, thresholdText: thresholdWords(threshold))
+                                           fwhmEV: nil, taperedChannels: d.taperedChannels, methodName: d.methodName, thresholdText: thresholdWords(threshold),
+                                           threshold: threshold)
         }
     }
 
+    /// The threshold rule in the words the method JSON and the results CSV record (`thresholdText`): the eV as Swift writes a Double, a point.
     package static func thresholdWords(_ t: EELSThresholdChoice) -> String {
         switch t {
         case .estimated: "estimated threshold"
         case .fixed(let eV): "fixed threshold \(eV) eV"
+        }
+    }
+
+    /// The threshold rule as the room's footer reads it, the eV in `locale` beside the FWHM ("fixed threshold 12,5 eV" in de_DE).
+    package static func thresholdWords(_ t: EELSThresholdChoice, locale: Locale) -> String {
+        switch t {
+        case .estimated: "estimated threshold"
+        case .fixed(let eV): "fixed threshold \(UnitDisplay.number(eV, locale: locale)) eV"
         }
     }
 
@@ -177,14 +191,24 @@ package nonisolated enum EELSDeconvolveCompute {
         return d
     }
 
-    /// One line: "Fourier-ratio deconvolution (FWHM 1.23 eV, estimated threshold)" / "Richardson-Lucy deconvolution, 15 iterations".
-    package static func line(_ r: EELSDeconvolutionResult?) -> String {
+    /// One line: "Fourier-ratio deconvolution (FWHM 1.23 eV, estimated threshold)" / "Richardson-Lucy deconvolution, 15 iterations", its
+    /// numbers in `locale` (the room's footer and its log).
+    package static func line(_ r: EELSDeconvolutionResult?, locale: Locale = .autoupdatingCurrent) -> String {
         guard let r else { return "no deconvolution" }
+        return line(r, fwhmLocale: locale, threshold: thresholdWords(r.threshold, locale: locale))
+    }
+
+    /// The line as the results CSV records it: the FWHM with a point and the threshold in the method JSON's words (`thresholdText`).
+    package static func recordLine(_ r: EELSDeconvolutionResult) -> String {
+        line(r, fwhmLocale: Locale(identifier: "en_US_POSIX"), threshold: r.thresholdText)
+    }
+
+    private static func line(_ r: EELSDeconvolutionResult, fwhmLocale: Locale, threshold: String) -> String {
         switch r.choice {
         case .off: return "no deconvolution"
-        case .fourierRatio: return r.methodName + " (" + (r.fwhmEV.map { "FWHM \(EELSRoomFormat.sig($0, 3)) eV, " } ?? "") + r.thresholdText + ")"
-        case .fourierLog: return r.methodName + " (zero-loss peak below the " + r.thresholdText + ")"
-        case .richardsonLucy: return r.methodName + " (zero-loss peak below the " + r.thresholdText + ")"
+        case .fourierRatio: return r.methodName + " (" + (r.fwhmEV.map { "FWHM \(EELSRoomFormat.sig($0, 3, locale: fwhmLocale)) eV, " } ?? "") + threshold + ")"
+        case .fourierLog: return r.methodName + " (zero-loss peak below the " + threshold + ")"
+        case .richardsonLucy: return r.methodName + " (zero-loss peak below the " + threshold + ")"
         }
     }
 
