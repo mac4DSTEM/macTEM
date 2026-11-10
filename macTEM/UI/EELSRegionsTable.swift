@@ -98,12 +98,12 @@ struct EELSRegionsTable: View {
                                 Text(EDXRoomFormat.counts(row.totalCounts)).monospacedDigit()
                                     .accessibilityLabel("\(pin.name) total counts").accessibilityValue(EELSRegionSpeech.totalValue(row.totalCounts))
                                     .accessibilityIdentifier("eels.regionTable.\(pin.name).total")
-                                Text(row.tOverLambda.map { Num.fixed($0, 4) } ?? "–").monospacedDigit()
+                                Text(row.tOverLambda.map { Num.fixed($0, 4) } ?? UnitDisplay.noValue).monospacedDigit()
                                     .accessibilityLabel("\(pin.name) t over lambda").accessibilityValue(EELSRegionSpeech.tOverLambdaValue(row.tOverLambda))
                                     .accessibilityIdentifier("eels.regionTable.\(pin.name).tOverLambda")
                                 ForEach(edges) { edge in
                                     let value = row.edges.first { $0.id == edge.id }?.intensity
-                                    Text(value.map { Num.sig($0, 4) } ?? "–").monospacedDigit()
+                                    Text(value.map { Num.sig($0, 4) } ?? UnitDisplay.noValue).monospacedDigit()
                                         .accessibilityLabel(EELSRegionSpeech.cellLabel(region: pin.name, edge: edge.title, kind: .intensity))
                                         .accessibilityValue(EELSRegionSpeech.cellValue(value, kind: .intensity))
                                         .accessibilityIdentifier("eels.regionTable.\(pin.name).\(edge.id)")
@@ -111,7 +111,7 @@ struct EELSRegionsTable: View {
                                 if hasComposition {
                                     ForEach(edges.filter { $0.atomicPercent != nil }) { edge in
                                         let value = row.edges.first { $0.id == edge.id }?.atomicPercent
-                                        Text(value.map { Num.fixed($0, 1) } ?? "–").monospacedDigit()
+                                        Text(value.map { Num.fixed($0, 1) } ?? UnitDisplay.noValue).monospacedDigit()
                                             .accessibilityLabel(EELSRegionSpeech.cellLabel(region: pin.name, edge: edge.title, kind: .atomic))
                                             .accessibilityValue(EELSRegionSpeech.cellValue(value, kind: .atomic))
                                             .accessibilityIdentifier("eels.regionTable.\(pin.name).\(edge.id).at")

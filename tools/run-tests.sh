@@ -5,8 +5,9 @@
 #   unit        the XCTest suite (macTEMTests), unsigned, in a scratch DerivedData; then the executed tests are
 #               reconciled BY NAME (Class.method, from the result bundle) against the `func test…()` declarations,
 #               and any difference fails (a stale bundle, a renamed test or one in the wrong class passes a count);
-#               each skipped test is named with its XCTSkip's reason; the compiler warnings in the app's own sources
-#               and tests are listed and counted (not yet a gate)
+#               each skipped test is named with its XCTSkip's reason, and one that tools/unit-skips.allow does not list
+#               fails (tools/lib/unit-skips.sh); the compiler warnings in the app's own sources and tests are listed and
+#               counted (not yet a gate)
 #   core        `swift build` of the package from a fresh scratch path: TEMCore and TEMSession — the layering gate
 #               (a package target cannot reach the app's App/ or UI/), the Swift 6 gate, and zero warnings
 #   scientific  the reference harnesses (the `scientific` array below): every one runs, a red one does not stop the rest,
@@ -28,6 +29,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 resolve_mactem_developer_dir
 # run_harnesses <root> <name>...: keeps going past a red harness and fails at the end, naming every red one.
 . "$ROOT/tools/lib/run-harnesses.sh"
+# skipped_tests_from_json, and unlisted_skips / listed_not_skipped <allow file>: the skips, held to tools/unit-skips.allow.
+. "$ROOT/tools/lib/unit-skips.sh"
 
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
 scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
@@ -75,19 +78,6 @@ executed_tests_from_json() {
            | if .nodeType == "Test Case" then (.nodeIdentifier // ($s + "/" + .name))
              else (.children[]? | cases($s)) end;
          .testNodes[] | cases("?")' | sed -E 's#\(\)$##; s#/#.#'
-}
-
-# The tests a result bundle skipped, one line each, sorted: "unit: SKIPPED Class.method: <reason>", named as above. The reason is
-# the case's first "Failure Message" node (where xcresulttool puts the XCTSkip message), or "no reason recorded" without one.
-skipped_tests_from_json() {
-  jq -r 'def skips($suite): (if .nodeType == "Test Suite" then .name else $suite end) as $s
-           | if .nodeType == "Test Case" then
-               (select(.result == "Skipped")
-                | ((.nodeIdentifier // ($s + "/" + .name)) | sub("\\(\\)$"; "") | sub("/"; ".")) as $t
-                | ([.. | objects | select(.nodeType == "Failure Message") | .name] | first // "no reason recorded") as $why
-                | "unit: SKIPPED " + $t + ": " + ($why | gsub("\n"; " ")))
-             else (.children[]? | skips($s)) end;
-         .testNodes[] | skips("?")' | LC_ALL=C sort -u
 }
 
 # The tests macTEMTests declares, as Class.method: each `func test…()` (no parameters: XCTest runs no other) under
@@ -200,10 +190,15 @@ unit_tests() (
       | sort -u | head -60
   fi
   # Name the skips too, each with its XCTSkip's reason: a count alone hides which tests lacked their data (sem-data, an opt-in
-  # real-data variable) or their device (Metal), so a check the runner never ran reads like one that passed.
+  # real-data variable) or their device (Metal), so a check the runner never ran reads like one that passed. Kept for the allow check.
+  local skips="" skips_named=1
   if [[ "$skipped" != 0 ]]; then
-    xcrun xcresulttool get test-results tests --path "$work/unit.xcresult" | skipped_tests_from_json \
-      || echo "unit: cannot list the skipped tests from the result bundle"
+    # A count with no name (the bundle's JSON unreadable, or no case it marks Skipped) is a check that cannot run, not a pass.
+    if skips="$(xcrun xcresulttool get test-results tests --path "$work/unit.xcresult" | skipped_tests_from_json)" && [[ -n "$skips" ]]; then
+      print -r -- "$skips"
+    else
+      skips_named=0; echo "unit: cannot list the skipped tests from the result bundle"
+    fi
   fi
   if [[ -n "${MACTEM_ONLY_TESTING:-}" ]]; then
     echo "unit (filtered to ${MACTEM_ONLY_TESTING}): $failed failed of $total"
@@ -218,12 +213,32 @@ unit_tests() (
   fi
   (( rc == 0 )) || return $rc
   # A skipped test is a declared XCTSkip (the opt-in real-data tests without their data or variable, a fixture that is absent): it ran by name
-  # and said why (each is named above with its reason), so it is not a failure of the gate; a failure is.
+  # and said why (each is named above with its reason), so it is not a failure of the gate when tools/unit-skips.allow lists it; a failure is.
   if [[ "$total" != "$MACTEM_TESTS_MATCHED" || "$failed" != 0 || $(( passed + skipped )) != "$total" ]]; then
     echo "unit: $passed of $total passed, $skipped skipped, $MACTEM_TESTS_MATCHED matched by name — a failed test, or a summary that disagrees with the test list"
     return 1
   fi
-  echo "unit: $passed tests passed, $skipped skipped by their own XCTSkip, every declared test ran by name"
+  # Each skip must be one tools/unit-skips.allow lists (tools/lib/unit-skips.sh): a test that starts to skip (a fixture that moved, a
+  # guard that turned false, a device the runner lacks) fails here by name instead of landing green as one more SKIPPED line. With
+  # MACTEM_REQUIRE_SEM_DATA=1, which the nightly sets once it has fetched the SEM data, a sem-data entry allows none. A listed test
+  # that ran is named and passes. A MACTEM_ONLY_TESTING run returned above and is not checked.
+  local allow="$ROOT/tools/unit-skips.allow" unlisted listed_ran hint="" allowed=0
+  if (( ! skips_named )); then
+    echo "unit: $skipped tests skipped and none could be named, so none was checked against tools/unit-skips.allow"; return 1
+  fi
+  unlisted="$(print -r -- "$skips" | unlisted_skips "$allow")" || allowed=$?
+  if (( allowed > 1 )); then echo "unit: tools/unit-skips.allow could not be read (above), so no skip was checked"; return 1; fi
+  if (( allowed == 1 )); then
+    # An array, so one name counts as one and not as its length in letters.
+    local -a refused=("${(@f)unlisted}")
+    print -r -- "$unlisted" | sed 's/^/unit: SKIP NOT ALLOWED /'
+    [[ "${MACTEM_REQUIRE_SEM_DATA:-}" == 1 ]] && hint=" (MACTEM_REQUIRE_SEM_DATA=1: a sem-data entry allows none)"
+    echo "unit: ${#refused} of $skipped skipped tests not allowed by tools/unit-skips.allow${hint}: list each there with its condition and reason, or make it run"
+    return 1
+  fi
+  listed_ran="$(print -r -- "$skips" | listed_not_skipped "$allow")" || true
+  [[ -z "$listed_ran" ]] || print -r -- "$listed_ran" | sed 's/^/unit: listed in tools\/unit-skips.allow, and ran: /'
+  echo "unit: $passed tests passed, $skipped skipped as tools/unit-skips.allow allows, every declared test ran by name"
 )
 
 # The UI journeys (macTEMUITests, scheme macTEMUI): the real app, signed, walked as a user would, one screenshot per step. Never part of
@@ -393,6 +408,9 @@ inventory() {
 
   echo "== the harness runner keeps going past a red harness"
   "$ROOT/tools/lib/run-harnesses-selftest.sh" || rc=1
+
+  echo "== the unit gate fails a skip that tools/unit-skips.allow does not list"
+  "$ROOT/tools/lib/unit-skips-selftest.sh" || rc=1
 
   echo "== tools classification"
   local -a all=("${scientific[@]}" "${diagnostic[@]}" "${owner_only[@]}" "${retired[@]}" "${support[@]}" "${references[@]}")

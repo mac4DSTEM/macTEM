@@ -5,7 +5,8 @@
 //        refused with a sentence (decision D-SEM-9: square grids only in phase 1; kikuchipy reads the patterns of a hexagonal `.up`
 //        file as one row, which `EDAXBinaryReader` keeps for parity, and the app does not lay them out). A version 1 `.up1` carries no
 //        grid, so its scan shape and step come from the `.ang` when the point counts agree; a map whose point count differs from the
-//        pattern count is not the scan's and is left out with a note. A map alone, without its patterns, opens in the Maps room instead
+//        pattern count is not the scan's, and a companion that does not read as a map or whose coordinates make no grid is no map:
+//        either is left out with a note, and the patterns open on their own. A map alone, without its patterns, opens in the Maps room instead
 //        (D-SEM-80; D-SEM-25 refused it). The detector is kikuchipy's default for the binary file (projection centre 0.5, 0.5, 0.5, sample
 //        tilt 70°); with an `.ang`, its `x-star`, `y-star`, `z-star` are a TSL-convention centre, converted to Bruker's.
 //
@@ -59,6 +60,9 @@ package nonisolated enum EDAXOpening {
             do { map = try ANGReader.read(url: mapURL) } catch let error as ANGReadError where mapURL != url {
                 // The companion is not the map it should be: the patterns open on their own, with the reason.
                 notes.append("\(mapURL.lastPathComponent) next to it was not read: \(error.text)")
+            } catch let refusal as CrystalMap.Refusal where mapURL != url {
+                // Its coordinates make no grid (an x or y that is not a number, a jittered step, more cells than a map spans): the same.
+                notes.append("\(mapURL.lastPathComponent) next to it was not read: \(refusal.localizedDescription)")
             }
         }
         if let map, map.header.isHexagonal {

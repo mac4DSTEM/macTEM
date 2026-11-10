@@ -233,7 +233,7 @@ private struct FFTRegionFieldRow: View {
         InspectorRow(field.title) {
             // The row shows "Left"; the field speaks "Left in pixels" (the unit spelled out is named once, not "px" by letter).
             OptionalNumericField(title: field.spokenTitle, value: value, format: IntegerFormatStyle<Int>.number.grouping(.never),
-                                 unit: "px", prompt: "–", onCommit: commit)
+                                 unit: "px", prompt: UnitDisplay.noValue, onCommit: commit)
                 .accessibilityIdentifier(field.identifier)
                 .disabled(value == nil)
         }

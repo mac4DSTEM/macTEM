@@ -183,6 +183,43 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
         XCTAssertEqual(kept.calibration?.resolution, NORDIFSettings.Resolution(width: 0, height: 0))
     }
 
+    /// A scan whose bytes (rows x columns x width x height, uint8) no Int counts is refused at the settings, with both lines as
+    /// written, so the routing and the door say so in words. Red before: the parse read on, and the door's and the scan's products
+    /// overflowed and trapped.
+    func testASizeTooLargeToCountIsRefusedAtTheSettings() throws {
+        let lines = try NORDIFSettings.read(path: path("Setting.txt")).lines
+        XCTAssertEqual(lines[47], "Resolution\t60x60\tpx", "[Acquisition settings]")
+        XCTAssertEqual(lines[79], "Number of samples\t3x3\t#")
+        var manySamples = lines
+        manySamples[79] = "Number of samples\t4000000000x4000000000\t#"
+        var largePatterns = lines
+        largePatterns[47] = "Resolution\t4000000000x4000000000\tpx"
+        let cases: [([String], NORDIFSettings.Refusal)] = [
+            (manySamples, .tooLarge(samples: "4000000000x4000000000", resolution: "60x60")),
+            (largePatterns, .tooLarge(samples: "3x3", resolution: "4000000000x4000000000")),
+        ]
+        for (edited, refusal) in cases {
+            XCTAssertThrowsError(try NORDIFSettings.parse(lines: edited, fileName: "Setting.txt")) { error in
+                XCTAssertEqual(error as? NORDIFSettings.Refusal, refusal)
+            }
+            let file = scratchFile(named: "Setting.txt", contents: try XCTUnwrap(edited.joined(separator: "\r\n").data(using: .isoLatin1)))
+            let sentence = "Setting.txt cannot be read: \(refusal.reason)"
+            XCTAssertThrowsError(try NORDIFOpening.open(url: URL(fileURLWithPath: path("Pattern.dat")), settingsFile: URL(fileURLWithPath: file))) { error in
+                XCTAssertEqual(error as? EBSDReadError, EBSDReadError(text: sentence))
+            }
+            XCTAssertThrowsError(try NORDIFScan.read(patternFile: path("Pattern.dat"), settingsFile: file)) { error in
+                XCTAssertEqual(error as? NORDIFSettings.Refusal, refusal)
+            }
+            // The routing refuses the scan with the same sentence, before any open.
+            let pattern = URL(fileURLWithPath: file).deletingLastPathComponent().appendingPathComponent("Pattern.dat")
+            try FileManager.default.copyItem(at: Self.folder.appendingPathComponent("Pattern.dat"), to: pattern)
+            XCTAssertEqual(EBSDOpening.vendorRefusal(url: pattern), sentence)
+        }
+        XCTAssertEqual(NORDIFSettings.Refusal.tooLarge(samples: "4000000000x4000000000", resolution: "60x60").reason,
+                       "its [Area] 'Number of samples' value '4000000000x4000000000' with its [Acquisition settings] 'Resolution' value "
+                           + "'60x60' is more bytes than can be counted.")
+    }
+
     // MARK: - Pattern.dat
 
     func testPatternDatReadsBitExactInMapOrder() throws {
@@ -255,6 +292,40 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
         }
         let background = try XCTUnwrap(c.staticBackground)
         assertBlock(try XCTUnwrap(r["static_background"] as? [String: Any]), bytes: background.pixels, shape: [background.height, background.width])
+    }
+
+    /// A `Step size` of 0 or an `[Area] Width` of 0 px makes the scaling factor 0, and a step of NaN or one so small that a position
+    /// is more steps than an Int holds gives quotients no Int holds: no scaling then, as without a readable `Width`, and the values
+    /// as written stay. Red before: `Int(_:)` of the infinite, NaN or too large quotient trapped.
+    func testAZeroStepOrAZeroPixelWidthGivesNoScalingInsteadOfATrap() throws {
+        let lines = try NORDIFSettings.read(path: path("Setting.txt")).lines
+        XCTAssertEqual(lines[76], "Width\t4.500 (11)\tµm (px)")
+        XCTAssertEqual(lines[78], "Step size\t1.500\tµm")
+        var noPixels = lines
+        noPixels[76] = "Width\t4.500 (0)\tµm (px)"
+        var cases: [([String], NORDIFCalibrationPatterns.Point)] = [(noPixels, NORDIFCalibrationPatterns.Point(row: 11, column: 0))]
+        for step in ["0", "nan", "1e-300"] {
+            var edited = lines
+            edited[78] = "Step size\t\(step)\tµm"
+            cases.append((edited, NORDIFCalibrationPatterns.Point(row: 11, column: 11)))
+        }
+        for (edited, roiShape) in cases {
+            let settings = try NORDIFSettings.parse(lines: edited, fileName: "Setting.txt")
+            let c = NORDIFCalibrationPatterns.geometry(settings: settings, patterns: [], staticBackground: nil)
+            XCTAssertNil(c.positionsScaled, edited[78])
+            XCTAssertNil(c.areaShapeScaled, edited[78])
+            XCTAssertNil(c.roiOriginScaled, edited[78])
+            XCTAssertNil(c.roiShapeScaled, edited[78])
+            XCTAssertEqual(c.positions, [NORDIFSettings.Position(x: 425, y: 447), NORDIFSettings.Position(x: 294, y: 532)])
+            XCTAssertEqual(c.areaShape, NORDIFCalibrationPatterns.Point(row: 1000, column: 1000))
+            XCTAssertEqual(c.roiOrigin, NORDIFCalibrationPatterns.Point(row: 223, column: 152))
+            XCTAssertEqual(c.roiShape, roiShape)
+        }
+        // A usable factor scales as before (the reference values: testCalibrationPatternsReadWithTheirPositionsScaledAsKikuchipy).
+        let kept = NORDIFCalibrationPatterns.geometry(settings: try NORDIFSettings.parse(lines: lines, fileName: "Setting.txt"), patterns: [],
+                                                      staticBackground: nil)
+        XCTAssertEqual(kept.positionsScaled?.map { [$0.row, $0.column] }, [[122, 116], [145, 80]])
+        XCTAssertEqual(kept.roiShapeScaled, NORDIFCalibrationPatterns.Point(row: 3, column: 3))
     }
 
     func testTheSettingsFilesWithoutCalibrationLinesAreRefusedWithTheReferenceSentence() throws {

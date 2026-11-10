@@ -484,8 +484,9 @@ package final class OpenItem: Identifiable {
     }
 
     /// A frame that could not be read (a page cut short, a file changed on disk): the slider goes back to the frame shown, so the
-    /// same frame can be asked for again, `failedFrame` keeps which one it was, so a step goes on from it, and `frameFailure` keeps
-    /// the sentence, which is returned. Nil, and nothing changed, for the failure of a request a newer one replaced.
+    /// same frame can be asked for again (from any frame but its neighbour on the slider, whose one-frame move onto it steps past it:
+    /// `OpenItems.slideFrame`), `failedFrame` keeps which one it was, so a step goes on from it, and `frameFailure` keeps the
+    /// sentence, which is returned. Nil, and nothing changed, for the failure of a request a newer one replaced.
     fileprivate func failFrame(_ n: Int, of count: Int, generation: Int, error: any Error) -> String? {
         guard generation == frameGeneration else { return nil }
         let sentence = "Frame \(n + 1) of \(count) could not be read: \(ErrorDetail.text(error))"
@@ -609,10 +610,27 @@ package final class OpenItems {
 
     /// The frame `delta` away from the one asked for last, kept inside the stack (the ends do nothing); the step of the arrow keys
     /// and of the inspector's Previous and Next. After a frame that could not be read the step goes on from that frame
-    /// (`OpenItem.failedFrame`), not from the frame shown, so a second step lands past it instead of asking for it again.
+    /// (`OpenItem.failedFrame`), not from the frame shown, so a second step lands past it instead of asking for it again; when that
+    /// frame is the first or the last, there is nothing past it, and the step asks for nothing and keeps `failedFrame`.
     package func stepFrame(_ item: OpenItem, by delta: Int) {
         guard let stack = item.stack else { return }
-        showFrame(item, to: min(max((item.failedFrame ?? item.requestedFrame) + delta, 0), stack.frameCount - 1))
+        let from = item.failedFrame ?? item.requestedFrame
+        let to = min(max(from + delta, 0), stack.frameCount - 1)
+        guard to != from else { return }
+        showFrame(item, to: to)
+    }
+
+    /// The inspector slider's move to `frame`: a move of one frame onto the frame that could not be read (`OpenItem.failedFrame`)
+    /// is the step (`stepFrame`), so it carries on past that frame as the arrow keys and Previous and Next do; any other move, a
+    /// longer drag, Home and End, asks for the frame named (`showFrame`). The slider cannot tell the pointer from the keyboard, so a
+    /// one-tick drag onto that frame steps past it too; it can still be asked for again from any other frame.
+    package func slideFrame(_ item: OpenItem, to frame: Int) {
+        let move = frame - item.requestedFrame
+        if frame == item.failedFrame, abs(move) == 1 {
+            stepFrame(item, by: move)
+        } else {
+            showFrame(item, to: frame)
+        }
     }
 
     package func item(_ id: OpenItem.ID) -> OpenItem? { items.first { $0.id == id } }

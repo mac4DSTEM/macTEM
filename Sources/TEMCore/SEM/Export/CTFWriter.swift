@@ -10,8 +10,10 @@
 //        (the rotations' Bunge angles times 180/π), MAD, BC, BS. Points not indexed or not in data are phase 0 with Euler 0;
 //        Bands, Error, MAD, BC, BS come from the map's properties where it has them (names compared lowercased without
 //        underscores: bands; error; mad, meanangulardeviation; bc, bandcontrast; bs, bandslope), integers rounded half to
-//        even, else 0 and Error 3 ("no solution") where not indexed. Coordinates restart at 0 on the data extent, as the
-//        .ang writer does. The phase's Laue group comes from its point group name; a phase with none is Laue group −1.
+//        even, else 0 and Error 3 ("no solution") where not indexed. An integer column's cell with no integer value (past the
+//        last point of a scan stopped mid-row, where the map holds NaN, or a value beyond Int) takes that same fallback.
+//        Coordinates restart at 0 on the data extent, as the .ang writer does. The phase's Laue group comes from its point
+//        group name; a phase with none is Laue group −1.
 //
 //        Parity: `tools/parity/sem` bundles `m8/write-ctf-*`: the written bytes equal the reference writer's for the sdss
 //        map, its ferrite points, a 10 × 10 window and the Ti head; orix reads each back to the written precision.
@@ -64,7 +66,7 @@ package nonisolated enum CTFWriter {
         }
         func integers(_ values: [Double]?, _ fallback: (Int) -> Int) -> [Int] {
             guard let values else { return (0..<n).map(fallback) }
-            return values.map { Int($0.rounded(.toNearestOrEven)) }
+            return values.enumerated().map { i, v in Int(exactly: v.rounded(.toNearestOrEven)) ?? fallback(i) }
         }
         let bands = integers(column(["bands"])) { _ in 0 }
         let error = integers(column(["error"])) { indexed[$0] ? 0 : 3 }

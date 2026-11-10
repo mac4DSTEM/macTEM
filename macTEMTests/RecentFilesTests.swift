@@ -1,9 +1,9 @@
 //
 //  RecentFilesTests.swift
 //  Pins File > Open Recent: the list (`RecentFiles`, TEMSession; mac4DSTEM's RecentDatasetsTests, for files) and the app's side of
-//  it (`AppState.open(urls:)` remembers a file once it has opened, not one it refuses nor one whose read fails; `openRecent` opens
-//  an entry again and drops one whose file is gone). Saving is injected as a recorder or as defaults of the test's own, so no test
-//  reads or writes a person's recents. Red before: no `RecentFiles`, no `recents`, no `openRecent`.
+//  it (`AppState.open(urls:)` remembers a file once it has opened, not one it refuses nor one whose read fails, an image's or a
+//  room's; `openRecent` opens an entry again and drops one whose file is gone). Saving is injected as a recorder or as defaults of
+//  the test's own, so no test reads or writes a person's recents. Red before: no `RecentFiles`, no `recents`, no `openRecent`.
 //
 
 import XCTest
@@ -179,5 +179,32 @@ nonisolated final class RecentFilesTests: XCTestCase {
         XCTAssertTrue(state.openItems.items.isEmpty, "the read failed, so the file has no row")
         XCTAssertEqual(state.errorMessage?.contains("empty.dm4"), true, "the alert says why")
         XCTAssertTrue(state.recents.entries.isEmpty, "a file that did not open is not in Open Recent")
+    }
+
+    /// A one-document room's file whose open fails (a `.ctf` the reader refuses: routed to the Maps room by its extension, read at the
+    /// open) raises the alert and is neither in Open Recent nor in the last-session record; a map that opens is in both, once the
+    /// Open has ended. Red before: `open(urls:)` remembered the room's file at once, without waiting for the room's open, so its task
+    /// ended before the read and broken.ctf was the first entry; the record was written before the map that opened was in the room.
+    @MainActor func testARoomFileWhoseOpenFailsIsNotInOpenRecent() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("recent-room-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        let broken = folder.appendingPathComponent("broken.ctf")
+        try Data("hello".utf8).write(to: broken)
+        XCTAssertEqual(FileRouting.inventory(path: broken.path), FileInventory(orientationMap: true), "the routing takes it as a map")
+
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.open(urls: [broken])?.value
+        XCTAssertEqual(state.errorMessage, "broken.ctf: " + CTFReader.Refusal.noColumnLine.reason, "the alert says why")
+        XCTAssertFalse(state.maps.hasMap, "the Maps room stays empty")
+        XCTAssertTrue(state.recents.entries.isEmpty, "a room's file that did not open is not in Open Recent")
+        XCTAssertNil(state.lastSession.current, "nor in the last-session record")
+
+        let map = folder.appendingPathComponent("a.ang")
+        try FileManager.default.copyItem(at: URL(fileURLWithPath: FileRoutingTests.fixture("ebsd-tsl.ang")), to: map)
+        await state.open(urls: [map])?.value
+        XCTAssertTrue(state.maps.hasMap)
+        XCTAssertEqual(state.recents.entries.map(\.displayName), ["a.ang"], "a room's file that opened is in Open Recent")
+        XCTAssertEqual(state.lastSession.current?.files.map(\.displayName), ["a.ang"], "and in the last-session record")
     }
 }
