@@ -689,7 +689,7 @@ nonisolated final class SessionUITests: XCTestCase {
         XCTAssertFalse(SessionSaving.Failure.refused(name: "a.h5", .readOnly(2)).offersReplace)
         XCTAssertEqual(SessionFormat.replaceTitle(name: "scan.dm4.mactem.h5"),
                        "scan.dm4.mactem.h5 has changed since this window read it.")
-        XCTAssertTrue(SessionFormat.replaceDetail(name: "x").hasSuffix("Replacing loses what the other file holds."))
+        XCTAssertTrue(SessionFormat.replaceDetail.hasSuffix("Replacing loses what the other file holds."))
     }
 
     /// Finding 4: Choose Session File… says what became of the file, and a file that was read ends "needs access".

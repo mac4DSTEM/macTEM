@@ -141,10 +141,8 @@ enum SessionFormat {
 
     /// The Replace alert's two sentences, for a session file another app changed since this window read it.
     static func replaceTitle(name: String) -> String { "\(name) has changed since this window read it." }
-    static func replaceDetail(name: String) -> String {
-        "Another app wrote it. Replace it with the marks in this window, or cancel and keep it as it is. "
-            + "Replacing loses what the other file holds."
-    }
+    static let replaceDetail = "Another app wrote it. Replace it with the marks in this window, or cancel and keep it as it is. "
+        + "Replacing loses what the other file holds."
 
     /// The Save Anyway alert's two sentences, for an image read again with other pixels than the marks were drawn on.
     static func pixelsChangedTitle(image: String) -> String { "\(image) has changed since the marks were drawn." }

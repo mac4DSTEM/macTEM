@@ -135,7 +135,7 @@ enum SessionPanels {
     /// WHY APPKIT: SwiftUI's alert cannot be raised from here, `ContentView`'s alert (the shell, frozen) has no second
     /// choice, and `NSAlert` gives the destructive role and the sheet. True when the user chose Replace.
     private static func confirmReplace(name: String, on window: NSWindow) async -> Bool {
-        await confirm(title: SessionFormat.replaceTitle(name: name), detail: SessionFormat.replaceDetail(name: name),
+        await confirm(title: SessionFormat.replaceTitle(name: name), detail: SessionFormat.replaceDetail,
                       action: "Replace", on: window)
     }
 
