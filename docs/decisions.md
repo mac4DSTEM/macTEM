@@ -192,6 +192,11 @@ land; nothing ships before then.
 release with the new rooms, the quality pass and the design fixes is simpler for users than a 2.0.0 now and large
 changes soon after.
 
+**While it is held.** `release-please.yml` starts no CI on the Release PR at a merge to main (`RELEASE_HELD: 'true'`).
+That run took three hosted macOS runners per merge, the scarce ones, and open PRs waited up to 40 minutes for a runner
+behind it. The Release PR is still kept up to date. To release, run the release-please workflow by hand (it starts CI on
+the Release PR whatever the switch says) and merge when the checks are green, or set the switch to `'false'`.
+
 **Also decided.** `CITATION.cff` names the last release, 1.3.0 of 2026-11-05, and is kept by hand, as mac4DSTEM's is.
 release-please updates neither app's `CITATION.cff`: in both, its only extra file is `Config/Version.xcconfig`. A
 `yaml` extra file for `$.version` would keep the version current but not `date-released`, so the two fields would
