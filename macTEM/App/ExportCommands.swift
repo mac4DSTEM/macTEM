@@ -6,7 +6,8 @@
 //        (`ExportSnapshot.availability`), Export Transform… (⌥⌘E), Export Radial Profile… and Export Spots… in the FFT room
 //        (`ExportSnapshot.fftAvailability`), and Export Session Report… wherever the SEM rooms hold a result. Listed only while
 //        their room shows its document, as mac4DSTEM lists its Spectroscopy exports: the EDS room's five
-//        (`ExportSnapshot.edsAvailability`), each through the room's own export (`RoomExports`), the call its inspector button makes.
+//        (`ExportSnapshot.edsAvailability`) and the EELS room's seven (`eelsAvailability`), each through the room's own export
+//        (`RoomExports`), the call its inspector button makes.
 //
 //        PLACEMENT: after the Save group, which this app's File menu fills with Close Image and Close Window (`ImageCommands`
 //        replaces it) — the anchor already known to render here. `.importExport`, the HIG's home of Export, would put the items
@@ -28,6 +29,7 @@ struct ExportCommands: Commands {
         let fft = appState.map(ExportSnapshot.fftAvailability(of:))
         let session = appState.map(SEMSessionLedger.hasRows(_:))
         let eds = appState.flatMap(ExportSnapshot.edsAvailability(of:))
+        let eels = appState.flatMap(ExportSnapshot.eelsAvailability(of:))
         CommandGroup(after: .saveItem) {
             Divider()
             Button("Export Image…") {
@@ -69,6 +71,8 @@ struct ExportCommands: Commands {
             .disabled(session != true)
             // The EDS room's five, in the menu only while that room shows a spectrum image.
             if let appState, let eds { edsItems(eds, appState: appState) }
+            // The EELS room's seven, on the same terms.
+            if let appState, let eels { eelsItems(eels, appState: appState) }
         }
     }
 
@@ -87,5 +91,16 @@ struct ExportCommands: Commands {
             .disabled(!eds.results)
         Button("Export Regions CSV…") { RoomExports.eds(.pins, appState: appState) }
             .disabled(!eds.regions)
+    }
+
+    /// The EELS room's exports, each named "Export" and its inspector button's title, in the EDS items' order with the two the EELS
+    /// room adds (`EELSExportAvailability.menuKinds`): enabled by the button's rule and written by the room's own export. No keys.
+    @ViewBuilder
+    private func eelsItems(_ eels: EELSExportAvailability, appState: AppState) -> some View {
+        Divider()
+        ForEach(EELSExportAvailability.menuKinds) { kind in
+            Button("Export \(kind.title)") { RoomExports.eels(kind, appState: appState) }
+                .disabled(!eels.isEnabled(kind))
+        }
     }
 }

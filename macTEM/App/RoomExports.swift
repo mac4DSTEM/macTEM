@@ -7,11 +7,12 @@
 //        write the same file through the room's own save panel, or into a UI journey's export folder. The rules are pure functions,
 //        pinned without a window; `ExportCommands` draws the items.
 //
-//        The rooms: EDS (the shared room's `EDXRoomState.export`).
+//        The rooms: EDS (the shared room's `EDXRoomState.export`) and EELS (`EELSRoomState.export`).
 //
 
 import ShellEDXModel
 import ShellSpectroscopy
+import TEMSession
 
 // MARK: - EDS
 
@@ -53,6 +54,62 @@ extension ExportSnapshot {
     }
 }
 
+// MARK: - EELS
+
+/// Which of the EELS room's File-menu exports are enabled, by the rules of the room's own Export buttons (`EELSExportSection`).
+nonisolated struct EELSExportAvailability: Sendable, Equatable {
+    /// Spectrum CSV… and Spectrum MSA…: a spectrum is plotted.
+    let spectrum: Bool
+    /// Maps… and Per-pixel CSV…: the thickness map is there.
+    let maps: Bool
+    /// Results CSV…: an edge is fitted.
+    let results: Bool
+    /// Method JSON…: there is a method to record.
+    let method: Bool
+    /// Regions CSV…: a kept region has its row.
+    let regions: Bool
+
+    /// The menu's items in order: the EDS room's five where the EELS room has them, the `.msa` after the CSV, the per-pixel table last.
+    static let menuKinds: [EELSExportKind] = [.spectrum, .spectrumMSA, .mapsPNG, .results, .method, .regions, .diagnostics]
+
+    /// Whether the item of `kind` is enabled.
+    func isEnabled(_ kind: EELSExportKind) -> Bool {
+        switch kind {
+        case .spectrum, .spectrumMSA: spectrum
+        case .mapsPNG, .diagnostics: maps
+        case .results: results
+        case .method: method
+        case .regions: regions
+        }
+    }
+}
+
+extension ExportSnapshot {
+    /// The EELS room's exports are listed only while that room shows a spectrum image: nil in any other room and with none open.
+    /// Exhaustive over the rooms on purpose, as `availability` is.
+    static func eelsAvailability(area: WorkspaceArea, hasSpectrumImage: Bool, hasSpectrum: Bool, hasThicknessMap: Bool, fittedEdges: Int,
+                                 hasMethodRecord: Bool, regionRows: Int) -> EELSExportAvailability? {
+        let inRoom: Bool
+        switch area {
+        case .eels: inRoom = true
+        case .image, .fft, .diffraction, .results, .edx, .patterns, .indexing, .maps: inRoom = false
+        }
+        guard inRoom, hasSpectrumImage else { return nil }
+        return EELSExportAvailability(spectrum: hasSpectrum, maps: hasThicknessMap, results: fittedEdges > 0, method: hasMethodRecord,
+                                      regions: regionRows > 0)
+    }
+
+    static func eelsAvailability(of appState: AppState) -> EELSExportAvailability? {
+        // The session is read only where it decides something: in the EELS room.
+        let area = appState.navigation.workspaceArea
+        guard area == .eels else { return nil }
+        let session = appState.eels
+        return eelsAvailability(area: area, hasSpectrumImage: session.hasImage, hasSpectrum: session.plot != nil,
+                                hasThicknessMap: session.map != nil, fittedEdges: session.resultRows.count,
+                                hasMethodRecord: session.hasMethodRecord, regionRows: session.pinRows.count)
+    }
+}
+
 // MARK: - The calls
 
 /// What a room's File-menu export does: the room state's own export, as the room's inspector button calls it.
@@ -62,5 +119,12 @@ enum RoomExports {
     @discardableResult
     static func eds(_ kind: EDXExportKind, appState: AppState) -> Task<Void, Never> {
         Task { await appState.edxRoom.export(kind, from: appState.edx, directory: appState.exportDirectory) { appState.statusText = $0 } }
+    }
+
+    /// The EELS room's: the bytes of `kind`, the maps as the Maps control shows them, to the room's save panel or into a UI journey's
+    /// export folder, with the room's line in the status line.
+    static func eels(_ kind: EELSExportKind, appState: AppState) {
+        appState.eelsRoom.export(kind, from: appState.eels, maps: EELSMapsBlock.shownMaps(appState.eels, appState.eelsRoom),
+                                 directory: appState.exportDirectory) { appState.statusText = $0 }
     }
 }
