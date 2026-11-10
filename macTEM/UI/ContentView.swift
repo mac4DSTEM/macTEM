@@ -111,6 +111,11 @@ struct ContentView: View {
                 return .busy(operation: BusyOperation.indexingLine(session, dataset: dataset), progress: RoomProgress.fraction(room: room, appState: appState),
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
+            // The open of the scan is this room's work too while it is shown (`BusyOperation.isBusy`): the open's own line, as Patterns reads.
+            if session.patterns.isOpening, let operation = BusyOperation.toolbarOperation(room: .patterns, appState: appState) {
+                return .busy(operation: operation, progress: nil,
+                             metrics: { now in RunClock.reading(since: appState.busySince[.patterns], progress: nil, now: now) })
+            }
             return .idle(file: session.patterns.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
         case .maps:
             let session = appState.maps
