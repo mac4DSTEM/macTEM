@@ -473,9 +473,10 @@ extension EELSRoomFormat {
         notes == 0 ? quality : "\(notes) \(notes == 1 ? "note" : "notes") · " + quality
     }
 
-    /// The I cell: "43180000 ± 210000", sigma to two significant digits; I alone where the kit gives no sigma.
+    /// The I cell: "43180000 ± 210000", sigma to two significant digits; I alone where the kit gives no sigma, and the one dash of a missing
+    /// value (`UnitDisplay.noValue`) without I. Screen text only: the results CSV writes its own numbers.
     package static func intensityText(_ row: EELSEdgeRow, locale: Locale = .autoupdatingCurrent) -> String {
-        guard let i = row.intensity else { return "–" }
+        guard let i = row.intensity else { return UnitDisplay.noValue }
         guard let s = row.intensityStd else { return scientific(i, 4, locale: locale) }
         return scientific(i, 4, locale: locale) + " ± " + scientific(s, 2, locale: locale)
     }
@@ -491,12 +492,13 @@ extension EELSRoomFormat {
         return sig(mantissa, digits, locale: locale) + "e\(exponent)"
     }
 
-    /// The at% cell: "44.4 ± 0.3" with its 1σ (`percent`), "below detection" for an edge at or under 3 sigma, never a bare 0.
+    /// The at% cell: "44.4 ± 0.3" with its 1σ (`percent`), "below detection" for an edge at or under 3 sigma, never a bare 0; the one dash
+    /// of a missing value (`UnitDisplay.noValue`) without an at%.
     package static func atomicText(_ row: EELSEdgeRow, locale: Locale = .autoupdatingCurrent) -> String {
         if row.fitOnly { return "fit only" }
         if row.notDetected { return "not detected" }
         if row.belowDetection { return "below detection" }
-        return row.atomicPercent.map { percent($0, row.atomicSigma, locale: locale) } ?? "–"
+        return row.atomicPercent.map { percent($0, row.atomicSigma, locale: locale) } ?? UnitDisplay.noValue
     }
 
     /// The results footer's part for the elements the kit counts as not detected: "N, O not detected (MLLS amount ≤ 0)"; nil when there is none.
@@ -514,13 +516,13 @@ extension EELSRoomFormat {
         if row.fitOnly { return "fit only" }
         if row.notDetected { return "not detected" }
         if row.belowDetection { return "below detection" }
-        return row.weightPercent.map { percent($0, row.weightSigma, locale: locale) } ?? "–"
+        return row.weightPercent.map { percent($0, row.weightSigma, locale: locale) } ?? UnitDisplay.noValue
     }
 
     /// "44.4 ± 0.31": the σ to two significant digits and the value to the same decimal place (the EDS room's rule), one decimal when there is no σ,
-    /// at most three.
+    /// at most three; `UnitDisplay.noValue` for a value that is not finite.
     package static func percent(_ value: Double, _ sigma: Double?, locale: Locale = .autoupdatingCurrent) -> String {
-        guard value.isFinite else { return "–" }
+        guard value.isFinite else { return UnitDisplay.noValue }
         guard let sigma, sigma.isFinite, sigma > 0 else { return fixed(value, 1, locale: locale) }
         let places = max(0, min(3, 1 - Int(floor(log10(sigma)))))
         return fixed(value, places, locale: locale) + " ± " + fixed(sigma, places, locale: locale)
