@@ -96,6 +96,9 @@ mask` pop-up `None · Circular · From file`; `Chunk` value row (patterns per ch
 **Refine** (closed): `Refine` segmented `Orientation · PC · Both`; `Method` pop-up `Nelder–Mead · Powell · Least
 squares`; `Trust region` fields (° and PC fractions); `Apply to` segmented `Every point · Mean pattern · Pinned
 point`; the PC result as value rows after a run (`PC · (…) · ± (…)`).
+Landed (D-SEM-109): `After indexing` switch, `Refine · Orientation · PC · Both`, the trust region fields, `Solver ·
+Nelder–Mead`, the mean score and the refined PC; `Method` (Powell, least squares), `Apply to` and the PC write-back to
+Patterns are still to do.
 
 **Export** (closed): `Results ang… · Results ctf…` width set (`export-and-reports.md`), `Map…`, `Method JSON…`; `Scale
 bar · Colour key` switches.
@@ -119,7 +122,7 @@ the kit versions the numbers come from (pyEBSDindex, kikuchipy, orix pins from `
   numbers into Geometry as `Typed`; `Index` with `Refine · PC` commits a fit from there.
 - **Compare**: `Display › Compare` is a switch; while it is on, the bottom pane shows `A` against `B`, two of the
   results the session holds (the last Hough run, the last Dictionary run, the file's vendor indexing when it lies on
-  the scan's grid; Refined joins once the room refines). A pane holds no controls, so the two choices are
+  the scan's grid; Refined, the Dictionary run's refinement, D-SEM-109). A pane holds no controls, so the two choices are
   `Display › A · B` pop-ups, shown while Compare is on. The histogram is the disorientation angle per point (orix
   `Orientation.angle_with` with each side's point group, the same number as `Misorientation.angle` for one group) on
   1° bins; the footer gives the median and the fraction over 2° (D-SEM-97).

@@ -84,6 +84,7 @@ enum BusyOperation {
         case .indexing:
             let session = appState.indexing
             guard session.isIndexing else { return nil }
+            if session.isRefining { return "Refining against the master pattern…" }
             return session.result?.method == .dictionary ? "Indexing with the dictionary…" : "Indexing with Hough…"
         case .maps:
             let s = appState.maps
@@ -115,6 +116,9 @@ enum BusyOperation {
     @MainActor
     static func indexingLine(_ session: IndexingSession, dataset: EBSDDataset) -> String {
         let done = (session.result?.rowsDone ?? 0) * dataset.scanColumns
+        if session.isRefining, let target = session.refinedRun?.refinement?.settings.target {   // "Refine · Orientation · 450 of 4 125"
+            return "Refine · \(target.title) · \(done.formatted()) of \(dataset.patternCount.formatted())"
+        }
         let phase = session.chunkPhase.map { "\($0) · " } ?? ""
         return session.result?.method == .dictionary
             ? "Dictionary · \(phase)\(session.chunksDone) of \(session.chunksTotal) chunks · \(session.result?.scoreTitle ?? "NCC")"

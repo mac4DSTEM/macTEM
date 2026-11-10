@@ -228,16 +228,24 @@ enum SEMSessionLedger {
         } else if result.method == .hough {
             fields += houghFields(run.inputs.settings, locale: locale)
         }
+        let refined = run.refinement   // a refinement of the Dictionary run (D-SEM-109)
+        if let refined { fields.append(SEMSessionField("Refine", refined.settings.words)) }
         fields.append(SEMSessionField("State", IndexingInfoFormat.state(of: run, session: session)))
-        if let seconds = run.seconds { fields.append(SEMSessionField("Time", IndexingInfoFormat.time(seconds, locale: locale))) }
+        // A refinement's row: the Dictionary run's time, then the refinement's own.
+        if let refined, let s = session.runs[.dictionary].flatMap({ $0.id == refined.base ? $0.seconds : nil }) {
+            fields.append(SEMSessionField("Time", IndexingInfoFormat.time(s, locale: locale)))
+        }
+        if let seconds = run.seconds {
+            fields.append(SEMSessionField(refined == nil ? "Time" : "Refine time", IndexingInfoFormat.time(seconds, locale: locale)))
+        }
         let methods: [SEMMethod] = result.method == .hough
             ? [.houghIndexing, .orientationMap, .ipfColours]
-            : [.dictionaryIndexing, .orientationSimilarity, .orientationMap, .ipfColours]
+            : [.dictionaryIndexing] + (refined == nil ? [] : [.patternRefinement]) + [.orientationSimilarity, .orientationMap, .ipfColours]
         let log = record.lines(of: .indexing).filter { line in
-            (since.map { line.time >= $0 } ?? true) && IndexingInfoFormat.isLine(line.text, of: result.method)
+            (since.map { line.time >= $0 } ?? true) && IndexingInfoFormat.isLine(line.text, of: result.method, refined: refined != nil)
         }
-        let ended = log.last { $0.text.hasPrefix("Indexed ") || $0.text.hasPrefix("Stopped ") }
-        return SEMSessionRow(id: id, kind: .indexing, label: "\(result.method.title) indexing",
+        let ended = log.last { $0.text.hasPrefix(refined == nil ? "Indexed " : "Refined ") || $0.text.hasPrefix("Stopped ") }
+        return SEMSessionRow(id: id, kind: .indexing, label: refined == nil ? "\(result.method.title) indexing" : "Refined dictionary indexing",
                              value: "\(IndexingInfoFormat.indexed(result, locale: locale)) indexed · \(result.phases.map(\.name).joined(separator: ", "))",
                              source: "Indexing · \(document.fileName)", time: ended?.time, fields: fields, methods: methods, log: log)
     }

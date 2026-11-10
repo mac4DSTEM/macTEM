@@ -120,7 +120,7 @@ nonisolated final class IndexingCompareTests: XCTestCase {
         let indexing = state.indexing
         let points = 30 * 40
         XCTAssertNotNil(indexing.fileIndexing, "the demo's crystal map lies on the scan's grid")
-        XCTAssertEqual(indexing.compareSources, [.hough, .dictionary, .file])
+        XCTAssertEqual(indexing.compareSources, [.hough, .dictionary, .refined, .file])
         XCTAssertEqual(indexing.compareA, .hough)
         XCTAssertEqual(indexing.compareB, .file)
         XCTAssertFalse(indexing.showsCompare)

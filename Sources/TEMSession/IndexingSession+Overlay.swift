@@ -4,7 +4,8 @@
 //        simulation of the run's solution at the shown point, drawn over the pattern as indexed, so a wrong solution, PC or phase
 //        shows as bands that miss. The numbers are the Patterns room's overlay (`KikuchiOverlay.pattern`, kikuchipy's on_detector,
 //        parity `m6/geometrical-simulation-nickel`) fed with the solution's rotation and phase instead of the file's: the run's mean
-//        projection centre, the dataset's detector angles at the indexed pattern's shape (binned when the pipeline bins). What is drawn
+//        projection centre (a refinement's refined PC at the point, D-SEM-109), the dataset's detector angles at the indexed
+//        pattern's shape (binned when the pipeline bins). What is drawn
 //        (Min d, Band width, Zone axes, Labels, Kinematical and Blend) is the Patterns room's Simulation section, one set of settings
 //        for both panes. Bands and kinematical master patterns are made once per phase and spacing; the last overlay is kept. A
 //        master pattern is made off the main actor (`KikuchiOverlay.kinematicalMaster`): the lines draw at once, and the simulation
@@ -42,10 +43,12 @@ extension IndexingSession {
               patternShape.rows > 0, patternShape.columns > 0 else { return nil }
         // Read so the pane draws again when a master pattern lands (the memo is dropped then).
         _ = overlayMastersLanded
-        guard let pc = resultProjectionCenter else { return .failure(.noOrientations) }
+        guard let meanPC = resultProjectionCenter else { return .failure(.noOrientations) }
         guard let solution = result.solution(at: position), solution.phase >= 0, let phase = result.phase(of: solution) else {
             return .failure(.notIndexed)
         }
+        // A refinement under PC or Both draws each point at its refined PC, the one its orientation was fitted with (D-SEM-109).
+        let pc = result.refinedProjectionCenter(at: position) ?? meanPC
         let settings = patterns.overlaySettings
         let kv = dataset.sem.beamEnergyKeV ?? 0
         let bandWidth = settings.bandWidth && kv > 0, kinematical = settings.kinematical && kv > 0

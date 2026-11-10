@@ -1,9 +1,9 @@
 //
 //  IndexingSession+Compare.swift
 //  Role: the Indexing room's Compare (docs/sem/design/indexing-room.md §3, §6; #230, D-SEM-97): two results of the scan, A and B, each
-//        the room's last Hough run, its last Dictionary run or the file's own indexing (the dataset's crystal map when it lies on the
-//        scan's grid), drawn side by side on the Map layer when it is an IPF layer (else IPF-Z), with the disorientation between them
-//        at every point and its histogram. The numbers are `IndexingComparison`'s (orix's `angle_with`, numpy's histogram, median and
+//        the room's last Hough run, its last Dictionary run, that run's refinement (D-SEM-109) or the file's own indexing (the
+//        dataset's crystal map when it lies on the scan's grid), drawn side by side on the Map layer when it is an IPF layer (else
+//        IPF-Z), with the disorientation between them at every point and its histogram. The numbers are `IndexingComparison`'s (orix's `angle_with`, numpy's histogram, median and
 //        mean); the pictures `IndexingRaster`'s for a run (as the indexed map draws it) and `OrientationMaps.raster`'s for the file (as
 //        the Maps room draws it). This owner decides WHEN: the comparison is made off the main actor when Compare is switched on, a
 //        pick or the layer changes and a run of A's or B's method ends, and lands only if nothing newer was asked for meanwhile
@@ -13,9 +13,9 @@
 import Foundation
 import TEMCore
 
-/// A result Compare can show: the room's last run of a method, or the file's own indexing.
+/// A result Compare can show: the room's last run of a method, the Dictionary run's refinement (D-SEM-109), or the file's own indexing.
 package nonisolated enum IndexingCompareSource: String, CaseIterable, Identifiable, Hashable, Sendable {
-    case hough, dictionary, file
+    case hough, dictionary, refined, file
 
     package var id: String { rawValue }
 
@@ -26,20 +26,21 @@ package nonisolated enum IndexingCompareSource: String, CaseIterable, Identifiab
         }
     }
 
-    /// The method whose last run this is; nil for the file's indexing.
+    /// The method whose last run this is; nil for the refinement and the file's indexing.
     package var method: IndexingMethod? {
         switch self {
         case .hough: .hough
         case .dictionary: .dictionary
-        case .file: nil
+        case .refined, .file: nil
         }
     }
 
-    /// The pop-ups' and captions' word: "Hough", "Dictionary", "File".
+    /// The pop-ups' and captions' word: "Hough", "Dictionary", "Refined", "File".
     package var title: String {
         switch self {
         case .hough: IndexingMethod.hough.title
         case .dictionary: IndexingMethod.dictionary.title
+        case .refined: "Refined"
         case .file: "File"
         }
     }
@@ -72,25 +73,42 @@ nonisolated enum IndexingCompareInput: Sendable {
 }
 
 extension IndexingSession {
-    /// What A and B can be: Hough, Dictionary, and File when the dataset's crystal map lies on the scan's grid.
+    /// What A and B can be: Hough, Dictionary, Refined (always listed: its absence explains an empty side), and File when the
+    /// dataset's crystal map lies on the scan's grid.
     package var compareSources: [IndexingCompareSource] {
-        fileIndexing == nil ? [.hough, .dictionary] : [.hough, .dictionary, .file]
+        fileIndexing == nil ? [.hough, .dictionary, .refined] : [.hough, .dictionary, .refined, .file]
     }
 
     /// The layer A and B are drawn on: the map's when it is IPF-Z, IPF-X or IPF-Y, else IPF-Z.
     package var compareLayer: IndexingLayer { layer.direction == nil ? .ipfZ : layer }
 
-    /// Whether `source` is a run made of other inputs than its method's current ones (the file's indexing never is).
+    /// The run `source` shows: its method's last run, or the Dictionary run's refinement; nil for the file's indexing.
+    func compareRun(_ source: IndexingCompareSource) -> IndexingRun? {
+        source == .refined ? heldRefinement : source.method.flatMap { runs[$0] }
+    }
+
+    /// Whether `source` is a run made of other inputs than its method's current ones, or a stale refinement (the file's indexing
+    /// never is).
     package func isStale(source: IndexingCompareSource) -> Bool {
-        source.method.map { isStale(of: $0) } ?? false
+        source == .refined ? isRefinementStale : (source.method.map { isStale(of: $0) } ?? false)
     }
 
     /// Why `source` cannot be compared now, in the tile's words; nil when it can.
     package func compareAbsence(_ source: IndexingCompareSource) -> String? {
+        if source == .refined {
+            if isRefining { return "Refine is running: Compare follows when it ends" }
+            // Index → Refine: the Dictionary stage drops the old refinement, and the new one follows it.
+            if isIndexing, runningMethod == .dictionary, refinesAfterIndexing { return "Dictionary is indexing: Refine follows, then Compare" }
+            guard let run = compareRun(.refined), run.result.reachedCount > 0 else {
+                return compareRun(.refined)?.wasStopped == true ? "The refinement was stopped before a row landed"
+                    : "Turn Refine on and Index with Dictionary to compare it"
+            }
+            return nil
+        }
         guard let method = source.method else {
             return fileIndexing == nil ? "The file holds no indexing on the scan's grid" : nil
         }
-        if isIndexing, runningMethod == method { return "\(method.title) is indexing: Compare follows when the run ends" }
+        if isIndexing, !isRefining, runningMethod == method { return "\(method.title) is indexing: Compare follows when the run ends" }
         guard let run = runs[method], run.result.reachedCount > 0 else {
             if let run = runs[method], run.wasStopped { return "The \(method.title) run was stopped before a row landed" }
             return "Index with \(method.title) to compare it"
@@ -108,7 +126,7 @@ extension IndexingSession {
             return
         }
         if compareAbsence(compareA) != nil, let shown = shownRun, shown.result.reachedCount > 0 {
-            let source = IndexingCompareSource(shown.method)
+            let source: IndexingCompareSource = shown.refinement != nil ? .refined : IndexingCompareSource(shown.method)
             if source == compareB {
                 compareB = compareSources.first { $0 != source && compareAbsence($0) == nil } ?? compareA
             }
@@ -143,11 +161,9 @@ extension IndexingSession {
         }
         let layer = compareLayer
         let backdrop = patterns.meanIntensities
-        let key = IndexingCompareKey(a: compareA, b: compareB, runA: compareA.method.flatMap { runs[$0]?.id },
-                                     runB: compareB.method.flatMap { runs[$0]?.id },
-                                     reachedA: compareA.method.flatMap { runs[$0]?.result.reachedCount },
-                                     reachedB: compareB.method.flatMap { runs[$0]?.result.reachedCount }, layer: layer,
-                                     backdrop: backdrop != nil)
+        let runA = compareRun(compareA), runB = compareRun(compareB)
+        let key = IndexingCompareKey(a: compareA, b: compareB, runA: runA?.id, runB: runB?.id, reachedA: runA?.result.reachedCount,
+                                     reachedB: runB?.result.reachedCount, layer: layer, backdrop: backdrop != nil)
         if key == compareKey, let compareTask { return compareTask }
         compareTask?.cancel()
         compareKey = key
@@ -173,10 +189,8 @@ extension IndexingSession {
     /// The data `source` is compared from; nil while it has nothing to show (`compareAbsence`).
     private func compareInput(_ source: IndexingCompareSource) -> IndexingCompareInput? {
         guard compareAbsence(source) == nil else { return nil }
-        if let method = source.method {
-            return runs[method].map { IndexingCompareInput.run($0.result) }
-        }
-        return fileIndexing.map(IndexingCompareInput.file)
+        if source == .file { return fileIndexing.map(IndexingCompareInput.file) }
+        return compareRun(source).map { IndexingCompareInput.run($0.result) }
     }
 
     private func clearComparison() {
