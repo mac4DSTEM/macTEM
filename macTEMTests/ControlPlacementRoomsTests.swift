@@ -141,8 +141,11 @@ nonisolated final class ControlPlacementRoomsTests: XCTestCase {
             XCTAssertTrue(edsBlock.contains(".keyboardShortcut(\"\(key)\", modifiers: [.command, .control])"), title)
         }
         XCTAssertTrue(edsBlock.contains("Button(\"Pin Region\") { appState.edx.pinRegion() } .disabled(appState.edx.selectedPin != nil)"))
-        XCTAssertTrue(app.contains("if appState?.navigation.workspaceArea == .image { Divider() ForEach(ImageRoomTools.Tool.allCases)"),
-                      "the Image room's tools only while that room is shown")
+        // The Image menu is never empty: its tools are always listed, but carry ⌃⌘1…4 and are enabled only in the Image room.
+        XCTAssertTrue(app.contains("let inImageRoom = appState?.navigation.workspaceArea == .image ForEach(ImageRoomTools.Tool.allCases)"))
+        XCTAssertTrue(app.contains(".keyboardShortcut(inImageRoom ? KeyboardShortcut(KeyEquivalent(tool.shortcutDigit), "
+                                   + "modifiers: [.command, .control]) : nil) .disabled(!inImageRoom || appState?.hasImage != true)"),
+                      "the Image room's tools take their keys only while that room is shown")
         // Every ⌃⌘ digit stands in one of the two room blocks: the Image tools' one line and the EDS room's five (⌃⌘S and ⌃⌘L are the
         // sidebar's and Output's, letters).
         XCTAssertEqual(app.components(separatedBy: "modifiers: [.command, .control])").count - 1, 8)

@@ -10,9 +10,10 @@ nonisolated final class LaunchJourney: Journey {
         try step("launch with the demo image") { launch(["--demo-fixture"]) }
         try step("the demo image is shown") {
             // The toolbar's display names the file (the open files are the window's tabs, not a sidebar list: one file per window).
+            // `display` is the StaticText itself, with no descendants: read its own label and value only.
             let display = waitFor("toolbar.display.idle", timeout: 30)
             let named = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                [display.label, (display.value as? String) ?? "", display.staticTexts.firstMatch.label].joined().contains("Demo lattice")
+                [display.label, (display.value as? String) ?? ""].joined().contains("Demo lattice")
             }, object: nil)
             XCTAssertEqual(XCTWaiter().wait(for: [named], timeout: 30), .completed, "the toolbar never named Demo lattice")
         }
