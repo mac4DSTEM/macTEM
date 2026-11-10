@@ -19,7 +19,7 @@ test files are compatible, and each entry below says which it is. Demo data ship
 | `nickel_ebsd_large/patterns_v2.h5` (15.4 MB); shipped in the app as `DemoData/nickel_ebsd_large/patterns_v2.h5` (macTEM#127) | 55 x 75 EBSD patterns of 60 x 60 px (uint8), recrystallised Ni, NORDIF UF-1100 on a Hitachi SU-6600 at 20 kV, 1.5 µm step; kikuchipy h5ebsd with static background, per-pattern projection centres and the indexed crystal map (`kikuchipy.data.nickel_ebsd_large`) | github.com/pyxem/kikuchipy-data at commit `bcab8f7a`, served from raw.githubusercontent.com | CC BY 4.0 | Ånes, H. W., Hjelen, J., Sørensen, B. E., van Helvoort, A. T. J. & Marthinsen, K. (2019). *Electron backscatter patterns from Nickel acquired with varying camera gain*. Zenodo, concept DOI 10.5281/zenodo.7497682 (version record 7498632). Paper: Ånes et al. (2020), *Processing and indexing of electron backscatter patterns using open-source software*, IOP Conf. Ser.: Mater. Sci. Eng. 891, 012002, doi:10.1088/1757-899X/891/1/012002 |
 | `emsoft_ebsd_master_pattern_ni_mc_mp_20kv_uint8_gzip_opts9.h5` (fixture, 0.9 MB); shipped in the app as `DemoData/ni_mc_mp_20kv_uint8_gzip_opts9.h5` | The same EMsoft Ni 20 kV master pattern as the next row, 401 x 401 px Lambert and stereographic, both hemispheres, reduced to uint8 with gzip by kikuchipy's own script (`kikuchipy.data.nickel_ebsd_master_pattern_small`); the master pattern of figure F15 and of the app's demo (md5 `807c8306a0d02b46effbcb12bd44cd02`, kikuchipy's registry) | kikuchipy 0.13.1 package data (`kikuchipy/data/emsoft_ebsd_master_pattern/`) | CC BY 4.0 (data), GPL-3.0 (package) | As the next row; EMsoft: Callahan, P. G. & De Graef, M. (2013), *Dynamical electron backscatter diffraction patterns. Part I*, Microsc. Microanal. 19, 1255, doi:10.1017/S1431927613001840 |
 | `ebsd_master_pattern/ni_mc_mp_20kv.h5` (manual) | EMsoft Ni master pattern at 20 kV in float32 at full resolution, for dictionary indexing (phase 4) where the uint8 copy above is not enough | Zenodo record 7498645 (kikuchipy's registry; md5 `8b69c071a036ad3488d465093b67fe4d`) | CC BY 4.0 | Ånes, H. W. (2023). *EBSD master pattern of nickel at 20 kV*, doi:10.5281/zenodo.7498645 |
-| `exspy_EDS_SEM_TM002.hspy` / `.msa` (fixture, 31 KB); shipped in the app as `DemoData/EDS_SEM_TM002.hspy` (macTEM#127) | One SEM-EDS spectrum, 1024 channels at 10 eV from -0.1 keV, of the BAM EDS-TM002 thin-film standard (C, Al, Mn, Cu, Zr on Si), Zeiss Nvision40 at 10 kV, Oxford X-Max 80, 20 s live time (`exspy.data.EDS_SEM_TM002`); the `.msa` twin is HyperSpy's EMSA export of the same signal | exspy 0.3.2 package data (`exspy/data/EDS_SEM_TM002.hspy`), original `1D_EDS_SEM_Spectrum.msa` of the HyperSpy demos | GPL-3.0 (exspy) | exspy: doi:10.5281/zenodo.10700224; HyperSpy: de la Peña, F. et al., doi:10.5281/zenodo.592838. Sample: BAM EDS-TM002 (www.webshop.bam.de) |
+| `exspy_EDS_SEM_TM002.hspy` / `.msa` (fixture, 31 KB); shipped in the app as `DemoData/EDS_SEM_TM002.hspy` (macTEM#127) | One SEM-EDS spectrum, 1024 channels at 10 eV from -0.1 keV, of the BAM EDS-TM002 thin-film standard (C, Al, Mn, Cu, Zr on Si), Zeiss Nvision40 at 10 kV, Oxford X-Max 80, 20 s live time (`exspy.data.EDS_SEM_TM002`); the `.msa` twin is HyperSpy's EMSA export of the same signal | exspy 0.3.2 package data (`exspy/data/EDS_SEM_TM002.hspy`), original `1D_EDS_SEM_Spectrum.msa` of the HyperSpy demos | GPL-3.0 (exspy) | exspy: concept DOI 10.5281/zenodo.10252344; HyperSpy: de la Peña, F. et al., doi:10.5281/zenodo.592838. Sample: BAM EDS-TM002 (www.webshop.bam.de) |
 
 ## Datasets (downloaded)
 
@@ -57,22 +57,26 @@ test files are compatible, and each entry below says which it is. Demo data ship
 | `emsoft_ebsd_master_pattern_ni_mc_mp_20kv_uint8_gzip_opts9.h5` | The Ni 20 kV master pattern, see above | kikuchipy 0.13.1 package data | CC BY 4.0 (data), GPL-3.0 (package) |
 | `emsoft_ebsd_master_pattern_dummy.h5` | A 13 x 13 float32 EMsoft EBSD master pattern file of 11 energies (10 to 20 kV), Lambert and stereographic, both hemispheres, of kikuchipy's Al2Cu test phase (`master_patterns.h5`) | kikuchipy 0.13.1 package data | GPL-3.0 |
 | `planted_emsoft_tkd_master_pattern.h5`, `planted_emsoft_ecp_master_pattern.h5` | The same 13 x 13 x 11-energy layout as EMsoft TKD and ECP master pattern files, written as kikuchipy's test fixtures write them (`kikuchipy/conftest.py`); kikuchipy ships no TKD or ECP file | this repo (`make_fixtures.py`) | GPL-3.0 |
+| `macTEMTests/Fixtures/sem-tiff/tescan-pfib_dataZeroed.50431.bin` (committed in the unit tests' fixtures, with `tescan-reference.json`) | Tag 50431 of NexusLIMS's Tescan test file `tescan-pfib_dataZeroed.tif`, byte for byte; the input of the Tescan TIFF reader's parity (`SOURCES-sem-tiff.md` beside it) | NexusLIMS (github.com/datasophos/NexusLIMS) `tests/unit/files/tescan-pfib_dataZeroed.tar.gz`, fetched 2026-11-07 | MIT |
 | `simulation_cases.json` | The inputs of the Kikuchi simulation bundles (P6-02, figure F14): the Ni, Ti and Al2Cu phases (space group, lattice, asymmetric atoms), the lattices and hkl of the lattice bundle, the families and smallest spacings, the voltages, the four nickel scan points, a tilted 48 x 64 detector with three orientations and projection centres, the master pattern's half size and scalings. Ni's families and 20 kV are kikuchipy's geometrical and kinematic simulation tutorials'; Ti's lattice and atom are orix's `ti_orientations` phase; Al2Cu's are kikuchipy's test phase | kikuchipy 0.13.1 tutorials and tests (Ni, Al2Cu); chosen for the SEM program (the rest) | GPL-3.0 |
 
 ## Gaps on 2026-11-06
 
-- No public **Tescan** SEM image with its metadata header was found; RosettaSciIO has no Tescan test file. The
-  Tescan reader waits for a licensed example (an issue is filed when the reader is scheduled).
+- **Tescan**: closed on 2026-11-07. RosettaSciIO has no Tescan test file; NexusLIMS's MIT-licensed
+  `tescan-pfib_dataZeroed.tif` is the one public Tescan TIFF of known licence found, and its tag is the fixture above.
 - No public **Oxford .ctf** map; the planted file above covers the reader until one is found.
 - **TKD** patterns: none public with a stated licence yet; the TKD geometry of phase 2 is checked against kikuchipy
   on the Ni data with the detector tilted as a TKD setup would be (a geometry test, not a TKD dataset).
 
 ## Shipped with the app
 
-Since macTEM#127 (2026-11-06), reachable from "Try Demo Data":
+Shipped since macTEM#127 (2026-11-06). The first three are items of Help > Open Demo Data and of "Try Demo Data" on the
+start screen. The master pattern is not an item: the Indexing room loads it by itself when it first gets a scan, so
+Dictionary indexing works on the demo scan.
 
 | Bundle path | Dataset | Size | Licence |
 | --- | --- | --- | --- |
 | `DemoData/nickel_ebsd_large/patterns_v2.h5` | kikuchipy `nickel_ebsd_large`, the EBSD north star | 15.4 MB | CC BY 4.0 |
 | `DemoData/EDS_SEM_TM002.hspy` | exspy `EDS_SEM_TM002`, the SEM-EDS north star | 31 KB | GPL-3.0 |
 | `DemoData/sdss_ferrite_austenite.ang` | orix-data `sdss_ferrite_austenite`, the Maps room's demo map (macTEM P3-04) | 0.65 MB | CC BY 4.0 |
+| `DemoData/ni_mc_mp_20kv_uint8_gzip_opts9.h5` | kikuchipy's EMsoft Ni 20 kV master pattern (`nickel_ebsd_master_pattern_small`), the Indexing room's master pattern for the demo scan | 0.9 MB | CC BY 4.0 (data), GPL-3.0 (package) |

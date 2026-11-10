@@ -1,20 +1,27 @@
-macTEM analyses TEM images, EDS and EELS spectrum images and electron diffraction patterns natively on Apple silicon. Open a file, look, measure, and export a figure, with every number traceable to the method it came from.
+macTEM analyses TEM and SEM images, EDS and EELS spectrum images, electron diffraction patterns and EBSD scans natively on Apple silicon. Open a file, look, measure, and export a figure, with every number traceable to the method it came from.
+
+No data at hand? Help > Open Demo Data opens generated TEM documents and three public SEM datasets.
 
 OPEN YOUR FILES
-DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIFF and MRC, and single .msa spectra. The file's content decides where it opens: an image in the Image room, a spectrum image in the EDS or EELS room. A multi-page TIFF or ImageJ stack opens frame by frame, read on demand.
+TEM: DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIFF and MRC images, EDS and EELS spectrum images, and .msa spectra.
+SEM: Thermo Fisher, Zeiss and Tescan TIFF, and JEOL .img and .map. SEM-EDS from Bruker (.bcf, .spx), EDAX (.spd, .lsd, .spc), JEOL (.pts, .eds) and single spectra in HyperSpy files. EBSD and TKD patterns as h5ebsd (kikuchipy, Bruker, EDAX, Oxford .h5oina), EDAX .up1 and .up2, and Oxford .ebsp. Orientation maps as .ang and .ctf.
+The file's content decides the room it opens in. A multi-page TIFF or ImageJ stack opens frame by frame.
 
 ROOMS
-• Image: calibration from the file, colormap, contrast and gamma; distances, angles, line profiles and particles; image stacks. Your marks are saved in a session file next to the image.
+• Image: calibration from the file, colormap, contrast and gamma; distances, angles, line profiles and particles; image stacks. Your marks are saved in a session file next to the image. SEM TIFFs show the microscope's settings, and a Thermo Fisher or Tescan databar can be shown or hidden.
 • FFT: the transform of the image or a region with a window, spots and their d-spacings, the radial profile, a masked inverse, and Gaussian, band-pass, ABSF and Wiener filters.
-• EDS: Velox and GMS spectrum images. Pick elements from the periodic table or let Auto ID suggest them, then get net-count, wt%, at% and thickness maps, regions, and the Cliff-Lorimer composition, with zeta-factor and cross-section methods.
+• EDS: TEM spectrum images and SEM-EDS maps and spectra. Pick elements from the periodic table or let Auto ID suggest them, then get net-count, wt%, at% and thickness maps, regions, and the Cliff-Lorimer composition, with zeta-factor and cross-section methods.
 • EELS: Dual-EELS spectrum images. Align the zero-loss peak, map t/λ, pick edges from 383 K, L and M edges of 95 elements, and fit their intensities and at%, each with its uncertainty.
 • Diffraction: calibrate on a ring of a standard (Au, Al or Si), then index rings and spots against a standard or a CIF and read their d-spacings.
-• Results: every measurement of a file in one table, exported as CSV.
+• Patterns: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and average dot product maps. Remove the backgrounds, rescale, equalise, filter, bin, average neighbouring patterns and denoise with NLPAR, and draw the Kikuchi bands of the file's orientations over the pattern. The file stays unchanged.
+• Indexing: Hough indexing, or dictionary indexing against an EMsoft master pattern, for one or several phases. Read each point's solution and compare two results side by side.
+• Maps: IPF and phase maps with their colour keys; grains, their boundaries and size (ECD, ASTM E112), KAM, GOS and GND; Schmid factors and slip traces; pole figures, ODF sections and histograms.
+• Results: every measurement of a file in one table, exported as CSV. The SEM results get their own table and a PDF or Markdown session report.
 
-Exports are PNG figures with the scale bar, CSV tables, MSA spectra, and a method JSON for the spectroscopy rooms.
+Exports are PNG figures with the scale bar, CSV tables, MSA spectra, a method JSON for the EDS, EELS, Patterns and Indexing rooms, and indexed maps as .ang and .ctf.
 
 WHERE THE NUMBERS COME FROM
-Every number is computed by the open macEM Swift packages, each checked against the Python package it ports, within that package's own tolerance: file readers, FFT and image maths, crystallography, and EDS and EELS. EELS cross sections are the generalised oscillator strengths of Segger, Guzzinati and Kohl, bundled with the app.
+The TEM methods compute with the open macEM Swift packages, each checked against the Python package it ports, within that package's own tolerance. EELS cross sections are the generalised oscillator strengths of Segger, Guzzinati and Kohl, bundled with the app. The SEM methods are ported into the app and checked the same way against kikuchipy, PyEBSDIndex, orix, diffsims, DefDAP, eXSpy, RosettaSciIO and NexusLIMS.
 
 YOUR DATA STAYS ON YOUR MAC
 No account, no analytics, no telemetry, and no network access. Your files are read from and written to your own storage only.
