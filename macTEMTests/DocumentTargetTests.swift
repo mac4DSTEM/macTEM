@@ -81,6 +81,7 @@ nonisolated final class DocumentTargetTests: XCTestCase {
 
         state.selectWorkspace(.image)
         XCTAssertEqual(state.documentTarget, .image)
-        XCTAssertEqual(state.documentURL, state.openItems.selected?.url)
+        XCTAssertNotNil(state.openItems.selected, "the generated demo image is still open")
+        XCTAssertNil(state.documentURL, "the generated demo image has no file, so Show in Finder is off")
     }
 }

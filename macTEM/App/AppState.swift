@@ -131,8 +131,8 @@ final class AppState {
             self?.recordLastSession()
         }
         openItems.onReadFailure = { [weak self] _, error in self?.present(error) }
-        // A stack frame that could not be read: the status line and Output say which and why (the slider is back on the frame shown).
-        openItems.onFrameFailure = { [weak self] in self?.statusText = $0 }
+        // A stack frame that could not be read: the status line, Output and VoiceOver say which and why (the slider is back on the frame shown).
+        openItems.onFrameFailure = { [weak self] in self?.report(event: $0, in: nil) }
         // Every session's event line: the infobar, the SEM rooms' session record, and VoiceOver for a line that ends something.
         edx.onEvent = { [weak self] in self?.report(event: $0, in: nil) }
         edx.onFailure = { [weak self] in self?.present($0) }

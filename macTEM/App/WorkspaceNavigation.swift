@@ -239,7 +239,7 @@ extension AppState {
     var documentURL: URL? {
         guard let target = documentTarget else { return nil }
         switch target {
-        case .image: return openItems.selected?.url
+        case .image: return openItems.selected.map(\.url).flatMap { DemoDocuments.isDemo($0) ? nil : $0 }
         case .ebsdDataset: return ebsd.document?.url
         case .orientationMap: return maps.document?.url
         case .eds: return Self.fileURL(path: edx.source?.metadata.filePath ?? "")

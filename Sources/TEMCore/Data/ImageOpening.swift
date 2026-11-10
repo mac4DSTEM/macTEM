@@ -38,7 +38,7 @@ package nonisolated enum ImageOpening {
                 let what = ext.isEmpty ? "a file without an extension" : "a .\(ext) file"
                 return "\(file) is \(what). " + FileRouting.openableSentence
             case .noImage(let file, let objects):
-                return "\(file) holds no 2D image (\(objects)). Image stacks in DM files are not read yet."
+                return "\(file) holds no 2D image (\(objects)). Image stacks in DM files, and spectrum images in .dm3 files, are not read yet."
             case .tiff(let file, let refusal):
                 return "\(file) is not read: " + refusal.reason
             case .mrc(let file, let refusal):

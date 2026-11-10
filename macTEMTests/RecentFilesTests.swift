@@ -165,5 +165,6 @@ nonisolated final class RecentFilesTests: XCTestCase {
         XCTAssertNil(task, "nothing to open")
         XCTAssertEqual(state.recents.entries.map(\.displayName), ["planted.dm4"], "a file that is gone leaves the list")
         XCTAssertTrue(state.statusText.contains("gone.dm4"), state.statusText)
+        XCTAssertEqual(state.errorMessage?.contains("gone.dm4"), true, "the alert says it, not the status line alone")
     }
 }

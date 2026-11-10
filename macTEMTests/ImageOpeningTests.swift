@@ -191,7 +191,7 @@ nonisolated final class ImageOpeningTests: XCTestCase {
             let expected = ImageOpening.Refusal.noImage(file: "nothing.dm4", objects: "thumbnail 8 × 6; 170 × 1; 16 × 2 × 3")
             XCTAssertEqual(error as? ImageOpening.Refusal, expected)
             XCTAssertEqual((error as? LocalizedError)?.errorDescription,
-                           "nothing.dm4 holds no 2D image (thumbnail 8 × 6; 170 × 1; 16 × 2 × 3). Image stacks in DM files are not read yet.")
+                           "nothing.dm4 holds no 2D image (thumbnail 8 × 6; 170 × 1; 16 × 2 × 3). Image stacks in DM files, and spectrum images in .dm3 files, are not read yet.")
         }
         let empty = try DM4TestFile.write(DM4TestFile.file([]), named: "empty.dm4", for: self)
         XCTAssertThrowsError(try ImageOpening.openNow(path: empty)) { error in

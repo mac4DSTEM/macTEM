@@ -148,8 +148,9 @@ extension AppState {
 
     /// File > Open Recent: the entry's bookmark resolved (without mounting a volume or asking anything) and the file opened as
     /// any other, through `open(urls:)`, which remembers it again with a bookmark made now, so a stale one is renewed and a file
-    /// that moved is listed where it is. An entry on a disk that is not connected stays and the status line says so; one whose
-    /// file is gone (moved away, renamed or deleted) leaves the list, and the status line says that.
+    /// that moved is listed where it is. An entry on a disk that is not connected stays and the window's alert says so; one whose
+    /// file is gone (moved away, renamed or deleted) leaves the list, and the alert says that (`presentRefusals`, as mac4DSTEM
+    /// answers both with an alert: a menu item that only changed the status line read as nothing happening).
     @discardableResult
     func openRecent(_ entry: RecentFile) -> Task<Void, Never>? {
         var stale = false
@@ -159,10 +160,10 @@ extension AppState {
             return open(urls: [url])
         }
         if let volume = RecentFiles.absentVolume(of: entry.path) {
-            statusText = "\(entry.displayName) is on \(volume), which is not connected: connect it, then open the file again."
+            presentRefusals(["\(entry.displayName) is on \(volume), which is not connected: connect it, then open the file again."])
         } else {
             recents.remove(path: entry.path)
-            statusText = "\(entry.displayName) is no longer where it was (moved, renamed or deleted), so it was removed from Open Recent."
+            presentRefusals(["\(entry.displayName) is no longer where it was (moved, renamed or deleted), so it was removed from Open Recent."])
         }
         return nil
     }
@@ -210,7 +211,7 @@ extension AppState {
         let missing = Self.notReopened(gone: gone, offline: offline)
         guard !found.isEmpty else {
             if offline.isEmpty { lastSession.forgetPrevious() }
-            statusText = missing ?? ""
+            report(event: missing ?? "", in: nil)   // the status line, and VoiceOver: with every file gone this line is the whole answer
             return nil
         }
         let selectedPath = found.first { $0.path == record.selectedPath }?.url.standardizedFileURL.path
@@ -222,7 +223,7 @@ extension AppState {
                 openItems.select(item.id)
             }
             if let room { selectWorkspace(room) }
-            if let missing { statusText = missing }
+            if let missing { report(event: missing, in: nil) }
         }
         lastOpen = task
         return task
