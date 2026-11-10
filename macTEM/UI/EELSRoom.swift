@@ -5,7 +5,7 @@
 //        below (the region's low loss and core loss on one energy axis with a marked gap) with the results beside it; a single spectrum (a 1 x 1 file) is the
 //        spectrum and its results alone, as the EDS room's. The tools, the Maps control, the edges,
 //        the processing and fitting choices and the exports are the inspector's (`EELSRoomInspector.swift`). The room has its own document, the spectrum image,
-//        opened from here and held by `EELSSession` (TEMSession). Presentation only: every number is SpectroKit's through the session, its method and reference named (`EELSLiterature`);
+//        opened through the app's Open (the room's own button too: `EELSDoor`) and held by `EELSSession` (TEMSession). Presentation only: every number is SpectroKit's through the session, its method and reference named (`EELSLiterature`);
 //        the pure parts (which tile goes where, the axis, the thickness line) are `TEMCore/EELS/EELSRoomChassis.swift`.
 //        The maps block, the spectrum and the results panel live in this file because the room's file list is fixed for slice 1; they move out with slice 2.
 //
@@ -88,6 +88,31 @@ extension EELSSession {
     }
 }
 
+/// The EELS room's own Open, through the app's one Open (`AppState.open(urls:)`) as File > Open, a drop, Open Recent and the Patterns, Indexing and Maps
+/// rooms' buttons: the file is routed by what it holds, so its image gets its Open Files row, the Results room lists the room's numbers under it, Open
+/// Recent and the last session remember it, and a refusal is the window's one alert. The app's Open hands the file to the EELS session, once; the
+/// door itself reads nothing.
+enum EELSDoor {
+    /// Opens `url` and, once the Open is in, brings the EELS room back in front where the Open landed in the EDS room though the file opened here too
+    /// (`returnsToFront`). The returned task ends then (a test awaits it); nil when the Open started nothing.
+    @discardableResult
+    static func open(_ url: URL, in appState: AppState) -> Task<Void, Never>? {
+        guard let opening = appState.open(urls: [url]) else { return nil }
+        return Task {
+            await opening.value
+            let room = appState.navigation.workspaceArea
+            if Self.returnsToFront(inEELS: appState.eelsFiles.contains(url), inEDS: appState.edsFiles.contains(url), room: room) {
+                appState.selectWorkspace(.eels)
+            }
+        }
+    }
+
+    /// Whether the door's room comes back in front: the file opened into the EELS room and into the EDS room too, and the window is in the EDS room,
+    /// where an Open lands for a file that holds both cubes. A file with an EELS cube and no EDS cube lands in the EELS room by itself; in any other
+    /// room the person has moved on, and stays there. Pure, so a test holds it.
+    nonisolated static func returnsToFront(inEELS: Bool, inEDS: Bool, room: WorkspaceArea) -> Bool { inEELS && inEDS && room == .edx }
+}
+
 struct EELSRoom: View {
     @Environment(AppState.self) private var appState
     @State private var showImporter = false
@@ -139,7 +164,7 @@ struct EELSRoom: View {
         .onChange(of: session.fileName) { state.reset() }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: importTypes, allowsMultipleSelection: false) { result in
             switch result {
-            case .success(let urls): if let url = urls.first { session.open(url: url) }
+            case .success(let urls): if let url = urls.first { EELSDoor.open(url, in: appState) }
             case .failure(let error): appState.present(error)
             }
         }
