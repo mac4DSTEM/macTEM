@@ -134,12 +134,12 @@ struct MapsBottomPane: View {
                 case .histogram: MapsHistogramPane(session: session, state: state)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)   // science: the figures may be cut
         }
         // The tabs stay at the top of the pane whatever its height: centred, they moved with each tab's content and, with the Output pane
         // open, a figure taller than the pane pushed them out of view (drive 2026-11-08). The minimum height of 0 keeps a tall figure from
         // moving the split; it is cut at its foot instead.
-        .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .top)   // science: no minimum, never a size
         .clipped()
     }
 }
