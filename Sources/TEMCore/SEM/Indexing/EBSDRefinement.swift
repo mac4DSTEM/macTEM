@@ -492,12 +492,14 @@ package nonisolated enum EBSDRefinement {
         }
 
         func values() throws -> [T] {
-            let (slots, firstError) = state.withLock { $0 }
-            if let firstError {
+            // One copy of the state, read by its labels: destructuring it as `let (slots, firstError) = state.withLock { $0 }`
+            // made Xcode 27.1's compiler infer two different tuple types for withLock's Result.
+            let snapshot = state.withLock { $0 }
+            if let firstError = snapshot.firstError {
                 if firstError.error is CancellationError || firstError.error is EBSDRefinement.Error { throw firstError.error }
                 throw EBSDRefinement.Error.solver(firstError.index, firstError.error.localizedDescription)
             }
-            return slots.map { $0! }
+            return snapshot.slots.map { $0! }
         }
     }
 }
