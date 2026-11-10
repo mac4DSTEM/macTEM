@@ -234,6 +234,31 @@ nonisolated final class OxfordBinaryReaderTests: XCTestCase {
         XCTAssertEqual(FileRouting.inventory(path: ctf.path).landing, .maps)
     }
 
+    /// A `.ctf` beside the patterns that cannot be read at all (the sandboxed app is given the picked file only; here a mode-000
+    /// file) is left out with a note and the patterns open, as an EDAX `.up1` opens without its unreadable `.ang`. The `.ctf`
+    /// opened itself still fails, in words. Red before: the read failure was wrapped and thrown, and the `.ebsp` did not open.
+    func testAnUnreadableCTFBesideThePatternsIsLeftOutWithANote() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("oxford-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        let ebsp = folder.appendingPathComponent("scan.ebsp")
+        try FileManager.default.copyItem(at: Self.url("patterns.ebsp"), to: ebsp)
+        let ctf = folder.appendingPathComponent("scan.ctf")
+        try Data("Channel Text File\n".utf8).write(to: ctf)
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: ctf.path)
+        addTeardownBlock { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: ctf.path) }
+        XCTAssertFalse(FileManager.default.isReadableFile(atPath: ctf.path), "root reads a mode-000 file; run this as a user")
+        let opened = try OxfordOpening.open(url: ebsp)
+        XCTAssertEqual([opened.scanRows, opened.scanColumns], [3, 3])
+        XCTAssertNil(opened.crystalMap)
+        XCTAssertEqual(opened.notes.count, 1)
+        XCTAssertTrue(opened.notes.first?.hasPrefix("scan.ctf next to it could not be read: ") ?? false, "\(opened.notes)")
+        XCTAssertThrowsError(try OxfordOpening.open(url: ctf)) { error in
+            let text = (error as? EBSDReadError)?.text ?? ""
+            XCTAssertTrue(text.hasPrefix("scan.ctf: "), text)
+        }
+    }
+
     /// The Patterns room's own door opens an `.ebsp` through `EBSDOpening` and the routing sends it there. Red under: the extension not
     /// routed, or the reader reading the file's records in file order instead of map order.
     func testAnEBSPRoutesToThePatternsRoom() throws {

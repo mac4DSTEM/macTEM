@@ -41,7 +41,13 @@ package nonisolated enum OxfordOpening {
             // The companion is not the map it should be: the patterns open on their own, with the reason.
             dataset.notes.append("\(mapURL.lastPathComponent) next to it was not read: \(refusal.reason)")
             return dataset
-        } catch { throw EBSDReadError.wrap(error, file: mapURL) }
+        } catch {
+            guard mapURL != url else { throw EBSDReadError.wrap(error, file: mapURL) }
+            // The companion cannot be read at all (macOS has not given the sandboxed app access to it, a disk error): the patterns
+            // open on their own with the reason, as an EDAX `.up1` does without its `.ang`.
+            dataset.notes.append("\(mapURL.lastPathComponent) next to it could not be read: \((error as NSError).localizedDescription)")
+            return dataset
+        }
         guard file.pointCount == dataset.patternCount else {
             dataset.notes.append("\(mapURL.lastPathComponent) next to it has \(file.pointCount) points for \(dataset.patternCount) patterns and was left out.")
             return dataset

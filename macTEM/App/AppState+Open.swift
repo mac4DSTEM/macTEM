@@ -83,12 +83,15 @@ extension AppState {
     struct OpenRefusal: Error, LocalizedError { let text: String; var errorDescription: String? { text } }
 
     /// What each URL holds, by content, off the main actor and inside the URL's security scope. The generated demo image is an image.
+    /// The file a vendor file is read with (an EBSD scan's `.ang` or `.ctf` beside its patterns, and back) is granted first, inside
+    /// that scope: the sandbox grants the picked file only, and the routing already reads the other (`RelatedFileAccess`).
     @concurrent
     nonisolated static func inventories(_ urls: [URL]) async -> [(URL, FileInventory)] {
         urls.map { url in
             if DemoDocuments.isDemo(url) { return (url, FileInventory(image: true)) }
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            RelatedFileAccess.grant(for: url)
             return (url, FileRouting.inventory(path: url.path))
         }
     }
