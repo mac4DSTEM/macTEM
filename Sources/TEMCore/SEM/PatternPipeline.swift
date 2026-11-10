@@ -424,10 +424,39 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         return out
     }
 
+    /// About the most memory `process` holds at once for a scan of `dataset`, in bytes, counted from the buffers each stage keeps: the
+    /// per-pattern output; three times that while neighbour averaging runs (its input, its output and their bytes); three float32
+    /// copies of the scan while NLPAR runs (its input, its result and the tile it is averaging, which can be the whole scan). In
+    /// Double, so no dataset's size overflows it.
+    package func estimatedProcessBytes(for dataset: EBSDDataset) -> Double {
+        let factor = max(binning, 1)
+        let values = Double(dataset.scanRows) * Double(dataset.scanColumns)
+            * Double(dataset.patternRows / factor) * Double(dataset.patternColumns / factor)
+        if nlpar.isOn { return 3 * values * 4 }
+        let perPattern = values * Double(intensity.mode == .normalize ? 4 : dataset.dataType.byteSize)
+        return averaging.isOn ? 3 * perPattern : perPattern
+    }
+
+    /// Whether `process` fits beside what stays held (`heldBytes`: the last processed scan, kept until the new run lands) on a Mac of
+    /// `physicalMemory` bytes: the two together may take half the memory, the other half being the app, the system and the file's
+    /// pages. nil when it fits. Apart from `refusal(for:background:)`, which also gates the one-pattern preview and the indexer's
+    /// streamed patterns, neither of which holds the scan.
+    package func processAdmission(for dataset: EBSDDataset, heldBytes: Int, physicalMemory: UInt64) -> Refusal? {
+        let total = estimatedProcessBytes(for: dataset) + Double(max(heldBytes, 0))
+        let memory = Double(physicalMemory)
+        guard total > memory / 2 else { return nil }
+        let gb = 1_073_741_824.0
+        let held = String(format: "%.1f", total / gb), mac = String(format: "%.0f", memory / gb)
+        let stage: Stage = nlpar.isOn ? .nlpar : averaging.isOn ? .averaging : .size
+        let advice = nlpar.isOn ? "Bin the patterns or turn NLPAR off." : "Bin the patterns."
+        return Refusal(stage, "Process would hold about \(held) GB in memory, more than half of this Mac's \(mac) GB. " + advice)
+    }
+
     /// Every pattern of the scan through the pipeline, row by row, into memory, then neighbour averaging and NLPAR over the result when
     /// they are on (`lambda` is told the λ NLPAR chose). `progress` gets the fraction done after each scan row (the rows are the first
     /// half when a whole-scan stage follows, averaging the third quarter when NLPAR follows it); returns nil when `isCancelled` says so
-    /// between rows.
+    /// between rows. Where it can, the scan is held once: averaging lets its input bytes go before it writes its output, NLPAR takes
+    /// the per-pattern output as float32 and the bytes go, and each result is written out in one copy.
     package func process(_ access: any EBSDPatternAccess, background: FormatoArray?,
                          progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false },
                          lambda: (Double) -> Void = { _ in }) throws -> EBSDMemoryPatterns? {
@@ -435,8 +464,10 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         if let problem = refusal(for: dataset, background: background) { throw problem }
         let out = processedDataset(dataset)
         let inSize = dataset.patternPixels * dataset.dataType.byteSize
+        // The per-pattern stages' type: NLPAR's float32 comes after them, so until then the scan is held at this size.
+        let perPattern: FormatoDataType = intensity.mode == .normalize ? .float32 : dataset.dataType
         var bytes = Data()
-        bytes.reserveCapacity(out.patternCount * out.patternPixels * out.dataType.byteSize)
+        bytes.reserveCapacity(out.patternCount * out.patternPixels * perPattern.byteSize)
         for row in 0..<dataset.scanRows {
             if isCancelled() { return nil }
             let slab = try access.row(row)
@@ -449,43 +480,47 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         }
         if averaging.isOn {
             if isCancelled() { return nil }
-            bytes = try averaged(bytes, dataset: out, type: dataset.dataType)
+            try averageNeighbours(&bytes, dataset: out, type: dataset.dataType)
             progress(nlpar.isOn ? 0.75 : 1)
         }
         guard nlpar.isOn else { return try EBSDMemoryPatterns(dataset: out, bytes: bytes) }
         if isCancelled() { return nil }
-        let perPattern: FormatoDataType = intensity.mode == .normalize ? .float32 : dataset.dataType
-        let values = try FormatoArray(dataType: perPattern, shape: [bytes.count / perPattern.byteSize], bytes: bytes).doubles().map { Float($0) }
+        // Straight to float32 (exact for the per-pattern types, so NLPAR's input is unchanged), then the bytes go: NLPAR's scan is
+        // the only copy it starts from.
         let scan = try NLPAR.Scan(rows: out.scanRows, columns: out.scanColumns, patternRows: out.patternRows, patternColumns: out.patternColumns,
-                                  values: values)
+                                  values: Self.floats(bytes, type: perPattern))
+        bytes = Data()
         let result = try NLPAR.run(scan, searchRadius: nlpar.searchRadius)
         lambda(result.lambda)
         progress(1)
-        let denoised = try Self.array(result.denoised.values, rows: result.denoised.values.count, columns: 1)
-        return try EBSDMemoryPatterns(dataset: out, bytes: denoised.bytes)
+        return try EBSDMemoryPatterns(dataset: out, bytes: Self.littleEndianBytes(result.denoised.values))
     }
 
-    /// The per-pattern output of the scan (`type`, uint8 or uint16, in `dataset`'s shapes; not `dataset.dataType`, which is float32
-    /// when NLPAR follows) averaged with its neighbours.
-    private func averaged(_ bytes: Data, dataset: EBSDDataset, type: FormatoDataType) throws -> Data {
+    /// The per-pattern output of the scan in `bytes` (`type`, uint8 or uint16, in `dataset`'s shapes; not `dataset.dataType`, which is
+    /// float32 when NLPAR follows) replaced by itself averaged with its neighbours.
+    private func averageNeighbours(_ bytes: inout Data, dataset: EBSDDataset, type: FormatoDataType) throws {
         let window = try averaging.window.window()
-        func run<P: FixedWidthInteger & UnsignedInteger>(_: P.Type, _ type: FormatoDataType) throws -> Data {
-            let all = try FormatoArray(dataType: type, shape: [bytes.count / type.byteSize], bytes: bytes)
-            let values = Self.unsigned(all, as: P.self)
-            let out: [P]
-            do {
-                out = try NeighbourAveraging.average(values, scanRows: dataset.scanRows, scanColumns: dataset.scanColumns,
-                                                     pixels: dataset.patternPixels, window: window)
-            } catch {
-                throw Refusal(.averaging, "An averaged pattern is flat, so it cannot be rescaled.")
-            }
-            return try Self.array(out, type: type, rows: out.count, columns: 1).bytes
-        }
         switch type {
-        case .uint8: return try run(UInt8.self, .uint8)
-        case .uint16: return try run(UInt16.self, .uint16)
+        case .uint8: try Self.averagePatterns(&bytes, as: UInt8.self, type: type, dataset: dataset, window: window)
+        case .uint16: try Self.averagePatterns(&bytes, as: UInt16.self, type: type, dataset: dataset, window: window)
         default: throw Refusal(.averaging, "Average neighbours reads 8 and 16 bit patterns; these are \(type.rawValue).")
         }
+    }
+
+    /// `averageNeighbours` for one pattern type: the values are read out and `bytes` let go before the averaged patterns are written
+    /// into their own buffer, so the scan is held twice at most, never beside a float64 copy.
+    private static func averagePatterns<P: FixedWidthInteger & UnsignedInteger>(_ bytes: inout Data, as _: P.Type, type: FormatoDataType,
+                                                                                dataset: EBSDDataset, window: PatternWindow) throws {
+        let values = try unsigned(FormatoArray(dataType: type, shape: [bytes.count / type.byteSize], bytes: bytes), as: P.self)
+        bytes = Data()
+        var out = [P](repeating: 0, count: values.count)
+        do {
+            try NeighbourAveraging.average(values, scanRows: dataset.scanRows, scanColumns: dataset.scanColumns, pixels: dataset.patternPixels,
+                                           window: window, into: &out)
+        } catch {
+            throw Refusal(.averaging, "An averaged pattern is flat, so it cannot be rescaled.")
+        }
+        bytes = littleEndianBytes(out)
     }
 
     /// The mean of every pattern of the scan cast to the pattern type by truncation (`PatternProcessing.meanBackground`'s numbers, summed
@@ -585,6 +620,34 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         var data = Data(capacity: values.count * MemoryLayout<P>.size)
         for v in values { withUnsafeBytes(of: v.littleEndian) { data.append(contentsOf: $0) } }
         return try FormatoArray(dataType: type, shape: [rows, columns], bytes: data)
+    }
+
+    /// uint8, uint16 or float32 values (little-endian bytes, as `FormatoArray` holds them) as float32: exact for the three types, so the
+    /// numbers of `FormatoArray.doubles()` cast to `Float`, without a float64 array of the whole scan between.
+    package static func floats(_ bytes: Data, type: FormatoDataType) throws -> [Float] {
+        guard type == .uint8 || type == .uint16 || type == .float32 else {
+            throw Refusal(.nlpar, "NLPAR reads 8 and 16 bit unsigned or float32 patterns; these are \(type.rawValue).")
+        }
+        let count = bytes.count / type.byteSize
+        var out = [Float](repeating: 0, count: count)
+        bytes.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+            out.withUnsafeMutableBufferPointer { dst in
+                if type == .uint8 {
+                    for i in 0..<count { dst[i] = Float(raw.loadUnaligned(fromByteOffset: i, as: UInt8.self)) }
+                } else if type == .uint16 {
+                    for i in 0..<count { dst[i] = Float(UInt16(littleEndian: raw.loadUnaligned(fromByteOffset: 2 * i, as: UInt16.self))) }
+                } else {
+                    for i in 0..<count { dst[i] = Float(bitPattern: UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: 4 * i, as: UInt32.self))) }
+                }
+            }
+        }
+        return out
+    }
+
+    /// Integer or float values as `FormatoArray`'s little-endian bytes, in one copy: every Mac is little-endian, so the array's memory
+    /// is those bytes (`array` writes the same bytes value by value).
+    static func littleEndianBytes<T: Numeric>(_ values: [T]) -> Data {
+        values.withUnsafeBufferPointer { Data(buffer: $0) }
     }
 
     static func array(_ values: [Float], rows: Int, columns: Int) throws -> FormatoArray {

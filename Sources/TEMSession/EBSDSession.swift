@@ -161,6 +161,17 @@ package final class EBSDSession {
 
     package var canProcess: Bool { document != nil && !isBusy && processingRefusal == nil }
 
+    /// The Mac's memory, which Process's admission measures the run against; a test sets a smaller one.
+    @ObservationIgnored package var physicalMemory = ProcessInfo.processInfo.physicalMemory
+
+    /// Why Process would not fit in memory beside the processed scan already held (`PatternPipeline.processAdmission`), nil when it
+    /// fits. Kept out of `processingRefusal`, which the one-pattern preview and Indexing also read: they stream the patterns, so a scan
+    /// too large to process into memory still previews and indexes. Process says it in the status line when the verb is clicked.
+    package var processAdmission: PatternPipeline.Refusal? {
+        guard let dataset = document?.dataset else { return nil }
+        return pipeline.processAdmission(for: dataset, heldBytes: processed?.bytes.count ?? 0, physicalMemory: physicalMemory)
+    }
+
     /// Takes new stage settings: the shown pattern is re-drawn when processed; "The scan's mean" starts its pass when it has not run.
     package func setPipeline(_ new: PatternPipeline) {
         guard new != pipeline else { return }
@@ -188,7 +199,7 @@ package final class EBSDSession {
     @discardableResult
     package func process() -> Task<Void, Never> {
         guard let document, !isBusy else { return Task {} }
-        if let refusal = processingRefusal {
+        if let refusal = processingRefusal ?? processAdmission {
             onEvent?("Process: \(refusal.sentence)")
             return Task {}
         }
