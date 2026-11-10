@@ -420,42 +420,48 @@ private struct DiffractionOverlay: View {
 
 // MARK: - The readout
 
-/// The rings and spots as a system `Table` with a selection: arrow keys, ⌫ (removes the selected row), column resizing and VoiceOver rows come
-/// with it. A value a journey reads is a cell's accessibility value (`diffraction.row.<kind><n>.<column>`).
+/// The rings and spots as a system `Table` with a selection: arrow keys, ⌫ (removes the selected row), ⌘C (copies it, tab-separated under
+/// the column titles), column resizing and VoiceOver rows come with it. The titles and the cells are `DiffractionReadoutFormat`'s, so the
+/// copied text is what the table shows. A value a journey reads is a cell's accessibility value (`diffraction.row.<kind><n>.<column>`).
 private struct DiffractionReadoutTable: View {
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
     let rows: [DiffractionReadoutRow]
 
+    private typealias Column = DiffractionReadoutFormat.Column
+
     var body: some View {
-        // One read of the selection here, handed to the table as a binding to the view state.
+        // The selection is read here, in the leaf: handed to the table as a binding to the view state, and to Edit > Copy as a value.
         let selection = Binding<UUID?>(get: { view.selection }, set: { view.selection = $0 })
+        let selected = view.selection
         Table(rows, selection: selection) {
-            TableColumn("") { row in
-                Text("\(row.kind == .ring ? "Ring" : "Spot") \(row.number)\(row.isCalibrating ? " ●" : "")").help(row.isCalibrating ? "Set the scale" : "")
+            TableColumn(Column.name.title) { row in
+                Text(DiffractionReadoutFormat.cell(.name, row)).help(row.isCalibrating ? "Set the scale" : "")
             }.width(min: 52, ideal: 58)
-            TableColumn("R px") { row in Text(row.radiusPx.map { Num.fixed($0, 2) } ?? "—").monospacedDigit() }.width(min: 44, ideal: 50)
-            TableColumn("q Å⁻¹") { row in Text(row.q.map { Num.fixed($0, 5) } ?? "—").monospacedDigit() }.width(min: 56, ideal: 62)
-            TableColumn("d Å") { row in
-                Text(row.d.map { Num.fixed($0, 4) } ?? "—").monospacedDigit()
+            TableColumn(Column.radius.title) { row in Text(DiffractionReadoutFormat.cell(.radius, row)).monospacedDigit() }.width(min: 44, ideal: 50)
+            TableColumn(Column.q.title) { row in Text(DiffractionReadoutFormat.cell(.q, row)).monospacedDigit() }.width(min: 56, ideal: 62)
+            TableColumn(Column.d.title) { row in
+                Text(DiffractionReadoutFormat.cell(.d, row)).monospacedDigit()
                     .accessibilityIdentifier("diffraction.row.\(row.kind.rawValue)\(row.number).d")
                     .accessibilityValue(row.d.map { String(format: "%.5f", $0) } ?? "")
             }.width(min: 52, ideal: 56)
-            TableColumn("family") { row in
-                Text(row.family ?? "—")
+            TableColumn(Column.family.title) { row in
+                Text(DiffractionReadoutFormat.cell(.family, row))
                     .accessibilityIdentifier("diffraction.row.\(row.kind.rawValue)\(row.number).family")
                     .accessibilityValue(row.family ?? "")
             }.width(min: 46, ideal: 52)
-            TableColumn("d listed") { row in Text(row.dListed.map { Num.fixed($0, 4) } ?? "—").monospacedDigit() }.width(min: 52, ideal: 58)
-            TableColumn("Δd/d %") { row in Text(row.deltaPercent.map { Num.signed($0, 2) } ?? "—").monospacedDigit() }.width(min: 48, ideal: 54)
-            TableColumn("odds") { row in Text(row.oddsText ?? "—").monospacedDigit() }.width(min: 60, ideal: 68)
-            TableColumn("verdict") { row in
-                Text(row.verdict).lineLimit(1)
+            TableColumn(Column.dListed.title) { row in Text(DiffractionReadoutFormat.cell(.dListed, row)).monospacedDigit() }.width(min: 52, ideal: 58)
+            TableColumn(Column.delta.title) { row in Text(DiffractionReadoutFormat.cell(.delta, row)).monospacedDigit() }.width(min: 48, ideal: 54)
+            TableColumn(Column.odds.title) { row in Text(DiffractionReadoutFormat.cell(.odds, row)).monospacedDigit() }.width(min: 60, ideal: 68)
+            TableColumn(Column.verdict.title) { row in
+                Text(DiffractionReadoutFormat.cell(.verdict, row)).lineLimit(1)
                     .accessibilityIdentifier("diffraction.row.\(row.kind.rawValue)\(row.number).verdict")
                     .accessibilityValue(row.verdict)
             }.width(min: 70, ideal: 90)
         }
         .onDeleteCommand { if let id = view.selection { analysis.remove(id); view.selection = nil } }
+        // ⌘C and Edit > Copy: the selected ring or spot; dimmed with no row selected.
+        .onCopyCommand(perform: rows.contains(where: { $0.id == selected }) ? { copied(selected) } : nil)
         .overlay {
             if rows.isEmpty {
                 Text("Drag an annulus over a ring (Ring tool) or click a spot (Spot tool). A scale comes first: Calibrate on a standard's ring, or use the file's.")
@@ -463,5 +469,12 @@ private struct DiffractionReadoutTable: View {
             }
         }
         .accessibilityIdentifier("diffraction.readout")
+    }
+
+    /// What ⌘C hands the system: the selected row as the table shows it (`DiffractionReadoutFormat.copyText`), nothing when none is.
+    private func copied(_ selected: UUID?) -> [NSItemProvider] {
+        let picked = rows.filter { $0.id == selected }
+        guard !picked.isEmpty else { return [] }
+        return [NSItemProvider(object: DiffractionReadoutFormat.copyText(picked) as NSString)]
     }
 }

@@ -4,7 +4,8 @@
 //        a 2D image, found by a threshold on the raw range (bright or dark objects), optional Gaussian smoothing, connected-component
 //        labelling and the objects' moments, then counted (not on the edge, not below the minimum area). The image keeps its marks;
 //        the objects are outlined over it (`ParticleOverlay`), the mask can be tinted while the settings are edited, and an object
-//        table (its own window, `ParticleTableWindow`, so it stays beside the image) selects a row to outline it heavier; the pointer
+//        table (its own window, `ParticleTableWindow`, so it stays beside the image) selects a row to outline it heavier (⌘C copies
+//        the selected row, `ParticleTableFormat`); the pointer
 //        readout names the object under the pointer (`ImageReadout`). Presentation only: the numbers are ImagoKit's through
 //        `ParticleCompute`, held per file by `ParticleAnalysis` (TEMSession).
 //
@@ -162,6 +163,17 @@ nonisolated struct ParticleRow: Identifiable, Hashable, Sendable {
         width = o.moments.widthPx * scale.perPixel
         angle = o.moments.orientationDegrees
     }
+
+    /// A row from its values as shown (lengths already in the scale's unit): what a test of the table's words builds without a report.
+    init(id: Int32, counted: Bool, note: String, area: Double, length: Double, width: Double, angle: Double) {
+        self.id = id
+        self.counted = counted
+        self.note = note
+        self.area = area
+        self.length = length
+        self.width = width
+        self.angle = angle
+    }
 }
 
 private struct ParticleTableSheet: View {
@@ -173,6 +185,8 @@ private struct ParticleTableSheet: View {
 
     var body: some View {
         let rows = report.objects.map { ParticleRow($0, scale: scale) }.filter { !countedOnly || $0.counted }.sorted(using: sortOrder)
+        // Read here, so Edit > Copy is offered and dimmed as the selection comes and goes.
+        let selected = analysis.selectedLabel
         VStack(alignment: .leading, spacing: 10) {
             // A window: its title bar names it and closes it (⌘W), so no headline and no Done.
             HStack {
@@ -180,18 +194,27 @@ private struct ParticleTableSheet: View {
                 Toggle("Counted only", isOn: $countedOnly)
             }
             Table(rows, selection: Binding(get: { analysis.selectedLabel }, set: { analysis.selectedLabel = $0 }), sortOrder: $sortOrder) {
-                TableColumn("#", value: \.id) { Text("\($0.id)").monospacedDigit() }.width(40)
+                TableColumn("#", value: \.id) { Text(verbatim: "\($0.id)").monospacedDigit() }.width(40)
                 TableColumn("Length (\(scale.unit))", value: \.length) { Text(ParticleFormat.number($0.length)).monospacedDigit() }
                 TableColumn("Width (\(scale.unit))", value: \.width) { Text(ParticleFormat.number($0.width)).monospacedDigit() }
-                TableColumn("Angle (°)", value: \.angle) { Text(Num.fixed($0.angle, 1)).monospacedDigit() }
+                TableColumn("Angle (°)", value: \.angle) { Text(ParticleTableFormat.angle($0)).monospacedDigit() }
                 TableColumn("Area (\(scale.unit)²)", value: \.area) { Text(ParticleFormat.number($0.area)).monospacedDigit() }
-                TableColumn("Note") { Text($0.note.isEmpty ? "counted" : $0.note).foregroundStyle($0.counted ? Color.primary : Color.secondary) }
+                TableColumn("Note") { Text(ParticleTableFormat.note($0)).foregroundStyle($0.counted ? Color.primary : Color.secondary) }
             }
+            // ⌘C and Edit > Copy: the selected object's row under the column titles, tab-separated; dimmed with no row selected.
+            .onCopyCommand(perform: rows.contains(where: { $0.id == selected }) ? { copied(rows, selected: selected) } : nil)
             .accessibilityIdentifier("particles.tableView")
             Text(ParticleFormat.counts(report.summary) + " · select a row to outline it on the image").font(.caption).foregroundStyle(.secondary)
         }
         .padding(16)
         .frame(minWidth: EDXLayout.tableSheetMinimum.width, minHeight: EDXLayout.tableSheetMinimum.height)
+    }
+
+    /// What ⌘C hands the system: the selected row as the table shows it (`ParticleTableFormat.copyText`), nothing when none is.
+    private func copied(_ rows: [ParticleRow], selected: Int32?) -> [NSItemProvider] {
+        let picked = rows.filter { $0.id == selected }
+        guard !picked.isEmpty else { return [] }
+        return [NSItemProvider(object: ParticleTableFormat.copyText(picked, unit: scale.unit) as NSString)]
     }
 }
 
