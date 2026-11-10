@@ -124,6 +124,7 @@ package final class IndexingSession {
     package let mapPresentation: ImagePresentation = {
         let presentation = ImagePresentation()
         presentation.colormap = .viridis
+        presentation.defaultQuantiles = 0.01...0.99
         return presentation
     }()
     /// The pattern as it is indexed (through the pipeline), drawn with its own contrast.
