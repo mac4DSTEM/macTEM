@@ -6,8 +6,8 @@
 #               reconciled BY NAME (Class.method, from the result bundle) against the `func test…()` declarations,
 #               and any difference fails (a stale bundle, a renamed test or one in the wrong class passes a count);
 #               each skipped test is named with its XCTSkip's reason, and one that tools/unit-skips.allow does not list
-#               fails (tools/lib/unit-skips.sh); the compiler warnings in the app's own sources and tests are listed and
-#               counted (not yet a gate)
+#               fails (tools/lib/unit-skips.sh); a compiler warning in the app's own sources and tests is listed and
+#               fails (tools/lib/app-warnings.sh), as `core` fails one in the package
 #   core        `swift build` of the package from a fresh scratch path: TEMCore and TEMSession — the layering gate
 #               (a package target cannot reach the app's App/ or UI/), the Swift 6 gate, and zero warnings
 #   scientific  the reference harnesses (the `scientific` array below): every one runs, a red one does not stop the rest,
@@ -31,6 +31,8 @@ resolve_mactem_developer_dir
 . "$ROOT/tools/lib/run-harnesses.sh"
 # skipped_tests_from_json, and unlisted_skips / listed_not_skipped <allow file>: the skips, held to tools/unit-skips.allow.
 . "$ROOT/tools/lib/unit-skips.sh"
+# app_warnings <root> <log>: the compiler warnings in macTEM/ and macTEMTests/, listed and counted; exit 1 when there is one.
+. "$ROOT/tools/lib/app-warnings.sh"
 
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
 scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
@@ -160,15 +162,10 @@ unit_tests() (
   # A compiler crash prints no `error:` either: its signal and stack dump are the reason.
   grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/unit.log" | head -40 || true
   echo "unit: xcodebuild exit $rc"
-  # The app's own compiler warnings, listed and counted, not yet a gate: `core` holds TEMCore and TEMSession to zero, and nothing
-  # held macTEM/App, macTEM/UI or the tests. Each distinct `warning:` line whose path is under this tree's macTEM/ or macTEMTests/
-  # (not a package checkout, not DerivedData), once, the first 200 of them, then the count. `${ROOT:A}` as well: the compiler names a
-  # file by its resolved path where the tree is reached through a symlink. The number is a cold build's (CI): a warm DerivedData
-  # recompiles little and so prints few. awk exits 0 with or without a match, and `|| true` keeps this from ever changing the verdict.
-  awk -v root="$ROOT/" -v real="${ROOT:A}/" '
-    function under(dir) { return index($0, root dir "/") == 1 || index($0, real dir "/") == 1 }
-    (under("macTEM") || under("macTEMTests")) && index($0, ": warning:") && !seen[$0]++ { if (++n <= 200) print }
-    END { if (n > 200) print "  (" (n - 200) " more, not listed)"; print "unit: " (n + 0) " app warnings (not yet a gate)" }' "$work/unit.log" || true
+  # The app's own compiler warnings (tools/lib/app-warnings.sh): each distinct one under macTEM/ or macTEMTests/, then the count.
+  # Listed here, failed at the end, so a red test or a refused skip is named first. 0 since #438's run on 10 Nov 2026 (#335).
+  local appwarnings=0
+  app_warnings "$ROOT" "$work/unit.log" || appwarnings=$?
   # Counted from the result bundle, not the log: Xcode 27's parallel runner prints no suite summary, and its
   # stdout can drop a result line when its own debug output interleaves (measured 2026-10-12).
   if ! xcrun xcresulttool get test-results summary --path "$work/unit.xcresult" > "$work/summary.json" 2>/dev/null; then
@@ -238,7 +235,14 @@ unit_tests() (
   fi
   listed_ran="$(print -r -- "$skips" | listed_not_skipped "$allow")" || true
   [[ -z "$listed_ran" ]] || print -r -- "$listed_ran" | sed 's/^/unit: listed in tools\/unit-skips.allow, and ran: /'
-  echo "unit: $passed tests passed, $skipped skipped as tools/unit-skips.allow allows, every declared test ran by name"
+  # Zero warnings in the app's own sources and tests, as `core` holds the package (#335). A MACTEM_ONLY_TESTING run returned above
+  # and is not checked: its warm DerivedData recompiles little and so prints few.
+  if (( appwarnings == 1 )); then
+    echo "unit: the app's own sources or tests build with warnings (listed above, with the count): fix each, as core's zero holds the package"
+    return 1
+  fi
+  if (( appwarnings > 1 )); then echo "unit: the build log could not be read for the app's warnings, so none was checked"; return 1; fi
+  echo "unit: $passed tests passed, $skipped skipped as tools/unit-skips.allow allows, every declared test ran by name, 0 app warnings"
 )
 
 # The UI journeys (macTEMUITests, scheme macTEMUI): the real app, signed, walked as a user would, one screenshot per step. Never part of
@@ -411,6 +415,9 @@ inventory() {
 
   echo "== the unit gate fails a skip that tools/unit-skips.allow does not list"
   "$ROOT/tools/lib/unit-skips-selftest.sh" || rc=1
+
+  echo "== the unit gate fails a compiler warning in the app's own sources and tests"
+  "$ROOT/tools/lib/app-warnings-selftest.sh" || rc=1
 
   echo "== tools classification"
   local -a all=("${scientific[@]}" "${diagnostic[@]}" "${owner_only[@]}" "${retired[@]}" "${support[@]}" "${references[@]}")
