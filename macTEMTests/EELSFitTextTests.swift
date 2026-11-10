@@ -160,13 +160,15 @@ nonisolated final class EELSFitTextTests: XCTestCase {
         XCTAssertEqual(EELSRoomFormat.tileReadout(x: 5, y: 5, tiles: [c], refusal: nil, locale: en), "row 5 · col 5", "off the grid: no values")
     }
 
-    /// The results panel at the room's minimum results width, after an MLLS fit: the footer reads in full. The picture goes to the shots folder.
+    /// The results panel at the room's minimum results width, after an MLLS fit: the footer reads in full. The picture goes to `MACEM_SHOT_DIR`
+    /// when the runner sets it.
     @MainActor func testThePanelDrawsAtItsMinimumWidth() async throws {
         let session = try await EELSFitNotesTests.fittedSession(.mlls)
         try Self.save(EELSResultsPanel(session: session), name: "macTEM-fittext-footer.png", size: NSSize(width: EDXLayout.resultsWidth.min, height: 300))
     }
 
-    /// Draws `view` offscreen (a borderless window never shown) and writes it to ~/GitHub/.worktrees/shots when that folder exists.
+    /// Draws `view` offscreen (a borderless window never shown) and writes it to `MACEM_SHOT_DIR` when the runner sets it
+    /// (TEST_RUNNER_MACEM_SHOT_DIR), as the other EELS screenshots do; otherwise only checks that it renders.
     @MainActor static func save(_ view: some View, name: String, size: NSSize? = nil) throws {
         let host = NSHostingView(rootView: view.background(Color(nsColor: .windowBackgroundColor)).environment(\.colorScheme, .light))
         let frame = size ?? host.fittingSize
@@ -178,8 +180,7 @@ nonisolated final class EELSFitTextTests: XCTestCase {
         let rep = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: rep)
         XCTAssertGreaterThan(rep.pixelsWide, 0)
-        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("GitHub/.worktrees/shots")
-        guard FileManager.default.fileExists(atPath: dir.path) else { return }
-        try XCTUnwrap(rep.representation(using: .png, properties: [:])).write(to: dir.appendingPathComponent(name))
+        guard let dir = ProcessInfo.processInfo.environment["MACEM_SHOT_DIR"] else { return }
+        try XCTUnwrap(rep.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
     }
 }
