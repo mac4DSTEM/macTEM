@@ -97,6 +97,8 @@ extension IndexingSession {
     package func compareAbsence(_ source: IndexingCompareSource) -> String? {
         if source == .refined {
             if isRefining { return "Refine is running: Compare follows when it ends" }
+            // Index → Refine: the Dictionary stage drops the old refinement, and the new one follows it.
+            if isIndexing, runningMethod == .dictionary, refinesAfterIndexing { return "Dictionary is indexing: Refine follows, then Compare" }
             guard let run = compareRun(.refined), run.result.reachedCount > 0 else {
                 return compareRun(.refined)?.wasStopped == true ? "The refinement was stopped before a row landed"
                     : "Turn Refine on and Index with Dictionary to compare it"

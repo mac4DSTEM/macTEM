@@ -37,9 +37,10 @@ extension IndexingSession {
         return refinedRun
     }
 
-    /// The refinement shown in the Dictionary run's place: Refine is on and it reached a point.
+    /// The refinement shown in the Dictionary run's place: Refine is on and it reached a point (a refinement lands whole rows, so
+    /// a row landed is a point reached; `shownRun` reads this on every hover, and `reachedCount` walks the scan).
     package var shownRefinedRun: IndexingRun? {
-        guard refinesAfterIndexing, let held = heldRefinement, held.result.reachedCount > 0 else { return nil }
+        guard refinesAfterIndexing, let held = heldRefinement, held.result.rowsDone > 0 else { return nil }
         return held
     }
 
@@ -68,25 +69,36 @@ extension IndexingSession {
         return isRefinementStale || held.wasStopped || !held.result.isComplete
     }
 
-    /// The inspector's numbers: the mean score over the refined points as indexed (in the run's metric) and as refined (NCC).
+    /// The inspector's numbers: the mean score over the refined points as indexed (in the run's metric) and as refined (NCC), kept
+    /// as the blocks land (the inspector's body reads them on every render).
     package var refinementScores: (before: Double, after: Double, metric: String)? {
-        guard let held = heldRefinement, let base = runs[.dictionary],
-              let s = IndexingRefinement.meanScores(base: base.result, refined: held.result) else { return nil }
+        guard let held = heldRefinement, let base = runs[.dictionary], let s = held.refinement?.scores.means else { return nil }
         return (s.before, s.after, base.result.scoreTitle)
     }
 
-    /// The refined PCs' mean and standard deviation (Bruker); nil while the PC is held or none landed.
+    /// The refined PCs' mean and standard deviation (Bruker), kept as the blocks land; nil while the PC is held or none landed.
     package var refinedProjectionCentre: (mean: SIMD3<Double>, deviation: SIMD3<Double>)? {
-        heldRefinement?.refinement.flatMap { IndexingRefinement.meanAndDeviation($0.projectionCenters) }
+        heldRefinement?.refinement?.projectionCentre
+    }
+
+    /// Why the Refine stage cannot refine the Dictionary run now (the Output line when Index → Refine skips it); nil when it can.
+    var refineStageRefusal: String? {
+        if let why = refineRefusal { return why }
+        guard let base = runs[.dictionary], base.result.isComplete else {
+            return "Refine refines a complete Dictionary run: Index with Dictionary first."
+        }
+        guard base.dictionaryPlans.count == 1 else {
+            return "Refine one phase at a time: the Dictionary run indexed against \(base.result.phases.count) phases."
+        }
+        return nil
     }
 
     /// The Refine stage: the Dictionary run's indexed rows refined block by block against its master pattern on its detector, with
-    /// its signal mask. nil when the Dictionary run cannot be refined (none complete, several phases, a refusal). The returned task
-    /// ends when the refinement has landed (or was stopped or failed).
+    /// its signal mask. nil when the Dictionary run cannot be refined (`refineStageRefusal`). The returned task ends when the
+    /// refinement has landed (or was stopped or failed).
     @discardableResult
     func refineDictionaryRun() -> Task<Void, Never>? {
-        guard let base = runs[.dictionary], base.result.isComplete, base.dictionaryPlans.count == 1,
-              let plan = base.dictionaryPlans.first, refineRefusal == nil else { return nil }
+        guard refineStageRefusal == nil, let base = runs[.dictionary], let plan = base.dictionaryPlans.first else { return nil }
         let settings = refineSettings
         runTask?.cancel()
         runGeneration += 1
@@ -134,11 +146,18 @@ extension IndexingSession {
         return Task { await task.value }
     }
 
-    /// A refined block lands, in order, if it is the run in flight's: the map repaints its rows, the best match follows.
-    func landRefined(_ block: IndexingRefinedBlock, run: Int) {
-        guard run == runGeneration, isIndexing, isRefining else { return }
+    /// A refined block lands, in order, if it is the run in flight's (never after Stop): the map repaints its rows, the inspector's
+    /// mean scores and PC follow, the best match too. Package-visible so a test can deliver a block late.
+    package func landRefined(_ block: IndexingRefinedBlock, run: Int) {
+        guard run == runGeneration, isIndexing, isRefining, let before = refinedRun?.result.rowsDone,
+              let base = runs[.dictionary], base.id == refinedRun?.refinement?.base else { return }
+        // In place: a copy of the run would copy the whole scan's solutions for every block.
         refinedRun?.result.landRefined(block)
-        refinedRun?.refinement?.projectionCenters += block.projectionCenters
+        guard let landed = refinedRun?.result, landed.rowsDone > before else { return }
+        refinedRun?.refinement?.scores.add(base: base.result, refined: landed, rows: block.rows)
+        if !block.projectionCenters.isEmpty {
+            refinedRun?.refinement?.projectionCentre = IndexingRefinement.meanAndDeviation(landed.refinedProjectionCenters)
+        }
         progress = Double(block.rows.upperBound) / Double(max(refinedRun?.result.scanRows ?? 1, 1))
         repaint(rows: block.rows)
         if let row = patternPosition?.row, block.rows.contains(row) { showBestMatch() }

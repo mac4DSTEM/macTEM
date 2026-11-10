@@ -158,7 +158,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
              "Singh and De Graef 2016, Modelling Simul. Mater. Sci. Eng. 24, 085013",
              Self.kikuchipy]
         case .patternRefinement:
-            ["Winkelmann et al. 2020, J. Microsc. 277, 79", "Ånes et al. 2020, Ultramicroscopy 218, 113087", Self.kikuchipy]
+            ["Winkelmann et al. 2020, J. Microsc. 277, 79", Self.anes2020, Self.kikuchipy]
         case .orientationSimilarity:
             ["Marquardt et al. 2017, as kikuchipy's orientation_similarity_map cites it", Self.kikuchipy]
         case .kikuchiOverlay, .kinematicalSimulation:

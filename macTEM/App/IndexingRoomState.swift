@@ -204,12 +204,10 @@ enum IndexingInfoFormat {
         return s.metric == "NCC" ? "NCC \(n(s.before)) → \(n(s.after))" : "\(s.metric) \(n(s.before)) → NCC \(n(s.after))"
     }
 
-    /// The refined PCs' mean ± standard deviation (Bruker): "(0.4214, 0.2142, 0.5013) ± (0.0012, 0.0009, 0.0011)".
-    nonisolated static func refinedProjectionCentre(_ pc: (mean: SIMD3<Double>, deviation: SIMD3<Double>)) -> String {
-        let t = { (v: SIMD3<Double>) in
-            "(\(UnitDisplay.number(v.x, digits: 4)), \(UnitDisplay.number(v.y, digits: 4)), \(UnitDisplay.number(v.z, digits: 4)))"
-        }
-        return "\(t(pc.mean)) ± \(t(pc.deviation))"
+    /// A PC triple (Bruker), the refined PCs' mean or standard deviation as the Refine section shows each on its row:
+    /// "(0.4214, 0.2142, 0.5013)".
+    nonisolated static func triple(_ v: SIMD3<Double>) -> String {
+        "(\(UnitDisplay.number(v.x, digits: 4)), \(UnitDisplay.number(v.y, digits: 4)), \(UnitDisplay.number(v.z, digits: 4)))"
     }
 
     /// The run's state: running, stopped, stale or current.
@@ -235,14 +233,15 @@ enum IndexingInfoFormat {
     }
 
     /// Whether an Output line of the room is about a run of `method`: its "Indexed … with <Method>" or its "Stopped …" line, and for
-    /// a dictionary run the master pattern it opened and its refinement's "Refined …" and "Stopped refinement …" (D-SEM-109).
-    nonisolated static func isLine(_ text: String, of method: IndexingMethod) -> Bool {
+    /// a dictionary run the master pattern it opened; a refinement's (`refined`, D-SEM-109) also its "Refined …" and "Stopped
+    /// refinement …", which a Dictionary run as indexed leaves out.
+    nonisolated static func isLine(_ text: String, of method: IndexingMethod, refined: Bool = false) -> Bool {
         if text.hasPrefix("Indexed ") { return text.contains(" with \(method.title) ") }
         switch method {
         case .hough: return text.hasPrefix("Stopped indexing ")
         case .dictionary:
             return text.hasPrefix("Stopped dictionary indexing ") || text.hasPrefix("Opened the master pattern ")
-                || text.hasPrefix("Refined ") || text.hasPrefix("Stopped refinement ")
+                || (refined && (text.hasPrefix("Refined ") || text.hasPrefix("Stopped refinement ")))
         }
     }
 }

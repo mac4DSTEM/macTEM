@@ -127,6 +127,9 @@ package nonisolated struct IndexingResult: Sendable {
     package private(set) var isRefined = false
     /// A refinement's num_evals per point, 0 where not refined or not landed; empty otherwise.
     package private(set) var evaluations: [Int] = []
+    /// A refinement that moves the PC (D-SEM-109): each point's refined PC (Bruker) in map order, NaN where not refined or not
+    /// landed; empty while the PC is held and for a run as indexed.
+    package private(set) var projectionCenters: [SIMD3<Double>] = []
 
     /// A Hough run (`metric` nil) or a dictionary run (`metric` its score).
     package init(scanRows: Int, scanColumns: Int, phases: [IndexingPhase], metric: DictionaryIndexing.Metric? = nil) {
@@ -220,18 +223,35 @@ package nonisolated struct IndexingResult: Sendable {
         evaluations = [Int](repeating: 0, count: solutions.count)
     }
 
-    /// Lands a refined block: the next rows, within the rows the run indexed. A block that does not follow or fit is dropped.
+    /// Lands a refined block: the next rows, within the rows the run indexed, with its refined PCs when it has them. A block that
+    /// does not follow or fit is dropped.
     package mutating func landRefined(_ block: IndexingRefinedBlock) {
         let rows = block.rows
         guard isRefined, rows.lowerBound == rowsDone, rows.upperBound <= (dictionary?.navigationShape.first ?? 0),
-              block.solutions.count == rows.count * scanColumns, block.evaluations.count == block.solutions.count else { return }
+              block.solutions.count == rows.count * scanColumns, block.evaluations.count == block.solutions.count,
+              block.projectionCenters.isEmpty || block.projectionCenters.count == block.solutions.count else { return }
         let start = rows.lowerBound * scanColumns
         for k in block.solutions.indices {
             solutions[start + k] = block.solutions[k]
             evaluations[start + k] = block.evaluations[k]
         }
+        if !block.projectionCenters.isEmpty {
+            if projectionCenters.isEmpty { projectionCenters = [SIMD3<Double>](repeating: SIMD3(repeating: .nan), count: solutions.count) }
+            for k in block.projectionCenters.indices { projectionCenters[start + k] = block.projectionCenters[k] }
+        }
         rowsDone = rows.upperBound
     }
+
+    /// A refinement's refined PC at `position` (Bruker); nil where it holds none (the PC held, the point not refined or not landed).
+    package func refinedProjectionCenter(at position: EBSDPosition) -> SIMD3<Double>? {
+        guard position.isInside(rows: scanRows, columns: scanColumns) else { return nil }
+        let i = position.index(columns: scanColumns)
+        guard projectionCenters.indices.contains(i), projectionCenters[i].x.isFinite else { return nil }
+        return projectionCenters[i]
+    }
+
+    /// A refinement's refined PCs of the points refined, in map order; empty while the PC is held.
+    package var refinedProjectionCenters: [SIMD3<Double>] { projectionCenters.filter { $0.x.isFinite } }
 
     /// Appends a landed block's matches to `dictionary`.
     private mutating func append(_ block: DictionaryIndexing.Result, rows: Range<Int>) {
@@ -512,9 +532,16 @@ package nonisolated struct IndexingResult: Sendable {
 
     /// The reached points as CSV (locale-free numbers, one header line): row, column, x and y in the scan unit, phase, the Euler
     /// angles in degrees, then for Hough CI, fit, matched bands, pattern quality, for a dictionary the score (named by its metric), the
-    /// simulation index and the OSM.
+    /// simulation index and the OSM. A refinement's (D-SEM-109): the refined NCC and num_evals, then the dictionary's best match and
+    /// OSM under their own names (the refined orientation is no dictionary entry), and each refined PC (Bruker) when the PC moved.
     package func csv(stepX: Double, stepY: Double) -> String {
-        let tail = method == .dictionary ? "\((metric ?? .ncc).rawValue),simulation_index,osm" : "ci,fit_deg,matched_bands,pattern_quality"
+        let hasPCs = isRefined && !projectionCenters.isEmpty
+        let tail = switch method {
+        case .dictionary where isRefined:
+            "ncc,num_evals,dictionary_simulation_index,dictionary_osm" + (hasPCs ? ",pcx_bruker,pcy_bruker,pcz_bruker" : "")
+        case .dictionary: "\((metric ?? .ncc).rawValue),simulation_index,osm"
+        case .hough: "ci,fit_deg,matched_bands,pattern_quality"
+        }
         var lines = ["row,column,x,y,phase,phi1_deg,Phi_deg,phi2_deg," + tail]
         func number(_ v: Double) -> String { v.isFinite ? String(format: "%.6g", v) : "" }
         for r in rows {
@@ -522,7 +549,12 @@ package nonisolated struct IndexingResult: Sendable {
             var fields = [String(r.row), String(r.column), number(Double(r.column) * stepX), number(Double(r.row) * stepY), phase,
                           number(r.phi1), number(r.capitalPhi), number(r.phi2), number(r.confidence)]
             if method == .dictionary {
+                if isRefined { fields.append(evaluations.indices.contains(r.id) ? String(evaluations[r.id]) : "0") }
                 fields += [r.simulationIndex >= 0 ? String(r.simulationIndex) : "", number(r.similarity)]
+                if hasPCs {
+                    let pc = projectionCenters.indices.contains(r.id) ? projectionCenters[r.id] : SIMD3(repeating: .nan)
+                    fields += [number(pc.x), number(pc.y), number(pc.z)]
+                }
             } else {
                 fields += [number(r.fit), String(r.bands), number(r.patternQuality)]
             }

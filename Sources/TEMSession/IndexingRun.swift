@@ -12,12 +12,20 @@
 import Foundation
 import TEMCore
 
-/// What a refinement refined (D-SEM-109): the Dictionary run (its id), the settings, and the refined PCs.
+/// What a refinement refined (D-SEM-109): the Dictionary run (its id) and the settings, with the inspector's numbers kept as the
+/// blocks land (the refined PCs themselves are the result's, `IndexingResult.projectionCenters`).
 package nonisolated struct IndexingRefinementRecord: Sendable {
     package let base: Int
     package let settings: IndexingRefineSettings
-    /// The refined PCs (Bruker), one per refined point in map order; empty while the PC is held.
-    package internal(set) var projectionCenters: [SIMD3<Double>] = []
+    /// The mean score over the refined points before and after, summed block by block.
+    package internal(set) var scores = IndexingRefinementScores()
+    /// The refined PCs' mean and standard deviation (Bruker), made when a block with PCs lands; nil while the PC is held.
+    package internal(set) var projectionCentre: (mean: SIMD3<Double>, deviation: SIMD3<Double>)?
+
+    package init(base: Int, settings: IndexingRefineSettings) {
+        self.base = base
+        self.settings = settings
+    }
 }
 
 package nonisolated struct IndexingRun: Sendable {

@@ -573,11 +573,16 @@ private struct IndexingRefineSection: View {
                     .accessibilityValue(words)
             }
             if let pc = session.refinedProjectionCentre {
-                let words = IndexingInfoFormat.refinedProjectionCentre(pc)
-                InspectorValueRow("Refined PC", words, mono: true)
-                    .help("The refined PCs' mean ± standard deviation (Bruker); Patterns keeps the file's")
+                // Two rows: the mean and the deviation side by side do not fit the inspector's width on one line.
+                let mean = IndexingInfoFormat.triple(pc.mean), deviation = IndexingInfoFormat.triple(pc.deviation)
+                InspectorValueRow("PC mean", mean)
+                    .help("The refined PCs' mean (Bruker); Patterns keeps the file's")
                     .accessibilityIdentifier("indexing.refine.pc")
-                    .accessibilityValue(words)
+                    .accessibilityValue(mean)
+                InspectorValueRow("PC std", deviation)
+                    .help("The refined PCs' standard deviation (Bruker, numpy's, ddof 0)")
+                    .accessibilityIdentifier("indexing.refine.pcStd")
+                    .accessibilityValue(deviation)
             }
             InspectorActionRow {
                 Button("Reset Refine") { session.resetRefineSettings() }

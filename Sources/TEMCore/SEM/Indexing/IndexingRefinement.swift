@@ -106,12 +106,44 @@ package nonisolated struct IndexingRefineSettings: Sendable, Equatable {
 }
 
 /// One block of rows refined: the block's solutions (refined points' rotation and NCC, the others as indexed), num_evals per
-/// point (0 where not refined), the refined PCs of the refined points in map order (empty while the PC is held).
+/// point (0 where not refined), and each point's refined PC (Bruker) in map order, NaN where not refined (empty while the PC is
+/// held).
 package nonisolated struct IndexingRefinedBlock: Sendable {
     package var rows: Range<Int>
     package var solutions: [HoughIndexer.Solution]
     package var evaluations: [Int]
     package var projectionCenters: [SIMD3<Double>]
+
+    package init(rows: Range<Int>, solutions: [HoughIndexer.Solution], evaluations: [Int], projectionCenters: [SIMD3<Double>] = []) {
+        self.rows = rows; self.solutions = solutions; self.evaluations = evaluations; self.projectionCenters = projectionCenters
+    }
+}
+
+/// The mean score over a refinement's refined points, before (the Dictionary run's, in its metric) and after (NCC), summed row
+/// block by row block as the blocks land, in map order (so the means are `IndexingRefinement.meanScores`' to the bit).
+package nonisolated struct IndexingRefinementScores: Sendable, Equatable {
+    private var before = 0.0, after = 0.0, count = 0
+
+    package init() {}
+
+    /// Adds the points of `rows` that `refined` refined (indexed, a finite score in both runs).
+    package mutating func add(base: IndexingResult, refined: IndexingResult, rows: Range<Int>) {
+        guard base.pointCount == refined.pointCount else { return }
+        let columns = refined.scanColumns
+        let end = min(rows.upperBound, base.rowsDone, refined.rowsDone) * columns
+        for i in (rows.lowerBound * columns)..<max(end, rows.lowerBound * columns) {
+            guard let r = refined.solutions[i], r.phase >= 0, r.confidence.isFinite,
+                  let b = base.solutions[i], b.confidence.isFinite else { continue }
+            before += b.confidence
+            after += r.confidence
+            count += 1
+        }
+    }
+
+    /// The means; nil before a refined point landed.
+    package var means: (before: Double, after: Double)? {
+        count == 0 ? nil : (before / Double(count), after / Double(count))
+    }
 }
 
 package nonisolated enum IndexingRefinement {
@@ -153,49 +185,55 @@ package nonisolated enum IndexingRefinement {
         let solver = settings.solver(signalMask: signalMask)
         let rotations = points.map { block[$0].quaternion }
         var pcs: [SIMD3<Double>] = []
-        switch settings.target {
-        case .orientation:
-            let res = try EBSDRefinement.refineOrientations(patterns, starts: EBSDRefinement.startingEuler(rotations: rotations),
-                                                            detector: detector, master: master, settings: solver, isCancelled: isCancelled)
-            for (k, p) in points.enumerated() {
-                block[p].quaternion = RotationConversions.eu2qu(res[k].euler)
-                block[p].confidence = res[k].score
-                evaluations[p] = res[k].evaluations
+        // The solver counts the patterns it was given; its errors name the scan point instead.
+        func scanPoint(_ k: Int) -> String {
+            let i = start + (points.indices.contains(k) ? points[k] : 0)
+            return "row \(i / max(columns, 1)), column \(i % max(columns, 1))"
+        }
+        do {
+            switch settings.target {
+            case .orientation:
+                let res = try EBSDRefinement.refineOrientations(patterns, starts: EBSDRefinement.startingEuler(rotations: rotations),
+                                                                detector: detector, master: master, settings: solver, isCancelled: isCancelled)
+                for (k, p) in points.enumerated() {
+                    block[p].quaternion = RotationConversions.eu2qu(res[k].euler)
+                    block[p].confidence = res[k].score
+                    evaluations[p] = res[k].evaluations
+                }
+            case .projectionCenter:
+                let res = try EBSDRefinement.refineProjectionCenters(patterns, rotations: rotations, detector: detector, master: master,
+                                                                     settings: solver, isCancelled: isCancelled)
+                pcs = [SIMD3<Double>](repeating: SIMD3(repeating: .nan), count: block.count)
+                for (k, p) in points.enumerated() {
+                    block[p].confidence = res[k].score
+                    evaluations[p] = res[k].evaluations
+                    pcs[p] = res[k].pc
+                }
+            case .both:
+                let res = try EBSDRefinement.refineOrientationsAndProjectionCenters(patterns, starts: EBSDRefinement.startingEuler(rotations: rotations),
+                                                                                    detector: detector, master: master, settings: solver,
+                                                                                    isCancelled: isCancelled)
+                pcs = [SIMD3<Double>](repeating: SIMD3(repeating: .nan), count: block.count)
+                for (k, p) in points.enumerated() {
+                    block[p].quaternion = RotationConversions.eu2qu(res[k].euler)
+                    block[p].confidence = res[k].score
+                    evaluations[p] = res[k].evaluations
+                    pcs[p] = res[k].pc
+                }
             }
-        case .projectionCenter:
-            let res = try EBSDRefinement.refineProjectionCenters(patterns, rotations: rotations, detector: detector, master: master,
-                                                                 settings: solver, isCancelled: isCancelled)
-            for (k, p) in points.enumerated() {
-                block[p].confidence = res[k].score
-                evaluations[p] = res[k].evaluations
-            }
-            pcs = res.map(\.pc)
-        case .both:
-            let res = try EBSDRefinement.refineOrientationsAndProjectionCenters(patterns, starts: EBSDRefinement.startingEuler(rotations: rotations),
-                                                                                detector: detector, master: master, settings: solver,
-                                                                                isCancelled: isCancelled)
-            for (k, p) in points.enumerated() {
-                block[p].quaternion = RotationConversions.eu2qu(res[k].euler)
-                block[p].confidence = res[k].score
-                evaluations[p] = res[k].evaluations
-            }
-            pcs = res.map(\.pc)
+        } catch EBSDRefinement.Error.flatPattern(let k) {
+            throw IndexingRefusal("The pattern at \(scanPoint(k)) is flat, so it cannot be compared.")
+        } catch EBSDRefinement.Error.solver(let k, let text) {
+            throw IndexingRefusal("Refining the pattern at \(scanPoint(k)) failed: \(text)")
         }
         return IndexingRefinedBlock(rows: rows, solutions: block, evaluations: evaluations, projectionCenters: pcs)
     }
 
     /// The mean score over the points `refined` refined: before (`base`'s, in its metric) and after (NCC); nil before one lands.
     package static func meanScores(base: IndexingResult, refined: IndexingResult) -> (before: Double, after: Double)? {
-        guard base.pointCount == refined.pointCount else { return nil }
-        var before = 0.0, after = 0.0, n = 0
-        for i in 0..<(min(base.rowsDone, refined.rowsDone) * refined.scanColumns) {
-            guard let r = refined.solutions[i], r.phase >= 0, r.confidence.isFinite,
-                  let b = base.solutions[i], b.confidence.isFinite else { continue }
-            before += b.confidence
-            after += r.confidence
-            n += 1
-        }
-        return n == 0 ? nil : (before / Double(n), after / Double(n))
+        var scores = IndexingRefinementScores()
+        scores.add(base: base, refined: refined, rows: 0..<min(base.rowsDone, refined.rowsDone))
+        return scores.means
     }
 
     /// The mean and numpy's standard deviation (ddof 0) of PCs; nil for none.
@@ -219,13 +257,21 @@ package nonisolated enum IndexingRefinement {
         var points, refined, rowsRefined: Int
         var meanScoreBefore, meanScoreAfter: Double?
         var projectionCenterMeanBruker, projectionCenterStdBruker: [Double]?
+        /// Every refined PC: one per point of the rows refined, in map order, null where the point was not refined; absent while
+        /// the PC is held (kikuchipy's refined `EBSDDetector.pc`).
+        var projectionCentersBruker: [[Double]?]?
     }
 
-    /// The Dictionary run's method record with the refinement under "refinement" (additive: the dictionary's keys stay).
+    /// The Dictionary run's method record with the refinement under "refinement" (additive: the dictionary's keys stay): its
+    /// settings, the mean scores, and the refined PCs (their mean ± std and every one, `refined.projectionCenters`).
     package static func methodJSON(_ dictionary: Data, settings: IndexingRefineSettings, plan: DictionaryIndexingPlan,
-                                   base: IndexingResult, refined: IndexingResult, projectionCenters: [SIMD3<Double>]) throws -> Data {
-        let scores = meanScores(base: base, refined: refined), spread = meanAndDeviation(projectionCenters)
+                                   base: IndexingResult, refined: IndexingResult) throws -> Data {
+        let scores = meanScores(base: base, refined: refined), spread = meanAndDeviation(refined.refinedProjectionCenters)
         let pc = plan.detector.projectionCenters.first ?? .zero, nm = NelderMead.Options()
+        let landed = refined.rowsDone * refined.scanColumns
+        let every: [[Double]?]? = refined.projectionCenters.isEmpty ? nil : refined.projectionCenters.prefix(landed).map { p in
+            p.x.isFinite ? [p.x, p.y, p.z] : nil
+        }
         let record = Record(
             method: "Refinement of each indexed pattern against the master pattern: Nelder–Mead on 1 − NCC within a trust region",
             reference: "kikuchipy 0.13.1 \(settings.target.call)(method=\"minimize\"), SciPy 1.18.1 minimize(method=\"Nelder-Mead\")",
@@ -234,7 +280,8 @@ package nonisolated enum IndexingRefinement {
             projectionCenterStartBruker: [pc.x, pc.y, pc.z], pseudoSymmetryOperators: 0, points: refined.pointCount,
             refined: refined.indexedCount, rowsRefined: refined.rowsDone, meanScoreBefore: scores?.before, meanScoreAfter: scores?.after,
             projectionCenterMeanBruker: spread.map { [$0.mean.x, $0.mean.y, $0.mean.z] },
-            projectionCenterStdBruker: spread.map { [$0.deviation.x, $0.deviation.y, $0.deviation.z] })
+            projectionCenterStdBruker: spread.map { [$0.deviation.x, $0.deviation.y, $0.deviation.z] },
+            projectionCentersBruker: every)
         guard var top = try JSONSerialization.jsonObject(with: dictionary) as? [String: Any] else {
             throw IndexingRefusal("The method record is not an object.")
         }

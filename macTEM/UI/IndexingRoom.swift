@@ -591,8 +591,10 @@ struct IndexingResultsTable: View {
     @State private var selection: Set<IndexingResult.Row.ID> = []
     @State private var sortOrder = [KeyPathComparator(\IndexingResult.Row.id)]
 
-    /// What the rows are of: the run (its rows done, and whether it still runs).
+    /// What the rows are of: the run (its id, so the Refine switch's swap of a Dictionary run and its refinement, alike in every other
+    /// field, rebuilds them; its rows done, and whether it still runs).
     private struct Key: Equatable {
+        var run: Int?
         var rowsDone: Int
         var points: Int
         var running: Bool
@@ -604,13 +606,16 @@ struct IndexingResultsTable: View {
         guard let result = session.result else { return nil }
         let stride = max(result.scanRows / 20, 1)
         let landed = session.isIndexing ? result.rowsDone - result.rowsDone % stride : result.rowsDone
-        return Key(rowsDone: landed, points: result.pointCount, running: session.isIndexing, phases: result.phases.map(\.name), method: result.method)
+        return Key(run: session.shownRun?.id, rowsDone: landed, points: result.pointCount, running: session.isIndexing,
+                   phases: result.phases.map(\.name), method: result.method)
     }
 
+    /// "Results · Dictionary · Refined · ni · 4,125 of 4,125 indexed · PC (…)": the run on screen named as the map's title names it.
     private var header: String {
         guard let result = session.result else { return "Results" }
         let phases = result.phases.map(\.name).joined(separator: ", ")
-        var words = "Results · \(result.method.title) · \(phases) · \(result.indexedCount.formatted()) of \(result.reachedCount.formatted()) indexed"
+        let run = session.shownRun?.title ?? result.method.title
+        var words = "Results · \(run) · \(phases) · \(result.indexedCount.formatted()) of \(result.reachedCount.formatted()) indexed"
         if let pc = session.resultProjectionCenter {
             words += " · PC (\(UnitDisplay.number(pc.x, digits: 4)), \(UnitDisplay.number(pc.y, digits: 4)), \(UnitDisplay.number(pc.z, digits: 4)))"
         }
