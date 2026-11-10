@@ -183,6 +183,43 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
         XCTAssertEqual(kept.calibration?.resolution, NORDIFSettings.Resolution(width: 0, height: 0))
     }
 
+    /// A scan whose bytes (rows x columns x width x height, uint8) no Int counts is refused at the settings, with both lines as
+    /// written, so the routing and the door say so in words. Red before: the parse read on, and the door's and the scan's products
+    /// overflowed and trapped.
+    func testASizeTooLargeToCountIsRefusedAtTheSettings() throws {
+        let lines = try NORDIFSettings.read(path: path("Setting.txt")).lines
+        XCTAssertEqual(lines[47], "Resolution\t60x60\tpx", "[Acquisition settings]")
+        XCTAssertEqual(lines[79], "Number of samples\t3x3\t#")
+        var manySamples = lines
+        manySamples[79] = "Number of samples\t4000000000x4000000000\t#"
+        var largePatterns = lines
+        largePatterns[47] = "Resolution\t4000000000x4000000000\tpx"
+        let cases: [([String], NORDIFSettings.Refusal)] = [
+            (manySamples, .tooLarge(samples: "4000000000x4000000000", resolution: "60x60")),
+            (largePatterns, .tooLarge(samples: "3x3", resolution: "4000000000x4000000000")),
+        ]
+        for (edited, refusal) in cases {
+            XCTAssertThrowsError(try NORDIFSettings.parse(lines: edited, fileName: "Setting.txt")) { error in
+                XCTAssertEqual(error as? NORDIFSettings.Refusal, refusal)
+            }
+            let file = scratchFile(named: "Setting.txt", contents: try XCTUnwrap(edited.joined(separator: "\r\n").data(using: .isoLatin1)))
+            let sentence = "Setting.txt cannot be read: \(refusal.reason)"
+            XCTAssertThrowsError(try NORDIFOpening.open(url: URL(fileURLWithPath: path("Pattern.dat")), settingsFile: URL(fileURLWithPath: file))) { error in
+                XCTAssertEqual(error as? EBSDReadError, EBSDReadError(text: sentence))
+            }
+            XCTAssertThrowsError(try NORDIFScan.read(patternFile: path("Pattern.dat"), settingsFile: file)) { error in
+                XCTAssertEqual(error as? NORDIFSettings.Refusal, refusal)
+            }
+            // The routing refuses the scan with the same sentence, before any open.
+            let pattern = URL(fileURLWithPath: file).deletingLastPathComponent().appendingPathComponent("Pattern.dat")
+            try FileManager.default.copyItem(at: Self.folder.appendingPathComponent("Pattern.dat"), to: pattern)
+            XCTAssertEqual(EBSDOpening.vendorRefusal(url: pattern), sentence)
+        }
+        XCTAssertEqual(NORDIFSettings.Refusal.tooLarge(samples: "4000000000x4000000000", resolution: "60x60").reason,
+                       "its [Area] 'Number of samples' value '4000000000x4000000000' with its [Acquisition settings] 'Resolution' value "
+                           + "'60x60' is more bytes than can be counted.")
+    }
+
     // MARK: - Pattern.dat
 
     func testPatternDatReadsBitExactInMapOrder() throws {
