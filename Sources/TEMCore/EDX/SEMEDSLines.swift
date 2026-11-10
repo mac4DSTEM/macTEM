@@ -189,26 +189,31 @@ package nonisolated enum SEMEDSLines {
     }
 
     /// The channels `isig[start:stop]` takes for two energies (`_get_array_slices`): a start below the axis starts at channel 0, a stop
-    /// above it runs to the end; a start above the axis or a stop below it is refused, as HyperSpy raises.
-    package static func channels(from start: Double, to stop: Double, axis: Axis) throws -> Range<Int> {
+    /// above it runs to the end; a start above the axis or a stop below it is refused, as HyperSpy raises. A refusal names the energy as
+    /// `locale` writes it (the inspector shows it).
+    package static func channels(from start: Double, to stop: Double, axis: Axis, locale: Locale = .autoupdatingCurrent) throws -> Range<Int> {
         let first: Int
         if let i = index(of: start, axis: axis) { first = i } else if start > axis.highValue {
-            throw Refusal(String(format: "A window starts at %.4g keV, above the spectrum's end.", start))
+            throw Refusal("A window starts at \(keV(start, locale)) keV, above the spectrum's end.")
         } else { first = 0 }
         let last: Int
         if let i = index(of: stop, axis: axis) { last = i } else if stop < axis.lowValue {
-            throw Refusal(String(format: "A window ends at %.4g keV, below the spectrum's start.", stop))
+            throw Refusal("A window ends at \(keV(stop, locale)) keV, below the spectrum's start.")
         } else { last = axis.size }
         return first ..< max(first, last)
     }
+
+    /// An energy in a refusal: four significant digits, as `%.4g` wrote it, in the reader's decimal mark (`UnitDisplay.number`).
+    private static func keV(_ value: Double, _ locale: Locale) -> String { UnitDisplay.number(value, digits: 4, locale: locale) }
 
     // MARK: - Intensities
 
     /// `get_lines_intensity(integration_windows=…, background_windows=…)` on one spectrum: the counts summed over each integration window
     /// (the EDS axis is binned, so `integrate1D` is a sum) and, with background windows, minus the sum of the two background windows
     /// scaled by the integration window's channel count over theirs (`corr_factor`). A background window narrower than one channel reads
-    /// its one channel, as exspy does; a window off the axis is refused where exspy raises.
-    package static func intensities(counts: [Double], axis: Axis, integrationWindows: [[Double]], backgroundWindows: [[Double]]? = nil) throws -> [Double] {
+    /// its one channel, as exspy does; a window off the axis is refused where exspy raises, its energy as `locale` writes it.
+    package static func intensities(counts: [Double], axis: Axis, integrationWindows: [[Double]], backgroundWindows: [[Double]]? = nil,
+                                    locale: Locale = .autoupdatingCurrent) throws -> [Double] {
         guard counts.count == axis.size else { throw Refusal("The spectrum has \(counts.count) channels and its axis \(axis.size).") }
         if let bw = backgroundWindows, bw.count != integrationWindows.count {
             throw Refusal("\(bw.count) background windows for \(integrationWindows.count) lines.")
@@ -217,20 +222,20 @@ package nonisolated enum SEMEDSLines {
         var out: [Double] = []
         for (i, window) in integrationWindows.enumerated() {
             guard window.count == 2 else { throw Refusal("An integration window needs two edges.") }
-            let range = try channels(from: window[0], to: window[1], axis: axis)
-            guard !range.isEmpty else { throw Refusal(String(format: "The window at %.4g keV is narrower than one channel.", window[0])) }
+            let range = try channels(from: window[0], to: window[1], axis: axis, locale: locale)
+            guard !range.isEmpty else { throw Refusal("The window at \(keV(window[0], locale)) keV is narrower than one channel.") }
             var intensity = sum(range)
             if let bw = backgroundWindows?[i] {
                 guard bw.count == 4 else { throw Refusal("A background window pair needs four edges.") }
                 var idx: [Double] = []
                 for value in bw + window {
                     guard let k = index(of: value, axis: axis) else {
-                        throw Refusal(String(format: "A background window edge at %.4g keV is outside the spectrum.", value))
+                        throw Refusal("A background window edge at \(keV(value, locale)) keV is outside the spectrum.")
                     }
                     idx.append(Double(k))
                 }
-                let left = try idx[0] == idx[1] ? counts[Int(idx[0])] : sum(channels(from: bw[0], to: bw[1], axis: axis))
-                let right = try idx[2] == idx[3] ? counts[Int(idx[2])] : sum(channels(from: bw[2], to: bw[3], axis: axis))
+                let left = try idx[0] == idx[1] ? counts[Int(idx[0])] : sum(channels(from: bw[0], to: bw[1], axis: axis, locale: locale))
+                let right = try idx[2] == idx[3] ? counts[Int(idx[2])] : sum(channels(from: bw[2], to: bw[3], axis: axis, locale: locale))
                 let width = (idx[1] - idx[0]) + (idx[3] - idx[2])
                 guard width != 0 else { throw Refusal("Both background windows of a line are narrower than one channel.") }
                 let correction = (idx[5] - idx[4]) / width

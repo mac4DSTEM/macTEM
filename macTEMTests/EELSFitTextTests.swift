@@ -22,6 +22,16 @@ nonisolated final class EELSFitTextTests: XCTestCase {
     private let en = Locale(identifier: "en_US")
     private let de = Locale(identifier: "de_DE")
 
+    /// The deconvolution's fixed threshold reads in the locale on screen, beside the FWHM that already did; the words the method JSON and the
+    /// results CSV record keep Swift's point. Red before: "fixed threshold 12.5 eV" in every locale, next to "FWHM 1,23 eV".
+    func testTheDeconvolutionThresholdReadsInTheLocaleOnScreenOnly() {
+        XCTAssertEqual(EELSDeconvolveCompute.thresholdWords(.fixed(12.5), locale: de), "fixed threshold 12,5 eV")
+        XCTAssertEqual(EELSDeconvolveCompute.thresholdWords(.fixed(12.5), locale: en), "fixed threshold 12.5 eV")
+        XCTAssertEqual(EELSDeconvolveCompute.thresholdWords(.estimated, locale: de), "estimated threshold")
+        XCTAssertEqual(EELSDeconvolveCompute.thresholdWords(.fixed(2.5)), "fixed threshold 2.5 eV", "the record's words")
+        XCTAssertEqual(EELSDeconvolveCompute.line(nil, locale: de), "no deconvolution")
+    }
+
     /// The drive's case: RSS 1.373e19 and χ²/dof 2.3e7 over 162 degrees of freedom. On screen the χ² is written "χ²/dof" (the subscript r drew as a
     /// comma in the caption font) with the EDS room's significant figures, in the locale's decimal mark. Red under: "χ²ᵣ 23000000 (Pearson, 162 dof)".
     func testTheFitQualityReadsAsTheEDSRoomsInEnglishAndGerman() {

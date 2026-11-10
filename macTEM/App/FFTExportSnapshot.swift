@@ -123,21 +123,22 @@ extension ExportSnapshot {
     }
 
     nonisolated static func transformMessage(crop: PixelCrop?, imageWidth: Int, imageHeight: Int, width: Int, height: Int,
-                                             spacingX: Double, spacingY: Double) -> String {
+                                             spacingX: Double, spacingY: Double, locale: Locale = .autoupdatingCurrent) -> String {
         let of = crop == nil ? "the whole image" : FFTRoomFormat.transformed(crop, imageWidth: imageWidth, imageHeight: imageHeight)
         return "Transform of \(of), \(width) × \(height) bins, log₁₀|F|² in the window shown."
-            + aspectSentence(width: width, height: height, spacingX: spacingX, spacingY: spacingY)
+            + aspectSentence(width: width, height: height, spacingX: spacingX, spacingY: spacingY, locale: locale)
     }
 
     /// The PNG is one square pixel per bin (width : height); the room draws the box at width·Δq_x : height·Δq_y. When the two
-    /// differ the panel says so, in words (the file is not resampled). Empty when they agree.
-    nonisolated static func aspectSentence(width: Int, height: Int, spacingX: Double, spacingY: Double) -> String {
+    /// differ the panel says so, in words (the file is not resampled), the ratios to three significant digits in `locale`. Empty when they agree.
+    nonisolated static func aspectSentence(width: Int, height: Int, spacingX: Double, spacingY: Double,
+                                           locale: Locale = .autoupdatingCurrent) -> String {
         guard width > 0, height > 0, spacingX > 0, spacingY > 0 else { return "" }
         let file = Double(width) / Double(height)
         let room = (Double(width) * spacingX) / (Double(height) * spacingY)
         guard abs(file - room) > 1e-6 * room else { return "" }
         func ratio(_ r: Double) -> String {
-            func g(_ v: Double) -> String { String(format: "%.3g", v) }
+            func g(_ v: Double) -> String { Num.sig(v, 3, locale: locale) }
             return r >= 1 ? "\(g(r)) : 1" : "1 : \(g(1 / r))"
         }
         return " This region is \(width) × \(height) bins: the PNG has one pixel per bin, so it is \(ratio(file)) where the room shows it \(ratio(room))."
@@ -223,8 +224,8 @@ extension ExportSnapshot {
         guard !listed.isEmpty else { return nil }
         let rows = listed.compactMap { spot in spot.measured.map { SpotsCSV.Row(number: spot.number, measured: $0, inMask: spot.inMask) } }
         let omitted = analysis.spots.count - rows.count
-        let notes = FFTRoomFormat.accuracyNote(width: spectrum.key.crop?.width ?? image.width,
-                                               height: spectrum.key.crop?.height ?? image.height).map { [$0] } ?? []
+        let notes = FFTRoomFormat.accuracyNote(width: spectrum.key.crop?.width ?? image.width, height: spectrum.key.crop?.height ?? image.height,
+                                               locale: labelLocale).map { [$0] } ?? []
         return ExportSpotsSnapshot(
             header: fftHeader(image: image, spectrum: spectrum, software: software), rows: rows, omitted: omitted,
             maskRadius: analysis.maskRadius, maskEdge: analysis.maskEdge, notes: notes,

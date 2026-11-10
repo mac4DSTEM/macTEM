@@ -235,10 +235,10 @@ nonisolated enum FFTRoomFormat {
         "Measured on a Hann-windowed copy of \(transformed(crop, imageWidth: imageWidth, imageHeight: imageHeight, withPosition: false))."
     }
 
-    /// The accuracy `SpotMeasurement` measured under 256 px (1–5 % at 64 px, 0.5–3 % at 128 px); nil from 256 px up, where the
-    /// noise-free band holds. The smaller side decides: a whole image may be any shape.
-    static func accuracyNote(width: Int, height: Int) -> String? {
-        min(width, height) < 256 ? "With noise, d is good to 1–5 % at 64 px and 0.5–3 % at 128 px." : nil
+    /// The accuracy `SpotMeasurement` measured under 256 px (1–5 % at 64 px, 0.5–3 % at 128 px), the 0.5 in `locale` (the spots CSV
+    /// passes POSIX); nil from 256 px up, where the noise-free band holds. The smaller side decides: a whole image may be any shape.
+    static func accuracyNote(width: Int, height: Int, locale: Locale = .autoupdatingCurrent) -> String? {
+        min(width, height) < 256 ? "With noise, d is good to 1–5 % at 64 px and \(number(0.5, 1, locale: locale))–3 % at 128 px." : nil
     }
 
     /// The bins Measure at… takes, whole bins from the centre: the bin (h/2 + ky, w/2 + kx), so kx runs from −w/2 to

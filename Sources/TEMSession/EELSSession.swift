@@ -901,13 +901,14 @@ package final class EELSSession {
     }
 
     /// The results footer of the fit on screen (the results panel draws the same call).
-    package var fitFooter: String { footer(locale: .autoupdatingCurrent) }
+    package var fitFooter: String { footer(deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.line($0) }) }
 
-    /// The same footer with its one number (a Fourier-ratio FWHM) in `locale`: en_US_POSIX for the results CSV.
-    private func footer(locale: Locale) -> String {
+    /// The footer as the results CSV records it: the deconvolution in its record words, a point (`EELSDeconvolveCompute.recordLine`).
+    private var recordedFitFooter: String { footer(deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.recordLine($0) }) }
+
+    private func footer(deconvolution: String?) -> String {
         EELSRoomFormat.fitFooter(hasFit: model != nil, convolved: model?.convolved ?? false, model: model?.model ?? .exactNNLS,
-                                 deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.line($0, locale: locale) } ?? "no deconvolution",
-                                 references: modelReferenceNames.count)
+                                 deconvolution: deconvolution ?? "no deconvolution", references: modelReferenceNames.count)
     }
 
     /// What the fit on screen says about its own numbers, the results footer's notes: the rows on screen (the selected region's or the whole map's),
@@ -1267,8 +1268,8 @@ package final class EELSSession {
         guard !rows.isEmpty, let plot else { return nil }
         let posix = Locale(identifier: "en_US_POSIX")
         let thickness = EELSRoomFormat.thicknessLine(plot.thickness, lambdaNM: map?.meanFreePathNM, lambdaSource: EELSRoomFormat.lambdaSource(meanFreePath),
-                                                     locale: posix)
-        return EELSExports.resultsCSV(rows, fileName: fileName, regionName: plot.regionName, thickness: thickness, method: footer(locale: posix),
+                                                     locale: Locale(identifier: "en_US_POSIX"))
+        return EELSExports.resultsCSV(rows, fileName: fileName, regionName: plot.regionName, thickness: thickness, method: recordedFitFooter,
                                       deconvolution: modelDeconvolution.map(Self.deconvolutionRecord),
                                       quality: resultQuality.map { EELSRoomFormat.fitQuality($0, locale: posix) })
     }
@@ -1276,8 +1277,7 @@ package final class EELSSession {
     /// The deconvolution as the results CSV records it: the line (its FWHM in en_US_POSIX, as `parameters` writes `fwhm_eV`), then its
     /// parameters as key=value.
     private static func deconvolutionRecord(_ d: EELSDeconvolutionResult) -> String {
-        EELSDeconvolveCompute.line(d, locale: Locale(identifier: "en_US_POSIX")) + "; "
-            + EELSDeconvolveCompute.parameters(d).sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
+        EELSDeconvolveCompute.recordLine(d) + "; " + EELSDeconvolveCompute.parameters(d).sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
     }
     /// The shown spectrum (the selected region's, else the whole map's), with the model where the fit holds one.
     package var spectrumCSV: String? { plot.map { EELSExports.spectrumCSV($0, fileName: fileName) } }

@@ -44,6 +44,12 @@ struct PatternsProcessingSections: View {
 
     private static let integer = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0))
 
+    /// NLPAR's λ as the row reads it: three decimals in the reader's locale, as the session report writes it ("0,123" in de_DE, where
+    /// `%.3f` always printed a point beside the locale's fields).
+    nonisolated static func lambdaText(_ lambda: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        Num.fixed(lambda, 3, locale: locale)
+    }
+
     private var fftSection: some View {
         let s = status(.fftFilter)
         let f = pipeline.fftFilter
@@ -140,7 +146,7 @@ struct PatternsProcessingSections: View {
             }
             refusalNote(.nlpar)
             if let lambda = session.nlparLambda, session.stageState(.nlpar) == .current {
-                InspectorValueRow("λ", String(format: "%.3f", lambda))
+                InspectorValueRow("λ", Self.lambdaText(lambda))
                     .accessibilityIdentifier("patterns.nlpar.lambda")
             }
             InspectorNote("λ is chosen from the scan's noise (opt_lambda, the median of three). NLPAR needs the neighbours, so it shows on the pattern once Process has run.")
