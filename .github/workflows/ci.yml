@@ -68,6 +68,11 @@ on:
   schedule:
     - cron: "0 1 * * *"
 
+# Read-only token: no job here writes to the repository, its issues or its PRs (checkout reads; actions/cache needs no
+# token scope). release-please.yml dispatches this workflow with its own token.
+permissions:
+  contents: read
+
 concurrency:
   # A nightly or dispatched run (it carries `scientific`, up to three hours) has its own group, so it never queues behind,
   # or holds up, a push run on the same ref.
@@ -147,7 +152,7 @@ jobs:
           xcrun -sdk macosx metal --version
       - name: CPython 3.14, the base of the reference venv
         id: python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - name: Restore the reference venv
@@ -259,6 +264,7 @@ jobs:
     name: Lint (shared SwiftLint and SwiftFormat config)
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - name: SwiftLint
@@ -270,10 +276,16 @@ jobs:
     name: No private references
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - name: Scan tracked files
         run: |
           if git grep -n -I -E '_archive|CLAUDE\.md|memcap|macEM-suite|setup-python-refs' -- ':!.gitignore' ':!.github/workflows/ci.yml'; then
             echo "Private references above; this repo is public."; exit 1
+          fi
+          # Key material: an App Store Connect key file's name, or any PEM private key. The release scripts read the key's ID
+          # and issuer from the environment and the .p8 from the owner's Mac; none of it is ever committed.
+          if git grep -n -I -E 'AuthKey_[A-Z0-9]{10}\.p8|BEGIN ([A-Z]+ )?PRIVATE KEY' -- ':!.github/workflows/ci.yml'; then
+            echo "Key material above; it never belongs in a repository."; exit 1
           fi
