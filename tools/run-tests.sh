@@ -561,12 +561,17 @@ inventory() {
     done
   done
 
-  # Every accessibility identifier a UI journey uses exists in the app's sources (a dynamic one, "edx.composition.Mg", by its prefix
-  # "edx.composition.\(…)"), so a renamed identifier fails here before it fails on screen.
+  # Every accessibility identifier a UI journey uses exists in the app's sources, so a renamed identifier fails here before it fails
+  # on screen. An identifier is every quoted dotted literal in macTEMUITests, whatever it is passed to (waitFor, a journey's own
+  # waitWords, label or segment, a subscript, waitGone, isAbsent), as mac4DSTEM's check reads them: the three call forms this once
+  # read left every other call's identifiers unchecked. The pattern also takes the bundle identifier and PerformanceJourney's
+  # signpost names, which the sources hold as literals, so a renamed signpost fails here as well; a file name a journey reads in the
+  # status line ("grains.csv") is no identifier and is left out. An identifier a journey only checks to be absent is held to the
+  # same rule: once no source declares it, its absence cannot fail on screen, and the journey asserts on what took its place.
   echo "== UI journey identifiers"
   # The shared package's sources: the sibling checkout during development, else the tag-pinned checkout SwiftPM made (the CI runner has no
   # ../MacEMUI; nightly review 2026-10-23), else none and only this repo's sources are searched.
-  local shared="$ROOT/../MacEMUI/Sources" id parent
+  local shared="$ROOT/../MacEMUI/Sources" id parent grand
   if [[ ! -d "$shared" ]]; then
     # (N): a pattern with no match drops out instead of stopping zsh with "no matches found" (CI, 2026-10-27).
     local -a found=( "$ROOT"/.build/checkouts/MacEMUI/Sources(N/) "$ROOT"/../*/SourcePackages/checkouts/MacEMUI/Sources(N/) \
@@ -575,14 +580,25 @@ inventory() {
     [[ -n "$shared" ]] || echo "  (no MacEMUI checkout beside this repo: the shell's identifiers are not checked here)"
   fi
   local -a where=("$ROOT/macTEM" "$ROOT/Sources"); [[ -n "$shared" ]] && where+=("$shared")
-  for id in $(grep -rhoE '(waitFor|waitValue|element)\("[a-zA-Z]+(\.[a-zA-Z]+)+"' "$ROOT/macTEMUITests" 2>/dev/null | sed -E 's/^[a-zA-Z]+\("//; s/"$//' | sort -u); do
+  # A dynamic identifier is declared with an interpolation, and resolves by the literal text around it, inside the
+  # accessibilityIdentifier call: "edx.composition.Mg" by `"edx.composition.\(…)"`, where the interpolation ends the string, and
+  # "edx.composition.Mg.wt" by `"edx.composition.\(…).wt"`, where the identifier's own last part follows it. A bare prefix anywhere
+  # in the sources is not enough: "indexing.\(…)", a session ledger row's id, passed every indexing.x.y, and
+  # "maps.\(…).\(…)" every maps.x. `interpolation` is `.\(…)` as an ERE: a dot, then an interpolation with no string inside it.
+  local ids=0 interpolation='\.\\\([^"]*\)'
+  for id in $(grep -rhoE '"[a-z][A-Za-z]*\.[A-Za-z][A-Za-z0-9.]*"' "$ROOT/macTEMUITests" 2>/dev/null | tr -d '"' | sort -u); do
+    if [[ "$id" == *.csv ]]; then continue; fi   # an exported file's name, read in the status line
+    ids=$(( ids + 1 ))
     # The shell's chrome (status bar, rooms, the verb, Output) is MacEMUI's: its identifiers are declared there.
     if grep -rqF "\"$id\"" "${where[@]}"; then continue; fi
-    parent="${id%.*}"
-    if grep -rqF "\"$parent.\\(" "${where[@]}"; then continue; fi
-    if grep -rqF "\"${id%.*.*}.\\(" "${where[@]}"; then continue; fi
+    # The identifier's dots, escaped for the two patterns; its letters and digits need no escape.
+    parent="${${id%.*}//./\\.}"; grand="${${id%.*.*}//./\\.}"
+    if grep -rqE 'accessibilityIdentifier\("'"$parent$interpolation"'"\)' "${where[@]}"; then continue; fi
+    if grep -rqE 'accessibilityIdentifier\("'"$grand$interpolation"'\.'"${id##*.}"'"\)' "${where[@]}"; then continue; fi
     echo "  MISSING   identifier $id is used by a UI journey and no source declares it"; rc=1
   done
+  # No identifier read is a check that did not run (the journeys moved, or the pattern no longer fits them), not a pass.
+  if (( ids == 0 )); then echo "  NOT CHECKED  no identifier read from macTEMUITests"; rc=1; else echo "  $ids identifiers checked"; fi
 
   # mac4DSTEM's check of its live docs: a doc that says work is held uncommitted is stale once the tree is clean. Status claims
   # only ("held uncommitted", "still uncommitted"), and only positive ones: "nothing is uncommitted" is true on a clean tree. On a

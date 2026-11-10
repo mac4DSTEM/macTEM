@@ -74,8 +74,9 @@ nonisolated class Journey: XCTestCase {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
 
-    /// True when no element carries this identifier: the check that a control the app or MacEMUI removed stays gone. The inventory's
-    /// identifier check reads `element(`/`waitFor(` only, so an id that no source declares any more is checked here without being flagged.
+    /// True when no element carries this identifier: for a control the sources declare and this state must not show (the EELS maps on a
+    /// 1 x 1 file). The inventory's identifier check reads this identifier like any other, so one that no source declares any more fails
+    /// there: the absence of a deleted control cannot fail on screen, and a journey asserts on what took its place instead.
     @MainActor
     func isAbsent(_ id: String) -> Bool {
         !element(id).exists
