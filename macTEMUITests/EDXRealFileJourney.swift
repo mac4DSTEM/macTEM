@@ -26,10 +26,7 @@ nonisolated final class EDXRealFileJourney: Journey {
 
     @MainActor func openReal(_ files: [String] = [file1339], extra: [String] = []) {
         launch(files.flatMap { ["--open", $0] } + ["--export-dir", Self.exportName] + extra)
-        if !element("edx.room").waitForExistence(timeout: 20) {
-            let sidebar = element("workspace.edx")
-            if sidebar.waitForExistence(timeout: 120), sidebar.isEnabled { sidebar.click() }
-        }
+        if !element("edx.room").waitForExistence(timeout: 20) { bringToFront(room: "edx", in: "spectroscopy", timeout: 120) }
         waitFor("edx.room", timeout: 120)
     }
 

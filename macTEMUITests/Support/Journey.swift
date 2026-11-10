@@ -131,6 +131,20 @@ nonisolated class Journey: XCTestCase {
         XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: timeout), .completed, "\(id) is still there", file: file, line: line)
     }
 
+    /// Brings a room to the front when an open did not: the room's own row when the sidebar lists it, else its workspace's row. Since the
+    /// five workspaces (2026-11-10) the sidebar lists Imaging, Spectroscopy, Diffraction, EBSD and Results, and a part's row (Image, FFT,
+    /// EDS, EELS, Patterns, Indexing, Maps) only while its workspace is in front; a workspace's row goes to the room it was last in, or
+    /// to its first one that can be entered. A row that cannot be entered is left alone: the caller's wait on the room says what is missing.
+    @MainActor
+    func bringToFront(room: String, in workspace: String, timeout: TimeInterval = 0) {
+        let part = element("workspace.\(room)")
+        if !part.exists {
+            let row = element("workspace.\(workspace)")
+            if row.waitForExistence(timeout: timeout), row.isEnabled { row.click() }
+        }
+        if part.waitForExistence(timeout: 5), part.isEnabled { part.click() }
+    }
+
     /// Shows the inspector when the launch left it hidden, and waits for a control of the room that is entered (an identifier of it).
     @MainActor
     func showInspector(waitingFor id: String) {

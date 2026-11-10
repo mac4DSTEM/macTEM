@@ -55,10 +55,7 @@ nonisolated final class EELSRealFileJourney: Journey {
             // Not there yet: say what the window shows (an alert, the status line) before waiting on.
             let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); shot.name = "screen 30 s after launch"; shot.lifetime = .keepAlways; add(shot)
             dumpTree("tree 30 s after launch")
-            if !room.waitForExistence(timeout: 120) {
-                let sidebar = element("workspace.eels")
-                if sidebar.exists, sidebar.isEnabled { sidebar.click() }
-            }
+            if !room.waitForExistence(timeout: 120) { bringToFront(room: "eels", in: "spectroscopy") }
         }
         waitFor("eels.room", timeout: 60)
     }
