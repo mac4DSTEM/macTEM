@@ -12,8 +12,9 @@ import SpectroCore
 import SwiftUI
 import TEMSession
 
-/// The six rooms 1.0 ships, in the order the work goes: the image, its transform, the spectrum images, the diffraction pattern,
-/// the numbers. Prepare (calibration, stacks and alignment) was listed unbuilt until 1.0 and is gone (the owner, 2026-10-23).
+/// macTEM's nine rooms, in the order the work goes: the image, its transform, the spectrum images, the diffraction pattern, the EBSD
+/// scan with its indexing and maps, the numbers. Prepare (calibration, stacks and alignment) was listed unbuilt until 1.0 and is gone
+/// (the owner, 2026-10-23).
 nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, WorkspaceRoom {
     case image
     case fft
@@ -48,9 +49,9 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .diffraction: "Camera length, d-spacings, indexing and zone axis"
         case .results: "Review and export the numbers"
         case .edx: "Spectrum images: elements, maps, spectrum and composition"
-        case .eels: "Low-loss spectrum images: thickness (t/λ) maps"
+        case .eels: "EELS spectrum images: thickness (t/λ) maps, core-loss edges and composition"
         case .patterns: "EBSD and TKD patterns: the scan, its mean-intensity map and the live pattern"
-        case .indexing: "Hough indexing of the scan: orientation maps, the solution at each point and its bands"
+        case .indexing: "Hough or dictionary indexing of the scan: orientation maps, the solution at each point and its bands"
         case .maps: "Orientation maps: IPF and phase maps, the colour key and the pattern or unit cell at each point"
         }
     }
