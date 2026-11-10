@@ -40,24 +40,28 @@ private struct InspectorSettingsTab: View {
             .environment(\.inspectorScope, "settings")
         } else if appState.navigation.workspaceArea == .eels {
             InspectorScrollColumn {
+                RoomRequirementsSection()
                 EELSRoomSettings()
                     .environment(\.inspectorScope, "settings.eels")
             }
             .environment(\.inspectorScope, "settings")
         } else if appState.navigation.workspaceArea == .patterns {
             InspectorScrollColumn {
+                RoomRequirementsSection()
                 PatternsRoomSettings()
                     .environment(\.inspectorScope, "settings.patterns")
             }
             .environment(\.inspectorScope, "settings")
         } else if appState.navigation.workspaceArea == .indexing {
             InspectorScrollColumn {
+                RoomRequirementsSection()
                 IndexingRoomSettings()
                     .environment(\.inspectorScope, "settings.indexing")
             }
             .environment(\.inspectorScope, "settings")
         } else if appState.navigation.workspaceArea == .maps {
             InspectorScrollColumn {
+                RoomRequirementsSection()
                 MapsRoomSettings()
                     .environment(\.inspectorScope, "settings.maps")
             }
