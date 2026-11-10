@@ -15,7 +15,7 @@
       "dtype": "float64",
       "file": "multi_a_quaternions.bin",
       "rtol": 0.0,
-      "sha256": "e8c287dedd5c2d1b6aaa830f64b30304c53565fe23e33154adb39daec69fede6",
+      "sha256": "d873cd5173c797d6fede907a075b2db9e4b600e280f36cbdf0a0148e2c799811",
       "shape": [
         500,
         4
@@ -27,7 +27,7 @@
       "file": "multi_angles_radians.bin",
       "note": "orix Orientation.angle_with (A against B, each with its phase's point group); -1 where not compared",
       "rtol": 0.0,
-      "sha256": "e4b5b68eae59e708f700ad546b054d17504459146c200654c6c3e29bd2e9220c",
+      "sha256": "720a7abd910d6c0ca0c0721717305a374fff34b567452db914cb5546350b3da2",
       "shape": [
         500
       ]
@@ -47,7 +47,7 @@
       "dtype": "float64",
       "file": "multi_b_quaternions.bin",
       "rtol": 0.0,
-      "sha256": "bf394f9f5a41cbe9164bddc0b308e4b3a226d23531e66b0ccea16d493f74c368",
+      "sha256": "17cb026e65d27fd41335886e6007b0b2e351e9ab359f50eeb3fb435eb23722f6",
       "shape": [
         500,
         4
@@ -101,7 +101,7 @@
       "dtype": "float64",
       "file": "single_a_quaternions.bin",
       "rtol": 0.0,
-      "sha256": "e792e8e36c1f702972ae218df0c5de8fc5bfdff6368625a04d87ce339445b511",
+      "sha256": "8b12ee89a8b15fa6114812e36c903269507cd77df865f59b2667f8c7bb1d1f6f",
       "shape": [
         500,
         4
@@ -113,7 +113,7 @@
       "file": "single_angles_radians.bin",
       "note": "orix Orientation.angle_with (A against B, each with its phase's point group); -1 where not compared",
       "rtol": 0.0,
-      "sha256": "6b36f231837ab62d050e2344e009002bee9c4e778a43968ca661f9e67e27a82c",
+      "sha256": "89dee19483c830d541ca3d3042d899d571d11cde8e29b167e5dee15a099f2541",
       "shape": [
         500
       ]
@@ -133,7 +133,7 @@
       "dtype": "float64",
       "file": "single_b_quaternions.bin",
       "rtol": 0.0,
-      "sha256": "f6791abd6e2c1efc934ae3ecaf24c1f843aa8db3d364dd083e1291f662ce7e43",
+      "sha256": "2c0b0201ba9590346d74782d770ecd18c12b29590895255f660ebbba26232da1",
       "shape": [
         500,
         4
