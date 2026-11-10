@@ -13,6 +13,7 @@
 
 import Foundation
 import Observation
+import TEMSession
 
 @MainActor
 @Observable
