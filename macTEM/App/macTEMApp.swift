@@ -151,11 +151,21 @@ private struct ImageCommands: Commands {
             }
         }
         CommandMenu("Workspace") {
-            ForEach(WorkspaceArea.allCases) { area in
-                Button("Go to \(area.title)") { appState?.selectWorkspace(area) }
-                    .keyboardShortcut(KeyEquivalent(area.shortcutDigit), modifiers: .command)
-                    // The file decides: a room with no data for what is open is disabled, a room not built never opens (`RoomAvailability`).
-                    .disabled(appState.map { $0.roomUnavailableReason(area) != nil } ?? true)
+            // ⌘1…⌘5 go to the workspaces (`WorkspaceGroup`), as the sidebar lists them; a workspace's parts are its submenu, as they are
+            // the section under it in the sidebar. The file decides: a workspace or a part with no data for what is open is disabled.
+            ForEach(WorkspaceGroup.allCases) { group in
+                Button("Go to \(group.title)") { appState?.selectWorkspaceGroup(group) }
+                    .keyboardShortcut(KeyEquivalent(group.shortcutDigit), modifiers: .command)
+                    .disabled(appState.map { $0.workspaceUnavailableReason(group) != nil } ?? true)
+            }
+            Divider()
+            ForEach(WorkspaceGroup.allCases.filter(\.hasParts)) { group in
+                Menu(group.title) {
+                    ForEach(group.parts) { area in
+                        Button(area.title) { appState?.selectWorkspace(area) }
+                            .disabled(appState.map { $0.roomUnavailableReason(area) != nil } ?? true)
+                    }
+                }
             }
             Divider()
             // The room's Stop (the toolbar's verb turns into Cancel while a run is in flight; this is its key).

@@ -70,6 +70,11 @@ extension AppState {
         RoomAvailability.reason(area, holdings: roomHoldings)
     }
 
+    /// Why no room of `group` can be entered now (the first room's reason), or nil when one can.
+    func workspaceUnavailableReason(_ group: WorkspaceGroup) -> String? {
+        group.parts.contains { roomUnavailableReason($0) == nil } ? nil : group.parts.first.flatMap(roomUnavailableReason)
+    }
+
     /// A room that has lost its data (the last image closed while in FFT, a spectrum image closed) gives way to one that has some.
     func reconcileRoom() {
         let holdings = roomHoldings

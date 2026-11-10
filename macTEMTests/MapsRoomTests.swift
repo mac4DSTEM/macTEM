@@ -210,10 +210,12 @@ nonisolated final class MapsRoomTests: XCTestCase {
 
     // MARK: - The room key
 
-    /// Maps sits after Patterns with the plan's fixed key: ⌘8, leaving ⌘7 to Indexing, Results ⌘9 (D-SEM-80).
-    @MainActor func testTheMapsRoomIsOnCommandEight() {
-        XCTAssertEqual(WorkspaceArea.maps.shortcutDigit, "8")
-        XCTAssertEqual(WorkspaceArea.results.shortcutDigit, "9")
+    /// Maps is the EBSD workspace's last part, after Patterns and Indexing; EBSD is ⌘4, Results ⌘5 (2026-11-10).
+    @MainActor func testTheMapsRoomIsTheLastPartOfEBSD() {
+        XCTAssertEqual(WorkspaceArea.maps.group, .ebsd)
+        XCTAssertEqual(WorkspaceGroup.ebsd.parts.last, .maps)
+        XCTAssertEqual(WorkspaceGroup.ebsd.shortcutDigit, "4")
+        XCTAssertEqual(WorkspaceGroup.results.shortcutDigit, "5")
         XCTAssertEqual(WorkspaceArea.maps.title, "Maps")
         XCTAssertEqual(WorkspaceArea.maps.systemImage, "map")
         XCTAssertTrue(LaunchOptions(arguments: ["--demo-ang"]).demoOrientationMap)

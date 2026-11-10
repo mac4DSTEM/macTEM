@@ -192,6 +192,14 @@ final class AppState {
         navigation.workspaceArea = area
     }
 
+    /// Go to a workspace: the room it was last in when that can still be entered, else its first room that can. A workspace none of
+    /// whose rooms can be entered is not entered (`workspaceUnavailableReason`).
+    func selectWorkspaceGroup(_ group: WorkspaceGroup) {
+        guard group != navigation.workspaceArea.group else { return }
+        let candidates = [navigation.lastRoom[group]].compactMap { $0 } + group.parts
+        if let room = candidates.first(where: { roomUnavailableReason($0) == nil }) { navigation.workspaceArea = room }
+    }
+
     /// Indexing's `Open in Maps` (D-SEM-99): the last run's crystal map to the Maps room without a file, at the pattern pinned in
     /// Patterns and Indexing, and the Maps room in front. The returned task ends when the map is drawn; nil when nothing went across
     /// (`IndexingSession.openInMapsRefusal`, said in the status line, or the map could not be built, said in the error sheet).

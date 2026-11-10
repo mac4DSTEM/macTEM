@@ -2,6 +2,8 @@
 // Added (SEM program, 2026-11-06, design D1): `patterns` before Results, so Results moves to ⌘7 now and to ⌘9 once Indexing and Maps are built.
 // Added (SEM program, 2026-11-07, D-SEM-84): `indexing` after Patterns (⌘7); Results keeps ⌘9 from here on, the digit the Maps room leaves it.
 // Added (P3-04, 2026-11-07, D-SEM-80): `maps` after Indexing (⌘8), Results keeps ⌘9.
+// Changed (2026-11-10, Paul): the rooms are grouped into five workspaces (`WorkspaceGroup`) as mac4DSTEM's are; ⌘1…⌘5 go to the
+// workspaces, and a room is reached as a part under its workspace.
 import ShellLayout
 import SwiftUI
 
@@ -72,14 +74,70 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
     /// going, and cannot be entered.
     var isBuilt: Bool { true }
 
-    /// The Go to <room> shortcut, ⌘1…⌘8 in list order (Patterns ⌘6, Indexing ⌘7, Maps ⌘8), and ⌘9 for Results (design D1: the SEM
-    /// rooms take ⌘6 to ⌘8, so Results keeps the digit it ends on). Derived, so the menu and the list cannot disagree.
-    var shortcutDigit: Character {
+    /// The workspace this room is a part of (`WorkspaceGroup`): the sidebar lists the workspaces and, under the one in front, its parts.
+    var group: WorkspaceGroup {
         switch self {
-        case .results: "9"
-        default: Character(String((Self.allCases.firstIndex(of: self) ?? 0) + 1))
+        case .image, .fft: .imaging
+        case .edx, .eels: .spectroscopy
+        case .diffraction: .diffraction
+        case .patterns, .indexing, .maps: .ebsd
+        case .results: .results
         }
     }
+}
+
+/// The sidebar's workspaces, in mac4DSTEM's shape (its Crystal Maps lists Strain, Orientation and Phase mapping under it): one row per
+/// technique, ⌘1…⌘5 in list order, and the one in front lists its parts (the rooms, `WorkspaceArea`) in a section of its own. A
+/// workspace of one room (Diffraction, Results) is that room, as mac4DSTEM's Prepare is. The rooms keep their content and their
+/// identifiers (`workspace.<room>`); the workspaces only group them. Order: looking, then the spectra, then diffraction (Paul,
+/// 2026-10-22), then the SEM work, Results last. Paul, 2026-11-10: "isnt this all part of ebsd" (Patterns, Indexing, Maps).
+nonisolated enum WorkspaceGroup: String, CaseIterable, Identifiable, Sendable, WorkspaceRoom {
+    case imaging
+    case spectroscopy
+    case diffraction
+    case ebsd
+    case results
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .imaging: "Imaging"
+        case .spectroscopy: "Spectroscopy"
+        case .diffraction: "Diffraction"
+        case .ebsd: "EBSD"
+        case .results: "Results"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .imaging: "TEM and SEM images and their Fourier transform"
+        case .spectroscopy: "EDS and EELS spectra and spectrum images"
+        case .diffraction: WorkspaceArea.diffraction.subtitle
+        case .ebsd: "EBSD and TKD: patterns, indexing and orientation maps"
+        case .results: WorkspaceArea.results.subtitle
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .imaging: "photo"
+        case .spectroscopy: "waveform.path.ecg"
+        case .diffraction: WorkspaceArea.diffraction.systemImage
+        case .ebsd: "square.grid.3x3.square"
+        case .results: WorkspaceArea.results.systemImage
+        }
+    }
+
+    /// The rooms of this workspace, in the order the work goes.
+    var parts: [WorkspaceArea] { WorkspaceArea.allCases.filter { $0.group == self } }
+
+    /// Whether the sidebar lists the parts under it: a workspace of one room is that room.
+    var hasParts: Bool { parts.count > 1 }
+
+    /// The Go to <workspace> shortcut, ⌘1…⌘5 in list order. Derived, so the menu and the list cannot disagree.
+    var shortcutDigit: Character { Character(String((Self.allCases.firstIndex(of: self) ?? 0) + 1)) }
 }
 
 /// The navigation/selection seam: which room the user is in and which panes are visible — pure view-state,
@@ -89,7 +147,12 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
 /// held as `panels`; the room is this app's.
 @Observable
 final class WorkspaceNavigation {
-    var workspaceArea: WorkspaceArea = .image
+    var workspaceArea: WorkspaceArea = .image {
+        didSet { lastRoom[workspaceArea.group] = workspaceArea }
+    }
+
+    /// The room each workspace was last in, so Go to EBSD comes back to Maps when Maps was where the person left it.
+    @ObservationIgnored private(set) var lastRoom: [WorkspaceGroup: WorkspaceArea] = [:]
 
     /// The panes: the process area (Output), the sidebar and the inspector.
     let panels = PanelNavigation()
