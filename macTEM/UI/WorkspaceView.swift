@@ -29,11 +29,12 @@ struct WorkspaceView: View {
             canvas: { content },
             run: { runSlot },
             glance: { glanceSlot })
-            // The SEM rows of the EDS room (line table, window quantification, SEM conditions) follow the EDS room's file. The load
-            // hangs here, on a view that is always drawn, because the inspector's SEM sections draw nothing until it has run: a
-            // `.task` on their empty group never started, so an SEM spectrum never showed its rows (drive 2026-11-08).
+            // The SEM rows of the EDS room (SEM conditions, exspy's line windows) follow the EDS room's file, and an SEM spectrum gets its
+            // elements picked in the room so the room's own Quantify serves it (D-SEM-107). The load hangs here, on a view that is always
+            // drawn: a `.task` on inspector rows that draw nothing until it has run never started (drive 2026-11-08).
             .task(id: appState.edx.source?.metadata.filePath) {
                 await appState.semEDS.load(path: appState.edx.source?.metadata.filePath)
+                await appState.semEDS.pickFileElements(in: appState.edx)
             }
     }
 
