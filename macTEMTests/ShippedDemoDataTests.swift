@@ -49,6 +49,16 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertEqual(UInt64(all.reduce(0, +)), DemoDocuments.Shipped.nickelEBSDPixelSum)
     }
 
+    /// The nickel file's crystal map is in µm, as its `header/scan_unit` says and orix reads it: the Maps room's scale bar and grain sizes
+    /// are lengths, not pixels. Mutation: the reader ignores `scan_unit` (the map falls back to orix's "px").
+    func testTheNickelCrystalMapReadsItsScanUnit() throws {
+        let url = try XCTUnwrap(DemoDocuments.Shipped.nickelEBSD.url)
+        let map = try XCTUnwrap(try EBSDH5Reader.read(url: url).crystalMap)
+        XCTAssertEqual(map.scanUnit, "um")
+        XCTAssertEqual(map.dx, 1.5, accuracy: 1e-12)
+        XCTAssertEqual(EBSDBrowsing.unitLabel(map.scanUnit), "µm")
+    }
+
     /// The Ni master pattern through the EMsoft reader: an EBSD master pattern of nickel (space group 225) at 20 kV, 401 x 401 px in
     /// both hemispheres, each Lambert hemisphere's sum as h5py read it; projectable (Lambert, both hemispheres).
     func testTheNickelMasterPatternReadsBackToItsTruth() throws {
