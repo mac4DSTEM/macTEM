@@ -1,0 +1,36 @@
+# Tests that may skip in `tools/run-tests.sh unit`, each with what it lacks: Class.method<TAB>condition<TAB>reason. A skip not listed
+# here fails the unit gate by name; a listed test that runs is named and passes. condition: sem-data (References/sem-data, which
+# tools/parity/sem/fetch-data.sh fetches; the nightly sets MACTEM_REQUIRE_SEM_DATA=1 after it, and then no sem-data line allows a skip),
+# real-data (the owner's data folder, the suite's References or an opt-in variable: never on a runner), metal, sandbox. Seeded from a
+# pull-request run's `unit: SKIPPED` lines (2026-11-10): the Metal tests and the security-scoped bookmark tests run on GitHub's macos-26
+# runner, so none of them is listed, and a skip of one fails the gate.
+CTFReaderTests.testTheWholeTiFileReadsAsOrix	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's $MACEM_DATA/sem/Ti_orientations.ctf
+CrystalMapParityTests.testFigureF7NeighbourMisorientationHistogramOfTheTiMap	sem-data	figure F7 on orix-data's whole Ti map, References/sem-data/orix/Ti_orientations.ctf (fetch-data.sh)
+EDXRealDataTests.testTheOwnersVeloxSpectrumImageEndToEnd	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRealDataTests.testTheProposerOnTheThreeLabelledFiles	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testARectangleHasPixelsAndWindowRowsMovesAndIsDeleted	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testAutoIDWithARectangleRegionOn1339	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testAutoIDWithNothingSelectedOnWholeMap1339	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testAutoIDWithNothingSelectedOnWholeMap1456	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testAutoIDWithNothingSelectedOnWholeMap1840	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testDeselectAllThenAutoIDBringsTheSamePicksBack	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testQuantifyARegionGivesWtAtAndASigmaPerElement	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testSwitchingDocumentsMakesTheEDSRoomFollowTheSelection	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testTheSixExportsAreNonEmptyWithTheirColumns	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testTwoFilesInOneBatchPutTheFirstInTheEDSRoom	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testTwoRegionsOverlay	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testWtPercentMapsCoverTheWholeScanWithoutMasking	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EELSOpeningTests.testTheVeloxExampleFitsItsEdgesThroughRun	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits
+EELSOpeningTests.testTheVeloxExampleOpensWithItsLowLossAndItsCoreLoss	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits
+EELSRoomRealDataTests.testTheEELSRoomOn142	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's EELS files under $MACEM_DATA/eels
+EELSRoomRealDataTests.testTheEELSRoomOn143	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's EELS files under $MACEM_DATA/eels
+EELSRoomRealDataTests.testTheEELSRoomOn145	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's EELS files under $MACEM_DATA/eels
+FileRoutingTests.testAVeloxSpectrumImageIsAnImageAndAnEDSCubeAndLandsInEDS	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits
+FileRoutingTests.testOpeningAVeloxSpectrumImageFillsTheImageAndTheEDSRoomsAndLandsInEDS	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits
+FileRoutingTests.testTheFEIExampleSpectrumOpensAsASpectrum	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits
+FileRoutingTests.testTheStudyFileIsAnImageAndAnEDSCube	real-data	the owner's 1.7 GB study file under $MACEM_DATA/stem-edx
+OpenItemScanSizeTests.testAVeloxSpectrumImageRowIsTheScanTheEDSRoomReads	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits
+SEMBackgroundParityTests.testWholeSetF2ChainWithinOneGreyLevel	real-data	the whole-set references (background_reference.py --whole-set) under $MACEM_DATA/sem/nickel_ebsd_large, which fetch-data.sh does not write
+SEMGrainParityTests.testFiguresF11AndF12GrainsKAMAndGOSOfTheTiMap	sem-data	figures F11 and F12 on orix-data's whole Ti map, References/sem-data/orix/Ti_orientations.ctf (fetch-data.sh)
+SEMTextureParityTests.testFigureF13OnTheTiMap	sem-data	figure F13 on orix-data's whole Ti map, References/sem-data/orix/Ti_orientations.ctf (fetch-data.sh)
+VeloxAcquisitionReadTests.testAVeloxFileNowReadsMagnificationCameraLengthExposureAndMode	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits

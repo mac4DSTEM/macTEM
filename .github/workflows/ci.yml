@@ -17,7 +17,9 @@
 #   * the unit job first restores and fetches the SEM reference datasets (tools/parity/sem/fetch-data.sh into the
 #     gitignored References/sem-data, sem-parity.yml's cache), so the parity cases whose input is a fetched dataset
 #     run instead of skipping: the whole-map figures F7, F11/F12 and F13 and the large SEM-EDS reader bundles. A push
-#     or pull-request run skips those, and its log names them.
+#     or pull-request run skips those, and its log names them. Every run's skips are held to tools/unit-skips.allow (a
+#     skip it does not list fails the gate by name); after its fetch the nightly sets MACTEM_REQUIRE_SEM_DATA=1, and
+#     then a sem-data entry there allows no skip, so a figure that still skips with the data present turns it red.
 #   * `tools/run-tests.sh scientific` — the TEM parity harnesses (the `scientific` array in tools/run-tests.sh is the
 #     roster; no count here, so this comment cannot go stale). Each builds its harness through SwiftPM and compares
 #     TEMCore against a reference it computes from the pinned Python stack: a venv that tools/lib/python.sh builds on
@@ -120,9 +122,12 @@ jobs:
           path: References/sem-data
           key: sem-data-${{ hashFiles('tools/parity/sem/data-manifest.txt') }}
       - name: Fetch the SEM reference data (nightly and by hand)
-        # Checked against data-manifest.txt's sha256; the Zenodo lines are "manual" and are listed, never fetched.
+        # Checked against data-manifest.txt's sha256; the Zenodo lines are "manual" and are listed, never fetched. Once the data is
+        # here, a test that tools/unit-skips.allow lists as sem-data may no longer skip (tools/lib/unit-skips.sh).
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        run: tools/parity/sem/fetch-data.sh
+        run: |
+          tools/parity/sem/fetch-data.sh
+          echo "MACTEM_REQUIRE_SEM_DATA=1" >> "$GITHUB_ENV"
       - name: Run the unit gate
         run: tools/run-tests.sh unit
 
