@@ -195,6 +195,9 @@ nonisolated final class BusyOperationTests: XCTestCase {
         XCTAssertEqual(BusyOperation.backgroundRoom(state), .indexing)
         let line = try XCTUnwrap(BusyOperation.backgroundOperation(room: .indexing, appState: state))
         XCTAssertTrue(line.hasPrefix("Indexing · Hough · "), line)
+        // The counts as the map's count line writes them, never grouped: "Hough · 0 of 1200" in German too, where it read "1.200".
+        let german = BusyOperation.indexingLine(state.indexing, dataset: try XCTUnwrap(state.indexing.patterns.dataset), locale: Locale(identifier: "de_DE"))
+        XCTAssertTrue(german.hasPrefix("Hough · ") && german.hasSuffix(" of 1200"), german)
         XCTAssertTrue(RoomPrimaryAction.canStop(state), "⌘. reaches the run")
         XCTAssertEqual(RoomPrimaryAction.stopTitle(state), "Stop Indexing")
 

@@ -110,19 +110,21 @@ enum BusyOperation {
         return name(room: room, appState: appState) ?? room.title
     }
 
-    /// The Indexing toolbar's busy line: "Hough · 2 340 of 4 125", the points indexed so far (whole rows land at once); "Dictionary · 1
+    /// The Indexing toolbar's busy line: "Hough · 2340 of 4125", the points indexed so far (whole rows land at once); "Dictionary · 1
     /// of 3 chunks · NCC", the dictionary's chunks every block runs through (design §3); "Dictionary · Al · 23 of 40 chunks · NCC"
-    /// against several phases, the dictionary matching named (D-SEM-98).
+    /// against several phases, the dictionary matching named (D-SEM-98). The counts are written as the map's count line writes them,
+    /// never grouped (`IndexingInfoFormat.count`): the toolbar read "2.340 of 4.125" in German beside the map's "2340 of 4125".
     @MainActor
-    static func indexingLine(_ session: IndexingSession, dataset: EBSDDataset) -> String {
-        let done = (session.result?.rowsDone ?? 0) * dataset.scanColumns
-        if session.isRefining, let target = session.refinedRun?.refinement?.settings.target {   // "Refine · Orientation · 450 of 4 125"
-            return "Refine · \(target.title) · \(done.formatted()) of \(dataset.patternCount.formatted())"
+    static func indexingLine(_ session: IndexingSession, dataset: EBSDDataset, locale: Locale = .autoupdatingCurrent) -> String {
+        let done = IndexingInfoFormat.count((session.result?.rowsDone ?? 0) * dataset.scanColumns, locale: locale)
+        let total = IndexingInfoFormat.count(dataset.patternCount, locale: locale)
+        if session.isRefining, let target = session.refinedRun?.refinement?.settings.target {   // "Refine · Orientation · 450 of 4125"
+            return "Refine · \(target.title) · \(done) of \(total)"
         }
         let phase = session.chunkPhase.map { "\($0) · " } ?? ""
         return session.result?.method == .dictionary
             ? "Dictionary · \(phase)\(session.chunksDone) of \(session.chunksTotal) chunks · \(session.result?.scoreTitle ?? "NCC")"
-            : "Hough · \(done.formatted()) of \(dataset.patternCount.formatted())"
+            : "Hough · \(done) of \(total)"
     }
 
     // MARK: A run in another room
@@ -164,7 +166,7 @@ enum BusyOperation {
     }
 
     /// The toolbar's busy line for `room`'s run while another room is shown: the room, then the line it shows itself ("Maps · Segmenting
-    /// grains…", "Indexing · Hough · 2 340 of 4 125"); nil while it is idle.
+    /// grains…", "Indexing · Hough · 2340 of 4125"); nil while it is idle.
     @MainActor
     static func backgroundOperation(room: WorkspaceArea, appState: AppState) -> String? {
         if room == .indexing, appState.indexing.isBusy, let dataset = appState.indexing.patterns.dataset {
