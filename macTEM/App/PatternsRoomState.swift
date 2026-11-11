@@ -210,6 +210,25 @@ final class PatternsRoomState {
         }
     }
 
+    /// One entry of Virtual images' Map pop-up: a map with its title, or the divider. On the main actor, as `EBSDSession.MapChoice`'s
+    /// conformances are.
+    enum MapMenuEntry: Hashable {
+        case map(EBSDSession.MapChoice, String)
+        case divider
+    }
+
+    /// The Map pop-up in its order: the whole-scan maps first (the mean, the virtual BSE, the two quality maps), then under a divider
+    /// the grid's tiles and the colour mix when there are any, so the quality maps are not listed after 25 tiles.
+    static func mapMenu(_ grid: VirtualBSEGrid, hasMix: Bool) -> [MapMenuEntry] {
+        var entries: [MapMenuEntry] = [.map(.mean, "Mean intensity"), .map(.bse, "BSE (whole detector)"),
+                                       .map(.imageQuality, "Image quality"), .map(.dotProduct, "Average dot product")]
+        var parts: [MapMenuEntry] = []
+        if grid.tileCount > 1 { parts += grid.tiles.map { MapMenuEntry.map(.tile($0), "Tile \($0.label)") } }
+        if hasMix { parts.append(.map(.mix, "Colour mix")) }
+        if !parts.isEmpty { entries += [.divider] + parts }
+        return entries
+    }
+
     /// The scan map as the pane shows it, one PNG pixel per scan point, through the Image room's exporter; the step is the pixel calibration.
     @MainActor static func mapPNG(canvas: CanvasPixels, presentation: ImagePresentation, dataset: EBSDDataset, fileName: String, map: String) throws -> Data {
         let unit = dataset.scanUnit

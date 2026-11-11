@@ -173,6 +173,7 @@ struct MapsGrainsTable: View {
         Group {
             if let analysis = session.analysis {
                 let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
+                let places = MapsRoomFormat.lengthPlaces(analysis)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: MapsRoomFormat.grainSummary(analysis))
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
@@ -181,7 +182,7 @@ struct MapsGrainsTable: View {
                         TableColumn("Grain", value: \.id) { Text(verbatim: "\($0.id)").monospacedDigit() }
                         TableColumn("Phase", value: \.phaseName)
                         TableColumn("Points", value: \.points) { Text(verbatim: "\($0.points)").monospacedDigit() }
-                        TableColumn("ECD \(unit)", value: \.diameter) { Text(MapsRoomFormat.number($0.diameter)).monospacedDigit() }
+                        TableColumn("ECD \(unit)", value: \.diameter) { Text(MapsRoomFormat.length($0.diameter, places: places)).monospacedDigit() }
                         TableColumn("φ₁ °", value: \.phi1) { Text(MapsRoomFormat.angle($0.phi1)).monospacedDigit() }
                         TableColumn("Φ °", value: \.capitalPhi) { Text(MapsRoomFormat.angle($0.capitalPhi)).monospacedDigit() }
                         TableColumn("φ₂ °", value: \.phi2) { Text(MapsRoomFormat.angle($0.phi2)).monospacedDigit() }
@@ -341,7 +342,7 @@ struct MapsHistogramPane: View {
                         }
                     }
                     .accessibilityElement()
-                    .accessibilityLabel("Histogram of \(kind.rawValue), \(histogram.counts.reduce(0, +)) values in \(histogram.counts.count) bins")
+                    .accessibilityLabel(MapsRoomFormat.histogramSpoken(kind, histogram: histogram))
                     .accessibilityIdentifier("maps.histogram.bars")
                     HStack {
                         Text(verbatim: "\(MapsRoomFormat.number(histogram.edges.first ?? 0)) \(unit)")
