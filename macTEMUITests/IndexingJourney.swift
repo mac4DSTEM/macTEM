@@ -14,22 +14,6 @@
 import XCTest
 
 nonisolated final class IndexingJourney: Journey {
-    /// Help › Open Demo Data › `title` (DemoDataJourney's walk).
-    @MainActor private func openDemo(_ title: String) throws {
-        try requireFrontmost()
-        let help = app.menuBars.menuBarItems["Help"].firstMatch
-        XCTAssertTrue(help.waitForExistence(timeout: 10), "no Help menu")
-        help.click()
-        let submenu = app.menuItems["Open Demo Data"].firstMatch
-        XCTAssertTrue(submenu.waitForExistence(timeout: 10), "no Open Demo Data in the Help menu")
-        try requireFrontmost()
-        submenu.hover()
-        let item = app.menuItems[title].firstMatch
-        XCTAssertTrue(item.waitForExistence(timeout: 10), "no \(title) in Open Demo Data")
-        try requireFrontmost()
-        item.click()
-    }
-
     /// An element's words, label and value.
     @MainActor private func words(_ id: String) -> String {
         let e = waitFor(id, timeout: 30)
@@ -58,7 +42,7 @@ nonisolated final class IndexingJourney: Journey {
     @MainActor func testIndexTheDemoScanAndReadTheSolution() throws {
         try step("launch with no file") { launch() }
         try step("the nickel scan opens in EBSD › Patterns; the Indexing part enters Indexing before any run") {
-            try openDemo("Ni EBSD Patterns (kikuchipy)")
+            try openDemoData("Ni EBSD Patterns (kikuchipy)")
             waitFor("patterns.room", timeout: 60)
             try requireFrontmost()
             waitFor("workspace.indexing", timeout: 30).click()
