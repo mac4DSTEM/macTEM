@@ -70,13 +70,6 @@ nonisolated final class BusyOperationTests: XCTestCase {
         XCTAssertNil(BusyOperation.name(room: .eels, appState: state))
     }
 
-    /// The toolbar reads the running work, not the status sentence; the verb's Stop is held by
-    /// `testEachVerbNamesTheRunningWorkNotTheStatusLine`. Red under: `appState.statusText` as the toolbar's operation.
-    func testTheToolbarReadsTheRunningWork() throws {
-        let view = squeezed(try source("macTEM/UI/ContentView.swift"))
-        XCTAssertTrue(view.contains(".busy(operation: BusyOperation.name(room: room, appState: appState) ?? room.title,"))
-    }
-
     /// Each room's verb names the work its room runs, never the status sentence, so its Stop's help and VoiceOver label say what Stop
     /// ends: idle, the verb names nothing while the status line still holds the last event; while the Index runs, the verb names the
     /// run and its Stop ends it. Red under: `operationName: appState.statusText` in the idle verb of the EDS, EELS, Patterns, Indexing
@@ -161,19 +154,6 @@ nonisolated final class BusyOperationTests: XCTestCase {
         XCTAssertEqual(maps(texture: true, draw: true), "Computing the texture…")
         XCTAssertEqual(maps(draw: true), "Drawing the map…")
         XCTAssertNil(maps())
-    }
-
-    /// The Patterns and Maps toolbars take their busy line from `BusyOperation`. Red before: the Patterns case read "Reading the scan for
-    /// the map…" whatever ran, and the Maps case was busy only while opening.
-    func testThePatternsAndMapsToolbarsReadTheRunningWork() throws {
-        let view = squeezed(try source("macTEM/UI/ContentView.swift"))
-        XCTAssertFalse(view.contains("Reading the scan for the map…"))
-        XCTAssertFalse(view.contains("if session.isOpening {"), "the Maps toolbar is busy for more than its open")
-        let busy = "if let operation = BusyOperation.toolbarOperation(room: room, appState: appState) { return .busy(operation: operation, "
-        XCTAssertTrue(view.contains(busy + "progress: RoomProgress.fraction(room: room, appState: appState),"), "the Patterns case")
-        XCTAssertTrue(view.contains(busy + "progress: nil,"), "the Maps case")
-        XCTAssertTrue(view.contains("if session.patterns.isOpening, let operation = BusyOperation.toolbarOperation(room: .patterns, appState: appState) {"),
-                      "the Indexing case reads the open of the scan it shows")
     }
 
     /// The Patterns toolbar names the pass that runs, and the quality pass reports its own fraction. The demo's map pass starts as it is
@@ -359,12 +339,11 @@ nonisolated final class BusyOperationTests: XCTestCase {
         await drawing.value
     }
 
-    /// The toolbar shows the other room's run while the shown room is idle, and the Stop item takes its title. Red under: the toolbar
-    /// built from the shown room alone, the item titled "Stop" whatever it stops.
-    func testTheToolbarAndTheStopItemReachARunInAnotherRoom() throws {
-        let view = squeezed(try source("macTEM/UI/ContentView.swift"))
-        XCTAssertTrue(view.contains("if let other = BusyOperation.backgroundRoom(appState), let operation = BusyOperation.backgroundOperation(room: other, appState: appState) {"))
-        XCTAssertTrue(view.contains("metrics: { now in RunClock.reading(since: appState.busySince[other], progress: RoomProgress.fraction(room: other, appState: appState), now: now) }"))
+    /// Workspace > Stop takes its title from the run it stops (`RoomPrimaryAction.stopTitle`, held by
+    /// `testAnIndexRunningBehindTheMapsRoomShowsAndStops`). This stays a pin: the item is built in the app's menu commands, a view no
+    /// test calls. The toolbar's line for that run is held by `ToolbarDisplayTests.testARunInAnotherRoomShowsUnderItsRoomsName`. Red
+    /// under: the item titled "Stop" whatever it stops.
+    func testTheStopItemTakesTheTitleOfTheRunItStops() throws {
         let menu = squeezed(try source("macTEM/App/macTEMApp.swift"))
         XCTAssertTrue(menu.contains("Button(appState.map { RoomPrimaryAction.stopTitle($0) } ?? \"Stop\") { if let appState { RoomPrimaryAction.stopActive(appState) } }"))
     }
