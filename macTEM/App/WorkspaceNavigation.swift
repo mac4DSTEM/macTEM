@@ -91,10 +91,11 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
 /// identifiers (`workspace.<room>`); the workspaces only group them. Order: looking, then the spectra, then diffraction (Paul,
 /// 2026-10-22), then the SEM work, Results last. Paul, 2026-11-10: "isnt this all part of ebsd" (Patterns, Indexing, Maps).
 nonisolated enum WorkspaceGroup: String, CaseIterable, Identifiable, Sendable, WorkspaceRoom {
+    // The order of the sidebar and of ⌘1…⌘5 (Paul, 2026-11-11): the images, then the diffraction kinds, then the spectra.
     case imaging
-    case spectroscopy
     case diffraction
     case ebsd
+    case spectroscopy
     case results
 
     var id: String { rawValue }

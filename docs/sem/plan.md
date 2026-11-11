@@ -86,8 +86,8 @@ Phase 2 to 9 briefs are written at each gate from the catalogue's rows for that 
 
 ## Rooms
 
-Sidebar order (since 2026-11-10, workspaces with their parts): Imaging ⌘1 (Image, FFT), Spectroscopy ⌘2 (EDS, EELS), Diffraction ⌘3,
-EBSD ⌘4 (Patterns, Indexing, Maps), Results ⌘5. Until then the nine rooms were flat, Image ⌘1 to Results ⌘9.
+Sidebar order (since 2026-11-11, workspaces with their parts): Imaging ⌘1 (Image, FFT), Diffraction ⌘2, EBSD ⌘3 (Patterns,
+Indexing, Maps), Spectroscopy ⌘4 (EDS, EELS), Results ⌘5. Until then the nine rooms were flat, Image ⌘1 to Results ⌘9.
 No Simulation room: the Kikuchi overlay is a layer of the Indexing room's live pattern pane, and the master pattern
 is viewed in the Maps room's bottom pane (design README, decision D-SEM-5). SEM images open in the Image room; SEM-EDS
 files open in the EDS room. Every room: navigator, main pane, live pattern pane open by default, inspector right,

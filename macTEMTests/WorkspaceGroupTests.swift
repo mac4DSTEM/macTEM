@@ -22,7 +22,7 @@ nonisolated final class WorkspaceGroupTests: XCTestCase {
         XCTAssertEqual(WorkspaceGroup.diffraction.parts, [.diffraction])
         XCTAssertEqual(WorkspaceGroup.ebsd.parts, [.patterns, .indexing, .maps])
         XCTAssertEqual(WorkspaceGroup.results.parts, [.results])
-        XCTAssertEqual(WorkspaceGroup.allCases.filter(\.hasParts), [.imaging, .spectroscopy, .ebsd])
+        XCTAssertEqual(WorkspaceGroup.allCases.filter(\.hasParts), [.imaging, .ebsd, .spectroscopy])
     }
 
     /// The row that reads as selected: the part in a workspace with parts, the workspace itself when it is one room. Red under: the

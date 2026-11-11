@@ -80,7 +80,7 @@ nonisolated final class EDXRoomTests: XCTestCase {
     /// the list. Red under: EDS and EELS after Results.
     @MainActor func testTheRoomsListInTheOrderTheWorkGoes() {
         XCTAssertEqual(WorkspaceArea.allCases.map(\.title), ["Image", "FFT", "EDS", "EELS", "Diffraction", "Patterns", "Indexing", "Maps", "Results"])
-        XCTAssertEqual(WorkspaceGroup.allCases.map(\.title), ["Imaging", "Spectroscopy", "Diffraction", "EBSD", "Results"])
+        XCTAssertEqual(WorkspaceGroup.allCases.map(\.title), ["Imaging", "Diffraction", "EBSD", "Spectroscopy", "Results"])
         XCTAssertEqual(WorkspaceGroup.allCases.map(\.shortcutDigit), ["1", "2", "3", "4", "5"])
     }
 
