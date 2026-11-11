@@ -143,6 +143,9 @@ package final class EELSSession {
     package internal(set) var pinRows: [EELSRegionRow] = []
     /// True while the regions' rows are being summed and fitted again: `pinRows` still holds the previous ones (the Results room lists none meanwhile).
     package internal(set) var isRefreshingRegions = false
+    /// Whether the running refresh of the regions' rows fits their edges: edges picked, a core loss to fit of the scan's size and the microscope, as
+    /// `EELSRegionCompute.row` needs them, taken when the refresh starts. Without them a refresh sums the regions and works out t/λ only.
+    package internal(set) var isFittingRegions = false
     /// What the regions' rows were made from: the thickness inputs and the fit inputs at the time (`thicknessSignature`, `fitSignature`).
     package internal(set) var pinRowsThicknessSignature = ""
     package internal(set) var pinRowsFitSignature = ""
@@ -197,8 +200,10 @@ package final class EELSSession {
     package var selectedRegionName: String { selectedPin?.name ?? (isSingleSpectrum ? "Spectrum" : "Whole map") }
     /// The selected region's fit is on its way: its rows are being made and it has none yet. The results say so instead of "Run fits them", which a region
     /// drawn after a Run does not need (the 2026-11-11 drive read it for a second after the release).
+    /// Only while the running refresh fits edges (`isFittingRegions`): a refresh that cannot fit (no collection angle, a Fourier-ratio core loss not
+    /// made yet, an edge picked after it started) leaves the body on what it was.
     package var isFittingSelectedRegion: Bool {
-        guard isRefreshingRegions, let pin = selectedPin, !fittableEdges.isEmpty else { return false }
+        guard isRefreshingRegions, isFittingRegions, let pin = selectedPin else { return false }
         return pinRows.first { $0.id == pin.id }?.edges.isEmpty ?? true
     }
 

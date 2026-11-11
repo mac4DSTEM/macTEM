@@ -27,6 +27,7 @@ extension EELSSession {
     func resetRegions() {
         pinDataTask?.cancel()
         pins = []; selectedPinID = nil; lines = []; selectedLineID = nil; pinSpectra = [:]; pinCoreSpectra = [:]; pinRows = []; isRefreshingRegions = false
+        isFittingRegions = false
         colorsIssued = 0; regionsIssued = 0; linesIssued = 0
     }
 
@@ -153,7 +154,10 @@ extension EELSSession {
         refreshPlot()
         pinDataTask?.cancel()
         pinDataRun += 1
-        guard let low = workingLowLoss, !pins.isEmpty else { pinSpectra = [:]; pinCoreSpectra = [:]; pinRows = []; isRefreshingRegions = false; return }
+        guard let low = workingLowLoss, !pins.isEmpty else {
+            pinSpectra = [:]; pinCoreSpectra = [:]; pinRows = []; isRefreshingRegions = false; isFittingRegions = false
+            return
+        }
         isRefreshingRegions = true
         let thicknessMade = thicknessSignature, fitMade = fitSignature
         let run = pinDataRun, pins = pins, core = shownCoreLoss, fitCore = fitCoreLoss
@@ -161,6 +165,8 @@ extension EELSSession {
         let kind = fitModel, fitOnly = fitOnlyElements, answered = shownAnswered, fitTo = fitModel == .mlls ? fitToEV : nil, refs = fitReferences
         let rawCounts = !deconvolutionChoice.feedsTheFit
         let threshold = threshold, lambda = try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)
+        // What `EELSRegionCompute.row` needs to fit a region's edges, as this refresh takes them (the results say "Fitting" only then).
+        isFittingRegions = !edges.isEmpty && microscope != nil && fitCore.map { $0.nx == low.nx && $0.ny == low.ny } == true
         pinDataTask = Task.detached(priority: .userInitiated) { [weak self] in
             var spectra: [EDXPin.ID: [Double]] = [:], coreSpectra: [EDXPin.ID: [Double]] = [:]
             var rows: [EELSRegionRow] = []
@@ -196,7 +202,8 @@ extension EELSSession {
         let region = pin?.region ?? .wholeMap, name = selectedRegionName
         // A drag's live spectrum is on screen until a plot of the selected shape lands (`isPreviewing` is cleared there, not here), so a second
         // request before that also starts its own quick spectrum.
-        let quickFirst = isPreviewing || plottedRegion != region
+        // The name too: a region kept again with the box of one just removed is another region, and its own name goes up at once.
+        let quickFirst = isPreviewing || plottedRegion != region || plot?.regionName != name
         // The model is drawn only over the core loss it was fitted to (stored or Fourier-ratio deconvolved).
         let fit = model != nil && fitUsed?.deconvolved == (answered != nil) ? fitUsed : nil
         let interim: Task<Void, Never>? = if quickFirst {
@@ -303,5 +310,6 @@ extension EELSSession {
         pinRowsThicknessSignature = thickness
         pinRowsFitSignature = fit
         isRefreshingRegions = false
+        isFittingRegions = false
     }
 }

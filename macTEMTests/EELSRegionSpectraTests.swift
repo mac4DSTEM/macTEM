@@ -21,7 +21,7 @@ import ShellEDXModel
 nonisolated final class EELSRegionSpectraTests: XCTestCase {
     static let nx = 2, ny = 2, coreChannels = 300   // 300 to 599 eV: N K and O K are offered
 
-    static func loaded() throws -> LoadedEELS {
+    static func loaded(collectionMrad: Double? = 10) throws -> LoadedEELS {
         var counts = [Double](repeating: 0, count: nx * ny * coreChannels)
         for k in 0..<(nx * ny) { for c in 0..<coreChannels { counts[k * coreChannels + c] = 100 * Double(k + 1) } }
         let core = try CoreLossSpectrumImage(nx: nx, ny: ny, channels: coreChannels, counts: counts, energyOffsetEV: 300, energyScaleEV: 1)
@@ -30,7 +30,7 @@ nonisolated final class EELSRegionSpectraTests: XCTestCase {
         var lowCounts = [Double]()
         for k in 0..<(nx * ny) { lowCounts += Array(low.counts[(k * low.channels)..<((k + 1) * low.channels)]) }
         let lowCut = try LowLossSpectrumImage(nx: nx, ny: ny, channels: low.channels, counts: lowCounts, energyOffsetEV: low.energyOffsetEV, energyScaleEV: low.energyScaleEV)
-        return LoadedEELS(fileName: "regions.dm4", image: lowCut, beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: 10, origin: "planted",
+        return LoadedEELS(fileName: "regions.dm4", image: lowCut, beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: collectionMrad, origin: "planted",
                           coreLoss: core, coreLossOrigin: "planted core")
     }
 
@@ -188,12 +188,45 @@ nonisolated final class EELSRegionSpectraTests: XCTestCase {
         XCTAssertEqual(session.plot?.regionName, first.name)
         XCTAssertEqual(session.plot?.core?.counts.first, 400)
 
-        // No edges picked: a new region has nothing to fit, and the body keeps "No edges fitted yet".
+        // No edges picked: a new region has nothing to fit, and the body keeps "No edges fitted yet"; nor does an edge picked once the rows are on
+        // their way, which that refresh does not fit.
         session.toggleEdge(.nitrogenK)
         session.toggleEdge(.oxygenK)
         session.drawRegion(.rectangle(PixelRect(x0: 1, y0: 1, x1: 2, y1: 2)))
         XCTAssertFalse(session.isFittingSelectedRegion)
+        session.toggleEdge(.nitrogenK)
+        XCTAssertTrue(session.isRefreshingRegions)
+        XCTAssertFalse(session.isFittingSelectedRegion, "the running refresh started with no edge")
         await session.settled()
+
+        // No collection angle: the microscope is unknown, a region's rows are summed without a fit, and the body never says "Fitting".
+        let unknown = EELSSession()
+        await unknown.bind(try Self.loaded(collectionMrad: nil)).value
+        await unknown.settled()
+        unknown.toggleEdge(.nitrogenK)
+        unknown.drawRegion(.rectangle(PixelRect(x0: 0, y0: 0, x1: 1, y1: 2)))
+        XCTAssertTrue(unknown.isRefreshingRegions)
+        XCTAssertFalse(unknown.isFittingSelectedRegion, "no fit can run without the collection angle")
+        await unknown.settled()
+    }
+
+    /// A region removed and its box drawn again before the whole map's spectrum landed is a new region under a new name: its spectrum goes up at
+    /// once, not after the fitted plot with the removed region's name on it. Red under: a plot keyed by its shape alone.
+    @MainActor func testTheSameBoxKeptAgainUnderANewNameGoesUpAtOnce() async throws {
+        let session = try await openRoom()
+        let box = PixelRect(x0: 0, y0: 0, x1: 1, y1: 2)
+        let first = try XCTUnwrap(session.drawRegion(.rectangle(box)))
+        await session.settled()
+        XCTAssertEqual(session.plot?.regionName, first.name)
+        session.removePin(first.id)
+        let second = try XCTUnwrap(session.drawRegion(.rectangle(box)))
+        XCTAssertNotEqual(second.id, first.id)
+        XCTAssertEqual(second.name, "Region 2")
+        XCTAssertNotNil(session.plotInterimTask, "the same box, another region: its spectrum goes up first")
+        await session.plotInterimTask?.value
+        XCTAssertEqual(session.plot?.regionName, second.name)
+        await session.settled()
+        XCTAssertEqual(session.plot?.regionName, second.name)
     }
 
     /// Drawing a region that is already kept selects it, and the spectrum follows the selection: Return on the colour mix draws the middle box, and a second
