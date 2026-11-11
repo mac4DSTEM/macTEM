@@ -73,11 +73,13 @@ struct MapsRoom: View {
                 VerticalPaneSplit(storageKey: "maps.lowerSplit", defaultFraction: 0.72, resizeLabel: "Resize the map and the colour key",
                                   topName: "Map and pattern", minimumTop: 160, minimumBottom: LayoutPolicy.mapsKeyPaneMinimum) {
                     upper(document)
+                        // The keys live on the map and the pattern; the Grains table below sits outside this focusable container,
+                        // so a click in it keeps the keyboard there (blue rows, ⌘C), as in the EELS room (#353).
+                        .modifier(MapsKeyedRoom(session: session, patterns: patternsDataset.map { _ in appState.ebsd }))
                 } bottom: {
                     MapsBottomPane(session: session, state: state)
                 }
                 .id(document.id)
-                .modifier(MapsKeyedRoom(session: session, patterns: patternsDataset.map { _ in appState.ebsd }))
             } else {
                 ContentUnavailableView {
                     Label("No orientation map open", systemImage: "map")
