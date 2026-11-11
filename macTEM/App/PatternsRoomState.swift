@@ -56,9 +56,6 @@ final class PatternsRoomState {
     var readout: String?
     /// What the pattern pane last wrote to `readout` (`setPatternReadout`).
     private var patternText: String?
-    /// The detector pixel the pointer rests on over the pattern (`hoverPattern`); nil while it is elsewhere. Read only to read the pixel
-    /// again when the pattern under it changes (`rereadPattern`), so no view follows it.
-    @ObservationIgnored private var patternPixel: SIMD2<Int>?
     /// `readout` while it is the pattern pane's own (the detector pixel and its value under the pointer); nil while it is the scan map's position,
     /// or nothing. The pattern pane's accessibility value says this, so it never speaks the map's position as its own (#345).
     var patternReadout: String? { readout != nil && readout == patternText ? readout : nil }
@@ -82,42 +79,10 @@ final class PatternsRoomState {
 
     func requestImport() { importRequest &+= 1 }
 
-    /// The pattern pane's hover over detector pixel `pixel` (column, row) of `canvas`, the pattern on screen: that pixel and its stored
-    /// value in the status line, marked as the pattern pane's (`patternReadout`); nil `pixel` when the pointer leaves the pattern.
-    func hoverPattern(_ pixel: SIMD2<Int>?, on canvas: CanvasPixels?) {
-        patternPixel = pixel
-        setPatternReadout(pixel.flatMap { Self.patternWords(canvas, at: $0) })
-    }
-
-    /// Another pattern under a resting pointer (an arrow step, Raw or Processed, new processing, #345): the pixel the pointer rests on,
-    /// read again on `canvas`, so the status line and VoiceOver name the pattern shown, not the last one. Nothing while the pointer is off
-    /// the pattern, or while the readout is the scan map's.
-    func rereadPattern(on canvas: CanvasPixels?) {
-        guard let patternPixel, readout == patternText else { return }
-        setPatternReadout(Self.patternWords(canvas, at: patternPixel))
-    }
-
-    /// The pattern pane went (another room, another file): no pixel of it is under the pointer, so its readout goes. A readout the scan
-    /// map wrote stays.
-    func patternPaneLeft() {
-        patternPixel = nil
-        if readout == patternText { readout = nil }
-        patternText = nil
-    }
-
-    /// The status line's readout, marked as the pattern pane's (`patternReadout`).
-    private func setPatternReadout(_ text: String?) {
+    /// The pattern pane's hover: the status line's readout, marked as the pattern pane's (`patternReadout`); nil when the pointer leaves the pattern.
+    func setPatternReadout(_ text: String?) {
         patternText = text
         readout = text
-    }
-
-    /// The words for detector pixel `pixel` (column, row) of `canvas`: "x 12, y 40 · 1834", its stored value (the raw range maps the
-    /// normalised copy back to counts); nil off the pattern or for a pattern with no finite value.
-    nonisolated static func patternWords(_ canvas: CanvasPixels?, at pixel: SIMD2<Int>, locale: Locale = .autoupdatingCurrent) -> String? {
-        guard let canvas, let range = canvas.rawRange, pixel.x >= 0, pixel.x < canvas.width, pixel.y >= 0, pixel.y < canvas.height,
-              canvas.normalized.indices.contains(pixel.y * canvas.width + pixel.x) else { return nil }
-        let value = range.lowerBound + canvas.normalized[pixel.y * canvas.width + pixel.x] * (range.upperBound - range.lowerBound)
-        return EBSDBrowsing.patternReadout(x: pixel.x, y: pixel.y, value: value, locale: locale)
     }
 
     /// Makes the bytes of `kind` from the session and opens the save panel, or, with `directory` (the UI journeys' export folder), writes the
