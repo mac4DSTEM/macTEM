@@ -201,6 +201,17 @@ nonisolated final class AppWindowsTests: XCTestCase {
         XCTAssertEqual(first.errorMessage, "notes.xyz is not a format macTEM opens (or its extension and its first bytes disagree).")
     }
 
+    /// A launch restores no window: a restored window came back empty (its file is read only when the person asks, File > Reopen Last
+    /// Session) or had its Finder open handed back by a path the sandbox does not grant. Red before: `.automatic` for a person's launch.
+    func testALaunchRestoresNoWindow() throws {
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        let app = try String(contentsOf: root.appendingPathComponent("macTEM/App/macTEMApp.swift"), encoding: .utf8)
+            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let scene = try XCTUnwrap(app.components(separatedBy: "WindowGroup(\"macTEM\", id: \"image\")").last?.components(separatedBy: ".commands").first)
+        XCTAssertTrue(scene.contains(".restorationBehavior(.disabled)"), scene)
+        XCTAssertFalse(scene.contains(".automatic"), scene)
+    }
+
     /// The last-session record covers every window on screen, in their order, and drops a closed window's file. Red under: the
     /// record holding only the file of the window that changed last.
     @MainActor func testTheLastSessionRecordCoversEveryWindow() async throws {

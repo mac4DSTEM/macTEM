@@ -292,3 +292,9 @@ were refused as "not a format macTEM opens", the sniff having read no bytes, and
 window for a file it cannot open.
 
 **What would reverse it.** A reader that needs to be handed an unreadable path (none does).
+
+**Also decided (same day).** The image windows are not restored at launch (`restorationBehavior(.disabled)`, was `.automatic`
+for a person's launch). A restored window came back without its file, because a file is read only when the person asks
+(File > Reopen Last Session, through bookmarks). So it was an empty tab. One restored from a Finder open had that open handed
+to it again by path, which the sandbox does not grant (driven 2026-11-11: a plain launch alerting on a TIFF opened in the
+previous run). A launch presents one window.
