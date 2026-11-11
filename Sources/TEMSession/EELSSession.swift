@@ -1,11 +1,21 @@
 //
 //  EELSSession.swift
-//  Role: the one owner of the EELS room's state: the opened low-loss spectrum image, the zero-loss choice, the mean free path
-//        choice, and what the last pass put on screen (the t/λ map and its tiles). The room's views read it; they hold none of it.
+//  Role: the one owner of the EELS room's state: the opened spectrum image (its low loss, its core loss, or both), the choices (the
+//        zero-loss threshold, the mean free path, the beam energy and the two angles when they are typed over the file's, Align's
+//        options, the deconvolution method, the picked edges and their windows, the background, the fit model and its references),
+//        what each stage put on screen (the zero-loss alignment, the t/λ map and its tiles, the deconvolution, the edge fit with its
+//        composition and tiles), the regions drawn on the maps with their spectra and rows, the lines drawn on them, and the
+//        spectrum plot. The room's CSV, MSA and method JSON exports are made from this state in EELSSession+Export.swift (the Maps…
+//        figure by the app's `EELSSession.figureContent`). The room's views read it; they hold none of it.
 //
-//  Nothing here makes a number. `TEMCore/EELS/EELSCompute` is SpectroKit's `EELSThickness.logRatio` called with the room's
-//  choices; this owner decides WHEN to ask: every pass runs in a detached task and lands only if no newer request was made
-//  meanwhile (`generation`), as `EDXSession` does.
+//  The numbers are TEMCore/EELS's and the kits', called with the room's choices: the t/λ map `EELSCompute`'s (SpectroKit's
+//  `EELSThickness.logRatio`), the alignment SpectroKit's `EELSAlignment.alignZeroLossPeak`, the deconvolution
+//  `EELSDeconvolveCompute`'s, the edge fit and its quality `EELSFitCompute`'s and `EELSFitQuality`'s, the regions' rows
+//  `EELSRegionCompute`'s, the plot `EELSPlotCompute`'s and a line's profiles MacEMUI's `EDXLineProfiles` (ImagoKit's
+//  `LineProfile`). The session's own arithmetic only checks a choice (Fit to against the edges and the axis, a reference against
+//  the MLLS window) and clips a drawn shape to the scan. This owner decides WHEN to ask: Align, Thickness, Deconvolve and Fit each
+//  run in a detached task and land only if no newer request was made meanwhile (`generation`), as `EDXSession` does, and Run
+//  chains the stages that are not current (`run`).
 //
 
 import Foundation
@@ -905,7 +915,7 @@ package final class EELSSession {
     package var fitFooter: String { footer(deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.line($0) }) }
 
     /// The footer as the results CSV records it: the deconvolution in its record words, a point (`EELSDeconvolveCompute.recordLine`).
-    private var recordedFitFooter: String { footer(deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.recordLine($0) }) }
+    var recordedFitFooter: String { footer(deconvolution: modelDeconvolution.map { EELSDeconvolveCompute.recordLine($0) }) }
 
     private func footer(deconvolution: String?) -> String {
         EELSRoomFormat.fitFooter(hasFit: model != nil, convolved: model?.convolved ?? false, model: model?.model ?? .exactNNLS,
@@ -1258,57 +1268,6 @@ package final class EELSSession {
         }
         runTask = task
         return task
-    }
-
-    // MARK: Export
-
-    package var diagnosticsCSV: String? { map.map { EELSCompute.diagnosticsCSV($0, fileName: fileName) } }
-    /// The results table as the room shows it (the plot's region): nil before a fit.
-    package var resultsCSV: String? {
-        let rows = resultRows
-        guard !rows.isEmpty, let plot else { return nil }
-        let posix = Locale(identifier: "en_US_POSIX")
-        let thickness = EELSRoomFormat.thicknessLine(plot.thickness, lambdaNM: map?.meanFreePathNM, lambdaSource: EELSRoomFormat.lambdaSource(meanFreePath),
-                                                     locale: Locale(identifier: "en_US_POSIX"))
-        return EELSExports.resultsCSV(rows, fileName: fileName, regionName: plot.regionName, thickness: thickness, method: recordedFitFooter,
-                                      deconvolution: modelDeconvolution.map(Self.deconvolutionRecord),
-                                      quality: resultQuality.map { EELSRoomFormat.fitQuality($0, locale: posix) })
-    }
-
-    /// The deconvolution as the results CSV records it: the line (its FWHM in en_US_POSIX, as `parameters` writes `fwhm_eV`), then its
-    /// parameters as key=value.
-    private static func deconvolutionRecord(_ d: EELSDeconvolutionResult) -> String {
-        EELSDeconvolveCompute.recordLine(d) + "; " + EELSDeconvolveCompute.parameters(d).sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
-    }
-    /// The shown spectrum (the selected region's, else the whole map's), with the model where the fit holds one.
-    package var spectrumCSV: String? { plot.map { EELSExports.spectrumCSV($0, fileName: fileName) } }
-    /// The kept regions' rows; nil without a region.
-    package var regionsCSV: String? { pinRows.isEmpty ? nil : EELSExports.regionsCSV(pinRows, fileName: fileName) }
-    /// Whether there is a method to record: a thickness map, an edge fit, or a file with only a core loss (whose record says it has no thickness).
-    package var hasMethodRecord: Bool { hasImage && (onlyCoreLoss || map != nil || model != nil) }
-    /// The method JSON (`EELSCompute.methodJSON`), with its SHA-256. A file with only a core loss records no thickness map, in the Maps control's words.
-    package var methodJSON: String? {
-        guard hasMethodRecord, let image = source?.image else { return nil }
-        let thickness = onlyCoreLoss ? nil : map
-        let why = thickness == nil ? (onlyCoreLoss ? nil : failure) ?? mapsAvailability.disabledReason(.tOverLambda) : nil
-        return EELSCompute.methodJSON(thickness, fileName: fileName, origin: source?.origin ?? "", width: image.nx, height: image.ny, thicknessUnavailable: why,
-                                      deconvolution: stageRecord, fit: fitParameters)
-    }
-    /// The shown spectrum as an EMSA/MAS file (`EELSExports.spectrumMSA`): the core loss when the file has one, else the low loss, with the beam energy and
-    /// the angles the room uses and the stage tilt the file states. Nil before there is a spectrum.
-    package func spectrumMSA() throws -> Data? {
-        guard let plot else { return nil }
-        let microscope = EELSExports.MSAMicroscope(beamEnergyKeV: beamEnergyKeV, convergenceMrad: typedConvergenceMrad ?? source?.convergenceMrad,
-                                                   collectionMrad: typedCollectionMrad ?? source?.collectionMrad, alphaTiltDegrees: source?.alphaTiltDegrees)
-        return try EELSExports.spectrumMSA(plot, fileName: fileName, microscope: microscope)
-    }
-
-    /// The Deconvolve stage as the method JSON records it: the chosen method's result with its parameters and whether it is current; nil when Off or not run.
-    private var stageRecord: [String: Any]? {
-        guard deconvolutionChoice != .off, let d = deconvolution, d.choice.kind == deconvolutionChoice.kind else { return nil }
-        var record = EELSDeconvolveCompute.parameters(d)
-        record["state"] = deconvolveState.word
-        return record
     }
 }
 
