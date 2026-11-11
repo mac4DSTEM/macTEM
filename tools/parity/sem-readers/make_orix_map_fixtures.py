@@ -59,7 +59,8 @@ for name in ["ebsd-orix-map.h5", "ebsd-orix-map-best2.h5", "ebsd-orix-map-crop.h
         inside = np.asarray(data["is_in_data"][()], dtype=bool)
         euler = np.column_stack([np.asarray(data[k][()]).reshape(len(inside), -1)[:, 0] for k in ["phi1", "Phi", "phi2"]])[inside]
     assert xmap.size == int(inside.sum())
-    props = {k: flt(np.asarray(v).reshape(xmap.size, -1)[:, 0]) for k, v in xmap.prop.items()}
+    # xmap.prop[k] masks by is_in_data; dict items() would give every stored point.
+    props = {k: flt(np.asarray(xmap.prop[k]).reshape(xmap.size, -1)[:, 0]) for k in xmap.prop.keys()}
     truth["files"][name] = {
         "size": int(xmap.size), "pointCount": int(len(inside)), "shape": list(xmap.shape), "rotationsPerPoint": int(xmap.rotations_per_point),
         "phaseIDs": [int(v) for v in xmap.phase_id], "x": flt(xmap.x), "y": flt(xmap.y), "euler": flt(euler),
