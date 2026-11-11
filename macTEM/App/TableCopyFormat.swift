@@ -1,7 +1,7 @@
 //
 //  TableCopyFormat.swift
-//  Role: the words of three tables rows are selected in, and ⌘C's text for them (#353): the Image room's object table (Particles), the
-//        Diffraction room's readout and the Maps room's Grains table. They copy as the Indexing room's Results table does
+//  Role: the words of four tables rows are selected in, and ⌘C's text for them (#353): the Image room's object table (Particles), the
+//        Diffraction room's readout, the Maps room's Grains table and the EELS room's results table (one row per fitted edge). They copy as the Indexing room's Results table does
 //        (`IndexingTableFormat.copyText`): one header line with the column titles, then one line per selected row in the table's order,
 //        the cells as the table shows them, tab-separated, numbers in the reader's locale without grouping (a spreadsheet in that locale
 //        reads them as numbers; the CSV exports are the locale-free channel). The tables draw their cells through these functions, so
@@ -154,5 +154,23 @@ nonisolated enum GrainTableFormat {
     static func copyText(_ rows: [GrainRow], unit: String, slip: [GrainSlip], places: Int = 2,
                          locale: Locale = .autoupdatingCurrent) -> String {
         TableCopyText.text(titles: titles(unit: unit), rows: rows.map { cells($0, slip: slip, places: places, locale: locale) })
+    }
+}
+
+/// The EELS room's results table, one row per fitted edge: its column titles, an edge's cells as the table shows them, and ⌘C's text.
+nonisolated enum EELSEdgeTableFormat {
+    /// The titles as the table draws them.
+    static let titles = ["Edge", "I", "at%", "wt%"]
+
+    /// An edge's cells in `titles` order: its title, then I, at% and wt% with their 1σ as the table draws them (`EELSRoomFormat`'s
+    /// intensity, atomic and weight texts, a dash where there is no value).
+    static func cells(_ row: EELSEdgeRow, locale: Locale = .autoupdatingCurrent) -> [String] {
+        [row.title, EELSRoomFormat.intensityText(row, locale: locale), EELSRoomFormat.atomicText(row, locale: locale),
+         EELSRoomFormat.weightText(row, locale: locale)]
+    }
+
+    /// ⌘C's text for `rows` (in the order given: the table's); "" for no rows.
+    static func copyText(_ rows: [EELSEdgeRow], locale: Locale = .autoupdatingCurrent) -> String {
+        TableCopyText.text(titles: titles, rows: rows.map { cells($0, locale: locale) })
     }
 }

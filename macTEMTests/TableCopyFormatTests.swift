@@ -1,6 +1,7 @@
 //
 //  TableCopyFormatTests.swift
-//  ⌘C in the Image room's object table, the Diffraction room's readout and the Maps room's Grains table (#353): the selected rows as
+//  ⌘C in the Image room's object table, the Diffraction room's readout, the Maps room's Grains table and the EELS room's results table
+//  (#353): the selected rows as
 //  tab-separated text under the table's column titles, the cells as the table shows them, numbers in the reader's locale without
 //  grouping; nothing for no rows; and the tables' own lines, which draw their cells through the same functions and carry the copy command.
 //  Red before the change: no `ParticleTableFormat`, `DiffractionReadoutFormat` or `GrainTableFormat`, no `onCopyCommand` on the tables.
@@ -166,5 +167,24 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
         let format = try String(contentsOf: URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent()
             .deletingLastPathComponent().appendingPathComponent("macTEM/App/TableCopyFormat.swift"), encoding: .utf8)
         XCTAssertTrue(format.contains("rows.map { cells($0, slip: slip, places: places, locale: locale) }"))
+    }
+
+    // MARK: The EELS results table
+
+    /// Two fitted edges copy under the results table's titles, each cell as the table draws it: I and its 1σ in the scientific form
+    /// past 10⁵, at% and wt% with their 1σ at the σ's decimal place, the one dash where an edge has no value, the reader's decimal mark.
+    /// Red under: a column dropped or out of the table's order, a cell written another way than the table's, a header copied alone.
+    func testTwoFittedEdgesCopyAsTheResultsTableShowsThem() {
+        let rows = [EELSEdgeRow(id: "C_K", title: "C K", onsetEV: 284, intensity: 4.318e7, arealDensityPerNM2: nil, atomicPercent: 60.4,
+                                weightPercent: 55.6, unavailable: nil, intensityStd: 2.1e5, atomicSigma: 1.2, weightSigma: 1.1),
+                    EELSEdgeRow(id: "N_K", title: "N K", onsetEV: 401, intensity: nil, arealDensityPerNM2: nil, atomicPercent: nil,
+                                weightPercent: nil, unavailable: "no counts above the background")]
+        let header = "Edge\tI\tat%\twt%"
+        XCTAssertEqual(EELSEdgeTableFormat.copyText(rows, locale: Self.en),
+                       [header, "C K\t4.318e7 \u{00B1} 2.1e5\t60.4 \u{00B1} 1.2\t55.6 \u{00B1} 1.1", "N K\t\u{2014}\t\u{2014}\t\u{2014}"]
+                        .joined(separator: "\n"))
+        XCTAssertEqual(EELSEdgeTableFormat.copyText([rows[0]], locale: Self.de),
+                       header + "\nC K\t4,318e7 \u{00B1} 2,1e5\t60,4 \u{00B1} 1,2\t55,6 \u{00B1} 1,1")
+        XCTAssertEqual(EELSEdgeTableFormat.copyText([], locale: Self.en), "")
     }
 }

@@ -925,6 +925,8 @@ private struct EELSWindowElements: View {
 /// (model · background · convolution · deconvolution). The methods' references are here once, in the Methods tag's tooltip; the columns say only their names.
 struct EELSResultsPanel: View {
     let session: EELSSession
+    /// The fitted edges selected in the results table, for ⌘C (#353).
+    @State private var edgeSelection = Set<EELSEdgeRow.ID>()
 
     var body: some View {
         let plot = session.plot
@@ -1003,7 +1005,7 @@ struct EELSResultsPanel: View {
                                    description: Text(session.pickedEdges.isEmpty ? "Pick edges in the periodic table, then Run."
                                                      : "Picked: " + session.pickedEdges.map(EELSFitCompute.title).joined(separator: ", ") + ". Run fits them."))
         } else {
-            Table(rows) {
+            Table(rows, selection: $edgeSelection) {
                 TableColumn("Edge") { r in
                     HStack(spacing: 4) {
                         Text(r.title).fontWeight(.semibold)
@@ -1033,8 +1035,17 @@ struct EELSResultsPanel: View {
             .alternatingRowBackgrounds(.disabled)   // the edges' rows, not a page of stripes (as the EDS table)
             .scrollIndicatorsFlash(onAppear: true)
             .scrollIndicatorsFlash(trigger: rows.map(\.id))
+            // ⌘C copies the selected edges as the Indexing room's Results table copies its rows: a header line, then a line per edge.
+            .onCopyCommand(perform: rows.contains(where: { edgeSelection.contains($0.id) }) ? { copiedEdges(rows) } : nil)
             .accessibilityIdentifier("eels.results.table")
         }
+    }
+
+    /// The selected edges, in the table's order, as tab-separated text under the table's titles.
+    private func copiedEdges(_ rows: [EELSEdgeRow]) -> [NSItemProvider] {
+        let picked = rows.filter { edgeSelection.contains($0.id) }
+        guard !picked.isEmpty else { return [] }
+        return [NSItemProvider(object: EELSEdgeTableFormat.copyText(picked) as NSString)]
     }
 
     /// The Regions section: its caption over the regions' table, which scrolls both ways in whatever height the edges table leaves it.
