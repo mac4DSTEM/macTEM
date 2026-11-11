@@ -33,7 +33,7 @@ Kikuchipy user guide, *Virtual backscatter electron imaging*, and *Pattern proce
 | RGB virtual BSE image from tiles (2, 1), (2, 2), (2, 3), each channel min-max rescaled to 0..255 | `VirtualBSEImager.get_rgb_image(normalize=True)` | same | `rgb_image` uint8 [55, 75, 3], atol 1 count (rounding); channel means 115.27, 122.92, 129.50; pixel (0, 0) = (156, 199, 177) |
 | One explicit rectangular ROI (left 10, top 20, right 50, bottom 40 px) | `EBSD.get_virtual_bse_intensity` | same | `roi_image` float64 [55, 75], exact |
 | Mean intensity per pattern (navigator) | `EBSD.data.mean(axis=(-2, -1))` | same | `mean_intensity_map` float64 [55, 75], rtol 1e-7 |
-| Pattern (0, 0) after static background subtraction (the file's background, `operation="subtract"`) | `EBSD.remove_static_background` | `m2/background-nickel-ebsd-large` | `after_static_first` uint8 [60, 60], atol 1; the whole scan's sha256 in values |
+| Pattern (0, 0) after static background subtraction (the file's background, `operation="subtract"`) | `EBSD.remove_static_background` | `m2/background-nickel-ebsd-large` | `after_static_first` uint8 [60, 60], atol 1, and a 3 x 3 corner of the scan as `after_static_corner`; the whole scan's sha256 in values (checked on the Python side) |
 | Pattern (0, 0) after static then dynamic background (Gaussian std = 60/8 = 7.5 px in the frequency domain, truncate 4) | `EBSD.remove_dynamic_background` | same | `after_static_and_dynamic_first` uint8 [60, 60], atol 1 (min 0, max 255, mean 119.6214); a 3 x 3 corner of the scan as `after_static_and_dynamic_corner` |
 
 The same arrays on the committed 3 x 3 cut (`m1/vbse-kikuchipy-h5ebsd`, `m2/background-kikuchipy-h5ebsd`) run in
@@ -48,8 +48,8 @@ every unit test run without a download: a port passes there first. Milestone 1 a
 | Bruker Esprit h5ebsd | `m1/read-bruker-h5ebsd` | the same |
 | EDAX `.up1` (9 patterns uint8) and `.up2` (10 patterns uint16, hex grid, x step 1.5708 µm) | `m1/read-edax-up1`, `m1/read-edax-up2` | the same |
 | EDAX h5ebsd | `m1/read-edax-h5ebsd` | the same, crystal map, WD 24.7 mm and 200 x |
-| EMsoft EBSD (one 640 x 480 simulated pattern) | `m1/read-emsoft-ebsd` | the same, PC (0.4688, 0.4583, 0.625), 20 kV |
-| EDAX `.ang` orientation map (duplex steel, 100 x 117 at 1.5 µm) | `m1/read-ang-sdss-ferrite-austenite` | size 11700, phases austenite (5657 points) and ferrite (6043), `phase_id` exact, Euler/x/y/dp/iq heads rtol 1e-7, Euler sha256 |
+| EMsoft EBSD (one 640 x 480 simulated pattern) | `m1/read-emsoft-ebsd` | no Swift reader yet: macTEM refuses the file in words; the bundle holds what a port must match (the pattern, PC (0.4688, 0.4583, 0.625), 20 kV) |
+| EDAX `.ang` orientation map (duplex steel, 100 x 117 at 1.5 µm) | `m1/read-ang-sdss-ferrite-austenite` | size 11700, phases austenite (5657 points) and ferrite (6043), `phase_id` exact, Euler/x/y/dp/iq heads rtol 1e-7, Euler sha256 (checked on the Python side) |
 | Oxford `.ctf` (planted 4 x 5, one not-indexed point) | `m1/read-ctf-planted-oxford` | the same, properties bands, error, MAD, BC, BS |
 | Zeiss SmartSEM TIFF | `m1/read-sem-tiff-zeiss` | pixels exact (512 x 384 uint8, mean 149.59065), pixel size 1.1649976e-8 m, 5 kV, "50.00 K X", WD 3.9 mm, stage (x 62.9961, y 65.3168, z 44.678, rotation 245.8, tilt 0), date 2018-09-25 08:20:42, author LIBERATO |
 | Thermo/FEI Helios TIFF | `m1/read-sem-tiff-fei-helios` | pixels exact (512 x 471 uint8, mean 3.06674), pixel size 3.3724e-6 m, 5 kV, 6.25 nA, dwell 1e-5 s, WD 4.03466 mm, stage, date 2016-06-13 17:06:40 |
@@ -60,12 +60,27 @@ every unit test run without a download: a port passes there first. Milestone 1 a
 | Zeiss SmartSEM TIFF, 1024 x 768 (downloaded, `fetch-data.sh`) | `m1/read-sem-tiff-zeiss-1k` | pixels by fingerprint (768 x 1024 uint8, mean 163.42735), pixel size 2.614514e-06 m, vendor tag bytes exact for the unit tests |
 | Zeiss SmartSEM two-page TIFF (downloaded, `fetch-data.sh`) | `m1/read-sem-tiff-zeiss-multipage` | pixels by fingerprint (2 x 1536 x 2048 uint8, mean 64.134872), pixel size 1.2326225e-08 m, vendor tag bytes exact for the unit tests |
 
+`SEMReaderBundleParityTests` compares each pattern bundle above that has a Swift reader (all but EMsoft's) with that reader on the bundle's own input (the
+full scan is the shipped demo file, the `.ang` the committed fixture, both checked against the bundle by sha256):
+navigation and signal shape, dtype, the whole scan's sha256 and the first and last pattern exact; each pattern's min,
+max and mean and the mean pattern at the bundle's tolerances; the PC per pattern, the static background and the
+crystal map head where the bundle holds them as arrays. The `.ang` and `.ctf` bundles go through the map readers
+(shape, steps, phases, points per phase, `phase_id`, the heads), `m1/read-eds-msa-tm002` through FormatoKit's MSA
+reader, and both background bundles through the port at their kwargs. Not compared from these bundles: the steps,
+detector and SEM header in a pattern bundle's values, which the readers' own tests hold against their truth files,
+and the `.ang` Euler sha256, which is orix's `to_euler` output (the reader keeps the file's angles, within rtol 1e-7
+of it). The `.up2` reads as kikuchipy reads it, one row of ten patterns; macTEM refuses its hexagonal grid in
+words. EMsoft EBSD output has no Swift reader yet. A coverage test fails on any bundle folder under `m1/` and
+`m2/` that no test compares and no allowlist entry explains.
+
 ### Figure 2 (milestone 2): pattern processing
 
-Kikuchipy *Pattern processing*: the static and dynamic background figures above on the whole scan (the sha256 in
-`m2/background-nickel-ebsd-large` is the exact claim), then binning, normalisation to zero mean and unit variance,
-the FFT filters, and the moving-screen projection-centre estimate on `si_in.h5` (bundles to be emitted with the
-phase, same stack).
+Kikuchipy *Pattern processing*: the static and dynamic background figures above on the whole scan, then binning,
+normalisation to zero mean and unit variance, the FFT filters, and the moving-screen projection-centre estimate on
+`si_in.h5` (bundles to be emitted with the phase, same stack). The whole scan's sha256 in
+`m2/background-nickel-ebsd-large` is checked on the Python side; the Swift port is held to pattern (0, 0) and the
+3 x 3 corner at atol 1, and to the whole scan within one grey level on at most 0.2 % of the pixels by
+`SEMBackgroundParityTests`' opt-in test.
 
 Intensity and size stages of the Patterns room's Processing sections (P2-01), each on kikuchipy's own corrected
 patterns (static then dynamic subtract) so a stage is checked alone:
