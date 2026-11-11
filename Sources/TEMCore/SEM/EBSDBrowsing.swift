@@ -78,17 +78,18 @@ package nonisolated enum EBSDBrowsing {
     package static func unitLabel(_ unit: String) -> String { unit == "um" ? "µm" : UnitDisplay.label(unit) }
 
     /// The status line over the map (control placement §7): "row 12 · col 40 · mean 118.3", then the shown virtual image's value
-    /// ("· r2 c1 12 034") when the map is not the mean.
-    package static func mapReadout(_ position: EBSDPosition, mean: Float?, map: (label: String, value: Float)? = nil) -> String {
+    /// ("· r2 c1 12034", never grouped) when the map is not the mean; the numbers in `locale`.
+    package static func mapReadout(_ position: EBSDPosition, mean: Float?, map: (label: String, value: Float)? = nil,
+                                   locale: Locale = .autoupdatingCurrent) -> String {
         var text = "row \(position.row) · col \(position.column)"
-        if let mean { text += " · mean \(UnitDisplay.number(Double(mean), digits: 4))" }
-        if let map { text += " · \(map.label) \(UnitDisplay.number(Double(map.value), digits: 6))" }
+        if let mean { text += " · mean \(UnitDisplay.number(Double(mean), digits: 4, locale: locale))" }
+        if let map { text += " · \(map.label) \(UnitDisplay.number(Double(map.value), digits: 6, locale: locale))" }
         return text
     }
 
-    /// The status line over the pattern: the detector pixel and its stored value, "x 10, y 20 · 143".
-    package static func patternReadout(x: Int, y: Int, value: Float) -> String {
-        "x \(x), y \(y) · \(UnitDisplay.number(Double(value), digits: 5))"
+    /// The status line over the pattern: the detector pixel and its stored value, "x 10, y 20 · 143", the value in `locale`.
+    package static func patternReadout(x: Int, y: Int, value: Float, locale: Locale = .autoupdatingCurrent) -> String {
+        "x \(x), y \(y) · \(UnitDisplay.number(Double(value), digits: 5, locale: locale))"
     }
 
     /// The live pane's header sentence: "Pattern · row 12 · col 40 · hovering" / "· pinned".
@@ -148,22 +149,22 @@ package nonisolated enum EBSDBrowsing {
     }
 
     /// The Info tab (design §5): what the file is, then one "Note" row for each sentence its reader left in `notes` (a short pattern
-    /// file, a map beside it left out, a background that could not be read).
-    package static func infoRows(_ dataset: EBSDDataset, fileName: String) -> [Row] {
+    /// file, a map beside it left out, a background that could not be read). The numbers in `locale`, never grouped.
+    package static func infoRows(_ dataset: EBSDDataset, fileName: String, locale: Locale = .autoupdatingCurrent) -> [Row] {
+        let n = { (v: Double) in UnitDisplay.number(v, locale: locale) }
         var rows = [
             Row("File", fileName),
             Row("Format", dataset.version.isEmpty ? dataset.format.rawValue : "\(dataset.format.rawValue) \(dataset.version)"),
             Row("Scan", dataset.scanGroups.count > 1 ? "\(dataset.scanGroup) · of \(dataset.scanGroups.count)" : dataset.scanGroup),
             Row("Patterns", "\(dataset.patternCount) · \(dataset.patternRows) × \(dataset.patternColumns) px · \(dataset.dataType.rawValue)"),
-            Row("Detector pixel", "\(UnitDisplay.number(dataset.detector.pixelSize)) µm"),
+            Row("Detector pixel", "\(n(dataset.detector.pixelSize)) µm"),
         ]
         if let microscope = dataset.sem.microscope, !microscope.isEmpty { rows.append(Row("Microscope", microscope)) }
-        if let mag = dataset.sem.magnification { rows.append(Row("Magnification", "\(UnitDisplay.number(mag))×")) }
-        if let wd = dataset.sem.workingDistanceMM { rows.append(Row("Working distance", "\(UnitDisplay.number(wd)) mm")) }
+        if let mag = dataset.sem.magnification { rows.append(Row("Magnification", "\(n(mag))×")) }
+        if let wd = dataset.sem.workingDistanceMM { rows.append(Row("Working distance", "\(n(wd)) mm")) }
         rows.append(Row("Static background", dataset.staticBackground == nil ? "None in the file" : "In the file"))
         rows.append(Row("Indexed", dataset.crystalMap.map { map in
-            let n = map.phases.ids.filter { $0 != PhaseList.notIndexedID }.count
-            return "\(n) \(n == 1 ? "phase" : "phases") in the file"
+            UnitDisplay.count(map.phases.ids.filter { $0 != PhaseList.notIndexedID }.count, "phase", "phases") + " in the file"
         } ?? "Not in the file"))
         rows += dataset.notes.map { Row("Note", $0) }
         return rows

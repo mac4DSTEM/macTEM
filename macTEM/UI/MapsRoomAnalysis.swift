@@ -174,6 +174,7 @@ struct MapsGrainsTable: View {
         Group {
             if let analysis = session.analysis {
                 let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
+                let places = MapsRoomFormat.lengthPlaces(analysis)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: MapsRoomFormat.grainSummary(analysis))
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
@@ -182,7 +183,9 @@ struct MapsGrainsTable: View {
                         TableColumn("Grain", value: \.id) { Text(verbatim: "\($0.id)").monospacedDigit() }
                         TableColumn("Phase", value: \.phaseName)
                         TableColumn("Points", value: \.points) { Text(verbatim: "\($0.points)").monospacedDigit() }
-                        TableColumn(SEMColumnSpeech.header("ECD \(unit)"), value: \.diameter) { Text(MapsRoomFormat.number($0.diameter)).monospacedDigit() }
+                        TableColumn(SEMColumnSpeech.header("ECD \(unit)"), value: \.diameter) {
+                            Text(MapsRoomFormat.length($0.diameter, places: places)).monospacedDigit()
+                        }
                         TableColumn(SEMColumnSpeech.header("φ₁ °"), value: \.phi1) { Text(MapsRoomFormat.angle($0.phi1)).monospacedDigit() }
                         TableColumn(SEMColumnSpeech.header("Φ °"), value: \.capitalPhi) { Text(MapsRoomFormat.angle($0.capitalPhi)).monospacedDigit() }
                         TableColumn(SEMColumnSpeech.header("φ₂ °"), value: \.phi2) { Text(MapsRoomFormat.angle($0.phi2)).monospacedDigit() }
@@ -192,7 +195,7 @@ struct MapsGrainsTable: View {
                         TableColumn("Schmid") { row in Text(GrainTableFormat.schmid(row, slip: session.slip)).monospacedDigit() }
                         TableColumn("Neighbours", value: \.neighbours) { Text(verbatim: "\($0.neighbours)").monospacedDigit() }
                     }
-                    .onCopyCommand(perform: session.selectedGrains.isEmpty ? nil : { copied(unit: unit) })
+                    .onCopyCommand(perform: session.selectedGrains.isEmpty ? nil : { copied(unit: unit, places: places) })
                     .accessibilityIdentifier("maps.grains.table")
                 }
                 .padding(10)
@@ -214,10 +217,10 @@ struct MapsGrainsTable: View {
     private func refresh() { rows = (session.analysis?.table ?? []).sorted(using: sortOrder) }
 
     /// ⌘C: the selected grains as TSV, in the table's order (the sort on screen), under the column titles.
-    private func copied(unit: String) -> [NSItemProvider] {
+    private func copied(unit: String, places: Int) -> [NSItemProvider] {
         let picked = rows.filter { session.selectedGrains.contains($0.id) }
         guard !picked.isEmpty else { return [] }
-        return [NSItemProvider(object: GrainTableFormat.copyText(picked, unit: unit, slip: session.slip) as NSString)]
+        return [NSItemProvider(object: GrainTableFormat.copyText(picked, unit: unit, slip: session.slip, places: places) as NSString)]
     }
 }
 
@@ -350,7 +353,7 @@ struct MapsHistogramPane: View {
                         }
                     }
                     .accessibilityElement()
-                    .accessibilityLabel("Histogram of \(kind.rawValue), \(histogram.counts.reduce(0, +)) values in \(histogram.counts.count) bins")
+                    .accessibilityLabel(MapsRoomFormat.histogramSpoken(kind, histogram: histogram))
                     .accessibilityIdentifier("maps.histogram.bars")
                     HStack {
                         Text(verbatim: "\(MapsRoomFormat.number(histogram.edges.first ?? 0)) \(unit)")

@@ -451,7 +451,8 @@ struct MapsKeyPane: View {
                     Rectangle().fill(Color(red: rgb.x, green: rgb.y, blue: rgb.z))
                         .frame(width: LayoutPolicy.mapsPhaseSwatchSize, height: LayoutPolicy.mapsPhaseSwatchSize)
                         .overlay(Rectangle().stroke(Color.secondary.opacity(0.5), lineWidth: 0.5))
-                    Text(verbatim: "\(MapsRoomFormat.phaseName(entry.phase, id: entry.id)) · \(entry.phase.pointGroupName ?? "—") · \(ids.filter { $0 == entry.id }.count) points")
+                    Text(verbatim: "\(MapsRoomFormat.phaseName(entry.phase, id: entry.id)) · "
+                         + MapsRoomFormat.phasePoints(entry.phase, count: ids.filter { $0 == entry.id }.count, missing: UnitDisplay.noValue))
                         .font(.callout.monospacedDigit())
                 }
                 .accessibilityElement(children: .combine)

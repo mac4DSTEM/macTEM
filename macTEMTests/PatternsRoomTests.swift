@@ -249,6 +249,47 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         XCTAssertEqual(((json?["phases"] as? [[String: Any]])?.first?["name"]) as? String, "ni")
     }
 
+    /// The Calibration rows name the detector's tilt "Detector tilt", as the design and the processing sections do (the Indexing
+    /// room's "Camera tilt" follows in its own PR), and the Info rows write their numbers in the locale they are given.
+    func testTheCalibrationSaysDetectorTiltAndInfoTakesTheLocale() throws {
+        let dataset = try EBSDH5Reader.read(url: fixture("ebsd-kikuchipy-h5ebsd", "h5"))
+        let labels = EBSDBrowsing.calibrationRows(dataset).map(\.label)
+        XCTAssertTrue(labels.contains("Detector tilt"), "\(labels)")
+        XCTAssertFalse(labels.contains("Camera tilt"), "\(labels)")
+        XCTAssertEqual(EBSDBrowsing.calibrationRows(dataset).first { $0.label == "Detector tilt" }?.key, "detector-tilt")
+        let de = Locale(identifier: "de_DE")
+        let info = Dictionary(EBSDBrowsing.infoRows(dataset, fileName: "x.h5", locale: de).map { ($0.label, $0.value) },
+                              uniquingKeysWith: { first, _ in first })
+        XCTAssertEqual(info["Detector pixel"], "\(UnitDisplay.number(dataset.detector.pixelSize, locale: de)) µm")
+        // The fixture's pixel size is 1 µm, the same in every locale; its working distance, 24.7 mm, shows the German comma.
+        XCTAssertEqual(info["Working distance"], "24,7 mm")
+        XCTAssertEqual(info["Indexed"], "1 phase in the file")
+    }
+
+    /// Virtual images › Map lists the whole-scan maps first, the two quality maps right after the virtual BSE, then under one divider
+    /// the grid's tiles and the colour mix; a grid of one tile has no divider. Red before: Image quality and Average dot product came
+    /// after all 25 tiles of the 5 × 5 grid.
+    @MainActor func testTheMapMenuListsTheQualityMapsBeforeTheTiles() {
+        func titles(_ entries: [PatternsRoomState.MapMenuEntry]) -> [String] {
+            entries.map { entry in
+                switch entry {
+                case .map(_, let title): title
+                case .divider: "—"
+                }
+            }
+        }
+        let five = PatternsRoomState.mapMenu(VirtualBSEGrid(5), hasMix: true)
+        XCTAssertEqual(Array(titles(five).prefix(6)), ["Mean intensity", "BSE (whole detector)", "Image quality", "Average dot product", "—", "Tile r0 c0"])
+        XCTAssertEqual(titles(five).last, "Colour mix")
+        XCTAssertEqual(five.count, 4 + 1 + 25 + 1)
+        XCTAssertEqual(five.filter { $0 == .divider }.count, 1)
+        XCTAssertEqual(five[2], .map(.imageQuality, "Image quality"))
+        XCTAssertEqual(five[3], .map(.dotProduct, "Average dot product"))
+        XCTAssertEqual(five[5], .map(.tile(VirtualBSEGrid(5).tiles[0]), "Tile r0 c0"))
+        XCTAssertEqual(titles(PatternsRoomState.mapMenu(VirtualBSEGrid(1), hasMix: false)),
+                       ["Mean intensity", "BSE (whole detector)", "Image quality", "Average dot product"])
+    }
+
     /// The Export section's two files: the metadata JSON and the pattern PNG, written to the journeys' folder without a panel.
     @MainActor func testTheExportsWriteTheirFiles() async throws {
         let session = EBSDSession()

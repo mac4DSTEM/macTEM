@@ -146,10 +146,22 @@ nonisolated class Journey: XCTestCase {
         if part.waitForExistence(timeout: 5), part.isEnabled { part.click() }
     }
 
-    /// Shows the inspector when the launch left it hidden, and waits for a control of the room that is entered (an identifier of it).
+    /// Shows the inspector when the launch left it hidden, and waits for a control of the room that is entered (an identifier of it). The
+    /// inspector comes back on the tab the last launch left (MacEMUI keeps it in the app's defaults, so a run after an Info step starts on
+    /// Info), and a room's controls are on Settings: Settings is chosen when the control is still not there. The key is pressed only when
+    /// the tabs are not on screen, since it hides an inspector that is shown on Info.
     @MainActor
     func showInspector(waitingFor id: String) {
-        if !element(id).waitForExistence(timeout: 3) { app.typeKey("i", modifierFlags: [.command, .option]) }
+        if element(id).waitForExistence(timeout: 3) { return }
+        let tabs = element("inspector.tabPicker")
+        if !tabs.exists {
+            app.typeKey("i", modifierFlags: [.command, .option])
+            _ = tabs.waitForExistence(timeout: 5)
+        }
+        if !element(id).waitForExistence(timeout: 2) {
+            let settings = tabs.buttons["Settings"]
+            if settings.exists, !settings.isSelected { settings.click() }
+        }
         waitFor(id, timeout: 20)
     }
 

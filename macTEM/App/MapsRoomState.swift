@@ -252,26 +252,71 @@ nonisolated enum MapsRoomFormat {
         zip(["φ₁", "Φ", "φ₂"], values).map { "\($0) \($1)°" }.joined(separator: "  ")
     }
 
-    /// "102 grains · mean ECD 3.1 µm · ASTM 14.2".
+    /// A grain length in the scan unit (an ECD, a mean intercept) at `places` decimals, one count wherever the room writes one: the
+    /// table's column, the summary and the Grains rows read alike ("10,70 · 10,16 · 21,00", where significant digits read "10,7 · 10,16 ·
+    /// 21"). The room passes `lengthPlaces(analysis)`.
+    static func length(_ v: Double, places: Int = 2, locale: Locale = .autoupdatingCurrent) -> String {
+        UnitDisplay.fixed(v, places: places, locale: locale)
+    }
+
+    /// The decimals of `analysis`'s grain lengths: two, or more where the smallest length the room writes (a grain's ECD, the mean
+    /// intercept) would show fewer than three significant digits, as the scan unit is the file's: a 10 nm step in µm reads "0.0113", where
+    /// two decimals read "0.01" and a 4 nm step's one-point grain "0.00". One count for the whole table, so the column keeps one width.
+    static func lengthPlaces(_ analysis: MapAnalysis) -> Int {
+        var smallest = Double.infinity
+        for row in analysis.table where row.diameter.isFinite && row.diameter > 0 { smallest = min(smallest, row.diameter) }
+        if let intercept = analysis.meanLinealIntercept, intercept.isFinite, intercept > 0 { smallest = min(smallest, intercept) }
+        return lengthPlaces(smallest: smallest)
+    }
+
+    /// Two decimals, or the decimals three significant digits of `smallest` need (0.5 → 3, 0.0113 → 4); two when it is not a finite
+    /// positive length.
+    static func lengthPlaces(smallest: Double) -> Int {
+        guard smallest.isFinite, smallest > 0 else { return 2 }
+        return max(2, 2 - Int(log10(smallest).rounded(.down)))
+    }
+
+    /// The orientation pane's Bunge angles from radians, one decimal each as the status line beside it writes them
+    /// (`OrientationMaps.degrees`): "φ₁ 12.3°  Φ 44.0°  φ₂ 271.5°", never "-0.0°".
+    static func eulerText(_ radians: SIMD3<Double>, locale: Locale = .autoupdatingCurrent) -> String {
+        eulerLine(eulerValues(radians, locale: locale))
+    }
+
+    /// A phase's point group and its points, as the Phases rows, the phase legend and the Info tab write them: "m-3m · 1 point";
+    /// `missing` stands for a phase without a point group.
+    static func phasePoints(_ phase: CrystalPhase, count: Int, missing: String = "no point group") -> String {
+        "\(phase.pointGroupName ?? missing) · \(UnitDisplay.count(count, "point", "points"))"
+    }
+
+    /// The histogram's spoken label: "Histogram of KAM, 1 value in 40 bins".
+    static func histogramSpoken(_ kind: MapAnalysis.HistogramKind, histogram: AngleHistogram) -> String {
+        let n = histogram.counts.reduce(0, +)
+        return "Histogram of \(kind.rawValue), \(UnitDisplay.count(n, "value", "values")) in \(UnitDisplay.count(histogram.counts.count, "bin", "bins"))"
+    }
+
+    /// "102 grains · mean ECD 3.14 µm · ASTM 14.2", the length as the grain table writes it.
     static func grainSummary(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> String {
         var parts = [UnitDisplay.count(analysis.table.count, "grain", "grains")]
         if let mean = analysis.meanDiameter {
-            parts.append("mean ECD \(number(mean.byNumber, locale: locale)) \(EBSDBrowsing.unitLabel(analysis.scanUnit))")
+            let places = lengthPlaces(analysis)
+            parts.append("mean ECD \(length(mean.byNumber, places: places, locale: locale)) \(EBSDBrowsing.unitLabel(analysis.scanUnit))")
         }
         if let g = analysis.astmGrainSizeNumber { parts.append("ASTM \(angle(g, locale: locale))") }
         return parts.joined(separator: " · ")
     }
 
-    /// The Grains section's summary rows.
+    /// The Grains section's summary rows; the lengths at the grain table's decimals (`lengthPlaces`).
     static func grainRows(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
         let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
+        let places = lengthPlaces(analysis)
         let n = { (v: Double) in Self.number(v, locale: locale) }
+        let l = { (v: Double) in Self.length(v, places: places, locale: locale) }
         var out = [EBSDBrowsing.Row("Grains", "\(analysis.table.count)")]
         if let mean = analysis.meanDiameter {
-            out.append(EBSDBrowsing.Row("Mean ECD", "\(n(mean.byNumber)) \(unit)"))
-            out.append(EBSDBrowsing.Row("Area-weighted", "\(n(mean.byArea)) \(unit)"))
+            out.append(EBSDBrowsing.Row("Mean ECD", "\(l(mean.byNumber)) \(unit)"))
+            out.append(EBSDBrowsing.Row("Area-weighted", "\(l(mean.byArea)) \(unit)"))
         }
-        if let l = analysis.meanLinealIntercept { out.append(EBSDBrowsing.Row("Mean intercept", "\(n(l)) \(unit)")) }
+        if let intercept = analysis.meanLinealIntercept { out.append(EBSDBrowsing.Row("Mean intercept", "\(l(intercept)) \(unit)")) }
         if let g = analysis.astmGrainSizeNumber { out.append(EBSDBrowsing.Row("ASTM E112", angle(g, locale: locale))) }
         let s = analysis.settings
         out.append(EBSDBrowsing.Row("Made with", "\(n(s.boundaryDegrees))° · ≥ \(UnitDisplay.count(s.minimumSize, "point", "points")) · KAM ≤ \(n(s.kamMaxDegrees))°"))
@@ -378,7 +423,7 @@ nonisolated enum MapsRoomFormat {
         let ids = map.phaseIDs
         for (id, phase) in indexedPhases(map) {
             let count = ids.filter { $0 == id }.count
-            out.append(EBSDBrowsing.Row("Phase", "\(phaseName(phase, id: id)) · \(phase.pointGroupName ?? "no point group") · \(UnitDisplay.count(count, "point", "points"))"))
+            out.append(EBSDBrowsing.Row("Phase", "\(phaseName(phase, id: id)) · \(phasePoints(phase, count: count))"))
         }
         out.append(EBSDBrowsing.Row("Euler angles", Self.infoEuler(document.source)))
         out.append(EBSDBrowsing.Row("IPF colours", "TSL key of each phase's Laue group (Nolze and Hielscher 2016), as orix 0.15.0"))

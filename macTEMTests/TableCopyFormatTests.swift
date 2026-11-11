@@ -124,7 +124,7 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
     }
 
     /// Two grains copy under the table's titles with the precision the table shows: the number, phase, points and neighbours as they
-    /// are, the ECD to four significant digits, the Euler angles to one decimal, GOS to two, the largest Schmid factor to three, a dash
+    /// are, the ECD at the table's decimals (three here), the Euler angles to one decimal, GOS to two, the largest Schmid factor to three, a dash
     /// for a grain without slip systems; the reader's decimal mark. Red under: no `GrainTableFormat` (the table had no ⌘C), a cell at
     /// the CSV's `%.6g`, a column out of the table's order.
     func testTwoGrainsCopyAsTheTableShowsThem() throws {
@@ -133,13 +133,13 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
         XCTAssertEqual(rows.count, 2)
         func line(_ r: GrainRow) -> String {
             let schmid = slip.first { $0.grain == r.id }.map { String(format: "%.3f", $0.maximumSchmid) } ?? "\u{2014}"
-            let cells = ["\(r.id)", r.phaseName, "\(r.points)", String(format: "%.4g", r.diameter), String(format: "%.1f", r.euler.x),
+            let cells = ["\(r.id)", r.phaseName, "\(r.points)", String(format: "%.3f", r.diameter), String(format: "%.1f", r.euler.x),
                          String(format: "%.1f", r.euler.y), String(format: "%.1f", r.euler.z), String(format: "%.2f", r.gosDegrees), schmid,
                          "\(r.neighbours)"]
             return cells.joined(separator: "\t")
         }
         let header = "Grain\tPhase\tPoints\tECD \u{00B5}m\t\u{03C6}\u{2081} \u{00B0}\t\u{03A6} \u{00B0}\t\u{03C6}\u{2082} \u{00B0}\tGOS \u{00B0}\tSchmid\tNeighbours"
-        XCTAssertEqual(GrainTableFormat.copyText(rows, unit: "\u{00B5}m", slip: slip, locale: Self.en),
+        XCTAssertEqual(GrainTableFormat.copyText(rows, unit: "\u{00B5}m", slip: slip, places: 3, locale: Self.en),
                        ([header] + rows.map(line)).joined(separator: "\n"))
         XCTAssertTrue(slip.contains { $0.grain == rows[0].id }, "the first grain has a Schmid factor to copy")
 
@@ -155,16 +155,17 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
     /// phase's name a space. Red under: the command removed or always enabled, the Schmid cell drawn by its own expression.
     func testTheGrainsTableCopiesItsSelectedRows() throws {
         let table = try ui("MapsRoomAnalysis.swift")
-        XCTAssertTrue(table.contains(".onCopyCommand(perform: session.selectedGrains.isEmpty ? nil : { copied(unit: unit) })"))
+        XCTAssertTrue(table.contains(".onCopyCommand(perform: session.selectedGrains.isEmpty ? nil : { copied(unit: unit, places: places) })"))
         XCTAssertTrue(table.contains("let picked = rows.filter { session.selectedGrains.contains($0.id) }"), "the rows in the table's order")
-        XCTAssertTrue(table.contains("return [NSItemProvider(object: GrainTableFormat.copyText(picked, unit: unit, slip: session.slip) as NSString)]"))
+        XCTAssertTrue(table.contains("return [NSItemProvider(object: GrainTableFormat.copyText(picked, unit: unit, slip: session.slip, places: places) as NSString)]"))
         XCTAssertTrue(table.contains("TableColumn(\"Schmid\") { row in Text(GrainTableFormat.schmid(row, slip: session.slip)).monospacedDigit() }"))
-        for cell in ["Text(MapsRoomFormat.number($0.diameter))", "Text(MapsRoomFormat.angle($0.phi1))", "Text(MapsRoomFormat.angle($0.capitalPhi))",
-                     "Text(MapsRoomFormat.angle($0.phi2))", "Text(MapsRoomFormat.angle($0.gosDegrees, digits: 2))"] {
+        for cell in ["Text(MapsRoomFormat.length($0.diameter, places: places))", "Text(MapsRoomFormat.angle($0.phi1))",
+                     "Text(MapsRoomFormat.angle($0.capitalPhi))", "Text(MapsRoomFormat.angle($0.phi2))",
+                     "Text(MapsRoomFormat.angle($0.gosDegrees, digits: 2))"] {
             XCTAssertTrue(table.contains(cell), "the table draws \(cell) as the copy writes it")
         }
         let format = try String(contentsOf: URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent()
             .deletingLastPathComponent().appendingPathComponent("macTEM/App/TableCopyFormat.swift"), encoding: .utf8)
-        XCTAssertTrue(format.contains("TableCopyText.text(titles: titles(unit: unit), rows: rows.map { cells($0, slip: slip, locale: locale) })"))
+        XCTAssertTrue(format.contains("rows.map { cells($0, slip: slip, places: places, locale: locale) }"))
     }
 }

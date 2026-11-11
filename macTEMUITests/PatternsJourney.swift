@@ -3,7 +3,7 @@
 //  The Patterns room on the generated demo dataset (docs/sem/design/ebsd-patterns-room.md §9): launch with `--demo-ebsd-fixture`, see the
 //  scan map and the live pattern pane, hover the map and read the position in the status line, pin with Space, step with the arrow keys and
 //  read the pinned position in the pattern pane's header, change the map's colormap in the Display section, then the Virtual images section: a
-//  tile on the map, the colour mix of three tiles and the tiles pane (north star F1 on the demo dataset), then the image quality and average dot product maps (F3). A screenshot at every step.
+//  tile on the map, the colour mix of three tiles and the tiles pane (north star F1 on the demo dataset), then the image quality and average dot product maps (F3), listed in the Map menu before the tiles. A screenshot at every step.
 //
 
 import XCTest
@@ -22,7 +22,11 @@ nonisolated final class PatternsJourney: Journey {
             waitFor("patterns.map", timeout: 30)
             waitFor("patterns.pattern", timeout: 30)
             XCTAssertEqual(app.windows.firstMatch.title, "Demo EBSD")
-            XCTAssertTrue(patternTitle().hasPrefix("Pattern · row 0 · col 0"), patternTitle())
+            // The pointer off the map (on the room's row), wherever the last journey left it: the pane shows the first point, not a hovered one.
+            try requireFrontmost()
+            waitFor("workspace.patterns", timeout: 10).hover()
+            let first = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.patternTitle().hasPrefix("Pattern · row 0 · col 0") }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [first], timeout: 20), .completed, patternTitle())
         }
         try step("hovering the map puts the position and its mean in the status line") {
             waitFor("patterns.map").coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4)).hover()
@@ -93,6 +97,38 @@ nonisolated final class PatternsJourney: Journey {
                 XCTAssertTrue((title.label + (title.value as? String ?? "")).contains(words), title.label)
                 waitFor("patterns.map", timeout: 60)
             }
+        }
+    }
+
+    /// Virtual images › Map lists the whole-scan maps first, the two quality maps right after the virtual BSE, then under one divider the
+    /// grid's tiles; the pop-up shows the chosen map. A walk of its own, so it does not wait on the pointer and key steps above.
+    @MainActor func testTheMapMenuListsTheQualityMapsBeforeTheTiles() throws {
+        try step("launch with the demo EBSD dataset; the pass over the scan lands") {
+            launch(["--demo-ebsd-fixture"])
+            waitFor("patterns.map", timeout: 30)
+            showInspector(waitingFor: "patterns.map.choice")
+            let landed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == true"), object: element("patterns.map.choice"))
+            XCTAssertEqual(XCTWaiter().wait(for: [landed], timeout: 60), .completed, "the pass over the scan did not land")
+        }
+        try step("the Map menu lists the quality maps right after the virtual BSE, before the tiles") {
+            try requireFrontmost()
+            let choice = waitFor("patterns.map.choice", timeout: 10)
+            XCTAssertEqual(choice.value as? String, "Mean intensity", "the pop-up does not show the chosen map")
+            choice.click()
+            let quality = app.menuItems["Image quality"].firstMatch
+            let tile = app.menuItems["Tile r0 c0"].firstMatch
+            XCTAssertTrue(quality.waitForExistence(timeout: 10), "no Image quality in the Map menu")
+            XCTAssertTrue(tile.waitForExistence(timeout: 10), "no Tile r0 c0 in the Map menu")
+            XCTAssertLessThan(quality.frame.minY, tile.frame.minY, "Image quality is listed after the tiles")
+            // The open menu is its own window, which the step's window screenshot leaves out: its own shot shows the divider and the check mark.
+            let menu = choice.menus.firstMatch
+            if menu.exists {
+                let shot = XCTAttachment(screenshot: menu.screenshot())
+                shot.name = "the Map menu, open"
+                shot.lifetime = .keepAlways
+                add(shot)
+            }
+            app.typeKey(.escape, modifierFlags: [])
         }
     }
 }

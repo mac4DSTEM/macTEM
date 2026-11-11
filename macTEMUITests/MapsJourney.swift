@@ -66,6 +66,8 @@ nonisolated final class MapsJourney: Journey {
             app.radioButtons["Grains"].firstMatch.click()
             waitFor("maps.grains.table", timeout: 30)
             XCTAssertTrue(label("maps.grains.summary").contains("grains"), label("maps.grains.summary"))
+            // The mean ECD at the grain table's decimals, two or more ("mean ECD 3.14 µm"), as the ECD column writes each grain.
+            XCTAssertNotNil(label("maps.grains.summary").range(of: #"mean ECD \d+[.,]\d{2,} "#, options: .regularExpression), label("maps.grains.summary"))
             waitFor("maps.map").coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.4)).click()
             let outlined = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.label("maps.grain.outline").contains("outlined") },
                                                      object: nil)

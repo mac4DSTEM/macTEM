@@ -140,17 +140,19 @@ nonisolated enum GrainTableFormat {
         MapsRoomFormat.fraction(slip.first { $0.grain == row.id }?.maximumSchmid ?? .nan, locale: locale)
     }
 
-    /// A grain's cells in `titles` order: its number, phase, points and neighbours as they are (never grouped), the diameter to four
-    /// significant digits, the mean orientation's Euler angles to one decimal, GOS to two, the largest Schmid factor to three.
-    static func cells(_ row: GrainRow, slip: [GrainSlip], locale: Locale = .autoupdatingCurrent) -> [String] {
-        ["\(row.id)", row.phaseName, "\(row.points)", MapsRoomFormat.number(row.diameter, locale: locale),
+    /// A grain's cells in `titles` order: its number, phase, points and neighbours as they are (never grouped), the diameter at the
+    /// table's `places` decimals (`MapsRoomFormat.lengthPlaces`), the mean orientation's Euler angles to one decimal, GOS to two, the
+    /// largest Schmid factor to three.
+    static func cells(_ row: GrainRow, slip: [GrainSlip], places: Int = 2, locale: Locale = .autoupdatingCurrent) -> [String] {
+        ["\(row.id)", row.phaseName, "\(row.points)", MapsRoomFormat.length(row.diameter, places: places, locale: locale),
          MapsRoomFormat.angle(row.euler.x, locale: locale), MapsRoomFormat.angle(row.euler.y, locale: locale),
          MapsRoomFormat.angle(row.euler.z, locale: locale), MapsRoomFormat.angle(row.gosDegrees, digits: 2, locale: locale),
          schmid(row, slip: slip, locale: locale), "\(row.neighbours)"]
     }
 
     /// ⌘C's text for `rows` (in the order given: the table's); "" for no rows.
-    static func copyText(_ rows: [GrainRow], unit: String, slip: [GrainSlip], locale: Locale = .autoupdatingCurrent) -> String {
-        TableCopyText.text(titles: titles(unit: unit), rows: rows.map { cells($0, slip: slip, locale: locale) })
+    static func copyText(_ rows: [GrainRow], unit: String, slip: [GrainSlip], places: Int = 2,
+                         locale: Locale = .autoupdatingCurrent) -> String {
+        TableCopyText.text(titles: titles(unit: unit), rows: rows.map { cells($0, slip: slip, places: places, locale: locale) })
     }
 }
