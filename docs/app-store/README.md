@@ -17,8 +17,10 @@ One plain UTF-8 file per App Store Connect field. Counts are characters (`wc -m`
 - `review-notes.txt`: 2660 / 4000; walks a reviewer through every room with Help > Open Demo Data
 
 Every claim comes from the README and the app's code as of 2026-11-10; nothing from the roadmap. Every signed build is
-sandboxed. The formats read with a file of the same name beside them (EDAX .spd and .lsd with their .spc, EDAX .up1 and
-.up2 with their .ang, Oxford .ebsp with its .ctf) get that file through the related-item grant (`RelatedFileAccess`,
-macTEM#395); open one of each in the signed store build before a submission. The texts leave out NORDIF Pattern.dat,
-which asks for its folder once (macTEM#403) and has not been opened in a signed build yet, and JEOL .asw, whose other
-files the sandboxed app is not given.
+sandboxed. The formats read with a file of the same name beside them (EDAX .spd with its .spc and .ipr, EDAX .lsd with
+its .spc and .csv, EDAX .up1 and .up2 with their .ang, Oxford .ebsp with its .ctf) get that file through the related-item
+grant (`RelatedFileAccess`, macTEM#395); open one of each in the signed store build before a submission. An EDAX map's
+.ipr is reached only under the map's own name: one named after the map's electron image (the .spd header's `fName`) is
+not, and the map then opens without a pixel size (scale 1, no unit) and without saying why (read from the code, not yet
+seen in a signed build, macTEM#102). The texts leave out NORDIF Pattern.dat, which asks for its folder once (macTEM#403)
+and has not been opened in a signed build yet, and JEOL .asw, whose other files the sandboxed app is not given.
