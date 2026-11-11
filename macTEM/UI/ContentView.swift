@@ -179,15 +179,7 @@ struct ImageMenu: View {
             Button("Open Image…") { appState.requestOpenImage() }
                 .disabled(appState.imageSession.isLoading)
             if !openItems.items.isEmpty {
-                // The list's twin for a window too narrow to keep the sidebar: the open files, the selected one checked.
-                let titles = openItems.displayTitles
-                Divider()
-                Picker("Open Files", selection: $openItems.selection) {
-                    ForEach(openItems.items) { item in
-                        Text(verbatim: titles[item.id] ?? item.url.lastPathComponent).tag(Optional(item.id))
-                    }
-                }
-                .pickerStyle(.inline)
+                // The open files are the window's tabs (one file per window): no list of them here.
                 Divider()
                 Button("Close Image") { appState.requestCloseSelected() }
             }

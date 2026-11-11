@@ -256,3 +256,15 @@ its tools were numbered before, and the two lists are never in the menu bar toge
 **Why.** macTEM#317: the EDS region tools were reachable only by the pointer.
 
 **Reverse it.** Remove the EDS block from the Workspace menu and the room condition around the Image tools.
+
+## 2026-11-10 — The Open Files list is gone: the tabs are the open files
+
+**What.** The sidebar holds the workspaces and the parts of the one in front, filling the column. The Open Files list below
+them, its fixed-height rooms list, the Image menu's Previous Image, Next Image and file picker, and the toolbar Image menu's
+file picker are removed. Several `--open` launch files open one per tab, as any other batch does. Close Image (⌘W) and Show in
+Finder stay in the File menu.
+
+**Why.** One file per window with the system's tabs (Paul, 2026-11-10: "tabs like Finder or safari"): the tab bar and the
+Window menu list the open files, so a second list in the sidebar said the same thing twice.
+
+**Reverse it.** Put `OpenItemsList` back under the rooms list in `WorkspaceSidebar` with the fixed height it had.
