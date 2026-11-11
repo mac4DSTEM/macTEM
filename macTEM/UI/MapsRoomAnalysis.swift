@@ -170,6 +170,7 @@ struct MapsGrainsTable: View {
     @State private var sortOrder = [KeyPathComparator(\GrainRow.id)]
     @State private var rows: [GrainRow] = []
     @FocusState private var tableFocused: Bool
+    @State private var personPicked = false
 
     var body: some View {
         Group {
@@ -183,8 +184,8 @@ struct MapsGrainsTable: View {
                     // The person's selection takes the keyboard for the table (#353); a ⌘-click on the map selects grains through the
                     // session and leaves the keys with the map.
                     Table(rows, selection: Binding(get: { session.selectedGrains }, set: { picked in
+                        personPicked = true
                         session.selectGrains(picked)
-                        if !picked.isEmpty { tableFocused = true }
                     }), sortOrder: $sortOrder) {
                         TableColumn("Grain", value: \.id) { Text(verbatim: "\($0.id)").monospacedDigit() }
                         TableColumn("Phase", value: \.phaseName)
@@ -203,6 +204,10 @@ struct MapsGrainsTable: View {
                     }
                     .focused($tableFocused)
                     .onCopyCommand(perform: session.selectedGrains.isEmpty ? nil : { copied(unit: unit, places: places) })
+                    .onChange(of: session.selectedGrains) { _, picked in
+                        if personPicked, !picked.isEmpty { tableFocused = true }   // as the EELS edges table (294de6a)
+                        personPicked = false
+                    }
                     .accessibilityIdentifier("maps.grains.table")
                 }
                 .padding(10)

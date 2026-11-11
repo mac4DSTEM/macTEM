@@ -60,9 +60,14 @@ struct IndexingRoom: View {
                     } trailing: {
                         IndexedPatternPane(session: session, dataset: document.dataset)
                     }
+                    // The keys live on the map and the pattern, not on the room: the tables below sit outside this focusable
+                    // container, so a click in one keeps the keyboard there (blue rows, ⌘C, ↑ ↓), as the EELS room lays out its map
+                    // tiles beside its edges table (#353).
+                    .modifier(IndexingKeyedRoom(session: session))
                 } bottom: {
                     if session.showsCompare {
                         IndexingComparePane(session: session, state: state, dataset: document.dataset)
+                            .modifier(IndexingKeyedRoom(session: session, followsThePick: false))
                     } else {
                         PaneSplit(storageKey: "indexing.tablesSplit", resizeLabel: "Resize the results and the bands", leadingName: "Results") {
                             IndexingResultsTable(session: session, dataset: document.dataset)
@@ -76,7 +81,6 @@ struct IndexingRoom: View {
                     }
                 }
                 .id(document.fileName)
-                .modifier(IndexingKeyedRoom(session: session))
                 // The map's backdrop is the Patterns room's mean map, which lands after the open; the pattern follows the Patterns
                 // room's processing (and the shared marker, in `IndexingKeyedRoom`).
                 .onChange(of: session.patterns.meanIntensities == nil, initial: true) {
@@ -137,6 +141,8 @@ struct IndexingExportFile: FileDocument {
 /// a point it does not show): here, not on the room's root, so a drag's stream of picks does not run the room's body.
 private struct IndexingKeyedRoom: ViewModifier {
     let session: IndexingSession
+    /// The upper panes' container follows the pick with the pattern; the Compare maps' own container only takes the keys.
+    var followsThePick = true
 
     func body(content: Content) -> some View {
         content
@@ -146,7 +152,7 @@ private struct IndexingKeyedRoom: ViewModifier {
                 session.step(step.direction, by: step.count)
                 return .handled
             }
-            .onChange(of: session.patterns.pinned) { session.showPattern() }
+            .onChange(of: session.patterns.pinned) { if followsThePick { session.showPattern() } }
             // ⌘C with the keys on the room (after a click on the map): the picked point's Results row, so a pick then ⌘C copies it
             // even when that row was already selected and the click on it changed nothing (#353, PaneKeys' arrangement).
             .onCopyCommand(perform: pickedRow == nil ? nil : { copiedPickedRow() })
@@ -605,14 +611,15 @@ struct IndexingResultsTable: View {
     @State private var selection: Set<IndexingResult.Row.ID> = []
     @State private var sortOrder = [KeyPathComparator(\IndexingResult.Row.id)]
     @FocusState private var tableFocused: Bool
+    @State private var personPicked = false
 
-    /// The table's selection as the person sets it: a click (or ⇧/⌘-click) writes it and takes the keyboard for the table, as AppKit's
-    /// click makes the clicked view first responder; the pick selecting its row (`SelectsThePickedRow`) writes `selection` itself and
-    /// leaves the keys with the map (#353).
+    /// The table's selection as the person sets it: a click (or ⇧/⌘-click) writes it and, once the change lands, takes the keyboard
+    /// for the table, as AppKit's click makes the clicked view first responder; the pick selecting its row (`SelectsThePickedRow`) writes
+    /// `selection` itself and leaves the keys with the map (#353).
     private var picks: Binding<Set<IndexingResult.Row.ID>> {
         Binding(get: { selection }, set: { picked in
+            personPicked = true
             selection = picked
-            if !picked.isEmpty { tableFocused = true }
         })
     }
 
@@ -662,6 +669,10 @@ struct IndexingResultsTable: View {
         .padding(8)
         .onChange(of: key, initial: true) { refresh() }
         .onChange(of: sortOrder) { rows.sort(using: sortOrder) }
+        .onChange(of: selection) { _, picked in
+            if personPicked, !picked.isEmpty { tableFocused = true }   // as the EELS edges table (294de6a)
+            personPicked = false
+        }
         .onChange(of: selection) { old, new in
             guard let id = IndexingTableFormat.pinTarget(old: old, new: new), let row = rows.first(where: { $0.id == id }),
                   row.position != session.patterns.pinned else { return }
@@ -844,14 +855,6 @@ struct IndexingBandsTable: View {
     @State private var selection: Set<IndexedBand.ID> = []
     @FocusState private var tableFocused: Bool
 
-    /// The selection as the person sets it, which takes the keyboard for the table (#353); clearing it on new bands leaves the keys.
-    private var picks: Binding<Set<IndexedBand.ID>> {
-        Binding(get: { selection }, set: { picked in
-            selection = picked
-            if !picked.isEmpty { tableFocused = true }
-        })
-    }
-
     private var header: String {
         guard let position = session.patternPosition else { return "Bands" }
         let matched = session.detectedBands.filter(\.isMatched).count
@@ -865,7 +868,7 @@ struct IndexingBandsTable: View {
                 .font(.headline).lineLimit(1)
                 .frame(height: LayoutPolicy.paneHeaderHeight)
                 .accessibilityIdentifier("indexing.bands.title")
-            Table(session.detectedBands, selection: picks) {
+            Table(session.detectedBands, selection: $selection) {
                 TableColumn(SEMColumnSpeech.header("#")) { Text(verbatim: "\($0.id)").monospacedDigit() }
                 TableColumn(SEMColumnSpeech.header("ρ px")) { Text(IndexingTableFormat.angle($0.rho, digits: 2)).monospacedDigit() }
                 TableColumn(SEMColumnSpeech.header("θ °")) { Text(IndexingTableFormat.angle($0.thetaDegrees, digits: 2)).monospacedDigit() }
@@ -880,6 +883,8 @@ struct IndexingBandsTable: View {
         }
         .padding(8)
         .onChange(of: session.detectedBands) { selection = [] }
+        // Only the person writes this selection (new bands clear it), so a selection takes the keyboard, as the EELS edges table (#353).
+        .onChange(of: selection) { _, picked in if !picked.isEmpty { tableFocused = true } }
     }
 
     /// ⌘C: the selected bands as TSV, in the table's order (strongest first), under the column titles.

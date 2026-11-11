@@ -211,10 +211,7 @@ struct SEMRoomFocus: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            // `.activate`: the root does not take the keyboard on a click of its own, so a click on a table inside it leaves the keys with
-            // the table (#353; a plain `.focusable()` took them back within the click). A press on the map hands them to the root
-            // through `SEMRoomKeys`; the default focus below covers the opening.
-            .focusable(interactions: .activate)
+            .focusable()
             .focusEffectDisabled()   // DEVIATION as `FFTKeyedRoom`'s, named there
             .focused($focus, equals: .room)
             // The DEFAULT focus: the room has the keyboard when nothing else claims it, and never takes it from a field the person is in.
