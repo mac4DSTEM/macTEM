@@ -48,9 +48,7 @@ nonisolated final class ShowOutputMenuTests: XCTestCase {
         let state = AppState(launch: LaunchOptions(arguments: []))
         XCTAssertFalse(state.processAreaHasDocument, "nothing open")
         await state.ebsd.bind(try DemoDocuments.ebsd()).value
-        for _ in 0..<6000 where state.ebsd.isBusy || state.ebsd.isComputingMean {
-            try await Task.sleep(for: .milliseconds(5))
-        }
+        try await waitUntil("the demo scan's passes to end", seconds: 30) { !state.ebsd.isBusy && !state.ebsd.isComputingMean }
         XCTAssertFalse(state.hasImage)
         for room in [WorkspaceArea.patterns, .indexing] {
             state.navigation.workspaceArea = room

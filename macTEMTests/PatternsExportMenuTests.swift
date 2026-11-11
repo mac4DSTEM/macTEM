@@ -56,7 +56,7 @@ nonisolated final class PatternsExportMenuTests: XCTestCase {
         state.navigation.workspaceArea = .patterns
         XCTAssertNil(ExportSnapshot.patternsAvailability(of: state), "no dataset yet")
         await state.ebsd.bind(try DemoDocuments.ebsd()).value
-        for _ in 0..<4000 where state.ebsd.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the map pass to end", seconds: 20) { !state.ebsd.isMapping }
         state.navigation.workspaceArea = .image
         XCTAssertNil(ExportSnapshot.patternsAvailability(of: state), "another room lists none")
         state.navigation.workspaceArea = .patterns

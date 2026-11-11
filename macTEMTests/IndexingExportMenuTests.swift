@@ -45,7 +45,7 @@ nonisolated final class IndexingExportMenuTests: XCTestCase {
         XCTAssertNil(ExportSnapshot.indexingAvailability(of: state), "no dataset yet")
         await state.ebsd.bind(try DemoDocuments.ebsd()).value
         let ebsd = state.ebsd
-        for _ in 0..<6000 where ebsd.isMapping || ebsd.isComputingMean || ebsd.isProcessing { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the demo scan's passes to end", seconds: 30) { !ebsd.isMapping && !ebsd.isComputingMean && !ebsd.isProcessing }
         state.navigation.workspaceArea = .patterns
         XCTAssertNil(ExportSnapshot.indexingAvailability(of: state), "another room lists none")
         state.navigation.workspaceArea = .indexing

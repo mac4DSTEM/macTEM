@@ -281,7 +281,7 @@ nonisolated final class EDXRoomRealDataTests: XCTestCase {
         let a = try url(Self.f1339), b = try url(Self.f1840)
         let state = AppState()
         await state.open(urls: [a, b])?.value
-        for _ in 0..<600 where state.edx.isOpening || state.edx.fileName.isEmpty { try await Task.sleep(for: .milliseconds(100)) }
+        try await waitUntil("the EDS room to open the batch's first file", seconds: 60) { !state.edx.isOpening && !state.edx.fileName.isEmpty }
         await state.edx.settled()
         say("ROOM batch: the EDS room holds '\(state.edx.fileName)', selected '\(state.openItems.selected?.url.lastPathComponent ?? "none")', edsFiles \(state.edsFiles.count)")
         XCTAssertEqual(state.edx.fileName, a.lastPathComponent, "the room holds the batch's first file")

@@ -70,7 +70,7 @@ nonisolated final class PatternProcessAdmissionTests: XCTestCase {
     @MainActor func testTheSessionRefusesProcessThatWouldNotFit() async throws {
         let session = EBSDSession()
         await session.bind(try DemoDocuments.ebsd()).value
-        for _ in 0..<6000 where session.isMapping || session.isComputingMean { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the demo scan's map and mean passes to end", seconds: 30) { !session.isMapping && !session.isComputingMean }
         session.physicalMemory = 1 << 20
         XCTAssertNil(session.processingRefusal, "the preview and Indexing stay open")
         let refusal = try XCTUnwrap(session.processAdmission)

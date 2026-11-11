@@ -16,7 +16,7 @@ import TEMSession
 nonisolated final class PatternsProcessingTests: XCTestCase {
 
     @MainActor private func waitIdle(_ session: EBSDSession) async throws {
-        for _ in 0..<6000 where session.isMapping || session.isComputingMean || session.isProcessing { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the scan's passes to end", seconds: 30) { !session.isMapping && !session.isComputingMean && !session.isProcessing }
         XCTAssertFalse(session.isComputingMean || session.isProcessing)
     }
 
@@ -59,7 +59,7 @@ nonisolated final class PatternsProcessingTests: XCTestCase {
         XCTAssertEqual(session.patternPresentation.canvas?.width, DemoDocuments.Truth.ebsdPatternSide / 2)
         XCTAssertTrue(session.patternIsProcessed)
         session.setPatternDisplay(.raw)
-        for _ in 0..<2000 where session.patternIsProcessed { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the raw pattern to show", seconds: 10) { !session.patternIsProcessed }
         XCTAssertEqual(session.patternPresentation.canvas?.width, DemoDocuments.Truth.ebsdPatternSide)
 
         await session.process().value
@@ -118,7 +118,7 @@ nonisolated final class PatternsProcessingTests: XCTestCase {
         let lambda = try XCTUnwrap(session.nlparLambda)
         XCTAssertTrue(lambda > 0, "λ \(lambda)")
         XCTAssertTrue(events.last?.contains("NLPAR λ") ?? false, events.last ?? "")
-        for _ in 0..<2000 where !session.patternIsProcessed { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the processed pattern to show", seconds: 10) { session.patternIsProcessed }
         let canvas = try XCTUnwrap(session.patternPresentation.canvas)
         let pinned = session.pinned
         let expected = EBSDBrowsing.pixels(try processed.pattern(row: pinned.row, column: pinned.column))
@@ -145,7 +145,7 @@ nonisolated final class PatternsProcessingTests: XCTestCase {
         XCTAssertEqual(processed.dataset.dataType, session.dataset?.dataType)
         for stage in [PatternPipeline.Stage.intensity, .fftFilter, .averaging] { XCTAssertEqual(session.stageState(stage), .current, stage.title) }
         XCTAssertEqual(session.stageState(.size), .notRun)
-        for _ in 0..<2000 where !session.patternIsProcessed { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the processed pattern to show", seconds: 10) { session.patternIsProcessed }
         let canvas = try XCTUnwrap(session.patternPresentation.canvas)
         let expected = EBSDBrowsing.pixels(try processed.pattern(row: session.pinned.row, column: session.pinned.column))
         XCTAssertEqual(canvas.rawRange?.lowerBound, expected.min())

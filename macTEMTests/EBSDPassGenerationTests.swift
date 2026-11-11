@@ -23,7 +23,7 @@ nonisolated final class EBSDPassGenerationTests: XCTestCase {
         session.setVirtualGrid(VirtualBSEGrid(3))
         await firstPattern.value
         XCTAssertEqual(session.patternPosition, EBSDPosition.origin, "the first pattern still lands")
-        for _ in 0..<6000 where session.isComputingMean || session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the mean and map passes to end", seconds: 30) { !session.isComputingMean && !session.isMapping }
         XCTAssertFalse(session.isComputingMean)
         XCTAssertNotNil(session.scanMeanBackground)
         XCTAssertNil(session.processingRefusal)
@@ -35,7 +35,7 @@ nonisolated final class EBSDPassGenerationTests: XCTestCase {
     @MainActor func testANewGridDuringProcessKeepsTheRun() async throws {
         let session = EBSDSession()
         await session.bind(try DemoDocuments.ebsd()).value
-        for _ in 0..<6000 where session.isComputingMean || session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the mean and map passes to end", seconds: 30) { !session.isComputingMean && !session.isMapping }
         XCTAssertTrue(session.canProcess)
         let run = session.process()
         XCTAssertTrue(session.isProcessing)

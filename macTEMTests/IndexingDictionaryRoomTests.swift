@@ -103,7 +103,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(indexing.availableLayers, [.ipfZ, .ipfX, .ipfY, .euler, .phase, .score, .osm])
 
         indexing.editDictionarySettings { $0.resolution = 10 }
-        for _ in 0..<4000 where indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the dictionary's size", seconds: 20) { indexing.dictionarySize != nil }
         let group = try XCTUnwrap(PointGroup.named("m-3m"))
         let expected = try await DictionaryIndexingPlan.sample(resolution: 10, pointGroup: group).count
         XCTAssertEqual(indexing.dictionarySize, expected)
