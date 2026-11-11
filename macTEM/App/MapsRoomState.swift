@@ -390,6 +390,24 @@ nonisolated enum MapsRoomFormat {
         return "\(texture.phaseName): \(points), upper hemisphere, 1° bins smoothed 5°, multiples of random. IPF-Z in the colour key's sector."
     }
 
+    /// What the Pole figures and ODF panes say while no texture is shown or being made: no phase to make it for, refused for the phase
+    /// picked (`failure`, the status line's reason), stopped by ⌘., or not yet asked for; the last two name the inspector's Compute
+    /// Texture (macTEM#410), which a refusal leaves off.
+    static func textureUnavailable(stopped: Bool, failure: String?, hasPhases: Bool) -> (title: String, detail: String, systemImage: String) {
+        guard hasPhases else { return ("No texture", "No indexed phase with a point group.", "circle.grid.cross") }
+        if let failure { return ("No texture", failure, "circle.grid.cross") }
+        if stopped { return ("Texture stopped", "Compute Texture in the inspector's Texture section makes it again.", "stop.circle") }
+        return ("No texture", "Compute Texture in the inspector's Texture section makes it.", "circle.grid.cross")
+    }
+
+    /// The help of the Texture section's Compute Texture: what it makes, or why it is off.
+    static func computeTextureHelp(isTexturing: Bool, failure: String?, canCompute: Bool) -> String {
+        if isTexturing { return "The texture is being computed" }
+        if let failure { return failure }
+        return canCompute ? "The phase's pole figures, IPF-Z density and ODF sections, in the Pole figures and ODF tabs"
+            : "The Pole figures and ODF tabs show this phase's texture"
+    }
+
     /// The grain table as CSV: one header line, one line per grain; lengths in the scan unit, angles in degrees.
     static func grainsCSV(_ analysis: MapAnalysis, slip: [GrainSlip], loadDirection: SampleDirection) -> String {
         let unit = analysis.scanUnit

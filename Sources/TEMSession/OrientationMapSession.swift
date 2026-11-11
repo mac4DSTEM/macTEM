@@ -164,6 +164,11 @@ package final class OrientationMapSession {
     package private(set) var texture: MapTexture?
     package private(set) var texturePhaseID: Int?
     package private(set) var isTexturing = false
+    /// Whether ⌘. stopped the texture before it landed: the Pole figures and ODF panes say so until it is made again (macTEM#410).
+    package private(set) var textureStopped = false
+    /// Why the texture of `texturePhaseID` could not be made, the status line's reason, until a texture is asked for again or the map
+    /// changes: the panes say it, and Compute Texture stays off, since the same map and phase refuse the same way (macTEM#410).
+    package private(set) var textureFailure: String?
 
     /// The picked point: where the marker stands and what the orientation or pattern pane shows. The pointer over the map picks nothing
     /// (D-SEM-110).
@@ -349,7 +354,8 @@ package final class OrientationMapSession {
 
     /// ⌘.: ends the open, Segment and the texture in flight; a layer's picture still lands. Segment stops at its next row or grain and
     /// stays busy until its pass has returned (`segmentEnded`), so a second one never runs beside it; what it made is dropped. The
-    /// texture's own loops run on to their end, but what they make is dropped; the texture pane asks again the next time it appears.
+    /// texture's own loops run on to their end, but what they make is dropped; the session remembers it was stopped (`textureStopped`),
+    /// and Compute Texture or the texture pane's next appearance asks again.
     package func stop() {
         if isOpening { openTask?.cancel(); isOpening = false; onEvent?("Stopped opening") }
         if isSegmenting, let task = segmentTask, !task.isCancelled {
@@ -360,6 +366,7 @@ package final class OrientationMapSession {
         if isTexturing {
             textureTask?.cancel()
             isTexturing = false
+            textureStopped = true
             onEvent?("Stopped the texture")
         }
     }
@@ -587,7 +594,7 @@ package final class OrientationMapSession {
         segmentTask?.cancel(); textureTask?.cancel()
         analysis = nil; slip = []; setSelectedGrain(nil)
         grainBoundaryEdges = []; phaseBoundaryEdges = []
-        texture = nil; texturePhaseID = nil; isTexturing = false
+        texture = nil; texturePhaseID = nil; isTexturing = false; textureStopped = false; textureFailure = nil
     }
 
     nonisolated private static func degrees(_ v: Double) -> String { v.formatted(.number.grouping(.never).precision(.fractionLength(0...2))) }
@@ -699,6 +706,13 @@ package final class OrientationMapSession {
         map?.phasesInData.entries.filter { $0.id != PhaseList.notIndexedID && $0.phase.pointGroup != nil } ?? []
     }
 
+    /// Whether Compute Texture can make the texture: a map with a textured phase, no texture shown or being made, and none refused for
+    /// the phase picked (`textureFailure`). In practice that is after a stop: a texture pane that appears asks for the texture itself,
+    /// after a Source switch too, since the room's panes are rebuilt on `Document.ID`.
+    package var canComputeTexture: Bool {
+        document != nil && !texturePhases.isEmpty && texture == nil && !isTexturing && textureFailure == nil
+    }
+
     /// Makes the texture of phase `phaseID` (the first textured phase when nil) off the main actor, unless it is the one shown or being made.
     @discardableResult
     package func showTexture(phaseID: Int? = nil) -> Task<Void, Never> {
@@ -707,6 +721,8 @@ package final class OrientationMapSession {
         texturePhaseID = id
         texture = nil
         isTexturing = true
+        textureStopped = false
+        textureFailure = nil
         textureTask?.cancel()
         let map = document.map
         let task = Task { [weak self] in
@@ -715,13 +731,16 @@ package final class OrientationMapSession {
             do {
                 made = try await MapTexture.computeAsync(map, phaseID: id)
             } catch {
-                failure = ": " + ((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+                failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
             guard let self, !Task.isCancelled, self.texturePhaseID == id, self.document?.fileName == document.fileName else { return }
             self.texture = made
             self.isTexturing = false
             // The texture's own sentence (a phase without a point group, orientations that cannot be read) says why.
-            if made == nil { self.onEvent?("No texture for this phase" + failure) }
+            if made == nil {
+                self.textureFailure = failure
+                self.onEvent?("No texture for this phase" + (failure.isEmpty ? "" : ": " + failure))
+            }
         }
         textureTask = task
         return task
