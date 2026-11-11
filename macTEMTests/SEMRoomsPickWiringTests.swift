@@ -82,7 +82,8 @@ nonisolated final class SEMRoomsPickWiringTests: XCTestCase {
     func testEachRoomsRootTakesTheKeyboardOnAPressOnItsMap() throws {
         for path in ["macTEM/UI/PatternsRoom.swift", "macTEM/UI/IndexingRoom.swift", "macTEM/UI/MapsRoom.swift"] {
             let text = try code(path)
-            XCTAssertTrue(text.contains(".modifier(SEMRoomFocus()) .onKeyPress(phases: .down)"), path)
+            XCTAssertTrue(text.contains(".modifier(SEMRoomFocus()) .onKeyPress(phases: .down)")
+                          || text.contains(".modifier(SEMRoomFocus(copy: pickedRow == nil ? nil : { copiedPickedRow() })) .onKeyPress(phases: .down)"), path)
             XCTAssertFalse(text.contains(".focusable()"), "\(path) makes its own focusable root")
         }
         let pick = try code("macTEM/UI/SEMMapPick.swift")

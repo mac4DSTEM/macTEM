@@ -146,16 +146,15 @@ private struct IndexingKeyedRoom: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .modifier(SEMRoomFocus())
+            // ⌘C with the keys on the map (after a click on it): the picked point's Results row, so a pick then ⌘C copies it even when
+            // that row was already selected and the click on it changed nothing (#353, PaneKeys' arrangement).
+            .modifier(SEMRoomFocus(copy: pickedRow == nil ? nil : { copiedPickedRow() }))
             .onKeyPress(phases: .down) { press in
                 guard let step = PatternsKeys.step(key: press.key, modifiers: press.modifiers) else { return .ignored }
                 session.step(step.direction, by: step.count)
                 return .handled
             }
             .onChange(of: session.patterns.pinned) { if followsThePick { session.showPattern() } }
-            // ⌘C with the keys on the room (after a click on the map): the picked point's Results row, so a pick then ⌘C copies it
-            // even when that row was already selected and the click on it changed nothing (#353, PaneKeys' arrangement).
-            .onCopyCommand(perform: pickedRow == nil ? nil : { copiedPickedRow() })
     }
 
     private var pickedRow: IndexingResult.Row? {

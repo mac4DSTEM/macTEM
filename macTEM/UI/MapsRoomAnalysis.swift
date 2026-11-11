@@ -205,7 +205,9 @@ struct MapsGrainsTable: View {
                     .focused($tableFocused)
                     .onCopyCommand(perform: session.selectedGrains.isEmpty ? nil : { copied(unit: unit, places: places) })
                     .onChange(of: session.selectedGrains) { _, picked in
-                        if personPicked, !picked.isEmpty { tableFocused = true }   // as the EELS edges table (294de6a)
+                        // As the EELS edges table (294de6a), after the pick a selected grain moves has run its course (`selectGrain` pins
+                        // the grain, and the panes follow): set in this turn, the keys went back to the map (drive, 2026-11-11).
+                        if personPicked, !picked.isEmpty { Task { @MainActor in tableFocused = true } }
                         personPicked = false
                     }
                     .accessibilityIdentifier("maps.grains.table")

@@ -38,12 +38,15 @@ nonisolated final class TableFocusTests: XCTestCase {
         XCTAssertTrue(indexing.contains("SelectsThePickedRow(patterns: session.patterns, columns: dataset.scanColumns, rows: rows, selection: $selection)"))
         let maps = try code("macTEM/UI/MapsRoomAnalysis.swift")
         XCTAssertTrue(maps.contains("personPicked = true session.selectGrains(picked)"))
-        XCTAssertTrue(maps.contains("if personPicked, !picked.isEmpty { tableFocused = true }"))
+        XCTAssertTrue(maps.contains("if personPicked, !picked.isEmpty { Task { @MainActor in tableFocused = true } }"))
     }
 
     /// With the keys on the map, ⌘C copies the picked point's Results row.
     func testTheKeysContainerCopiesThePickedRow() throws {
         let indexing = try code("macTEM/UI/IndexingRoom.swift")
-        XCTAssertTrue(indexing.contains(".onCopyCommand(perform: pickedRow == nil ? nil : { copiedPickedRow() })"))
+        XCTAssertTrue(indexing.contains(".modifier(SEMRoomFocus(copy: pickedRow == nil ? nil : { copiedPickedRow() }))"))
+        let pick = try code("macTEM/UI/SEMMapPick.swift")
+        XCTAssertTrue(pick.contains("named there .onCopyCommand(perform: copy) .focused($focus, equals: .room)"),
+                      "the copy on the focusable view itself, as ImageKeyedRoom")
     }
 }
