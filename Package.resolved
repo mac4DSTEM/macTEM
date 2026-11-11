@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/MacEMUI",
       "state" : {
-        "branch" : "claude/project-thread-ruumib",
-        "revision" : "f7c89b996a98d43c86b6e33e81fcf156183c69c5"
+        "revision" : "b8d3c7c7dc868ab5c306dc427700553c69beaf6a",
+        "version" : "0.6.0"
       }
     },
     {

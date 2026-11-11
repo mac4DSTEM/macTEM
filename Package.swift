@@ -18,8 +18,7 @@ let package = Package(
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", from: "0.13.2"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
-        // The agent door (ShellAgentDoor) is on MacEMUI's branch until it is released: delete at MacEMUI 0.6.0 (back to `from:`).
-        .package(url: "https://github.com/mac4DSTEM/MacEMUI", branch: "claude/project-thread-ruumib"),
+        .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.6.0"),
     ],
     targets: [
         .target(
