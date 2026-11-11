@@ -16,8 +16,13 @@
 //  second arm following the pointer until then. In every tool a press within `handleRadius` of a mark's end drags that
 //  end by the drag (never to the pointer); a drag under `minimumDrag` makes and moves nothing. A gesture's live points
 //  are this view's `@GestureState` (a gesture value never goes through `@Observable`, and a cancelled drag leaves
-//  nothing); a mark is written to the owner once, on release. Escape or a tool switch drops an unfinished angle; Escape,
-//  Delete and ⌘C are the room's keys (`ImageKeyedRoom`, App/PaneKeys.swift), not this overlay's: it holds no focus.
+//  nothing); a mark is written to the owner once, on release. Escape or a tool switch drops an unfinished angle (so do the
+//  VoiceOver twin's Clear points and its Set point that closes it); a frame step keeps it. Escape, Delete and ⌘C are the room's
+//  keys (`ImageKeyedRoom`, App/PaneKeys.swift), not this overlay's: it holds no focus.
+//
+//  THE ONE WAY A MARK IS MADE (`MarkMaking`): the release of a stroke and the click that closes an angle end in its two calls, and
+//  so does the VoiceOver twin's Set point (`MarkCursorActions`, UI/MarkCursor.swift), so a mark set from there is the one a drag
+//  between the same points makes.
 //
 
 import ShellMetal
@@ -105,8 +110,14 @@ struct ImageMarksOverlay: View {
                 }
                 .pointerStyle(tool == .pan ? .grabIdle : .rectSelection)
         }
-        .accessibilityHidden(true)   // the Measure section lists every mark and its value, and removes and copies them
+        // The Measure section lists every mark and its value, and removes and copies them; the gestures' twin is an element of its
+        // own (`MarkCursorAccessibility`).
+        .accessibilityHidden(true)
         .onChange(of: tool) { angleArm = nil }
+        // The second arm's preview follows the pointer only while an arm waits. An arm that goes another way than the closing click
+        // (Escape, a tool switch, the twin's Set point or Clear points) leaves no old pointer place for the next arm, which the
+        // twin's Set point can make without the pointer: that arm shows no second arm until the pointer moves over the pane.
+        .onChange(of: angleArm) { if angleArm == nil, hover != nil { hover = nil } }
     }
 
     // MARK: Hit testing
@@ -163,20 +174,17 @@ struct ImageMarksOverlay: View {
                         SessionPanels.markRefused(nil, .moved, appState: appState)
                     }
                 } else if let arm = angleArm {
-                    SessionPanels.markRefused(
-                        measurements.add(ImageMark(kind: .angle, points: [arm.a, arm.vertex, here]), on: image),
-                        .added, appState: appState)
+                    SessionPanels.markRefused(MarkMaking.angle(arm, third: here, on: image, in: measurements),
+                                              .added, appState: appState)
                     angleArm = nil
                     hover = nil
                 } else if let kind = tool.markKind, !isClick(value) {
                     let start = geometry.clamped(geometry.imagePoint(atPanePoint: value.startLocation))
-                    if kind == .angle {
-                        angleArm = AngleArm(a: start, vertex: here)
-                        hover = value.location
-                    } else {
-                        SessionPanels.markRefused(measurements.add(ImageMark(kind: kind, points: [start, here]), on: image),
-                                                  .added, appState: appState)
-                    }
+                    // A Distance or a Profile is added; an Angle's first arm is held in `angleArm`, the second arm following
+                    // the pointer from here.
+                    SessionPanels.markRefused(MarkMaking.stroke(kind, from: start, to: here, arm: &angleArm, on: image, in: measurements),
+                                              .added, appState: appState)
+                    if kind == .angle { hover = value.location }
                 }
             }
     }
@@ -290,5 +298,28 @@ nonisolated struct MarkHitShape: Shape {
         var path = Path()
         for p in points { path.addEllipse(in: CGRect(x: p.x - radius, y: p.y - radius, width: 2 * radius, height: 2 * radius)) }
         return path
+    }
+}
+
+/// Where a mark's points become a mark: the drag's release, the click that closes an angle, and the cursor's Set point
+/// (`MarkCursorActions`) all end in these two calls, so the points reach the owner in one order whoever placed them.
+@MainActor
+enum MarkMaking {
+    /// A stroke from `start` to `end` in the tool that draws `kind`: a Distance or a Profile is added through the owner (which
+    /// clamps it, records it and selects it); an Angle's first arm, A to the vertex, is held in `arm`, waiting for C. The owner's
+    /// refusal of an add, or nil.
+    static func stroke(_ kind: ImageMark.Kind, from start: ImagePoint, to end: ImagePoint, arm: inout AngleArm?,
+                       on image: CalibratedImage, in measurements: ImageMeasurements) -> SessionLineage.Refusal? {
+        if kind == .angle {
+            arm = AngleArm(a: start, vertex: end)
+            return nil
+        }
+        return measurements.add(ImageMark(kind: kind, points: [start, end]), on: image)
+    }
+
+    /// The held angle closed at `c`: A, the vertex, C, added through the owner. The owner's refusal, or nil.
+    static func angle(_ arm: AngleArm, third c: ImagePoint, on image: CalibratedImage,
+                      in measurements: ImageMeasurements) -> SessionLineage.Refusal? {
+        measurements.add(ImageMark(kind: .angle, points: [arm.a, arm.vertex, c]), on: image)
     }
 }

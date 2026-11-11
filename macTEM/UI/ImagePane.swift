@@ -36,6 +36,9 @@ struct ImagePane: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// An angle whose first arm is drawn: the marks overlay's gesture state, held here so Escape (the room's key) can drop it.
     @State private var angleArm: AngleArm?
+    /// The VoiceOver twin of the marks' gestures (`MarkCursorAccessibility`, UI/MarkCursor.swift): the cursor and the point Set
+    /// point holds. Drawn nowhere.
+    @State private var markCursor = MarkCursorState()
 
     init(image: CalibratedImage, canvas: CanvasPixels, item: OpenItem) {
         self.image = image
@@ -73,8 +76,15 @@ struct ImagePane: View {
         }
         .padding(8)
         .clipped()
-        // The one keyed container of the room: Delete, ⌘C, Escape and Edit > Copy / Delete (`PaneKeys.swift`).
-        .modifier(ImageKeyedRoom(image: image, measurements: item.measurements, angleArm: $angleArm))
+        // The one keyed container of the room: Delete, ⌘C, Escape and Edit > Copy / Delete (`PaneKeys.swift`). Escape drops an
+        // unfinished angle and a point the VoiceOver twin holds.
+        .modifier(ImageKeyedRoom(image: image, measurements: item.measurements, angleArm: $angleArm, markCursor: $markCursor))
+        // A lone point the twin holds belongs to the picture and the tool it was set with: another frame, a read of other pixels or
+        // another tool drops it (`MarkCursorState.adopt`), so it never lands on another picture. An angle's arm keeps its rules.
+        .onChange(of: markCursorScope, initial: true) { adoptMarkCursorScope() }
+        // An arm drawn or gone ends what a lone held point began (in practice the pointer drags an arm while the twin holds an A),
+        // so the point goes (`MarkCursorState.armChanged`).
+        .onChange(of: angleArm) { if markCursor.first != nil { markCursor.armChanged() } }
         // The COMMITTED values only (`zoom`, `offset`); the live gesture fields change on every sample and stay here.
         .onChange(of: zp.zoom) { item.viewport = ImageViewport(zoom: zp.zoom, offset: zp.offset) }
         .onChange(of: zp.offset) { item.viewport = ImageViewport(zoom: zp.zoom, offset: zp.offset) }
@@ -112,6 +122,23 @@ struct ImagePane: View {
                 .accessibilityLabel(spoken)
                 .accessibilityIdentifier("image.zoomBadge")
         }
+    }
+
+    /// The picture the cursor's points are set on: its size and its pixels' version.
+    private var markCursorBasis: MarkCursorBasis {
+        MarkCursorBasis(width: image.width, height: image.height, version: canvas.contentVersion)
+    }
+
+    /// The picture and the tool's kind of mark the cursor's points belong to.
+    private var markCursorScope: MarkCursorScope {
+        MarkCursorScope(basis: markCursorBasis, kind: appState.imageRoomTools.tool.markKind)
+    }
+
+    /// The picture or the tool changed (or the pane appeared): a point held for another is dropped, written only when it was.
+    private func adoptMarkCursorScope() {
+        var cursor = markCursor
+        cursor.adopt(markCursorScope)
+        if cursor != markCursor { markCursor = cursor }
     }
 
     /// ZoomPan's own reset (its double-click), animated unless Reduce Motion is on.
@@ -228,6 +255,14 @@ struct ImagePane: View {
                 .simultaneousGesture(TapGesture(count: 2).onEnded { resetZoom() },
                                      isEnabled: appState.imageRoomTools.tool != .pan)
             }
+            // The gestures' VoiceOver twin while a measuring tool is chosen: named actions on an element of their own at the cursor,
+            // which takes no hits and draws nothing.
+            .modifier(MarkCursorAccessibility(
+                image: image, measurements: item.measurements, kind: appState.imageRoomTools.tool.markKind, basis: markCursorBasis,
+                geometry: MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box,
+                                                                        zoom: zp.drawZoom, offset: zp.effectiveOffset),
+                                       imageWidth: canvas.width, imageHeight: canvas.height),
+                state: $markCursor, angleArm: $angleArm))
             .clipped()
             .contentShape(Rectangle())
             .border(Color.white.opacity(0.08))
@@ -256,7 +291,8 @@ struct ImagePane: View {
         .accessibilityLabel("Image")
         // The pixel and its value under the pointer, as the status line reads them; else the picture's size. This pane is the readout's one writer.
         .modifier(ReadoutAccessibilityValue(readout: { appState.imageRoomTools.readout }, fallback: "\(image.width) by \(image.height) pixels"))
-        .accessibilityHint(ZoomPan.accessibilityHint)
+        // While a tool is chosen the hint also names the element whose actions set the points (the twin).
+        .accessibilityHint(MarkCursor.paneHint(ZoomPan.accessibilityHint, kind: appState.imageRoomTools.tool.markKind))
         .zoomPanAccessibilityActions(zoomModel, box: box)
     }
 }

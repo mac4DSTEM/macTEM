@@ -9,6 +9,9 @@
 //  h5py is tools/parity/sidecar-parity. Planted on a 40 × 24 image with anisotropic axes (0.5 nm a column, 2 nm a row) so an x
 //  taken for a y shows. A test passes its own clock; every `Red under:` names the mutation of ImageMeasurements.swift (or
 //  of SessionMarks.swift) the test was broken by.
+//  The last section is the marks' VoiceOver twin (`MarkCursorActions`, macTEM#262), driven through the calls its named actions
+//  make: a mark set with it is the one the drag makes between the same points, number for number. Red before that change: there
+//  was no route but the pointer.
 //
 
 import ImagoCore
@@ -16,6 +19,7 @@ import XCTest
 import Foundation
 import TEMCore
 import TEMSession
+@testable import macTEM
 
 /// A clock the owner reads and a test sets.
 nonisolated final class SessionTestClock: @unchecked Sendable {
@@ -836,5 +840,221 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
             XCTAssertNotEqual(back.id, mark.id)
         }
         XCTAssertEqual(ImageMeasurements.maximumWidth, 25)
+    }
+
+    // MARK: The VoiceOver twin (macTEM#262)
+
+    /// The planted picture as the twin's state names it (its version stands in for the canvas's).
+    private static let picture = MarkCursorBasis(width: 40, height: 24, version: 1)
+
+    /// The cursor stepped `dx` columns and `dy` rows by the named moves (one pixel a step on the planted image: 1 % of 40 or 24 is
+    /// under one).
+    @MainActor private func walk(_ actions: MarkCursorActions, _ state: inout MarkCursorState, dx: Int, dy: Int) {
+        for _ in 0..<abs(dx) { actions.move(dx < 0 ? .left : .right, &state) }
+        for _ in 0..<abs(dy) { actions.move(dy < 0 ? .up : .down, &state) }
+    }
+
+    /// Set point at two places makes the Distance (and the Profile) a drag between the same two points makes, through the drag's
+    /// own call (`MarkMaking.stroke`, the release): the same kind, points and width, the same value on screen, the same profile and
+    /// the same node, number for number. The value says which point is next, where the cursor is and the pixel's raw value, as the
+    /// status line reads it (the planted pixels: 32 at x 19, y 11; 71 at x 25, y 14). Red under: Set point adding a mark of its own
+    /// (its points swapped, a profile's width of its own); the point taken at the pixel's corner; the mark made on the first Set
+    /// point; the held point kept after the mark (the next mark would start from it); the value without the readout.
+    @MainActor func testTwoSetPointsMakeTheMarkADragBetweenTheSamePointsMakes() throws {
+        let image = Self.image()
+        for kind in [ImageMark.Kind.distance, .profile] {
+            let clock = SessionTestClock()
+            let keyed = owner(clock), dragged = owner(clock)
+            let actions = MarkCursorActions(image: image, measurements: keyed, kind: kind, basis: Self.picture)
+            var state = MarkCursorState()
+            var arm: AngleArm?
+            XCTAssertEqual(actions.spokenValue(state, arm: arm), "Point 1 of 2, x 19, y 11 \u{00B7} 32", "it starts at the centre")
+            walk(actions, &state, dx: -4, dy: -3)
+            XCTAssertEqual(actions.setPoint(&state, arm: &arm), .held(point: 1, of: 2))
+            XCTAssertTrue(keyed.marks.isEmpty, "one point is no mark")
+            walk(actions, &state, dx: 10, dy: 6)
+            XCTAssertEqual(actions.spokenValue(state, arm: arm), "Point 2 of 2, x 25, y 14 \u{00B7} 71")
+            XCTAssertEqual(actions.setPoint(&state, arm: &arm), .added)
+            XCTAssertNil(arm)
+            XCTAssertEqual(actions.spokenValue(state, arm: arm), "Point 1 of 2, x 25, y 14 \u{00B7} 71", "the next mark starts afresh")
+
+            var noArm: AngleArm?
+            let refusal = MarkMaking.stroke(kind, from: ImagePoint(x: 15, y: 8), to: ImagePoint(x: 25, y: 14), arm: &noArm,
+                                            on: image, in: dragged)
+            XCTAssertNil(refusal)
+            XCTAssertNil(noArm)
+            XCTAssertEqual(keyed.marks.count, 1)
+            let mark = try XCTUnwrap(keyed.marks.first), drawn = try XCTUnwrap(dragged.marks.first)
+            XCTAssertEqual(mark.kind, kind)
+            XCTAssertEqual(mark.points, [ImagePoint(x: 15, y: 8), ImagePoint(x: 25, y: 14)])
+            XCTAssertEqual(mark.points, drawn.points)
+            XCTAssertEqual(mark.width, drawn.width)
+            XCTAssertEqual(MarkFormat.value(mark, x: image.x, y: image.y), MarkFormat.value(drawn, x: image.x, y: image.y))
+            XCTAssertEqual(keyed.profiles[mark.id], dragged.profiles[drawn.id])
+            XCTAssertEqual(try XCTUnwrap(node(mark.id, in: keyed)), try XCTUnwrap(node(drawn.id, in: dragged)))
+            XCTAssertEqual(keyed.selection, mark.id, "selected, as a drawn mark is")
+            XCTAssertEqual(actions.announcement(.added), "Added " + MarkFormat.spoken(mark, x: image.x, y: image.y))
+        }
+    }
+
+    /// An Angle's three points come from the pointer's own calls: after two Set points the room holds the very `AngleArm` the first
+    /// drag leaves (A, then the vertex), and the third closes it as the click does, so the angle and its node are the drag's. Set
+    /// point also closes an arm the pointer drew, and the next angle starts afresh even when a point was held before that arm. Red
+    /// under: the points in another order (the vertex first or last); the arm kept by the twin instead of the room's (Escape could
+    /// not drop it, a click could not close it); the arm left after the angle is made; a point held before the pointer's arm kept
+    /// after it closes (the next Set point would make an arm from it).
+    @MainActor func testThreeSetPointsMakeTheAngleTheDragAndTheClickMake() throws {
+        let image = Self.image(), clock = SessionTestClock()
+        let keyed = owner(clock), dragged = owner(clock)
+        let actions = MarkCursorActions(image: image, measurements: keyed, kind: .angle, basis: Self.picture)
+        let a = ImagePoint(x: 12, y: 4), vertex = ImagePoint(x: 19, y: 11), c = ImagePoint(x: 30, y: 18)
+        var state = MarkCursorState()
+        var arm: AngleArm?
+        walk(actions, &state, dx: -7, dy: -7)
+        XCTAssertEqual(actions.setPoint(&state, arm: &arm), .held(point: 1, of: 3))
+        actions.placeAtCentre(&state)
+        XCTAssertEqual(actions.spokenValue(state, arm: arm), "Point 2 of 3, x 19, y 11 \u{00B7} 32")
+        XCTAssertEqual(actions.setPoint(&state, arm: &arm), .held(point: 2, of: 3))
+        var drawnArm: AngleArm?
+        let armed = MarkMaking.stroke(.angle, from: a, to: vertex, arm: &drawnArm, on: image, in: dragged)
+        XCTAssertNil(armed)
+        XCTAssertEqual(arm, AngleArm(a: a, vertex: vertex))
+        XCTAssertEqual(arm, drawnArm, "the first drag's arm")
+        XCTAssertTrue(keyed.marks.isEmpty, "an arm is no mark")
+        walk(actions, &state, dx: 11, dy: 7)
+        XCTAssertEqual(actions.spokenValue(state, arm: arm), "Point 3 of 3, x 30, y 18 \u{00B7} 12")
+        XCTAssertEqual(actions.setPoint(&state, arm: &arm), .added)
+        XCTAssertNil(arm, "the angle is made, and the arm goes as after the click")
+        let closing = try XCTUnwrap(drawnArm)
+        XCTAssertNil(MarkMaking.angle(closing, third: c, on: image, in: dragged))
+        let mark = try XCTUnwrap(keyed.marks.first), drawn = try XCTUnwrap(dragged.marks.first)
+        XCTAssertEqual(mark.kind, .angle)
+        XCTAssertEqual(mark.points, [a, vertex, c])
+        XCTAssertEqual(mark.points, drawn.points)
+        XCTAssertEqual(MarkFormat.value(mark, x: image.x, y: image.y), MarkFormat.value(drawn, x: image.x, y: image.y))
+        XCTAssertEqual(try XCTUnwrap(node(mark.id, in: keyed)), try XCTUnwrap(node(drawn.id, in: dragged)))
+
+        // An arm the pointer drew while the twin held a point: the twin's Set point is its click, and the held point goes with it.
+        let mixed = owner(clock)
+        let finishing = MarkCursorActions(image: image, measurements: mixed, kind: .angle, basis: Self.picture)
+        var cursor = MarkCursorState()
+        var pointerArm: AngleArm?
+        XCTAssertEqual(finishing.setPoint(&cursor, arm: &pointerArm), .held(point: 1, of: 3), "a point held before the pointer's arm")
+        pointerArm = AngleArm(a: a, vertex: vertex)
+        cursor.position = MarkCursor.Pixel(x: 30, y: 18)
+        XCTAssertEqual(finishing.pointsSet(cursor, arm: pointerArm), 2, "the arm's two points, whoever drew them")
+        XCTAssertEqual(finishing.setPoint(&cursor, arm: &pointerArm), .added)
+        XCTAssertNil(pointerArm)
+        XCTAssertNil(cursor.first, "the point held before the arm does not start the next angle")
+        XCTAssertEqual(finishing.pointsSet(cursor, arm: pointerArm), 0)
+        XCTAssertEqual(mixed.marks.count, 1)
+        XCTAssertEqual(mixed.marks.first?.points, [a, vertex, c])
+
+        // The pane's rule when the pointer draws an arm while a point is held (or the arm goes): the held point goes then too.
+        var held = MarkCursorState()
+        held.first = a
+        held.armChanged()
+        XCTAssertNil(held.first)
+    }
+
+    /// Set point on the point set last sets nothing (a mark of no length is no measurement, as a click is not a drag) and says so;
+    /// the held point stays. Red under: a Distance of no length added; the held point dropped.
+    @MainActor func testSetPointOnTheLastPointSetsNothing() {
+        let image = Self.image(), clock = SessionTestClock()
+        let o = owner(clock)
+        let actions = MarkCursorActions(image: image, measurements: o, kind: .distance, basis: Self.picture)
+        var state = MarkCursorState()
+        var arm: AngleArm?
+        XCTAssertEqual(actions.setPoint(&state, arm: &arm), .held(point: 1, of: 2))
+        XCTAssertEqual(actions.setPoint(&state, arm: &arm), .samePlace)
+        XCTAssertNotNil(actions.announcement(.samePlace))
+        XCTAssertTrue(o.marks.isEmpty)
+        XCTAssertEqual(state.first, ImagePoint(x: 19, y: 11), "the first point is still held")
+        actions.move(.right, &state)
+        XCTAssertEqual(actions.setPoint(&state, arm: &arm), .added)
+        XCTAssertEqual(o.marks.first?.points, [ImagePoint(x: 19, y: 11), ImagePoint(x: 20, y: 11)])
+    }
+
+    /// Clear points drops every point set, the held one and an Angle's arm whoever drew it, as Escape does, and adds nothing; the
+    /// next Set point is a first point again. Red under: the held point kept (the next mark would start from the abandoned point);
+    /// the arm kept.
+    @MainActor func testClearPointsDropsThePointsSet() {
+        let image = Self.image(), clock = SessionTestClock()
+        let o = owner(clock)
+        let distance = MarkCursorActions(image: image, measurements: o, kind: .distance, basis: Self.picture)
+        var state = MarkCursorState()
+        var arm: AngleArm?
+        XCTAssertEqual(distance.setPoint(&state, arm: &arm), .held(point: 1, of: 2))
+        XCTAssertEqual(distance.pointsSet(state, arm: arm), 1)
+        distance.clearPoints(&state, arm: &arm)
+        XCTAssertEqual(distance.pointsSet(state, arm: arm), 0)
+        distance.move(.right, &state)
+        XCTAssertEqual(distance.setPoint(&state, arm: &arm), .held(point: 1, of: 2), "the next Set point is a first point")
+        XCTAssertTrue(o.marks.isEmpty)
+
+        let angle = MarkCursorActions(image: image, measurements: o, kind: .angle, basis: Self.picture)
+        var pointerArm: AngleArm? = AngleArm(a: ImagePoint(x: 2, y: 2), vertex: ImagePoint(x: 9, y: 9))
+        var angleState = MarkCursorState()
+        XCTAssertEqual(angle.pointsSet(angleState, arm: pointerArm), 2)
+        angle.clearPoints(&angleState, arm: &pointerArm)
+        XCTAssertNil(pointerArm, "the pointer's arm goes too, as Escape drops it")
+        XCTAssertEqual(angle.spokenValue(angleState, arm: pointerArm), "Point 1 of 3, x 19, y 11 \u{00B7} 32")
+        XCTAssertTrue(o.marks.isEmpty)
+    }
+
+    /// A lone held point belongs to the picture and the tool it was set with: another tool, or another picture (the next frame of a
+    /// stack, a read of other pixels, another size), drops it, so no point lands on another picture (another file is another pane,
+    /// with a state of its own). An Angle's arm is the room's, whoever set it, and keeps the pointer's rules: the next frame keeps
+    /// it, and its third point closes it there, as a click did before the twin. Red under: `adopt` dropping nothing; Set point
+    /// closing a mark with a point held for another tool or picture; the picture compared without its version (the next frame of a
+    /// stack kept the point); the arm dropped by a frame step (the pointer's angle would go with it).
+    @MainActor func testHeldPointsAreDroppedWhenThePictureOrTheToolChanges() {
+        let image = Self.image(), clock = SessionTestClock()
+        let o = owner(clock)
+        let next = MarkCursorBasis(width: 40, height: 24, version: 2)
+        var state = MarkCursorState()
+        var arm: AngleArm?
+        let distance = MarkCursorActions(image: image, measurements: o, kind: .distance, basis: Self.picture)
+        XCTAssertEqual(distance.setPoint(&state, arm: &arm), .held(point: 1, of: 2))
+        distance.move(.right, &state)
+
+        // Another tool: the Profile starts from its own first point, and nothing is made from the Distance's.
+        let profile = MarkCursorActions(image: image, measurements: o, kind: .profile, basis: Self.picture)
+        XCTAssertEqual(profile.spokenValue(state, arm: arm), "Point 1 of 2, x 20, y 11 \u{00B7} 69", "the held point is not the Profile's")
+        XCTAssertEqual(profile.setPoint(&state, arm: &arm), .held(point: 1, of: 2))
+        XCTAssertTrue(o.marks.isEmpty)
+        profile.move(.down, &state)
+
+        // The next frame, of the same size: the same.
+        let nextFrame = MarkCursorActions(image: image, measurements: o, kind: .profile, basis: next)
+        XCTAssertEqual(nextFrame.setPoint(&state, arm: &arm), .held(point: 1, of: 2))
+        XCTAssertTrue(o.marks.isEmpty)
+        XCTAssertEqual(state.first, ImagePoint(x: 20, y: 12), "the old point went; the cursor stayed, and holds the new one")
+
+        // The pane's call when the picture or the tool changes: another size, and Pan, drop it too.
+        state.adopt(MarkCursorScope(basis: MarkCursorBasis(width: 20, height: 24, version: 2), kind: .profile))
+        XCTAssertNil(state.first, "another size drops the held point")
+        XCTAssertEqual(nextFrame.setPoint(&state, arm: &arm), .held(point: 1, of: 2))
+        XCTAssertNotNil(state.first)
+        state.adopt(MarkCursorScope(basis: next, kind: nil))
+        XCTAssertNil(state.first, "Pan drops the held point")
+        XCTAssertTrue(o.marks.isEmpty, "no mark was made from a point of another picture or tool")
+
+        // An Angle's arm keeps the pointer's rules, whoever set it: the next frame keeps it, and its third point closes it there.
+        let angles = owner(clock)
+        let onThis = MarkCursorActions(image: image, measurements: angles, kind: .angle, basis: Self.picture)
+        let onNext = MarkCursorActions(image: image, measurements: angles, kind: .angle, basis: next)
+        var angleState = MarkCursorState()
+        var angleArm: AngleArm?
+        XCTAssertEqual(onThis.setPoint(&angleState, arm: &angleArm), .held(point: 1, of: 3))
+        onThis.move(.left, &angleState)
+        XCTAssertEqual(onThis.setPoint(&angleState, arm: &angleArm), .held(point: 2, of: 3))
+        angleState.adopt(onNext.scope)
+        XCTAssertEqual(angleArm, AngleArm(a: ImagePoint(x: 19, y: 11), vertex: ImagePoint(x: 18, y: 11)), "the next frame keeps the arm")
+        XCTAssertEqual(onNext.pointsSet(angleState, arm: angleArm), 2)
+        onNext.move(.down, &angleState)
+        XCTAssertEqual(onNext.setPoint(&angleState, arm: &angleArm), .added)
+        XCTAssertNil(angleArm)
+        XCTAssertEqual(angles.marks.first?.points, [ImagePoint(x: 19, y: 11), ImagePoint(x: 18, y: 11), ImagePoint(x: 18, y: 12)])
     }
 }

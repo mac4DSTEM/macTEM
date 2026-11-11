@@ -349,6 +349,36 @@ nonisolated final class PaneKeysTests: XCTestCase {
         XCTAssertFalse(keys().canCopy, "the mark is gone")
     }
 
+    /// The room's arm and the VoiceOver twin's state, as `ImagePane` holds them, for the keys the room builds.
+    @MainActor private final class TwinRoom {
+        var arm: AngleArm?
+        var cursor = MarkCursorState()
+    }
+
+    /// Escape drops a point the VoiceOver twin holds (macTEM#262) as it drops the pointer's unfinished angle, through the keys the
+    /// room builds (`ImageKeyedRoom.keys`); with nothing in progress it goes on. Red under: Escape routed only for an arm (the
+    /// twin's point survived it, and the next Set point made a mark from it); the cancel leaving the held point or the arm.
+    @MainActor func testEscapeDropsThePointTheTwinHolds() {
+        let (measurements, _) = markedImage()
+        let image = FFTAnalysisTests.plant()
+        let room = TwinRoom()
+        func keys() -> ImageRoomKeys {
+            ImageKeyedRoom.keys(image: image, measurements: measurements,
+                                angleArm: Binding(get: { room.arm }, set: { room.arm = $0 }),
+                                markCursor: Binding(get: { room.cursor }, set: { room.cursor = $0 }))
+        }
+        XCTAssertFalse(keys().handle(.escape), "nothing in progress: Escape goes on")
+        room.cursor.first = ImagePoint(x: 4, y: 5)
+        XCTAssertTrue(keys().handle(.escape), "a held point is a mark in progress")
+        XCTAssertNil(room.cursor.first)
+        room.arm = AngleArm(a: ImagePoint(x: 2, y: 2), vertex: ImagePoint(x: 9, y: 9))
+        room.cursor.first = ImagePoint(x: 4, y: 5)
+        XCTAssertTrue(keys().handle(.escape))
+        XCTAssertNil(room.arm)
+        XCTAssertNil(room.cursor.first)
+        XCTAssertFalse(keys().handle(.escape), "and then nothing is")
+    }
+
     // MARK: The source pins
 
     /// The file's code with every `//` comment removed (a whole-line comment and a trailing one): a comment may name what the
