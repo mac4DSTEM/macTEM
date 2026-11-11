@@ -5,7 +5,8 @@
 //        beside the locale-aware readers; every displayed number goes through here or through `UnitDisplay.number` (which does the
 //        same). The digits are printf's with the locale's mark (`UnitDisplay`), as mac4DSTEM writes them: FormatStyle rounded the
 //        shortest decimal spelling, so a tie read one digit off the CSV beside it (0.35 read "0.4" on screen, "0.3" in `%.1f`).
-//        Strings a test or a script reads (accessibility values) and CSV keep their fixed point: they are not for reading.
+//        A file the app writes keeps its decimal point (`en_US_POSIX`, docs/architecture.md). An accessibility value is read aloud, so it
+//        takes the reader's mark like the text beside it, and a UI journey parses it with `Journey.number`.
 //
 
 import Foundation
