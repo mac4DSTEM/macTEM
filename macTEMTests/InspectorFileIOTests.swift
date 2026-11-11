@@ -2,13 +2,18 @@
 //  InspectorFileIOTests.swift
 //  The file reads and writes of the Particles section and the Diffraction inspector live in the app layer, not in the views (#282):
 //  the CSV written into `--export-dir` keeps its name and its bytes, a CIF is read into the kit's crystal, the two view files touch
-//  no file, and the Particles section builds its CSV when Export CSV… is pressed, not in its body.
+//  no file, and the Particles section builds its CSV when Export CSV… is pressed, not in its body. The export-folder write goes
+//  through `ExportFile.write`, as the File menu's exports do (#269): any bytes as given, and a folder where the file goes refused
+//  in that writer's words and kept.
 //  Red before the change: no `ExportDirectoryFile`, no `DiffractionReadoutExport`; the views called `FileManager`, `Data(contentsOf:)`
-//  and `write(to:)`, and the section's `fileExporter` built the whole CSV on every body evaluation.
+//  and `write(to:)`, and the section's `fileExporter` built the whole CSV on every body evaluation. Red before the
+//  `ExportFile.write` change: the export folder took only text, and a folder where the file goes was the system's own sentence,
+//  not `ExportFile`'s refusal.
 //
 
 import XCTest
 import DiffractoCore
+import TEMCore
 @testable import macTEM
 
 nonisolated final class InspectorFileIOTests: XCTestCase {
@@ -32,6 +37,43 @@ nonisolated final class InspectorFileIOTests: XCTestCase {
         let plain = try ExportDirectoryFile.write("x", named: "note.txt", into: dir)
         XCTAssertEqual(plain.lastPathComponent, "note.txt")
         XCTAssertEqual(try String(contentsOf: plain, encoding: .utf8), "x")
+    }
+
+    /// Bytes go into the export folder exactly as given, under the given name, the folder made on the way, bytes that are not UTF-8
+    /// too (a PNG's signature); a second write replaces the file whole and leaves nothing beside it. Red under: no way to write bytes,
+    /// the bytes read as text, a longer old file not cut to the new bytes.
+    func testBytesAreWrittenIntoTheExportFolderAsGiven() throws {
+        let dir = scratch()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let folder = dir.appendingPathComponent("made")
+        let bytes = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0xFF, 0xFE])
+        let url = try ExportDirectoryFile.write(bytes, named: "dual maps.png", into: folder)
+        XCTAssertEqual(url.lastPathComponent, "dual maps.png")
+        XCTAssertEqual(url.deletingLastPathComponent().lastPathComponent, "made")
+        XCTAssertEqual(try Data(contentsOf: url), bytes)
+        let shorter = Data([0x01, 0x02])
+        XCTAssertEqual(try ExportDirectoryFile.write(shorter, named: "dual maps.png", into: folder), url)
+        XCTAssertEqual(try Data(contentsOf: url), shorter)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["dual maps.png"], "nothing beside the file")
+    }
+
+    /// A folder where the CSV goes is refused in `ExportFile`'s own words, the sentence naming it, and left as it was with what it
+    /// held. Red under: the bytes written past `ExportFile.write` (the system's own sentence, not the refusal by name).
+    func testAFolderWhereTheCSVGoesIsRefusedAndKept() throws {
+        let dir = scratch()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let folder = dir.appendingPathComponent("Au rings diffraction.csv", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("keep".utf8).write(to: folder.appendingPathComponent("inside.txt"))
+        XCTAssertThrowsError(try DiffractionReadoutExport.write("a,b\n", imageFileName: "Au rings.dm4", into: dir)) { error in
+            XCTAssertEqual(error as? ExportFile.Failure, .writeFailed("\u{201C}Au rings diffraction.csv\u{201D} is a folder."))
+            XCTAssertEqual(error.localizedDescription, "The file could not be written. \u{201C}Au rings diffraction.csv\u{201D} is a folder.")
+        }
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory) && isDirectory.boolValue)
+        XCTAssertEqual(try String(contentsOf: folder.appendingPathComponent("inside.txt"), encoding: .utf8), "keep")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), ["Au rings diffraction.csv"],
+                       "nothing was left beside the folder")
     }
 
     /// The names the save panels offer are the written files' names without the extension.

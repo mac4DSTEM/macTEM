@@ -1,22 +1,31 @@
 //
 //  InspectorFileIO.swift
-//  Role: the file reads and writes two inspectors ask for, kept out of `UI/`, which draws and touches no file (#282): a CSV
-//        written into the launch's `--export-dir` without a save panel (the Particles section's objects and the Diffraction room's
-//        readout; a UI journey cannot drive the panel), and a CIF read off the main actor inside its security scope (the
+//  Role: the file reads and writes the inspectors and the EELS room ask for, kept out of `UI/`, which draws and touches no file
+//        (#282): a file written into the launch's `--export-dir` without a save panel (the Particles section's objects, the
+//        Diffraction room's readout and the EELS room's exports; a UI journey cannot drive the panel), through `ExportFile.write`
+//        as the File menu's exports (`ExportPanels`) are, and a CIF read off the main actor inside its security scope (the
 //        Diffraction and Indexing rooms' crystal). The panels themselves are SwiftUI's `fileExporter` and `fileImporter` in the
 //        sections that present them, which write and grant on their own.
 //
 
 import Foundation
 import DiffractoCore
+import TEMCore
 
-/// A text file written into the launch's `--export-dir`, UTF-8 as given; the folder is made when it is not there yet.
+/// A file written into the launch's `--export-dir`, its bytes as given, through `ExportFile.write`, the writer the File menu's exports
+/// (`ExportPanels`) use: the folder is made when it is not there yet, and a folder where the file goes is refused in
+/// `ExportFile`'s words and left as it was.
 nonisolated enum ExportDirectoryFile {
-    static func write(_ text: String, named name: String, into directory: URL) throws -> URL {
+    static func write(_ data: Data, named name: String, into directory: URL) throws -> URL {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let url = directory.appendingPathComponent(name)
-        try Data(text.utf8).write(to: url)
+        try ExportFile.write(data, to: url)
         return url
+    }
+
+    /// A text file, UTF-8 as given.
+    static func write(_ text: String, named name: String, into directory: URL) throws -> URL {
+        try write(Data(text.utf8), named: name, into: directory)
     }
 }
 

@@ -58,8 +58,8 @@ final class EELSRoomState {
     var exportScaleBar = true
     var exportRegions = true
 
-    /// Makes the bytes of `kind` and opens the save panel, or, with `directory` (the UI journeys' export folder), writes the file there; says why when there
-    /// is nothing to write. The EDS room's `EDXRoomState.export`.
+    /// Makes the bytes of `kind` and opens the save panel, or, with `directory` (the UI journeys' export folder), writes the file there through
+    /// `ExportDirectoryFile`; says why when there is nothing to write or the file cannot be written. The EDS room's `EDXRoomState.export`.
     @MainActor func export(_ kind: EELSExportKind, from session: EELSSession, maps: [EELSMapTile], directory: URL? = nil, report: (String) -> Void) {
         let data: Data?
         switch kind {
@@ -77,11 +77,10 @@ final class EELSRoomState {
         }
         guard let data else { report("Nothing to export yet for \(kind.title.dropLast())."); return }
         if let directory {
-            let url = directory.appendingPathComponent((session.fileName as NSString).deletingPathExtension + kind.suffix)
-                .appendingPathExtension(kind.contentType.preferredFilenameExtension ?? "txt")
+            let ext = kind.contentType.preferredFilenameExtension ?? "txt"
+            let name = (session.fileName as NSString).deletingPathExtension + kind.suffix + "." + ext
             do {
-                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                try data.write(to: url)
+                let url = try ExportDirectoryFile.write(data, named: name, into: directory)
                 report("Exported \(url.lastPathComponent)")
             } catch { report("Export failed: \(error.localizedDescription)") }
             return
