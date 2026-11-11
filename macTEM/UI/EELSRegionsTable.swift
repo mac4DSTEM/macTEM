@@ -135,6 +135,9 @@ struct EELSRegionsTable: View {
                     }
                     .padding(10)
                 }
+                // Wider and taller than the space the results pane leaves it, the grid scrolls both ways; its scroll bars flash when it appears, so
+                // cut columns show that they scroll even where the scroll bars hide until a scroll.
+                .scrollIndicatorsFlash(onAppear: true)
             }
             .accessibilityIdentifier("eels.regionTable")
         }

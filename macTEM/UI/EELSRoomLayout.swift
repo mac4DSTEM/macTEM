@@ -3,7 +3,8 @@
 //  Role: the pure parts of the EELS room's views, kept out of the view file (`EELSRoom.swift`): a tile's colours until the person changes
 //        them (`EELSTileStyle`, which the colour mix and the maps figure take too), where the spectrum's legend and its "low loss" and "core loss"
 //        names sit (`EELSSpectrumLayout`), what a drag on the spectrum does by where it starts (`EELSSpectrumDrag`), the results table's minimum
-//        column widths (`EELSResultsColumns`) and the words VoiceOver says for a symbol column header, in the results table and the Regions table
+//        column widths (`EELSResultsColumns`), how the results pane shares its height between the edges table and the Regions section
+//        (`EELSResultsSplit`) and the words VoiceOver says for a symbol column header, in the results table and the Regions table
 //        (`EELSColumnSpeech`, `EELSRegionsTable.swift`). No state: constants and functions of their arguments, which the room's tests call directly.
 //
 
@@ -91,6 +92,54 @@ nonisolated enum EELSResultsColumns {
     static let intensityMinimum: CGFloat = 134
     /// at% and wt%: "100.000 ± 0.010", 104 pt (the EDS room's at% and wt% columns); "below detection" is 97 pt.
     static let percentMinimum: CGFloat = 116
+}
+
+/// How the results pane shares the height its header, thickness line, notes and footer leave between the edges table and the Regions section, as a
+/// standard macOS results pane does: the results come first, and a table that is cut scrolls, both ways. The edges table takes its column headers
+/// and every edge's row up to `edgesKeptInView`, whole and clear of the horizontal scroll bar (the columns' minimum widths, `EELSResultsColumns`, are
+/// wider than a narrow pane, so it scrolls sideways). The Regions section takes what is left, up to its caption, header and every region's row (five;
+/// more scroll), so in a short pane it gives way first: down to its caption, header and one row, and below that it scrolls in what is left. A taller
+/// pane gives the rest to the edges table. Before a fit the Regions section takes its full height and the pane's "No edges fitted yet" the rest.
+nonisolated enum EELSResultsSplit {
+    /// A row of the system table at its regular size on macOS 26, its text and its inset (measured offscreen for #97).
+    static let tableRowHeight: CGFloat = 24
+    /// The table's column headers (measured with the row).
+    static let tableHeaderHeight: CGFloat = 28
+    /// The inset table style's margin above the first row (measured with the row), allowed again below the last.
+    static let tableInset: CGFloat = 5
+    /// The horizontal scroll bar: a legacy one takes 15 pt under the rows, an overlay one draws over the last row unless the table leaves it room.
+    static let scrollBarAllowance: CGFloat = 16
+    /// The edges table keeps this many rows in view at least, or every row when there are fewer; more scroll inside it (a quantification typically
+    /// has three to six edges).
+    static let edgesKeptInView = 6
+    /// The Regions section's divider and its "Regions" caption (the caption font and its 4-pt top padding).
+    static let regionsCaptionHeight: CGFloat = 18
+    /// The Regions grid at its full height, as the pane has always sized it: 22 pt a row and 60 pt for its header, padding and scroll bar, at most
+    /// 190 pt (five rows; more scroll).
+    static let regionsRowHeight: CGFloat = 22, regionsGridChrome: CGFloat = 60, regionsGridMaximum: CGFloat = 190
+
+    /// The edges table's floor for `rows` fitted edges: its column headers, the rows up to `edgesKeptInView`, its insets and the scroll bar's room.
+    /// Nothing with no edge: the pane then says what to do, not a table.
+    static func edgesFloor(rows: Int) -> CGFloat {
+        guard rows > 0 else { return 0 }
+        return tableHeaderHeight + 2 * tableInset + CGFloat(min(rows, edgesKeptInView)) * tableRowHeight + scrollBarAllowance
+    }
+
+    /// The Regions section at its full height for `rows` regions: the caption over the grid.
+    static func regionsHeight(rows: Int) -> CGFloat {
+        guard rows > 0 else { return 0 }
+        return regionsCaptionHeight + min(CGFloat(rows) * regionsRowHeight + regionsGridChrome, regionsGridMaximum)
+    }
+
+    /// The edges table's height and the Regions section's in the `available` points between the thickness line and the notes, for `edgeRows` fitted
+    /// edges and `regionRows` regions: the edges table's floor first (all of `available` when it is less), then the Regions section up to its full
+    /// height, then the edges table again. The two add up to `available` and neither is below 0, so nothing is pushed out of the pane.
+    static func heights(available: CGFloat, edgeRows: Int, regionRows: Int) -> (edges: CGFloat, regions: CGFloat) {
+        let pane = max(available, 0)
+        guard regionRows > 0 else { return (pane, 0) }
+        let edges = max(min(pane, edgesFloor(rows: edgeRows)), pane - regionsHeight(rows: regionRows))
+        return (edges, pane - edges)
+    }
 }
 
 /// A column header that is a symbol on screen, with the words VoiceOver says for it (pure, so a test reads the words): the results table's I, at% and
