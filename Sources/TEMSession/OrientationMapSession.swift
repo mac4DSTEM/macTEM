@@ -315,7 +315,7 @@ package final class OrientationMapSession {
         slipFiles = Self.defaultSlipFiles(document.map)
         grid = OrientationMaps.pointIndexGrid(document.map)
         let phases = document.map.phasesInData.names.filter { $0 != PhaseList.notIndexedName }.count
-        onEvent?("Opened \(document.fileName) — orientation map \(rows) × \(columns), \(UnitDisplay.count(phases, "phase", "phases"))")
+        onEvent?("Opened \(document.fileName) — orientation map \(columns) × \(rows), \(UnitDisplay.count(phases, "phase", "phases"))")
         startKeys(document)
         return draw()
     }
