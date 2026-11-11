@@ -1,6 +1,7 @@
 // Control placement standard in the Results, Image, Diffraction and FFT rooms (2026-10-22): an Export section of plain buttons
 // with the reason as help, segmented controls that are MacEMUI's full-width `SegmentedPicker` with no leading label, the
-// wheel zooming the pictures. Pinned at the source, in the rooms' existing style (`FFTRoomWiringTests.squeezedUI`).
+// wheel zooming the pictures. Pinned at the source, in the rooms' existing style (`FFTRoomWiringTests.squeezedUI`); ⌘. on the
+// Diffraction room's ring fit is held by a behaviour test that runs a fit and stops it, not by a pin.
 import XCTest
 import TEMCore
 import TEMSession
@@ -66,7 +67,8 @@ nonisolated final class ControlPlacementRoomsTests: XCTestCase {
     }
 
     /// The pattern zooms with the wheel about its centre, shows a badge off 1×, draws through its own presentation, and has no Stop in its
-    /// header: the fit runs in the infobar and ⌘. stops it (§1, §6, §7). Red under: the wheel unwired, the colormap hard-wired, the Stop back.
+    /// header: the fit runs in the infobar (§1, §6, §7), and ⌘. stops it (`testCommandPeriodEndsTheRingFitInTheDiffractionRoom`). Red
+    /// under: the wheel unwired, the colormap hard-wired, the Stop back.
     func testDiffractionPaneZoomsReadsOutAndRunsInTheInfobar() throws {
         let pane = try ui("DiffractionRoom.swift")
         XCTAssertTrue(pane.contains(".onScrollWheel { event in guard event.delta != 0 else { return } view.zoom(by: Double(ScrollZoom.factor(delta: event.delta, isPrecise: event.isPrecise)), image: image) }"))
@@ -76,10 +78,32 @@ nonisolated final class ControlPlacementRoomsTests: XCTestCase {
         XCTAssertTrue(pane.contains("appState.diffractionRoom.readout = DiffractionReadoutText.text("))
         XCTAssertTrue(try ui("WorkspaceView.swift").contains("case .diffraction: appState.diffractionRoom.readout"))
         XCTAssertTrue(try ui("WorkspaceView.swift").contains("InfobarRunReadout(operation: \"Ring fit\""))
-        XCTAssertTrue(try ui("RoomPrimaryAction.swift").contains("case .diffraction: appState.openItems.selected?.diffraction.stop()"))
         XCTAssertTrue(InfobarRunPolicy.showsFit(area: .diffraction, fitting: true))
         XCTAssertFalse(InfobarRunPolicy.showsFit(area: .diffraction, fitting: false))
         XCTAssertFalse(InfobarRunPolicy.showsFit(area: .image, fitting: true))
+    }
+
+    /// With the Diffraction room shown, ⌘. reaches the selected pattern's ring fit: the item is on and reads "Stop", it ends the fit,
+    /// and the stopped fit lands no ring. Red under: the `.diffraction` case of `RoomPrimaryAction.stopActive` dropped (the fit runs
+    /// on and lands its ring), or that room's case of `canStop(room:)` answering false (⌘. off while the fit runs).
+    @MainActor func testCommandPeriodEndsTheRingFitInTheDiffractionRoom() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.openDemo(.diffraction)?.value
+        state.navigation.workspaceArea = .diffraction
+        let analysis = try XCTUnwrap(state.openItems.selected?.diffraction, "the demo pattern is open and selected")
+        let image = DemoDocuments.diffractionPattern()
+        analysis.bind(image)
+        XCTAssertFalse(RoomPrimaryAction.canStop(state), "nothing runs")
+
+        let fit = try XCTUnwrap(analysis.fitRing(image: image, inner: 29, outer: 37), "the Au {111} annulus starts a fit")
+        XCTAssertTrue(analysis.isFitting)
+        XCTAssertTrue(RoomPrimaryAction.canStop(state), "⌘. reaches the ring fit")
+        XCTAssertEqual(RoomPrimaryAction.stopTitle(state), "Stop")
+        RoomPrimaryAction.stopActive(state)
+        XCTAssertFalse(analysis.isFitting, "⌘. ends the ring fit")
+        XCTAssertFalse(RoomPrimaryAction.canStop(state))
+        await fit.value
+        XCTAssertTrue(analysis.rings.isEmpty, "a stopped fit lands no ring")
     }
 
     /// The pattern's readout: the pixel, then R, q and d once there is a centre and a scale (§7). Red under: q from the wrong radius, d not 1/q.

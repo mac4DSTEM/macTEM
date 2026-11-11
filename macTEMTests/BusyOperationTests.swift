@@ -7,6 +7,7 @@
 //
 
 import XCTest
+import ShellEDXModel
 import ShellLayout
 import TEMCore
 import TEMSession
@@ -69,12 +70,68 @@ nonisolated final class BusyOperationTests: XCTestCase {
         XCTAssertNil(BusyOperation.name(room: .eels, appState: state))
     }
 
-    /// The toolbar and the Stop button read the running work, not the status sentence. Red under: `appState.statusText` as the operation.
-    func testTheToolbarAndStopReadTheRunningWork() throws {
+    /// The toolbar reads the running work, not the status sentence; the verb's Stop is held by
+    /// `testEachVerbNamesTheRunningWorkNotTheStatusLine`. Red under: `appState.statusText` as the toolbar's operation.
+    func testTheToolbarReadsTheRunningWork() throws {
         let view = squeezed(try source("macTEM/UI/ContentView.swift"))
         XCTAssertTrue(view.contains(".busy(operation: BusyOperation.name(room: room, appState: appState) ?? room.title,"))
-        let verb = try source("macTEM/UI/RoomPrimaryAction.swift")
-        XCTAssertFalse(verb.contains("operationName: appState.statusText"))
+    }
+
+    /// Each room's verb names the work its room runs, never the status sentence, so its Stop's help and VoiceOver label say what Stop
+    /// ends: idle, the verb names nothing while the status line still holds the last event; while the Index runs, the verb names the
+    /// run and its Stop ends it. Red under: `operationName: appState.statusText` in the idle verb of the EDS, EELS, Patterns, Indexing
+    /// or Maps room (the verb then names the status sentence), or the Index verb's `stop` dropped (the run goes on). The EDS room's
+    /// opening verb is held by `testTheEDSOpeningVerbNamesTheOpenNotTheStatusLine`, and the Cancel of a room without a verb by
+    /// `testARoomWithoutAVerbOffersCancelForARunInAnotherRoom`.
+    @MainActor func testEachVerbNamesTheRunningWorkNotTheStatusLine() async throws {
+        let state = AppState()
+        state.edx.bind(DemoDocuments.edx())
+        state.edx.stop()
+        let spectra = try DemoDocuments.eels()
+        state.eels.bind(spectra)
+        await state.eels.settled()
+        await state.ebsd.bind(try DemoDocuments.ebsd()).value
+        try await waitUntil("the demo documents' passes in the EDS, EELS, Patterns and Maps rooms to end", seconds: 30) {
+            !state.edx.isBusy && !state.eels.isBusy && !state.ebsd.isBusy && !state.ebsd.isComputingMean && !state.maps.isBusy
+        }
+        state.statusText = opened
+        for room in [WorkspaceArea.edx, .eels, .patterns, .indexing, .maps] {
+            state.navigation.workspaceArea = room
+            let action = try XCTUnwrap(RoomPrimaryAction.current(state), "the \(room.title) room has its verb")
+            XCTAssertFalse(action.isRunning, room.title)
+            XCTAssertNil(action.operationName, "\(room.title): an idle verb names no work, and never the status sentence")
+        }
+
+        state.navigation.workspaceArea = .indexing
+        XCTAssertTrue(state.indexing.canIndex, state.indexing.refusal ?? "")
+        let run = state.indexing.index()
+        state.statusText = opened
+        let running = try XCTUnwrap(RoomPrimaryAction.current(state), "the Index runs: the verb is its Stop")
+        XCTAssertTrue(running.isRunning)
+        XCTAssertEqual(running.operationName, "Indexing with Hough…", "the Stop names the run, not the status sentence")
+        running.stop?()
+        XCTAssertFalse(state.indexing.isIndexing, "the verb's Stop ends the run")
+        await run.value
+        XCTAssertTrue(state.indexing.wasStopped)
+    }
+
+    /// While the EDS room opens a spectrum image, its verb is the open's Stop, and the Stop names the open even when the status line
+    /// holds an older event. Red under: `operationName: appState.statusText` in the EDS room's opening verb (the Stop then names the
+    /// status sentence).
+    @MainActor func testTheEDSOpeningVerbNamesTheOpenNotTheStatusLine() async throws {
+        let state = AppState()
+        state.navigation.workspaceArea = .edx
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("not-yet-\(UUID().uuidString).emd")
+        try Data(count: 64).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let open = state.edx.open(url: url)
+        state.statusText = opened
+        let action = try XCTUnwrap(RoomPrimaryAction.current(state), "opening: the verb is its Stop")
+        XCTAssertTrue(action.isRunning)
+        XCTAssertEqual(action.operationName, "Opening the spectrum image…", "the open's Stop names the open, not the status sentence")
+        action.stop?()
+        XCTAssertFalse(state.edx.isOpening, "the Stop ends the open")
+        await open.value
     }
 
     /// The Patterns room names its open, its run, the map's pass and the quality pass, in the order the map pane's header shows them.
