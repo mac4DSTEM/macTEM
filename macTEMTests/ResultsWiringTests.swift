@@ -2,10 +2,12 @@
 //  ResultsWiringTests.swift
 //  The Results room's call sites: the room is built and can be entered, the shell's slots mount it (the room switch in
 //  `WorkspaceView`, the Settings and Info switches in `WorkspaceInspector`), File > Export Results… is on ⇧⌥⌘E (a key no other
-//  item has) and enabled by `ExportSnapshot.availability`, the snapshot of the selected file is what the panel's OK writes (a real
-//  file read back), the room's state resets its selection with a file switch and a window keeps its one state across room
-//  switches, and the table is a native `Table` with a `Section` per group and ⌘C through `onCopyCommand`. Each fix is right in its
-//  pure function while reverting the one line that uses it leaves every pure test green; these go red when that line reverts. Tier 2.
+//  item has) and enabled by `ExportSnapshot.availability`, its entry point writes only in the Results room with a row (into a journey's
+//  export folder, read back) and takes the EELS room's rows of the file on screen, the snapshot of the selected file is what the
+//  panel's OK writes (a real file read back) and a saved file's snapshot takes the ISO 8601 session header, the room's state resets
+//  its selection with a file switch and a window keeps its one state across room switches, and the table is a native `Table` with a
+//  `Section` per group and ⌘C through `onCopyCommand`. Each fix is right in its pure function while reverting the one line that uses
+//  it leaves every pure test green; these go red when that line reverts. Tier 2.
 //
 //  Mutations sampled (each alone, the named test went red): the Export Results… item without its `.disabled`; the room's switch
 //  branch removed; the availability enabled outside the Results room; the snapshot taking all open files; the selection kept across
@@ -111,6 +113,88 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         XCTAssertFalse(ExportSnapshot.availability(of: state).results, "no file open")
     }
 
+    /// The entry point, with a journey's export folder (no panel): in the Results room with nothing to export, and in the Image room
+    /// with a row, it writes nothing and leaves the status line as it was; in the Results room with a row it says "Exporting…" at once,
+    /// then writes the file on screen into the folder and says so. Red under: the entry point's `availability(of:).results` dropped
+    /// (the Image room's call writes the CSV). The nothing-to-export case is held by that and by the snapshot's own nil, so it goes
+    /// red only when both go.
+    @MainActor func testExportResultsWritesOnlyInTheRoomAndOnlyWithARow() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ResultsWiringTests-\(UUID().uuidString)", isDirectory: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        let state = AppState(launch: LaunchOptions(arguments: ["--export-dir", folder.path]))
+        await state.open(urls: [DemoDocuments.latticeURL])?.value
+        let item = try XCTUnwrap(state.openItems.selected)
+        let image = try XCTUnwrap(item.session.image, "the demo lattice is read")
+
+        state.selectWorkspace(.results)
+        XCTAssertEqual(state.navigation.workspaceArea, .results)
+        var before = state.statusText
+        ExportPanels.exportResults(appState: state)
+        XCTAssertEqual(state.statusText, before, "nothing to export: the status line is as it was")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path), "nothing to export: nothing written")
+
+        state.selectWorkspace(.image)
+        XCTAssertEqual(state.navigation.workspaceArea, .image)
+        item.measurements.add(ImageMark(kind: .distance, points: [ImagePoint(x: 10, y: 10), ImagePoint(x: 40, y: 30)]), on: image)
+        XCTAssertEqual(state.resultRows(of: item).count, 1, "a row to export")
+        before = state.statusText
+        ExportPanels.exportResults(appState: state)
+        XCTAssertEqual(state.statusText, before, "the Image room: the status line is as it was")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path), "the Image room: nothing written")
+
+        state.selectWorkspace(.results)
+        XCTAssertEqual(state.navigation.workspaceArea, .results)
+        let snapshot = try XCTUnwrap(ExportSnapshot.resultsSnapshot(in: state))
+        let exporting = ExportSnapshot.exportingLine(name: snapshot.defaultName)
+        ExportPanels.exportResults(appState: state)
+        XCTAssertEqual(state.statusText, exporting, "the line is up before the write, which runs off the main actor")
+        try await waitUntil("the export to end", seconds: 10) { state.statusText != exporting }
+        XCTAssertNil(state.errorMessage)
+        XCTAssertEqual(state.statusText, ResultsFormat.exportingDoneLine(name: snapshot.defaultName, rows: 1))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), [snapshot.defaultName])
+        let text = try String(contentsOf: folder.appendingPathComponent(snapshot.defaultName), encoding: .utf8)
+        XCTAssertEqual(text, ResultsCSV.text(snapshot.rows, source: snapshot.source, session: snapshot.session), "the file on screen")
+    }
+
+    /// The entry point takes the window's snapshot, with the spectrum rooms' rows: with the EELS room holding the file on screen (by its
+    /// name, as a file read without a path is told) and its thickness map made, every row of the file is the room's t/λ, and the folder
+    /// gets it. Red under: the entry point taking the open files' snapshot alone (`resultsSnapshot(in: appState.openItems)`), which has
+    /// no row here, so nothing is written.
+    @MainActor func testExportResultsTakesTheEELSRoomsRowsOfTheFileOnScreen() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ResultsWiringTests-\(UUID().uuidString)", isDirectory: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        let state = AppState(launch: LaunchOptions(arguments: ["--export-dir", folder.path]))
+        await state.open(urls: [DemoDocuments.latticeURL])?.value
+        let item = try XCTUnwrap(state.openItems.selected)
+        XCTAssertNotNil(item.session.image, "the demo lattice is read")
+        XCTAssertTrue(state.resultRows(of: item).isEmpty, "the file has no row of its own")
+
+        // The EELS room holds the file: it is one of the window's EELS files, and the room's cube (the demo spectrum image's) is bound
+        // under the file's name, as the app's open hands a file to the room.
+        let demo = try DemoDocuments.eels()
+        let loaded = LoadedEELS(fileName: item.url.lastPathComponent, image: demo.image, beamEnergyKeV: demo.beamEnergyKeV,
+                                convergenceMrad: demo.convergenceMrad, collectionMrad: demo.collectionMrad, origin: demo.origin)
+        state.eelsFiles.insert(item.url)
+        await state.eels.bind(loaded).value
+        await state.eels.settled()
+        XCTAssertNil(state.eels.failure)
+        let rows = state.resultRows(of: item)
+        XCTAssertFalse(rows.isEmpty, "the EELS room's thickness is the file's")
+        XCTAssertTrue(rows.allSatisfy { $0.group == .eelsThickness }, "\(rows.map(\.label))")
+
+        state.selectWorkspace(.results)
+        XCTAssertEqual(state.navigation.workspaceArea, .results)
+        let snapshot = try XCTUnwrap(ExportSnapshot.resultsSnapshot(in: state))
+        let exporting = ExportSnapshot.exportingLine(name: snapshot.defaultName)
+        ExportPanels.exportResults(appState: state)
+        XCTAssertEqual(state.statusText, exporting, "the EELS room's rows are something to export")
+        try await waitUntil("the export to end", seconds: 10) { state.statusText != exporting }
+        XCTAssertNil(state.errorMessage)
+        XCTAssertEqual(state.statusText, ResultsFormat.exportingDoneLine(name: snapshot.defaultName, rows: rows.count))
+        let text = try String(contentsOf: folder.appendingPathComponent(snapshot.defaultName), encoding: .utf8)
+        XCTAssertEqual(text, ResultsCSV.text(snapshot.rows, source: snapshot.source, session: snapshot.session), "the room's rows, in the file")
+    }
+
     // MARK: The snapshot is what the panel writes
 
     /// The snapshot is of the selected file only, names its default (`<image>.results`, then the panel adds .csv) and its folder, says
@@ -161,8 +245,8 @@ nonisolated final class ResultsWiringTests: XCTestCase {
     }
 
     /// The results CSV's `session:` header writes a saved time in ISO 8601 with its zone's offset, the same in every locale and with the day; the
-    /// Image room's tail (and the Results room's header) keep the reader's clock. Export Results… takes the header. Red before: the header was the
-    /// tail's line, "Saved at 1:03 PM to …" in en_US and "Saved at 13:03 to …" in de_DE.
+    /// Image room's tail (and the Results room's header) keep the reader's clock. That Export Results… takes the header is the next test's. Red
+    /// before: the header was the tail's line, "Saved at 1:03 PM to …" in en_US and "Saved at 13:03 to …" in de_DE.
     @MainActor func testTheSessionHeaderWritesTheSavedTimeInISO8601() throws {
         let saved = Date(timeIntervalSince1970: 1_794_315_780) // 2026-11-10 13:03:00 UTC
         var input = SessionTailInput(fileName: "a.dm4.mactem.h5", sidecar: .saved, notes: [], needsAccess: false, newerVersion: nil,
@@ -179,8 +263,35 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         XCTAssertEqual(ExportSnapshot.sessionHeader(input, timeZone: utc), "Changed since saved at 2026-11-10T13:03:00Z.")
         input.sidecar = .none
         XCTAssertEqual(ExportSnapshot.sessionHeader(input, timeZone: utc), SessionFormat.tail(input).lines.first?.text, "no time: the tail's words")
-        XCTAssertTrue(squeezed(try source("macTEM/App/ResultsExportSnapshot.swift")).contains("session: sessionHeader(SessionTailInput(item: item))"),
-                      "Export Results… writes the header, not the screen's sentence")
+    }
+
+    /// A saved file's export takes the header: the snapshot's session line is `sessionHeader`, the saved time in ISO 8601, and not the
+    /// sentence the Image room's tail shows on the reader's clock. Red under: the snapshot taking `sessionSentence(of:)`.
+    @MainActor func testASavedFilesExportTakesTheHeaderNotTheScreensSentence() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ResultsWiringTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("a.dm4")
+        // A read that gives the pixels' identity, as a read from disk does, so the marks can be saved beside the file.
+        let items = OpenItems(identify: { FileIdentity(path: $0.path) }, reader: { request in
+            let image = Self.image(fileName: request.url.lastPathComponent)
+            return OpenedImage(image: image, canvas: AppState.canvas(for: image), metadata: AcquisitionMetadata(), url: request.url,
+                               thumbnail: nil, bookmark: nil, identity: SessionSourceIdentity.of(image, fileByteSize: 4096))
+        })
+        items.open(urls: [file])
+        await items.settled()
+        let item = try XCTUnwrap(items.items.first)
+        let image = try XCTUnwrap(item.session.image)
+        item.measurements.add(ImageMark(kind: .distance, points: [ImagePoint(x: 0, y: 0), ImagePoint(x: 6, y: 8)]), on: image)
+        let target = try SessionSidecarFile.sidecarURL(forSource: file)
+        _ = try await SessionSaving.save(item, to: .url(target))
+        XCTAssertNotNil(item.lastSavedAt, "the marks are saved")
+
+        let header = ExportSnapshot.sessionHeader(SessionTailInput(item: item))
+        XCTAssertTrue(header.hasPrefix("Saved at ") && header.hasSuffix(" to \(target.lastPathComponent)."), header)
+        let snapshot = try XCTUnwrap(ExportSnapshot.resultsSnapshot(of: item, software: Self.software))
+        XCTAssertEqual(snapshot.session, header, "Export Results… writes the header")
+        XCTAssertNotEqual(snapshot.session, ExportSnapshot.sessionSentence(of: item), "not the screen's sentence, on the reader's clock")
     }
 
     // MARK: The room's state
@@ -262,8 +373,9 @@ nonisolated final class ResultsWiringTests: XCTestCase {
     }
 
     /// File > Export Results… is ⇧⌥⌘E, is disabled by the rule, calls the one entry point; no other menu item takes the key. The room's own
-    /// Export button is ControlPlacementRoomsTests'. Red under: the key changed to a taken one; the `.disabled` dropped; the item calling
-    /// the Image room's export.
+    /// Export button is ControlPlacementRoomsTests', and what the entry point does is testExportResultsWritesOnlyInTheRoomAndOnlyWithARow's
+    /// and testExportResultsTakesTheEELSRoomsRowsOfTheFileOnScreen's. Red under: the key changed to a taken one; the `.disabled` dropped;
+    /// the item calling the Image room's export.
     func testExportResultsIsOnItsKeyAndNoOtherItemHasIt() throws {
         let commands = squeezed(try source("macTEM/App/ExportCommands.swift"))
         XCTAssertTrue(commands.contains("Button(\"Export Results…\") { if let appState { ExportPanels.exportResults(appState: appState) } } "
@@ -284,9 +396,6 @@ nonisolated final class ResultsWiringTests: XCTestCase {
             }
         }
         XCTAssertEqual(holders, ["ExportCommands.swift"], "exactly one item takes ⇧⌥⌘E")
-        let panels = squeezed(try source("macTEM/App/ExportPanels.swift"))
-        XCTAssertTrue(panels.contains("static func exportResults(appState: AppState) { guard ExportSnapshot.availability(of: appState).results,"
-                                        + " let snapshot = ExportSnapshot.resultsSnapshot(in: appState)"))
     }
 
     /// The table is a native `Table` with a `Section` per group, selection through the state, and ⌘C through `onCopyCommand`; no
