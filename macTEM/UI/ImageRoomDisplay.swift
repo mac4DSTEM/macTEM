@@ -1,7 +1,8 @@
 //
 //  ImageRoomDisplay.swift
 //  Role: the Image room's Display section (Settings tab, under Calibration): the colormap, the histogram with the contrast window, the gamma,
-//        Show Scale Bar — each the open file's own (`ImagePresentation`). Display only: nothing here reaches a number.
+//        Show Scale Bar — each the open file's own (`ImagePresentation`) — and, on a render, why the bar starts hidden. Display only:
+//        nothing here reaches a number.
 //
 
 import ShellControls
@@ -26,10 +27,13 @@ struct ImageRoomDisplaySection: View {
     var log: Binding<Bool>?
     /// The SEM record of the file shown; a file with a databar gets the `Databar · Hide · Show` row (ImageRoomSEM.swift, design §4).
     var sem: SEMImageMetadata? = nil
+    /// Whether the file shown is a render (`ImagePresentation.startsWithScaleBar(notes:)` false): a note under Show Scale Bar says
+    /// why its bar starts hidden.
+    var isRender = false
 
     var body: some View {
         InspectorSection(title) {
-            ImageRoomDisplayRows(presentation: presentation, colormapID: colormapID, logID: logID, log: log, sem: sem)
+            ImageRoomDisplayRows(presentation: presentation, colormapID: colormapID, logID: logID, log: log, sem: sem, isRender: isRender)
         }
     }
 }
@@ -43,6 +47,8 @@ struct ImageRoomDisplayRows: View {
     var logID = "diffraction.log"
     var log: Binding<Bool>?
     var sem: SEMImageMetadata? = nil
+    /// A render: the note under Show Scale Bar (`ImagePresentation.renderScaleBarNote`).
+    var isRender = false
 
     /// Gray first: the TEM convention.
     private static let colormaps: [ColormapKind] = [.gray, .inferno, .viridis, .rdbu]
@@ -82,6 +88,8 @@ struct ImageRoomDisplayRows: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
+                // A render may carry its own bar in its pixels, where macTEM draws its own: why the bar started hidden.
+                if isRender { InspectorNote(ImagePresentation.renderScaleBarNote) }
             }
             if let sem, sem.databarRows != nil { SEMDatabarPicker(sem: sem) }
         }
