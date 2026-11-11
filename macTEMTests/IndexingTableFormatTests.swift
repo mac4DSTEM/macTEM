@@ -96,6 +96,27 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
         XCTAssertEqual(IndexingTableFormat.angle(.nan, locale: Self.de), UnitDisplay.noValue)
     }
 
+    /// The Results table's Simulation column and the Bands table's Family and Fit ° cells write a missing value as `UnitDisplay.noValue`,
+    /// the dash ⌘C copies for the same Simulation cell and every room's tables show, in any locale. Red before: the three cells wrote
+    /// an en dash ("–") on screen.
+    func testAMissingCellIsTheOneDash() throws {
+        XCTAssertEqual(IndexingTableFormat.simulation(-1), UnitDisplay.noValue)
+        XCTAssertEqual(IndexingTableFormat.simulation(17), "17")
+        XCTAssertEqual(IndexingTableFormat.simulation(12345), "12345", "never grouped")
+        XCTAssertEqual(IndexingTableFormat.bandFamily(nil, isValid: true), UnitDisplay.noValue)
+        XCTAssertEqual(IndexingTableFormat.bandFamily(nil, isValid: false), "invalid")
+        XCTAssertEqual(IndexingTableFormat.bandFamily("{111}", isValid: true), "{111}")
+        for locale in [Self.de, Self.en] { XCTAssertEqual(IndexingTableFormat.bandFit(nil, locale: locale), UnitDisplay.noValue, locale.identifier) }
+        XCTAssertEqual(IndexingTableFormat.bandFit(0.4567, locale: Self.de), "0,46")
+        XCTAssertEqual(IndexingTableFormat.bandFit(0.4567, locale: Self.en), "0.46")
+
+        let room = squeezed(try source("macTEM/UI/IndexingRoom.swift"))
+        XCTAssertTrue(room.contains("TableColumn(\"Simulation\", value: \\.simulationIndex) { Text(IndexingTableFormat.simulation($0.simulationIndex))"))
+        XCTAssertTrue(room.contains("TableColumn(\"Family\") { Text(IndexingTableFormat.bandFamily($0.family, isValid: $0.isValid)) }"))
+        XCTAssertTrue(room.contains("TableColumn(\"Fit °\") { Text(IndexingTableFormat.bandFit($0.fitDegrees))"))
+        XCTAssertFalse(room.contains("\"\u{2013}\""), "no en dash stands for a missing value")
+    }
+
     /// A click (one row in place of others), a ⌘-click that adds one, or ⇧ by one row pins that row; a click inside a wide selection
     /// that leaves one row pins it; ⌘A, a ⇧-range, a ⌘-click that removes one of several and an emptied selection leave the pin.
     func testTheRowsPinOnlyForASingleRow() {

@@ -182,18 +182,20 @@ struct IndexingMapPane: View {
         return "Indexed map · \(session.shownRun?.title ?? result.method.title) · \(session.layer.title)" + (session.isStale ? " · stale" : "")
     }
 
-    /// "4 120 of 4 125 indexed", "1 875 of 4 125 reached" while it runs (a dictionary run's chunk first, and the phase matching when it
-    /// runs against several, D-SEM-98; "450 of 4 125 refined" while Refine runs), "stopped at row 12 of 55".
+    /// "4120 of 4125 indexed", "1875 of 4125 reached" while it runs (a dictionary run's chunk first, and the phase matching when it
+    /// runs against several, D-SEM-98; "450 of 4125 refined" while Refine runs), "stopped at row 12 of 55"; the counts never grouped
+    /// (`IndexingInfoFormat.count`).
     private var count: String? {
         guard let result = session.result else { return nil }
-        if session.isRefining { return "\(result.reachedCount.formatted()) of \(result.pointCount.formatted()) refined" }
+        let n = { (v: Int) in IndexingInfoFormat.count(v) }
+        if session.isRefining { return "\(n(result.reachedCount)) of \(n(result.pointCount)) refined" }
         if session.isIndexing, result.method == .dictionary {
             let phase = session.chunkPhase.map { " · \($0)" } ?? ""
-            return "chunk \(session.chunksDone) of \(session.chunksTotal)\(phase) · \(result.reachedCount.formatted()) of \(result.pointCount.formatted()) reached"
+            return "chunk \(session.chunksDone) of \(session.chunksTotal)\(phase) · \(n(result.reachedCount)) of \(n(result.pointCount)) reached"
         }
-        if session.isIndexing { return "\(result.reachedCount.formatted()) of \(result.pointCount.formatted()) reached" }
-        if session.wasStopped { return "stopped at row \(result.rowsDone) of \(result.scanRows) · \(result.indexedCount.formatted()) indexed" }
-        return "\(result.indexedCount.formatted()) of \(result.pointCount.formatted()) indexed"
+        if session.isIndexing { return "\(n(result.reachedCount)) of \(n(result.pointCount)) reached" }
+        if session.wasStopped { return "stopped at row \(result.rowsDone) of \(result.scanRows) · \(n(result.indexedCount)) indexed" }
+        return "\(IndexingInfoFormat.indexed(result)) indexed"
     }
 
     private var header: some View {
@@ -611,16 +613,12 @@ struct IndexingResultsTable: View {
                    phases: result.phases.map(\.name), method: result.method)
     }
 
-    /// "Results · Dictionary · Refined · ni · 4,125 of 4,125 indexed · PC (…)": the run on screen named as the map's title names it.
+    /// "Results · Dictionary · Refined · ni · 4125 of 4125 indexed · PC (…)": the run on screen named as the map's title names it
+    /// (`IndexingInfoFormat.resultsHeader`).
     private var header: String {
         guard let result = session.result else { return "Results" }
-        let phases = result.phases.map(\.name).joined(separator: ", ")
-        let run = session.shownRun?.title ?? result.method.title
-        var words = "Results · \(run) · \(phases) · \(result.indexedCount.formatted()) of \(result.reachedCount.formatted()) indexed"
-        if let pc = session.resultProjectionCenter {
-            words += " · PC (\(UnitDisplay.number(pc.x, digits: 4)), \(UnitDisplay.number(pc.y, digits: 4)), \(UnitDisplay.number(pc.z, digits: 4)))"
-        }
-        return words
+        return IndexingInfoFormat.resultsHeader(result, run: session.shownRun?.title ?? result.method.title,
+                                                projectionCentre: session.resultProjectionCenter)
     }
 
     var body: some View {
@@ -666,7 +664,7 @@ struct IndexingResultsTable: View {
                 TableColumn("φ₂ °", value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
                 TableColumn(result.scoreTitle, value: \.confidence) { Text(IndexingTableFormat.fraction($0.confidence)).monospacedDigit() }
                 TableColumn("Simulation", value: \.simulationIndex) {
-                    Text(verbatim: $0.simulationIndex >= 0 ? "\($0.simulationIndex)" : "–").monospacedDigit()
+                    Text(IndexingTableFormat.simulation($0.simulationIndex)).monospacedDigit()
                 }
                 TableColumn("OSM", value: \.similarityKey) { Text(IndexingTableFormat.angle($0.similarity, digits: 2)).monospacedDigit() }
             }
@@ -719,7 +717,7 @@ struct IndexingBestMatchPane: View {
         if let index = result.simulationIndex(at: position) {
             words += " · simulation \(index)"
             let plans = session.dictionaryPlans
-            if plans.indices.contains(solution.phase) { words += " of \(plans[solution.phase].rotations.count.formatted())" }
+            if plans.indices.contains(solution.phase) { words += " of \(IndexingInfoFormat.count(plans[solution.phase].rotations.count))" }
         }
         return words
     }
@@ -808,8 +806,8 @@ struct IndexingBandsTable: View {
                 TableColumn("θ °") { Text(IndexingTableFormat.angle($0.thetaDegrees, digits: 2)).monospacedDigit() }
                 TableColumn("Peak") { Text(IndexingTableFormat.number($0.peak)).monospacedDigit() }
                 TableColumn("Width") { Text(IndexingTableFormat.number($0.width)).monospacedDigit() }
-                TableColumn("Family") { Text($0.family ?? ($0.isValid ? "–" : "invalid")) }
-                TableColumn("Fit °") { Text($0.fitDegrees.map { IndexingTableFormat.angle($0, digits: 2) } ?? "–").monospacedDigit() }
+                TableColumn("Family") { Text(IndexingTableFormat.bandFamily($0.family, isValid: $0.isValid)) }
+                TableColumn("Fit °") { Text(IndexingTableFormat.bandFit($0.fitDegrees)).monospacedDigit() }
             }
             .accessibilityIdentifier("indexing.bands")
         }

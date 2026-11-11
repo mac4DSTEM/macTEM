@@ -64,7 +64,7 @@ private struct IndexingCalibrationSection: View {
         case .success(let source):
             guard source.kind != .asStored else { return source.kind.title }
             let stages = PatternPipeline.Stage.allCases.filter { session.patterns.pipeline.isActive($0) }.count
-            return "\(source.kind.title) · \(stages) stage\(stages == 1 ? "" : "s")"
+            return "\(source.kind.title) · \(UnitDisplay.count(stages, "stage", "stages"))"
         case .failure:
             return "Not readable as set"
         }
@@ -76,7 +76,7 @@ private struct IndexingCalibrationSection: View {
             InspectorValueRow("Patterns", patternsRow)
                 .accessibilityIdentifier("indexing.calibration.patterns")
             if let pc = IndexingPlan.meanProjectionCenter(detector) {
-                InspectorValueRow("PC", "(\(UnitDisplay.number(pc.x, digits: 4)), \(UnitDisplay.number(pc.y, digits: 4)), \(UnitDisplay.number(pc.z, digits: 4)))")
+                InspectorValueRow("PC", IndexingInfoFormat.triple(pc))
                     .help(detector.projectionCenters.count > 1 ? "The mean of the file's \(detector.projectionCenters.count) projection centres, Bruker convention (kikuchipy's pc_average)"
                           : "The file's projection centre, Bruker convention")
                     .accessibilityIdentifier("indexing.calibration.pc")
@@ -84,8 +84,9 @@ private struct IndexingCalibrationSection: View {
                 InspectorValueRow("PC", "None in the file")
                     .accessibilityIdentifier("indexing.calibration.pc")
             }
-            InspectorValueRow("Sample tilt", "\(UnitDisplay.number(detector.sampleTilt))°")
-            InspectorValueRow("Camera tilt", "\(UnitDisplay.number(detector.tilt))°")
+            ForEach(IndexingInfoFormat.tiltRows(detector)) { row in
+                InspectorValueRow(row.label, row.value)
+            }
             InspectorValueRow("Pattern", "\(session.patternShape.columns > 0 ? session.patternShape.columns : dataset.patternColumns) × \(session.patternShape.rows > 0 ? session.patternShape.rows : dataset.patternRows) px")
             InspectorActionRow {
                 Button("Edit in Patterns") { appState.selectWorkspace(.patterns) }
@@ -303,28 +304,19 @@ private struct IndexingDictionarySection: View {
     let session: IndexingSession
     @State private var importing = false
 
-    private static let whole = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0))
-    private static let decimal = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...3))
-
     private var settings: DictionaryIndexingSettings { session.dictionarySettings }
     private var defaults: DictionaryIndexingSettings { .roomDefault }
 
-    /// "11,935 patterns at 4°"; with several phases one count each, "11,935 + 11,935 patterns at 4°".
+    /// "11935 patterns at 4°"; with several phases one count each, "11935 + 11935 patterns at 4°" (`IndexingInfoFormat.dictionarySize`).
     private var sizeRow: String {
-        let resolution = settings.resolution.formatted(Self.decimal)
-        guard session.dictionarySize != nil else {
-            let countable = !session.phasesOn.isEmpty && session.phasesOn.allSatisfy { $0.pointGroupName != nil } && settings.refusal == nil
-            return countable ? "Counting at \(resolution)°" : "–"
-        }
-        let sizes = session.phasesOn.compactMap { session.dictionarySize(for: $0)?.formatted() }
-        return "\(sizes.joined(separator: " + ")) patterns at \(resolution)°"
+        let phases = session.phasesOn
+        let sizes = session.dictionarySize == nil ? nil : phases.compactMap { session.dictionarySize(for: $0) }
+        let countable = !phases.isEmpty && phases.allSatisfy { $0.pointGroupName != nil } && settings.refusal == nil
+        return IndexingInfoFormat.dictionarySize(sizes, resolution: settings.resolution, countable: countable)
     }
 
     private var chunkRow: String {
-        guard let cut = session.dictionaryChunking, cut.size > 0 else { return "–" }
-        let over = session.phasesOn.count > 1 ? " over \(session.phasesOn.count) dictionaries" : ""
-        let chunks = "\(cut.size.formatted()) patterns · \(cut.chunks) chunk\(cut.chunks == 1 ? "" : "s")\(over)"
-        return cut.blocks > 1 ? chunks + " per block · \(cut.blocks) blocks" : chunks
+        IndexingInfoFormat.chunking(session.dictionaryChunking, dictionaries: session.phasesOn.count)
     }
 
     var body: some View {
@@ -344,7 +336,7 @@ private struct IndexingDictionarySection: View {
                     .accessibilityIdentifier("indexing.dictionary.open")
             }
             InspectorRow("Resolution") {
-                OptionalNumericField(title: "Angular resolution", value: settings.resolution, format: Self.decimal, unit: "°",
+                OptionalNumericField(title: "Angular resolution", value: settings.resolution, format: Num.decimalField, unit: "°",
                                      prompt: "\(Int(defaults.resolution))") { v in
                     session.editDictionarySettings { $0.resolution = v }
                 }
@@ -361,8 +353,8 @@ private struct IndexingDictionarySection: View {
             }, selection: Binding(get: { settings.metric }, set: { metric in session.editDictionarySettings { $0.metric = metric } }))
                 .accessibilityIdentifier("indexing.dictionary.metric")
             InspectorRow("Keep") {
-                OptionalNumericField(title: "Matches kept", value: Double(settings.keep), format: Self.whole, prompt: "\(defaults.keep)") { v in
-                    session.editDictionarySettings { $0.keep = WholeNumberEntry.value(v) }
+                OptionalNumericField(title: "Matches kept", value: Double(settings.keep), format: Num.wholeField, prompt: "\(defaults.keep)") { v in
+                    session.editDictionarySettings { $0.keep = TypedWholeNumber.value(v) }
                 }
                 .help("The best matches kept per pattern, best first (keep_n); the map shows the best")
                 .accessibilityIdentifier("indexing.dictionary.keep")
@@ -432,23 +424,20 @@ private struct IndexingMasterRows: View {
 private struct IndexingHoughSection: View {
     let session: IndexingSession
 
-    private static let whole = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0))
-    private static let decimal = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...4))
-
     private var settings: HoughIndexingSettings { session.settings }
     private var defaults: HoughIndexingSettings { .roomDefault }
 
     var body: some View {
         InspectorSection("Hough", status: settings == defaults ? nil : "edited") {
             InspectorRow("Bands") {
-                OptionalNumericField(title: "Bands", value: Double(settings.bands), format: Self.whole, prompt: "\(defaults.bands)") { v in
-                    session.editSettings { $0.bands = WholeNumberEntry.value(v) }
+                OptionalNumericField(title: "Bands", value: Double(settings.bands), format: Num.wholeField, prompt: "\(defaults.bands)") { v in
+                    session.editSettings { $0.bands = TypedWholeNumber.value(v) }
                 }
                 .help("The number of bands detected in each pattern (nBands)")
                 .accessibilityIdentifier("indexing.hough.bands")
             }
             InspectorRow("ρ mask") {
-                OptionalNumericField(title: "Rho mask", value: settings.rhoMaskFraction * 100, format: Self.decimal, unit: "%",
+                OptionalNumericField(title: "Rho mask", value: settings.rhoMaskFraction * 100, format: Num.decimalField, unit: "%",
                                      prompt: "\(Int(defaults.rhoMaskFraction * 100))") { v in
                     session.editSettings { $0.rhoMaskFraction = v / 100 }
                 }
@@ -456,44 +445,44 @@ private struct IndexingHoughSection: View {
                 .accessibilityIdentifier("indexing.hough.rhoMask")
             }
             InspectorRow("ρ bins") {
-                OptionalNumericField(title: "Rho bins", value: Double(settings.rhoBins), format: Self.whole, prompt: "\(defaults.rhoBins)") { v in
-                    session.editSettings { $0.rhoBins = WholeNumberEntry.value(v) }
+                OptionalNumericField(title: "Rho bins", value: Double(settings.rhoBins), format: Num.wholeField, prompt: "\(defaults.rhoBins)") { v in
+                    session.editSettings { $0.rhoBins = TypedWholeNumber.value(v) }
                 }
                 .help("The Radon transform's bins across the pattern's distance from its centre (nRho)")
                 .accessibilityIdentifier("indexing.hough.rhoBins")
             }
             InspectorRow("θ bins") {
-                OptionalNumericField(title: "Theta bins", value: Double(settings.thetaBins), format: Self.whole, prompt: "\(defaults.thetaBins)") { v in
-                    session.editSettings { $0.thetaBins = WholeNumberEntry.value(v) }
+                OptionalNumericField(title: "Theta bins", value: Double(settings.thetaBins), format: Num.wholeField, prompt: "\(defaults.thetaBins)") { v in
+                    session.editSettings { $0.thetaBins = TypedWholeNumber.value(v) }
                 }
                 .help("The Radon transform's bins over 180° of band angle (nTheta)")
                 .accessibilityIdentifier("indexing.hough.thetaBins")
             }
             InspectorRow("ρ width") {
-                OptionalNumericField(title: "Rho sigma", value: settings.rhoSigma, format: Self.decimal, unit: "bins", prompt: "\(Int(defaults.rhoSigma))") { v in
+                OptionalNumericField(title: "Rho sigma", value: settings.rhoSigma, format: Num.decimalField, unit: "bins", prompt: "\(Int(defaults.rhoSigma))") { v in
                     session.editSettings { $0.rhoSigma = v }
                 }
                 .help("The band-shaped kernel's width across ρ, in Radon bins (rSigma)")
                 .accessibilityIdentifier("indexing.hough.rhoSigma")
             }
             InspectorRow("θ width") {
-                OptionalNumericField(title: "Theta sigma", value: settings.thetaSigma, format: Self.decimal, unit: "bins", prompt: "\(Int(defaults.thetaSigma))") { v in
+                OptionalNumericField(title: "Theta sigma", value: settings.thetaSigma, format: Num.decimalField, unit: "bins", prompt: "\(Int(defaults.thetaSigma))") { v in
                     session.editSettings { $0.thetaSigma = v }
                 }
                 .help("The band-shaped kernel's width along θ, in Radon bins (tSigma)")
                 .accessibilityIdentifier("indexing.hough.thetaSigma")
             }
             InspectorRow("Tolerance") {
-                OptionalNumericField(title: "Vote tolerance", value: settings.angleTolerance, format: Self.decimal, unit: "°", prompt: "\(Int(defaults.angleTolerance))") { v in
+                OptionalNumericField(title: "Vote tolerance", value: settings.angleTolerance, format: Num.decimalField, unit: "°", prompt: "\(Int(defaults.angleTolerance))") { v in
                     session.editSettings { $0.angleTolerance = v }
                 }
                 .help("How far an interband angle may be from a reflector pair's to vote for it (angTol)")
                 .accessibilityIdentifier("indexing.hough.tolerance")
             }
             InspectorRow("Early exit") {
-                OptionalNumericField(title: "Early exit", value: Double(settings.earlyExitBands), format: Self.whole, unit: "bands",
+                OptionalNumericField(title: "Early exit", value: Double(settings.earlyExitBands), format: Num.wholeField, unit: "bands",
                                      prompt: "\(defaults.earlyExitBands)") { v in
-                    session.editSettings { $0.earlyExitBands = WholeNumberEntry.value(v) }
+                    session.editSettings { $0.earlyExitBands = TypedWholeNumber.value(v) }
                 }
                 .help("A pattern stops voting once this many bands agree on one orientation (nband_earlyexit)")
                 .accessibilityIdentifier("indexing.hough.earlyExit")
@@ -522,8 +511,6 @@ private struct IndexingHoughSection: View {
 private struct IndexingRefineSection: View {
     let session: IndexingSession
 
-    private static let decimal = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...3))
-
     private var settings: IndexingRefineSettings { session.refineSettings }
     private var defaults: IndexingRefineSettings { .roomDefault }
     private var status: String? {
@@ -543,8 +530,8 @@ private struct IndexingRefineSection: View {
             }, selection: Binding(get: { settings.target }, set: { target in session.editRefineSettings { $0.target = target } }))
                 .accessibilityIdentifier("indexing.refine.target")
             InspectorRow("Angle trust") {
-                OptionalNumericField(title: "Orientation trust region", value: settings.trustAngle, format: Self.decimal, unit: "°",
-                                     prompt: defaults.trustAngle.formatted(Self.decimal)) { v in
+                OptionalNumericField(title: "Orientation trust region", value: settings.trustAngle, format: Num.decimalField, unit: "°",
+                                     prompt: defaults.trustAngle.formatted(Num.decimalField)) { v in
                     session.editRefineSettings { $0.trustAngle = v }
                 }
                 .disabled(settings.target == .projectionCenter)
@@ -553,8 +540,8 @@ private struct IndexingRefineSection: View {
                 .accessibilityIdentifier("indexing.refine.trustAngle")
             }
             InspectorRow("PC trust") {
-                OptionalNumericField(title: "Projection centre trust region", value: settings.trustPC, format: Self.decimal,
-                                     prompt: defaults.trustPC.formatted(Self.decimal)) { v in
+                OptionalNumericField(title: "Projection centre trust region", value: settings.trustPC, format: Num.decimalField,
+                                     prompt: defaults.trustPC.formatted(Num.decimalField)) { v in
                     session.editRefineSettings { $0.trustPC = v }
                 }
                 .disabled(settings.target == .orientation)
@@ -706,7 +693,7 @@ struct IndexingRoomInfo: View {
                     InspectorValueRow("State", IndexingInfoFormat.state(result, session: session))
                     if let seconds = session.lastRunSeconds { InspectorValueRow("Time", IndexingInfoFormat.time(seconds)) }
                     if let other = session.otherRun {
-                        InspectorValueRow("Also held", "\(other.method.title) · \(other.result.indexedCount.formatted()) of \(other.result.pointCount.formatted()) indexed"
+                        InspectorValueRow("Also held", "\(other.method.title) · \(IndexingInfoFormat.indexed(other.result)) indexed"
                                           + (session.isStale(of: other.method) ? " · stale" : ""))
                             .accessibilityIdentifier("indexing.info.otherRun")
                     }
@@ -727,13 +714,4 @@ struct IndexingRoomInfo: View {
         }
     }
 
-}
-
-/// The whole-number fields (Keep, Bands, ρ bins, θ bins, Early exit).
-nonisolated private enum WholeNumberEntry {
-    /// A typed number rounded and held within ±10⁹, so that a huge or non-finite entry reaches the setting's refusal instead of
-    /// trapping in the conversion to `Int`.
-    static func value(_ v: Double) -> Int {
-        v.isFinite ? Int(min(max(v.rounded(), -1e9), 1e9)) : 0
-    }
 }

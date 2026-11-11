@@ -53,8 +53,8 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         XCTAssertTrue(processing.log.contains { $0.text.hasPrefix("Processed ") }, "\(processing.log)")
         XCTAssertEqual(processing.methods, [.staticBackground, .dynamicBackground], "the room's default stages")
         let indexing = try XCTUnwrap(rows.first { $0.kind == .indexing })
-        // The Indexing room's Info line, as it was written there before the words were shared.
-        XCTAssertEqual(indexing.fields.first { $0.name == "Indexed" }?.value, "\(result.indexedCount.formatted()) of \(result.pointCount.formatted())")
+        // The Indexing room's Info line, its counts never grouped on screen as in the report (#272).
+        XCTAssertEqual(indexing.fields.first { $0.name == "Indexed" }?.value, "\(result.indexedCount) of \(result.pointCount)")
         XCTAssertEqual(indexing.fields.first { $0.name == "Method" }?.value, "Hough (pyEBSDindex 0.3.10.1)")
         XCTAssertTrue(indexing.log.contains { $0.text.hasPrefix("Indexed ") }, "\(indexing.log)")
         let exports = rows.filter { $0.kind == .export }
@@ -288,14 +288,14 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         XCTAssertEqual(fields(report)["Dynamic background"], "Subtract · Gaussian · std 1.5 px · truncate 4 std")
         XCTAssertEqual(fields(report)["NLPAR"], "\(radius) · λ 0.123")
 
-        // The Indexing room's Info words: grouped as a German reader groups, plain in the report.
+        // The Indexing room's Info words: never grouped, on screen as in the report (#272; a German screen read "4.125 of 4.125").
         let ni = try XCTUnwrap(IndexingPhase.presets.first { $0.name == "Ni" })
         var result = IndexingResult(scanRows: 55, scanColumns: 75, phases: [ni])
         var indexed = HoughIndexer.Solution()
         indexed.phase = 0
         for row in 0..<55 { result.land(Array(repeating: indexed, count: 75), at: row) }
         XCTAssertEqual(IndexingInfoFormat.indexed(result, locale: report), "4125 of 4125")
-        XCTAssertEqual(IndexingInfoFormat.indexed(result, locale: german), "4.125 of 4.125")
+        XCTAssertEqual(IndexingInfoFormat.indexed(result, locale: german), "4125 of 4125")
         XCTAssertEqual(IndexingInfoFormat.points(3812, locale: report), "3812 points")
         XCTAssertEqual(IndexingInfoFormat.time(1.25, locale: german), "1,25 s")
 

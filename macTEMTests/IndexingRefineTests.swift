@@ -366,7 +366,7 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         XCTAssertTrue(indexing.isStale)
         XCTAssertFalse(indexing.isStale(of: .dictionary))
         XCTAssertTrue(indexing.staleness(ofRun: shown.id, method: .dictionary)?.contains("Refine changed") == true)
-        XCTAssertEqual(indexing.verbHelp, "Refine the orientations of the \(4125.formatted()) patterns indexed with Dictionary (ni)")
+        XCTAssertEqual(indexing.verbHelp, "Refine the orientations of the 4125 patterns indexed with Dictionary (ni)", "never grouped (#272)")
         let before = events.count
         let alone = Date()
         await indexing.index().value
@@ -443,7 +443,8 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         indexing.editRefineSettings { $0.target = .both }
         let stopped = indexing.index()
         XCTAssertTrue(indexing.isRefining)
-        XCTAssertEqual(BusyOperation.indexingLine(indexing, dataset: try XCTUnwrap(indexing.patterns.dataset)), "Refine · Both · 0 of \(4125.formatted())")
+        XCTAssertEqual(BusyOperation.indexingLine(indexing, dataset: try XCTUnwrap(indexing.patterns.dataset), locale: Locale(identifier: "de_DE")),
+                       "Refine · Both · 0 of 4125", "never grouped, as the map's count line")
         indexing.stop()
         await stopped.value
         XCTAssertFalse(indexing.isIndexing)

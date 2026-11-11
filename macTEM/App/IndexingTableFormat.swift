@@ -21,6 +21,16 @@ nonisolated enum IndexingTableFormat {
     /// A value of any size (pattern quality, a Radon peak): up to four significant digits.
     static func number(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { UnitDisplay.number(v, digits: 4, locale: locale) }
 
+    /// A dictionary row's Simulation cell, the dictionary pattern it matched best; `UnitDisplay.noValue` where it matched none.
+    static func simulation(_ index: Int) -> String { index >= 0 ? String(index) : UnitDisplay.noValue }
+
+    /// The Bands table's Family cell: the reflector family matched, `UnitDisplay.noValue` for a band matched to none, "invalid" for
+    /// one the detector rejected.
+    static func bandFamily(_ family: String?, isValid: Bool) -> String { family ?? (isValid ? UnitDisplay.noValue : "invalid") }
+
+    /// The Bands table's Fit ° cell: two decimals, `UnitDisplay.noValue` for a band the fit did not weigh.
+    static func bandFit(_ degrees: Double?, locale: Locale = .autoupdatingCurrent) -> String { angle(degrees ?? .nan, digits: 2, locale: locale) }
+
     /// The table's column titles: Row, Col, Phase, the Euler angles, then Hough's CI, Fit, Bands, PQ or a dictionary's score (named by
     /// its metric, `scoreTitle`), Simulation, OSM.
     static func titles(method: IndexingMethod, scoreTitle: String) -> [String] {
@@ -40,8 +50,7 @@ nonisolated enum IndexingTableFormat {
             return head + [fraction(row.confidence, locale: locale), angle(row.fit, digits: 2, locale: locale), String(row.bands),
                            number(row.patternQuality, locale: locale)]
         case .dictionary:
-            return head + [fraction(row.confidence, locale: locale), row.simulationIndex >= 0 ? String(row.simulationIndex) : UnitDisplay.noValue,
-                           angle(row.similarity, digits: 2, locale: locale)]
+            return head + [fraction(row.confidence, locale: locale), simulation(row.simulationIndex), angle(row.similarity, digits: 2, locale: locale)]
         }
     }
 
