@@ -15,7 +15,10 @@ band detection runs in float32 under numba fastmath (Radon sums, an FFT convolut
 1e-6 of the array's range for the Radon arrays (1e-4 and 2e-3 on ranges of 150 and 1000); peak cells exact; sub-pixel peak positions, theta and rho within 1e-3 pixel and
 1e-4 rad (the brief's bound is 1 px / 1 degree). Votes are float32 sums: rtol 1e-5. Orientations: the brief's bound, under
 1 degree (symmetry-reduced) of pyEBSDindex for 99 % of points (docs/sem/north-star.md, figure 4), fraction indexed equal;
-the arrays are stored float64 with a loose element tolerance the Swift test does not use for the claim.
+the arrays are stored float64 with a loose element tolerance the Swift test does not use for the claim. The drift gate
+holds the whole map's quaternion and Euler arrays by orientation instead (#434): the misorientation under the phase's
+point group, at most that 1 degree at every point, because the float32 fit can hand another of the 24 cubic twins of
+the same orientation on another CPU.
 """
 
 from __future__ import annotations
@@ -43,6 +46,8 @@ NORM = {"rtol": 1e-4, "atol": 1e-6}
 FIT = {"rtol": 0.0, "atol": 2e-3}
 # hkl back from float64 reciprocal-lattice arithmetic: zeros come out as +-1e-16.
 POLE = {"rtol": 1e-7, "atol": 1e-12}
+# The drift gate's bound on the map's rotations, per point under the phase's point group (#434): the claim above.
+ORIENTATION_DEGREES = 1.0
 
 INPUTS_FILE = Path(__file__).resolve().parent / "fixtures" / "hough_inputs.json"
 INPUTS_LABEL = "fixtures/hough_inputs.json"
@@ -240,9 +245,14 @@ def case_m4_hough_indexing_nickel_large(ctx):
         "x_last": float(xmap.x[-1]), "y_last": float(xmap.y[-1]),
     })
     b.array("phase", pid.reshape(nav), **EXACT)
-    b.array("quaternion", np.asarray(xmap.rotations.data, dtype=np.float64).reshape(*nav, 4), **LOOSE,
+    groups = sorted({ph.point_group.name for i, ph in xmap.phases if i >= 0})
+    assert len(groups) == 1, groups   # one indexed phase, so one point group holds every point
+    held = {"symmetry": groups[0], "angle_tolerance_degrees": ORIENTATION_DEGREES}
+    b.array("quaternion", np.asarray(xmap.rotations.data, dtype=np.float64).reshape(*nav, 4), **LOOSE, **held,
+            rotation="quaternion",
             note="orix Rotation data (KIKUCHIPY frame); the test holds the symmetry-reduced misorientation < 1 degree")
-    b.array("euler", np.asarray(xmap.rotations.to_euler(), dtype=np.float64).reshape(*nav, 3), **LOOSE, note="Bunge, radians")
+    b.array("euler", np.asarray(xmap.rotations.to_euler(), dtype=np.float64).reshape(*nav, 3), **LOOSE, **held,
+            rotation="euler_bunge_radians", note="Bunge, radians")
     b.array("nmatch", np.asarray(xmap.prop["nmatch"], dtype=np.int32).reshape(nav), **EXACT)
     for f in ["fit", "cm", "pq"]:
         b.array(f, np.asarray(xmap.prop[f], dtype=np.float32).reshape(nav), **F32)
