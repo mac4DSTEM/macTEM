@@ -6,7 +6,8 @@
 //        when it has one, and where the patterns are (`EBSDPatternSource`: an HDF5 dataset or fixed-size records of a vendor's binary
 //        file) so they are read by map position on demand. The header numbers a reader sizes and indexes by pass `ReaderNumber`,
 //        and every dataset passes `EBSDDataset.validated()` at the open, so a broken or hostile header is refused in words. A record
-//        file is mapped only on a local volume and checked before every read, so a volume that goes away is a sentence, not a crash.
+//        file is mapped only on a local volume and checked before every read, so a volume that goes away is a sentence, not a crash;
+//        elsewhere it is read through its handle, each read in an autorelease pool of its own, so a pass holds a row, not the scan.
 //        Ported from kikuchipy 0.13.1 (`kikuchipy/io/plugins/_h5ebsd.py`, `detectors/_ebsd_detector.py`; GPL-3.0-or-later); the
 //        SEM program's parity rows are in docs/parity.md.
 //
@@ -376,7 +377,8 @@ package nonisolated final class EBSDPatternReader: @unchecked Sendable {
 /// A record file's bytes, held as `EBSDPatternReader.RecordStrategy` says. Mapped: a descriptor is opened before the file is mapped and
 /// kept, and before every read it must still answer (`fstat`) with at least the size the file was opened at; a volume that has gone
 /// (the descriptor fails) or a file cut short is refused in words, and the mapping is never touched. Read: each read seeks the held
-/// handle and reads, under a lock (the handle has one offset), and a short or failed read is refused the same way.
+/// handle and reads, under a lock (the handle has one offset) and in an autorelease pool of its own, and a short or failed read is
+/// refused the same way.
 private nonisolated final class RecordFile: @unchecked Sendable {
     let url: URL
     /// The file's size in bytes when it was opened; every read stays inside it.
@@ -425,12 +427,16 @@ private nonisolated final class RecordFile: @unchecked Sendable {
     private var gone: EBSDReadError { EBSDReadError(text: "\(url.lastPathComponent) is no longer available.") }
 
     private func read(from start: Int, count: Int) throws -> Data {
+        // The handle hands its bytes back autoreleased, and a pass reads every row of a scan in one call that drains no pool. In a
+        // pool of its own, a row's bytes go when the caller lets go of them, not when the whole pass ends.
         let data = lock.withLock { () -> Data? in
-            do {
-                try handle.seek(toOffset: UInt64(start))
-                return try handle.read(upToCount: count) ?? Data()
-            } catch {
-                return nil
+            autoreleasepool { () -> Data? in
+                do {
+                    try handle.seek(toOffset: UInt64(start))
+                    return try handle.read(upToCount: count) ?? Data()
+                } catch {
+                    return nil
+                }
             }
         }
         guard let data, data.count == count else { throw gone }
