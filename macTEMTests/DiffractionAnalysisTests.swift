@@ -4,8 +4,6 @@
 //  {111} at R 33.98, {200} at 39.24, {220} as six spots at R 55.48): calibration from a ring on a standard, a second ring and a spot indexed
 //  with the planted spacings, the precedence of the three scales, re-indexing without a refit, the CSV and the Results rows.
 //  The tolerances are the kit's: the room adds none of its own beyond identity with the kit's answer on the same inputs.
-//  Last, the Spot tool's VoiceOver twin (`SpotCursorActions`, macTEM#262): "Add spot here" adds the spot a click on that pixel
-//  adds. Red before that change: a spot could be added only with the pointer.
 //
 
 import XCTest
@@ -14,7 +12,6 @@ import DiffractoScattering
 import DiffractoGeometry
 import TEMCore
 import TEMSession
-@testable import macTEM
 
 nonisolated final class DiffractionAnalysisTests: XCTestCase {
 
@@ -200,91 +197,5 @@ nonisolated final class DiffractionAnalysisTests: XCTestCase {
         analysis.setKMax(0.3)
         let small = analysis.readout(image: image)
         XCTAssertEqual(small[0].family, nil, "at k_max 0.3 Å⁻¹ the {111} ring (0.42) has no family")
-    }
-
-    // MARK: The Spot tool's VoiceOver twin (macTEM#262)
-
-    /// "Add spot here" adds the spot a click on that pixel adds: the click's own `addSpot` with the cursor's row and column, so the
-    /// two spots are refined to one centre and read as one row. The cursor starts at the pattern's centre (256, 256), the one the room
-    /// draws and centres its view on, and walks in steps of 5 px (1 % of 512) to (241, 311), by the {220} reflection planted at 105°
-    /// (241.6, 309.6), which is not on the diagonal, so a row taken for a column lands elsewhere. Its value is the status line's
-    /// readout of that pixel, and what it says after is the new row's name, d and family. The spot is the one the room selects, as a
-    /// clicked one is. Red under: the row and the column swapped; the cursor's corner (x + 0.5) instead of its centre; another call
-    /// than the click's (a spot not refined, not selected); the start at the image's middle (255, 255) instead of the pattern's centre;
-    /// a value without R, q and d.
-    @MainActor func testAddSpotHereAddsTheSpotAClickOnThatPixelAdds() async throws {
-        let (analysis, image) = try await calibrated()
-        let actions = SpotCursorActions(image: image, analysis: analysis)
-        var cursor: MarkCursor.Pixel?
-        XCTAssertEqual(actions.pixel(cursor), MarkCursor.Pixel(x: 256, y: 256), "it starts at the pattern's centre")
-        for _ in 0..<3 { cursor = actions.moved(cursor, by: .left) }
-        for _ in 0..<11 { cursor = actions.moved(cursor, by: .down) }
-        XCTAssertEqual(cursor, MarkCursor.Pixel(x: 241, y: 311))
-        let readout = DiffractionReadoutText.text(column: 241, row: 311, centre: analysis.centre,
-                                                  calibration: analysis.calibration(for: image))
-        XCTAssertEqual(actions.spokenValue(cursor), readout, "the pointer's readout of the same pixel")
-        XCTAssertTrue(readout.hasPrefix("x 241, y 311 \u{00B7} R "), readout)
-        XCTAssertTrue(readout.contains(" \u{00B7} d "), readout)
-        let keyed = try XCTUnwrap(actions.addSpotHere(cursor))
-        XCTAssertEqual(analysis.lastAdded, keyed.id, "the room selects it, as a clicked one")
-
-        analysis.addSpot(image: image, row: 311, column: 241)   // the click on that pixel's centre
-        let clicked = try XCTUnwrap(analysis.spots.last)
-        XCTAssertEqual(analysis.spots.count, 2)
-        XCTAssertNotEqual(clicked.id, keyed.id)
-        XCTAssertEqual(keyed.clickRow, clicked.clickRow)
-        XCTAssertEqual(keyed.clickColumn, clicked.clickColumn)
-        XCTAssertEqual(keyed.row, clicked.row)
-        XCTAssertEqual(keyed.column, clicked.column)
-        XCTAssertEqual(keyed.radius, clicked.radius)
-        XCTAssertNil(keyed.refusal)
-        XCTAssertNil(clicked.refusal)
-        let spots = analysis.readout(image: image).filter { $0.kind == .spot }
-        XCTAssertEqual(spots.count, 2)
-        let first = try XCTUnwrap(spots.first)
-        let second = try XCTUnwrap(spots.last)
-        XCTAssertEqual(first.radiusPx, second.radiusPx)
-        XCTAssertEqual(first.d, second.d)
-        XCTAssertEqual(first.family, second.family)
-        XCTAssertEqual(first.verdict, second.verdict)
-        XCTAssertEqual(first.family, "{220}", "verdict: \(first.verdict)")
-        XCTAssertEqual(first.id, keyed.id)
-        XCTAssertEqual(actions.announcement(for: keyed),
-                       "Added Spot 1, d " + DiffractionReadoutFormat.cell(.d, first) + " ångströms, {220}")
-    }
-
-    /// The twin is there exactly while a click adds a spot; its centre is the pattern's, a typed one too, at its nearest pixel and on
-    /// the pattern; and it says a new spot's row in the table's words, the verdict where there is no family or no d. Red under: the
-    /// twin on in the Ring tool (where a press draws the annulus), off in the Spot tool; the centre the image's middle once the pattern
-    /// has one; a centre off the pattern left off it; a spot without a centre spoken as measured.
-    @MainActor func testTheSpotTwinFollowsTheClickAndSaysWhatItAdded() {
-        let view = DiffractionViewState()
-        XCTAssertEqual(view.tool, .ring)
-        XCTAssertFalse(SpotCursorActions.addsSpots(view), "the Ring tool: a press draws the annulus")
-        view.tool = .spot
-        XCTAssertTrue(SpotCursorActions.addsSpots(view))
-        let image = DemoDocuments.diffractionPattern()
-        let analysis = DiffractionAnalysis()
-        let actions = SpotCursorActions(image: image, analysis: analysis)
-        XCTAssertEqual(actions.centre(), MarkCursor.Pixel(x: 255, y: 255), "no centre yet: the image's middle")
-        analysis.bind(image)
-        XCTAssertEqual(actions.centre(), MarkCursor.Pixel(x: 256, y: 256), "the pattern's centre the room draws")
-        analysis.setCentre(row: 300.4, column: 199.6)
-        XCTAssertEqual(actions.centre(), MarkCursor.Pixel(x: 200, y: 300))
-        XCTAssertEqual(actions.pixel(nil), actions.centre(), "where the cursor starts")
-        analysis.setCentre(row: -40, column: 9000)
-        XCTAssertEqual(actions.centre(), MarkCursor.Pixel(x: 511, y: 0), "held on the pattern")
-
-        func row(d: Double?, family: String?, verdict: String) -> DiffractionReadoutRow {
-            DiffractionReadoutRow(id: UUID(), kind: .spot, number: 3, radiusPx: d == nil ? nil : 40, q: d.map { 1 / $0 }, d: d,
-                                  family: family, dListed: nil, deltaPercent: nil, oddsText: nil, verdict: verdict, validation: "")
-        }
-        XCTAssertEqual(SpotCursorActions.announcement(row(d: nil, family: nil, verdict: "no signal near the click")),
-                       "Added Spot 3, no signal near the click")
-        let unindexed = row(d: 2, family: nil, verdict: "no family within 1 %")
-        XCTAssertEqual(SpotCursorActions.announcement(unindexed),
-                       "Added Spot 3, d " + DiffractionReadoutFormat.cell(.d, unindexed) + " ångströms, no family within 1 %")
-        XCTAssertEqual(actions.announcement(for: nil), "No spot added")
-        XCTAssertEqual(SpotCursorActions.addActionName, "Add spot here")
     }
 }

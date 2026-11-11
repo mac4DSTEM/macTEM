@@ -102,8 +102,7 @@ nonisolated struct FFTKeyState: Equatable {
 /// What the Image room's keys depend on.
 nonisolated struct ImageKeyState: Equatable {
     var markSelected: Bool
-    /// A mark waiting for its next point: an angle whose first arm is drawn, or a point the VoiceOver twin holds
-    /// (`MarkCursorState`, UI/MarkCursor.swift).
+    /// An angle whose first arm is drawn, waiting for its third point.
     var angleInProgress: Bool
 }
 
@@ -125,8 +124,7 @@ nonisolated enum PaneKeyRouter {
         }
     }
 
-    /// ⌫ and ⌘C act on the selected mark; Escape drops an angle (or a twin's point) that is in progress. The arrows are not the
-    /// Image room's.
+    /// ⌫ and ⌘C act on the selected mark; Escape drops an angle that is in progress. The arrows are not the Image room's.
     static func image(_ key: PaneKey, state: ImageKeyState) -> PaneKeyAction? {
         switch key {
         case .delete: state.markSelected ? .deleteMark : nil
@@ -339,27 +337,17 @@ struct ImageKeyedRoom: ViewModifier {
     let image: CalibratedImage
     let measurements: ImageMeasurements
     @Binding var angleArm: AngleArm?
-    /// The VoiceOver twin's state (UI/MarkCursor.swift): a point it holds is an unfinished mark too, which Escape drops with the arm,
-    /// as its Clear points does.
-    @Binding var markCursor: MarkCursorState
 
     func body(content: Content) -> some View {
-        let keys = Self.keys(image: image, measurements: measurements, angleArm: $angleArm, markCursor: $markCursor)
+        let x = image.x, y = image.y
+        let arm = $angleArm
+        let keys = ImageRoomKeys(measurements: measurements, label: { MarkFormat.value($0, x: x, y: y) },
+                                 angleInProgress: arm.wrappedValue != nil, cancelAngle: { arm.wrappedValue = nil })
         return content
             .focusable()
             .focusEffectDisabled()   // DEVIATION as `FFTKeyedRoom`'s, named there
             .onKeyPress(phases: .down) { keys.handle($0) }
             .onCopyCommand(perform: keys.canCopy ? { keys.copyProviders() } : nil)
             .onDeleteCommand(perform: keys.canDelete ? { _ = keys.handle(.delete) } : nil)
-    }
-
-    /// The room's keys on the owners now, so a test drives the ones the room has: Escape routes while an angle's arm or a point the
-    /// twin holds waits, and drops both.
-    static func keys(image: CalibratedImage, measurements: ImageMeasurements, angleArm arm: Binding<AngleArm?>,
-                     markCursor cursor: Binding<MarkCursorState>) -> ImageRoomKeys {
-        let x = image.x, y = image.y
-        return ImageRoomKeys(measurements: measurements, label: { MarkFormat.value($0, x: x, y: y) },
-                             angleInProgress: arm.wrappedValue != nil || cursor.wrappedValue.first != nil,
-                             cancelAngle: { arm.wrappedValue = nil; cursor.wrappedValue.first = nil })
     }
 }
