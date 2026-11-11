@@ -309,6 +309,16 @@ package final class OrientationMapSession {
         return draw()
     }
 
+    /// File > Close Map (⌘W in the Maps room): the map shown goes, and the next map held is shown in its place at the same point and on
+    /// the same layer where it has them (`Source`'s order); with none left the room goes back to its door. The other maps stay held.
+    @discardableResult
+    package func closeShown() -> Task<Void, Never>? {
+        guard let shown = document else { close(); return nil }
+        sources.removeAll { $0.id == shown.id }
+        guard let next = sources.first else { close(); return nil }
+        return bind(next, layer: layer, pinned: pinned)
+    }
+
     /// Closes the map and every map held: the room goes back to its door.
     package func close() {
         generation += 1

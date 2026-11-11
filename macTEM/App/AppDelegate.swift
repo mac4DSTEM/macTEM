@@ -39,6 +39,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quit.hasDestructiveAction = true
         let cancel = alert.addButton(withTitle: "Cancel")
         cancel.keyEquivalent = "\u{1b}"
+        // A quit asked from the Dock or a script while another app is in front: the question sits behind that app, unseen, and the
+        // quit waits on it (driven 2026-11-11, macTEM#487). Since macOS 14 an app in the background may not take the front itself
+        // (`activate()` is a request the system declines from the Dock's Quit, driven the same day), so it asks for attention as a
+        // document app does with unsaved work: the Dock icon bounces until the person comes, and the question is in front then.
+        NSApp.activate()
+        let attention = NSApp.isActive ? nil : NSApp.requestUserAttention(.criticalRequest)
+        defer { if let attention { NSApp.cancelUserAttentionRequest(attention) } }
         guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
         windows.isTerminating = true
         return .terminateNow

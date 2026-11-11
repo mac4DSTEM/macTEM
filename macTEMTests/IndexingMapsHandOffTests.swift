@@ -176,6 +176,36 @@ nonisolated final class IndexingMapsHandOffTests: XCTestCase {
         XCTAssertFalse(session.hasMap, "with no map file held the room goes back to its door")
     }
 
+    /// File > Close Map closes the map shown, not every map held: with a map file and the dataset's own map held, ⌘W on the dataset's map
+    /// shows the file's at the same point and layer, and the next ⌘W leaves the room at its door. Red before: one ⌘W emptied `sources`,
+    /// the dataset's map gone until the dataset was opened again (macTEM#404).
+    @MainActor func testCloseMapClosesTheMapShownOnly() async throws {
+        let session = OrientationMapSession()
+        let file = OrientationMapSession.Document(fileName: "a.ang", url: nil, map: try Self.map(rows: 30, columns: 40, iq: true),
+                                                  source: .mapFile, format: ".ang (EDAX TSL)")
+        let own = OrientationMapSession.Document(fileName: "Demo EBSD", url: nil, map: try Self.map(rows: 30, columns: 40),
+                                                 source: .patterns, format: "generated")
+        await session.bind(file).value
+        await session.bind(own).value
+        session.pin(EBSDPosition(row: 5, column: 9))
+        await session.setLayer(.phase).value
+
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.maps.bind(file).value
+        await state.maps.bind(own).value
+        state.closeDocument(.orientationMap)
+        XCTAssertEqual(state.maps.sources.map(\.source), [.mapFile], "⌘W in Maps closes the map shown, through the room's one close")
+
+        await session.closeShown()?.value
+        XCTAssertEqual(session.sources.map(\.source), [.mapFile], "the other map stays held")
+        XCTAssertEqual(session.document?.source, .mapFile, "and is shown in its place")
+        XCTAssertEqual(session.pinned, EBSDPosition(row: 5, column: 9))
+        XCTAssertEqual(session.layer, .phase)
+        XCTAssertNil(session.closeShown(), "the last map held")
+        XCTAssertFalse(session.hasMap, "with none left the room goes back to its door")
+        XCTAssertTrue(session.sources.isEmpty)
+    }
+
     /// The words: the stale title, the Source row and Info for each source.
     func testTheSourcesAreNamed() throws {
         XCTAssertEqual(MapsRoomFormat.mapTitle(.ipf(.z)), "Map · IPF-Z")

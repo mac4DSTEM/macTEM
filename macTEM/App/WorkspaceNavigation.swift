@@ -246,13 +246,14 @@ extension AppState {
     }
 
     /// ⌘W on `target`: the selected image through `requestClose` (unsaved marks ask first); the Patterns room's dataset, with the
-    /// Indexing room's run and the dataset's maps (`ebsd.onClose`); every map the Maps room holds; the spectrum image, with the SEM
+    /// Indexing room's run and the dataset's maps (`ebsd.onClose`); the map the Maps room shows, the next one held taking its place
+    /// (`maps.closeShown`); the spectrum image, with the SEM
     /// line table read from it. The room then gives way to one with data (`reconcileRoom`).
     func closeDocument(_ target: DocumentTarget) {
         switch target {
         case .image: requestCloseSelected()
         case .ebsdDataset: ebsd.close()
-        case .orientationMap: maps.close()
+        case .orientationMap: maps.closeShown()
         case .eds:
             edx.close()
             Task { await semEDS.load(path: nil) }
