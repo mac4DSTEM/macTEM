@@ -5,17 +5,17 @@
 //        options, the deconvolution method, the picked edges and their windows, the background, the fit model and its references),
 //        what each stage put on screen (the zero-loss alignment, the t/λ map and its tiles, the deconvolution, the edge fit with its
 //        composition and tiles), the regions drawn on the maps with their spectra and rows, the lines drawn on them, and the
-//        spectrum plot. The room's CSV, MSA and method JSON exports are made from this state in EELSSession+Export.swift (the Maps…
-//        figure by the app's `EELSSession.figureContent`). The room's views read it; they hold none of it.
+//        spectrum plot. The regions and lines are drawn and edited, the regions summed and the plot made in
+//        EELSSession+Regions.swift; the room's CSV, MSA and method JSON exports are made from this state in EELSSession+Export.swift
+//        (the Maps… figure by the app's `EELSSession.figureContent`). The room's views read it; they hold none of it.
 //
 //  The numbers are TEMCore/EELS's and the kits', called with the room's choices: the t/λ map `EELSCompute`'s (SpectroKit's
 //  `EELSThickness.logRatio`), the alignment SpectroKit's `EELSAlignment.alignZeroLossPeak`, the deconvolution
-//  `EELSDeconvolveCompute`'s, the edge fit and its quality `EELSFitCompute`'s and `EELSFitQuality`'s, the regions' rows
-//  `EELSRegionCompute`'s, the plot `EELSPlotCompute`'s and a line's profiles MacEMUI's `EDXLineProfiles` (ImagoKit's
-//  `LineProfile`). The session's own arithmetic only checks a choice (Fit to against the edges and the axis, a reference against
-//  the MLLS window) and clips a drawn shape to the scan. This owner decides WHEN to ask: Align, Thickness, Deconvolve and Fit each
-//  run in a detached task and land only if no newer request was made meanwhile (`generation`), as `EDXSession` does, and Run
-//  chains the stages that are not current (`run`).
+//  `EELSDeconvolveCompute`'s, and the edge fit and its quality `EELSFitCompute`'s and `EELSFitQuality`'s (the calls for the regions'
+//  rows, the plot and a line's profiles are in EELSSession+Regions.swift). The session's own arithmetic here only checks a choice
+//  (Fit to against the edges and the axis, a reference against the MLLS window). This owner decides WHEN to ask: Align, Thickness,
+//  Deconvolve and Fit each run in a detached task and land only if no newer request was made meanwhile (`generation`), as
+//  `EDXSession` does, and Run chains the stages that are not current (`run`).
 //
 
 import Foundation
@@ -114,38 +114,38 @@ package final class EELSSession {
     /// The shift Align applied at each pixel, as a tile (the room's ZLP segment and the tile beside the anchor): nil until Align has run.
     package private(set) var alignmentShiftTile: EELSMapTile?
     /// The spectrum plot of the selected region, or of the whole map: the summed low loss and core loss and, after Fit, the kit's model (made off the main actor).
-    package private(set) var plot: EELSPlotData?
+    package internal(set) var plot: EELSPlotData?
     /// The whole map's spectrum (no fit), drawn in grey under a selected region's so the region reads against the whole (Paul's drive, 2026-10-23).
-    package private(set) var wholeMapPlot: EELSPlotData?
-    @ObservationIgnored private var fitUsed: EELSPlotFit?
-    @ObservationIgnored private var plotTask: Task<Void, Never>?
-    @ObservationIgnored private var plotRun = 0
+    package internal(set) var wholeMapPlot: EELSPlotData?
+    @ObservationIgnored private(set) var fitUsed: EELSPlotFit?
+    @ObservationIgnored var plotTask: Task<Void, Never>?
+    @ObservationIgnored var plotRun = 0
     /// The live spectrum of a drag (`previewRegion`): the running sum, the shape waiting for it, and whether the plot shows a preview.
-    @ObservationIgnored private var previewTask: Task<Void, Never>?
-    @ObservationIgnored private var pendingPreview: EDXRegion?
-    @ObservationIgnored private var previewDone = true
-    @ObservationIgnored private var isPreviewing = false
+    @ObservationIgnored var previewTask: Task<Void, Never>?
+    @ObservationIgnored var pendingPreview: EDXRegion?
+    @ObservationIgnored var previewDone = true
+    @ObservationIgnored var isPreviewing = false
     package private(set) var tiles: [EELSMapTile] = []
     // Regions and lines drawn on the maps (design 2026-10-22 §2.1): kept as the EDX room keeps them (EDXPin, EDXLine), with the summed low-loss spectrum of
     // each visible region for the plot's layers and each region's row for the Table tab.
-    package private(set) var pins: [EDXPin] = []
-    package private(set) var selectedPinID: EDXPin.ID?
-    package private(set) var lines: [EDXLine] = []
-    package private(set) var selectedLineID: EDXLine.ID?
-    package private(set) var pinSpectra: [EDXPin.ID: [Double]] = [:]
+    package internal(set) var pins: [EDXPin] = []
+    package internal(set) var selectedPinID: EDXPin.ID?
+    package internal(set) var lines: [EDXLine] = []
+    package internal(set) var selectedLineID: EDXLine.ID?
+    package internal(set) var pinSpectra: [EDXPin.ID: [Double]] = [:]
     /// The summed core loss of each visible region, on the working core loss's axis (the plot's `core`), drawn over the selected region's spectrum.
-    package private(set) var pinCoreSpectra: [EDXPin.ID: [Double]] = [:]
-    package private(set) var pinRows: [EELSRegionRow] = []
+    package internal(set) var pinCoreSpectra: [EDXPin.ID: [Double]] = [:]
+    package internal(set) var pinRows: [EELSRegionRow] = []
     /// True while the regions' rows are being summed and fitted again: `pinRows` still holds the previous ones (the Results room lists none meanwhile).
-    package private(set) var isRefreshingRegions = false
+    package internal(set) var isRefreshingRegions = false
     /// What the regions' rows were made from: the thickness inputs and the fit inputs at the time (`thicknessSignature`, `fitSignature`).
-    package private(set) var pinRowsThicknessSignature = ""
-    package private(set) var pinRowsFitSignature = ""
-    @ObservationIgnored private var colorsIssued = 0
-    @ObservationIgnored private var regionsIssued = 0
-    @ObservationIgnored private var linesIssued = 0
-    @ObservationIgnored private var pinDataTask: Task<Void, Never>?
-    @ObservationIgnored private var pinDataRun = 0
+    package internal(set) var pinRowsThicknessSignature = ""
+    package internal(set) var pinRowsFitSignature = ""
+    @ObservationIgnored var colorsIssued = 0
+    @ObservationIgnored var regionsIssued = 0
+    @ObservationIgnored var linesIssued = 0
+    @ObservationIgnored var pinDataTask: Task<Void, Never>?
+    @ObservationIgnored var pinDataRun = 0
     package private(set) var isComputing = false {
         didSet { if !isComputing { computingStage = nil } }
     }
@@ -950,246 +950,6 @@ package final class EELSSession {
             d["fit_quality"] = quality
         }
         return d
-    }
-
-    // MARK: Regions and lines
-
-    private func resetRegions() {
-        pinDataTask?.cancel()
-        pins = []; selectedPinID = nil; lines = []; selectedLineID = nil; pinSpectra = [:]; pinCoreSpectra = [:]; pinRows = []; isRefreshingRegions = false
-        colorsIssued = 0; regionsIssued = 0; linesIssued = 0
-    }
-
-    /// A region drawn on a map: kept as the next numbered region and selected. A shape that holds no pixel, or one already kept, changes nothing.
-    @discardableResult
-    package func drawRegion(_ region: EDXRegion) -> EDXPin? {
-        guard let image = source?.image else { return nil }
-        let clipped = Self.clipped(region, nx: image.nx, ny: image.ny)
-        guard let clipped, clipped.pixelCount(nx: image.nx, ny: image.ny) > 0 else { return nil }
-        if let existing = pins.first(where: { $0.region == clipped }) { selectedPinID = existing.id; return existing }
-        regionsIssued += 1; colorsIssued += 1
-        let pin = EDXPin(name: "Region \(regionsIssued)", region: clipped, number: colorsIssued)
-        pins.append(pin)
-        selectedPinID = pin.id
-        refreshPinData()
-        return pin
-    }
-
-    private static func clipped(_ region: EDXRegion, nx: Int, ny: Int) -> EDXRegion? {
-        func box(_ r: PixelRect) -> PixelRect? {
-            let c = PixelRect(x0: max(r.x0, 0), y0: max(r.y0, 0), x1: min(r.x1, nx), y1: min(r.y1, ny))
-            return c.width > 0 && c.height > 0 ? c : nil
-        }
-        switch region {
-        case .wholeMap, .pool: return nil   // the EELS room keeps drawn shapes only; a pool is the EDS room's
-        case .rectangle(let r): return box(r).map { .rectangle($0) }
-        case .ellipse(let r): return box(r).map { .ellipse($0) }
-        case .polygon(let v): return v.count >= 3 ? .polygon(v) : nil
-        }
-    }
-
-    package func selectPin(_ id: EDXPin.ID?) {
-        guard let id else { selectedPinID = nil; return }
-        if pins.contains(where: { $0.id == id }) { selectedPinID = id; refreshPlot() }
-    }
-
-    /// No region selected: the spectrum, the results and the thickness line are the whole map's.
-    package func selectWholeMap() {
-        guard selectedPinID != nil else { return }
-        selectedPinID = nil
-        refreshPlot()
-    }
-
-    package func renamePin(_ id: EDXPin.ID, to name: String) {
-        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty, let i = pins.firstIndex(where: { $0.id == id }) else { return }
-        pins[i].name = clean
-        if let j = pinRows.firstIndex(where: { $0.pin.id == id }) { pinRows[j] = pinRows[j].renamed(pins[i]) }
-    }
-
-    package func removePin(_ id: EDXPin.ID) {
-        pins.removeAll { $0.id == id }
-        if selectedPinID == id { selectedPinID = pins.last?.id }
-        refreshPinData()
-    }
-
-    package func setPinVisible(_ id: EDXPin.ID, _ visible: Bool) {
-        guard let i = pins.firstIndex(where: { $0.id == id }), pins[i].isVisible != visible else { return }
-        pins[i].isVisible = visible
-        refreshPinData()
-    }
-
-    /// A kept region edited on the map (moved, or resized by a handle); one that holds no pixel, or is another region's, changes nothing.
-    package func setPinRegion(_ id: EDXPin.ID, _ new: EDXRegion) {
-        guard let image = source?.image, let i = pins.firstIndex(where: { $0.id == id }),
-              let c = Self.clipped(new, nx: image.nx, ny: image.ny), c.pixelCount(nx: image.nx, ny: image.ny) > 0,
-              c != pins[i].region, !pins.contains(where: { $0.id != id && $0.region == c }) else { return }
-        pins[i].region = c
-        refreshPinData()
-    }
-
-    /// A kept line edited on the map: its ends move; one shorter than a pixel changes nothing.
-    package func setLineEnds(_ id: EDXLine.ID, from a: PixelPoint, to b: PixelPoint) {
-        guard let image = source?.image, let i = lines.firstIndex(where: { $0.id == id }) else { return }
-        func clamp(_ p: PixelPoint) -> PixelPoint { PixelPoint(x: min(max(p.x, 0), Double(image.nx)), y: min(max(p.y, 0), Double(image.ny))) }
-        var edited = lines[i]
-        edited.from = clamp(a); edited.to = clamp(b)
-        if edited.length >= 1 { lines[i] = edited }
-    }
-
-    /// A line drawn on a map, in scan pixels (continuous; pixel i covers [i, i+1)); one shorter than a pixel is not kept.
-    @discardableResult
-    package func drawLine(from a: PixelPoint, to b: PixelPoint) -> EDXLine? {
-        guard let image = source?.image else { return nil }
-        func clamp(_ p: PixelPoint) -> PixelPoint { PixelPoint(x: min(max(p.x, 0), Double(image.nx)), y: min(max(p.y, 0), Double(image.ny))) }
-        linesIssued += 1; colorsIssued += 1
-        let line = EDXLine(name: "Line \(linesIssued)", number: colorsIssued, from: clamp(a), to: clamp(b))
-        guard line.length >= 1 else { linesIssued -= 1; colorsIssued -= 1; return nil }
-        lines.append(line)
-        selectedLineID = line.id
-        return line
-    }
-
-    package func selectLine(_ id: EDXLine.ID?) {
-        guard let id else { selectedLineID = nil; return }
-        if lines.contains(where: { $0.id == id }) { selectedLineID = id }
-    }
-
-    package func removeLine(_ id: EDXLine.ID) {
-        lines.removeAll { $0.id == id }
-        if selectedLineID == id { selectedLineID = lines.last?.id }
-    }
-
-    /// The selected line's profile on each of `tiles` (every map the room holds when nil): (tile id, title, positions in scan pixels, samples).
-    package func profiles(of tiles: [EELSMapTile]? = nil, width: Int = 1) -> [(id: String, title: String, positions: [Double], samples: [Double])] {
-        guard let id = selectedLineID, let line = lines.first(where: { $0.id == id }) else { return [] }
-        return (tiles ?? displayedTiles).map { tile in
-            let p = EDXLineProfiles.profile(values: tile.values, width: tile.width, height: tile.height, along: line, linewidth: width)
-            return (tile.id, tile.title, p.positions, p.samples)
-        }
-    }
-
-    /// The summed low-loss spectra of the visible regions (the plot's layers) and every region's row (the Table tab), summed and fitted off the main actor and
-    /// landed once; a newer request drops an older one. The rows follow the thickness choices and, once edges are picked, the edge model.
-    package func refreshPinData() {
-        refreshPlot()
-        pinDataTask?.cancel()
-        pinDataRun += 1
-        guard let low = workingLowLoss, !pins.isEmpty else { pinSpectra = [:]; pinCoreSpectra = [:]; pinRows = []; isRefreshingRegions = false; return }
-        isRefreshingRegions = true
-        let thicknessMade = thicknessSignature, fitMade = fitSignature
-        let run = pinDataRun, pins = pins, core = shownCoreLoss, fitCore = fitCoreLoss
-        let edges = fittableEdges, microscope = microscope, convolve = effectiveConvolve, edgeWindows = fitWindows
-        let kind = fitModel, fitOnly = fitOnlyElements, answered = shownAnswered, fitTo = fitModel == .mlls ? fitToEV : nil, refs = fitReferences
-        let rawCounts = !deconvolutionChoice.feedsTheFit
-        let threshold = threshold, lambda = try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)
-        pinDataTask = Task.detached(priority: .userInitiated) { [weak self] in
-            var spectra: [EDXPin.ID: [Double]] = [:], coreSpectra: [EDXPin.ID: [Double]] = [:]
-            var rows: [EELSRegionRow] = []
-            for pin in pins {
-                if Task.isCancelled { return }
-                if pin.isVisible, let sum = EELSRegionCompute.summedLowLoss(low, region: pin.region) { spectra[pin.id] = sum.counts }
-                if pin.isVisible, let core, pin.region.mask(nx: core.nx, ny: core.ny) != nil,
-                   let sum = try? core.sum(mask: EELSRegionCompute.mask(pin.region, nx: core.nx, ny: core.ny, answered: answered)) { coreSpectra[pin.id] = sum.counts }
-                if let row = EELSRegionCompute.row(pin: pin, low: low, core: fitCore, edges: edges, microscope: microscope, convolve: convolve,
-                                                   threshold: threshold, meanFreePath: lambda ?? nil, edgeWindows: edgeWindows, model: kind, fitOnly: fitOnly,
-                                                   answered: fitCore == nil ? nil : answered, fitToEV: fitTo, references: refs,
-                                                   rawCounts: rawCounts) { rows.append(row) }
-            }
-            if Task.isCancelled { return }
-            await self?.landPinData(spectra: spectra, coreSpectra: coreSpectra, rows: rows, run: run, thickness: thicknessMade, fit: fitMade)
-        }
-    }
-
-    /// The plot of the selected region (the whole map when none is) off the main actor; a newer request drops an older one.
-    package func refreshPlot() {
-        plotTask?.cancel()
-        plotRun += 1
-        guard let low = workingLowLoss else { plot = nil; wholeMapPlot = nil; return }
-        let run = plotRun, core = shownCoreLoss, map = map, threshold = threshold, deconvolvedLow = shownDeconvolvedLow, answered = shownAnswered
-        let lambda = (try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)) ?? nil
-        let pin = selectedPin
-        let region = pin?.region ?? .wholeMap, name = pin?.name ?? (isSingleSpectrum ? "Spectrum" : "Whole map")
-        // The model is drawn only over the core loss it was fitted to (stored or Fourier-ratio deconvolved).
-        let fit = model != nil && fitUsed?.deconvolved == (answered != nil) ? fitUsed : nil
-        plotTask = Task.detached(priority: .userInitiated) { [weak self] in
-            let data = EELSPlotCompute.make(name: name, region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: fit,
-                                            deconvolvedLow: deconvolvedLow, answered: answered)
-            let whole = pin == nil ? data : EELSPlotCompute.make(name: "Whole map", region: .wholeMap, low: low, core: core, map: map, threshold: threshold,
-                                                                  meanFreePath: lambda, fit: nil, deconvolvedLow: deconvolvedLow, answered: answered)
-            if Task.isCancelled { return }
-            await self?.landPlot(data, whole: whole, run: run)
-        }
-    }
-
-    private func landPlot(_ data: EELSPlotData?, whole: EELSPlotData?, run: Int) {
-        guard run == plotRun else { return }
-        isPreviewing = false
-        plot = data
-        wholeMapPlot = whole
-    }
-
-    /// A region shape still under the pointer (MacEMUI's drawing layer reports it while a region is drawn, moved or resized): the spectrum follows it while the drag
-    /// runs; the selected region, the results and the fit wait for the release. nil: the drag ended; if no region was committed with it, the selected region's spectrum
-    /// is put back. Coalesced as the EDS room's (`EDXSession.previewRegion`): one sum at a time, a shape that arrives meanwhile replaces the waiting one, and a commit
-    /// (any `refreshPlot`) supersedes every preview still in flight. The preview carries no model: the fit is the committed region's.
-    @discardableResult
-    package func previewRegion(_ preview: EDXRegion?) -> Task<Void, Never>? {
-        guard let low = workingLowLoss else { return nil }
-        let committed = plotRun
-        guard let preview else {
-            pendingPreview = nil
-            // The release commits right after this call (same event): look once the event is over, then restore only if nothing was committed.
-            let task = Task { @MainActor [weak self] in
-                await self?.previewTask?.value
-                guard let self, self.plotRun == committed, self.isPreviewing else { return }
-                self.isPreviewing = false
-                self.refreshPlot()
-            }
-            return task
-        }
-        guard let shape = Self.clipped(preview, nx: low.nx, ny: low.ny), shape.pixelCount(nx: low.nx, ny: low.ny) > 0 else { return previewTask }
-        if let running = previewTask, !previewDone {
-            pendingPreview = shape
-            return running
-        }
-        previewDone = false
-        let core = shownCoreLoss, map = map, threshold = threshold, answered = shownAnswered
-        let lambda = (try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)) ?? nil
-        let task = Task.detached(priority: .userInitiated) { [weak self] in
-            var next: EDXRegion? = shape
-            while let region = next {
-                let data = EELSPlotCompute.make(name: "Selection", region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: nil,
-                                                answered: answered)
-                next = await self?.landPreview(data, run: committed)
-            }
-        }
-        previewTask = task
-        return task
-    }
-
-    /// Shows a preview's plot unless a commit came since; returns the shape that arrived meanwhile (nil ends the run).
-    private func landPreview(_ data: EELSPlotData?, run: Int) -> EDXRegion? {
-        if run == plotRun, let data {
-            isPreviewing = true
-            plot = data
-        }
-        let next = run == plotRun ? pendingPreview : nil
-        pendingPreview = nil
-        if next == nil { previewDone = true }
-        return next
-    }
-
-    private func landPinData(spectra: [EDXPin.ID: [Double]], coreSpectra: [EDXPin.ID: [Double]], rows: [EELSRegionRow], run: Int,
-                             thickness: String, fit: String) {
-        guard run == pinDataRun else { return }
-        pinSpectra = spectra
-        pinCoreSpectra = coreSpectra
-        // Each row under its pin as it is now: a rename or a colour made while the rows were computed is kept.
-        pinRows = rows.compactMap { row in pins.first { $0.id == row.pin.id }.map(row.renamed) }
-        pinRowsThicknessSignature = thickness
-        pinRowsFitSignature = fit
-        isRefreshingRegions = false
     }
 
     // MARK: Align and Run
