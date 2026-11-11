@@ -346,6 +346,63 @@ nonisolated final class NORDIFReaderTests: XCTestCase {
         XCTAssertEqual(c.roiShape, NORDIFCalibrationPatterns.Point(row: 11, column: 11))
     }
 
+    /// The `[Area]` lines are read as kikuchipy reads them, by the runs of digits after the key: the third the pixels, the first two
+    /// the micrometres. Each edit of the fixture's `Setting.txt` below was loaded with kikuchipy 0.13.1, and the ROI and the scaled
+    /// values are its own. A sign, an exponent and a decimal comma are not read, pixels written in the unit field count, a fourth
+    /// run is ignored, and a line with two runs is no value (kikuchipy keeps 0). Red before: the edits read as Swift numbers or not
+    /// at all.
+    func testAreaLinesAreReadByTheirDigitRunsAsKikuchipy() throws {
+        typealias P = NORDIFCalibrationPatterns.Point
+        let lines = try NORDIFSettings.read(path: path("Setting.txt")).lines
+        XCTAssertEqual(Array(lines[74...77]), ["Top\t89.200 (223)\tµm (px)", "Left\t60.384 (152)\tµm (px)", "Width\t4.500 (11)\tµm (px)",
+                                              "Height\t4.500 (11)\tµm (px)"])
+        // The fixture's own scaling: positions, ROI origin, ROI shape, area shape.
+        let usual: ([[Int]], P, P, P) = ([[122, 116], [145, 80]], P(row: 61, column: 41), P(row: 3, column: 3), P(row: 273, column: 273))
+        let cases: [(line: Int, text: String, width: NORDIFSettings.Measure?, roi: (P, P), scaled: ([[Int]], P, P, P)?)] = [
+            (76, "Width\t1e-320 (11)\tµm (px)", .init(micrometres: 1.32, pixels: 11), (P(row: 223, column: 152), P(row: 11, column: 11)),
+             ([[36, 34], [43, 24]], P(row: 18, column: 12), P(row: 1, column: 1), P(row: 80, column: 80))),
+            (76, "Width\t4 (11)\tµm (px)", nil, (P(row: 223, column: 152), P(row: 11, column: 0)), nil),
+            (76, "Width\t-4.500 (11)\tµm (px)", .init(micrometres: 4.5, pixels: 11), (P(row: 223, column: 152), P(row: 11, column: 11)), usual),
+            (76, "Width\t4,500 (11)\tµm (px)", .init(micrometres: 4.5, pixels: 11), (P(row: 223, column: 152), P(row: 11, column: 11)), usual),
+            (76, "Width\t4.500\tµm (11 px)", .init(micrometres: 4.5, pixels: 11), (P(row: 223, column: 152), P(row: 11, column: 11)), usual),
+            (74, "Top\t89.200 (223) 7\tµm (px)", .init(micrometres: 4.5, pixels: 11), (P(row: 223, column: 152), P(row: 11, column: 11)), usual),
+            (74, "Top\t89 (223)\tµm (px)", .init(micrometres: 4.5, pixels: 11), (P(row: 0, column: 152), P(row: 11, column: 11)),
+             (usual.0, P(row: 0, column: 41), usual.2, usual.3)),
+        ]
+        for (line, text, width, roi, scaled) in cases {
+            var edited = lines
+            edited[line] = text
+            let settings = try NORDIFSettings.parse(lines: edited, fileName: "Setting.txt")
+            XCTAssertEqual(settings.area.width, width, text)
+            let c = NORDIFCalibrationPatterns.geometry(settings: settings, patterns: [], staticBackground: nil)
+            XCTAssertEqual(c.roiOrigin, roi.0, text)
+            XCTAssertEqual(c.roiShape, roi.1, text)
+            XCTAssertEqual(c.positionsScaled?.map { [$0.row, $0.column] }, scaled?.0, text)
+            XCTAssertEqual(c.roiOriginScaled, scaled?.1, text)
+            XCTAssertEqual(c.roiShapeScaled, scaled?.2, text)
+            XCTAssertEqual(c.areaShapeScaled, scaled?.3, text)
+        }
+    }
+
+    /// Python's `splitlines`, which kikuchipy splits the file with, also ends a line at U+001C, U+001D and U+001E, which Swift's
+    /// `isNewline` does not count: each ends the `Width` line after `4` here (93 lines, as `splitlines` gives), so that line has one
+    /// run of digits and no width. Red before: 92 lines, the Width line read whole.
+    func testTheSeparatorsU001CToU001EEndALineAsPythonsSplitlines() throws {
+        let data = try Data(contentsOf: URL(fileURLWithPath: path("Setting.txt")))
+        let width = Data("Width\t4.500".utf8)
+        for separator: UInt8 in [0x1C, 0x1D, 0x1E] {
+            var replacement = Data("Width\t4".utf8)
+            replacement.append(separator)
+            replacement.append(contentsOf: Data(".500".utf8))
+            var edited = data
+            edited.replaceSubrange(try XCTUnwrap(edited.range(of: width)), with: replacement)
+            let s = try NORDIFSettings.parse(edited, fileName: "Setting.txt")
+            XCTAssertEqual(s.lines.count, 93, "separator \(separator)")
+            XCTAssertEqual(Array(s.lines[76...77]), ["Width\t4", ".500 (11)\tµm (px)"], "separator \(separator)")
+            XCTAssertNil(s.area.width, "separator \(separator)")
+        }
+    }
+
     func testTheSettingsFilesWithoutCalibrationLinesAreRefusedWithTheReferenceSentence() throws {
         for file in ["Setting_bad1.txt", "Setting_bad2.txt"] {
             let r = calibration(file)

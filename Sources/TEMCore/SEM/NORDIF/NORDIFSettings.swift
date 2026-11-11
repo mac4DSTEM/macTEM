@@ -7,7 +7,7 @@
 //        tools/parity/sem/nordif/reference.py; NORDIFReaderTests compares every field.
 //
 //  The file is tab-separated `key<TAB>value<TAB>unit` lines under `[Section]` headers, written in Latin-1 (kikuchipy
-//  decodes it so; a UTF-8 copy reads with mojibake in the unit column, which no value reads from). kikuchipy reads each
+//  decodes it so; a UTF-8 copy reads with mojibake in the unit column, which adds no digit to any value). kikuchipy reads each
 //  value from a fixed line offset below its section header; this reader looks the key up within its section, which
 //  gives the same values on every file of the parity set, including the three damaged ones, and refuses a file whose
 //  required line is missing where kikuchipy would fail on `float("")`, whose acquisition resolution or number of
@@ -170,8 +170,11 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
         // Latin-1 decodes every byte, as kikuchipy's `open(encoding="latin-1")`.
         let text = String(data: data, encoding: .isoLatin1) ?? String(decoding: data, as: UTF8.self)
         // Python's `splitlines`: every newline kind ends a line (a Swift Character "\r\n" is one grapheme, so the split is
-        // by `isNewline`, never by "\n"), and a trailing newline ends the last line and opens no empty one.
-        var lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
+        // by `isNewline`, never by "\n"), and so do the separators U+001C to U+001E, which `isNewline` does not count; a
+        // trailing newline ends the last line and opens no empty one.
+        let separators: Set<Character> = ["\u{1C}", "\u{1D}", "\u{1E}"]
+        var lines = text.split(omittingEmptySubsequences: false, whereSeparator: { $0.isNewline || separators.contains($0) })
+            .map(String.init)
         if lines.last == "" { lines.removeLast() }
         return try parse(lines: lines, fileName: fileName)
     }
@@ -224,6 +227,8 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
             var key: String
             var value: String
             var unit: String
+            /// Every field after the key, joined by tabs: the text kikuchipy's `(?<=Width)(.*)` captures.
+            var rest: String
         }
 
         var sections: [(name: String, entries: [Entry])] = []
@@ -236,7 +241,8 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
                     sections.append((String(key.dropFirst().dropLast()), []))
                 } else if !sections.isEmpty, !key.isEmpty {
                     sections[sections.count - 1].entries.append(
-                        Entry(key: key, value: fields.count > 1 ? fields[1] : "", unit: fields.count > 2 ? fields[2] : ""))
+                        Entry(key: key, value: fields.count > 1 ? fields[1] : "", unit: fields.count > 2 ? fields[2] : "",
+                              rest: fields.dropFirst().joined(separator: "\t")))
                 }
             }
         }
@@ -302,11 +308,16 @@ package nonisolated struct NORDIFSettings: Equatable, Sendable {
         return Resolution(width: width, height: height)
     }
 
-    /// `89.200 (223)` in the `[Area]` section; nil when the line is missing or does not carry both numbers.
+    /// An `[Area]` line such as `Width`, `4.500 (11)`, `µm (px)`, read as kikuchipy reads it: the runs of the digits 0-9 in its
+    /// fields after the key, the third the pixels and, on `Width`, the first two the micrometres as `<first>.<second>` (kikuchipy
+    /// reads no micrometres from `Top`, `Left` and `Height`; this reader reads theirs the same way). A sign, an exponent or a
+    /// decimal comma is not read (`-4.500` is 4.5 µm, `1e-320 (11)` is 1.320 µm and 11 px). nil when the line is missing or has
+    /// fewer than three runs, where kikuchipy keeps 0 (`4 (11)` is no value), or when the third run is beyond an Int, where
+    /// kikuchipy keeps it up to 4300 digits (docs/parity.md says what it does past that).
     private static func measure(_ file: Sections, _ key: String) -> Measure? {
-        guard let value = file.value("Area", key) else { return nil }
-        let parts = value.split(whereSeparator: { $0 == " " || $0 == "(" || $0 == ")" })
-        guard parts.count == 2, let um = Double(parts[0]), let px = Int(parts[1]) else { return nil }
+        guard let entry = file.entries("Area").first(where: { $0.key == key }) else { return nil }
+        let runs = entry.rest.unicodeScalars.split(whereSeparator: { !(48...57).contains($0.value) }).map { String($0) }
+        guard runs.count >= 3, let px = Int(runs[2]), let um = Double("\(runs[0]).\(runs[1])") else { return nil }
         return Measure(micrometres: um, pixels: px)
     }
 
