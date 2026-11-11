@@ -58,19 +58,19 @@ nonisolated final class ReadoutAccessibilityValueTests: XCTestCase {
         XCTAssertTrue(image.contains(#".modifier(ReadoutAccessibilityValue(readout: { appState.imageRoomTools.readout }, fallback: "\(image.width) by \(image.height) pixels"))"#))
         XCTAssertFalse(image.contains(#".accessibilityValue("\(image.width) by \(image.height) pixels")"#), "the static value is gone")
         let diffraction = try FFTRoomWiringTests.squeezedUI("DiffractionRoom.swift")
-        XCTAssertTrue(diffraction.contains(#".modifier(ReadoutAccessibilityValue(readout: { appState.diffractionReadout }, fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))"))"#))
+        XCTAssertTrue(diffraction.contains(#".modifier(ReadoutAccessibilityValue(readout: { appState.diffractionRoom.readout }, fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))"))"#))
         XCTAssertFalse(diffraction.contains(#".accessibilityValue("\(image.width) by \(image.height) pixels, "#), "the static value is gone")
         // What the readout names goes with the picture: another frame or the pane going clears it, so neither speaks the last file's pixel.
         XCTAssertTrue(image.contains(".onChange(of: item.frame) { appState.imageRoomTools.readout = nil }"))
         XCTAssertTrue(image.contains(".onDisappear { appState.imageRoomTools.readout = nil }"))
-        XCTAssertTrue(diffraction.contains(".onDisappear { appState.diffractionReadout = nil }"))
+        XCTAssertTrue(diffraction.contains(".onDisappear { appState.diffractionRoom.readout = nil }"))
     }
 
     /// Each pane speaks a readout only it writes, so it never says what the pointer reads over another pane (the EELS case above). Red under: a
     /// second writer of either readout in the app's sources.
     func testEachSpokenReadoutHasOneWriter() throws {
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
-        var writers: [String: Set<String>] = ["imageRoomTools.readout =": [], "diffractionReadout =": []]
+        var writers: [String: Set<String>] = ["imageRoomTools.readout =": [], "diffractionRoom.readout =": []]
         for folder in ["macTEM/UI", "macTEM/App"] {
             let dir = root.appendingPathComponent(folder)
             for file in try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) where file.pathExtension == "swift" {
@@ -79,6 +79,15 @@ nonisolated final class ReadoutAccessibilityValueTests: XCTestCase {
             }
         }
         XCTAssertEqual(writers["imageRoomTools.readout ="], ["ImagePane.swift"])
-        XCTAssertEqual(writers["diffractionReadout ="], ["DiffractionRoom.swift"])
+        XCTAssertEqual(writers["diffractionRoom.readout ="], ["DiffractionRoom.swift"])
+    }
+
+    /// The Diffraction room keeps its pointer readout in a room state of its own, which a new window starts without: the status line and
+    /// VoiceOver read nothing until the pointer is over a pattern. Red under: a window starting with a readout; one window's readout read in another.
+    @MainActor func testANewWindowStartsWithNoDiffractionReadout() {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        XCTAssertNil(state.diffractionRoom.readout)
+        state.diffractionRoom.readout = "x 290, y 256"
+        XCTAssertNil(AppState(launch: LaunchOptions(arguments: [])).diffractionRoom.readout, "each window has its own readout")
     }
 }

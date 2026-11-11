@@ -193,10 +193,10 @@ private struct DiffractionPatternPane: View {
                 switch phase {
                 case .active(let p):
                     let q = layout.pixel(at: p)
-                    appState.diffractionReadout = DiffractionReadoutText.text(column: q.column, row: q.row, centre: analysis.centre,
-                                                                               calibration: analysis.calibration(for: image))
+                    appState.diffractionRoom.readout = DiffractionReadoutText.text(column: q.column, row: q.row, centre: analysis.centre,
+                                                                                    calibration: analysis.calibration(for: image))
                 case .ended:
-                    appState.diffractionReadout = nil
+                    appState.diffractionRoom.readout = nil
                 }
             }
             .onTapGesture(coordinateSpace: .local) { p in
@@ -208,7 +208,7 @@ private struct DiffractionPatternPane: View {
             .accessibilityIdentifier("diffraction.pane")
             .accessibilityLabel("Diffraction pattern")
             // q and d under the pointer, as the status line reads them; else the pattern's size, rings and spots. This pane is the readout's one writer.
-            .modifier(ReadoutAccessibilityValue(readout: { appState.diffractionReadout },
+            .modifier(ReadoutAccessibilityValue(readout: { appState.diffractionRoom.readout },
                                                 fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))"))
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
@@ -232,7 +232,7 @@ private struct DiffractionPatternPane: View {
         .padding(8)
         // The pane going (another file, another room) leaves the readout naming a point of a pattern that is not shown: it goes until the
         // pointer moves (the status line and VoiceOver read it).
-        .onDisappear { appState.diffractionReadout = nil }
+        .onDisappear { appState.diffractionRoom.readout = nil }
     }
 
     /// The annulus the drag would make, in pixels: the distances of its two ends from the centre.

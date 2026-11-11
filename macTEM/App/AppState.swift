@@ -12,6 +12,8 @@
 //    `runActivity` (the activity held while a room works, App/), `launch` (the launch arguments, a value, App/).
 //  - Image and Results: `imageRoomTools` (the Image room's measuring tool and readout, App/), `resultsRoom` (the Results
 //    room's selection and shown groups, App/).
+//  - Diffraction: `diffractionRoom` (the readout over the pattern, App/); the pattern's analysis and view state are each
+//    open file's own, in `openItems`.
 //  - EDS: `edx` (the spectrum image, picks and fit) and `edxRoom` (its spectrum window and export in flight), both the
 //    shared room's, MacEMUI; `semEDS` (the SEM rows of an SEM spectrum, App/).
 //  - EELS: `eels` (the spectrum image and what the room makes of it, TEMSession) and `eelsRoom` (its view state, App/).
@@ -28,13 +30,11 @@
 //  counter) and `lastOpen` (the newest Open in flight, which a test awaits).
 //
 //  Stored here, against the rule, each for its reason:
-//  - `diffractionReadout`, the status line's readout over the pattern: the Diffraction room has no room state yet (every
-//    other room keeps its readout in its own); it moves there when the room gets one.
 //  - `spectrumCompanionImages`, `spectrumScans`, `edsFiles`, `eelsFiles`, what the Open found out about each file (an
 //    image that is also a spectrum image, a spectrum image's scan, the files that opened into the EDS and the EELS room):
 //    they span rooms, since one file can open into several, so no room owns them. The Open writes them and the pure rules
-//    beside it read them (`roomsToFollow`, `edsFitBelongs`, `eelsResultsBelong`, AppState+Open.swift), with the room list
-//    and the Open Files rows; they belong in one owner together with those rules.
+//    beside it read them (`roomsToFollow`, `edsFitBelongs`, `eelsResultsBelong`, AppState+Open.swift), with the room list;
+//    they belong in one owner together with those rules.
 //  - `busySince`, when each room last became busy, for the toolbar's busy clock (`RunClock`): it spans the rooms and is
 //    not observed (the clock ticks on its own), so it is no room's view state.
 //  - `cropsDatabar`, whether an SEM image's databar is hidden: a preference of the app kept in UserDefaults
@@ -55,6 +55,7 @@ final class AppState {
     let activityLog = ActivityLog()
     let imageRoomTools = ImageRoomTools()
     let resultsRoom = ResultsRoomState()
+    let diffractionRoom = DiffractionRoomState()
     let edx = EDXSession(host: .macTEM)
     let edxRoom = EDXRoomState()
     /// The EDS room's SEM rows for an SEM `.hspy` spectrum (line intensities with background windows, window quantification).
@@ -96,8 +97,6 @@ final class AppState {
         return imageSession.image?.fileName ?? "macTEM"
     }
     let eelsRoom = EELSRoomState()
-    /// The status line's readout over the diffraction pattern (`DiffractionReadoutText`); nil when the pointer is elsewhere.
-    var diffractionReadout: String?
 
     /// What the views read with no file open: an empty session and presentation, never written.
     @ObservationIgnored private let idleSession = ImageSession()
@@ -142,7 +141,7 @@ final class AppState {
     @ObservationIgnored var showWindow: (() -> Void)?
     /// Files opened into the Image room that are also spectrum images (the HAADF of a Velox SI): their image is a scan image, which the Diffraction room does not take.
     var spectrumCompanionImages: Set<URL> = []
-    /// The scan of each opened DM4 spectrum image, from its header: its Open Files row shows the scan, not the survey image's size.
+    /// The scan of each opened DM4 spectrum image, from its header: the scan's size, not the survey image's.
     var spectrumScans: [URL: FileInventory.Scan] = [:]
     /// The files that opened into the EDS room and into the EELS room: a room follows the selected file (`spectrumRoomsFollowSelection`).
     var edsFiles: Set<URL> = []

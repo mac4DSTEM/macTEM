@@ -48,7 +48,7 @@ struct WorkspaceView: View {
         // The live pattern pane is the Patterns room's own (it writes that room's readout); the map's words otherwise.
         case .maps: appState.mapsRoom.readout ?? appState.patternsRoom.readout
         case .image: appState.imageRoomTools.readout
-        case .diffraction: appState.diffractionReadout
+        case .diffraction: appState.diffractionRoom.readout
         default: nil
         }
     }
