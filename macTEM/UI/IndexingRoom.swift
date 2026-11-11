@@ -574,7 +574,7 @@ private struct DetectedBandsOverlay: View {
                         .foregroundStyle(Color.green)
                         .padding(.horizontal, SEMOverlayStyle.plateHorizontalPadding)
                         .padding(.vertical, SEMOverlayStyle.plateVerticalPadding)
-                        .background(Color.black.opacity(SEMOverlayStyle.plateOpacity), in: Capsule())
+                        .background(Color.black.opacity(SEMOverlayStyle.plateOpacity), in: Capsule()) // science: a label plate on the pattern
                         .position(point((start + end) / 2))
                 }
             }

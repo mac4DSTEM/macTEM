@@ -52,6 +52,6 @@ nonisolated final class SEMOverlayStyleTests: XCTestCase {
         XCTAssertEqual(halos.count, 2, "a track for the matched and one for the unmatched bands")
         XCTAssertEqual(lines.count, 2, "a line for the matched and one for the unmatched bands")
         XCTAssertLessThan(try XCTUnwrap(halos.last).lowerBound, try XCTUnwrap(lines.first).lowerBound, "every track before any line")
-        XCTAssertTrue(overlay.contains(".background(Color.black.opacity(SEMOverlayStyle.plateOpacity), in: Capsule())"))
+        XCTAssertTrue(overlay.contains(".background(Color.black.opacity(SEMOverlayStyle.plateOpacity), in: Capsule()) // science"))
     }
 }

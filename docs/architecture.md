@@ -211,7 +211,8 @@ mac4DSTEM's, unchanged (its `docs/architecture.md`, "The UI contract"):
 
 1. **SwiftUI only.** `MetalImageView` is the one platform bridge; no `import AppKit` in `UI/` (gated).
 2. **No AppKit shell.** `HSplitView`, `VSplitView`, `NSSplitView`, `NSSplitViewController` are banned (gated).
-3. **No bar or wash in the chrome**; the science panes are exempt (gated).
+3. **No bar or wash in the chrome**; the science panes are exempt, and a line marked `// science` (a label plate drawn on
+   the data) (gated).
 4. **`LayoutPolicy` is the whole number budget**: a numeric `.frame` outside it is science drawing geometry only —
    the panes and overlays (gated).
 5. **No pane focus model; no UI selection stored beside the navigation seam** — the sidebar's selection is a binding
