@@ -280,3 +280,36 @@ TKD geometry is a Patterns setting) and the workspace's hover text names both.
 spectra. The keys follow the list, so they move with it.
 
 **What would reverse it.** Paul's taste.
+
+## 2026-11-11 — On a render, macTEM's scale bar starts hidden
+
+**What.** A file read as a render (a TIFF of equal red, green and blue, read as 8-bit grey with FormatoKit's note "8-bit render,
+not counts") opens with Show Scale Bar off, on screen and in Export Image's scale-bar box; every other file opens with it on, as
+before. That includes an export with a burned-in bar stored as single-channel grey, which nothing tells from counts. The rule is
+`ImagePresentation.startsWithScaleBar(notes:)`, applied once, at the file's first read (`OpenItem.publish`): a file read again
+after it went cold keeps what the person chose. The Image room's Display section says why under Show Scale Bar, which brings the
+bar back; Export Image follows the toggle as before. The bar is not moved to another corner, and nothing looks for a bar in the
+pixels. The calibration stays in Calibration and Info, Particles still finds a burned-in bar as objects (#110), and no number,
+calibration or exported pixel of any other file changes.
+
+**Why.** A render is a picture its acquisition software exported. Velox (Batch Export) and GMS (Save Display As, or the prompt
+on Save As TIFF to burn the annotations in or leave them out) burn the scale bar into it only when the user chooses it at
+export, and TIA has a separate "PC tiff with scale marker" format. After that the bar is part of the picture, and nothing in the
+file says whether it is there or where. On the six Ceta renders of #110 Velox drew it bottom left, the corner where macTEM draws
+its own on screen and in Export Image's PNG, so the two overlapped (#478). Fiji/ImageJ, napari and OMERO.figure do not add a bar
+to a picture they open: Fiji/ImageJ draws one only from Analyze › Tools › Scale Bar (lower right by default), napari keeps its
+scale bar hidden by default, and OMERO.figure starts a panel without one. HyperSpy, QuPath and OMERO.iviewer do draw a viewer
+bar on any calibrated image, and none of these tools detects a bar already in the pixels. JMR and MRS Communications ask authors to
+remove instrument annotations from SEM and TEM micrographs and add one proper scale marker in their place; QUAREP-LiMi asks that
+annotations not hide data. The app's SEM rule leans the same way where it can: a Thermo or Tescan databar, whose height the file
+states, is cut off the picture by default (D-SEM-63, D-SEM-65). A Zeiss data zone records no height, so it stays in the scan
+and macTEM's bar can still sit over it; that case is not changed here.
+
+Not moving the bar: no other tool moves its bar out of the way of one in the pixels, and macTEM's has one place, bottom left,
+in the pane's footer on screen and in the export's geometry, in every room. Not detecting a burned-in bar: nothing in the file
+marks one, no reference tool detects one, and a test on the pixels would guess, hiding the bar on a render without one or
+drawing over one it missed.
+
+**Reverse it.** If a reader learns where a render's bar is (a field in the file that states it), draw macTEM's bar by that
+instead. If renders without a bar of their own turn out to be the common case, return true from
+`ImagePresentation.startsWithScaleBar(notes:)` for every file and drop the Display note.

@@ -887,17 +887,17 @@ package final class IndexingSession {
             refinedRun?.seconds = seconds
             let base = runs[.dictionary]?.result
             let change = base.flatMap { IndexingRefinement.meanScores(base: $0, refined: r.result) }.map {
-                " · mean \(base?.scoreTitle ?? "NCC") \(String(format: "%.3f", $0.before)) → NCC \(String(format: "%.3f", $0.after))"
+                " · mean \(base?.scoreTitle ?? "NCC") \(SessionEventFormat.fixed($0.before, 3)) → NCC \(SessionEventFormat.fixed($0.after, 3))"
             } ?? ""
             onEvent?("Refined \(r.result.indexedCount) of \(r.result.pointCount) patterns (\(r.refinement?.settings.target.noun ?? "")) in "
-                + "\(String(format: "%.1f", seconds)) s" + change)
+                + "\(SessionEventFormat.fixed(seconds, 1)) s" + change)
         } else if let finished {
             runs[finished]?.seconds = seconds
             if let result = runs[finished]?.result {
                 // A run against several phases says how many points each took.
                 let byPhase = result.method == .dictionary && result.phases.count > 1
                     ? " (" + zip(result.phases, result.countsByPhase).map { "\($0.name) \($1)" }.joined(separator: " · ") + ")" : ""
-                onEvent?("Indexed \(result.indexedCount) of \(result.pointCount) patterns with \(result.method.title) in \(String(format: "%.1f", seconds)) s"
+                onEvent?("Indexed \(result.indexedCount) of \(result.pointCount) patterns with \(result.method.title) in \(SessionEventFormat.fixed(seconds, 1)) s"
                     + byPhase)
             }
         }

@@ -520,9 +520,10 @@ inventory() {
   if grep -rnE --include='*.swift' "${imports}(AppKit|Cocoa)([^[:alnum:]_]|$)" "$ROOT/macTEM/UI"; then
     echo "  ^ AppKit imported in UI (docs/architecture.md)"; rc=1
   fi
-  # Rule 3: the chrome draws no bar or wash of its own; the science panes are exempt.
+  # Rule 3: the chrome draws no bar or wash of its own; the science panes are exempt, and so is a line marked `// science` (a label
+  # plate drawn on the data, as rule 4 exempts its marked lines).
   if grep -nE '\.background\((\.bar\)|Color\.[a-zA-Z]+\.opacity)' "${ui_sources[@]}" /dev/null \
-       | grep -vE 'PaneOverlays|MetalImageView|ImagePane'; then
+       | grep -vE 'PaneOverlays|MetalImageView|ImagePane' | grep -vF '// science'; then
     echo "  ^ custom bar or opacity wash in the chrome (UI contract rule 3)"; rc=1
   fi
   # Rule 4: a numeric `.frame(...)` in the chrome comes from LayoutPolicy; the panes and overlays are exempt.

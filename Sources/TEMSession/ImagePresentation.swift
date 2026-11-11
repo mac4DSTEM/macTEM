@@ -115,8 +115,24 @@ package final class ImagePresentation {
     package var windowHigh: Float?
     /// The display gamma, 0.2–5; 1 is linear.
     package var gamma: Double = 1
-    /// Whether the pane draws its scale bar. The calibration is never hidden.
+    /// Whether the pane draws its scale bar, and where Export Image's scale-bar choice starts. The calibration is never hidden. An open
+    /// image's first read (`OpenItem.publish`) sets it by `startsWithScaleBar(notes:)`; after that it is the person's, kept while
+    /// the file is cold.
     package var showsScaleBar = true
+
+    /// Whether a file whose reader wrote `notes` opens with the scale bar shown: every file but a render (`TIFFImageReader.Note.render`,
+    /// a TIFF of equal red, green and blue read as 8-bit grey). A render is a picture its acquisition software exported, not the
+    /// counts: Velox and GMS burn their scale bar into it when the user asks for one at export, and nothing in the file says
+    /// whether they did. On the renders of #110 Velox put it bottom left, where macTEM draws its own on screen and in Export Image,
+    /// so the two overlapped. On a render the bar therefore starts hidden, and Show Scale Bar brings it back (docs/decisions.md,
+    /// 2026-11-11). Display only: no number changes.
+    package nonisolated static func startsWithScaleBar(notes: [String]) -> Bool {
+        !notes.contains(TIFFImageReader.Note.render)
+    }
+
+    /// What the Display section says under Show Scale Bar on a render (`startsWithScaleBar(notes:)`): why the bar starts hidden.
+    package nonisolated static let renderScaleBarNote =
+        "A render: any scale bar it shows was drawn into its pixels at export, so macTEM's starts hidden."
 
     /// The window as the shader takes it (`DisplayWindow.fractions`).
     package var displayFractions: (low: Float, high: Float) {

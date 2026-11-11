@@ -67,10 +67,11 @@ build `-Onone` in Debug (see "Known limitations").
    An open in flight is drawn over the image already shown, which stays if it fails.
 5. **Show.** `ImagePane` letterboxes the image at its pixel aspect, draws it through MacEMUI's `MetalImageView` (the one
    SwiftUI↔Metal bridge) inside one `scaleEffect`/`offset` container (`ZoomPan`), and puts the scale bar in a
-   `PaneFooter` outside that container. The bar measures the screen horizontal, so it uses the x axis's sampling
-   (`ImageScaleBar`), and counts pixels when x is not calibrated — a unit and a finite, positive scale
-   (`AxisCalibration.isCalibrated`), the one definition the inspector shares. The contrast window and gamma reach only the
-   shader (`DisplayWindow`); the marks are drawn in one pane-sized `Canvas` mapped through the shader's own
+   `PaneFooter` outside that container, shown while Show Scale Bar is on: on a file's first read it starts on, except on a
+   render, whose own bar may be in its pixels (`ImagePresentation.startsWithScaleBar`). The bar measures the screen
+   horizontal, so it uses the x axis's sampling (`ImageScaleBar`), and counts pixels when x is not calibrated — a unit and a
+   finite, positive scale (`AxisCalibration.isCalibrated`), the one definition the inspector shares. The contrast window
+   and gamma reach only the shader (`DisplayWindow`); the marks are drawn in one pane-sized `Canvas` mapped through the shader's own
    transform (`MarkGeometry`), and their numbers come from the file's pixels, never the canvas.
 
 EBSD patterns, orientation maps and SEM-EDS files take their own path into their rooms ("The SEM program", below).
@@ -211,7 +212,8 @@ mac4DSTEM's, unchanged (its `docs/architecture.md`, "The UI contract"):
 
 1. **SwiftUI only.** `MetalImageView` is the one platform bridge; no `import AppKit` in `UI/` (gated).
 2. **No AppKit shell.** `HSplitView`, `VSplitView`, `NSSplitView`, `NSSplitViewController` are banned (gated).
-3. **No bar or wash in the chrome**; the science panes are exempt (gated).
+3. **No bar or wash in the chrome**; the science panes are exempt, and a line marked `// science` (a label plate drawn on
+   the data) (gated).
 4. **`LayoutPolicy` is the whole number budget**: a numeric `.frame` outside it is science drawing geometry only —
    the panes and overlays (gated).
 5. **No pane focus model; no UI selection stored beside the navigation seam** — the sidebar's selection is a binding

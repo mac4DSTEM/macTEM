@@ -106,8 +106,14 @@ nonisolated final class EELSRegionsTests: XCTestCase {
         XCTAssertEqual(EELSRegionSpeech.tOverLambdaValue(nil, locale: german), "", "no t/λ: no value, as before")
         XCTAssertEqual(EELSRegionSpeech.totalValue(7_113_000.4, locale: german), "7113000", "a whole number, never grouped")
         XCTAssertEqual(EELSRegionSpeech.totalValue(7_113_000.4, locale: english), "7113000")
+        XCTAssertEqual(EELSRegionSpeech.totalText(2_637_954, locale: german), "2637954", "the cell shows it never grouped, as the SEM rooms' counts")
+        XCTAssertEqual(EELSRegionSpeech.totalText(2_637_954, locale: english), "2637954")
+        XCTAssertEqual(EELSRegionSpeech.totalText(.nan, locale: german), UnitDisplay.noValue, "a sum that is not a number shows a dash")
+        XCTAssertEqual(EELSRegionSpeech.totalValue(.nan, locale: german), "none", "and is said as none, as the edge cells' dashes")
 
         let source = try FFTRoomWiringTests.squeezedUI("EELSRegionsTable.swift")
+        XCTAssertTrue(source.contains("Text(EELSRegionSpeech.totalText(row.totalCounts)).monospacedDigit()"),
+                      "the cell shows the text its value says (it was the EDS room's thin-space grouping, \"2 637 954\")")
         XCTAssertTrue(source.contains(".accessibilityValue(EELSRegionSpeech.totalValue(row.totalCounts))"))
         XCTAssertTrue(source.contains(".accessibilityValue(EELSRegionSpeech.tOverLambdaValue(row.tOverLambda))"))
         XCTAssertFalse(source.contains("String(format:"), "no accessibility value of the table is written with a fixed point")

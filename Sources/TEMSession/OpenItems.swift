@@ -427,17 +427,21 @@ package final class OpenItem: Identifiable {
     /// than `url`; the item then follows it.
     fileprivate func publish(_ opened: OpenedImage, movedTo: FileIdentity?) {
         guard session.finishOpen(sessionToken, image: opened.image, url: opened.url, metadata: opened.metadata, sem: opened.sem) else { return }
+        // Whether this is the file's first read, asked before `summary` is set below; a re-read of a cold item is not.
+        let first = !hasBeenRead
         if let movedTo {
             url = opened.url
             fileIdentity = movedTo
         }
+        // The scale bar starts as the file's kind says (`ImagePresentation.startsWithScaleBar`: hidden on a render, whose own bar
+        // may be in its pixels), on the first read only: a re-read keeps the person's choice, which `goCold` carried over.
+        if first { presentation.showsScaleBar = ImagePresentation.startsWithScaleBar(notes: opened.image.notes) }
         presentation.show(opened.canvas)
         databar = opened.databar
         measurements.refresh(on: opened.image)
         // The session record: only a file's first read restores — a re-read of a cold item never swaps the marks —
         // and only the read that is still the current one reaches here (`finishOpen`'s token above).
         if let identity = opened.identity {
-            let first = !hasBeenRead
             // The particle report belongs to the pixels it was measured on: a re-read with other pixels drops it.
             if !first, let old = openedIdentity, old.pixelSHA256 != identity.pixelSHA256 { particles.reset() }
             measurements.noteOpened(identity)
