@@ -125,19 +125,6 @@ nonisolated enum OpenItemThumbnailPixels {
         }
         return bytes
     }
-
-    /// The picture, off the main actor: the thumbnail through `lut`, at its own size (the view scales it, aspect kept).
-    @concurrent
-    static func image(_ thumbnail: Thumbnail, lut: [UInt8]) async -> CGImage? {
-        let bytes = rgba(thumbnail, lut: lut)
-        guard let provider = CGDataProvider(data: Data(bytes) as CFData),
-              let space = CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
-        return CGImage(width: thumbnail.width, height: thumbnail.height,
-                       bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: thumbnail.width * 4,
-                       space: space,
-                       bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
-                       provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
-    }
 }
 
 extension OpenItems {

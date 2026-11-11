@@ -9,7 +9,6 @@
 
 import XCTest
 import TEMCore
-@testable import macTEM
 
 nonisolated final class EELSWindowsAccessibilityTests: XCTestCase {
 

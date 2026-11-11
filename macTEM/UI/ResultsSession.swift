@@ -18,7 +18,6 @@ import ShellInspector
 import ShellLayout
 import SwiftUI
 import TEMCore
-import TEMSession
 
 /// One kind of SEM result in the table, its rows in the ledger's order.
 struct SEMSessionSection: Identifiable {

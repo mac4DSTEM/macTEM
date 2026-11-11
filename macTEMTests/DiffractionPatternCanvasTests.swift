@@ -13,7 +13,6 @@ import ShellMetal
 import ImagoCore
 import TEMCore
 import TEMSession
-@testable import macTEM
 
 nonisolated final class DiffractionPatternCanvasTests: XCTestCase {
 

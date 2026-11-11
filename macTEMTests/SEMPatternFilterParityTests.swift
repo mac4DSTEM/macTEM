@@ -76,7 +76,7 @@ nonisolated final class SEMPatternFilterParityTests: XCTestCase {
 
     // MARK: - FFT filter
 
-    private func filterRuns(_ ref: SEMParityReference) throws -> [(name: String, domain: PatternFilters.Domain, filter: PatternWindow, shift: Bool)] {
+    private func filterRuns() throws -> [(name: String, domain: PatternFilters.Domain, filter: PatternWindow, shift: Bool)] {
         let transfer = try PatternWindow.lowpass(rows: 60, columns: 60, cutoff: 22, cutoffWidth: 10)
             * PatternWindow.highpass(rows: 60, columns: 60, cutoff: 3, cutoffWidth: 2)
         let asymmetric = try PatternWindow(rows: 3, columns: 4, values: [0, 1, 2, 3, 4, 5, 6, 7, -1, -2, 0.5, 1.5])
@@ -90,7 +90,7 @@ nonisolated final class SEMPatternFilterParityTests: XCTestCase {
         let ref = try SEMParityReference.load("m2/fft-filter-\(bundle)")
         let p = try patterns(ref)
         let pixels = p.rows * p.columns
-        for run in try filterRuns(ref) {
+        for run in try filterRuns() {
             var values: [Double] = [], cast: [UInt8] = []
             for i in 0..<p.count {
                 let one = Array(p.data[(i * pixels)..<((i + 1) * pixels)])
