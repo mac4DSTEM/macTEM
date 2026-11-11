@@ -60,10 +60,12 @@ package nonisolated final class ImageStackSource: Sendable {
     package func release() { hold?.release() }
 
     /// The stack in the file at `path`: the first series when it is grey frames of one size (axes of three dimensions, more than one
-    /// frame); nil for a single image, a colour series or anything else the single-image reader should answer for. Throws the kit's
-    /// error for a file that cannot be read as a TIFF.
+    /// frame); nil for a single image, a colour series or anything else the single-image reader should answer for, a page layout or
+    /// series the kit refuses among them (a compression it does not read): the single-image reader then refuses the file in a sentence
+    /// that names it (#531), where the kit's own error would carry neither the name nor plain words.
     package static func open(path: String, hold: ScopeHold? = nil) throws -> ImageStackSource? {
-        let signals = try TIFFSignals(path: path)
+        let signals: TIFFSignals
+        do { signals = try TIFFSignals(path: path) } catch is TIFFError { return nil }
         guard let series = signals.series.first, series.shape.count == 3, series.shape[0] > 1, series.dataType.components == 1 else { return nil }
         let signal = try signals.signal(series: 0)
         guard signal.axes.count == 3 else { return nil }
