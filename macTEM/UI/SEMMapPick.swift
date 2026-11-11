@@ -18,7 +18,6 @@
 //  mac4DSTEM holds its own copy of the policy and the marker; MacEMUI taking them, so both apps hold one, is a follow-up.
 //
 
-import AppKit   // `NSEvent.modifierFlags` only: the scrub's ⌘ check (`SEMMapScrubLayer.commandIsDown`)
 import ShellControls
 import ShellMetal
 import SwiftUI
@@ -98,9 +97,8 @@ struct SEMMapScrubLayer: View {
             .accessibilityHidden(true)
     }
 
-    /// Whether ⌘ is down at this event. AppKit (`NSEvent.modifierFlags`): a drag's value carries no modifier keys, and
-    /// `onModifierKeysChanged` keeps a state that can miss a ⌘ released in another app, which would leave a plain click picking nothing.
-    private static var commandIsDown: Bool { NSEvent.modifierFlags.contains(.command) }
+    /// Whether ⌘ is down at this event (`ModifierKeys`, the app layer's AppKit query): a drag's value carries no modifier keys.
+    private static var commandIsDown: Bool { ModifierKeys.commandIsDown }
 
     /// Back to 1×, animated unless the reader asked for Reduce Motion, as ZoomPan's own double-click.
     private func fit() {
