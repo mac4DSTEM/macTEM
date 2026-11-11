@@ -339,6 +339,40 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertNil(read, "the stopped run's plan let go of the first processed scan")
     }
 
+    /// The room's band detector, kept between pattern draws and runs, keeps no patterns either (#427). A run hands the room the
+    /// detector it built, and a pattern drawn keeps its own; asked again with the same settings, it reads the patterns current then,
+    /// and a second run indexes each point as the first did. Then Patterns edits a stage and processes again while the Indexing room
+    /// is off screen, so no pattern is drawn from the new scan: the first scan is gone all the same. Red before: the band detector
+    /// the run handed the room kept the first scan until a pattern was drawn with other settings.
+    @MainActor func testTheRoomsBandDetectorLetsGoOfTheProcessedScanItRead() async throws {
+        let (patterns, indexing) = try await openNickel()
+        await patterns.process().value
+        weak let read = patterns.processed
+        XCTAssertNotNil(read, "Process landed")
+        await indexing.index().value
+        let first = try XCTUnwrap(indexing.result)
+        XCTAssertTrue(first.isComplete)
+
+        let position = EBSDPosition(row: 1, column: 2)
+        patterns.pin(position)
+        await indexing.showPattern().value
+        XCTAssertNil(indexing.patternFailure, "the kept detector reads the current patterns")
+        XCTAssertEqual(indexing.patternPosition, position)
+        XCTAssertFalse(indexing.detectedBands.isEmpty)
+        await indexing.index().value
+        let second = try XCTUnwrap(indexing.result)
+        XCTAssertTrue(second.isComplete, "the kept detector indexes the current patterns")
+        XCTAssertEqual(second.indexedCount, first.indexedCount)
+        XCTAssertEqual(second.solutions.map { $0?.quaternion }, first.solutions.map { $0?.quaternion }, "each point as the first run")
+
+        patterns.editPipeline { $0.dynamicStage.std = 12 }
+        await patterns.process().value
+        XCTAssertNotNil(patterns.processed)
+        XCTAssertNil(read, "the room's band detector let go of the first processed scan")
+        await indexing.showPattern().value
+        XCTAssertNil(indexing.patternFailure)
+    }
+
     /// A released source keeps what the method record and Info read of it (the kind, the stages, the type and the shapes) and refuses
     /// to read a pattern, in one sentence; it reads alike only a source of the same kind through the same stages.
     func testAReleasedSourceKeepsWhatItReadAndReadsNoPattern() throws {

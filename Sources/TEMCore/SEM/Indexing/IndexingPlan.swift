@@ -226,7 +226,8 @@ package nonisolated struct IndexingInputs: Sendable, Equatable {
 /// The patterns and the band detector, without any phase: what the pattern pane needs to show a pattern as it is indexed and its
 /// detected bands. Building the detector's Radon line plan takes tens of milliseconds: build it off the main actor, once per settings.
 package nonisolated struct IndexingProbe: Sendable {
-    package let source: IndexingSource
+    /// The patterns read; `released` while the room keeps the probe between pattern draws and runs.
+    package private(set) var source: IndexingSource
     package let detector: HoughBandDetector
 
     package init(source: IndexingSource, settings: HoughIndexingSettings) throws {
@@ -237,6 +238,22 @@ package nonisolated struct IndexingProbe: Sendable {
             throw IndexingRefusal("The Hough settings do not fit a \(source.patternColumns) × \(source.patternRows) px pattern.")
         }
         self.source = source
+    }
+
+    /// This band detector without the patterns (#427): what the room keeps between pattern draws and runs, so it does not keep the
+    /// Patterns room's processed scan in memory once a newer one replaced it.
+    package var released: IndexingProbe {
+        var probe = self
+        probe.source = source.released
+        return probe
+    }
+
+    /// This band detector reading `source`; nil unless `source` reads alike the patterns it was built on (`IndexingSource.readsAlike`).
+    package func reading(_ source: IndexingSource) -> IndexingProbe? {
+        guard source.readsAlike(self.source) else { return nil }
+        var probe = self
+        probe.source = source
+        return probe
     }
 
     /// The pattern at one scan position as it is indexed, and its detected bands.

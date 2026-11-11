@@ -204,7 +204,8 @@ package final class IndexingSession {
     /// run keeps it as its id (`IndexingRun.id`): the Maps room names a run it shows by it (D-SEM-99), Compare the runs it compares.
     package internal(set) var runGeneration = 0
     @ObservationIgnored private var palette: IndexingPalette?
-    /// The band detector of the current settings, kept between hovers and handed to the run.
+    /// The band detector of the current settings, kept between hovers and handed to the run; kept without the patterns (#427), and
+    /// given the patterns current when it is used.
     @ObservationIgnored private var probe: (key: ProbeKey, probe: IndexingProbe)?
     @ObservationIgnored private var shownKey: ShownKey?
     @ObservationIgnored private var shownRaw: [HoughBandDetector.Band] = []
@@ -688,7 +689,7 @@ package final class IndexingSession {
     private func indexWithHough(_ document: EBSDSession.Document, source: IndexingSource) -> Task<Void, Never> {
         let inputs = currentInputs
         let key = ProbeKey(pipeline: inputs.pipeline, settings: inputs.settings, kind: source.kind, generation: generation)
-        let cached = probe?.key == key ? probe?.probe : nil
+        let cached = probe?.key == key ? probe?.probe.reading(source) : nil
         let phases = self.phases, settings = self.settings, detector = document.dataset.detector
         let rows = document.dataset.scanRows, columns = document.dataset.scanColumns
         runTask?.cancel()
@@ -860,7 +861,7 @@ package final class IndexingSession {
         guard run == runGeneration else { return }
         runs[.hough]?.houghPlan = plan
         if !isIndexing { runs[.hough]?.releasePatterns() }
-        probe = (key: key, probe: built)
+        probe = (key: key, probe: built.released)
     }
 
     private func landRow(_ solutions: [HoughIndexer.Solution], row: Int, run: Int) {
@@ -1029,14 +1030,14 @@ package final class IndexingSession {
         guard request != shownKey else { return Task {} }
         shownKey = request
         patternTask?.cancel()
-        let cached = probe?.key == key ? probe?.probe : nil
+        let cached = probe?.key == key ? probe?.probe.reading(source) : nil
         let settings = self.settings
         let gen = generation
         let task = Task { [weak self] in
             do {
                 let inspected = try await Self.inspect(cached: cached, source: source, settings: settings, position: position)
                 guard let self, !Task.isCancelled, gen == self.generation else { return }
-                self.probe = (key: key, probe: inspected.probe)
+                self.probe = (key: key, probe: inspected.probe.released)
                 self.patternPresentation.show(inspected.canvas)
                 self.patternPosition = position
                 self.patternShape = (rows: inspected.probe.source.patternRows, columns: inspected.probe.source.patternColumns)
