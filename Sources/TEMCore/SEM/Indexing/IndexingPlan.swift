@@ -251,8 +251,8 @@ package nonisolated struct IndexingPlan: Sendable {
 
     package var projectionCenter: SIMD3<Double> { indexer.projectionCenter }
 
-    /// Indexes scan row `row` (its patterns read here, indexed in parallel by `HoughIndexer.indexMap`).
-    package func indexRow(_ row: Int) async throws -> [HoughIndexer.Solution] {
+    /// Indexes scan row `row` (its patterns read here, indexed in parallel by `HoughIndexer.indexMap`). Off the caller's actor.
+    @concurrent package func indexRow(_ row: Int) async throws -> [HoughIndexer.Solution] {
         let patterns = try source.patterns(row: row)
         let map = try await indexer.indexMap(scanRows: 1, scanColumns: patterns.count) { _, column in patterns[column] }
         return map.solutions

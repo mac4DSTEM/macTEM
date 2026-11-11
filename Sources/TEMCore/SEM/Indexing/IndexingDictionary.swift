@@ -393,8 +393,8 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
 
     /// The simulated pattern of one of the dictionary's orientations on the run's detector, -1 to 1 (or as stored for a float32 master
     /// pattern; the Best match pane); at `projectionCenter` (Bruker) in place of the detector's mean one when given (a refinement's
-    /// refined PC, D-SEM-109).
-    package func simulated(_ rotation: SIMD4<Double>, projectionCenter: SIMD3<Double>? = nil) async throws -> [Float] {
+    /// refined PC, D-SEM-109). Off the caller's actor.
+    @concurrent package func simulated(_ rotation: SIMD4<Double>, projectionCenter: SIMD3<Double>? = nil) async throws -> [Float] {
         var onDetector = detector
         if let projectionCenter { onDetector.projectionCenters = [projectionCenter] }
         return try await MasterPatternProjection.patternsFloat32Async(master: master.master, rotations: [rotation], detector: onDetector,
