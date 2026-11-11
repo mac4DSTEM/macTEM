@@ -45,7 +45,7 @@ nonisolated extension EBSDH5Reader {
                 throw EBSDReadError(text: "\(url.lastPathComponent) is not an Oxford Instruments .h5oina file.")
             }
             guard let scan = top.scanGroups.first else {
-                throw EBSDReadError(text: "\(url.lastPathComponent) holds no EBSD map: it has no group with 'EBSD/Data' and 'EBSD/Header'.")
+                throw EBSDReadError(text: "\(url.lastPathComponent) holds no EBSD map.")
             }
             return try readOxfordMap(H5File(reader: reader, url: url), scan: scan)
         } catch { throw EBSDReadError.wrap(error, file: url) }
@@ -59,21 +59,21 @@ nonisolated extension EBSDH5Reader {
             throw EBSDReadError(text: "\(name) holds neither EBSD patterns nor orientations: its EBSD data has no Euler angles.")
         }
         guard let phaseColumn = try data.doubles("Phase") else {
-            throw EBSDReadError(text: "\(name) has orientations but not the phase of each point: its EBSD data has no 'Phase'.")
+            throw EBSDReadError(text: "\(name) has orientations but does not give the phase of each point.")
         }
         guard let columns = try header.int("X Cells"), let rows = try header.int("Y Cells"), columns >= 1, rows >= 1 else {
-            throw EBSDReadError(text: "\(name) does not give the map's size: its EBSD header needs 'X Cells' and 'Y Cells' of at least 1.")
+            throw EBSDReadError(text: "\(name) does not give the map's size: its EBSD header needs X Cells and Y Cells of at least 1.")
         }
         let n = phaseColumn.count
         guard let cells = ReaderNumber.product([rows, columns]), cells == n else {
-            throw EBSDReadError(text: "\(name) has \(n) points, but its header gives a map of \(columns) x \(rows) points.")
+            throw EBSDReadError(text: "\(name) has \(n) points, but its header gives a map of \(columns) × \(rows) points.")
         }
         guard eulerInfo.shape == [n, 3], flatEuler.count == 3 * n else {
-            throw EBSDReadError(text: "\(name) has Euler angles of shape \(eulerInfo.shape) for its \(n) points; \(n) x 3 are needed.")
+            throw EBSDReadError(text: "\(name) does not give three Euler angles for each of its \(n) points.")
         }
         let dx = try header.double("X Step"), dy = try header.double("Y Step")
         guard let dx, let dy, dx.isFinite, dx > 0, dy.isFinite, dy > 0 || rows == 1 else {
-            throw EBSDReadError(text: "\(name) does not give the map's step: its EBSD header needs a positive 'X Step' and 'Y Step'.")
+            throw EBSDReadError(text: "\(name) does not give the map's step: its EBSD header needs a positive X Step and Y Step.")
         }
         let phases = try oxfordPhases(header, file: name)
 
@@ -94,7 +94,7 @@ nonisolated extension EBSDH5Reader {
         for i in 0..<n {
             let cell = cellOf?[i] ?? i
             euler[cell] = SIMD3(flatEuler[3 * i], flatEuler[3 * i + 1], flatEuler[3 * i + 2])
-            let id = try wholeNumber(phaseColumn[i], "a phase of '/\(scan)/EBSD/Data/Phase'")
+            let id = try wholeNumber(phaseColumn[i], "\(file.url.lastPathComponent): the phase of point \(i + 1)")
             phaseIDs[cell] = id == 0 ? PhaseList.notIndexedID : id
         }
         var properties: [String: [Double]] = [:]
@@ -114,7 +114,7 @@ nonisolated extension EBSDH5Reader {
     /// `Header/Phases`: one group per phase, named by its id (1, 2, ...), in id order; colours in orix's Tableau order, as for a `.ctf`.
     static func oxfordPhases(_ header: H5Group, file name: String) throws -> PhaseList {
         guard let list = try header.subgroup("Phases") else {
-            throw EBSDReadError(text: "\(name) does not list its crystal phases: its EBSD header has no 'Phases'.")
+            throw EBSDReadError(text: "\(name) does not list its crystal phases.")
         }
         var entries: [(id: Int, phase: CrystalPhase)] = []
         for groupName in list.names {

@@ -212,7 +212,7 @@ nonisolated final class EBSDH5ReaderTests: XCTestCase {
         XCTAssertEqual(second.patterns.datasetPath, "/Scan 2/EBSD/Data/patterns")
         XCTAssertEqual([second.scanRows, second.scanColumns], [3, 3])
         XCTAssertThrowsError(try EBSDH5Reader.read(url: url, scanGroup: "Scan 3")) { error in
-            XCTAssertTrue((error as? EBSDReadError)?.text.contains("Scan 'Scan 3' is not among the scans") == true, "\(error)")
+            XCTAssertEqual((error as? EBSDReadError)?.text, "ebsd-kikuchipy-h5ebsd.h5 has no scan named Scan 3; its scans are Scan 1, Scan 2.")
         }
     }
 
@@ -267,7 +267,7 @@ nonisolated final class EBSDH5ReaderTests: XCTestCase {
         XCTAssertNil(EBSDH5Reader.sniff(url: velox))
         XCTAssertThrowsError(try EBSDH5Reader.read(url: velox)) { error in
             let text = (error as? EBSDReadError)?.text ?? ""
-            XCTAssertTrue(text.contains("not an h5ebsd file"), text)
+            XCTAssertTrue(text.contains("not an EBSD file"), text)
         }
         XCTAssertNil(EBSDH5Reader.format(ofManufacturer: "Thermo"))
         XCTAssertEqual(EBSDH5Reader.format(ofManufacturer: "Oxford Instruments"), .oxfordH5OINA)

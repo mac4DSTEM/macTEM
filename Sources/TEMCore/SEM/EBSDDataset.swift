@@ -451,10 +451,31 @@ package nonisolated struct EBSDReadError: Error, LocalizedError, Equatable {
 
     package init(text: String) { self.text = text }
 
+    /// `error` as the sentence of `file`: a reader's own words, or an HDF5 failure in plain words (`plainWords`), with the file's name
+    /// in front where the words do not name it already (#514: a refusal named no file, and an HDF5 one quoted the call and the path).
     package static func wrap(_ error: Error, file: URL) -> EBSDReadError {
-        if let already = error as? EBSDReadError { return already }
-        let words = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-        return EBSDReadError(text: "\(file.lastPathComponent): \(words)")
+        let name = file.lastPathComponent
+        let words: String
+        if let already = error as? EBSDReadError { words = already.text }
+        else if let hdf5 = error as? HDF5FileError { words = plainWords(hdf5) }
+        else { words = (error as? LocalizedError)?.errorDescription ?? String(describing: error) }
+        return EBSDReadError(text: words.contains(name) ? words : "\(name): \(words)")
+    }
+
+    /// An HDF5 failure in words a user reads: what is wrong with the file, never the HDF5 call or the path inside it.
+    package static func plainWords(_ error: HDF5FileError) -> String {
+        switch error {
+        case .cannotOpen: return "it cannot be opened as an HDF5 file (it may be damaged, or still being written)."
+        case .notPermitted:
+            return "macEM was not given access to it: open it with File > Open…, drop it on the window or open it from the Finder."
+        case .hdf5(_, let detail) where detail.localizedCaseInsensitiveContains("filter"):
+            return "its data is compressed with a filter macEM does not have."
+        case .hdf5: return "its data could not be read (the file may be damaged)."
+        case .library: return "the HDF5 library could not be loaded."
+        case .limitExceeded: return "it holds more than macEM reads in one piece."
+        case .unsupportedType: return "it stores its data in a type macEM does not read."
+        default: return "it is not laid out as its format says."
+        }
     }
 }
 

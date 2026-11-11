@@ -215,7 +215,7 @@ package final class OrientationMapSession {
 
     // MARK: Opening
 
-    /// Reads the `.ang`, `.ctf` or map-only `.h5oina` at `url` off the main actor (inside its security scope), then shows it.
+    /// Reads the `.ang`, `.ctf`, map-only `.h5oina` or orix `.h5` at `url` off the main actor (inside its security scope), then shows it.
     @discardableResult
     package func open(url: URL) -> Task<Void, Never> {
         openTask?.cancel()
@@ -237,7 +237,8 @@ package final class OrientationMapSession {
         return task
     }
 
-    /// The map in an `.ang` (orix's reader port), a `.ctf`, or an Oxford `.h5oina` that holds no patterns (`EBSDH5Reader.readOxfordMap`).
+    /// The map in an `.ang` (orix's reader port), a `.ctf`, an Oxford `.h5oina` that holds no patterns, or orix's own `.h5`
+    /// (`EBSDH5Reader.readMap`).
     @concurrent
     nonisolated package static func read(_ url: URL) async throws -> Document {
         let scoped = url.startAccessingSecurityScopedResource()
@@ -257,20 +258,27 @@ package final class OrientationMapSession {
                 throw MapReadError(text: "\(url.lastPathComponent): \(refusal.reason)")
             }
         case let ext where EBSDOpening.h5Extensions.contains(ext):
-            // An Oxford H5OINA without patterns, AZtec's map export (#513): routing sends it here; its refusals come out in its words.
+            // An Oxford H5OINA without patterns, AZtec's map export (#513), or orix's own HDF5 file (#514): routing sends it here;
+            // its refusals come out in its words.
             do {
-                let map = try EBSDH5Reader.readOxfordMap(url: url)
-                return Document(fileName: url.lastPathComponent, url: url, map: map, source: .mapFile, format: Self.h5oinaFormat)
+                let found = try EBSDH5Reader.readMap(url: url)
+                let format = switch found.layout {
+                case .oxford: Self.h5oinaFormat
+                case .orix: Self.orixFormat
+                }
+                return Document(fileName: url.lastPathComponent, url: url, map: found.map, source: .mapFile, format: format)
             } catch let refusal as EBSDReadError {
                 throw MapReadError(text: refusal.text)
             }
         default:
-            throw MapReadError(text: "\(url.lastPathComponent) is not an orientation map (.ang, .ctf or .h5oina).")
+            throw MapReadError(text: "\(url.lastPathComponent) is not an orientation map (.ang, .ctf, .h5oina or orix's .h5).")
         }
     }
 
     /// The format an H5OINA map is shown with (Info names its Euler angles by it).
     package nonisolated static let h5oinaFormat = ".h5oina (Oxford Instruments)"
+    /// The format a map in orix's own HDF5 file is shown with.
+    package nonisolated static let orixFormat = ".h5 (orix)"
 
     nonisolated static func angFormat(_ vendor: ANGMap.Vendor) -> String {
         switch vendor {

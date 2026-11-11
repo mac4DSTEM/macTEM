@@ -6,8 +6,10 @@
 //        header keys, the same defaults, the same projection-centre conversion to the Bruker convention, the same refusals (hex
 //        grids, non-rectangular regions). The patterns themselves stay in the file and are read by map position (`EBSDPatternReader`).
 //        Parity: macTEMTests/EBSDH5ReaderTests.swift against ebsd-h5ebsd.truth.json (tools/parity/sem-readers/make_h5ebsd_fixtures.py).
-//        An H5OINA that holds a map but no patterns (AZtec's map export) is the Maps room's: `probe` says so, and
-//        EBSDH5Reader+OxfordMap.swift reads its map (#513).
+//        `content` says which room a file is for: the patterns for the Patterns room; a map without patterns (AZtec's H5OINA map
+//        export, #513; orix's own HDF5 file, #514) for the Maps room, read by `readMap`; a file of a known maker that holds neither
+//        (an EDS-only H5OINA; a Bruker or EDAX file saved without patterns, whose maps are not read yet) refused in a sentence.
+//        Every refusal names the file in words a user reads (`EBSDReadError.wrap`): no HDF5 paths, no quoted dataset names.
 //
 
 import Foundation
@@ -28,17 +30,87 @@ package nonisolated enum EBSDH5Reader {
 
     /// What the top group says the file is: the layout, or nil when the file is not an h5ebsd file of a known manufacturer
     /// (no `manufacturer` and `version` datasets, or no scan group with `EBSD/Data` and `EBSD/Header`). One HDF5 open; run off the main actor.
-    package static func sniff(url: URL) -> EBSDFileFormat? { probe(url: url)?.format }
+    package static func sniff(url: URL) -> EBSDFileFormat? {
+        guard let reader = try? HDF5Reader(url: url), let top = try? TopGroup(reader), !top.scanGroups.isEmpty else { return nil }
+        return format(ofManufacturer: top.manufacturer)
+    }
 
-    /// `sniff`, and whether the file is an Oxford H5OINA whose first scan holds no patterns: AZtec's map export, an orientation map
-    /// alone, which opens in the Maps room as a `.ctf` alone does (`readOxfordMap`, #513). nil where `sniff` is nil.
-    package static func probe(url: URL) -> (format: EBSDFileFormat, mapOnly: Bool)? {
+    /// What an EBSD HDF5 file holds, and so which room opens it.
+    package enum Content: Equatable, Sendable {
+        /// Patterns in this layout: the Patterns room (`read`).
+        case patterns(EBSDFileFormat)
+        /// An orientation map without patterns: the Maps room (`readMap`).
+        case map(MapLayout)
+        /// A file of a maker the readers know that macEM does not open, and the sentence that says what it holds.
+        case refused(String)
+    }
+
+    /// The layouts of an orientation map without patterns that `readMap` reads.
+    package enum MapLayout: Equatable, Sendable {
+        /// AZtec's map export: an H5OINA scan without patterns (#513, EBSDH5Reader+OxfordMap.swift).
+        case oxford
+        /// orix's own HDF5 file (`orix.io.save`, orix 0.15.0's io/plugins/orix_hdf5.py): `manufacturer` orix and a `crystal_map`
+        /// group; kikuchipy's dictionary indexing saves its maps so.
+        case orix
+    }
+
+    /// Which room the HDF5 file at `url` is for, from its top group and the names in its first scan's `EBSD/Data` (one HDF5 open;
+    /// run off the main actor): nil when it is no EBSD file of a maker the readers know (no `manufacturer` and `version`, or
+    /// another maker), so the file's other routes decide.
+    package static func content(url: URL) -> Content? {
         guard let reader = try? HDF5Reader(url: url), let top = try? TopGroup(reader) else { return nil }
-        guard let format = format(ofManufacturer: top.manufacturer), let scan = top.scanGroups.first else { return nil }
-        guard format == .oxfordH5OINA, let data = try? H5Group(H5File(reader: reader, url: url), "/\(scan)/EBSD/Data") else {
-            return (format, false)
+        let name = url.lastPathComponent
+        if top.manufacturer == "orix" { return (try? reader.kind(of: "/crystal_map")) == .group ? .map(.orix) : nil }
+        guard let format = format(ofManufacturer: top.manufacturer) else { return nil }
+        guard let scan = top.scanGroups.first else {
+            if format == .oxfordH5OINA, top.holdsEDS {
+                return .refused("\(name) holds EDS data from AZtec but no EBSD data. macEM does not read EDS from an .h5oina file yet; "
+                                + "a spectrum AZtec exports as .msa opens in the EDS room.")
+            }
+            return .refused("\(name) holds no EBSD patterns and no orientation map.")
         }
-        return (format, !holdsOxfordPatterns(data))
+        guard let data = try? H5Group(H5File(reader: reader, url: url), "/\(scan)/EBSD/Data") else { return .patterns(format) }
+        switch format {
+        case .oxfordH5OINA:
+            return holdsOxfordPatterns(data) ? .patterns(format) : .map(.oxford)
+        case .brukerH5EBSD where data.name(for: "RawPatterns") == nil:
+            return .refused("\(name) is a Bruker Esprit file saved without its EBSD patterns. macEM does not read its orientation map "
+                            + "yet; the map exported as .ang or .ctf opens in the Maps room.")
+        case .edaxH5EBSD where data.name(for: "Pattern") == nil:
+            return .refused("\(name) is an EDAX OIM file saved without its EBSD patterns. macEM does not read its orientation map yet; "
+                            + "the map exported as .ang opens in the Maps room.")
+        default:
+            return .patterns(format)
+        }
+    }
+
+    /// The orientation map of the HDF5 file at `url` that `content` gives the Maps room, and its layout. Reads the whole map; run it
+    /// off the main actor, inside the file's security scope. Any other file is refused in its sentence.
+    package static func readMap(url: URL) throws -> (map: CrystalMap, layout: MapLayout) {
+        let name = url.lastPathComponent
+        switch content(url: url) {
+        case .map(.oxford):
+            let map = try readOxfordMap(url: url)
+            return (map, .oxford)
+        case .map(.orix):
+            let map = try readOrixMap(url: url)
+            return (map, .orix)
+        case .refused(let sentence): throw EBSDReadError(text: sentence)
+        case .patterns: throw EBSDReadError(text: "\(name) holds EBSD patterns: it opens in the Patterns room, which shows its map.")
+        case nil: throw EBSDReadError(text: "\(name) is not an orientation map macEM reads (.ang, .ctf, .h5oina or orix's .h5).")
+        }
+    }
+
+    /// The crystal map of orix's own HDF5 file at `url` (`orix.io.load`, `dict2crystalmap`): the map as `readCrystalMap` reads a
+    /// kikuchipy file's, at `/crystal_map`.
+    package static func readOrixMap(url: URL) throws -> CrystalMap {
+        do {
+            let reader = try HDF5Reader(url: url)
+            guard (try? reader.kind(of: "/crystal_map")) == .group else {
+                throw EBSDReadError(text: "\(url.lastPathComponent) holds no orientation map: orix saves one as its crystal map.")
+            }
+            return try readCrystalMap(H5File(reader: reader, url: url), path: "/crystal_map", scan: nil, steps: (dy: 1, dx: 1))
+        } catch { throw EBSDReadError.wrap(error, file: url) }
     }
 
     /// The scan `scanGroup` (the first scan group when nil) of the h5ebsd file at `url`.
@@ -47,15 +119,15 @@ package nonisolated enum EBSDH5Reader {
             let reader = try HDF5Reader(url: url)
             let top = try TopGroup(reader)
             guard let format = format(ofManufacturer: top.manufacturer) else {
-                throw EBSDReadError(text: "\(url.lastPathComponent) is an h5ebsd file of '\(top.manufacturer)', which is not among the supported manufacturers (kikuchipy, Bruker Nano, EDAX, Oxford Instruments).")
+                throw EBSDReadError(text: "\(url.lastPathComponent) is an EBSD file written by \(top.manufacturer), which macEM does not read; it reads kikuchipy, Bruker Esprit, EDAX OIM and Oxford AZtec files.")
             }
             guard !top.scanGroups.isEmpty else {
-                throw EBSDReadError(text: "\(url.lastPathComponent) has no top group with subgroups 'EBSD/Data' and 'EBSD/Header'.")
+                throw EBSDReadError(text: "\(url.lastPathComponent) holds no EBSD scan.")
             }
             let group: String
             if let scanGroup {
                 guard top.scanGroups.contains(scanGroup) else {
-                    throw EBSDReadError(text: "Scan '\(scanGroup)' is not among the scans \(top.scanGroups) in \(url.lastPathComponent).")
+                    throw EBSDReadError(text: "\(url.lastPathComponent) has no scan named \(scanGroup); its scans are \(top.scanGroups.joined(separator: ", ")).")
                 }
                 group = scanGroup
             } else { group = top.scanGroups[0] }
@@ -76,15 +148,17 @@ package nonisolated enum EBSDH5Reader {
     // MARK: - The top group
 
     /// `manufacturer` and `version` (lowercased, as kikuchipy keeps them; EDAX writes the names with a leading space, stripped like `_hdf5group2dict` does) and the scan groups: every top group that holds `EBSD/Data` and
-    /// `EBSD/Header` (`H5EBSDReader.get_manufacturer_version`, `get_scan_groups`, `check_file`).
+    /// `EBSD/Header` (`H5EBSDReader.get_manufacturer_version`, `get_scan_groups`, `check_file`). `holdsEDS`: a top group holds an
+    /// `EDS` group (an H5OINA scan's EDS data, H5OINAFile.md).
     struct TopGroup {
         var manufacturer: String
         var version: String
         var scanGroups: [String]
+        var holdsEDS = false
 
         init(_ reader: HDF5Reader) throws {
             var manufacturer: String?, version: String?
-            var groups: [String] = []
+            var groups: [String] = [], eds = false
             for name in try reader.children(of: "/") {
                 switch try reader.kind(of: "/" + name) {
                 case .dataset:
@@ -93,12 +167,13 @@ package nonisolated enum EBSDH5Reader {
                     else if key == "version" || key == "format version" { version = try reader.readStrings("/" + name).first?.lowercased() }
                 case .group:
                     if try reader.exists("/\(name)/EBSD/Data"), try reader.exists("/\(name)/EBSD/Header") { groups.append(name) }
+                    if try reader.exists("/\(name)/EDS") { eds = true }
                 case .other: continue
                 }
             }
-            guard let manufacturer else { throw EBSDReadError(text: "the top group has no 'manufacturer' dataset: not an h5ebsd file.") }
-            guard let version else { throw EBSDReadError(text: "the top group has no 'version' dataset: not an h5ebsd file.") }
-            self.manufacturer = manufacturer; self.version = version; self.scanGroups = groups
+            guard let manufacturer else { throw EBSDReadError(text: "it is not an EBSD file (it does not name the software that wrote it).") }
+            guard let version else { throw EBSDReadError(text: "it is not an EBSD file (it does not give its format version).") }
+            self.manufacturer = manufacturer; self.version = version; self.scanGroups = groups; self.holdsEDS = eds
         }
     }
 
@@ -161,7 +236,20 @@ package nonisolated enum EBSDH5Reader {
 
         func int(_ key: String) throws -> Int? {
             guard let value = try double(key) else { return nil }
-            return try EBSDH5Reader.wholeNumber(value, "'\(key)' in '\(path)'")
+            return try EBSDH5Reader.wholeNumber(value, "the \(key) its \(place) gives")
+        }
+
+        /// Where the group sits, in words: its EBSD header or data, its SEM header, a crystal map's (no HDF5 path).
+        var place: String {
+            let last = path.split(separator: "/").last.map(String.init) ?? ""
+            switch last {
+            case "Header": return path.contains("/SEM") ? "SEM header" : "EBSD header"
+            case "Data": return "EBSD data"
+            case "SEM": return "SEM header"
+            case "header": return "crystal map's header"
+            case "data": return "crystal map"
+            default: return "file"
+            }
         }
 
         func string(_ key: String) throws -> String? {
@@ -172,11 +260,11 @@ package nonisolated enum EBSDH5Reader {
         }
 
         func required(_ key: String) throws -> Double {
-            guard let value = try double(key) else { throw EBSDReadError(text: "the header has no '\(key)' dataset.") }
+            guard let value = try double(key) else { throw EBSDReadError(text: "its \(place) does not give the \(key).") }
             return value
         }
 
-        func requiredInt(_ key: String) throws -> Int { try EBSDH5Reader.wholeNumber(try required(key), "'\(key)' in '\(path)'") }
+        func requiredInt(_ key: String) throws -> Int { try EBSDH5Reader.wholeNumber(try required(key), "the \(key) its \(place) gives") }
     }
 
     // MARK: - Shared pieces
@@ -194,22 +282,24 @@ package nonisolated enum EBSDH5Reader {
     static func patternSource(_ file: H5File, data: H5Group, name: String, scanRows: Int, scanColumns: Int, rows: Int, columns: Int,
                               order: [Int?]? = nil) throws -> EBSDPatternSource {
         guard let datasetName = data.name(for: name), let info = try data.info(name) else {
-            throw EBSDReadError(text: "could not find patterns in the expected dataset 'EBSD/Data/\(name)'.")
+            throw EBSDReadError(text: "it holds no EBSD patterns.")
         }
         guard case .numeric(let type) = info.type else {
-            throw EBSDReadError(text: "the patterns in 'EBSD/Data/\(name)' are stored as \(info.type), not as numbers.")
+            throw EBSDReadError(text: "its EBSD patterns are not stored as numbers.")
         }
         let shape = info.shape
         let patternShape = Array(shape.suffix(2))
         guard shape.count == 3 || shape.count == 4, patternShape == [rows, columns] else {
-            throw EBSDReadError(text: "the patterns in 'EBSD/Data/\(name)' have shape \(shape); the header says \(rows) x \(columns) patterns in a \(scanRows) x \(scanColumns) scan.")
+            // Sizes width × height (columns × rows), as the toolbar and Info give them (D-SEM-112).
+            let stored = shape.count >= 2 ? "patterns of \(shape[shape.count - 1]) × \(shape[shape.count - 2]) pixels" : "no patterns of two sides"
+            throw EBSDReadError(text: "it stores \(stored), but its header gives \(columns) × \(rows) patterns in a \(scanColumns) × \(scanRows) scan.")
         }
         if let refusal = EBSDDataset.sizeRefusal(scanRows: scanRows, scanColumns: scanColumns, patternRows: rows, patternColumns: columns,
                                                  byteSize: type.byteSize) {
             throw EBSDReadError(text: "\(file.url.lastPathComponent): \(refusal)")
         }
         guard ReaderNumber.product(shape + [type.byteSize]) != nil else {
-            throw EBSDReadError(text: "the patterns in 'EBSD/Data/\(name)' have shape \(shape), more bytes than can be counted.")
+            throw EBSDReadError(text: "its EBSD patterns are more bytes than can be counted.")
         }
         return EBSDPatternSource(url: file.url, datasetPath: data.path + "/" + datasetName, fileShape: shape, dataType: type, fileIndexByPosition: order)
     }
@@ -257,7 +347,7 @@ package nonisolated enum EBSDH5Reader {
         let sem = EBSDSEMHeader(beamEnergyKeV: beam, magnification: magnification, workingDistanceMM: wd, microscope: microscope)
         var crystalMap: CrystalMap?
         if try file.reader.exists("/\(scan)/EBSD/CrystalMap/crystal_map") {
-            crystalMap = try readCrystalMap(file, path: "/\(scan)/EBSD/CrystalMap/crystal_map", scan: (ny, nx), steps: (dy, dx))
+            crystalMap = try readCrystalMap(file, path: "/\(scan)/EBSD/CrystalMap/crystal_map", scan: (rows: ny, columns: nx), steps: (dy: dy, dx: dx))
         }
         let background = try header.array("static_background")
         return EBSDDataset(format: .kikuchipyH5EBSD, manufacturer: "", version: "", scanGroup: scan, scanGroups: [], scanRows: ny, scanColumns: nx,
@@ -265,16 +355,25 @@ package nonisolated enum EBSDH5Reader {
                            staticBackground: background, sem: sem, crystalMap: crystalMap, patterns: source)
     }
 
-    /// orix's `dict2crystalmap`: Euler angles, phase ids, the phases of the header by id, every other column as a property, x and
-    /// y from the file or, where it writes none, from the scan grid (orix's `create_coordinate_arrays` with the scan's steps).
-    static func readCrystalMap(_ file: H5File, path: String, scan: (rows: Int, columns: Int), steps: (dy: Double, dx: Double)) throws -> CrystalMap {
+    /// orix's `dict2crystalmap`: Euler angles, phase ids, the phases of the header by id, every other column as a property, the
+    /// points `is_in_data` keeps, x and y from the file or, where it writes none, from the scan grid (orix's
+    /// `create_coordinate_arrays` with the scan's steps; `scan` nil leaves them to `CrystalMap`, x = 0, 1, 2, … as orix does).
+    /// A map of several rotations a point (`rotations_per_point`, kikuchipy's best matches) keeps the first of each, the one orix's
+    /// `CrystalMap.orientations` shows, and of each property with as many columns its first.
+    static func readCrystalMap(_ file: H5File, path: String, scan: (rows: Int, columns: Int)?, steps: (dy: Double, dx: Double)) throws -> CrystalMap {
         let data = try H5Group(file, path + "/data")
         let header = try H5Group(file, path + "/header")
-        let phi1 = try data.doubles("phi1")
-        let Phi = try data.doubles("Phi")
-        let phi2 = try data.doubles("phi2")
+        /// A column of one value a point; of a 2-D (points, k) dataset the first of each row.
+        func perPoint(_ key: String) throws -> [Double]? {
+            guard let values = try data.doubles(key), let shape = try data.info(key)?.shape else { return nil }
+            guard shape.count == 2, shape[1] > 1 else { return values }
+            return stride(from: 0, to: values.count, by: shape[1]).map { values[$0] }
+        }
+        let phi1 = try perPoint("phi1")
+        let Phi = try perPoint("Phi")
+        let phi2 = try perPoint("phi2")
         guard let phi1, let Phi, let phi2 else {
-            throw EBSDReadError(text: "the crystal map has no Euler angle datasets 'phi1', 'Phi', 'phi2'.")
+            throw EBSDReadError(text: "its crystal map holds no orientations (no Euler angles).")
         }
         let n = min(phi1.count, Phi.count, phi2.count)
         let euler = (0..<n).map { SIMD3(phi1[$0], Phi[$0], phi2[$0]) }
@@ -290,7 +389,8 @@ package nonisolated enum EBSDH5Reader {
                 }
                 let name = try phase.string("name") ?? ""
                 let spaceGroup = try phase.int("space_group")
-                let pointGroup = try phase.string("point_group")
+                // orix writes a phase without a point or space group as the text "None" (`dict2phase`).
+                let pointGroup = try phase.string("point_group").flatMap { $0 == "None" ? nil : $0 }
                 let color = try phase.string("color") ?? PhaseList.tableau[phases.count % PhaseList.tableau.count]
                 phases.append((Int(id) ?? phases.count, CrystalPhase(name: name, spaceGroup: spaceGroup, pointGroup: pointGroup, lattice: lattice, color: color)))
             }
@@ -298,11 +398,11 @@ package nonisolated enum EBSDH5Reader {
         var properties: [String: [Double]] = [:]
         let standard: Set<String> = ["phi1", "Phi", "phi2", "phase_id", "is_in_data", "id", "x", "y", "z"]
         for name in data.names where !standard.contains(name) {
-            if let values = try data.doubles(name), values.count == n { properties[name] = values }
+            if let values = try perPoint(name), values.count == n { properties[name] = values }
         }
         var x = try data.doubles("x").flatMap { $0.count == n ? $0 : nil }
         var y = try data.doubles("y").flatMap { $0.count == n ? $0 : nil }
-        if x == nil, y == nil, scan.rows * scan.columns == n {
+        if x == nil, y == nil, let scan, scan.rows * scan.columns == n {
             let grid = CrystalMap.coordinates(shape: scan, steps: steps)
             x = grid.x
             y = scan.rows > 1 ? grid.y : nil
@@ -310,8 +410,22 @@ package nonisolated enum EBSDH5Reader {
         // orix's `dict2crystalmap` takes the map's length unit from `header/scan_unit` ("um" in kikuchipy's files, NUL-padded); its
         // default "px" stands only when the header has none. Without it a µm map drew its scale bar and grain sizes in px.
         let unit = try header.string("scan_unit")?.trimmingCharacters(in: CharacterSet(charactersIn: "\0").union(.whitespaces))
+        // orix keeps every point of the map it was cut from and hides the others (`is_in_data`, h5py's bool); a mask of another
+        // length, or none, keeps them all.
+        var inData: [Bool]?
+        if data.kind("is_in_data") == .dataset, let name = data.name(for: "is_in_data") {
+            let full = data.path + "/" + name
+            let mask = (try? file.reader.readBooleans(full)) ?? (try? data.doubles("is_in_data"))?.map { $0 != 0 }
+            if let mask, mask.count == n { inData = mask }
+        }
         return try CrystalMap(euler: euler, phaseIDs: Array(phaseIDs.prefix(n)), x: x, y: y, phaseList: phases.isEmpty ? nil : PhaseList(phases),
-                              properties: properties, scanUnit: unit.flatMap { $0.isEmpty ? nil : $0 } ?? "px")
+                              properties: properties, scanUnit: unit.flatMap { $0.isEmpty ? nil : $0 } ?? "px", isInData: inData)
+    }
+
+    /// The sentence for a scan on a grid other than a square one (kikuchipy reads square grids only).
+    static func gridRefusal(_ grid: String?) -> String {
+        guard let grid, !grid.isEmpty else { return "it does not say which grid it was acquired on; only square-grid EBSD maps are read." }
+        return "it was acquired on a \(grid.lowercased().contains("hex") ? "hexagonal" : grid) grid; only square-grid EBSD maps are read."
     }
 
     // MARK: - Bruker Nano
@@ -320,7 +434,7 @@ package nonisolated enum EBSDH5Reader {
         let header = try H5Group(file, "/\(scan)/EBSD/Header")
         let data = try H5Group(file, "/\(scan)/EBSD/Data")
         let grid = try header.string("Grid Type")
-        guard grid == "isometric" else { throw EBSDReadError(text: "only square grids are supported, not '\(grid ?? "none")'.") }
+        guard grid == "isometric" else { throw EBSDReadError(text: Self.gridRefusal(grid)) }
         var ny: Int
         var nx: Int
         var order: [Int?]?
@@ -331,7 +445,7 @@ package nonisolated enum EBSDH5Reader {
             let rows = try iy.map { try wholeNumber($0, "an 'IY' of the region of interest") }
             let columns = try ix.map { try wholeNumber($0, "an 'IX' of the region of interest") }
             guard let roi = rectangularROI(rows: rows, columns: columns) else {
-                throw EBSDReadError(text: "only a rectangular region of interest is supported.")
+                throw EBSDReadError(text: "its region of interest is not a rectangle; only rectangular regions are read.")
             }
             ny = roi.rows; nx = roi.columns; order = roi.fileIndexByPosition
         } else {
@@ -396,7 +510,7 @@ package nonisolated enum EBSDH5Reader {
         let header = try H5Group(file, "/\(scan)/EBSD/Header")
         let data = try H5Group(file, "/\(scan)/EBSD/Data")
         let grid = try header.string("Grid Type")
-        guard grid == "SqrGrid" else { throw EBSDReadError(text: "only square grids are supported, not '\(grid ?? "none")'.") }
+        guard grid == "SqrGrid" else { throw EBSDReadError(text: Self.gridRefusal(grid)) }
         let ny = try header.requiredInt("nRows")
         let nx = try header.requiredInt("nColumns")
         let sy = try header.requiredInt("Pattern Height")
@@ -428,6 +542,10 @@ package nonisolated enum EBSDH5Reader {
 
     // MARK: - Oxford Instruments H5OINA
 
+    /// kikuchipy's `OxfordH5EBSDReader.scan2dict`: the processed patterns, or with `processed` false the unprocessed ones. A scan that
+    /// holds only the other kind reads that one (kikuchipy refuses it with a KeyError; AZtec can save either alone, #514). The map
+    /// the scan holds beside its patterns comes with them (`readOxfordMap`, which kikuchipy 0.13.1 leaves empty) when it reads; a
+    /// map that does not never keeps the patterns from opening.
     static func readOxford(_ file: H5File, scan: String, version: String, processed: Bool = true) throws -> EBSDDataset {
         let header = try H5Group(file, "/\(scan)/EBSD/Header")
         let data = try H5Group(file, "/\(scan)/EBSD/Data")
@@ -441,7 +559,8 @@ package nonisolated enum EBSDH5Reader {
         let sx = try header.requiredInt("Pattern Width")
         let dy = try header.double("Y Step") ?? 1
         let dx = try header.double("X Step") ?? 1
-        let name = processed ? "Processed Patterns" : "Unprocessed Patterns"
+        let asked = processed ? "Processed Patterns" : "Unprocessed Patterns"
+        let name = data.name(for: asked) != nil ? asked : oxfordPatternNames.first { data.name(for: $0) != nil } ?? asked
         let source = try patternSource(file, data: data, name: name, scanRows: ny, scanColumns: nx, rows: sy, columns: sx)
         var detector = EBSDDetectorGeometry(rows: sy, columns: sx, pixelSize: 1, binning: 1, tilt: 0, azimuthal: 0, twist: 0, sampleTilt: 70,
                                             projectionCenters: [])
@@ -463,9 +582,10 @@ package nonisolated enum EBSDH5Reader {
         let wd = try header.double("Working Distance")
         let sem = EBSDSEMHeader(beamEnergyKeV: kv, magnification: magnification, workingDistanceMM: wd)
         let background = try header.array("Processed Static Background")
+        let map = try? readOxfordMap(file, scan: scan)
         return EBSDDataset(format: .oxfordH5OINA, manufacturer: "", version: "", scanGroup: scan, scanGroups: [], scanRows: ny, scanColumns: nx,
                            patternRows: sy, patternColumns: sx, dataType: source.dataType, stepY: dy, stepX: dx, detector: detector,
-                           staticBackground: background, sem: sem, patterns: source)
+                           staticBackground: background, sem: sem, crystalMap: map, patterns: source)
     }
 
     /// kikuchipy's `get_binning`: the camera mode string `... (WxH px)`; 1024 over the height, 8 for the 88-row Speed 3 mode. The dataset is

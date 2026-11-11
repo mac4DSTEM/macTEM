@@ -47,10 +47,10 @@ nonisolated final class H5EBSDHeaderBoundsTests: XCTestCase {
         XCTAssertNil(ReaderNumber.int(1e300))
         XCTAssertNil(ReaderNumber.int(9_223_372_036_854_775_808.0), "2^63 is one past Int.max")
         XCTAssertEqual(ReaderNumber.int(-9_223_372_036_854_775_808.0), Int.min)
-        XCTAssertThrowsError(try EBSDH5Reader.wholeNumber(Double.nan, "'n_rows' in '/Scan 1/EBSD/Header'")) { error in
-            XCTAssertEqual((error as? EBSDReadError)?.text, "'n_rows' in '/Scan 1/EBSD/Header' is nan, not a whole number in range.")
+        XCTAssertThrowsError(try EBSDH5Reader.wholeNumber(Double.nan, "the n_rows its EBSD header gives")) { error in
+            XCTAssertEqual((error as? EBSDReadError)?.text, "the n_rows its EBSD header gives is nan, not a whole number in range.")
         }
-        XCTAssertEqual(try EBSDH5Reader.wholeNumber(55.0, "'n_rows' in '/Scan 1/EBSD/Header'"), 55)
+        XCTAssertEqual(try EBSDH5Reader.wholeNumber(55.0, "the n_rows its EBSD header gives"), 55)
         XCTAssertEqual(ReaderNumber.product([55, 75, 60, 60, 1]), 55 * 75 * 3600)
         XCTAssertEqual(ReaderNumber.product([]), 1)
         XCTAssertNil(ReaderNumber.product([Int.max / 2, 3]))

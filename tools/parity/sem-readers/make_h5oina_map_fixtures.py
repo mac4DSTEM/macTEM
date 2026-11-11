@@ -11,6 +11,10 @@
 #   ebsd-oxford-map-shuffled.h5oina  the same points stored in another order, each with its X and Y (DREAM3D's EbsdLib places them)
 #   ebsd-oxford-map-grid.h5oina      the same map without X and Y (the header's cells and steps place the points, as MTEX does)
 #   ebsd-oxford-map-no-euler.h5oina  the header and phases but no Euler angles and no patterns: nothing to show, refused in words
+# and for #514:
+#   ebsd-oxford-map-patterns.h5oina     the map with its processed patterns (5 x 4 pixels, uint8): the Patterns room, the map with it
+#   ebsd-oxford-map-unprocessed.h5oina  the same with only unprocessed patterns (AZtec can save either alone)
+#   ebsd-oxford-eds.h5oina              an EDS scan alone (/1/EDS, no EBSD group): refused in words that say it holds EDS
 import sys
 from pathlib import Path
 import h5py
@@ -60,7 +64,11 @@ def phase(group, name, dims, angles_deg, laue, laue_symbol, space, space_symbol)
     scalar(g, "Phase Id", int(name), np.int32)
 
 
-def write(name, order=None, xy=True, euler=True):
+PH, PW = 4, 5
+PATTERNS = ((np.arange(N * PH * PW) * 7) % 251).astype(np.uint8).reshape(N, PH, PW)
+
+
+def write(name, order=None, xy=True, euler=True, patterns=None):
     o = np.arange(N) if order is None else np.asarray(order)
     with h5py.File(out / name, "w") as f:
         text(f, "Format Version", "7.0")
@@ -82,6 +90,8 @@ def write(name, order=None, xy=True, euler=True):
         if xy:
             data.create_dataset("X", data=X[o]); data["X"].attrs["Unit"] = "um"
             data.create_dataset("Y", data=Y[o]); data["Y"].attrs["Unit"] = "um"
+        if patterns:
+            data.create_dataset(patterns, data=PATTERNS[o])
         header = ebsd.create_group("Header")
         scalar(header, "X Cells", NX, np.int32, "px")
         scalar(header, "Y Cells", NY, np.int32, "px")
@@ -89,6 +99,9 @@ def write(name, order=None, xy=True, euler=True):
         scalar(header, "Y Step", DY, np.float32, "um")
         scalar(header, "Acquired Pattern Width", 156, np.int32, "px")
         scalar(header, "Acquired Pattern Height", 128, np.int32, "px")
+        if patterns:
+            scalar(header, "Pattern Width", PW, np.int32, "px")
+            scalar(header, "Pattern Height", PH, np.int32, "px")
         scalar(header, "Beam Voltage", 20, np.float32, "kV")
         scalar(header, "Magnification", 1000, np.float32)
         scalar(header, "Working Distance", 15, np.float32, "mm")
@@ -108,3 +121,21 @@ shuffled[0::2], shuffled[1::2] = shuffled[1::2].copy(), shuffled[0::2].copy()
 write("ebsd-oxford-map-shuffled.h5oina", order=shuffled)
 write("ebsd-oxford-map-grid.h5oina", xy=False)
 write("ebsd-oxford-map-no-euler.h5oina", euler=False)
+write("ebsd-oxford-map-patterns.h5oina", patterns="Processed Patterns")
+write("ebsd-oxford-map-unprocessed.h5oina", patterns="Unprocessed Patterns")
+
+# An EDS scan alone, as AZtec saves an EDS map (H5OINAFile.md: /1/EDS/Data, /1/EDS/Header): no EBSD group.
+with h5py.File(out / "ebsd-oxford-eds.h5oina", "w") as f:
+    text(f, "Format Version", "7.0")
+    text(f, "Manufacturer", "Oxford Instruments")
+    text(f, "Software Version", "6.1.8691.1")
+    text(f, "Index", "1")
+    eds = f.create_group("1").create_group("EDS")
+    eds_data = eds.create_group("Data")
+    eds_data.create_dataset("Spectrum", data=((np.arange(N * 16) * 3) % 17).astype(np.uint16).reshape(N, 16))
+    eds_header = eds.create_group("Header")
+    scalar(eds_header, "X Cells", NX, np.int32, "px")
+    scalar(eds_header, "Y Cells", NY, np.int32, "px")
+    scalar(eds_header, "X Step", DX, np.float32, "um")
+    scalar(eds_header, "Y Step", DY, np.float32, "um")
+    scalar(eds_header, "Beam Voltage", 20, np.float32, "kV")
