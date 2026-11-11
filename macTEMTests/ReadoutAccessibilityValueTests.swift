@@ -1,7 +1,8 @@
 //
 //  ReadoutAccessibilityValueTests.swift
-//  A pane's accessibility value is what the pointer reads while it is over the pane, else the pane's own description (`ReadoutAccessibilityValue`), and
-//  the EELS spectrum, the first pane to use it, speaks its own readout only: the room's one status-line readout is also written by the maps.
+//  A pane's accessibility value is what the pointer reads while it is over the pane, else the pane's own description (`ReadoutAccessibilityValue`).
+//  The EELS spectrum speaks its own readout only (the room's one status-line readout is also written by the maps); the Image pane and the Diffraction
+//  pattern are each their readout's one writer, and clear it when what it names is no longer shown.
 //
 
 import XCTest
@@ -50,7 +51,8 @@ nonisolated final class ReadoutAccessibilityValueTests: XCTestCase {
     }
 
     /// The Image pane speaks the pixel and its value under the pointer, the Diffraction pattern q and d, each as the status line reads them; else
-    /// what they spoke before (the size, and the rings and spots). Red under: the static value, so VoiceOver heard the size wherever the pointer was.
+    /// what they spoke before (the size, and the rings and spots). Red under: the static value, so VoiceOver heard the size wherever the pointer was; a
+    /// readout left over from another frame or file.
     func testTheImageAndDiffractionPanesSpeakTheirReadout() throws {
         let image = try FFTRoomWiringTests.squeezedUI("ImagePane.swift")
         XCTAssertTrue(image.contains(#".modifier(ReadoutAccessibilityValue(readout: { appState.imageRoomTools.readout }, fallback: "\(image.width) by \(image.height) pixels"))"#))
@@ -58,6 +60,10 @@ nonisolated final class ReadoutAccessibilityValueTests: XCTestCase {
         let diffraction = try FFTRoomWiringTests.squeezedUI("DiffractionRoom.swift")
         XCTAssertTrue(diffraction.contains(#".modifier(ReadoutAccessibilityValue(readout: { appState.diffractionReadout }, fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))"))"#))
         XCTAssertFalse(diffraction.contains(#".accessibilityValue("\(image.width) by \(image.height) pixels, "#), "the static value is gone")
+        // What the readout names goes with the picture: another frame or the pane going clears it, so neither speaks the last file's pixel.
+        XCTAssertTrue(image.contains(".onChange(of: item.frame) { appState.imageRoomTools.readout = nil }"))
+        XCTAssertTrue(image.contains(".onDisappear { appState.imageRoomTools.readout = nil }"))
+        XCTAssertTrue(diffraction.contains(".onDisappear { appState.diffractionReadout = nil }"))
     }
 
     /// Each pane speaks a readout only it writes, so it never says what the pointer reads over another pane (the EELS case above). Red under: a

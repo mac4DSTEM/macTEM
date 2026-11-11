@@ -230,6 +230,9 @@ private struct DiffractionPatternPane: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(8)
+        // The pane going (another file, another room) leaves the readout naming a point of a pattern that is not shown: it goes until the
+        // pointer moves (the status line and VoiceOver read it).
+        .onDisappear { appState.diffractionReadout = nil }
     }
 
     /// The annulus the drag would make, in pixels: the distances of its two ends from the centre.

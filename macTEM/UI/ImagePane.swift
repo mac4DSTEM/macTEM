@@ -78,6 +78,10 @@ struct ImagePane: View {
         // The COMMITTED values only (`zoom`, `offset`); the live gesture fields change on every sample and stay here.
         .onChange(of: zp.zoom) { item.viewport = ImageViewport(zoom: zp.zoom, offset: zp.offset) }
         .onChange(of: zp.offset) { item.viewport = ImageViewport(zoom: zp.zoom, offset: zp.offset) }
+        // The readout names a pixel of the picture shown: another frame under a resting pointer, or the pane going (another file, another
+        // room), leaves it naming one that is not there, so it goes until the pointer moves (the status line and VoiceOver read it).
+        .onChange(of: item.frame) { appState.imageRoomTools.readout = nil }
+        .onDisappear { appState.imageRoomTools.readout = nil }
     }
 
     /// The status line's cursor readout (control placement §7): the pixel under the pointer and its raw value. No crosshair over the
