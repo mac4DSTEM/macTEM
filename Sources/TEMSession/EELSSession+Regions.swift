@@ -194,7 +194,7 @@ extension EELSSession {
         let run = plotRun, core = shownCoreLoss, map = map, threshold = threshold, deconvolvedLow = shownDeconvolvedLow, answered = shownAnswered
         let lambda = (try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)) ?? nil
         let pin = selectedPin
-        let region = pin?.region ?? .wholeMap, name = pin?.name ?? (isSingleSpectrum ? "Spectrum" : "Whole map")
+        let region = pin?.region ?? .wholeMap, name = selectedRegionName
         // The model is drawn only over the core loss it was fitted to (stored or Fourier-ratio deconvolved).
         let fit = model != nil && fitUsed?.deconvolved == (answered != nil) ? fitUsed : nil
         let interim: Task<Void, Never>? = if afterPreview {
@@ -239,8 +239,10 @@ extension EELSSession {
     /// runs; the selected region, the results and the fit wait for the release. nil: the drag ended; if no region was committed with it, the selected region's spectrum
     /// is put back. Coalesced as the EDS room's (`EDXSession.previewRegion`): one sum at a time, a shape that arrives meanwhile replaces the waiting one, and a commit
     /// (any `refreshPlot`) supersedes every preview still in flight. The preview carries no model: the fit is the committed region's.
+    /// The live spectrum carries the name the shape has (`editing`: the kept region a handle or a move drags) or will have once it is kept (the next new region's), as
+    /// Velox names an area's spectrum while it is drawn; "Selection" stayed on the header for a third of a second after a release (the 2026-11-11 drive).
     @discardableResult
-    package func previewRegion(_ preview: EDXRegion?) -> Task<Void, Never>? {
+    package func previewRegion(_ preview: EDXRegion?, editing: EDXPin.ID? = nil) -> Task<Void, Never>? {
         guard let low = workingLowLoss else { return nil }
         let committed = plotRun
         guard let preview else {
@@ -259,12 +261,13 @@ extension EELSSession {
             return running
         }
         previewDone = false
+        let name = editing.flatMap { id in pins.first { $0.id == id }?.name } ?? "Region \(regionsIssued + 1)"
         let core = shownCoreLoss, map = map, threshold = threshold, answered = shownAnswered
         let lambda = (try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)) ?? nil
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             var next: EDXRegion? = shape
             while let region = next {
-                let data = EELSPlotCompute.make(name: "Selection", region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: nil,
+                let data = EELSPlotCompute.make(name: name, region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: nil,
                                                 answered: answered)
                 next = await self?.landPreview(data, run: committed)
             }

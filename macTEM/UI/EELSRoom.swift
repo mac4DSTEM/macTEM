@@ -241,7 +241,7 @@ private struct EELSMapTileHost: View {
                            onPolygon: { state.linesFocused = false; session.drawRegion(.polygon($0.map { PixelPoint(x: $0.x, y: $0.y) })) },
                            onLine: { if session.drawLine(from: PixelPoint(x: $0.x, y: $0.y), to: PixelPoint(x: $1.x, y: $1.y)) != nil { state.linesFocused = true } },
                            onEdit: { EELSRegionBridge.edit($0, $1, in: session) },
-                           onDrag: { session.previewRegion($0.flatMap { EDXRegionBridge.region($0.geometry) }) },
+                           onDrag: { session.previewRegion($0.flatMap { EDXRegionBridge.region($0.geometry) }, editing: $0?.id) },
                            onSelect: { EELSRegionBridge.select($0, in: session, state: state) },
                            onDelete: { EELSRegionBridge.deleteSelected(in: session, state: state) })
         }
@@ -927,6 +927,9 @@ struct EELSResultsPanel: View {
     let session: EELSSession
     /// The fitted edges selected in the results table, for ⌘C (#353).
     @State private var edgeSelection = Set<EELSEdgeRow.ID>()
+    /// Whether the edges table has the keyboard. A click that selects edges gives it, as the FFT spots and the Image room's marks take it, so Edit > Copy and ⌘C
+    /// reach the table's copy: on the 2026-11-11 drive the colour mix tile kept the keyboard, the selection stayed grey and Copy was dimmed.
+    @FocusState private var edgesFocused: Bool
 
     var body: some View {
         let plot = session.plot
@@ -935,7 +938,8 @@ struct EELSResultsPanel: View {
         let regionCount = session.pinRows.count
         VStack(spacing: 0) {
             HStack(spacing: LayoutPolicy.inspectorRowSpacing) {
-                Text(EELSRoomFormat.resultsHeader(region: plot?.regionName ?? "Whole map", lambdaNM: session.map?.meanFreePathNM,
+                // The region the rows below belong to, not the plot's: a drag's shape is on the plot while the rows are still the selected region's.
+                Text(EELSRoomFormat.resultsHeader(region: session.selectedRegionName, lambdaNM: session.map?.meanFreePathNM,
                                                   lambdaSource: EELSRoomFormat.lambdaSource(session.meanFreePath)))
                     .font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.tail)
                     .accessibilityIdentifier("eels.results.header")
@@ -1037,6 +1041,8 @@ struct EELSResultsPanel: View {
             .scrollIndicatorsFlash(trigger: rows.map(\.id))
             // ⌘C copies the selected edges as the Indexing room's Results table copies its rows: a header line, then a line per edge.
             .onCopyCommand(perform: rows.contains(where: { edgeSelection.contains($0.id) }) ? { copiedEdges(rows) } : nil)
+            .focused($edgesFocused)
+            .onChange(of: edgeSelection) { _, picked in if !picked.isEmpty { edgesFocused = true } }
             .accessibilityIdentifier("eels.results.table")
         }
     }

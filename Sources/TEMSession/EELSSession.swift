@@ -190,6 +190,9 @@ package final class EELSSession {
     /// A file whose only cube is a core loss: no t/λ, no t, no zero-loss peak to align (the room's "only core loss" state).
     package var onlyCoreLoss: Bool { hasImage && !hasLowLoss && source?.coreLoss == nil }
     package var selectedPin: EDXPin? { selectedPinID.flatMap { id in pins.first { $0.id == id } } }
+    /// The name of what the results panel's rows belong to (`resultRows`): the selected region, else the whole map ("Spectrum" for a file of one pixel). The
+    /// results header says it, not the plot's name, which is a drag's shape while one runs (the 2026-11-11 drive read "Results · Selection").
+    package var selectedRegionName: String { selectedPin?.name ?? (isSingleSpectrum ? "Spectrum" : "Whole map") }
 
     package var fileName: String { source?.fileName ?? "" }
     /// The open file's path as it was read ("" for a document made in memory).

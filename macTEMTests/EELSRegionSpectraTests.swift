@@ -106,15 +106,19 @@ nonisolated final class EELSRegionSpectraTests: XCTestCase {
 
     /// Right after a drag the plot on screen is the live spectrum of a shape that is not the selected one. On the commit the committed region's own spectrum goes
     /// up at once, summed without the model, ahead of the fitted plot (the 2026-11-11 drive read "Selection · 552 px" beside a 1722 px region while the fit ran).
-    /// A refresh with no drag before it lands in one step. Red under: a commit that leaves the drag's spectrum up until the fitted plot lands.
+    /// The live spectrum is named as the shape is or will be kept, never "Selection", and the results header names the selected region. A refresh with no drag
+    /// before it lands in one step. Red under: a commit that leaves the drag's spectrum up until the fitted plot lands; a live spectrum called "Selection".
     @MainActor func testAfterADragTheCommittedRegionsSpectrumGoesUpBeforeTheFittedPlot() async throws {
         let session = try await openRoom()
         await session.previewRegion(.rectangle(PixelRect(x0: 1, y0: 0, x1: 2, y1: 1)))?.value
-        XCTAssertEqual(session.plot?.regionName, "Selection")
+        XCTAssertEqual(session.plot?.regionName, "Region 1", "a new shape's live spectrum carries the name it will be kept under")
         XCTAssertEqual(session.plot?.pixels, 1)
+        XCTAssertEqual(session.selectedRegionName, "Whole map", "the results are still the whole map's while the drag runs")
         session.previewRegion(nil)
         // Pixels 0 and 2 of the planted core loss: 100 + 300 counts in every channel.
         let pin = try XCTUnwrap(session.drawRegion(.rectangle(PixelRect(x0: 0, y0: 0, x1: 1, y1: 2))))
+        XCTAssertEqual(pin.name, "Region 1")
+        XCTAssertEqual(session.selectedRegionName, pin.name, "the results header names the kept region at the release")
         await session.plotInterimTask?.value
         XCTAssertEqual(session.plot?.regionName, pin.name, "the committed region's spectrum, not the drag's")
         XCTAssertEqual(session.plot?.pixels, 2)
@@ -122,6 +126,18 @@ nonisolated final class EELSRegionSpectraTests: XCTestCase {
         await session.settled()
         XCTAssertEqual(session.plot?.regionName, pin.name)
         XCTAssertEqual(session.plot?.core?.counts.first, 400)
+
+        // A handle dragged on the kept region: its live spectrum keeps the region's name, and a new shape's takes the next one.
+        await session.previewRegion(.rectangle(PixelRect(x0: 0, y0: 0, x1: 1, y1: 1)), editing: pin.id)?.value
+        XCTAssertEqual(session.plot?.regionName, pin.name)
+        XCTAssertEqual(session.plot?.pixels, 1)
+        await session.previewRegion(nil)?.value
+        await session.settled()
+        await session.previewRegion(.rectangle(PixelRect(x0: 1, y0: 1, x1: 2, y1: 2)))?.value
+        XCTAssertEqual(session.plot?.regionName, "Region 2")
+        await session.previewRegion(nil)?.value
+        await session.settled()
+        XCTAssertEqual(session.plot?.regionName, pin.name, "no shape was kept: the selected region's spectrum is back")
 
         session.selectWholeMap()
         XCTAssertNil(session.plotInterimTask, "no drag before it: one landing")
