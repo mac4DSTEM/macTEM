@@ -4,7 +4,8 @@
 //  and through any Open panel (both go through `FileRouting.inventory`), as a `.ctf` alone does. The planted fixtures
 //  (tools/parity/sem-readers/make_h5oina_map_fixtures.py; every value exact in float32) read exactly as the H5OINA specification lays
 //  the map out: Euler angles in radians as stored, phase 0 not indexed, the phases of `Header/Phases` with Oxford's Laue group ids,
-//  lattice angles in degrees (90° and 120° exact), the `.ctf`'s column names with MAD in degrees, the header's cells and steps in µm.
+//  lattice angles in degrees (90° and 120° exact), the `.ctf`'s column names with MAD in degrees and the `.ctf`'s error codes, the
+//  header's cells and steps in µm.
 //  The same points stored in another order with their X and Y, or without X and Y, read the same map (DREAM3D's EbsdLib, MTEX). A
 //  file with no Euler angles is refused in words; the pattern files keep opening in the Patterns room.
 //  Red before: the map-only file was routed to the Patterns room and refused with "the header has no 'Pattern Height' dataset.", and
@@ -32,8 +33,8 @@ nonisolated final class EBSDH5OxfordMapTests: XCTestCase {
     // MARK: - The map
 
     /// Every number of the planted map, exact: points, phases, orientations, coordinates on the header's grid, the five columns, the
-    /// phase list. Red under: degrees taken for radians, phase 0 kept as a phase, MAD left in radians, the columns misnamed, the grid
-    /// transposed, a lattice angle of 90.0000025°.
+    /// phase list. Red under: degrees taken for radians, phase 0 kept as a phase, MAD left in radians, H5OINA's error codes kept (Success 1
+    /// reads Low BC in a `.ctf`), the columns misnamed, the grid transposed, a lattice angle of 90.0000025°.
     func testAMapOnlyH5OINAReadsAsTheSpecificationLaysItOut() throws {
         let map = try EBSDH5Reader.readOxfordMap(url: Self.map)
         XCTAssertEqual(map.pointCount, 12)
@@ -48,7 +49,7 @@ nonisolated final class EBSDH5OxfordMapTests: XCTestCase {
         XCTAssertEqual(map.property("BC"), (0..<12).map { Double(100 + $0) })
         XCTAssertEqual(map.property("BS"), (0..<12).map { Double(50 + $0) })
         XCTAssertEqual(map.property("bands"), (0..<12).map { Double(8 + $0 % 4) })
-        XCTAssertEqual(map.property("error"), Self.phases.map { $0 == 0 ? 2.0 : 1.0 })
+        XCTAssertEqual(map.property("error"), Self.phases.map { $0 == 0 ? 3.0 : 0.0 }, "the .ctf's codes: Success 0, No solution 3")
 
         XCTAssertEqual(map.phases.ids, [PhaseList.notIndexedID, 1, 2])
         let aluminium = try XCTUnwrap(map.phases[id: 1])
@@ -61,6 +62,14 @@ nonisolated final class EBSDH5OxfordMapTests: XCTestCase {
                                                color: "tab:orange"))
         XCTAssertNotNil(aluminium.pointGroup)
         XCTAssertNotNil(magnesium.pointGroup)
+    }
+
+    /// Every H5OINA error code has the `.ctf` code of the same outcome; Replaced, which the `.ctf` has none for, stays 7.
+    func testTheErrorCodesAreTheCTFsCodesForTheSameOutcome() {
+        let ctf = ["Success": 0.0, "Low BC": 1, "Low BS": 2, "No solution": 3, "High MAD": 4, "Not yet analysed": 5, "Unexpected error": 6]
+        let h5oina = ["Not yet analysed": 0.0, "Success": 1, "No solution": 2, "Low BC": 3, "Low BS": 4, "High MAD": 5, "Unexpected error": 6]
+        for (outcome, code) in h5oina { XCTAssertEqual(EBSDH5Reader.oxfordCTFErrorCodes[code], ctf[outcome], outcome) }
+        XCTAssertNil(EBSDH5Reader.oxfordCTFErrorCodes[7])
     }
 
     /// The same points stored in another order, each with its X and Y, read the same map, as EbsdLib places them; without X and Y the

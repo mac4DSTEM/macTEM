@@ -152,7 +152,7 @@ ported from where, and `NOTICE` the licences.
 position (`pinned`), the pattern on screen, the navigation map, the processing pipeline and the simulation overlay. `IndexingSession`
 (with `+Compare`, `+Overlay` and `IndexingRun`) is the Indexing room's, on the Patterns room's dataset: the phases, the method
 (Hough or Dictionary) and its settings, the master patterns, the last run of each method, Compare and the overlay.
-`OrientationMapSession` is the Maps room's: the map shown (an `.ang` or `.ctf` opened on its own, the dataset's crystal map,
+`OrientationMapSession` is the Maps room's: the map shown (an `.ang`, `.ctf` or map-only `.h5oina` opened on its own, the dataset's crystal map,
 or an Indexing run sent by `Open in Maps`, D-SEM-99), its layer, pictures, colour keys and analysis. `AppState` composes them
 as `ebsd`, `indexing` and `maps`, each with a view-state type in `macTEM/App/` (`PatternsRoomState`, `IndexingRoomState`,
 `MapsRoomState`) that holds only what the centre and the inspector share, and wires them in `init`: every dataset the
@@ -297,7 +297,7 @@ the settings a room recorded with an exported file.
   JEOL `.img`/`.map`; a stack opens at "frame 1 of N" and steps through its frames with ← and →. Reads spectrum images and
   single spectra from Velox `.emd`, GMS `.dm4`, `.msa`, HyperSpy `.hspy`, Bruker `.bcf`/`.spx`, EDAX `.spd`/`.lsd`/`.spc`
   and JEOL `.pts`/`.eds`/`.asw`; EBSD and TKD patterns from h5ebsd (kikuchipy, Bruker, EDAX, Oxford H5OINA), EDAX
-  `.up1`/`.up2`, Oxford `.ebsp` and NORDIF `Pattern.dat`; orientation maps from `.ang` and `.ctf`. A hexagonal EBSD grid is
+  `.up1`/`.up2`, Oxford `.ebsp` and NORDIF `Pattern.dat`; orientation maps from `.ang`, `.ctf` and map-only `.h5oina`. A hexagonal EBSD grid is
   refused (D-SEM-9).
 - The kits compile at `-Onone` in a Debug build (a versioned dependency carries no `-O`): one DiffractoKit ring fit takes 2.0 s there and 0.04 s at `-O`, so the
   fit tests are the slow part of a unit run, and a room that runs the fit from a Debug build waits seconds.

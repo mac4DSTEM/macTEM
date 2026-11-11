@@ -29,7 +29,7 @@ and under the one in front its rooms. What the file holds decides the room it op
   HyperSpy .hspy file.
 - **EBSD and TKD patterns**: h5ebsd from kikuchipy, Bruker, EDAX and Oxford Instruments (.h5oina), EDAX .up1 and .up2,
   Oxford .ebsp and NORDIF Pattern.dat.
-- **Orientation maps**: .ang and .ctf.
+- **Orientation maps**: .ang, .ctf, and Oxford .h5oina saved without patterns (AZtec's map export).
 
 TKD patterns are read and indexed as EBSD patterns are; no TKD dataset has been checked in the app yet.
 

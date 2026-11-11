@@ -73,7 +73,7 @@ struct MapsRoomSettings: View {
             MapsExportSection(session: session, state: appState.mapsRoom)
         } else {
             ContentUnavailableView("No orientation map open", systemImage: "map",
-                                   description: Text("Open an .ang, .ctf or .h5oina map, or an EBSD pattern file that carries one. Its controls appear here."))
+                                   description: Text("Open an .ang or .ctf map, an .h5oina saved without patterns, or an EBSD pattern file that carries one. Its controls appear here."))
         }
     }
 

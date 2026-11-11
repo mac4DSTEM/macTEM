@@ -1,7 +1,7 @@
 //
 //  OrientationMapSession.swift
 //  Role: the one owner of the Maps room's state (docs/sem/design/orientation-maps-room.md, brief P3-04): the orientation map shown (a
-//        `CrystalMap` from an `.ang` or `.ctf` opened on its own, the crystal map of the EBSD dataset the Patterns room holds, or a run
+//        `CrystalMap` from an `.ang`, `.ctf` or map-only `.h5oina` opened on its own, the crystal map of the EBSD dataset the Patterns room holds, or a run
 //        of the Indexing room on that dataset, handed over by its `Open in Maps`, D-SEM-99) and the others held for `Source`, which layer
 //        the map pane draws (IPF-Z, IPF-X, IPF-Y, Phase or a property) and its picture, the colour keys of the map's phases, and the
 //        picked scan point (`pinned`). The room's views read it; they hold none of it.
@@ -26,7 +26,7 @@ package final class OrientationMapSession {
     /// The map shown and where it came from.
     package nonisolated struct Document: Sendable {
         package enum Source: Sendable, Hashable {
-            /// An `.ang` or `.ctf` opened on its own: the map without patterns.
+            /// An `.ang`, `.ctf` or map-only `.h5oina` opened on its own: the map without patterns.
             case mapFile
             /// The crystal map of the EBSD dataset open in the Patterns room: the patterns are there for the live pane.
             case patterns
@@ -269,8 +269,8 @@ package final class OrientationMapSession {
         }
     }
 
-    /// The format an H5OINA map is shown with.
-    nonisolated static let h5oinaFormat = ".h5oina (Oxford Instruments)"
+    /// The format an H5OINA map is shown with (Info names its Euler angles by it).
+    package nonisolated static let h5oinaFormat = ".h5oina (Oxford Instruments)"
 
     nonisolated static func angFormat(_ vendor: ANGMap.Vendor) -> String {
         switch vendor {

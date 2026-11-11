@@ -84,7 +84,7 @@ struct MapsRoom: View {
                 ContentUnavailableView {
                     Label("No orientation map open", systemImage: "map")
                 } description: {
-                    Text("Open an indexed map (.ang, .ctf, .h5oina) or an EBSD pattern file that carries one, or try the demo map from the Help menu.")
+                    Text("Open an indexed map (.ang, .ctf, or an .h5oina saved without patterns) or an EBSD pattern file that carries one, or try the demo map from the Help menu.")
                 } actions: {
                     Button("Open Orientation Map…") { state.requestImport() }
                         .buttonStyle(.borderedProminent)

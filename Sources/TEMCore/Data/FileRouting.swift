@@ -23,7 +23,8 @@ package nonisolated struct FileInventory: Equatable, Sendable {
     /// An EBSD or TKD pattern dataset (an h5ebsd file of kikuchipy, Bruker, EDAX or Oxford; EDAX `.up1`/`.up2` or Oxford `.ebsp` with the map
     /// next to it): the Patterns room.
     package var ebsdPatterns = false
-    /// An orientation map on its own (an `.ang` or `.ctf` without the pattern file of its name next to it): the Maps room. A map with its
+    /// An orientation map on its own (an `.ang` or `.ctf` without the pattern file of its name next to it, or an Oxford `.h5oina` that holds
+    /// no patterns, #513): the Maps room. A map with its
     /// patterns is `ebsdPatterns`, and the Maps room shows it through the dataset.
     package var orientationMap = false
     /// Set instead of the above when the file is not opened here: the sentence says what it is and where it goes.

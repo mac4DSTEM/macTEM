@@ -4,8 +4,9 @@
 //        as it reads the `.ctf` AZtec writes for the same map (`CTFReader`, orix's ctf.py): Bunge Euler angles in radians kept as stored
 //        (orientation of the crystal to the sample surface, CS1; no frame correction, as for a `.ctf`), phase 0 not indexed (-1), the
 //        phases of `Header/Phases` by their group numbers with Oxford's Laue group ids (the `.ctf`'s 1 to 11) and space groups, the
-//        columns `bands`, `error`, `MAD`, `BC`, `BS` under the `.ctf`'s names, MAD in degrees as the `.ctf` writes it (H5OINA stores
-//        radians), µm. Neither kikuchipy nor orix reads an H5OINA map (kikuchipy 0.13.1 leaves an empty `xmap`), so the layout is the
+//        columns `bands`, `error`, `MAD`, `BC`, `BS` under the `.ctf`'s names, MAD in degrees and the error codes renumbered as the
+//        `.ctf` writes them (H5OINA stores radians and numbers its errors otherwise), µm. Neither kikuchipy nor orix reads an H5OINA
+//        map (kikuchipy 0.13.1 leaves an empty `xmap`), so the layout is the
 //        H5OINA specification's (github.com/oinanoanalysis/h5oina, H5OINAFile.md), placed as MTEX and DREAM3D's EbsdLib place it:
 //        the points row by row on the header's `X Cells` x `Y Cells` grid with its steps (MTEX's hdf5 config), each point at the cell
 //        its `X` and `Y` give where they fill the grid once (EbsdLib's `BuildScanGridOrderFromPositions`). Lattice angles are stored in
@@ -24,6 +25,12 @@ nonisolated extension EBSDH5Reader {
 
     /// Whether an H5OINA scan's `EBSD/Data` holds patterns; AZtec also exports the map alone.
     static func holdsOxfordPatterns(_ data: H5Group) -> Bool { oxfordPatternNames.contains { data.name(for: $0) != nil } }
+
+    /// The H5OINA `Error` codes (NotAnalyzed 0, Success 1, NoSolution 2, LowBandContrast 3, LowBandSlope 4, HighMAD 5,
+    /// UnexpectedError 6; the specification) as the `.ctf` numbers the same outcomes (Success 0, Low BC 1, Low BS 2, No solution 3,
+    /// High MAD 4, Not yet analysed 5, Unexpected error 6; orix's ctf.py), so the `error` column means what a `.ctf`'s does. Replaced (7)
+    /// has no `.ctf` code and stays 7.
+    package static let oxfordCTFErrorCodes: [Double: Double] = [0: 5, 1: 0, 2: 3, 3: 1, 4: 2, 5: 4, 6: 6]
 
     /// Oxford's Laue group ids, as the `.ctf` numbers them (`CTFWriter.laueIDs`, DREAM3D's `Ctf::LaueGroupTable`), by orix's names.
     static let oxfordLaueGroups: [Int: String] = Dictionary(uniqueKeysWithValues: CTFWriter.laueIDs.map { ($0.value, $0.key) })
@@ -93,7 +100,11 @@ nonisolated extension EBSDH5Reader {
         var properties: [String: [Double]] = [:]
         for (key, label) in [("Bands", "bands"), ("Error", "error"), ("Mean Angular Deviation", "MAD"), ("Band Contrast", "BC"), ("Band Slope", "BS")] {
             guard let values = try data.doubles(key), values.count == n else { continue }
-            properties[label] = placed(key == "Mean Angular Deviation" ? values.map { $0 * 180 / Double.pi } : values)
+            switch key {
+            case "Mean Angular Deviation": properties[label] = placed(values.map { $0 * 180 / Double.pi })
+            case "Error": properties[label] = placed(values.map { oxfordCTFErrorCodes[$0] ?? $0 })
+            default: properties[label] = placed(values)
+            }
         }
         let grid = CrystalMap.coordinates(shape: (rows: rows, columns: columns), steps: (dy: dy, dx: dx))
         return try CrystalMap(euler: euler, phaseIDs: phaseIDs, x: grid.x, y: rows > 1 ? grid.y : nil, phaseList: phases,
