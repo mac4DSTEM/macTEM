@@ -4,7 +4,7 @@
 #
 #   assert_mactem_bundle_arm64_only <app>      the executable and FormatoKit's three HDF5 frameworks: each there, each arm64 alone
 #   assert_mactem_demo_data <app>              the four shipped demo files (DemoDocuments.Shipped) in Contents/Resources/DemoData
-#   assert_mactem_store_entitlements <plist>   the store app's sandbox entitlements (com.apple.security.*): exactly these three
+#   assert_mactem_store_entitlements <plist>   the store app's sandbox entitlements (com.apple.security.*): exactly these four
 #   assert_mactem_bundle_developer_id_signed <app> <identity>
 #                                              the app and the three frameworks: each signed by the Developer ID identity, with
 #                                              the hardened runtime and a secure timestamp
@@ -65,7 +65,7 @@ assert_mactem_demo_data() {  # <app>
 # each true.
 assert_mactem_store_entitlements() {  # <entitlements plist>
   local plist="$1" key keys entitlement_failures=0
-  local -a expected=(com.apple.security.app-sandbox com.apple.security.files.bookmarks.app-scope com.apple.security.files.user-selected.read-write)
+  local -a expected=(com.apple.security.app-sandbox com.apple.security.files.bookmarks.app-scope com.apple.security.files.user-selected.read-write com.apple.security.network.server)
   keys="$(plutil -convert xml1 -o - "$plist" 2>/dev/null \
     | sed -nE 's#^[[:space:]]*<key>(com\.apple\.security\.[^<]+)</key>[[:space:]]*$#\1#p' | LC_ALL=C sort | tr '\n' ' ' || true)"
   keys="${keys% }"

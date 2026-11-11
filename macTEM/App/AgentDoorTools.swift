@@ -44,7 +44,7 @@ enum MacTEMAgentDoor {
 
     /// Enrols a window and opens the door when the person left it on (never in a UI-testing launch).
     static func start(with appState: AppState, defaults: UserDefaults = .standard) {
-        shared.enroll(appState) { MacTEMAgentDoor.summary(of: appState) }
+        shared.enroll(appState) { [weak appState] in appState.map { MacTEMAgentDoor.summary(of: $0) } ?? [:] }
         guard !appState.launch.isUITesting else { return }
         shared.setEnabled(defaults.bool(forKey: enabledKey))
     }
