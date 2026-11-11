@@ -2,7 +2,8 @@
 //  ParityDocTests.swift
 //  docs/parity.md against the readers it describes: the h5ebsd rows say what `EBSDH5Reader` refuses, in the reader's own words, and
 //  name the test that reaches those refusals, so a sentence reworded in the code and not on the page goes red here; the EDAX EDS row
-//  says that the sandboxed app opens a map without its pixel size when the `.ipr` is not of the map's own name.
+//  says that the sandboxed app opens a map without its pixel size when the `.ipr` is not of the map's own name; the Thermo/FEI and
+//  `cliffLorimer` rows name the kits' own ports of the same upstream code, so a later fix to one copy finds the others.
 //  These read the page beside this test file; the page's line breaks do not count (a sentence may wrap).
 //
 
@@ -65,5 +66,17 @@ nonisolated final class ParityDocTests: XCTestCase {
         XCTAssertTrue(edax.contains("RelatedFileAccess"), "the EDAXEDSReader.read row does not say which .ipr the sandboxed app can read")
         XCTAssertTrue(edax.contains("pixel size"), "the EDAXEDSReader.read row does not say the map can open without its pixel size")
         XCTAssertTrue(edax.contains("SEMEDSFile.notes"), "the EDAXEDSReader.read row does not say where the reader's note goes")
+    }
+
+    /// The Thermo/FEI row names FormatoKit's own FEI INI parsers, and the `cliffLorimer` row SpectroKit's Cliff-Lorimer and its public
+    /// route. Red before #284: neither row named a kit counterpart.
+    func testTheSEMPortsNameTheirKitCounterparts() throws {
+        let fei = try row(startingWith: "| `SEMImageMetadata.read` (Thermo/FEI")
+        XCTAssertTrue(fei.contains("FormatoKit"), "the Thermo/FEI row does not name FormatoKit")
+        XCTAssertTrue(fei.contains("feiSections"), "the Thermo/FEI row does not name FormatoKit's FEI INI parsers")
+        let cliffLorimer = try row(startingWith: "| `cliffLorimer`")
+        XCTAssertTrue(cliffLorimer.contains("SpectroKit"), "the cliffLorimer row does not name SpectroKit")
+        XCTAssertTrue(cliffLorimer.contains("CliffLorimer.weightFractions"), "the cliffLorimer row does not name SpectroKit's port")
+        XCTAssertTrue(cliffLorimer.contains("EDXQuantification"), "the cliffLorimer row does not name SpectroKit's public route")
     }
 }
