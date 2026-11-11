@@ -458,8 +458,20 @@ package nonisolated struct EBSDReadError: Error, LocalizedError, Equatable {
         let words: String
         if let already = error as? EBSDReadError { words = already.text }
         else if let hdf5 = error as? HDF5FileError { words = plainWords(hdf5) }
+        else if let cocoa = error as? CocoaError { words = plainWords(cocoa) }
         else { words = (error as? LocalizedError)?.errorDescription ?? String(describing: error) }
         return EBSDReadError(text: words.contains(name) ? words : "\(name): \(words)")
+    }
+
+    /// A Foundation file error in words a user reads, without its error domain or code.
+    package static func plainWords(_ error: CocoaError) -> String {
+        switch error.code {
+        case .fileReadNoPermission:
+            return "macEM was not given access to it: open it with File > Open…, drop it on the window or open it from the Finder."
+        case .fileReadNoSuchFile, .fileNoSuchFile: return "it is no longer there."
+        case .fileReadCorruptFile: return "it could not be read (the file may be damaged)."
+        default: return "it could not be read."
+        }
     }
 
     /// An HDF5 failure in words a user reads: what is wrong with the file, never the HDF5 call or the path inside it.
