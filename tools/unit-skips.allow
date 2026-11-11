@@ -30,6 +30,7 @@ FileRoutingTests.testOpeningAVeloxSpectrumImageFillsTheImageAndTheEDSRoomsAndLan
 FileRoutingTests.testTheFEIExampleSpectrumOpensAsASpectrum	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits
 FileRoutingTests.testTheStudyFileIsAnImageAndAnEDSCube	real-data	the owner's 1.7 GB study file under $MACEM_DATA/stem-edx
 OpenItemScanSizeTests.testAVeloxSpectrumImageRowIsTheScanTheEDSRoomReads	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits
+RealFileSweepTests.testEveryRealFileLandsInARoomOrIsRefusedInPlainWords	real-data	opt-in (tools/run-tests.sh real-files, MACTEM_REAL_FILES=1), then the owner's $MACEM_DATA: every file macEM claims
 SEMBackgroundParityTests.testWholeSetF2ChainWithinOneGreyLevel	real-data	the whole-set references (background_reference.py --whole-set) under $MACEM_DATA/sem/nickel_ebsd_large, which fetch-data.sh does not write
 SEMGrainParityTests.testFiguresF11AndF12GrainsKAMAndGOSOfTheTiMap	sem-data	figures F11 and F12 on orix-data's whole Ti map, References/sem-data/orix/Ti_orientations.ctf (fetch-data.sh)
 SEMTextureParityTests.testFigureF13OnTheTiMap	sem-data	figure F13 on orix-data's whole Ti map, References/sem-data/orix/Ti_orientations.ctf (fetch-data.sh)

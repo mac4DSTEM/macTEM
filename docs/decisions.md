@@ -333,3 +333,22 @@ for a person's launch). A restored window came back without its file, because a 
 (File > Reopen Last Session, through bookmarks). So it was an empty tab. One restored from a Finder open had that open handed
 to it again by path, which the sandbox does not grant (driven 2026-11-11: a plain launch alerting on a TIFF opened in the
 previous run). A launch presents one window.
+
+## 2026-11-11 — The store build waits for a real-file sweep; EBSD files are refused in words that name them
+
+**What.** 2.0.1, the first build for the Mac App Store, is cut only when the real-file sweep (`RealFileSweepTests`,
+`tools/run-tests.sh real-files`, on the Mac with the owner's data) passes. Every file macEM claims must land in a room
+that holds its data, or be refused in a sentence that names the file and carries no internals (no error domain, no HDF5
+call or quoted path, no Swift type). A refusal left in the sweep must be a deliberate one. The EBSD `.h5` work of #514
+lands in two parts, in this order:
+1. Routing and wording. A file with patterns goes to Patterns, a map without patterns (Oxford, orix) to Maps, and the
+   rest is refused in plain words. That covers Bruker and EDAX files saved without patterns, which name the `.ang` or
+   `.ctf` export that opens, and an `.h5oina` holding only EDS (its reader is #521). A map that fails to read never
+   blocks the patterns beside it.
+2. Map readers for Bruker, EDAX and EMsoft `.h5` files. They wait for the sweep to show which of these files people have.
+
+**Why.** Paul 2026-11-11, after his own map-only `.h5oina` was refused with an HDF5 message: "we need to fix this, this
+is not a shippable app". Two refusals (#513, #518) were found by hand, one file at a time; the sweep finds the rest
+before review does.
+
+**What would reverse it.** Paul deciding to submit before the sweep passes.
