@@ -18,7 +18,8 @@ struct PatternsProcessingSections: View {
     let dataset: EBSDDataset
 
     private var pipeline: PatternPipeline { session.pipeline }
-    private static let number = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6))
+    /// The stages' typed fields: up to six significant digits, never grouped (`Num.significantField`).
+    nonisolated static let number = Num.significantField(6)
 
     private func status(_ stage: PatternPipeline.Stage) -> (word: String, glyph: Image?) {
         let state = session.stageState(stage)

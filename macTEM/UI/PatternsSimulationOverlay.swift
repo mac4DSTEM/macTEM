@@ -167,7 +167,7 @@ struct SimulationOverlayControls: View {
     let unavailable: String
     /// The note under the controls while the overlay is drawn.
     let summary: String?
-    private static let number = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...4))
+    private static let number = Num.decimalField
 
     var body: some View {
         InspectorSection("Simulation", startsExpanded: false) {

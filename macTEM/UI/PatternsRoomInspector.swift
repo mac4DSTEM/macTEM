@@ -56,15 +56,12 @@ struct PatternsVirtualImagesSection: View {
                 .accessibilityIdentifier("patterns.grid")
             InspectorRow("Map") {
                 Picker("Map", selection: Binding(get: { session.mapChoice }, set: { session.showMap($0) })) {
-                    Text("Mean intensity").tag(EBSDSession.MapChoice.mean)
-                    Text("BSE (whole detector)").tag(EBSDSession.MapChoice.bse)
-                    if session.virtualGrid.tileCount > 1 {
-                        ForEach(session.virtualGrid.tiles) { tile in Text("Tile \(tile.label)").tag(EBSDSession.MapChoice.tile(tile)) }
+                    ForEach(PatternsRoomState.mapMenu(session.virtualGrid, hasMix: session.hasMix), id: \.self) { entry in
+                        switch entry {
+                        case .map(let choice, let title): Text(title).tag(choice)
+                        case .divider: Divider()
+                        }
                     }
-                    if session.hasMix { Text("Colour mix").tag(EBSDSession.MapChoice.mix) }
-                    Divider()
-                    Text("Image quality").tag(EBSDSession.MapChoice.imageQuality)
-                    Text("Average dot product").tag(EBSDSession.MapChoice.dotProduct)
                 }
                 .labelsHidden()
                 .disabled(!landed)

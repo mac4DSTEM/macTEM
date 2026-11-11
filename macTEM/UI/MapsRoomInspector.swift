@@ -56,7 +56,7 @@ struct MapsRoomSettings: View {
                 let ids = document.map.phaseIDs
                 ForEach(MapsRoomFormat.indexedPhases(document.map), id: \.id) { entry in
                     InspectorValueRow(MapsRoomFormat.phaseName(entry.phase, id: entry.id),
-                                      "\(entry.phase.pointGroupName ?? "no point group") · \(ids.filter { $0 == entry.id }.count) points")
+                                      MapsRoomFormat.phasePoints(entry.phase, count: ids.filter { $0 == entry.id }.count))
                         .accessibilityIdentifier("maps.phase.\(entry.id)")
                 }
                 if MapsRoomFormat.indexedPhases(document.map).contains(where: { $0.phase.pointGroup == nil }) {

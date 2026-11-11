@@ -35,8 +35,14 @@ nonisolated enum Num {
         return value > 0 && text.contains(where: { $0 >= "1" && $0 <= "9" }) ? "+" + text : text
     }
 
-    /// The typed fields' styles the rooms share: a whole number (a size in points or pixels, a radius) and a decimal of up to four
-    /// significant digits (an angle, a threshold).
-    static let wholeField = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0))
-    static let decimalField = FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...4))
+    /// The typed fields' styles the rooms share, never grouped (a "1.000" in a comma locale reads as one): a whole number (a size in
+    /// points or pixels, a radius), a decimal of up to four significant digits (an angle, a threshold), and `significantField` for a
+    /// field that keeps more (the Patterns room's filter widths, six).
+    static let wholeField = FloatingPointFormatStyle<Double>.number.grouping(.never).precision(.fractionLength(0))
+    static let decimalField = significantField(4)
+
+    /// A typed field's style of up to `digits` significant digits, never grouped.
+    static func significantField(_ digits: Int) -> FloatingPointFormatStyle<Double> {
+        FloatingPointFormatStyle<Double>.number.grouping(.never).precision(.significantDigits(1...max(digits, 1)))
+    }
 }
