@@ -345,6 +345,26 @@ struct EELSProcessingSection: View {
     }
 }
 
+/// What the Fitting section's Fit to row shows: under MLLS a number field in eV, empty for the end of the core-loss axis; under exact NNLS, which fits
+/// each edge on its own signal window and takes no number here, the words in full as plain text, with no unit (a disabled number field cut them to
+/// "Signal win…" and kept its "eV").
+nonisolated enum EELSFitToRow: Equatable {
+    /// A number field in `unit`, with `prompt` while it is empty.
+    case field(unit: String, prompt: String)
+    /// Words in place of a number.
+    case words(String)
+
+    static func shown(_ model: EELSFitModel) -> EELSFitToRow {
+        model == .mlls ? .field(unit: "eV", prompt: "Axis end") : .words("Signal windows")
+    }
+
+    /// The row's tooltip under `model`.
+    static func help(_ model: EELSFitModel) -> String {
+        model == .mlls ? "The last energy of the MLLS window, included; 0 returns to the end of the core-loss axis"
+            : "Exact NNLS fits each edge on its own signal window: drag the windows on the spectrum"
+    }
+}
+
 /// Fitting: the model (exact NNLS or MLLS), the background, the convolution with the low loss and the microscope (E0, α, β, each with where it comes from).
 struct EELSFittingSection: View {
     let session: EELSSession
@@ -358,13 +378,20 @@ struct EELSFittingSection: View {
                 .accessibilityIdentifier("eels.model")
                 .accessibilityValue(session.fitModel.title)
             InspectorRow("Fit to") {
-                OptionalNumericField(title: "Fit to", value: session.fitModel == .mlls ? session.fitToEV : nil,
-                                     format: FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6)), unit: "eV",
-                                     prompt: session.fitModel == .mlls ? "Axis end" : "Signal windows") { v in session.setFitTo(v) }
-                    .disabled(session.fitModel != .mlls)
-                    .help(session.fitModel == .mlls ? "The last energy of the MLLS window, included; 0 returns to the end of the core-loss axis"
-                          : "Exact NNLS fits each edge on its own signal window: drag the windows on the spectrum")
-                    .accessibilityIdentifier("eels.fitTo")
+                switch EELSFitToRow.shown(session.fitModel) {
+                case let .field(unit, prompt):
+                    OptionalNumericField(title: "Fit to", value: session.fitToEV,
+                                         format: FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6)), unit: unit,
+                                         prompt: prompt) { v in session.setFitTo(v) }
+                        .help(EELSFitToRow.help(session.fitModel))
+                        .accessibilityIdentifier("eels.fitTo")
+                case let .words(words):
+                    // No number to type: the row's value in words, whole, as the inspector writes a value it shows.
+                    Text(words).foregroundStyle(.secondary)
+                        .help(EELSFitToRow.help(session.fitModel))
+                        .accessibilityLabel("Fit to").accessibilityValue(words)
+                        .accessibilityIdentifier("eels.fitTo")
+                }
             }
             if let notice = session.fitToNotice { InspectorNote(notice).accessibilityIdentifier("eels.fitTo.notice") }
             SegmentedPicker(label: "Background", items: EELSBackgroundChoice.allCases.map { c in (c, .title(c.title, help: c.disabledReason.map { "Off: \($0)" })) },

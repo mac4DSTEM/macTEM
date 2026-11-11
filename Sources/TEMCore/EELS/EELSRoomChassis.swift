@@ -401,6 +401,17 @@ extension EELSRoomFormat {
         return "Results · \(region) · \(lambda)"
     }
 
+    /// The spectrum's header, top right: "Whole map · 12432 px". The pixel count is never grouped, in any locale, as the Regions table's
+    /// Pixels cell and the status line's "over 12432 px" write it. The view draws this String: a literal with the count in it is a
+    /// LocalizedStringKey, which SwiftUI groups ("12.432" in German).
+    package static func spectrumHeader(region: String, pixels: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(region) · \(UnitDisplay.fixed(Double(pixels), places: 0, locale: locale)) px"
+    }
+
+    /// The results body while the selected region's fit is on its way (`EELSSession.isFittingSelectedRegion`): "Fitting Region 2…", never "Run fits
+    /// them", which a region drawn after a Run does not need.
+    package static func fittingLine(region: String) -> String { "Fitting \(region)…" }
+
     /// "t/λ 0.523 (IQR 0.481–0.571) · λ 120 nm, given · t 62.8 nm": the results panel's thickness line. A missing part says what it needs.
     package static func thicknessLine(_ stats: EELSThicknessStats?, lambdaNM: Double?, lambdaSource: String?, locale: Locale = .autoupdatingCurrent) -> String {
         var parts: [String] = []

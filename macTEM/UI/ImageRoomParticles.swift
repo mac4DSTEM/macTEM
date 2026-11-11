@@ -73,7 +73,7 @@ struct ImageRoomParticlesSection: View {
                 .accessibilityIdentifier("particles.connectivity")
             InspectorRow("Minimum area") {
                 Stepper(value: Binding(get: { settings.minimumArea }, set: { new in analysis.setSettings { $0.minimumArea = new } }), in: 1...100_000) {
-                    Text("\(settings.minimumArea) px²").monospacedDigit()
+                    Text(verbatim: "\(settings.minimumArea) px²").monospacedDigit()
                 }
                 // The stepper's label is its value on screen ("12 px²"), which VoiceOver took for its name: named and valued here.
                 .accessibilityLabel("Minimum area")
@@ -97,7 +97,7 @@ struct ImageRoomParticlesSection: View {
                 if !analysis.isCurrent { InspectorWarning("The settings changed since these objects were found: Show Objects again.", systemImage: "arrow.triangle.2.circlepath") }
                 InspectorNote(ParticleFormat.counts(report.summary))
                     .accessibilityIdentifier("particles.counts")
-                    .accessibilityValue("\(report.summary.counted)")
+                    .accessibilityValue(String(report.summary.counted))
                 InspectorNote(ParticleFormat.sizes(report.summary, scale: scale))
                 InspectorNote(ParticleFormat.density(report.summary, scale: scale))
                     .accessibilityIdentifier("particles.density")

@@ -427,6 +427,17 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(EELSRoomFormat.fitFooter(hasFit: true, convolved: true), "Exact NNLS · power-law background · convolved with the low loss · no deconvolution")
     }
 
+    /// `spectrumHeader` writes the region's pixel count never grouped, in any locale, as the status line's "over 12432 px". Red under: a
+    /// count written with the locale's grouping ("Whole map · 12.432 px" in German, as the literal
+    /// `Text("\(plot.regionName) · \(plot.pixels) px")` drew it).
+    func testTheSpectrumHeaderWritesThePixelCountWithoutGrouping() {
+        let german = Locale(identifier: "de_DE"), english = Locale(identifier: "en_US")
+        XCTAssertEqual(EELSRoomFormat.spectrumHeader(region: "Whole map", pixels: 12_432, locale: german), "Whole map · 12432 px")
+        XCTAssertEqual(EELSRoomFormat.spectrumHeader(region: "Whole map", pixels: 12_432, locale: english), "Whole map · 12432 px")
+        XCTAssertEqual(EELSRoomFormat.spectrumHeader(region: "Region 1", pixels: 1722, locale: german),
+                       "Region 1 · \(EELSRegionSpeech.pixelsText(1722, locale: german)) px", "the count the Regions table's Pixels cell shows")
+    }
+
     /// The median and the quartiles are over the region's pixels (numpy's linear rule), through the room: the planted t/λ of pixel k is 0.5 + 0.25 k.
     @MainActor func testTheThicknessStatsAreOverTheSelectedRegionAndTheWholeMapOtherwise() async throws {
         let session = try await openRoom()

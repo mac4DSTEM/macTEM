@@ -60,7 +60,7 @@ nonisolated final class ParticlesRealFileJourney: Journey {
         // XCUITest's snapshot of a window builds every row of its table: on the HRTEM images (10 000 objects and more under the default
         // threshold) one query keeps the app's main thread busy past XCUITest's 30 s (2026-11-05, spindump in NSTableView
         // viewAtColumn:row:makeIfNecessary:). A person scrolling the table builds only the rows in view, so the drive stops short of it there.
-        let counted = Int(((element("particles.counts").value as? String) ?? "").filter(\.isNumber)) ?? 0   // "4.677" in a German locale
+        let counted = Int(((element("particles.counts").value as? String) ?? "").filter(\.isNumber)) ?? 0   // a whole number, never grouped
         if counted > 2000 { attach("object table", "not opened: \(counted) counted objects, more than XCUITest's snapshot of the table can take") }
         else { try step("object table") {
             waitFor("particles.table").click()

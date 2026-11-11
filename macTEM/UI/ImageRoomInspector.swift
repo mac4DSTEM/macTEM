@@ -143,11 +143,11 @@ struct ImageRoomStackSection: View {
             InspectorSection("Stack") {
                 InspectorValueRow("Frame", "\(wanted + 1) of \(stack.frameCount)")
                     .accessibilityIdentifier("image.stack.frame")
-                    .accessibilityValue("\(shown + 1)")
+                    .accessibilityValue(String(shown + 1))
                 Slider(value: Binding(get: { Double(wanted) }, set: { items.slideFrame(item, to: Int($0.rounded())) }),
                        in: 0...Double(max(stack.frameCount - 1, 1)), step: 1)
                     .accessibilityLabel("Frame")
-                    .accessibilityValue("\(wanted + 1) of \(stack.frameCount)")
+                    .accessibilityValue(Text(verbatim: "\(wanted + 1) of \(stack.frameCount)"))
                     .accessibilityIdentifier("image.stack.slider")
                 InspectorActionRow {
                     Button("Previous", systemImage: "chevron.left") { items.stepFrame(item, by: -1) }

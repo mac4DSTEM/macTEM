@@ -194,13 +194,13 @@ nonisolated enum MarkRefusalText {
         let limit = SessionSidecarFile.maxTotalTextBytes
         switch refusal {
         case .tooLargeToSave(let bytes, let limit):
-            return "\(opening(action)) With it the session record would take \(bytes.formatted()) bytes of text, over the "
-                + "\(limit.formatted()) a session file holds. Remove a mark to make room."
+            return "\(opening(action)) With it the session record would take \(bytes) bytes of text, over the "
+                + "\(limit) a session file holds. Remove a mark to make room."
         case nil:
-            return "\(opening(action)) With it the session record would take more than the \(limit.formatted()) bytes of text "
+            return "\(opening(action)) With it the session record would take more than the \(limit) bytes of text "
                 + "a session file holds. Remove a mark to make room."
         case .tooManyNodes, .idsExhausted:
-            return "\(opening(action)) The session record is full: it holds \(SessionLineage.maximumNodes.formatted()) entries, "
+            return "\(opening(action)) The session record is full: it holds \(SessionLineage.maximumNodes) entries, "
                 + "removed marks included. To start a new record, move the session file aside and open the image again."
         case .notFinite:
             return "\(opening(action)) A point of it is not a number."
@@ -213,10 +213,10 @@ nonisolated enum MarkRefusalText {
     static func standing(_ refusal: SessionLineage.Refusal) -> String {
         switch refusal {
         case .tooLargeToSave(let bytes, let limit):
-            "The session record is full: another mark would take it to \(bytes.formatted()) bytes of text, over the "
-                + "\(limit.formatted()) a session file holds. Remove a mark to draw another."
+            "The session record is full: another mark would take it to \(bytes) bytes of text, over the "
+                + "\(limit) a session file holds. Remove a mark to draw another."
         case .tooManyNodes, .idsExhausted:
-            "The session record is full: it holds \(SessionLineage.maximumNodes.formatted()) entries, removed marks included. "
+            "The session record is full: it holds \(SessionLineage.maximumNodes) entries, removed marks included. "
                 + "To start a new record, move the session file aside and open the image again."
         default:
             "No more marks can be recorded: \(refusal.reason)."
