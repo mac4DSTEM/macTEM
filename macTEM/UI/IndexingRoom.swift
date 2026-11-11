@@ -407,10 +407,14 @@ struct IndexingIPFKey: View {
     let layer: IndexingLayer
     let groups: [String]
 
+    /// A key's picture: its premultiplied RGBA through `MapsFigure.cgImage`, the key's one builder (#331), smoothed, since the legend
+    /// draws it larger.
+    nonisolated static func picture(_ key: IPFKeyImage) -> CGImage? { MapsFigure.cgImage(key, interpolate: true) }
+
     var body: some View {
         HStack(alignment: .bottom, spacing: 6) {
             ForEach(groups, id: \.self) { name in
-                if let key = session.keyImages[name], let image = MapsFigure.cgImage(key, interpolate: true) {
+                if let key = session.keyImages[name], let image = Self.picture(key) {
                     VStack(spacing: 2) {
                         Image(decorative: image, scale: 1).resizable().interpolation(.medium).aspectRatio(contentMode: .fit)
                             .frame(height: LayoutPolicy.indexingKeyHeight)

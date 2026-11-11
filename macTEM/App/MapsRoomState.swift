@@ -500,8 +500,8 @@ nonisolated enum MapsFigure {
         "0 to \(UnitDisplay.number(maximum, digits: 3, locale: locale)) MRD"
     }
 
-    /// An image of premultiplied RGBA bytes, the app's one RGBA-to-image builder (#331): each pixel a block where it is drawn larger (a map,
-    /// a figure), or smoothed with `interpolate` (the Indexing room's colour key).
+    /// An image of premultiplied RGBA bytes (#331: the IPF colour key has no other builder): each pixel a block where it is drawn larger
+    /// (a map, a figure, the Maps room's key), or smoothed with `interpolate` (the Indexing room's key, `IndexingIPFKey.picture`).
     static func cgImage(premultipliedRGBA rgba: [UInt8], width: Int, height: Int, interpolate: Bool = false) -> CGImage? {
         guard width > 0, height > 0, rgba.count == width * height * 4,
               let provider = CGDataProvider(data: Data(rgba) as CFData),
