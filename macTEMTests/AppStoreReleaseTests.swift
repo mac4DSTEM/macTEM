@@ -80,7 +80,8 @@ nonisolated final class AppStoreReleaseTests: XCTestCase {
             as? [String: Any])
         let sandbox = entitlements.keys.filter { $0.hasPrefix("com.apple.security.") }.sorted()
         XCTAssertEqual(sandbox, ["com.apple.security.app-sandbox", "com.apple.security.files.bookmarks.app-scope",
-                                 "com.apple.security.files.user-selected.read-write"], "the store listing declares these and no network")
+                                 "com.apple.security.files.user-selected.read-write", "com.apple.security.network.server"],
+                       "the store listing declares these: the files, and the agent door's loopback listener (no network client)")
         XCTAssertTrue(code.contains("local -a expected=(" + sandbox.joined(separator: " ") + ")"),
                       "the store check's list is not macTEM.entitlements's")
     }

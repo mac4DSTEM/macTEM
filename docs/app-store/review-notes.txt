@@ -21,7 +21,9 @@ With the shipped SEM datasets:
 
 Results, in the sidebar, lists every measurement and the SEM results in tables. The Export Report… button in its inspector writes a session report as PDF or Markdown through a save panel.
 
-No account, sign-in, purchase or network connection is needed anywhere in the app. macTEM makes no network requests.
+No account, sign-in, purchase or network connection is needed anywhere in the app. macTEM makes no outgoing network requests.
+
+Agent access (com.apple.security.network.server): Settings > Agents has one switch, off by default. When the person turns it on, macTEM listens on this Mac's loopback address (127.0.0.1) only, so that an AI assistant the person runs on the same Mac (for example Claude Code) can read what macTEM's windows show through the Model Context Protocol. It answers only requests that carry the token shown in that pane, refuses requests from web pages, cannot change anything in the app, and is not reachable from other computers. The app itself sends nothing anywhere; what the assistant does with what it reads is governed by that assistant and its provider.
 
 Open source:
 macTEM is free software under GPL-3.0. Source: https://github.com/mac4DSTEM/macTEM
