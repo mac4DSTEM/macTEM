@@ -5,7 +5,10 @@
 # deleted here.
 # On a pull request that touches Swift: the same scan without the findings .periphery-baseline.json records (triaged and
 # kept) and without Codable properties. A finding that is left is new: it is annotated on the PR as a warning and the job
-# stays green. Delete the code or, for a false positive, write the baseline again in the same PR:
+# stays green. GitHub keeps only 10 annotations per step and its log shows the warnings without their files, so the job
+# also lists every new finding with its file, line and column: as a table in the job summary (capped at 400 rows), as
+# plain lines in the log of the step "List every new finding", and in the raw scan output, uploaded as the artifact
+# periphery-findings-<run>. Delete the code or, for a false positive, write the baseline again in the same PR:
 #   periphery scan --project macTEM.xcodeproj --schemes macTEM --retain-codable-properties \
 #     --write-baseline .periphery-baseline.json -- CODE_SIGNING_ALLOWED=NO
 # Without a Mac: run this workflow by hand on the PR's branch with `write_baseline` ticked, from the Actions page or with
@@ -94,6 +97,114 @@ jobs:
             -- CODE_SIGNING_ALLOWED=NO | tee periphery.txt
           count=$(grep -c '^::warning' periphery.txt || true)
           echo "Periphery: ${count} new finding(s) against .periphery-baseline.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: List every new finding
+        # The scan step's ::warning lines are the findings. Each one goes to this step's log as a plain line (one that does
+        # not start with "::", so it stays text) and to the job summary as a table row, both with its file, line and column.
+        # Never fails on a finding: the job is a warning only.
+        run: |
+          python3 -I - periphery.txt <<'PY'
+          import os
+          import re
+          import sys
+
+          # Periphery's github-actions format, one finding per line:
+          #   ::warning file=<path>,line=<line>,col=<column>,title=<hint>::<message>
+          # Periphery 3.8 escapes nothing, but GitHub's workflow-command escapes are undone all the same, in one pass so
+          # that "%253A" becomes "%3A" and not ":". Color codes are dropped; a missing property leaves its cell empty.
+          MAX_ROWS = 400
+          MAX_BYTES = 256_000
+          MAX_CELL = 300
+          ESCAPES = {"%25": "%", "%0D": "\r", "%0A": "\n", "%3A": ":", "%2C": ","}
+          ESCAPE = re.compile(r"%(?:25|0D|0A|3A|2C)", re.IGNORECASE)
+          ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+          # A property starts at a comma followed by a known key, so an unescaped comma inside a value does not split it.
+          PROPERTY = re.compile(r",(?=\s*(?:file|line|endLine|col|endColumn|title)=)")
+
+          def unescape(text):
+              return ESCAPE.sub(lambda m: ESCAPES[m.group(0).upper()], text)
+
+          def one_line(text):
+              return " ".join(text.split())
+
+          def parse(line):
+              rest = line[len("::warning"):]
+              head, sep, message = rest.partition("::")
+              if not sep:
+                  head, message = "", rest
+              props = {}
+              for part in PROPERTY.split(head.strip()):
+                  key, eq, value = part.partition("=")
+                  if eq and key.strip():
+                      props[key.strip()] = one_line(unescape(value))
+              return props, one_line(unescape(message))
+
+          def location(props):
+              parts = [props.get("file") or "(no file)"]
+              for key in ("line", "col"):
+                  if not props.get(key):
+                      break
+                  parts.append(props[key])
+              return ":".join(parts)
+
+          def cell(text):
+              if len(text) > MAX_CELL:
+                  text = text[:MAX_CELL - 3] + "..."
+              text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+              return re.sub(r"([\\`*_\[\]|])", r"\\\1", text)
+
+          sys.stdout.reconfigure(errors="replace")
+          path = sys.argv[1]
+          try:
+              with open(path, encoding="utf-8", errors="replace") as handle:
+                  raw = handle.read().splitlines()
+          except OSError as error:
+              print(f"Periphery: no scan output to list ({error})")
+              sys.exit(0)
+          findings = []
+          for line in raw:
+              # The same lines the scan step counts and GitHub annotates.
+              if line.startswith("::warning"):
+                  findings.append(parse(ANSI.sub("", line)))
+
+          print(f"Periphery: {len(findings)} new finding(s), as location, hint and message:")
+          for number, (props, message) in enumerate(findings, 1):
+              print(f"{number:4d}. {location(props)}  {props.get('title', '')}  {message}")
+          if not findings:
+              sys.exit(0)
+
+          rows = ["", "| # | Location | Hint | Message |", "|---:|---|---|---|"]
+          size = sum(len(row.encode()) + 1 for row in rows)
+          shown = 0
+          for number, (props, message) in enumerate(findings, 1):
+              row = f"| {number} | {cell(location(props))} | {cell(props.get('title', ''))} | {cell(message)} |"
+              if shown == MAX_ROWS or size + len(row.encode()) + 1 > MAX_BYTES:
+                  break
+              rows.append(row)
+              size += len(row.encode()) + 1
+              shown += 1
+          if shown < len(findings):
+              artifact = "periphery-findings-" + os.environ.get("GITHUB_RUN_NUMBER", "<run>")
+              rows += ["", f"{len(findings) - shown} more finding(s) are left out of this table; the log of the step "
+                           f"\"List every new finding\" and the artifact {artifact} have them all."]
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              try:
+                  with open(summary, "a", encoding="utf-8") as handle:
+                      handle.write("\n".join(rows) + "\n")
+              except OSError as error:
+                  print(f"Periphery: could not write the job summary ({error})")
+          PY
+      - name: Upload the scan output
+        # The raw scan output, ::warning lines and all, for a closer look or a script.
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: periphery-findings-${{ github.run_number }}
+          path: periphery.txt
+          if-no-files-found: warn
+          retention-days: 14
+          # A re-run of the job uploads under the same name.
+          overwrite: true
 
   baseline:
     name: Write the baseline (artifact)
