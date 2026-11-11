@@ -7,7 +7,9 @@
 //        the processing and fitting choices and the exports are the inspector's (`EELSRoomInspector.swift`). The room has its own document, the spectrum image,
 //        opened through the app's Open (the room's own button too: `EELSDoor`) and held by `EELSSession` (TEMSession). Presentation only: every number is SpectroKit's through the session, its method and reference named (`EELSLiterature`);
 //        the pure parts (which tile goes where, the axis, the thickness line) are `TEMCore/EELS/EELSRoomChassis.swift`.
-//        The maps block, the spectrum and the results panel live in this file because the room's file list is fixed for slice 1; they move out with slice 2.
+//        The maps block, the spectrum and the results panel are drawn here. Their pure parts (a tile's colours, where the spectrum's names sit, what
+//        a drag on it does, the results table's columns and the words for its symbol headers) are `EELSRoomLayout.swift`; what the Export section
+//        writes and the colour mix, which the room's state exports with, are `App/EELSRoomWords.swift`.
 //
 
 import ShellControls
@@ -23,43 +25,6 @@ import SpectroEELS
 import TEMCore
 import TEMSession
 import ShellEDXModel
-
-/// What the EELS room's Export section writes, as the EDS room's (the owner's drive, 2026-10-23): the results, the spectrum, the regions, the maps as one PNG, the
-/// per-pixel thickness and the method.
-nonisolated enum EELSExportKind: String, CaseIterable, Identifiable {
-    case results, spectrum, spectrumMSA, regions, mapsPNG, diagnostics, method
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .results: "Results CSV…"
-        case .spectrum: "Spectrum CSV…"
-        case .spectrumMSA: "Spectrum MSA…"
-        case .regions: "Regions CSV…"
-        case .mapsPNG: "Maps…"
-        case .diagnostics: "Per-pixel CSV…"
-        case .method: "Method JSON…"
-        }
-    }
-    var contentType: UTType {
-        switch self {
-        case .method: .json
-        case .mapsPNG: .png
-        case .spectrumMSA: UTType(filenameExtension: "msa") ?? .plainText
-        default: .commaSeparatedText
-        }
-    }
-    /// The file name's tail after the file's own name: "143_STEM SI results".
-    var suffix: String {
-        switch self {
-        case .results: " results"
-        case .spectrum, .spectrumMSA: " spectrum"
-        case .regions: " regions"
-        case .mapsPNG: " maps"
-        case .diagnostics: " thickness"
-        case .method: " thickness method"
-        }
-    }
-}
 
 extension EELSSession {
     /// What "Maps…" draws: the colour mix first, then the maps the block shows, each on its own scale in its colour, the selected region over them, and the
@@ -184,25 +149,6 @@ struct EELSRoom: View {
 
 // MARK: - The maps
 
-/// A tile's colours until the person changes them: t/λ, t and I total on viridis, the zero-loss shift diverging (centred on 0), an edge or an at% map black to its
-/// element's colour. The scale of each is `EELSMapScale`.
-nonisolated enum EELSTileStyle {
-    static func hue(forID id: String) -> Double {
-        let symbol = id.hasPrefix("edge-") ? String(id.dropFirst(5).prefix { $0 != "-" }) : (id.hasPrefix("at-") || id.hasPrefix("wt-") ? String(id.dropFirst(3)) : "")
-        return symbol.isEmpty ? 0.5 : EDXRoomFormat.hue(symbol: symbol)
-    }
-
-    static func defaultColoring(_ id: String) -> MapColoring {
-        switch EELSMapScale.mode(forTileID: id) {
-        case .diverging: return .colormap(.rdbu)
-        case .minToMax: return .colormap(.viridis)
-        case .zeroToMax:
-            let rgb = EDXRoomFormat.rgb(hue: hue(forID: id))
-            return .color(RegionColor(red: rgb.0, green: rgb.1, blue: rgb.2))
-        }
-    }
-}
-
 /// One tile of the maps block: a map, or the colour mix (the anchor, as in the EDS room).
 struct EELSGridItem: Identifiable {
     enum Kind { case map(EELSMapTile), mix([EELSMapTile]) }
@@ -210,45 +156,6 @@ struct EELSGridItem: Identifiable {
     let kind: Kind
 
     static let mixID = "colourMix"
-}
-
-/// The colour mix of the EELS maps, as the EDS room's (`EDXMapsComposition`; the owner, 2026-10-23: "i can't overlay maps in a colormix on the left"): the mix is the
-/// anchor on the left, where regions are drawn; every map the Maps control shows is a tile on the right, and a click on one puts it in the mix or takes it out.
-nonisolated enum EELSMixComposition {
-    static let placeholder = "Select maps on the right to build the colour mix"
-
-    /// The maps on the right: the Maps control's quantity first (t/λ, t or the ZLP shift), then the rest.
-    static func maps(anchor: EELSMapTile?, rest: [EELSMapTile]) -> [EELSMapTile] { (anchor.map { [$0] } ?? []) + rest }
-
-    /// The ids in the mix: the person's choice among the maps shown, else the fitted edges (or their at%) once there are any, else the first map (t/λ).
-    static func selection(_ mix: ColorMix, maps: [EELSMapTile]) -> [String] {
-        let ids = maps.map(\.id)
-        if mix.isCustom { return ids.filter(mix.members.contains) }
-        let edges = maps.filter { $0.id.hasPrefix("edge-") || $0.id.hasPrefix("at-") || $0.id.hasPrefix("wt-") }.map(\.id)
-        return edges.isEmpty ? Array(ids.prefix(1)) : edges
-    }
-
-    /// A click on a map: in the mix or out. The choice becomes the person's (an empty choice is a valid one).
-    static func toggle(_ id: String, in mix: inout ColorMix, maps: [EELSMapTile]) {
-        var chosen = Set(selection(mix, maps: maps))
-        if !chosen.insert(id).inserted { chosen.remove(id) }
-        mix.members = maps.map(\.id).filter(chosen.contains)
-        mix.isCustom = true
-    }
-
-    /// The maps the mix's popover lists, each with its default colours, as the EDS room's mix popover lists its maps.
-    @MainActor static func colorItems(maps: [EELSMapTile]) -> [MapColorItem] {
-        maps.map { MapColorItem(id: $0.id, title: $0.title, defaultColoring: EELSTileStyle.defaultColoring($0.id)) }
-    }
-
-    /// One layer per map in the mix, each on its own 0...1 scale (`EELSMapScale`) in the map's colour (an edge's element colour, a colormap's top colour).
-    static func layers(_ members: [EELSMapTile], appearance: MapAppearance) -> [MapRaster.MixLayer] {
-        members.map { tile in
-            let values = EELSMapScale.isFlat(tile.values) ? EELSMapScale.flatValues(tile.values) : EELSMapScale.scaled(tile.values, mode: EELSMapScale.mode(forTileID: tile.id)).values
-            let color = appearance.coloring(for: tile.id, default: EELSTileStyle.defaultColoring(tile.id)).endColor
-            return MapRaster.MixLayer(values: values, color: color, upper: 1, adjustment: appearance.adjustment(for: tile.id))
-        }
-    }
 }
 
 /// The maps block: the colour mix as the anchor where regions are drawn and edited, the maps beside it (a click puts one in the mix), all on one zoom.
@@ -585,51 +492,6 @@ struct EELSLowerPane: View {
             }
         }
         return out
-    }
-}
-
-/// Where the spectrum's legend and its "low loss" / "core loss" names sit (pure, so a test checks they never meet).
-nonisolated enum EELSSpectrumLayout {
-    static let lowLossName = "low loss", coreLossName = "core loss"
-    /// The legend's offset from the spectrum's top-left corner: in the band above the plot as in the EDS room, 6 pt further right than the EDS room's 56 so
-    /// it clears "log counts" (52 pt wide from x = 4), which is longer than the EDS room's "counts".
-    static let legendLeading: CGFloat = 62, legendInset: CGFloat = 2
-    /// The bands around the plot: the titles above, the energy ticks and title below, a margin on the right.
-    static let top: CGFloat = 20, bottom: CGFloat = 36, right: CGFloat = 8
-
-    /// The plot inside a spectrum of `size` whose counts labels take `left`.
-    static func plotArea(in size: CGSize, left: CGFloat) -> CGRect {
-        CGRect(x: left, y: top, width: max(size.width - left - right, 1), height: max(size.height - top - bottom, 1))
-    }
-
-    /// The legend's frame in the spectrum, for a legend of `legend` size: at a fixed offset from the top-left corner, whatever the spectrum's size.
-    static func legendFrame(legend: CGSize) -> CGRect {
-        CGRect(x: legendLeading, y: legendInset, width: legend.width, height: legend.height)
-    }
-
-    /// Where the two names are drawn at the junction `junction` of a plot `area`: the low loss's right end left of it, the core loss's left end right of it.
-    static func sectionLabelCentres(area: CGRect, junction: CGFloat) -> (low: CGPoint, core: CGPoint) {
-        (CGPoint(x: junction - 4, y: area.maxY - 8), CGPoint(x: junction + 4, y: area.maxY - 8))
-    }
-
-    /// The names' frames for text of `low` and `core` size (trailing and leading anchors, centred vertically).
-    static func sectionLabelFrames(area: CGRect, junction: CGFloat, low: CGSize, core: CGSize) -> (low: CGRect, core: CGRect) {
-        let c = sectionLabelCentres(area: area, junction: junction)
-        return (CGRect(x: c.low.x - low.width, y: c.low.y - low.height / 2, width: low.width, height: low.height),
-                CGRect(x: c.core.x, y: c.core.y - core.height / 2, width: core.width, height: core.height))
-    }
-}
-
-/// What a drag on the EELS spectrum does, by where it starts (pure; the EDS spectrum's `EDXSpectrumDrag` with the EELS view's measured left margin): under the plot
-/// the energy axis, left of it the counts axis, inside it a pan (or an edge's window, when the drag starts on one).
-nonisolated enum EELSSpectrumDrag {
-    typealias Zone = EDXSpectrumDrag.Zone
-    static let bottom: CGFloat = 36
-
-    static func zone(start: CGPoint, size: CGSize, left: CGFloat) -> Zone {
-        if start.y > size.height - bottom { return .energyAxis }
-        if start.x < left { return .countsAxis }
-        return .plot
     }
 }
 
@@ -1053,34 +915,6 @@ private struct EELSWindowElements: View {
             .accessibilityAction(named: "Widen") { move(upper, up: true) }
             .accessibilityAction(named: "Narrow") { move(upper, up: false) }
     }
-}
-
-/// The minimum widths of the results table's columns, as the EDS room's `EDXResultsColumns`: the longest cell `EELSRoomFormat` writes inside the bounds
-/// `EELSResultsColumnsTests` states, measured in the cell font, plus the cell's own inset. Narrower columns cut at% and wt% off ("95,88…", "not de…").
-nonisolated enum EELSResultsColumns {
-    /// The cell's inset around its text, both sides together (the EDS room's allowance).
-    static let cellAllowance: CGFloat = 12
-    /// Edge: "Ba M45" semibold, 48 pt, and the 16-pt mark of a refused edge after a 4-pt gap.
-    static let edgeMinimum: CGFloat = 82
-    /// I: "-8.888e-6 ± 8.8e-5", 121 pt (the EDS room's net counts column).
-    static let intensityMinimum: CGFloat = 134
-    /// at% and wt%: "100.000 ± 0.010", 104 pt (the EDS room's at% and wt% columns); "below detection" is 97 pt.
-    static let percentMinimum: CGFloat = 116
-}
-
-/// A column header that is a symbol on screen, with the words VoiceOver says for it (pure, so a test reads the words): the results table's I, at% and
-/// wt%, the Regions table's I total and t/λ. What is drawn stays as it was.
-nonisolated enum EELSColumnSpeech {
-    static let words: [String: String] = ["I": "intensity", "at%": "atomic percent", "wt%": "weight percent", "I total": "total counts", "t/λ": "t over lambda"]
-
-    /// The words for the header drawn as `drawn`; a header that is a word already ("Edge", "Pixels") is said as it is drawn.
-    static func spoken(_ drawn: String) -> String { words[drawn] ?? drawn }
-
-    /// An edge's column in the Regions table: "Fe L2,3 intensity", "Fe L2,3 atomic percent".
-    static func spoken(edge: String, column: String) -> String { "\(edge) \(spoken(column))" }
-
-    /// The header as the table draws it, said in words.
-    @MainActor static func header(_ drawn: String) -> Text { Text(drawn).accessibilityLabel(spoken(drawn)) }
 }
 
 /// The results beside the spectrum: the thickness line, one row per edge (I, at%, wt%), the regions' table, the refusal if there is one, and the footer
