@@ -18,6 +18,10 @@
 #               checked (release_build below): nightly in CI, so a Release-only failure shows before a tag
 #   ui [Journey ...]
 #               the UI journeys (macTEMUITests) on this Mac's screen: the real app, signed, one screenshot per step
+#   real-files  the real-file sweep (RealFileSweepTests) on the owner's data folder ($MACEM_DATA, else ../data): every file macEM
+#               claims, opened one at a time, lands in a room or is refused in plain words. Never on a runner. Writes
+#               $TMPDIR/macem-real-files.tsv and $TMPDIR/macem-real-files-summary.txt (no file names in the summary).
+#               MACTEM_SWEEP_FOLDERS="sem,ebsd" narrows it; MACTEM_SWEEP_SECONDS is the wait per file (180)
 #   ui-build    the UI journeys compiled and not run (`build-for-testing` of the macTEMUI scheme, unsigned): needs no
 #               screen, so CI runs it on a pull request that touches the journeys or the project
 #
@@ -691,6 +695,19 @@ inventory() {
   return $rc
 }
 
+# The real-file sweep: the unit suite filtered to RealFileSweepTests, serial, with its variables passed to the test process
+# (xcodebuild hands TEST_RUNNER_<name> to the tests as <name>).
+real_files() {
+  export TEST_RUNNER_MACTEM_REAL_FILES=1
+  [[ -n "${MACEM_DATA:-}" ]] && export TEST_RUNNER_MACEM_DATA="$MACEM_DATA"
+  [[ -n "${MACTEM_SWEEP_FOLDERS:-}" ]] && export TEST_RUNNER_MACTEM_SWEEP_FOLDERS="$MACTEM_SWEEP_FOLDERS"
+  [[ -n "${MACTEM_SWEEP_SECONDS:-}" ]] && export TEST_RUNNER_MACTEM_SWEEP_SECONDS="$MACTEM_SWEEP_SECONDS"
+  local rc
+  MACTEM_ONLY_TESTING=RealFileSweepTests MACTEM_PARALLEL_TESTING=NO unit_tests && rc=0 || rc=$?
+  echo "real-files: rows in ${TMPDIR:-/tmp}/macem-real-files.tsv, summary in ${TMPDIR:-/tmp}/macem-real-files-summary.txt"
+  return $rc
+}
+
 case "${1:-unit}" in
   unit) require_free_space 4 "the xcodebuild unit suite"; unit_tests ;;
   core) core_build ;;
@@ -699,5 +716,6 @@ case "${1:-unit}" in
   release-build) require_free_space 4 "the Release build"; release_build ;;
   ui) shift; require_free_space 4 "the UI journeys"; ui_tests "$@" ;;
   ui-build) require_free_space 4 "the UI journeys' build"; ui_build ;;
-  *) echo "Usage: tools/run-tests.sh [unit|core|scientific|inventory|release-build|ui [Journey ...]|ui-build]" >&2; exit 64 ;;
+  real-files) require_free_space 4 "the real-file sweep"; real_files ;;
+  *) echo "Usage: tools/run-tests.sh [unit|core|scientific|inventory|release-build|ui [Journey ...]|ui-build|real-files]" >&2; exit 64 ;;
 esac
