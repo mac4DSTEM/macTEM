@@ -2,11 +2,11 @@
 //  SEMCSVQuotingTests.swift
 //  The CSV writers quote a text cell and keep a file or region name on its header line with ImagoKit's `CSVText` (#338): a phase
 //  called `Fe "a", bcc` stays one cell of the indexing results CSV, a verdict holding a carriage return is quoted in the Diffraction
-//  readout, and a line break in a file or region name does not start a line of its own in the Diffraction, Particles and EELS
-//  headers. Ordinary names write the bytes they wrote before.
+//  readout, and a line break in a file, region or crystal name does not start a line of its own in the Diffraction, Particles and
+//  EELS headers. Ordinary names write the bytes they wrote before.
 //
 //  Red before the change: the phase cell is `"Fe "a", bcc"` (the quote not doubled, so an RFC 4180 reader takes `Fe a, bcc`), the
-//  verdict is written bare, and `b.dm4` lands on a line of its own without the `#`.
+//  verdict is written bare, and `b.dm4` (or the crystal's `film`) lands on a line of its own without the `#`.
 //
 
 import XCTest
@@ -115,6 +115,24 @@ nonisolated final class SEMCSVQuotingTests: XCTestCase {
                                "# crystal: Au; k_max 2 per A; tolerance 3 % of q",
                                "kind,number,R_px,q_per_A,d_A,family,d_listed_A,delta_percent,odds,verdict,calibrating",
                                "spot,2,40,0.5,2,{200},2.04,-2,one family,matches {200},yes"].joined(separator: "\n") + "\n")
+    }
+
+    /// A CIF whose data block names nothing, or only a VESTA placeholder, gives the crystal its file's base name, so a line break in
+    /// that name stays on the `# crystal:` line of the Diffraction readout too; an ordinary name and its sha256 give the line they
+    /// gave before.
+    func testALineBreakInACrystalNameStaysOnTheDiffractionHeaderLine() throws {
+        var header = Self.diffractionHeader(fileName: "gold rings.dm4")
+        header.crystal = "gold\nfilm"
+        header.crystalSHA256 = "ab12"
+        let broken = Self.lines(DiffractionExport.text(rows: [], header: header))
+        let columns = try XCTUnwrap(broken.firstIndex(of: DiffractionExport.columns))
+        XCTAssertEqual(columns, 5)
+        for line in broken[..<columns] { XCTAssertTrue(line.hasPrefix("#"), line) }
+        XCTAssertEqual(broken[4], "# crystal: gold film sha256 ab12; k_max 2 per A; tolerance 3 % of q")
+
+        header.crystal = "Au"
+        let plain = Self.lines(DiffractionExport.text(rows: [], header: header))
+        XCTAssertEqual(plain[4], "# crystal: Au sha256 ab12; k_max 2 per A; tolerance 3 % of q")
     }
 
     /// A line break in the file or region name stays on the first line of the EELS results, spectrum, regions and thickness CSVs and
