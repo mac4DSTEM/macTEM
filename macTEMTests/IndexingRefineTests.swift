@@ -366,7 +366,7 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         XCTAssertTrue(indexing.isStale)
         XCTAssertFalse(indexing.isStale(of: .dictionary))
         XCTAssertTrue(indexing.staleness(ofRun: shown.id, method: .dictionary)?.contains("Refine changed") == true)
-        XCTAssertEqual(indexing.verbHelp, "Refine the orientations of the \(4125.formatted()) patterns indexed with Dictionary (ni)")
+        XCTAssertEqual(indexing.verbHelp, "Refine the orientations of the 4125 patterns indexed with Dictionary (ni)", "never grouped (#272)")
         let before = events.count
         let alone = Date()
         await indexing.index().value

@@ -3,7 +3,9 @@
 //  Role: the words of the Indexing room's Compare (design §3, §6; #230, D-SEM-97): the titles of the two maps and the histogram, the
 //        histogram's bars, its footer (the points compared, numpy's median, the share over 2° and what was left out), the sentence
 //        when nothing could be compared, the status line over either map (both solutions and their disorientation) and over a bar.
-//        Numbers in the reader's locale as the Results table writes them (`IndexingTableFormat`). Pure: no view, no session.
+//        Numbers in the reader's decimal mark as the Results table writes them (`IndexingTableFormat`), counts never grouped as the
+//        Info words write them (`IndexingInfoFormat.count`), a side without an orientation as `UnitDisplay.noValue`. Pure: no view, no
+//        session.
 //
 
 import Foundation
@@ -44,7 +46,7 @@ nonisolated enum IndexingCompareFormat {
         "Disorientation · \(a.title) against \(b.title)"
     }
 
-    /// "4,124 of 4,125 points · median 0.44° · 1.0 % over 2° · 1 without a Hough orientation · 3 of unpaired phases".
+    /// "4124 of 4125 points · median 0.44° · 1.0 % over 2° · 1 without a Hough orientation · 3 of unpaired phases", the counts never grouped.
     static func footer(_ c: IndexingComparison, a: IndexingCompareSource, b: IndexingCompareSource,
                        locale: Locale = .autoupdatingCurrent) -> String {
         var parts = ["\(count(c.comparedCount, locale)) of \(count(c.a.pointCount, locale)) \(UnitDisplay.noun(c.a.pointCount, "point", "points"))"]
@@ -96,21 +98,21 @@ nonisolated enum IndexingCompareFormat {
         let n = histogram.counts[k]
         let low = IndexingTableFormat.angle(histogram.edges[k], digits: 0, locale: locale)
         let high = IndexingTableFormat.angle(histogram.edges[k + 1], digits: 0, locale: locale)
-        return "\(low)–\(high)° · \(count(n, locale)) \(n == 1 ? "point" : "points") · \(percent(Double(n) / Double(c.comparedCount), locale)) of those compared"
+        return "\(low)–\(high)° · \(count(n, locale)) \(UnitDisplay.noun(n, "point", "points")) · \(percent(Double(n) / Double(c.comparedCount), locale)) of those compared"
     }
 
     // MARK: - Pieces
 
-    private static func count(_ n: Int, _ locale: Locale) -> String { n.formatted(.number.locale(locale)) }
+    private static func count(_ n: Int, _ locale: Locale) -> String { IndexingInfoFormat.count(n, locale: locale) }
 
     /// A share as "1.0 %".
     private static func percent(_ share: Double, _ locale: Locale) -> String {
         IndexingTableFormat.angle(share * 100, digits: 1, locale: locale) + " %"
     }
 
-    /// "Hough ni φ₁ 12.3° Φ 44.0° φ₂ 271.5°", or "Hough –" where the side has no orientation.
+    /// "Hough ni φ₁ 12.3° Φ 44.0° φ₂ 271.5°", or "Hough —" (`UnitDisplay.noValue`) where the side has no orientation.
     private static func side(_ s: IndexingComparison.Side, _ source: IndexingCompareSource, _ i: Int, _ locale: Locale) -> String {
-        guard let name = s.phaseName(at: i), let e = s.eulerDegrees(at: i) else { return "\(source.title) –" }
+        guard let name = s.phaseName(at: i), let e = s.eulerDegrees(at: i) else { return "\(source.title) \(UnitDisplay.noValue)" }
         let angle = { (v: Double) in IndexingTableFormat.angle(v, locale: locale) }
         return "\(source.title) \(name) φ₁ \(angle(e.x))° Φ \(angle(e.y))° φ₂ \(angle(e.z))°"
     }

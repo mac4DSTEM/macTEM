@@ -3,7 +3,8 @@
 //  The Indexing room's Compare on small synthetic results (#230, D-SEM-97), beside the orix bundles of SEMIndexingCompareParityTests:
 //  a point not indexed never reads as agreement (orix's `angle_with` gives 0° for a zero quaternion, so the phase index masks it);
 //  a run's and a crystal map's sides on the scan's grid; the pairing rule (one phase a side by Laue class, else by name within one);
-//  numpy's median, share and histogram edges; the words of the footer, the status lines and the empty histogram in two locales.
+//  numpy's median, share and histogram edges; the words of the footer, the status lines and the empty histogram in two locales, a side
+//  without an orientation as `UnitDisplay.noValue` and the counts never grouped (#272).
 //  Red before: no `IndexingComparison`, no `IndexingCompareFormat`.
 //
 
@@ -164,10 +165,14 @@ nonisolated final class IndexingComparisonTests: XCTestCase {
         XCTAssertTrue(compared.contains(" · File Nickel φ₁ "), compared)
         XCTAssertTrue(compared.hasSuffix(" · disorientation 10.50°"), compared)
         let left = try XCTUnwrap(IndexingCompareFormat.readout(c, a: .hough, b: .file, at: EBSDPosition(row: 0, column: 2), columns: 4, locale: us))
-        XCTAssertTrue(left.hasPrefix("row 0 · col 2 · Hough – · File Nickel φ₁ "), left)
+        // A side without an orientation is the one dash (`UnitDisplay.noValue`). Red before: an en dash, "Hough –".
+        XCTAssertTrue(left.hasPrefix("row 0 · col 2 · Hough \(UnitDisplay.noValue) · File Nickel φ₁ "), left)
         XCTAssertTrue(left.hasSuffix(" · not compared: no Hough orientation"), left)
         let right = try XCTUnwrap(IndexingCompareFormat.readout(c, a: .hough, b: .file, at: EBSDPosition(row: 0, column: 3), columns: 4, locale: us))
-        XCTAssertTrue(right.hasSuffix(" · File – · not compared: no File orientation"), right)
+        XCTAssertTrue(right.hasSuffix(" · File \(UnitDisplay.noValue) · not compared: no File orientation"), right)
+        let leftInGerman = try XCTUnwrap(IndexingCompareFormat.readout(c, a: .hough, b: .file, at: EBSDPosition(row: 0, column: 2), columns: 4,
+                                                                       locale: de))
+        XCTAssertTrue(leftInGerman.hasPrefix("row 0 · col 2 · Hough \u{2014} · File Nickel φ₁ "), leftInGerman)
         XCTAssertNil(IndexingCompareFormat.readout(c, a: .hough, b: .file, at: EBSDPosition(row: 1, column: 0), columns: 4, locale: us))
 
         XCTAssertEqual(IndexingCompareFormat.binReadout(c, atDegrees: 10.4, locale: us), "10–11° · 1 point · 50.0 % of those compared")
@@ -182,5 +187,21 @@ nonisolated final class IndexingComparisonTests: XCTestCase {
                                           IndexingComparison.Side(phases: [nickel], phaseIndices: [0], rotations: [Self.q1]))
         XCTAssertEqual(IndexingCompareFormat.nothingCompared(none, a: .hough, b: .file),
                        "No point is indexed in both as phases that pair (Hough: ni; File: Nickel)")
+    }
+
+    /// The footer and the bar's status line write their counts as the Info words do, never grouped, in every locale. Red before:
+    /// "1,234 of 1,234 points" in en_US and "1.234 of 1.234 points" in German.
+    func testCompareCountsAreNeverGrouped() throws {
+        let ni = Phase(name: "ni", pointGroupName: "m-3m"), nickel = Phase(name: "Nickel", pointGroupName: "m-3m")
+        let n = 1234
+        let a = IndexingComparison.Side(phases: [ni], phaseIndices: Array(repeating: 0, count: n), rotations: Array(repeating: Self.q1, count: n))
+        let b = IndexingComparison.Side(phases: [nickel], phaseIndices: Array(repeating: 0, count: n), rotations: Array(repeating: Self.q1, count: n))
+        let c = try IndexingComparison(a, b)
+        for locale in [Locale(identifier: "en_US"), Locale(identifier: "de_DE"), Locale(identifier: "en_US_POSIX")] {
+            let footer = IndexingCompareFormat.footer(c, a: .hough, b: .file, locale: locale)
+            XCTAssertTrue(footer.hasPrefix("1234 of 1234 points · median "), "\(locale.identifier): \(footer)")
+            let bar = try XCTUnwrap(IndexingCompareFormat.binReadout(c, atDegrees: 0.2, locale: locale))
+            XCTAssertTrue(bar.hasPrefix("0–1° · 1234 points · 100"), "\(locale.identifier): \(bar)")
+        }
     }
 }

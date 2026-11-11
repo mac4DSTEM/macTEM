@@ -154,46 +154,85 @@ final class IndexingRoomState {
 
 // MARK: - Words
 
-/// The Indexing room's Info words, one wording for the inspector's Info tab, the Results room's session rows and the session report. The
-/// numbers are in the reader's locale; the session report passes `ExportSnapshot.labelLocale` ("4125 of 4125").
+/// The Indexing room's Info words, one wording for the inspector's Info tab, the Results room's session rows and the session report, and
+/// the words of the inspector's Calibration and Dictionary rows and the Results table's header. The numbers are in the reader's decimal
+/// mark and a count is never grouped, as `Num` writes every number on screen: "4125 of 4125" on every Mac, where the screen grouped
+/// ("4.125 of 4.125" in German) beside a report that does not; the session report passes `ExportSnapshot.labelLocale`.
 enum IndexingInfoFormat {
     /// "Hough (pyEBSDindex 0.3.10.1)", "Dictionary (kikuchipy 0.13.1)".
     nonisolated static func method(_ method: IndexingMethod) -> String {
         method == .hough ? "Hough (pyEBSDindex 0.3.10.1)" : "Dictionary (kikuchipy 0.13.1)"
     }
 
-    /// "4,125 of 4,125".
+    /// A count as the room writes it: "4125", never grouped, as `Num` writes a whole number (and the SEM-EDS rows their counts).
+    nonisolated static func count(_ n: Int, locale: Locale = .autoupdatingCurrent) -> String { Num.fixed(Double(n), 0, locale: locale) }
+
+    /// "4125 of 4125".
     nonisolated static func indexed(_ result: IndexingResult, locale: Locale = .autoupdatingCurrent) -> String {
-        "\(result.indexedCount.formatted(.number.locale(locale))) of \(result.pointCount.formatted(.number.locale(locale)))"
+        "\(count(result.indexedCount, locale: locale)) of \(count(result.pointCount, locale: locale))"
     }
 
-    /// "3,812 points", "1 point".
-    nonisolated static func points(_ count: Int, locale: Locale = .autoupdatingCurrent) -> String {
-        "\(count.formatted(.number.locale(locale))) \(UnitDisplay.noun(count, "point", "points"))"
+    /// "3812 points", "1 point".
+    nonisolated static func points(_ n: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(count(n, locale: locale)) \(UnitDisplay.noun(n, "point", "points"))"
     }
 
     /// "(0.4215, 0.2163, 0.5323) · mean of the file's"; "(0,4215; 0,2163; 0,5323) · …" where the decimal mark is a comma.
     nonisolated static func projectionCentre(_ pc: SIMD3<Double>, locale: Locale = .autoupdatingCurrent) -> String {
-        UnitDisplay.triple(pc, digits: 4, locale: locale) + " · mean of the file's"
+        triple(pc, locale: locale) + " · mean of the file's"
+    }
+
+    /// The Calibration section's tilts in the Patterns room's words (`EBSDBrowsing.calibrationRows`): "Sample tilt 70°", "Detector
+    /// tilt 0°".
+    nonisolated static func tiltRows(_ detector: EBSDDetectorGeometry, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
+        [EBSDBrowsing.Row("Sample tilt", "\(UnitDisplay.number(detector.sampleTilt, locale: locale))°"),
+         EBSDBrowsing.Row("Detector tilt", "\(UnitDisplay.number(detector.tilt, locale: locale))°")]
+    }
+
+    /// The Results table's header, the run named as the map's title names it, then its PC as the Calibration row writes it: "Results ·
+    /// Dictionary · Refined · ni · 4125 of 4125 indexed · PC (0.4215, 0.2163, 0.5323)".
+    nonisolated static func resultsHeader(_ result: IndexingResult, run: String, projectionCentre pc: SIMD3<Double>?,
+                                          locale: Locale = .autoupdatingCurrent) -> String {
+        let phases = result.phases.map(\.name).joined(separator: ", ")
+        let words = "Results · \(run) · \(phases) · \(count(result.indexedCount, locale: locale)) of \(count(result.reachedCount, locale: locale)) indexed"
+        return pc.map { words + " · PC " + triple($0, locale: locale) } ?? words
+    }
+
+    /// The Dictionary section's size row: "11935 patterns at 4°"; with several phases one count each, "11935 + 11935 patterns at 4°".
+    /// `sizes` nil while they are counted ("Counting at 4°" when they can be) or when they cannot be (`UnitDisplay.noValue`).
+    nonisolated static func dictionarySize(_ sizes: [Int]?, resolution: Double, countable: Bool, locale: Locale = .autoupdatingCurrent) -> String {
+        let at = "\(UnitDisplay.number(resolution, locale: locale))°"
+        guard let sizes else { return countable ? "Counting at \(at)" : UnitDisplay.noValue }
+        return "\(sizes.map { count($0, locale: locale) }.joined(separator: " + ")) patterns at \(at)"
+    }
+
+    /// The Dictionary section's Chunk row, as the run would cut the work now: "2000 patterns · 6 chunks", "· over 2 dictionaries" with
+    /// several phases on, "per block · 3 blocks" when the scan is read in blocks; `UnitDisplay.noValue` before the dictionaries are counted.
+    nonisolated static func chunking(_ cut: (size: Int, chunks: Int, blocks: Int)?, dictionaries: Int,
+                                     locale: Locale = .autoupdatingCurrent) -> String {
+        guard let cut, cut.size > 0 else { return UnitDisplay.noValue }
+        let over = dictionaries > 1 ? " over \(dictionaries) dictionaries" : ""
+        let chunks = "\(count(cut.size, locale: locale)) patterns · \(UnitDisplay.count(cut.chunks, "chunk", "chunks"))\(over)"
+        return cut.blocks > 1 ? chunks + " per block · \(cut.blocks) blocks" : chunks
     }
 
     /// "Ni.h5 · Ni · 20 kV · Lambert · 401 × 401".
     nonisolated static func master(_ plan: DictionaryIndexingPlan) -> String { "\(plan.master.fileName) · \(plan.master.summary)" }
 
-    /// "10,000 patterns at 4° · NCC · keep 20".
+    /// "10000 patterns at 4° · NCC · keep 20".
     nonisolated static func dictionary(_ plan: DictionaryIndexingPlan, locale: Locale = .autoupdatingCurrent) -> String {
-        "\(plan.rotations.count.formatted(.number.locale(locale))) patterns at \(UnitDisplay.number(plan.settings.resolution, locale: locale))° · \(plan.settings.metric.title) · keep \(min(plan.settings.keep, plan.rotations.count))"
+        "\(count(plan.rotations.count, locale: locale)) patterns at \(UnitDisplay.number(plan.settings.resolution, locale: locale))° · \(plan.settings.metric.title) · keep \(min(plan.settings.keep, plan.rotations.count))"
     }
 
     /// A run against several phases (D-SEM-98), one phase's master pattern: "Ni.h5 · 20 kV, the master pattern's one energy".
     nonisolated static func phaseMaster(_ plan: DictionaryIndexingPlan) -> String { "\(plan.master.fileName) · \(plan.energyWords)" }
 
-    /// The dictionaries of a run: one plan's as `dictionary(_:)`; several, each phase's size: "10,000 + 10,000 patterns at 4° · NCC ·
-    /// keep 5".
+    /// The dictionaries of a run: one plan's as `dictionary(_:)`; several, each phase's size: "10000 + 10000 patterns at 4° · NCC ·
+    /// keep 5"; `UnitDisplay.noValue` for none.
     nonisolated static func dictionaries(_ plans: [DictionaryIndexingPlan], locale: Locale = .autoupdatingCurrent) -> String {
-        guard let first = plans.first else { return "–" }
+        guard let first = plans.first else { return UnitDisplay.noValue }
         guard plans.count > 1 else { return dictionary(first, locale: locale) }
-        let sizes = plans.map { $0.rotations.count.formatted(.number.locale(locale)) }.joined(separator: " + ")
+        let sizes = plans.map { count($0.rotations.count, locale: locale) }.joined(separator: " + ")
         let keep = plans.map { min(first.settings.keep, $0.rotations.count) }.min() ?? first.settings.keep
         return "\(sizes) patterns at \(UnitDisplay.number(first.settings.resolution, locale: locale))° · \(first.settings.metric.title) · keep \(keep)"
     }
@@ -205,19 +244,19 @@ enum IndexingInfoFormat {
 
     /// A refinement's mean score over the refined points, as indexed and as refined (D-SEM-109): "NCC 0.412 → 0.453"; after an NDP
     /// dictionary, "NDP 0.91 → NCC 0.453".
-    /// "NCC 0.200 → 0.361": three places on both sides, so the two scores line up (three significant digits wrote "0,2 → 0,361").
+    /// "NCC 0.200 → 0.361": three places on both sides, so the two scores line up (three significant digits wrote "0,2 → 0,361"), as the
+    /// Results table writes a score (`IndexingTableFormat.fraction`).
     nonisolated static func refinementScores(_ s: (before: Double, after: Double, metric: String),
                                              locale: Locale = .autoupdatingCurrent) -> String {
-        let n = { (v: Double) in
-            v.isFinite ? v.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(3))) : UnitDisplay.number(v)
-        }
+        let n = { (v: Double) in IndexingTableFormat.fraction(v, locale: locale) }
         return s.metric == "NCC" ? "NCC \(n(s.before)) → \(n(s.after))" : "\(s.metric) \(n(s.before)) → NCC \(n(s.after))"
     }
 
-    /// A PC triple (Bruker), the refined PCs' mean or standard deviation as the Refine section shows each on its row:
-    /// "(0.4214, 0.2142, 0.5013)".
-    nonisolated static func triple(_ v: SIMD3<Double>) -> String {
-        "(\(UnitDisplay.number(v.x, digits: 4)), \(UnitDisplay.number(v.y, digits: 4)), \(UnitDisplay.number(v.z, digits: 4)))"
+    /// A PC triple (Bruker) at four significant digits, as the Calibration row, the Results header and the Refine section's mean and
+    /// standard deviation write it: "(0.4214, 0.2142, 0.5013)"; "(0,4214; 0,2142; 0,5013)" where the decimal mark is a comma, as the
+    /// Patterns room writes it (`UnitDisplay.triple`).
+    nonisolated static func triple(_ v: SIMD3<Double>, locale: Locale = .autoupdatingCurrent) -> String {
+        UnitDisplay.triple(v, digits: 4, locale: locale)
     }
 
     /// The run's state: running, stopped, stale or current.

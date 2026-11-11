@@ -625,21 +625,21 @@ package final class IndexingSession {
 
     package var canIndex: Bool { patterns.document != nil && !isIndexing && !patterns.isOpening && !patterns.isProcessing && refusal == nil }
 
-    /// The verb's help: "Index 4,125 patterns with Hough (ni)", "Index 4,125 patterns with Dictionary (ni)", or why it cannot run;
+    /// The verb's help: "Index 4125 patterns with Hough (ni)", "Index 4125 patterns with Dictionary (ni)", or why it cannot run;
     /// with Refine on, the stale stages it runs (design §3): "…, then refine the orientations", or "Refine the orientations of the
-    /// 4,125 patterns indexed with Dictionary (ni)".
+    /// 4125 patterns indexed with Dictionary (ni)". The counts never grouped, as `UnitDisplay.count` writes a count.
     package var verbHelp: String {
         if let refusal { return refusal }
         guard let dataset = patterns.dataset else { return "" }
         if method == .dictionary, refinesAfterIndexing {
             let noun = refineSettings.target.noun, names = phasesOn.map(\.name).joined(separator: ", ")
             if refinesAlone, let base = runs[.dictionary] {
-                return "Refine the \(noun) of the \(base.result.indexedCount.formatted()) patterns indexed with Dictionary (\(names))"
+                return "Refine the \(noun) of the \(base.result.indexedCount) patterns indexed with Dictionary (\(names))"
             }
-            return "Index \(dataset.patternCount.formatted()) patterns with Dictionary (\(names)), then refine the \(noun)"
+            return "Index \(dataset.patternCount) patterns with Dictionary (\(names)), then refine the \(noun)"
                 + (isStale(of: .dictionary) ? "; the inputs changed since the last run" : "")
         }
-        let what = "Index \(dataset.patternCount.formatted()) patterns with \(method.title) (\(phasesOn.map(\.name).joined(separator: ", ")))"
+        let what = "Index \(dataset.patternCount) patterns with \(method.title) (\(phasesOn.map(\.name).joined(separator: ", ")))"
         if let result, result.method == method, isStale { return what + "; the inputs changed since the last run" }
         return what
     }

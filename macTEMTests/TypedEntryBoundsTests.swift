@@ -1,7 +1,8 @@
 //
 //  TypedEntryBoundsTests.swift
 //  Typed whole numbers and the bounds on what they reach: `TypedWholeNumber` (macTEM/UI) rounds a typed entry and holds it within
-//  ±10⁹ where `Int()` trapped on 1e20 (the NLPAR radius, the equalisation kernel, the Richardson-Lucy iterations), and
+//  ±10⁹ where `Int()` trapped on 1e20 (the NLPAR radius, the equalisation kernel, the Richardson-Lucy iterations, and since #425 the
+//  Indexing room's Keep, Bands, ρ bins, θ bins and Early exit, which kept a private copy of the rule), and
 //  `PatternPipeline.refusal` names a Std × truncate, an NLPAR search radius or a CLAHE kernel too large to run, where it trapped in
 //  `Int()` or in `2 r + 1`, or accepted a kernel whose padding exhausts memory. Settings that ran before in memory are not refused.
 //  Red before: no `TypedWholeNumber`; the truncate and radius refusals trap while the inspector redraws; the kernel is accepted.
@@ -37,6 +38,18 @@ nonisolated final class TypedEntryBoundsTests: XCTestCase {
         XCTAssertEqual(TypedWholeNumber.value(-3.4), -3)
         XCTAssertEqual(TypedWholeNumber.value(2.5), 3, "half away from zero, as Double.rounded()")
         XCTAssertEqual(TypedWholeNumber.value(7), 7)
+    }
+
+    /// A count typed into the Indexing room's Bands or Keep field, as huge as 1e20, reaches the setting's own refusal through the shared
+    /// rule instead of trapping in `Int()`. No red first: the Indexing room's private copy returned the same value for every input; this
+    /// pins that its fields take the rule a change to it would reach (#425).
+    func testAHugeTypedCountReachesTheIndexingRefusals() {
+        var hough = HoughIndexingSettings.roomDefault
+        hough.bands = TypedWholeNumber.value(1e20)
+        XCTAssertEqual(hough.refusal, "Bands runs from 3 to 30.")
+        var dictionary = DictionaryIndexingSettings.roomDefault
+        dictionary.keep = TypedWholeNumber.value(1e20)
+        XCTAssertEqual(dictionary.refusal, "Keep runs from 1 to 50 matches.")
     }
 
     func testAHugeStdTimesTruncateIsRefusedInsteadOfTrapping() {
