@@ -158,8 +158,7 @@ nonisolated final class FFTPreprocessTests: XCTestCase {
         let image = try Self.lattice()
         let analysis = FFTAnalysis(compute: .live)
         analysis.show(image, contentVersion: 1)
-        for _ in 0..<2000 where !analysis.isSpectrumCurrent { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertTrue(analysis.isSpectrumCurrent)
+        try await waitUntil("the spectrum to land", seconds: 10) { analysis.isSpectrumCurrent }
         analysis.findSpots()
         try await waitUntil("the found spots to be measured", seconds: 10) {
             !analysis.spots.isEmpty && !analysis.spots.contains(where: { if case .measuring = $0.outcome { true } else { false } })

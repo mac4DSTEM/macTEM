@@ -39,10 +39,7 @@ nonisolated final class RoomRunMenuTests: XCTestCase {
         XCTAssertFalse(RoomPrimaryAction.canRun(RoomPrimaryAction.current(state)), "off while it processes")
         RoomPrimaryAction.runActive(state)
         XCTAssertTrue(state.ebsd.isProcessing, "a second ⌘R does nothing")
-        for _ in 0..<6000 where state.ebsd.isProcessing {
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        XCTAssertFalse(state.ebsd.isProcessing)
+        try await waitUntil("the run to land", seconds: 30) { !state.ebsd.isProcessing }
     }
 
     /// The Workspace menu lists the verb with ⌘R, before Stop, run and gated through `RoomPrimaryAction`. Red under: no Run item, a

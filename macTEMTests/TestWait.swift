@@ -4,7 +4,8 @@
 //  `for _ in 0..<N where busy { try await Task.sleep(for: .milliseconds(5)) }`, falls through when its time runs out: the test
 //  then fails at some later assertion, or passes on a state that is not the one it waited for. `waitUntil` asks its condition
 //  the same way, every 5 ms; a wait that runs out fails the test at the line that waited, with what it waited for, and throws,
-//  so the test ends there.
+//  so the test ends there. A condition that awaits (an actor's count, as the FFT rig's parked jobs keep) takes the async
+//  overloads, which ask it the same way; a condition with no `await` in it takes the synchronous ones.
 //  No test is declared here (the unit gate reads test names by file and type): TestWaitTests.swift holds the helper's own.
 //
 
@@ -32,6 +33,26 @@ nonisolated struct WaitTimedOut: Error, LocalizedError {
 /// line with `what` ("timed out after 30 s waiting for: the scan's passes to end") and `WaitTimedOut` is thrown.
 @MainActor func waitUntil(_ what: String, seconds: Double = 10, file: StaticString = #filePath, line: UInt = #line,
                           _ condition: () -> Bool) async throws {
+    if try await conditionHolds(within: seconds, condition) { return }
+    XCTFail("timed out after \(String(format: "%g", seconds)) s waiting for: \(what)", file: file, line: line)
+    throw WaitTimedOut(what: what)
+}
+
+/// `conditionHolds` for a condition that awaits: asked before each 5 ms sleep, `seconds` × 200 sleeps at most, and once more
+/// after the last, as the synchronous one is.
+@MainActor func conditionHolds(within seconds: Double, _ condition: @MainActor () async -> Bool) async throws -> Bool {
+    let sleeps = max(0, Int((seconds * 200).rounded(.up)))
+    for _ in 0..<sleeps {
+        if await condition() { return true }
+        try await Task.sleep(for: .milliseconds(5))
+    }
+    return await condition()
+}
+
+/// `waitUntil` for a condition that awaits: when it never holds, the test fails at the caller's line with `what` and
+/// `WaitTimedOut` is thrown, as with the synchronous one.
+@MainActor func waitUntil(_ what: String, seconds: Double = 10, file: StaticString = #filePath, line: UInt = #line,
+                          _ condition: @MainActor () async -> Bool) async throws {
     if try await conditionHolds(within: seconds, condition) { return }
     XCTFail("timed out after \(String(format: "%g", seconds)) s waiting for: \(what)", file: file, line: line)
     throw WaitTimedOut(what: what)

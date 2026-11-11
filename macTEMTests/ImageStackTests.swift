@@ -138,11 +138,11 @@ nonisolated final class ImageStackTests: XCTestCase {
         state.openItems.showFrame(item, to: 3)
         state.openItems.showFrame(item, to: 15)
         XCTAssertEqual(item.requestedFrame, 15)
-        for _ in 0..<2000 where item.frame != 15 { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertEqual(item.frame, 15)
+        try await waitUntil("frame 15 to land", seconds: 10) { item.frame == 15 }
         let image = try XCTUnwrap(item.session.image)
         XCTAssertEqual(image.pixels[5 * 64 + 7], Float(Self.planted(frame: 15, x: 7, y: 5)))
         XCTAssertEqual(image.source, "frame 16 of 20")
+        // A fixed span for what must not happen: the dropped read of frame 3 landing after frame 15. No state says it never will.
         try await Task.sleep(for: .milliseconds(100))
         XCTAssertEqual(item.frame, 15, "a stale frame did not land after the newest")
         XCTAssertLessThanOrEqual(stack.framesRead, 3, "frame 0, possibly frame 3 (dropped), and frame 15")
@@ -166,8 +166,7 @@ nonisolated final class ImageStackTests: XCTestCase {
         let held = try XCTUnwrap(item.presentation.windowLow)
         XCTAssertEqual(held, item.presentation.canvas?.rawRange?.lowerBound)
         state.openItems.stepFrame(item, by: 1)
-        for _ in 0..<2000 where item.frame != 1 { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertEqual(item.frame, 1)
+        try await waitUntil("frame 1 to land", seconds: 10) { item.frame == 1 }
         XCTAssertEqual(item.presentation.windowLow, held, "the window is in raw values and stays")
         state.openItems.stepFrame(item, by: 99)
         XCTAssertEqual(item.requestedFrame, 4, "a step past the end goes to the end")
@@ -184,8 +183,7 @@ nonisolated final class ImageStackTests: XCTestCase {
         let item = try XCTUnwrap(state.openItems.selected)
         let first = try XCTUnwrap(item.summary?.thumbnail)
         state.openItems.showFrame(item, to: 5)
-        for _ in 0..<2000 where item.frame != 5 { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertEqual(item.frame, 5)
+        try await waitUntil("frame 5 to land", seconds: 10) { item.frame == 5 }
         XCTAssertNotEqual(item.summary?.thumbnail, first, "the thumbnail is of frame 6 now")
     }
 
@@ -212,7 +210,7 @@ nonisolated final class ImageStackTests: XCTestCase {
 
         items.showFrame(item, to: 2)
         XCTAssertEqual(item.requestedFrame, 2)
-        for _ in 0..<2000 where item.frameFailure == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("frame 2's failure", seconds: 10) { item.frameFailure != nil }
         let sentence = "Frame 3 of 6 could not be read: the page is cut short."
         XCTAssertEqual(item.frameFailure, sentence)
         XCTAssertEqual(item.requestedFrame, 0, "the slider goes back to the frame shown")
@@ -222,8 +220,7 @@ nonisolated final class ImageStackTests: XCTestCase {
 
         items.showFrame(item, to: 2)
         XCTAssertEqual(item.requestedFrame, 2, "the same frame is asked for again, not dropped")
-        for _ in 0..<2000 where item.frame != 2 { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertEqual(item.frame, 2)
+        try await waitUntil("frame 2 to land", seconds: 10) { item.frame == 2 }
         XCTAssertEqual(attempts.value, 2)
         XCTAssertNil(item.frameFailure, "a frame that lands clears it")
     }
@@ -249,12 +246,11 @@ nonisolated final class ImageStackTests: XCTestCase {
         let sentence = "Frame 3 of 6 could not be read: the page is cut short."
 
         items.showFrame(item, to: 1)
-        for _ in 0..<2000 where item.frame != 1 { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertEqual(item.frame, 1)
+        try await waitUntil("frame 1 to land", seconds: 10) { item.frame == 1 }
         XCTAssertNil(item.failedFrame, "nothing has failed yet")
 
         items.stepFrame(item, by: 1)
-        for _ in 0..<2000 where item.frameFailure == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("frame 2's failure", seconds: 10) { item.frameFailure != nil }
         XCTAssertEqual(item.frameFailure, sentence)
         XCTAssertEqual(item.requestedFrame, 1, "the slider goes back to the frame shown")
         XCTAssertEqual(item.failedFrame, 2, "the next step starts at the frame that failed")
@@ -262,20 +258,18 @@ nonisolated final class ImageStackTests: XCTestCase {
         items.stepFrame(item, by: 1)
         XCTAssertEqual(item.requestedFrame, 3, "the second step asks for the frame after the one that failed")
         XCTAssertNil(item.failedFrame, "another frame asked for ends it")
-        for _ in 0..<2000 where item.frame != 3 { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertEqual(item.frame, 3)
+        try await waitUntil("frame 3 to land", seconds: 10) { item.frame == 3 }
         XCTAssertEqual(attempts.value, 1, "the frame that cannot be read was asked for once, not again")
         XCTAssertNil(item.frameFailure, "a frame that lands clears the sentence")
 
         items.stepFrame(item, by: -1)
-        for _ in 0..<2000 where item.frameFailure == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("frame 2's failure", seconds: 10) { item.frameFailure != nil }
         XCTAssertEqual(item.frameFailure, sentence)
         XCTAssertEqual(item.requestedFrame, 3)
         XCTAssertEqual(item.failedFrame, 2)
         items.stepFrame(item, by: -1)
         XCTAssertEqual(item.requestedFrame, 1, "and back past it the same way")
-        for _ in 0..<2000 where item.frame != 1 { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertEqual(item.frame, 1)
+        try await waitUntil("frame 1 to land", seconds: 10) { item.frame == 1 }
         XCTAssertEqual(attempts.value, 2)
         XCTAssertNil(item.failedFrame)
 
@@ -302,8 +296,7 @@ nonisolated final class ImageStackTests: XCTestCase {
         XCTAssertNotNil(item.stack, "opened as a stack: \(item.readFailure ?? "no failure")")
 
         items.slideFrame(item, to: 1)
-        for _ in 0..<2000 where item.frame != 1 { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertEqual(item.frame, 1)
+        try await waitUntil("frame 1 to land", seconds: 10) { item.frame == 1 }
 
         items.slideFrame(item, to: 2)
         try await waitUntil("frame 2's failure", seconds: 10) { item.frameFailure != nil }
@@ -312,8 +305,7 @@ nonisolated final class ImageStackTests: XCTestCase {
 
         items.slideFrame(item, to: 2)
         XCTAssertEqual(item.requestedFrame, 3, "the same one-frame move goes on past the frame that failed")
-        for _ in 0..<2000 where item.frame != 3 { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertEqual(item.frame, 3)
+        try await waitUntil("frame 3 to land", seconds: 10) { item.frame == 3 }
         XCTAssertEqual(attempts.value, 1, "the frame that cannot be read was asked for once, not again")
 
         items.slideFrame(item, to: 4)

@@ -72,10 +72,7 @@ nonisolated final class SessionUITests: XCTestCase {
         func script(outcomes: [SidecarOutcome], shifts: [Int] = []) { self.outcomes = outcomes; self.shifts = shifts }
         func hold() { holdFirst = true }
         func release() { gate?.resume(); gate = nil }
-        func untilHeld() async -> Bool {
-            for _ in 0..<400 { if gate != nil { return true }; try? await Task.sleep(for: .milliseconds(5)) }
-            return false
-        }
+        var isHeld: Bool { gate != nil }
 
         func read(_ request: ReadRequest) async throws -> OpenedImage {
             reads += 1
@@ -220,8 +217,7 @@ nonisolated final class SessionUITests: XCTestCase {
         await reader.hold()
         let items = makeItems(reader)
         items.open(urls: [source])
-        let held = await reader.untilHeld()
-        XCTAssertTrue(held)
+        try await waitUntil("the first read to be held", seconds: 2) { await reader.isHeld }
         let item = try XCTUnwrap(items.items.first)
         items.close(item.id)
         await reader.release()

@@ -6,7 +6,7 @@
 //  never overlap, a committed region clears the spots — and the rest of the owner's rules (what a read, a release, a
 //  filter's parameters and the mask's inputs do). The PRODUCTS, with `FFTCompute.live` on a small planted image: each
 //  product equals its core called directly on the same crop, so the room adds no arithmetic to a core's number (P1).
-//  Package-level: imports only TEMCore and TEMSession, so the file runs under `swift test` and in the app's test bundle.
+//  Package-level: it imports only TEMCore and TEMSession, and waits with TestWait.swift's `waitUntil`.
 //  Every test names, in its comment, the change to the production code that turns it red.
 //
 
@@ -175,17 +175,6 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         return rig
     }
 
-    /// Waits for `condition` for about eight seconds (the machine may be building other things); a state that never comes
-    /// ends the test instead of hanging it.
-    @MainActor private func until(_ what: String, _ condition: @MainActor () async -> Bool) async throws {
-        for _ in 0..<1600 {
-            if await condition() { return }
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        XCTFail("timed out waiting for: \(what)")
-        throw TimedOut()
-    }
-
     /// Lets the owner act on everything it has been told, for the checks that something did NOT happen.
     private func settle() async throws {
         try await Task.sleep(for: .milliseconds(80))
@@ -196,9 +185,9 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         let rig = makeRig()
         rig.owner.setRegion(region, committed: true)
         rig.owner.show(Self.plant(), contentVersion: version)
-        try await until("the spectrum is asked for") { await rig.spectra.asked.count == 1 }
+        try await waitUntil("the spectrum is asked for", seconds: 8) { await rig.spectra.asked.count == 1 }
         await rig.finishSpectrum(0)
-        try await until("the spectrum lands") { rig.owner.isSpectrumCurrent }
+        try await waitUntil("the spectrum lands", seconds: 8) { rig.owner.isSpectrumCurrent }
         return rig
     }
 
@@ -206,9 +195,9 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor private func measure(_ rig: Rig, row: Int, col: Int, _ outcome: FFTSpot.Outcome) async throws {
         let n = await rig.spotJobs.asked.count
         rig.owner.measureSpot(row: row, col: col)
-        try await until("the spot job starts") { await rig.spotJobs.asked.count == n + 1 }
+        try await waitUntil("the spot job starts", seconds: 8) { await rig.spotJobs.asked.count == n + 1 }
         await rig.spotJobs.finish(n, .success(outcome))
-        try await until("the spot lands") {
+        try await waitUntil("the spot lands", seconds: 8) {
             if case .measuring? = rig.owner.spots.last?.outcome { return false }
             return true
         }
@@ -221,13 +210,13 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         let spot = try Self.measured(row: 37, col: 40)
         try await measure(rig, row: 37, col: 40, .measured(spot))
         rig.owner.runFilter()
-        try await until("the filter starts") { await rig.filters.asked.count == 1 }
+        try await waitUntil("the filter starts", seconds: 8) { await rig.filters.asked.count == 1 }
         await rig.finishFilter(0)
-        try await until("the filter lands") { rig.owner.filtered != nil }
+        try await waitUntil("the filter lands", seconds: 8) { rig.owner.filtered != nil }
         rig.owner.setSourceView(.maskedInverse)
-        try await until("the inverse starts") { await rig.masks.asked.count == 1 }
+        try await waitUntil("the inverse starts", seconds: 8) { await rig.masks.asked.count == 1 }
         await rig.finishMask(0)
-        try await until("the inverse lands") { rig.owner.maskedInverse != nil }
+        try await waitUntil("the inverse lands", seconds: 8) { rig.owner.maskedInverse != nil }
         return (rig, spot)
     }
 
@@ -239,14 +228,14 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testASupersededSpectrumIsNeverPublished() async throws {
         let rig = makeRig()
         rig.owner.show(Self.plant(), contentVersion: 1)
-        try await until("job 0 starts") { await rig.spectra.asked.count == 1 }
+        try await waitUntil("job 0 starts", seconds: 8) { await rig.spectra.asked.count == 1 }
         rig.owner.setRegion(Self.regionA, committed: true)
         await rig.finishSpectrum(0)
-        try await until("job 1 starts") { await rig.spectra.asked.count == 2 }
+        try await waitUntil("job 1 starts", seconds: 8) { await rig.spectra.asked.count == 2 }
         XCTAssertNil(rig.owner.spectrum, "job 0 answered for the whole image, no longer the key wanted: dropped")
         XCTAssertFalse(rig.owner.isSpectrumCurrent)
         await rig.finishSpectrum(1)
-        try await until("job 1 lands") { rig.owner.isSpectrumCurrent }
+        try await waitUntil("job 1 lands", seconds: 8) { rig.owner.isSpectrumCurrent }
         XCTAssertEqual(rig.owner.spectrum?.key, FFTSpectrumKey(contentVersion: 1, crop: Self.regionA))
     }
 
@@ -256,14 +245,14 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testTheNewestKeyIsComputedLastAndTheSamplesBetweenAreNever() async throws {
         let rig = makeRig()
         rig.owner.show(Self.plant(), contentVersion: 1)
-        try await until("job 0 starts") { await rig.spectra.asked.count == 1 }
+        try await waitUntil("job 0 starts", seconds: 8) { await rig.spectra.asked.count == 1 }
         for crop in [Self.regionA, Self.regionB, Self.regionC] { rig.owner.setRegion(crop, committed: false) }
         await rig.finishSpectrum(0)
-        try await until("the newest sample is computed") { await rig.spectra.asked.count == 2 }
+        try await waitUntil("the newest sample is computed", seconds: 8) { await rig.spectra.asked.count == 2 }
         let asked = await rig.spectra.asked
         XCTAssertEqual(asked.map(\.crop), [nil, Self.regionC], "the whole image, then only the newest sample")
         await rig.finishSpectrum(1)
-        try await until("the newest sample lands") { rig.owner.isSpectrumCurrent }
+        try await waitUntil("the newest sample lands", seconds: 8) { rig.owner.isSpectrumCurrent }
         XCTAssertEqual(rig.owner.spectrum?.key.crop, Self.regionC)
         try await settle()
         let count = await rig.spectra.asked.count
@@ -275,7 +264,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testTwoJobsOfALaneNeverOverlap() async throws {
         let rig = makeRig()
         rig.owner.show(Self.plant(), contentVersion: 1)
-        try await until("job 0 starts") { await rig.spectra.asked.count == 1 }
+        try await waitUntil("job 0 starts", seconds: 8) { await rig.spectra.asked.count == 1 }
         rig.owner.setRegion(Self.regionA, committed: false)
         rig.owner.setRegion(Self.regionB, committed: false)
         try await settle()
@@ -284,7 +273,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertEqual(asked, 1, "the samples wait behind the running job")
         XCTAssertEqual(most, 1)
         await rig.finishSpectrum(0)
-        try await until("the waiting sample starts") { await rig.spectra.asked.count == 2 }
+        try await waitUntil("the waiting sample starts", seconds: 8) { await rig.spectra.asked.count == 2 }
         rig.owner.setRegion(Self.regionC, committed: false)
         try await settle()
         asked = await rig.spectra.asked.count
@@ -292,7 +281,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertEqual(asked, 2)
         XCTAssertEqual(most, 1)
         await rig.finishSpectrum(1)
-        try await until("the last sample starts") { await rig.spectra.asked.count == 3 }
+        try await waitUntil("the last sample starts", seconds: 8) { await rig.spectra.asked.count == 3 }
         let last = await rig.spectra.asked.last
         XCTAssertEqual(last?.crop, Self.regionC)
     }
@@ -302,17 +291,19 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testSpotsAreMeasuredInOrderOneAtATime() async throws {
         let rig = try await landed()
         for (row, col) in [(37, 40), (29, 44), (31, 33)] { rig.owner.measureSpot(row: row, col: col) }
-        try await until("the first spot starts") { await rig.spotJobs.asked.count == 1 }
+        try await waitUntil("the first spot starts", seconds: 8) { await rig.spotJobs.asked.count == 1 }
         try await settle()
         var asked = await rig.spotJobs.asked
         XCTAssertEqual(asked.count, 1, "the other clicks wait their turn")
         XCTAssertEqual(rig.owner.spots.map(\.number), [1, 2, 3])
         await rig.spotJobs.finish(0, .success(.measured(try Self.measured(row: 37, col: 40))))
-        try await until("the second spot starts") { await rig.spotJobs.asked.count == 2 }
+        try await waitUntil("the second spot starts", seconds: 8) { await rig.spotJobs.asked.count == 2 }
         await rig.spotJobs.finish(1, .success(.measured(try Self.measured(row: 29, col: 44))))
-        try await until("the third spot starts") { await rig.spotJobs.asked.count == 3 }
+        try await waitUntil("the third spot starts", seconds: 8) { await rig.spotJobs.asked.count == 3 }
         await rig.spotJobs.finish(2, .success(.refused(.nearDC)))
-        try await until("the third spot lands") { rig.owner.spots.allSatisfy { if case .measuring = $0.outcome { false } else { true } } }
+        try await waitUntil("the third spot lands", seconds: 8) {
+            rig.owner.spots.allSatisfy { if case .measuring = $0.outcome { false } else { true } }
+        }
         asked = await rig.spotJobs.asked
         XCTAssertEqual(asked.map { [$0.row, $0.col] }, [[37, 40], [29, 44], [31, 33]], "in the order clicked")
         let most = await rig.spotJobs.mostAtOnce
@@ -328,11 +319,12 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testASpotAnsweredForASpectrumNoLongerWantedIsDropped() async throws {
         let rig = try await landed()
         rig.owner.measureSpot(row: 37, col: 40)
-        try await until("the spot starts") { await rig.spotJobs.asked.count == 1 }
+        try await waitUntil("the spot starts", seconds: 8) { await rig.spotJobs.asked.count == 1 }
         rig.owner.setRegion(Self.regionB, committed: false)
         await rig.spotJobs.finish(0, .success(.measured(try Self.measured(row: 37, col: 40))))
-        try await settle()
-        XCTAssertTrue(rig.owner.spots.isEmpty, "the answer was for region A's spectrum; region B is asked for now: \(rig.owner.spots)")
+        try await waitUntil("the spot to go: its answer was for region A's spectrum, and region B is asked for now", seconds: 8) {
+            rig.owner.spots.isEmpty
+        }
     }
 
     /// A click still waiting for its turn when the region moves on is never measured: its spectrum is not the one asked
@@ -341,13 +333,13 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         let rig = try await landed()
         rig.owner.measureSpot(row: 37, col: 40)
         rig.owner.measureSpot(row: 29, col: 44)
-        try await until("the first spot starts") { await rig.spotJobs.asked.count == 1 }
+        try await waitUntil("the first spot starts", seconds: 8) { await rig.spotJobs.asked.count == 1 }
         rig.owner.setRegion(Self.regionB, committed: false)
         await rig.spotJobs.finish(0, .success(.measured(try Self.measured(row: 37, col: 40))))
         try await settle()
         let asked = await rig.spotJobs.asked.count
         XCTAssertEqual(asked, 1, "the second click was on region A's spectrum, no longer the one asked for")
-        XCTAssertTrue(rig.owner.spots.isEmpty)
+        try await waitUntil("both spots, on region A's spectrum, to go", seconds: 8) { rig.owner.spots.isEmpty }
     }
 
     /// A spot is measured only on the spectrum shown and asked for: before it lands, and while the region is being
@@ -358,9 +350,9 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         rig.owner.show(Self.plant(), contentVersion: 1)
         rig.owner.measureSpot(row: 37, col: 40)
         XCTAssertTrue(rig.owner.spots.isEmpty, "no spectrum yet")
-        try await until("the spectrum is asked for") { await rig.spectra.asked.count == 1 }
+        try await waitUntil("the spectrum is asked for", seconds: 8) { await rig.spectra.asked.count == 1 }
         await rig.finishSpectrum(0)
-        try await until("the spectrum lands") { rig.owner.isSpectrumCurrent }
+        try await waitUntil("the spectrum lands", seconds: 8) { rig.owner.isSpectrumCurrent }
         rig.owner.measureSpot(row: 37, col: 40)
         XCTAssertEqual(rig.owner.spots.count, 1)
         rig.owner.setRegion(Self.regionB, committed: false)
@@ -470,7 +462,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testAFilterAnsweredForARegionNoLongerTransformedIsNotPublished() async throws {
         let rig = try await landed()
         rig.owner.runFilter()
-        try await until("the filter starts") { await rig.filters.asked.count == 1 }
+        try await waitUntil("the filter starts", seconds: 8) { await rig.filters.asked.count == 1 }
         rig.owner.setRegion(Self.regionB, committed: false)         // a drag's sample: region B is now the one transformed
         XCTAssertFalse(rig.owner.isFiltering, "the run asked for is no longer wanted")
         await rig.finishFilter(0)
@@ -487,7 +479,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testAFilterWaitingBehindARunIsNotStartedForAnOldRegion() async throws {
         let rig = try await landed()
         rig.owner.runFilter()
-        try await until("the first run starts") { await rig.filters.asked.count == 1 }
+        try await waitUntil("the first run starts", seconds: 8) { await rig.filters.asked.count == 1 }
         var changed = HRTEMFilter.Parameters.defaults
         changed.delta = 8
         rig.owner.setFilterParameters(changed)                      // the first run is no longer wanted
@@ -508,10 +500,10 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testAFilterResultGoesWithAnyRegionChangeAndStaysGone() async throws {
         let rig = try await landed()
         rig.owner.runFilter()
-        try await until("the filter starts") { await rig.filters.asked.count == 1 }
+        try await waitUntil("the filter starts", seconds: 8) { await rig.filters.asked.count == 1 }
         rig.owner.setRegion(Self.regionA, committed: false)         // the same crop: nothing changed
         await rig.finishFilter(0)
-        try await until("the filter lands") { rig.owner.filtered != nil }
+        try await waitUntil("the filter lands", seconds: 8) { rig.owner.filtered != nil }
         XCTAssertEqual(rig.owner.sourceView, .absf)
         rig.owner.setRegion(Self.regionA, committed: false)
         XCTAssertNotNil(rig.owner.filtered, "a sample at the same crop changes nothing")
@@ -538,7 +530,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertEqual(rig.owner.sourceView, .original)
         XCTAssertEqual(rig.owner.region, Self.regionA, "the region still fits")
         XCTAssertEqual(rig.owner.wantedSpectrumKey, FFTSpectrumKey(contentVersion: 2, crop: Self.regionA))
-        try await until("the spectrum is asked for again") { await rig.spectra.asked.count == 2 }
+        try await waitUntil("the spectrum is asked for again", seconds: 8) { await rig.spectra.asked.count == 2 }
         let key = await rig.spectra.asked[1]
         XCTAssertEqual(key.contentVersion, 2)
     }
@@ -573,7 +565,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testReleaseDropsTheProductsAndALateAnswer() async throws {
         let (rig, _) = try await everything()
         rig.owner.setMask(radius: 6, edge: 3)
-        try await until("the inverse is asked again") { await rig.masks.asked.count == 2 }
+        try await waitUntil("the inverse is asked again", seconds: 8) { await rig.masks.asked.count == 2 }
         rig.owner.release()
         XCTAssertNil(rig.owner.spectrum)
         XCTAssertNil(rig.owner.maskedInverse)
@@ -595,18 +587,18 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testAnAnswerFromBeforeAReleaseIsDroppedWhenTheRoomIsShownAgain() async throws {
         let rig = try await landed()
         rig.owner.measureSpot(row: 37, col: 40)
-        try await until("the spot starts") { await rig.spotJobs.asked.count == 1 }
+        try await waitUntil("the spot starts", seconds: 8) { await rig.spotJobs.asked.count == 1 }
         rig.owner.release()
         rig.owner.show(Self.plant(), contentVersion: 1)
-        try await until("the spectrum is asked for again") { await rig.spectra.asked.count == 2 }
+        try await waitUntil("the spectrum is asked for again", seconds: 8) { await rig.spectra.asked.count == 2 }
         await rig.spotJobs.finish(0, .success(.measured(try Self.measured(row: 37, col: 40))))
-        try await until("the spot is asked for again") { await rig.spotJobs.asked.count == 2 }
+        try await waitUntil("the spot is asked for again", seconds: 8) { await rig.spotJobs.asked.count == 2 }
         XCTAssertEqual(rig.owner.spots.count, 1)
         guard case .measuring = rig.owner.spots[0].outcome else { return XCTFail("the lost answer was not taken") }
         await rig.finishSpectrum(1)
-        try await until("the spectrum lands") { rig.owner.isSpectrumCurrent }
+        try await waitUntil("the spectrum lands", seconds: 8) { rig.owner.isSpectrumCurrent }
         await rig.spotJobs.finish(1, .success(.measured(try Self.measured(row: 37, col: 40))))
-        try await until("the spot lands") { rig.owner.spots.first?.measured != nil }
+        try await waitUntil("the spot lands", seconds: 8) { rig.owner.spots.first?.measured != nil }
     }
 
     /// A spectrum that was running at `release` and is wanted again when the room returns is computed again, not taken
@@ -614,14 +606,14 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testASpectrumRunningAtReleaseIsNotTakenWhenTheRoomReturns() async throws {
         let rig = makeRig()
         rig.owner.show(Self.plant(), contentVersion: 1)
-        try await until("job 0 starts") { await rig.spectra.asked.count == 1 }
+        try await waitUntil("job 0 starts", seconds: 8) { await rig.spectra.asked.count == 1 }
         rig.owner.release()
         rig.owner.show(Self.plant(), contentVersion: 1)
         await rig.finishSpectrum(0)
-        try await until("job 1 starts") { await rig.spectra.asked.count == 2 }
+        try await waitUntil("job 1 starts", seconds: 8) { await rig.spectra.asked.count == 2 }
         XCTAssertNil(rig.owner.spectrum, "job 0 began before the release")
         await rig.finishSpectrum(1)
-        try await until("job 1 lands") { rig.owner.isSpectrumCurrent }
+        try await waitUntil("job 1 lands", seconds: 8) { rig.owner.isSpectrumCurrent }
     }
 
     // MARK: - The masked inverse
@@ -642,22 +634,22 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertNil(rig.owner.maskedInverse)
 
         rig.owner.setSourceView(.maskedInverse)
-        try await until("the inverse starts") { await rig.masks.asked.count == 1 }
+        try await waitUntil("the inverse starts", seconds: 8) { await rig.masks.asked.count == 1 }
         let key = await rig.masks.asked[0]
         let spectrumKey = FFTSpectrumKey(contentVersion: 1, crop: Self.regionA)
         XCTAssertEqual(key, FFTMaskKey(spectrum: spectrumKey, spots: [
             first.maskSpot(radius: FFTMask.defaultRadius, edge: FFTMask.defaultEdge)]),
                        "one spot: the refused one has no centroid, the third is out of the mask")
         await rig.finishMask(0)
-        try await until("the inverse lands") { rig.owner.maskedInverse != nil }
+        try await waitUntil("the inverse lands", seconds: 8) { rig.owner.maskedInverse != nil }
         XCTAssertTrue(rig.owner.isMaskedInverseCurrent)
 
         rig.owner.setInMask(rig.owner.spots[2].id, true)
-        try await until("the inverse follows In Mask") { await rig.masks.asked.count == 2 }
+        try await waitUntil("the inverse follows In Mask", seconds: 8) { await rig.masks.asked.count == 2 }
         let both = await rig.masks.asked[1]
         XCTAssertEqual(both.spots.count, 2)
         await rig.finishMask(1)
-        try await until("the second inverse lands") { rig.owner.maskedInverse?.key == both }
+        try await waitUntil("the second inverse lands", seconds: 8) { rig.owner.maskedInverse?.key == both }
 
         rig.owner.setSourceView(.original)
         XCTAssertNil(rig.owner.maskedInverse, "held only while shown")
@@ -675,9 +667,11 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         var asked = await rig.masks.asked.count
         XCTAssertEqual(asked, 0, "a spot not yet measured is not in the mask")
         XCTAssertNil(rig.owner.maskedInverse)
-        try await until("the spot starts") { await rig.spotJobs.asked.count == 1 }
+        try await waitUntil("the spot starts", seconds: 8) { await rig.spotJobs.asked.count == 1 }
         await rig.spotJobs.finish(0, .success(.refused(.nearEdge)))
-        try await until("the refusal lands") { rig.owner.spots.first.map { if case .measuring = $0.outcome { false } else { true } } ?? false }
+        try await waitUntil("the refusal lands", seconds: 8) {
+            rig.owner.spots.first.map { if case .measuring = $0.outcome { false } else { true } } ?? false
+        }
         try await settle()
         asked = await rig.masks.asked.count
         XCTAssertEqual(asked, 0, "a refused spot is not in the mask")
@@ -694,9 +688,9 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         let owner = FFTAnalysis()
         owner.setRegion(Self.flatRegion, committed: true)
         owner.show(Self.halfFlat(), contentVersion: 1)
-        try await until("the spectrum of the constant region lands") { owner.isSpectrumCurrent }
+        try await waitUntil("the spectrum of the constant region lands", seconds: 8) { owner.isSpectrumCurrent }
         owner.measureSpot(row: 37, col: 40)
-        try await until("the spot is answered") {
+        try await waitUntil("the spot is answered", seconds: 8) {
             guard let spot = owner.spots.first else { return false }
             if case .measuring = spot.outcome { return false }
             return true
@@ -713,12 +707,12 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
 
         // The same image, on its lattice: a spot measures, and its inverse lands.
         owner.setRegion(Self.regionA, committed: true)
-        try await until("the lattice region's spectrum lands") { owner.isSpectrumCurrent && owner.spectrum?.key.crop == Self.regionA }
+        try await waitUntil("the lattice region's spectrum lands", seconds: 8) { owner.isSpectrumCurrent && owner.spectrum?.key.crop == Self.regionA }
         owner.measureSpot(row: 37, col: 40)
-        try await until("the lattice spot is measured") { owner.spots.first?.measured != nil }
+        try await waitUntil("the lattice spot is measured", seconds: 8) { owner.spots.first?.measured != nil }
         XCTAssertTrue(owner.hasMaskSpot)
         owner.setSourceView(.maskedInverse)
-        try await until("the masked inverse lands") { owner.isMaskedInverseCurrent }
+        try await waitUntil("the masked inverse lands", seconds: 8) { owner.isMaskedInverseCurrent }
     }
 
     /// Defence in depth: a spot that IS measured with a centre that is not a number (an answer injected, as the core can give
@@ -742,7 +736,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         // A finite spot beside it is the whole key.
         let good = try Self.measured(row: 29, col: 44)
         try await measure(rig, row: 29, col: 44, .measured(good))
-        try await until("the inverse of the finite spot starts") { await rig.masks.asked.count == 1 }
+        try await waitUntil("the inverse of the finite spot starts", seconds: 8) { await rig.masks.asked.count == 1 }
         let key = await rig.masks.asked[0]
         XCTAssertEqual(key.spots, [good.maskSpot(radius: FFTMask.defaultRadius, edge: FFTMask.defaultEdge)])
     }
@@ -781,7 +775,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         rig.owner.setMask(radius: 100, edge: -4)
         XCTAssertEqual(rig.owner.maskRadius, 32)
         XCTAssertEqual(rig.owner.maskEdge, 0)
-        try await until("the inverse is asked for the first mask") { await rig.masks.asked.count == 2 }
+        try await waitUntil("the inverse is asked for the first mask", seconds: 8) { await rig.masks.asked.count == 2 }
         rig.owner.setMask(radius: 0.2, edge: 99)
         XCTAssertEqual(rig.owner.maskRadius, 1)
         XCTAssertEqual(rig.owner.maskEdge, 16)
@@ -789,7 +783,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertEqual(rig.owner.maskRadius, 1, "a value that is not a number leaves the radius")
         XCTAssertEqual(rig.owner.maskEdge, 5)
         await rig.finishMask(1)
-        try await until("the newest mask is asked for") { await rig.masks.asked.count == 3 }
+        try await waitUntil("the newest mask is asked for", seconds: 8) { await rig.masks.asked.count == 3 }
         let asked = await rig.masks.asked
         XCTAssertEqual(asked[1].spots.map(\.radius), [32])
         XCTAssertEqual(asked[2].spots.map(\.radius), [1])
@@ -797,7 +791,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertEqual(rig.owner.maskedInverse?.key.spots.first?.radius, FFTMask.defaultRadius,
                        "the answer for radius 32 was for a mask no longer wanted: dropped, the one shown stays")
         await rig.finishMask(2)
-        try await until("the newest inverse lands") { rig.owner.isMaskedInverseCurrent }
+        try await waitUntil("the newest inverse lands", seconds: 8) { rig.owner.isMaskedInverseCurrent }
         XCTAssertEqual(rig.owner.maskedInverse?.key, asked[2])
     }
 
@@ -810,12 +804,12 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertFalse(rig.owner.isFiltering)
         rig.owner.runFilter()
         XCTAssertTrue(rig.owner.isFiltering)
-        try await until("the filter starts") { await rig.filters.asked.count == 1 }
+        try await waitUntil("the filter starts", seconds: 8) { await rig.filters.asked.count == 1 }
         let key = await rig.filters.asked[0]
         XCTAssertEqual(key, FFTFilterKey(spectrum: FFTSpectrumKey(contentVersion: 1, crop: Self.regionA), parameters: .defaults))
         XCTAssertEqual(rig.owner.sourceView, .original, "the pane changes when the result lands, not before")
         await rig.finishFilter(0)
-        try await until("the filter lands") { rig.owner.filtered != nil }
+        try await waitUntil("the filter lands", seconds: 8) { rig.owner.filtered != nil }
         XCTAssertFalse(rig.owner.isFiltering)
         XCTAssertEqual(rig.owner.sourceView, .absf)
         XCTAssertNil(rig.owner.filterFailure)
@@ -830,7 +824,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
     @MainActor func testNewFilterParametersRemoveTheResult() async throws {
         let rig = try await landed()
         rig.owner.runFilter()
-        try await until("the filter starts") { await rig.filters.asked.count == 1 }
+        try await waitUntil("the filter starts", seconds: 8) { await rig.filters.asked.count == 1 }
         var changed = HRTEMFilter.Parameters.defaults
         changed.delta = 8
         rig.owner.setFilterParameters(changed)
@@ -841,9 +835,9 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertEqual(rig.owner.sourceView, .original)
 
         rig.owner.runFilter()
-        try await until("the second run starts") { await rig.filters.asked.count == 2 }
+        try await waitUntil("the second run starts", seconds: 8) { await rig.filters.asked.count == 2 }
         await rig.finishFilter(1)
-        try await until("the second run lands") { rig.owner.filtered != nil }
+        try await waitUntil("the second run lands", seconds: 8) { rig.owner.filtered != nil }
         XCTAssertEqual(rig.owner.sourceView, .absf)
         var again = changed
         again.step = 3
@@ -892,7 +886,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         rig.owner.setRegion(centred, committed: true)
         XCTAssertNil(rig.owner.filterFailure, "the refusal was for the whole image")
         rig.owner.runFilter()
-        try await until("the filter starts") { await rig.filters.asked.count == 1 }
+        try await waitUntil("the filter starts", seconds: 8) { await rig.filters.asked.count == 1 }
         let key = await rig.filters.asked[0]
         XCTAssertEqual(key.spectrum.crop, centred)
     }
@@ -909,7 +903,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         rig.owner.setFilterParameters(.defaults)
         XCTAssertNil(rig.owner.filterFailure, "the refusal was of delta 60")
         rig.owner.runFilter()
-        try await until("the filter starts") { await rig.filters.asked.count == 1 }
+        try await waitUntil("the filter starts", seconds: 8) { await rig.filters.asked.count == 1 }
         let key = await rig.filters.asked[0]
         XCTAssertEqual(key.parameters, .defaults)
     }
@@ -922,9 +916,9 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         let rig = makeRig()
         rig.owner.setRegion(Self.regionA, committed: true)
         rig.owner.show(Self.plant(), contentVersion: 1)
-        try await until("the spectrum is asked for") { await rig.spectra.asked.count == 1 }
+        try await waitUntil("the spectrum is asked for", seconds: 8) { await rig.spectra.asked.count == 1 }
         await rig.spectra.finish(0, .failure(PowerSpectrumError.crop(Self.regionA)))
-        try await until("the failure lands") { rig.owner.spectrumFailure != nil }
+        try await waitUntil("the failure lands", seconds: 8) { rig.owner.spectrumFailure != nil }
         XCTAssertNil(rig.owner.spectrum)
         let words = try XCTUnwrap(rig.owner.spectrumFailure)
         XCTAssertTrue(words.contains("64 × 64"), words)
@@ -933,9 +927,9 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
 
         let withFilter = try await landed()
         withFilter.owner.runFilter()
-        try await until("the filter starts") { await withFilter.filters.asked.count == 1 }
+        try await waitUntil("the filter starts", seconds: 8) { await withFilter.filters.asked.count == 1 }
         await withFilter.filters.finish(0, .failure(HRTEMFilterError.nonFinitePixel))
-        try await until("the filter's failure lands") { withFilter.owner.filterFailure != nil }
+        try await waitUntil("the filter's failure lands", seconds: 8) { withFilter.owner.filterFailure != nil }
         XCTAssertEqual(withFilter.owner.filterFailure, HRTEMFilterError.nonFinitePixel.errorDescription)
         XCTAssertNil(withFilter.owner.filtered)
         XCTAssertFalse(withFilter.owner.isFiltering)
@@ -947,9 +941,9 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         let rig = try await landed()
         try await measure(rig, row: 37, col: 40, .measured(try Self.measured(row: 37, col: 40)))
         rig.owner.setSourceView(.maskedInverse)
-        try await until("the inverse starts") { await rig.masks.asked.count == 1 }
+        try await waitUntil("the inverse starts", seconds: 8) { await rig.masks.asked.count == 1 }
         await rig.masks.finish(0, .failure(MaskedInverseFFTError.fftSetup(width: 64, height: 64)))
-        try await until("the failure lands") { rig.owner.maskFailure != nil }
+        try await waitUntil("the failure lands", seconds: 8) { rig.owner.maskFailure != nil }
         XCTAssertNil(rig.owner.maskedInverse)
         let words = try XCTUnwrap(rig.owner.maskFailure)
         XCTAssertTrue(words.contains("64 × 64"), words)
@@ -1163,29 +1157,29 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         let owner = FFTAnalysis()
         owner.setRegion(Self.regionA, committed: true)
         owner.show(Self.plant(), contentVersion: 7)
-        try await until("the spectrum lands") { owner.isSpectrumCurrent }
+        try await waitUntil("the spectrum lands", seconds: 8) { owner.isSpectrumCurrent }
         XCTAssertEqual(owner.spectrum?.key, FFTSpectrumKey(contentVersion: 7, crop: Self.regionA))
         XCTAssertNotNil(owner.spectrum?.profile)
         XCTAssertNil(owner.spectrumFailure)
 
         owner.measureSpot(row: 37, col: 40)
-        try await until("the spot is measured") { owner.spots.first?.measured != nil }
+        try await waitUntil("the spot is measured", seconds: 8) { owner.spots.first?.measured != nil }
         let q = ((8 / (64 * 0.05)) * (8 / (64 * 0.05)) + (5 / (64 * 0.04)) * (5 / (64 * 0.04))).squareRoot()
         let d = try XCTUnwrap(owner.spots.first?.measured?.d)
         XCTAssertEqual(d, 1 / q, accuracy: 0.002 / q, "the planted lattice's d")
 
         owner.setSourceView(.maskedInverse)
-        try await until("the masked inverse lands") { owner.isMaskedInverseCurrent }
+        try await waitUntil("the masked inverse lands", seconds: 8) { owner.isMaskedInverseCurrent }
         XCTAssertEqual(owner.maskedInverse?.canvas.width, 64)
 
         owner.runFilter()
-        try await until("the filter lands") { owner.filtered != nil }
+        try await waitUntil("the filter lands", seconds: 8) { owner.filtered != nil }
         XCTAssertEqual(owner.sourceView, .absf)
         XCTAssertEqual(owner.filtered?.n, 64)
         XCTAssertNil(owner.filterFailure)
 
         owner.setRegion(Self.regionC, committed: true)
-        try await until("the new region's spectrum lands") { owner.isSpectrumCurrent }
+        try await waitUntil("the new region's spectrum lands", seconds: 8) { owner.isSpectrumCurrent }
         XCTAssertTrue(owner.spots.isEmpty)
         XCTAssertNil(owner.filtered)
         XCTAssertEqual(owner.spectrum?.key.crop, Self.regionC)
