@@ -7,7 +7,8 @@
 //  `reflect` in polar), folded into a point group's fundamental sector when one is given (counted at half the resolution,
 //  the bin centres moved into the sector and summed onto the full-resolution grid, the bins outside the sector masked), and
 //  given in multiples of a random distribution (the mean unmasked bin is 1). A sigma not above 1e-15 bins smooths nothing, as
-//  scipy skips such an axis; the kernel is capped (`maximumKernelRadius`), where scipy raises only on an infinite sigma.
+//  scipy skips such an axis; the kernel is capped (`maximumKernelRadius`), where scipy raises on +∞ and on a sigma whose
+//  kernel it cannot allocate (docs/parity.md).
 //
 //  A vector within about 1e-12 rad of a bin edge goes to either neighbour depending on the last bit of atan2 and arccos,
 //  which differ between libms; the parity bundles count those vectors and the tests allow each one bin (D-SEM-68).
@@ -215,7 +216,7 @@ package nonisolated enum PoleDensityFunction {
 
     /// Whether `density` smooths at `sigma` degrees on the working grid of `resolution` (half of it with a symmetry) within
     /// `maximumKernelRadius`: true for a sigma that smooths nothing (scipy's rule, `smallestSigma`) and for one whose kernel fits;
-    /// false for an infinite sigma and for one past the cap.
+    /// false for a sigma of +∞ and for one past the cap (−∞ smooths nothing).
     package static func smoothingFits(sigma: Double, resolution: Double = 1, symmetry: PointGroup? = nil) -> Bool {
         let bins = sigma / (symmetry == nil ? resolution : resolution / 2)
         return !(bins > smallestSigma) || kernelRadius(sigma: bins) != nil
