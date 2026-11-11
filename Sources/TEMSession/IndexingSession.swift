@@ -606,6 +606,21 @@ package final class IndexingSession {
         return .success(IndexingSource(stored: document.access, pipeline: pipeline, background: patterns.staticBackground))
     }
 
+    /// The patterns `run` read, to read them again once the ended run has let them go (#427; Refine on a Dictionary run, D-SEM-109):
+    /// the same kind through the same stages as `source()` gave the run, while the Patterns room's processing is still the run's. nil
+    /// when they cannot be read so now: the processed scan the run read was replaced by one processed with other stages.
+    func patternsRead(by run: IndexingRun) -> IndexingSource? {
+        guard let document = patterns.document, run.inputs.pipeline == patterns.pipeline else { return nil }
+        switch run.source {
+        case .processedScan:
+            guard let processed = patterns.processed, patterns.processedWith == patterns.pipeline else { return nil }
+            return IndexingSource(processed: processed)
+        case .perPattern, .asStored:
+            let source = IndexingSource(stored: document.access, pipeline: patterns.pipeline, background: patterns.staticBackground)
+            return source.kind == run.source ? source : nil
+        }
+    }
+
     /// Why Index cannot run now with the method picked; nil when it can.
     package var refusal: String? {
         guard let document = patterns.document else { return "No EBSD dataset is open." }
@@ -821,6 +836,7 @@ package final class IndexingSession {
                 }
             }
         }
+        releasePatterns(ofRefinement: refining, method: stopped)
         if shownRun?.id != before {
             shownResultChanged()
         } else {
@@ -829,9 +845,21 @@ package final class IndexingSession {
         }
     }
 
+    /// The run that ended lets go of the patterns it read (#427): the refinement, or the run of `method`.
+    private func releasePatterns(ofRefinement refined: Bool, method: IndexingMethod?) {
+        if refined {
+            refinedRun?.releasePatterns()
+        } else if let method {
+            runs[method]?.releasePatterns()
+        }
+    }
+
+    /// The run's plan lands. One built while Stop was pressed lands after it (the task asks for cancellation only between rows): the
+    /// run has ended, so the plan lands without its patterns (#427).
     private func landPlan(_ plan: IndexingPlan, probe built: IndexingProbe, key: ProbeKey, run: Int) {
         guard run == runGeneration else { return }
         runs[.hough]?.houghPlan = plan
+        if !isIndexing { runs[.hough]?.releasePatterns() }
         probe = (key: key, probe: built)
     }
 
@@ -847,6 +875,8 @@ package final class IndexingSession {
                                      run: Int) {
         guard run == runGeneration else { return }
         runs[.dictionary]?.dictionaryPlans = plans
+        // Plans built while Stop was pressed land after it: the run has ended (#427).
+        if !isIndexing { runs[.dictionary]?.releasePatterns() }
         keepSampled(landed)
         chunksTotal = chunks
     }
@@ -875,6 +905,10 @@ package final class IndexingSession {
         isRefining = false
         runningMethod = nil
         chunkPhase = nil
+        // The ended run lets go of the patterns it read (#427), on every way out of here, the failure's included. A Refine stage
+        // started below as the Dictionary stage ends reads them through its own copy of the plan, taken as it starts, and lets go
+        // of them when it ends.
+        defer { releasePatterns(ofRefinement: refined, method: finished) }
         let shownChanged = shownRun?.id != before
         if let failure {
             onEvent?("Error: \(failure)")
