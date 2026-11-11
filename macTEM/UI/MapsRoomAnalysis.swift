@@ -163,7 +163,8 @@ struct MapsTexturePhasePicker: View {
 // MARK: The grain table
 
 /// One row per grain (design §3, Grains tab): number, phase, size, equivalent diameter, mean orientation, GOS, neighbours. Selecting a row
-/// outlines the grain and pins its point nearest its centroid; pinning a point selects its grain.
+/// outlines the grain and pins its point nearest its centroid; pinning a point selects its grain. ⌘C copies the selected rows (⌘A: all) as
+/// TSV in the table's order (`GrainTableFormat`, #353); the symbol headers are said in words (`SEMColumnSpeech`, #320).
 struct MapsGrainsTable: View {
     let session: OrientationMapSession
     @State private var sortOrder = [KeyPathComparator(\GrainRow.id)]
@@ -181,16 +182,17 @@ struct MapsGrainsTable: View {
                         TableColumn("Grain", value: \.id) { Text(verbatim: "\($0.id)").monospacedDigit() }
                         TableColumn("Phase", value: \.phaseName)
                         TableColumn("Points", value: \.points) { Text(verbatim: "\($0.points)").monospacedDigit() }
-                        TableColumn("ECD \(unit)", value: \.diameter) { Text(MapsRoomFormat.number($0.diameter)).monospacedDigit() }
-                        TableColumn("φ₁ °", value: \.phi1) { Text(MapsRoomFormat.angle($0.phi1)).monospacedDigit() }
-                        TableColumn("Φ °", value: \.capitalPhi) { Text(MapsRoomFormat.angle($0.capitalPhi)).monospacedDigit() }
-                        TableColumn("φ₂ °", value: \.phi2) { Text(MapsRoomFormat.angle($0.phi2)).monospacedDigit() }
-                        TableColumn("GOS °", value: \.gosDegrees) { Text(MapsRoomFormat.angle($0.gosDegrees, digits: 2)).monospacedDigit() }
-                        TableColumn("Schmid") { row in
-                            Text(MapsRoomFormat.fraction(session.slip.first { $0.grain == row.id }?.maximumSchmid ?? .nan)).monospacedDigit()
+                        TableColumn(SEMColumnSpeech.header("ECD \(unit)"), value: \.diameter) { Text(MapsRoomFormat.number($0.diameter)).monospacedDigit() }
+                        TableColumn(SEMColumnSpeech.header("φ₁ °"), value: \.phi1) { Text(MapsRoomFormat.angle($0.phi1)).monospacedDigit() }
+                        TableColumn(SEMColumnSpeech.header("Φ °"), value: \.capitalPhi) { Text(MapsRoomFormat.angle($0.capitalPhi)).monospacedDigit() }
+                        TableColumn(SEMColumnSpeech.header("φ₂ °"), value: \.phi2) { Text(MapsRoomFormat.angle($0.phi2)).monospacedDigit() }
+                        TableColumn(SEMColumnSpeech.header("GOS °"), value: \.gosDegrees) {
+                            Text(MapsRoomFormat.angle($0.gosDegrees, digits: 2)).monospacedDigit()
                         }
+                        TableColumn("Schmid") { row in Text(GrainTableFormat.schmid(row, slip: session.slip)).monospacedDigit() }
                         TableColumn("Neighbours", value: \.neighbours) { Text(verbatim: "\($0.neighbours)").monospacedDigit() }
                     }
+                    .onCopyCommand(perform: session.selectedGrains.isEmpty ? nil : { copied(unit: unit) })
                     .accessibilityIdentifier("maps.grains.table")
                 }
                 .padding(10)
@@ -210,6 +212,13 @@ struct MapsGrainsTable: View {
     }
 
     private func refresh() { rows = (session.analysis?.table ?? []).sorted(using: sortOrder) }
+
+    /// ⌘C: the selected grains as TSV, in the table's order (the sort on screen), under the column titles.
+    private func copied(unit: String) -> [NSItemProvider] {
+        let picked = rows.filter { session.selectedGrains.contains($0.id) }
+        guard !picked.isEmpty else { return [] }
+        return [NSItemProvider(object: GrainTableFormat.copyText(picked, unit: unit, slip: session.slip) as NSString)]
+    }
 }
 
 extension GrainRow {

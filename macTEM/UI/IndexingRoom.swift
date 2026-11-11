@@ -43,6 +43,7 @@ struct IndexingRoom: View {
             if session.patterns.isOpening {
                 VStack(spacing: 12) {
                     ProgressView().progressViewStyle(.linear).frame(maxWidth: EDXLayout.openingBarWidth)
+                        .accessibilityLabel("Opening dataset")
                     Text("Opening dataset").font(.headline)
                     Button("Stop") { session.patterns.stop() }
                         .keyboardShortcut(.cancelAction)

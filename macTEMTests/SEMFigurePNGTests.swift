@@ -3,8 +3,9 @@
 //  The SEM rooms' figure PNGs through the app's one encoder (`ImageExport.encodePNG`, #331): the Maps room's map figure and the
 //  Patterns room's colour mix (the Indexing room's colour map is the same function) carry the file's name as Title and macTEM as
 //  Software, as the Patterns room's map PNG does; the pixels are ImageIO's, as before; the encoder writes its text in order, leaves
-//  out what it is not given and makes a control character a space. The texture figure's Title is pinned in MapsAnalysisTests, the
-//  overlay figure's Description in KikuchiOverlayExportTests.
+//  out what it is not given and makes a control character a space; the IPF colour key's image comes from the one RGBA builder
+//  (`MapsFigure.cgImage`), smoothed or not. The texture figure's Title is pinned in MapsAnalysisTests, the overlay figure's Description
+//  in KikuchiOverlayExportTests.
 //  Red before: the map figure dropped its file name (`_ = fileName`) and neither PNG carried a text chunk.
 //
 
@@ -67,6 +68,23 @@ nonisolated final class SEMFigurePNGTests: XCTestCase {
         XCTAssertEqual(try Self.text(png), [PNGTextEntry(keyword: "Title", value: "patterns_v2.h5"),
                                             PNGTextEntry(keyword: "Software", value: "macTEM")])
         XCTAssertEqual(try Self.rgba(png), Self.planted)
+    }
+
+    /// The IPF colour key goes through the one RGBA builder (#331): its premultiplied bytes as they are, each pixel a block for the Maps
+    /// room's key and figure, smoothed with `interpolate` as the Indexing room's legend draws it (what `IPFKeyPicture` builds there).
+    /// Red under: a second builder's bytes, the Maps key smoothed (its pixels would change), the flag ignored.
+    func testTheColourKeyImageIsItsBytesWithOrWithoutSmoothing() throws {
+        let key = OrientationMaps.keyImage(for: try XCTUnwrap(PointGroup.named("432"))).0
+        let block = try XCTUnwrap(MapsFigure.cgImage(key))
+        let smooth = try XCTUnwrap(MapsFigure.cgImage(key, interpolate: true))
+        XCTAssertFalse(block.shouldInterpolate)
+        XCTAssertTrue(smooth.shouldInterpolate)
+        for image in [block, smooth] {
+            XCTAssertEqual([image.width, image.height, image.bytesPerRow], [key.width, key.height, key.width * 4])
+            XCTAssertEqual(image.alphaInfo, .premultipliedLast)
+            let bytes = try XCTUnwrap(image.dataProvider?.data) as Data
+            XCTAssertEqual([UInt8](bytes), key.premultipliedRGBA8)
+        }
     }
 
     /// The encoder writes Title, Software and Description in that order, leaves out what it is not given and makes a control

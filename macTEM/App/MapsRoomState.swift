@@ -241,6 +241,17 @@ nonisolated enum MapsRoomFormat {
 
     static func fraction(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { UnitDisplay.fixed(v, places: 3, locale: locale) }
 
+    /// The orientation pane's Bunge angles (`radians`) in degrees, one decimal each, as the Grains table writes them: ["203.3", "38.8", "171.2"].
+    static func eulerValues(_ radians: SIMD3<Double>, locale: Locale = .autoupdatingCurrent) -> [String] {
+        let d = radians * (180 / Double.pi)
+        return [d.x, d.y, d.z].map { angle($0, locale: locale) }
+    }
+
+    /// The orientation pane's Euler line from `eulerValues`: "φ₁ 203.3°  Φ 38.8°  φ₂ 171.2°" (`SEMColumnSpeech.spokenEuler` says it).
+    static func eulerLine(_ values: [String]) -> String {
+        zip(["φ₁", "Φ", "φ₂"], values).map { "\($0) \($1)°" }.joined(separator: "  ")
+    }
+
     /// "102 grains · mean ECD 3.1 µm · ASTM 14.2".
     static func grainSummary(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> String {
         var parts = [UnitDisplay.count(analysis.table.count, "grain", "grains")]
@@ -444,14 +455,20 @@ nonisolated enum MapsFigure {
         "0 to \(UnitDisplay.number(maximum, digits: 3, locale: locale)) MRD"
     }
 
-    /// An image of premultiplied RGBA bytes.
-    static func cgImage(premultipliedRGBA rgba: [UInt8], width: Int, height: Int) -> CGImage? {
+    /// An image of premultiplied RGBA bytes, the app's one RGBA-to-image builder (#331): each pixel a block where it is drawn larger (a map,
+    /// a figure), or smoothed with `interpolate` (the Indexing room's colour key, which its own `IPFKeyPicture` still builds).
+    static func cgImage(premultipliedRGBA rgba: [UInt8], width: Int, height: Int, interpolate: Bool = false) -> CGImage? {
         guard width > 0, height > 0, rgba.count == width * height * 4,
               let provider = CGDataProvider(data: Data(rgba) as CFData),
               let space = CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
         return CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4, space: space,
                        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue), provider: provider, decode: nil,
-                       shouldInterpolate: false, intent: .defaultIntent)
+                       shouldInterpolate: interpolate, intent: .defaultIntent)
+    }
+
+    /// An IPF colour key as an image: its premultiplied RGBA, transparent outside the sector.
+    static func cgImage(_ key: IPFKeyImage, interpolate: Bool = false) -> CGImage? {
+        cgImage(premultipliedRGBA: key.premultipliedRGBA8, width: key.width, height: key.height, interpolate: interpolate)
     }
 
     /// The colour layer's map image (its RGBA is straight alpha that is 0 only on black, so it is premultiplied as it stands).
@@ -525,7 +542,7 @@ nonisolated enum MapsFigure {
                 text("\(key.name) · IPF-\(direction.rawValue.uppercased())", at: CGPoint(x: x, y: y), size: 12, ctx: ctx)
                 y += 18
                 let w = CGFloat(legendW - 20), h = w * CGFloat(key.image.height) / CGFloat(max(key.image.width, 1))
-                if let image = cgImage(premultipliedRGBA: key.image.premultipliedRGBA8, width: key.image.width, height: key.image.height) {
+                if let image = cgImage(key.image) {
                     ctx.interpolationQuality = .high
                     draw(image, in: CGRect(x: x, y: y, width: w, height: h), ctx: ctx)
                     ctx.interpolationQuality = .none
