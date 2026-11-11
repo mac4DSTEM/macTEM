@@ -1,12 +1,14 @@
 //
 //  TableCopyFormat.swift
 //  Role: the words of four tables rows are selected in, and ⌘C's text for them (#353): the Image room's object table (Particles), the
-//        Diffraction room's readout, the Maps room's Grains table and the EELS room's results table (one row per fitted edge). They copy as the Indexing room's Results table does
-//        (`IndexingTableFormat.copyText`): one header line with the column titles, then one line per selected row in the table's order,
-//        the cells as the table shows them, tab-separated, numbers in the reader's locale without grouping (a spreadsheet in that locale
-//        reads them as numbers; the CSV exports are the locale-free channel). The tables draw their cells through these functions, so
-//        what is copied is what is shown. The readout's columns also carry what VoiceOver calls them (#320): its headers are symbols and
-//        units, and one is empty; the Grains table's symbol headers are said through `SEMColumnSpeech`. Pure: no view, no session.
+//        Diffraction room's readout, the Maps room's Grains table and the EELS room's results table (one row per fitted edge). They copy
+//        as the Indexing room's Results table does (`IndexingTableFormat.copyText`): one header line with the column titles, then one line
+//        per selected row in the table's order, the cells as the table shows them, tab-separated, numbers in the reader's locale without
+//        grouping (a spreadsheet in that locale reads a plain number as one; an EELS cell with its ± is text there; the CSV exports are the
+//        locale-free channel). The first three tables draw their cells through these functions, and the EELS table through the same
+//        `EELSRoomFormat` texts its copy uses, so what is copied is what is shown. The readout's columns also carry what VoiceOver calls
+//        them (#320): its headers are symbols and units, and one is empty; the Grains table's symbol headers are said through
+//        `SEMColumnSpeech`. Pure: no view, no session.
 //
 
 import Foundation

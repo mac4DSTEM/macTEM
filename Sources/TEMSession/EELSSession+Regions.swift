@@ -220,17 +220,16 @@ extension EELSSession {
         }
     }
 
-    /// The selected shape's spectrum without the model, shown until the fitted plot lands; nothing when a newer request came meanwhile, and never
-    /// over the fitted plot of the same request.
+    /// The selected shape's spectrum without the model, shown until the fitted plot lands; nothing when a newer request came meanwhile. It never
+    /// lands over the fitted plot of the same request: that plot's task waits for this one to end.
     private func landInterimPlot(_ data: EELSPlotData?, run: Int) {
-        guard run == plotRun, run != plotLandedRun, let data else { return }
+        guard run == plotRun, let data else { return }
         isPreviewing = false
         plot = data
     }
 
     private func landPlot(_ data: EELSPlotData?, whole: EELSPlotData?, run: Int) {
         guard run == plotRun else { return }
-        plotLandedRun = run
         isPreviewing = false
         plot = data
         wholeMapPlot = whole

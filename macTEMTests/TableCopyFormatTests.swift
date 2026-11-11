@@ -1,10 +1,11 @@
 //
 //  TableCopyFormatTests.swift
-//  ⌘C in the Image room's object table, the Diffraction room's readout, the Maps room's Grains table and the EELS room's results table
-//  (#353): the selected rows as
-//  tab-separated text under the table's column titles, the cells as the table shows them, numbers in the reader's locale without
-//  grouping; nothing for no rows; and the tables' own lines, which draw their cells through the same functions and carry the copy command.
-//  Red before the change: no `ParticleTableFormat`, `DiffractionReadoutFormat` or `GrainTableFormat`, no `onCopyCommand` on the tables.
+//  ⌘C in the Image room's object table, the Diffraction room's readout, the Maps room's Grains table and the EELS room's results
+//  table (#353): the selected rows as tab-separated text under the table's column titles, the cells as the table shows them, numbers
+//  in the reader's locale without grouping; nothing for no rows; and the first three tables' own lines, which draw their cells through
+//  the same functions and carry the copy command.
+//  Red before the change: no `ParticleTableFormat`, `DiffractionReadoutFormat`, `GrainTableFormat` or `EELSEdgeTableFormat`, no
+//  `onCopyCommand` on the tables.
 //
 
 import XCTest

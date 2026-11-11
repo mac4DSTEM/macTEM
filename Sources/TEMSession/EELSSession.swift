@@ -123,8 +123,6 @@ package final class EELSSession {
     /// without the model and landed before the fitted plot.
     @ObservationIgnored package internal(set) var plotInterimTask: Task<Void, Never>?
     @ObservationIgnored var plotRun = 0
-    /// The request whose fitted plot is on screen: its quick spectrum never lands after it.
-    @ObservationIgnored var plotLandedRun = 0
     /// The live spectrum of a drag (`previewRegion`): the running sum, the shape waiting for it, and whether the plot shows a preview.
     @ObservationIgnored var previewTask: Task<Void, Never>?
     @ObservationIgnored var pendingPreview: EDXRegion?
