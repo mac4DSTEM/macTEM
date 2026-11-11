@@ -67,10 +67,11 @@ build `-Onone` in Debug (see "Known limitations").
    An open in flight is drawn over the image already shown, which stays if it fails.
 5. **Show.** `ImagePane` letterboxes the image at its pixel aspect, draws it through MacEMUI's `MetalImageView` (the one
    SwiftUI↔Metal bridge) inside one `scaleEffect`/`offset` container (`ZoomPan`), and puts the scale bar in a
-   `PaneFooter` outside that container. The bar measures the screen horizontal, so it uses the x axis's sampling
-   (`ImageScaleBar`), and counts pixels when x is not calibrated — a unit and a finite, positive scale
-   (`AxisCalibration.isCalibrated`), the one definition the inspector shares. The contrast window and gamma reach only the
-   shader (`DisplayWindow`); the marks are drawn in one pane-sized `Canvas` mapped through the shader's own
+   `PaneFooter` outside that container, shown while Show Scale Bar is on: on a file's first read it starts on, except on a
+   render, whose own bar may be in its pixels (`ImagePresentation.startsWithScaleBar`). The bar measures the screen
+   horizontal, so it uses the x axis's sampling (`ImageScaleBar`), and counts pixels when x is not calibrated — a unit and a
+   finite, positive scale (`AxisCalibration.isCalibrated`), the one definition the inspector shares. The contrast window
+   and gamma reach only the shader (`DisplayWindow`); the marks are drawn in one pane-sized `Canvas` mapped through the shader's own
    transform (`MarkGeometry`), and their numbers come from the file's pixels, never the canvas.
 
 EBSD patterns, orientation maps and SEM-EDS files take their own path into their rooms ("The SEM program", below).

@@ -27,7 +27,9 @@ struct ImageRoomSettings: View {
         ImageRoomCalibrationSection(image: image)
         // An image stack read on demand (a multi-page TIFF): the frame shown and the slider that moves it.
         if let item = appState.openItems.selected, item.stack != nil { ImageRoomStackSection(item: item, items: appState.openItems) }
-        ImageRoomDisplaySection(presentation: appState.presentation, sem: appState.imageSession.sem)
+        // A render's bar starts hidden (`ImagePresentation.startsWithScaleBar`), and its Display section says why.
+        ImageRoomDisplaySection(presentation: appState.presentation, sem: appState.imageSession.sem,
+                                isRender: !ImagePresentation.startsWithScaleBar(notes: image.notes))
         // The Particles view: objects found on the image, outlined over it. Above Measure, so it is in view without scrolling past the tools.
         if let item = appState.openItems.selected {
             ImageRoomParticlesSection(image: image, item: item, rawRange: appState.presentation.canvas?.rawRange)
