@@ -508,8 +508,9 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(EELSEdgeChoices.defaultEdge(symbol: "Al", offered: [.aluminiumL23]), .aluminiumL23)
     }
 
-    /// The chassis is the EDS room's, in the order the design names: sections, the verb, the states, the anchor-only regions. Red under: a section moved or
-    /// missing; the header strip back; the verb changed; regions drawn on every tile.
+    /// The chassis is the EDS room's, in the order the design names: sections, the states, the anchor-only regions. Red under: a section moved or
+    /// missing; the header strip back; regions drawn on every tile. The verb is EELSOpeningTests', the toolbar's mount of it EDXRoomTests' and
+    /// the spectrum's readout ReadoutAccessibilityValueTests'.
     func testTheRoomIsTheChassisInTheDesignsOrder() throws {
         let inspector = squeezed(try source("macTEM/UI/EELSRoomInspector.swift"))
         let order = ["EELSMapsSection(session: session, state: appState.eelsRoom)", "EELSToolsSection(session: session, state: appState.eelsRoom)", "EELSEdgesSection(session: session)",
@@ -542,11 +543,6 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertFalse(inspector.lowercased().contains("validation"), "the inspector names the method and its reference instead")
         XCTAssertFalse(inspector.lowercased().contains("unvalidated"))
         XCTAssertTrue(room.contains("EELSRoomFormat.thicknessLine(")); XCTAssertTrue(room.contains("EELSRoomFormat.fitFooter("))
-        let verb = squeezed(try source("macTEM/UI/RoomPrimaryAction.swift"))
-        XCTAssertTrue(verb.contains("title: \"Run\""))
-        XCTAssertTrue(squeezed(try source("macTEM/UI/ContentView.swift")).contains("PrimaryActionButton(RoomPrimaryAction.current(appState))"))
-        let state = squeezed(try source("macTEM/App/EELSRoomState.swift"))
-        XCTAssertTrue(state.contains("var readout: String?"))
     }
 
     /// A file with only a core loss (its window starts above 0 eV): no t/λ, the anchor is I total, Convolve is off, and Align has nothing to move.

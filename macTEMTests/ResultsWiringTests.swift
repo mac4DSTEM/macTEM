@@ -1,11 +1,11 @@
 //
 //  ResultsWiringTests.swift
 //  The Results room's call sites: the room is built and can be entered, the shell's slots mount it (the room switch in
-//  `WorkspaceView`, the Settings and Info switches in `WorkspaceInspector`), `AppState` composes its state in one line, File > Export
-//  Results… is on ⇧⌥⌘E (a key no other item has) and enabled by `ExportSnapshot.availability`, the snapshot of the selected file is what
-//  the panel's OK writes (a real file read back), the room's state resets its selection with a file switch, and the table is a
-//  native `Table` with a `Section` per group and ⌘C through `onCopyCommand`. Each fix is right in its pure function while reverting
-//  the one line that uses it leaves every pure test green; these go red when that line reverts. Tier 2.
+//  `WorkspaceView`, the Settings and Info switches in `WorkspaceInspector`), File > Export Results… is on ⇧⌥⌘E (a key no other
+//  item has) and enabled by `ExportSnapshot.availability`, the snapshot of the selected file is what the panel's OK writes (a real
+//  file read back), the room's state resets its selection with a file switch and a window keeps its one state across room
+//  switches, and the table is a native `Table` with a `Section` per group and ⌘C through `onCopyCommand`. Each fix is right in its
+//  pure function while reverting the one line that uses it leaves every pure test green; these go red when that line reverts. Tier 2.
 //
 //  Mutations sampled (each alone, the named test went red): the Export Results… item without its `.disabled`; the room's switch
 //  branch removed; the availability enabled outside the Results room; the snapshot taking all open files; the selection kept across
@@ -230,10 +230,28 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         XCTAssertTrue(state.selectedRows(in: rows).isEmpty)
     }
 
+    /// A window holds one Results room state, its own, and keeps it with its selection while the room is left and entered again. Red
+    /// under: the state made anew on every read (the selection lost with a room switch); one state shared by every window.
+    @MainActor func testTheWindowKeepsOneResultsState() {
+        let state = AppState()
+        let room = state.resultsRoom
+        XCTAssertTrue(state.resultsRoom === room, "the same state on every read")
+        state.selectWorkspace(.results)
+        XCTAssertEqual(state.navigation.workspaceArea, .results)
+        room.selection = ["mark:1"]
+        state.selectWorkspace(.image)
+        XCTAssertEqual(state.navigation.workspaceArea, .image)
+        state.selectWorkspace(.results)
+        XCTAssertEqual(state.navigation.workspaceArea, .results)
+        XCTAssertTrue(state.resultsRoom === room, "the room switch keeps the state")
+        XCTAssertEqual(state.resultsRoom.selection, ["mark:1"], "and its selection")
+        let other = AppState()
+        XCTAssertFalse(other.resultsRoom === room, "another window has its own")
+    }
+
     // MARK: The slots in the shell, and the keys
 
-    /// The shell's three slots mount the room and `AppState` composes its state in one line; nothing else of the frozen shell files is
-    /// named here. Red under: a slot removed; the state composed twice.
+    /// The shell's three slots mount the room; nothing else of the frozen shell files is named here. Red under: a slot removed.
     func testTheShellMountsTheRoomInItsSlots() throws {
         let view = squeezed(try source("macTEM/UI/WorkspaceView.swift"))
         XCTAssertTrue(view.contains("else if appState.navigation.workspaceArea == .results { ResultsRoom(image: image, item: item) }"))
@@ -241,13 +259,11 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         XCTAssertTrue(inspector.contains("case .results: if let item = appState.openItems.selected { ResultsRoomSettings(image: image, item: item)"))
         XCTAssertTrue(inspector.contains("if appState.navigation.workspaceArea == .results, let item = appState.openItems.selected { ResultsRoomInfo(image: image, item: item) }"))
         XCTAssertFalse(inspector.contains("case .prepare, .diffraction, .results:"), "the room is no longer a placeholder")
-        let app = try source("macTEM/App/AppState.swift")
-        XCTAssertEqual(app.components(separatedBy: "ResultsRoomState()").count - 1, 1, "AppState composes the state in one line")
-        XCTAssertTrue(app.contains("let resultsRoom = ResultsRoomState()"))
     }
 
-    /// File > Export Results… is ⇧⌥⌘E, is disabled by the rule, calls the one entry point; no other menu item takes the key. Red under:
-    /// the key changed to a taken one; the `.disabled` dropped; the item calling the Image room's export.
+    /// File > Export Results… is ⇧⌥⌘E, is disabled by the rule, calls the one entry point; no other menu item takes the key. The room's own
+    /// Export button is ControlPlacementRoomsTests'. Red under: the key changed to a taken one; the `.disabled` dropped; the item calling
+    /// the Image room's export.
     func testExportResultsIsOnItsKeyAndNoOtherItemHasIt() throws {
         let commands = squeezed(try source("macTEM/App/ExportCommands.swift"))
         XCTAssertTrue(commands.contains("Button(\"Export Results…\") { if let appState { ExportPanels.exportResults(appState: appState) } } "
@@ -271,8 +287,6 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         let panels = squeezed(try source("macTEM/App/ExportPanels.swift"))
         XCTAssertTrue(panels.contains("static func exportResults(appState: AppState) { guard ExportSnapshot.availability(of: appState).results,"
                                         + " let snapshot = ExportSnapshot.resultsSnapshot(in: appState)"))
-        let inspector = squeezed(try source("macTEM/UI/ResultsRoomInspector.swift"))
-        XCTAssertTrue(inspector.contains("ExportPanels.exportResults(appState: appState) } .disabled(!availability.results)"))
     }
 
     /// The table is a native `Table` with a `Section` per group, selection through the state, and ⌘C through `onCopyCommand`; no
@@ -291,7 +305,6 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         for id in ["results.room", "results.table", "results.header", "results.row."] {
             XCTAssertTrue(room.contains("\"\(id)"), id)
         }
-        XCTAssertTrue(squeezed(try source("macTEM/UI/ResultsRoomInspector.swift")).contains(".accessibilityIdentifier(\"results.export\")"))
     }
 
     /// Nothing in the room authors a trust claim: the room's files hold no validation sentence of their own — the words come from

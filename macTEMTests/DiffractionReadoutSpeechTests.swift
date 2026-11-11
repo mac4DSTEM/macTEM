@@ -58,14 +58,11 @@ nonisolated final class DiffractionReadoutSpeechTests: XCTestCase {
         XCTAssertEqual(DiffractionReadoutFormat.cell(.name, other), "Spot 2")
     }
 
-    /// The table gives every column the header that carries its words, and the first cell its spoken name and value.
-    /// Red under: a column on a plain title again, the header's label dropped, the mark's meaning off the cell.
+    /// The table's header carries each column's words, and the first cell its spoken name and value; that every column takes that header
+    /// is held by TableCopyFormatTests. Red under: a column on a plain title again, the header's label dropped, the mark's meaning off the cell.
     func testTheReadoutTableSpeaksItsHeaders() throws {
         let table = try FFTRoomWiringTests.squeezedUI("DiffractionRoom.swift")
         XCTAssertTrue(table.contains("private func header(_ column: Column) -> Text { Text(column.title).accessibilityLabel(column.spoken) }"))
-        for column in ["name", "radius", "q", "d", "family", "dListed", "delta", "odds", "verdict"] {
-            XCTAssertTrue(table.contains("TableColumn(header(.\(column))) { row in"), "the \(column) column's header carries its words")
-        }
         XCTAssertFalse(table.contains("TableColumn(Column."), "no column on a plain title")
         XCTAssertFalse(table.contains("TableColumn(\""), "no column on a literal title")
         XCTAssertTrue(table.contains(

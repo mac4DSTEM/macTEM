@@ -97,14 +97,13 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
         XCTAssertEqual(DiffractionReadoutFormat.cells(Self.readout()[0], locale: Self.en).count, columns.count)
     }
 
-    /// The readout table draws every title and cell through the format (a header is the column's title, `header`) and carries the
-    /// copy command beside Delete, dimmed with no row selected. Red under: the command removed or always enabled, a column drawn by
-    /// its own expression.
+    /// The readout table draws every title and cell through the format (a header is the column's title, `header`, pinned with its spoken
+    /// label by DiffractionReadoutSpeechTests) and carries the copy command beside Delete, dimmed with no row selected. Red under: the
+    /// command removed or always enabled, a column drawn by its own expression.
     func testTheReadoutTableCopiesItsSelectedRow() throws {
         let table = try ui("DiffractionRoom.swift")
         XCTAssertTrue(table.contains(".onCopyCommand(perform: rows.contains(where: { $0.id == selected }) ? { copied(selected) } : nil)"))
         XCTAssertTrue(table.contains("return [NSItemProvider(object: DiffractionReadoutFormat.copyText(picked) as NSString)]"))
-        XCTAssertTrue(table.contains("private func header(_ column: Column) -> Text { Text(column.title)"), "a header draws the format's title")
         for column in ["name", "radius", "q", "d", "family", "dListed", "delta", "odds", "verdict"] {
             XCTAssertTrue(table.contains("TableColumn(header(.\(column))) { row in Text(DiffractionReadoutFormat.cell(.\(column), row))"),
                           "the \(column) column is the format's title and cell")
