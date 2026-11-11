@@ -45,7 +45,7 @@ package nonisolated enum ImageOpening {
             case .unreadableFormat(let file, let ext):
                 return Self.fileClause(file: file, ext: ext) + " " + FileRouting.openableSentence
             case .noImage(let file, let objects):
-                return "\(file) holds no 2D image (\(objects)). Image stacks in DM files, and spectrum images in .dm3 files, are not read yet."
+                return "\(file) holds no 2D image: it holds \(objects). Image stacks and line scans in DM files, and spectrum images in .dm3 files, are not read yet."
             case .tiff(let file, let refusal):
                 return "\(file) is not read: " + refusal.reason
             case .mrc(let file, let refusal):
@@ -130,17 +130,68 @@ package nonisolated enum ImageOpening {
                                voltage: image.object.voltage)
     }
 
-    /// "thumbnail 8 × 6; 170 × 1; 1336 × 67 in nm and µm; 6 × 3 spectrum image" — what a refused file holds, for the message.
-    private static func describe(_ objects: [DM4ImageObject]) -> String {
-        guard !objects.isEmpty else { return "no image objects" }
-        return objects.map { o in
-            let dims = o.dimensions.map(String.init).joined(separator: " × ")
-            if o.role == .thumbnail { return "thumbnail \(dims)" }
-            if isSpectrumImage(o) { return "\(dims) spectrum image" }
-            if hasMixedUnits(o), let (x, y) = imageAxes(o), let ux = x?.units, let uy = y?.units {
-                return "\(dims) in \(ux) and \(uy)"
-            }
-            return dims
-        }.joined(separator: "; ")
+    /// What a refused file holds, in words for the message (#532): "an image stack of 3 frames of 2020 × 2020 and 3 profiles of
+    /// 2020 points". Identical objects are counted once; a thumbnail is named only when it is all the file holds. Units decide
+    /// between a spectrum (an energy axis) and a profile, and between a spectrum image and a stack.
+    package static func describe(_ objects: [DM4ImageObject]) -> String {
+        let content = objects.filter { $0.role != .thumbnail }
+        guard !content.isEmpty else { return objects.isEmpty ? "no image objects" : "only a thumbnail" }
+        var order: [String] = []
+        var counts: [String: Int] = [:]
+        for object in content {
+            let words = phrase(object)
+            if counts[words] == nil { order.append(words) }
+            counts[words, default: 0] += 1
+        }
+        let listed = order.map { words -> String in
+            let n = counts[words] ?? 1
+            return n == 1 ? singular(words) : "\(n) \(plural(words))"
+        }
+        guard listed.count > 1 else { return listed[0] }
+        return listed.dropLast().joined(separator: ", ") + " and " + listed[listed.count - 1]
     }
+
+    /// One object's noun phrase without its article: "image stack of 3 frames of 16 × 2", "spectrum of 2048 channels".
+    private static func phrase(_ object: DM4ImageObject) -> String {
+        let big = object.dimensions.indices.filter { object.dimensions[$0] > 1 }
+        let sizes = big.map { object.dimensions[$0] }
+        let units = big.map { i in object.axes.indices.contains(i) ? object.axes[i]?.units ?? "" : "" }
+        let energy = units.map(isEnergy)
+        func by(_ values: [Int]) -> String { values.map(String.init).joined(separator: " × ") }
+        switch sizes.count {
+        case 0: return "single value"
+        case 1: return energy[0] ? "spectrum of \(sizes[0]) channels" : "profile of \(sizes[0]) points"
+        case 2:
+            if isSpectrumImage(object) { return "spectrum image of \(by(sizes)) positions" }
+            if let e = energy.firstIndex(of: true), energy.filter({ $0 }).count == 1 {
+                return "line scan of \(sizes[1 - e]) positions with spectra of \(sizes[e]) channels"
+            }
+            if hasMixedUnits(object) { return "\(by(sizes)) object with its axes in \(units[0]) and \(units[1])" }
+            return "\(by(sizes)) object"
+        case 3:
+            if let e = energy.firstIndex(of: true), energy.filter({ $0 }).count == 1 {
+                let positions = sizes.indices.filter { $0 != e }.map { sizes[$0] }
+                return "spectrum image of \(by(positions)) positions with spectra of \(sizes[e]) channels"
+            }
+            return "image stack of \(sizes[2]) frames of \(sizes[0]) × \(sizes[1])"
+        default: return "\(by(sizes)) object"
+        }
+    }
+
+    private static func isEnergy(_ unit: String) -> Bool { ["ev", "kev"].contains(unit.lowercased()) }
+
+    private static func singular(_ phrase: String) -> String {
+        let vowel = phrase.first.map { "aeiou".contains($0) } ?? false
+        return (vowel ? "an " : "a ") + phrase
+    }
+
+    /// The phrase's head noun in the plural: "image stacks of …", "spectra of …", "170 × 1 objects".
+    private static func plural(_ phrase: String) -> String {
+        for (one, many) in [("image stack", "image stacks"), ("spectrum image", "spectrum images"), ("spectrum", "spectra"),
+                            ("profile", "profiles"), ("line scan", "line scans"), ("single value", "single values")]
+        where phrase.hasPrefix(one) { return many + phrase.dropFirst(one.count) }
+        if let range = phrase.range(of: " object") { return phrase.replacingCharacters(in: range, with: " objects") }
+        return phrase
+    }
+
 }

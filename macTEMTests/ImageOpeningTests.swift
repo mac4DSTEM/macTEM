@@ -89,7 +89,7 @@ nonisolated final class ImageOpeningTests: XCTestCase {
         ]), named: "cl.dm4", for: self)
         XCTAssertThrowsError(try ImageOpening.openNow(path: path)) { error in
             XCTAssertEqual(error as? ImageOpening.Refusal,
-                           .noImage(file: "cl.dm4", objects: "6 × 3 in nm and \u{00B5}m"))
+                           .noImage(file: "cl.dm4", objects: "a 6 × 3 object with its axes in nm and \u{00B5}m"))
         }
     }
 
@@ -113,7 +113,7 @@ nonisolated final class ImageOpeningTests: XCTestCase {
         let path = try DM4TestFile.write(DM4TestFile.file([thumb, si]), named: "si.dm4", for: self)
         XCTAssertThrowsError(try ImageOpening.openNow(path: path)) { error in
             XCTAssertEqual(error as? ImageOpening.Refusal,
-                           .noImage(file: "si.dm4", objects: "thumbnail 8 × 6; 6 × 3 spectrum image"))
+                           .noImage(file: "si.dm4", objects: "a spectrum image of 6 × 3 positions"))
         }
     }
 
@@ -185,13 +185,42 @@ nonisolated final class ImageOpeningTests: XCTestCase {
         }
     }
 
+    /// #532: what a refused DM file holds is said in words, not as a list of dimension tuples. The sweep's case (a thumbnail and
+    /// seven one-dimensional objects, three of them alike) and each kind the words tell apart by size and units.
+    /// Red before: "thumbnail 277 × 384; 2020; 2020; 2020; 151; 168; 253; 704".
+    func testWhatARefusedDMFileHoldsIsSaidInWords() throws {
+        let eV = Axis(origin: 0, scale: 1, units: "eV")
+        func words(_ nodes: [DM4TestFile.Node]) throws -> String {
+            ImageOpening.describe(try DM4Experiment.list(data: DM4TestFile.file(nodes)))
+        }
+        let thumb = DM4TestFile.object(name: "Image Of run", dims: [27, 38], axes: [Self.nm, Self.nm], rgba: true)
+        let profiles = try words([thumb] + [2020, 2020, 2020, 151].map {
+            DM4TestFile.object(name: "P", dims: [Int32($0)], axes: [Self.nm])
+        })
+        XCTAssertEqual(profiles, "3 profiles of 2020 points and a profile of 151 points")
+        XCTAssertEqual(try words([DM4TestFile.object(name: "S", dims: [2048], axes: [eV])]), "a spectrum of 2048 channels")
+        XCTAssertEqual(try words([DM4TestFile.object(name: "S", dims: [2048], axes: [eV]),
+                                  DM4TestFile.object(name: "S", dims: [2048], axes: [eV])]), "2 spectra of 2048 channels")
+        XCTAssertEqual(try words([DM4TestFile.object(name: "LS", dims: [1024, 40], axes: [eV, Self.nm])]),
+                       "a line scan of 40 positions with spectra of 1024 channels")
+        XCTAssertEqual(try words([DM4TestFile.object(name: "SI", dims: [12, 10, 512], axes: [Self.nm, Self.nm, eV])]),
+                       "a spectrum image of 12 × 10 positions with spectra of 512 channels")
+        XCTAssertEqual(try words([DM4TestFile.object(name: "St", dims: [64, 48, 3], axes: [Self.nm, Self.nm, Self.nm])]),
+                       "an image stack of 3 frames of 64 × 48")
+        XCTAssertEqual(try words([thumb]), "only a thumbnail")
+        for sentence in [profiles, try words(Self.notImages)] {
+            XCTAssertNil(sentence.range(of: ";"), sentence)
+            XCTAssertFalse(sentence.contains("thumbnail"), sentence)
+        }
+    }
+
     func testAFileWithNoTwoDimensionalImageIsRefusedWithWhatItHolds() throws {
         let path = try DM4TestFile.write(DM4TestFile.file(Self.notImages), named: "nothing.dm4", for: self)
         XCTAssertThrowsError(try ImageOpening.openNow(path: path)) { error in
-            let expected = ImageOpening.Refusal.noImage(file: "nothing.dm4", objects: "thumbnail 8 × 6; 170 × 1; 16 × 2 × 3")
+            let expected = ImageOpening.Refusal.noImage(file: "nothing.dm4", objects: "a profile of 170 points and an image stack of 3 frames of 16 × 2")
             XCTAssertEqual(error as? ImageOpening.Refusal, expected)
             XCTAssertEqual((error as? LocalizedError)?.errorDescription,
-                           "nothing.dm4 holds no 2D image (thumbnail 8 × 6; 170 × 1; 16 × 2 × 3). Image stacks in DM files, and spectrum images in .dm3 files, are not read yet.")
+                           "nothing.dm4 holds no 2D image: it holds a profile of 170 points and an image stack of 3 frames of 16 × 2. Image stacks and line scans in DM files, and spectrum images in .dm3 files, are not read yet.")
         }
         let empty = try DM4TestFile.write(DM4TestFile.file([]), named: "empty.dm4", for: self)
         XCTAssertThrowsError(try ImageOpening.openNow(path: empty)) { error in
