@@ -79,10 +79,11 @@ nonisolated final class PatternsJourney: Journey {
         }
         try step("the Calibration rows read the demo file's values") {
             showInspector(waitingFor: "patterns.calibration.step")
-            let step = element("patterns.calibration.step")
-            XCTAssertTrue((step.value as? String ?? step.label).contains("µm"), "step: \(step.value ?? "") / \(step.label)")
-            let beam = element("patterns.calibration.beam")
-            XCTAssertTrue((beam.value as? String ?? beam.label).contains("20"), "beam: \(beam.value ?? "") / \(beam.label)")
+            // Each row is a label and a value text, both carrying the identifier: read them all, not the first (the label).
+            let step = allWords("patterns.calibration.step")
+            XCTAssertTrue(step.contains("µm"), "step: \(step)")
+            let beam = allWords("patterns.calibration.beam")
+            XCTAssertTrue(beam.contains("20"), "beam: \(beam)")
         }
         try step("the Display section changes the map's colormap") {
             let popup = waitFor("patterns.colormap", timeout: 20)
