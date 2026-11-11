@@ -112,8 +112,7 @@ package final class IndexingSession {
     }
     /// The run on screen's result, filled row by row while it runs; nil before the first run.
     package var result: IndexingResult? { shownRun?.result }
-    /// What the run on screen was made of (it is stale when the current inputs of its method differ) and where it read its patterns.
-    package var resultInputs: IndexingInputs? { shownRun?.inputs }
+    /// Where the run on screen read its patterns.
     package var resultSource: IndexingSource.Kind? { shownRun?.source }
     package var resultProjectionCenter: SIMD3<Double>? { shownRun?.projectionCenter }
     /// The run on screen's time once complete; nil while it runs or after a stop.
