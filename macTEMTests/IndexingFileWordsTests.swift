@@ -62,12 +62,18 @@ nonisolated final class IndexingFileWordsTests: XCTestCase {
         XCTAssertEqual(SEMSessionLedger.refineField(both, locale: Self.german).value, "Both · ±2,5° · PC ±0,05 · Nelder–Mead", "the control")
     }
 
-    /// The Refine words take `UnitDisplay.number`'s three significant digits, printf's rounding of a decimal tie, as every other
-    /// number of the room. Red before: FormatStyle wrote "±2.68°" for a trust of 2.675° (the binary value is 2.67499…).
-    func testTheRefineWordsRoundAsUnitDisplay() {
-        let tie = IndexingRefineSettings(target: .orientation, trustAngle: 2.675)
-        XCTAssertEqual(tie.words(locale: Self.report), "Orientation · ±2.67° · Nelder–Mead")
-        XCTAssertEqual(tie.words(locale: Self.german), "Orientation · ±2,67° · Nelder–Mead")
+    /// The Refine words write the trust region as its typed field shows it (`Num.decimalField`, four significant digits), in
+    /// `UnitDisplay.number`'s printf digits, so the words name the setting the run used. Red before: three significant digits dropped
+    /// the fourth, "±2.68°" by FormatStyle and then "±2.67°" by printf for a trust typed as 2.675°.
+    func testTheRefineWordsWriteTheTrustAsItsField() {
+        let typed = IndexingRefineSettings(target: .orientation, trustAngle: 2.675)
+        XCTAssertEqual(typed.words(locale: Self.report), "Orientation · ±2.675° · Nelder–Mead")
+        XCTAssertEqual(typed.words(locale: Self.german), "Orientation · ±2,675° · Nelder–Mead")
+        let long = IndexingRefineSettings(target: .both, trustAngle: 1.23456, trustPC: 0.012346)
+        XCTAssertEqual(long.words(locale: Self.report),
+                       "Both · ±\(1.23456.formatted(Num.decimalField.locale(Self.report)))° · "
+                       + "PC ±\(0.012346.formatted(Num.decimalField.locale(Self.report))) · Nelder–Mead", "the fields' digits")
+        XCTAssertEqual(long.words(locale: Self.report), "Both · ±1.235° · PC ±0.01235 · Nelder–Mead")
         XCTAssertEqual(IndexingRefineSettings(target: .projectionCenter, trustPC: 0.0125).words(locale: Self.report), "PC · PC ±0.0125 · Nelder–Mead")
     }
 

@@ -7,8 +7,8 @@
 //        drag pans and only the marker's grab handle moves the pick. The arrows step the pick (⇧ ten), and any press on a map gives the
 //        room's root the keyboard, so they work right after a click (after a click in the Indexing room's Results table too).
 //
-//  THE POLICY (`SEMMapPointer`, pure, pinned by `SEMMapPointerTests`): who owns a plain press at a zoom, and the scan point under a pane
-//  point. `MarkGeometry` puts a pixel's centre at an integer, so rounding gives each pixel the area it covers, as mac4DSTEM's floor does
+//  THE POLICY (`SEMMapPointer`, pure, pinned by `SEMMapPointerTests`): who owns a plain press at a zoom, the scan point under a pane
+//  point, and what VoiceOver hears of a map and its pick (its numbers never grouped). `MarkGeometry` puts a pixel's centre at an integer, so rounding gives each pixel the area it covers, as mac4DSTEM's floor does
 //  with its centres at +0.5. A press beside the picture (zoomed out) picks nothing; a drag past the edge holds the edge's point.
 //  THE VIEWS: `SEMMapScrubLayer` (the whole map picks, and in Maps ⌘-clicks; mounted only at 1× and below, so zoomed in the drag falls
 //  through to the pan),
