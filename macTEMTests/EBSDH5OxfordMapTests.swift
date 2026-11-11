@@ -104,12 +104,12 @@ nonisolated final class EBSDH5OxfordMapTests: XCTestCase {
         for name in ["ebsd-oxford-map", "ebsd-oxford-map-shuffled", "ebsd-oxford-map-grid", "ebsd-oxford-map-no-euler"] {
             let url = Self.fixture(name)
             XCTAssertEqual(EBSDH5Reader.sniff(url: url), .oxfordH5OINA, name)
-            XCTAssertEqual(EBSDH5Reader.probe(url: url)?.mapOnly, true, name)
+            XCTAssertEqual(EBSDH5Reader.content(url: url), .map(.oxford), name)
             XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(orientationMap: true), name)
         }
         for name in ["ebsd-oxford", "ebsd-oxford-6"] {
             let url = Self.fixture(name)
-            XCTAssertEqual(EBSDH5Reader.probe(url: url)?.mapOnly, false, name)
+            XCTAssertEqual(EBSDH5Reader.content(url: url), .patterns(.oxfordH5OINA), name)
             XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(ebsdPatterns: true), name)
         }
         XCTAssertThrowsError(try EBSDH5Reader.read(url: Self.map)) { error in

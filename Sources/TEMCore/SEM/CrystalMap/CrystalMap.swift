@@ -128,11 +128,12 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
         self.originalShape = extents
     }
 
-    /// A reader's map: Bunge Euler angles in radians (lab to crystal, orix's `Rotation.from_euler`) kept as given.
+    /// A reader's map: Bunge Euler angles in radians (lab to crystal, orix's `Rotation.from_euler`) kept as given; `isInData` hides
+    /// the points a file keeps outside the map (orix's `is_in_data`).
     package init(euler: [SIMD3<Double>], phaseIDs: [Int]? = nil, x: [Double]? = nil, y: [Double]? = nil, phaseList: PhaseList? = nil,
-                 properties: [String: [Double]] = [:], scanUnit: String = "px") throws {
+                 properties: [String: [Double]] = [:], scanUnit: String = "px", isInData: [Bool]? = nil) throws {
         try self.init(rotations: euler.map { RotationConversions.eu2qu($0) }, euler: euler, phaseIDs: phaseIDs, x: x, y: y,
-                      phaseList: phaseList, properties: properties, scanUnit: scanUnit)
+                      phaseList: phaseList, properties: properties, scanUnit: scanUnit, isInData: isInData)
     }
 
     /// orix's `create_coordinate_arrays`: x and y of a row-major map of `shape` (rows, columns) with `steps` (dy, dx).

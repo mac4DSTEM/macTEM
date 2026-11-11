@@ -23,8 +23,8 @@ package nonisolated struct FileInventory: Equatable, Sendable {
     /// An EBSD or TKD pattern dataset (an h5ebsd file of kikuchipy, Bruker, EDAX or Oxford; EDAX `.up1`/`.up2` or Oxford `.ebsp` with the map
     /// next to it): the Patterns room.
     package var ebsdPatterns = false
-    /// An orientation map on its own (an `.ang` or `.ctf` without the pattern file of its name next to it, or an Oxford `.h5oina` that holds
-    /// no patterns, #513): the Maps room. A map with its
+    /// An orientation map on its own (an `.ang` or `.ctf` without the pattern file of its name next to it, an Oxford `.h5oina` that holds
+    /// no patterns, #513, or orix's own `.h5`, #514): the Maps room. A map with its
     /// patterns is `ebsdPatterns`, and the Maps room shows it through the dataset.
     package var orientationMap = false
     /// Set instead of the above when the file is not opened here: the sentence says what it is and where it goes.
@@ -147,12 +147,17 @@ package nonisolated enum FileRouting {
             return FileInventory(ebsdPatterns: true)
         }
         let kind = FormatoLoader.sniff(path: path)
-        // An h5ebsd file (kikuchipy, Bruker, EDAX, Oxford H5OINA): FormatoKit's sniff knows `.h5` as HDF5 and `.h5oina` not at all, so the
-        // EBSD reader's own sniff decides for both. A `.h5` that is neither an EBSD scan nor a Velox file keeps its refusal. An H5OINA
-        // that holds a map but no patterns (AZtec's map export) opens in the Maps room, as a `.ctf` alone does (#513).
+        // An h5ebsd file (kikuchipy, Bruker, EDAX, Oxford H5OINA) or orix's own map file: FormatoKit's sniff knows `.h5` as HDF5 and
+        // `.h5oina` not at all, so the EBSD reader's `content` decides for both. A `.h5` that is neither an EBSD file nor a Velox file
+        // keeps its refusal. A map without patterns (AZtec's H5OINA map export, #513; orix's file, #514) opens in the Maps room, as a
+        // `.ctf` alone does; a file of a known maker that holds neither (an EDS-only H5OINA) is refused in its own sentence.
         if kind == .hdf5 || (kind == .unknown && EBSDOpening.h5Extensions.contains(url.pathExtension.lowercased())),
-           let found = EBSDH5Reader.probe(url: url) {
-            return found.mapOnly ? FileInventory(orientationMap: true) : FileInventory(ebsdPatterns: true)
+           let found = EBSDH5Reader.content(url: url) {
+            switch found {
+            case .patterns: return FileInventory(ebsdPatterns: true)
+            case .map: return FileInventory(orientationMap: true)
+            case .refused(let sentence): return FileInventory(refusal: sentence)
+            }
         }
         switch kind {
         case .digitalMicrograph:

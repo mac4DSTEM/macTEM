@@ -352,3 +352,17 @@ is not a shippable app". Two refusals (#513, #518) were found by hand, one file 
 before review does.
 
 **What would reverse it.** Paul deciding to submit before the sweep passes.
+
+## 2026-11-11 — #514 part 1 merges with the map beside LZF patterns checked by tests, not yet on a real file
+
+The screen check of #528 (drive build, 11 Nov) passed on every file there was: Paul's map-only `.h5oina` in Maps, the
+public `ShotPRR1000.ctf` reading 2409 × 1226, the orix map and the plain-words refusals (EDS-only `.h5oina`, Bruker and
+EDAX files without patterns). The owner's data holds no AZtec `.h5oina` with both LZF patterns and a map. So on screen,
+the LZF patterns were only seen through the fixture (`ebsd-oxford-lzf.h5oina`, which has no map). The map read beside
+patterns is held by `EBSDH5ContentTests` on the planted `ebsd-oxford-map-patterns.h5oina` and
+`ebsd-oxford-map-unprocessed.h5oina`. #528 merges on that. A real AZtec file with patterns and a map stays owed to the
+real-file check before 2.0.1 (#523), and fails it there if it does not open both.
+
+**Why.** Holding a tested fix for a file nobody here has would block the plan. The real-file gate still catches it.
+
+**What would reverse it.** A real LZF `.h5oina` with patterns whose map does not reach the Maps room.
