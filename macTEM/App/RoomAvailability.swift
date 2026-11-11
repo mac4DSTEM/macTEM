@@ -20,7 +20,7 @@ nonisolated struct RoomHoldings: Equatable, Sendable {
     var eels = false
     /// An EBSD or TKD pattern dataset, or one opening, in the Patterns room (the Indexing room reads the same dataset).
     var ebsd = false
-    /// An orientation map (an `.ang` or `.ctf` alone, or an EBSD dataset's crystal map), or one opening, in the Maps room.
+    /// An orientation map (an `.ang`, `.ctf` or map-only `.h5oina` alone, or an EBSD dataset's crystal map), or one opening, in the Maps room.
     var maps = false
     /// Every open image is the HAADF (or another image) of a spectrum-image file: a scan image, never a diffraction pattern.
     var imagesAreSpectrumCompanions = false

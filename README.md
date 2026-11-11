@@ -29,7 +29,7 @@ and under the one in front its rooms. What the file holds decides the room it op
   HyperSpy .hspy file.
 - **EBSD and TKD patterns**: h5ebsd from kikuchipy, Bruker, EDAX and Oxford Instruments (.h5oina), EDAX .up1 and .up2,
   Oxford .ebsp and NORDIF Pattern.dat.
-- **Orientation maps**: .ang and .ctf.
+- **Orientation maps**: .ang, .ctf, and Oxford .h5oina saved without patterns (AZtec's map export).
 
 TKD patterns are read and indexed as EBSD patterns are; no TKD dataset has been checked in the app yet.
 
@@ -62,8 +62,8 @@ The rooms:
   or .ctf.
 - **Maps**: IPF and phase maps with their colour keys; grains, and grain and phase boundaries over the map; grain size
   (mean and area-weighted ECD, mean lineal intercept, ASTM E112); KAM, GOS and GND; Schmid factors and slip traces; pole
-  figures, ODF sections and histograms. A map comes from an .ang or .ctf file, from a pattern file that carries one, or
-  from the Indexing room.
+  figures, ODF sections and histograms. A map comes from an .ang, .ctf or map-only .h5oina file, from a pattern file that
+  carries one, or from the Indexing room.
 - **Results**: every measurement of a file in one table, exported as CSV. The SEM results have a table of their own and
   a session report, as PDF or Markdown.
 

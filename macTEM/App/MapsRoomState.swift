@@ -443,7 +443,7 @@ nonisolated enum MapsRoomFormat {
             let count = ids.filter { $0 == id }.count
             out.append(EBSDBrowsing.Row("Phase", "\(phaseName(phase, id: id)) · \(phasePoints(phase, count: count))"))
         }
-        out.append(EBSDBrowsing.Row("Euler angles", Self.infoEuler(document.source)))
+        out.append(EBSDBrowsing.Row("Euler angles", Self.infoEuler(document)))
         out.append(EBSDBrowsing.Row("IPF colours", "TSL key of each phase's Laue group (Nolze and Hielscher 2016), as orix 0.15.0"))
         out.append(EBSDBrowsing.Row("Phase colours", Self.infoPhaseColours(document.source)))
         return out
@@ -457,8 +457,10 @@ nonisolated enum MapsRoomFormat {
         }
     }
 
-    private static func infoEuler(_ source: OrientationMapSession.Document.Source) -> String {
-        switch source {
+    private static func infoEuler(_ document: OrientationMapSession.Document) -> String {
+        switch document.source {
+        case .mapFile where document.format == OrientationMapSession.h5oinaFormat:
+            "Bunge (φ₁, Φ, φ₂), lab to crystal, as the H5OINA file stores them (read as its .ctf is)"
         case .mapFile, .patterns: "Bunge (φ₁, Φ, φ₂), lab to crystal, as orix reads the file"
         case .indexing: "Bunge (φ₁, Φ, φ₂), lab to crystal, from the run's rotations as orix converts them"
         }

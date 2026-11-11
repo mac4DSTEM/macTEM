@@ -1,7 +1,7 @@
 //
 //  OrientationMapSession.swift
 //  Role: the one owner of the Maps room's state (docs/sem/design/orientation-maps-room.md, brief P3-04): the orientation map shown (a
-//        `CrystalMap` from an `.ang` or `.ctf` opened on its own, the crystal map of the EBSD dataset the Patterns room holds, or a run
+//        `CrystalMap` from an `.ang`, `.ctf` or map-only `.h5oina` opened on its own, the crystal map of the EBSD dataset the Patterns room holds, or a run
 //        of the Indexing room on that dataset, handed over by its `Open in Maps`, D-SEM-99) and the others held for `Source`, which layer
 //        the map pane draws (IPF-Z, IPF-X, IPF-Y, Phase or a property) and its picture, the colour keys of the map's phases, and the
 //        picked scan point (`pinned`). The room's views read it; they hold none of it.
@@ -26,7 +26,7 @@ package final class OrientationMapSession {
     /// The map shown and where it came from.
     package nonisolated struct Document: Sendable {
         package enum Source: Sendable, Hashable {
-            /// An `.ang` or `.ctf` opened on its own: the map without patterns.
+            /// An `.ang`, `.ctf` or map-only `.h5oina` opened on its own: the map without patterns.
             case mapFile
             /// The crystal map of the EBSD dataset open in the Patterns room: the patterns are there for the live pane.
             case patterns
@@ -215,7 +215,7 @@ package final class OrientationMapSession {
 
     // MARK: Opening
 
-    /// Reads the `.ang` or `.ctf` at `url` off the main actor (inside its security scope), then shows it.
+    /// Reads the `.ang`, `.ctf` or map-only `.h5oina` at `url` off the main actor (inside its security scope), then shows it.
     @discardableResult
     package func open(url: URL) -> Task<Void, Never> {
         openTask?.cancel()
@@ -237,7 +237,7 @@ package final class OrientationMapSession {
         return task
     }
 
-    /// The map in an `.ang` (orix's reader port) or a `.ctf`.
+    /// The map in an `.ang` (orix's reader port), a `.ctf`, or an Oxford `.h5oina` that holds no patterns (`EBSDH5Reader.readOxfordMap`).
     @concurrent
     nonisolated package static func read(_ url: URL) async throws -> Document {
         let scoped = url.startAccessingSecurityScopedResource()
@@ -256,10 +256,21 @@ package final class OrientationMapSession {
             } catch let refusal as CTFReader.Refusal {
                 throw MapReadError(text: "\(url.lastPathComponent): \(refusal.reason)")
             }
+        case let ext where EBSDOpening.h5Extensions.contains(ext):
+            // An Oxford H5OINA without patterns, AZtec's map export (#513): routing sends it here; its refusals come out in its words.
+            do {
+                let map = try EBSDH5Reader.readOxfordMap(url: url)
+                return Document(fileName: url.lastPathComponent, url: url, map: map, source: .mapFile, format: Self.h5oinaFormat)
+            } catch let refusal as EBSDReadError {
+                throw MapReadError(text: refusal.text)
+            }
         default:
-            throw MapReadError(text: "\(url.lastPathComponent) is not an orientation map (.ang or .ctf).")
+            throw MapReadError(text: "\(url.lastPathComponent) is not an orientation map (.ang, .ctf or .h5oina).")
         }
     }
+
+    /// The format an H5OINA map is shown with (Info names its Euler angles by it).
+    package nonisolated static let h5oinaFormat = ".h5oina (Oxford Instruments)"
 
     nonisolated static func angFormat(_ vendor: ANGMap.Vendor) -> String {
         switch vendor {

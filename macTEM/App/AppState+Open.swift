@@ -118,7 +118,7 @@ extension AppState {
                 roomOpens.append(opening)
                 if let folder { Task { await opening.value; folder.release() } }
             }
-            // The Maps room holds one map: an `.ang` or `.ctf` opened on its own (a dataset's map comes through the Patterns room).
+            // The Maps room holds one map: an `.ang`, `.ctf` or map-only `.h5oina` opened on its own (a dataset's map comes through the Patterns room).
             if let first = mapBatch.first { roomOpens.append(maps.open(url: first)) }
             // The others of each room that no Open Files row reaches are named once the rooms' opens have landed (`reportLeftOut`),
             // not dropped without a word.
