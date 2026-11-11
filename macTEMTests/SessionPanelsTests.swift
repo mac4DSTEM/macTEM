@@ -31,22 +31,13 @@ nonisolated final class SessionPanelsTests: XCTestCase {
         let sheet = Task.immediate {
             answer = await SessionPanels.confirm(title: "Replace?", detail: "", action: "Replace", on: window)
         }
-        var waited = 0
-        while window.attachedSheet == nil, waited < 300 {
-            try await Task.sleep(for: .milliseconds(10))
-            waited += 1
-        }
-        XCTAssertNotNil(window.attachedSheet, "setup: the alert is on the window")
+        try await waitUntil("setup: the alert to be on the window", seconds: 3) { window.attachedSheet != nil }
 
         window.close()
-        waited = 0
-        while answer == nil, waited < 300 {
-            try await Task.sleep(for: .milliseconds(10))
-            waited += 1
-        }
+        try await waitUntil("the alert's answer, within three seconds of the window closing", seconds: 3) { answer != nil }
         let ended = answer
-        XCTAssertEqual(ended, false, "a window closed under the alert is Cancel, within three seconds")
-        if ended != nil { await sheet.value }
+        XCTAssertEqual(ended, false, "a window closed under the alert is Cancel")
+        await sheet.value
     }
 
     /// The alert's other end is the ordinary one: the first button is the action (true), so the closing observer changes nothing
@@ -58,20 +49,12 @@ nonisolated final class SessionPanelsTests: XCTestCase {
         let sheet = Task.immediate {
             answer = await SessionPanels.confirm(title: "Replace?", detail: "", action: "Replace", on: window)
         }
-        var waited = 0
-        while window.attachedSheet == nil, waited < 300 {
-            try await Task.sleep(for: .milliseconds(10))
-            waited += 1
-        }
-        let alert = try XCTUnwrap(window.attachedSheet, "setup: the alert is on the window")
+        try await waitUntil("setup: the alert to be on the window", seconds: 3) { window.attachedSheet != nil }
+        let alert = try XCTUnwrap(window.attachedSheet)
         window.endSheet(alert, returnCode: .alertFirstButtonReturn)
-        waited = 0
-        while answer == nil, waited < 300 {
-            try await Task.sleep(for: .milliseconds(10))
-            waited += 1
-        }
+        try await waitUntil("the alert's answer", seconds: 3) { answer != nil }
         let ended = answer
         XCTAssertEqual(ended, true, "the first button is the action")
-        if ended != nil { await sheet.value }
+        await sheet.value
     }
 }

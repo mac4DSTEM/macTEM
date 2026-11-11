@@ -839,12 +839,9 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
 
         window.close()
         // A hang is endless, so any bound tells it from the answer; the answer takes the sheet's closing animation (0.30 s,
-        // measured three times on this Mac), so the bound is 3 s and not a tight one a loaded Mac could miss.
-        var waited = 0
-        while response == nil, waited < 300 {
-            try await Task.sleep(for: .milliseconds(10))
-            waited += 1
-        }
+        // measured three times on this Mac), so the bound is 3 s and not a tight one a loaded Mac could miss. A wait that runs
+        // out does not fail here: the panel is cancelled first, so nothing is left suspended, and the assertion below fails.
+        _ = try await conditionHolds(within: 3) { response != nil }
         let ended = response
         if ended == nil { panel.cancel(nil) }
         await sheet.value

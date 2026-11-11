@@ -46,23 +46,14 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
             }))
     }
 
-    @MainActor private func until(_ what: String, _ condition: @MainActor () -> Bool) async throws {
-        for _ in 0..<1000 {
-            if condition() { return }
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        XCTFail("timed out waiting for \(what)")
-        throw FFTAnalysisTests.TimedOut()
-    }
-
     /// The owner with its spectrum shown for region A and one spot measured on it (In Mask, as a new spot is).
     @MainActor private func ownerWithASpot() async throws -> (FFTAnalysis, FFTSpot.ID) {
         let analysis = owner()
         analysis.setRegion(FFTAnalysisTests.regionA, committed: true)
         analysis.show(FFTAnalysisTests.plant(), contentVersion: 1)
-        try await until("the spectrum") { analysis.isSpectrumCurrent }
+        try await waitUntil("the spectrum", seconds: 5) { analysis.isSpectrumCurrent }
         analysis.measureSpot(row: 37, col: 40)
-        try await until("the spot") { analysis.hasMeasuredSpot }
+        try await waitUntil("the spot", seconds: 5) { analysis.hasMeasuredSpot }
         return (analysis, try XCTUnwrap(analysis.spots.last).id)
     }
 
@@ -106,10 +97,10 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
         let refusing = ownerRefusingSomeSpots()
         refusing.setRegion(FFTAnalysisTests.regionA, committed: true)
         refusing.show(FFTAnalysisTests.plant(), contentVersion: 1)
-        try await until("the spectrum") { refusing.isSpectrumCurrent }
+        try await waitUntil("the spectrum", seconds: 5) { refusing.isSpectrumCurrent }
         refusing.measureSpot(row: 31, col: 33)
         refusing.measureSpot(row: 29, col: 44)
-        try await until("both answers") {
+        try await waitUntil("both answers", seconds: 5) {
             refusing.spots.count == 2 && refusing.spots.allSatisfy { if case .measuring = $0.outcome { false } else { true } }
         }
         XCTAssertFalse(refusing.hasMeasuredSpot, "a refused and a peakless spot have no centroid")
@@ -141,7 +132,7 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
 
         analysis.setSourceView(.original)
         analysis.runFilter()
-        try await until("the filter") { analysis.filtered != nil }
+        try await waitUntil("the filter", seconds: 5) { analysis.filtered != nil }
         let filtered = FFTSourceViewControl.entries(for: analysis)
         XCTAssertEqual(filtered.map(\.view), FFTAnalysis.SourceView.allCases)
         XCTAssertEqual(filtered[3], Entry(view: .absf, title: "ABSF", isEnabled: true))
@@ -208,10 +199,10 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
         let refusing = ownerRefusingSomeSpots()
         refusing.setRegion(FFTAnalysisTests.regionA, committed: true)
         refusing.show(FFTAnalysisTests.plant(), contentVersion: 1)
-        try await until("the spectrum") { refusing.isSpectrumCurrent }
+        try await waitUntil("the spectrum", seconds: 5) { refusing.isSpectrumCurrent }
         refusing.measureSpot(row: 31, col: 33)
         refusing.measureSpot(row: 29, col: 44)
-        try await until("both answers") {
+        try await waitUntil("both answers", seconds: 5) {
             refusing.spots.count == 2 && refusing.spots.allSatisfy { if case .measuring = $0.outcome { false } else { true } }
         }
         XCTAssertEqual(words(refusing), none, "only a refused and a peakless spot: still nothing measured")

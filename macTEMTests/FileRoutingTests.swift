@@ -173,8 +173,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertEqual(state.navigation.workspaceArea, .image)
         await state.open(urls: [URL(fileURLWithPath: path)])?.value
         XCTAssertEqual(state.navigation.workspaceArea, .edx, "the file decides, not the room the window was in")
-        for _ in 0..<4000 where !state.edx.hasImage { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertTrue(state.edx.hasImage, "the EDS room has the cube")
+        try await waitUntil("the EDS room to have the cube", seconds: 20) { state.edx.hasImage }
         XCTAssertEqual(state.openItems.items.count, 1, "and the Image room has the image")
         state.selectWorkspace(.image)
         XCTAssertEqual(state.navigation.workspaceArea, .image, "switching rooms drops nothing")

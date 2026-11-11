@@ -840,8 +840,7 @@ nonisolated final class FFTRoomPaneTests: XCTestCase {
                 maskedInverse: { _, _ in throw CancellationError() },
                 filter: { _, _ in throw CancellationError() }))
             analysis.show(image, contentVersion: key.contentVersion)
-            for _ in 0..<1000 where !analysis.isSpectrumCurrent { try await Task.sleep(for: .milliseconds(5)) }
-            XCTAssertTrue(analysis.isSpectrumCurrent, "the spectrum landed")
+            try await waitUntil("the spectrum to land", seconds: 5) { analysis.isSpectrumCurrent }
             return analysis
         }
         func click(_ owner: FFTAnalysis, at p: CGPoint, in g: MarkGeometry) -> FFTSpotMarkers.Click {
@@ -866,8 +865,7 @@ nonisolated final class FFTRoomPaneTests: XCTestCase {
             // (b) the second click comes after the answer: the marker is at the centroid
             let late = try await makeOwner()
             _ = click(late, at: at, in: g)
-            for _ in 0..<1000 where late.spots.first?.measured == nil { try await Task.sleep(for: .milliseconds(5)) }
-            XCTAssertNotNil(late.spots.first?.measured, "the spot landed")
+            try await waitUntil("the spot to land", seconds: 5) { late.spots.first?.measured != nil }
             let second = click(late, at: at, in: g)
             XCTAssertEqual(late.spots.count, 1, "zoom \(zoom): the second click made no second spot")
             XCTAssertEqual(late.selection, late.spots[0].id)
