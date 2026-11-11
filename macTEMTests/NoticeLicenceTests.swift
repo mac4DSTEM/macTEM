@@ -53,6 +53,9 @@ nonisolated final class NoticeLicenceTests: XCTestCase {
     func testEveryLicenceTextNOTICENamesShipsInTheBundle() throws {
         let named = try Set(noticeParagraphs().flatMap { licenceFiles(in: $0) })
         XCTAssertTrue(named.contains("Licenses/DefDAP-LICENSE.txt"), "NOTICE does not name DefDAP's licence text")
+        // FormatoKit 0.14.0 compiles a port of liblzf's decoder and h5py's LZF filter into the app (#524).
+        XCTAssertTrue(named.contains("Licenses/liblzf-LICENSE.txt"), "NOTICE does not name liblzf's licence text")
+        XCTAssertTrue(named.contains("Licenses/h5py-lzf-LICENSE.txt"), "NOTICE does not name h5py's LZF filter licence text")
         let resources = try XCTUnwrap(Bundle.main.resourceURL, "the tests run without the app's bundle")
         for file in named.sorted() {
             XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent(file).path), "\(file) is not in the repository")
