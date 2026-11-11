@@ -48,11 +48,11 @@ nonisolated final class RunClockTests: XCTestCase {
         XCTAssertNil(state.busySince[.eels])
     }
 
-    /// The toolbar passes the clock, and the window marks each spectrum room's busy edges. Red under: `metrics: { _ in nil }`.
-    func testTheToolbarPassesTheClock() throws {
+    /// The window marks each spectrum room's busy edges, the start of the toolbar's clock. This stays a pin: the marks are the window's
+    /// `onChange` modifiers, which only a view runs. That the toolbar's busy line reads the clock from its room's start is held by
+    /// `ToolbarDisplayTests` (`metrics` asked on each room's busy line). Red under: either room's `markBusy` call dropped.
+    func testTheWindowMarksEachSpectrumRoomsBusyEdges() throws {
         let view = squeezed(try source("macTEM/UI/ContentView.swift"))
-        XCTAssertFalse(view.contains("metrics: { _ in nil }"))
-        XCTAssertTrue(view.contains("metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) }"))
         XCTAssertTrue(view.contains(".onChange(of: appState.edx.isBusy, initial: true) { appState.markBusy(.edx, appState.edx.isBusy) }"))
         XCTAssertTrue(view.contains(".onChange(of: appState.eels.isBusy, initial: true) { appState.markBusy(.eels, appState.eels.isBusy) }"))
     }
