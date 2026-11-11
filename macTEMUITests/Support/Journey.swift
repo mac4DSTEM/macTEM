@@ -74,6 +74,17 @@ nonisolated class Journey: XCTestCase {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
 
+    /// The words of every element that carries this identifier, label and value, in order. An identifier set on a row of several
+    /// texts lands on each of them: MacEMUI's `InspectorValueRow` is a label text and a value text, and `element(_:)` finds only the
+    /// label (2026-11-11 drive: the Patterns Calibration row's first match was its label text, "Step"). A row that sets its own
+    /// `.accessibilityValue` needs none of this.
+    @MainActor
+    func allWords(_ id: String) -> String {
+        app.descendants(matching: .any).matching(identifier: id).allElementsBoundByIndex
+            .map { "\($0.label) \(($0.value as? String) ?? "")" }
+            .joined(separator: " ")
+    }
+
     /// True when no element carries this identifier: for a control the sources declare and this state must not show (the EELS maps on a
     /// 1 x 1 file). The inventory's identifier check reads this identifier like any other, so one that no source declares any more fails
     /// there: the absence of a deleted control cannot fail on screen, and a journey asserts on what took its place instead.

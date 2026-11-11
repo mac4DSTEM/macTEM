@@ -77,8 +77,21 @@ nonisolated final class IndexingJourney: Journey {
         try step("Index fills the map row by row; the header counts the indexed points") {
             try requireFrontmost()
             waitFor("workspace.primaryAction", timeout: 10).click()
-            waitGone("indexing.map.empty", timeout: 30)
-            waitWords("indexing.map.count", timeout: 180) { $0.contains("indexed") && !$0.contains("reached") && !$0.contains("stopped") }
+            // The run's end first, then the empty sentence's absence. On the 2026-11-11 drive a 30 s wait for the sentence to go failed
+            // on a run that had started and showed no sentence on screen. The cause is not known: the app may answer accessibility
+            // queries late while the run streams rows into the map, or the sentence may stay in the accessibility tree. The check
+            // after the run tells the two apart; a failure there is the room's. The count reads "indexed" only once a run has ended,
+            // and the sentence shows only while there is no result. The count is read only while it exists.
+            let count = element("indexing.map.count")
+            let shown = { count.exists ? "\(count.label) \((count.value as? String) ?? "")" : "" }
+            let ended = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let text = shown()
+                return text.contains("indexed") && !text.contains("reached") && !text.contains("stopped")
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [ended], timeout: 300), .completed,
+                           shown().isEmpty ? "no count after 300 s: the run never started, or the count never answered"
+                                           : "the run never ended: the count read \"\(shown())\"")
+            XCTAssertTrue(isAbsent("indexing.map.empty"), "the empty sentence is still on the map after the run")
             waitWords("indexing.map.title", timeout: 10) { $0.contains("IPF-Z") }
         }
         try step("hovering the map puts the solution in the status line (figure F8)") {
