@@ -2,7 +2,7 @@
 //  TIFFImageReader.swift
 //  Role: open one 2D TIFF image as macTEM's `CalibratedImage`. The reading is FormatoKit's `TIFFAppImage` (FormatoTIFF, the first
 //        consumer's named option, pinned in the kit to this app's source and to RosettaSciIO 049e7d70 + tifffile 2026.9.20: a
-//        baseline TIFF's first directory, uncompressed, striped, chunky; one sample of 8/16/32 bits or float, or an
+//        baseline TIFF's first directory, uncompressed or LZW (FormatoKit 0.15.0), striped, chunky; one sample of 8/16/32 bits or float, or an
 //        equal-channel 8-bit RGB read as a grey render; the Velox XML, FEI SEM INI, Digital Micrograph and ImageJ
 //        calibrations in that order; everything else refused by name). This file is the seam: the app's refusal wording
 //        (`Refusal.reason`), the Cocoa error for an unreadable file, and `KitImages` (the one conversion of a kit image to a

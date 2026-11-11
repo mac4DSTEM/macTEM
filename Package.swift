@@ -12,7 +12,7 @@ let package = Package(
         .library(name: "TEMSession", targets: ["TEMSession"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.14.0"),
+        .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.15.0"),
         .package(url: "https://github.com/mac4DSTEM/DiffractoKit", from: "0.11.0"),
         .package(url: "https://github.com/mac4DSTEM/ImagoKit", from: "0.9.1"),
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", from: "0.13.2"),
