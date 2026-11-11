@@ -72,8 +72,7 @@ final class AppWindows {
     /// tab of the one in front (`WindowTabbing`).
     func openInTabs(_ urls: [URL]) {
         for url in urls {
-            let path = url.standardizedFileURL.path
-            if let holder = onScreen.first(where: { $0.heldFiles.contains(path) }) {
+            if let holder = holder(of: url) {
                 holder.open(urls: [url])
                 holder.showWindow?()
             } else if let openWindow {
@@ -82,6 +81,12 @@ final class AppWindows {
                 openWindow()
             }
         }
+    }
+
+    /// The window on screen that holds `url` already, by its standardised path; nil when none does.
+    func holder(of url: URL) -> AppState? {
+        let path = url.standardizedFileURL.path
+        return onScreen.first { $0.heldFiles.contains(path) }
     }
 
     /// A Finder open's batch (`OpenURLRelay`): into the window in front, else the newest; with no window on screen it waits for the

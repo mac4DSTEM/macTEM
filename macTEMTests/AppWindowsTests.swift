@@ -166,13 +166,39 @@ nonisolated final class AppWindowsTests: XCTestCase {
         XCTAssertEqual(shown, 1, "its window comes forward")
         XCTAssertEqual(second.openItems.items.map(\.url), [b])
 
-        second.open(urls: [c])
+        await second.open(urls: [c])?.value   // a new file is looked at before its tab is made (`tabsChecked`)
         XCTAssertEqual(asked, 2)
         XCTAssertEqual(windows.takeWaitingURLs(), [c])
 
         let alone = AppState(launch: LaunchOptions(arguments: []))
         await alone.open(urls: [a, b])?.value
         XCTAssertEqual(alone.openItems.items.map(\.url), [a, b], "a state no window shows takes the whole batch")
+    }
+
+    /// A file the routing refuses gets no tab: it is named in the alert of the window it was opened from, and no window is asked for,
+    /// so no empty tab is left behind. A good file beside it still gets its tab. Red before: a tab asked for each file of the batch,
+    /// the refused one left empty with its alert.
+    @MainActor func testARefusedFileGetsNoTabOfItsOwn() async throws {
+        let windows = AppWindows()
+        var asked = 0
+        windows.openWindow = { asked += 1 }
+        let a = try plantedCopy(named: "a.dm4"), b = try plantedCopy(named: "b.dm4")
+        let junk = a.deletingLastPathComponent().appendingPathComponent("notes.xyz")
+        try Data("hello".utf8).write(to: junk)
+        let first = AppState(launch: LaunchOptions(arguments: []))
+        windows.enroll(first)
+        await first.open(urls: [a, junk, b])?.value
+        XCTAssertEqual(first.openItems.items.map(\.url), [a])
+        XCTAssertEqual(asked, 1, "one tab, for b")
+        XCTAssertEqual(windows.takeWaitingURLs(), [b])
+        XCTAssertNil(windows.takeWaitingURLs())
+        XCTAssertEqual(first.errorMessage, "notes.xyz is not a format macTEM opens (or its extension and its first bytes disagree).")
+
+        // A window that holds a file, and only a refused one opened: the alert, no tab.
+        first.errorMessage = nil
+        await first.open(urls: [junk])?.value
+        XCTAssertEqual(asked, 1)
+        XCTAssertEqual(first.errorMessage, "notes.xyz is not a format macTEM opens (or its extension and its first bytes disagree).")
     }
 
     /// The last-session record covers every window on screen, in their order, and drops a closed window's file. Red under: the

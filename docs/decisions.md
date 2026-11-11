@@ -279,3 +279,16 @@ TKD geometry is a Patterns setting) and the workspace's hover text names both.
 spectra. The keys follow the list, so they move with it.
 
 **What would reverse it.** Paul's taste.
+
+## 2026-11-11 — A file that cannot be read is refused for that; a refused file gets no tab
+
+**What.** Before its format is asked, a file is opened once for reading (`FileRouting.accessRefusal`): one that is gone is
+refused as "no longer where it was", one macTEM may not read as "macTEM was not given access to … open it with File > Open…,
+drop it on the window or open it from the Finder". A file of a batch that would get a tab of its own is looked at first
+(`tabsChecked`): a refused one is named in the alert of the window it came from and gets no tab.
+
+**Why.** Driven 2026-11-11: a Ceta TIFF and a Velox EMD given by path at launch (`--open`, which the sandbox does not grant)
+were refused as "not a format macTEM opens", the sniff having read no bytes, and each left an empty tab. Preview opens no
+window for a file it cannot open.
+
+**What would reverse it.** A reader that needs to be handed an unreadable path (none does).
