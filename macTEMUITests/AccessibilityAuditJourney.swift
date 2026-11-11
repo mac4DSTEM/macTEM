@@ -31,6 +31,10 @@ nonisolated final class AccessibilityAuditJourney: Journey {
             return true   // recorded, not failed here: the journey fails once, at the end, with every room's issues
         }
         issues += found
+        let report = XCTAttachment(string: found.isEmpty ? "no issues" : found.joined(separator: "\n"))
+        report.name = "accessibility audit, \(room): \(found.count) issues"
+        report.lifetime = .keepAlways
+        add(report)
     }
 
     /// An issue as one line: the audit's short words, the element it names (its identifier and label, when it is still there), and
@@ -63,6 +67,8 @@ nonisolated final class AccessibilityAuditJourney: Journey {
         }
         try step("the Diffraction room on the Au pattern") {
             try openDemoData("Au Diffraction Pattern")
+            waitForDocument(named: "Demo Au pattern")
+            bringToFront(room: "diffraction", in: "diffraction", timeout: 10)
             waitFor("diffraction.pane", timeout: 60)
             waitValue("diffraction.view", timeout: 60) { (Journey.number($0) ?? 0) > 0 }
             try audit("Diffraction (Au)")
@@ -108,6 +114,8 @@ nonisolated final class AccessibilityAuditJourney: Journey {
         }
         try step("the Maps room on the steel map") {
             try openDemoData("Duplex Steel Orientation Map (orix)")
+            waitForDocument(named: "sdss_ferrite_austenite")
+            bringToFront(room: "maps", in: "ebsd", timeout: 10)
             waitFor("maps.room", timeout: 60)
             waitFor("maps.map", timeout: 60)
             try audit("Maps (steel)")

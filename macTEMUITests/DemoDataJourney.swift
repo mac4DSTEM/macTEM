@@ -20,6 +20,8 @@ nonisolated final class DemoDataJourney: Journey {
         }
         try step("Au Diffraction Pattern opens in the Diffraction room") {
             try openDemoData("Au Diffraction Pattern")
+            waitForDocument(named: "Demo Au pattern")
+            bringToFront(room: "diffraction", in: "diffraction", timeout: 10)
             waitFor("diffraction.pane", timeout: 60)
             waitValue("diffraction.view", timeout: 60) { (Journey.number($0) ?? 0) > 0 }
         }
