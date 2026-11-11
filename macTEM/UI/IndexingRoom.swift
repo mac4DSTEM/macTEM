@@ -542,7 +542,9 @@ struct IndexedPatternPane: View {
 }
 
 /// The detected bands' centre lines through the pane's geometry (they keep their place at any zoom): a band the solution matched solid
-/// green with its family, one it did not dashed orange; each over a dark halo so it reads on any pattern.
+/// green with its family on a dark plate, one it did not dashed orange. Stroked as mac4DSTEM strokes its overlays (`SEMOverlayStyle`):
+/// every band's solid dark track first, then the lines on top, so a dashed line reads on an unbroken track and no track cuts a line
+/// where two bands cross.
 private struct DetectedBandsOverlay: View {
     let bands: [IndexedBand]
     let geometry: MarkGeometry
@@ -561,16 +563,18 @@ private struct DetectedBandsOverlay: View {
 
     var body: some View {
         ZStack {
-            path(true).stroke(Color.black.opacity(0.55), lineWidth: 3.5)
-            path(true).stroke(Color.green, lineWidth: 1.5)
-            path(false).stroke(Color.black.opacity(0.45), style: StrokeStyle(lineWidth: 3, dash: [5, 4]))
-            path(false).stroke(Color.orange, style: StrokeStyle(lineWidth: 1.25, dash: [5, 4]))
+            path(false).stroke(Color.black.opacity(SEMOverlayStyle.haloOpacity), style: SEMOverlayStyle.halo)
+            path(true).stroke(Color.black.opacity(SEMOverlayStyle.haloOpacity), style: SEMOverlayStyle.halo)
+            path(false).stroke(Color.orange.opacity(SEMOverlayStyle.lineOpacity), style: SEMOverlayStyle.line(dashed: true))
+            path(true).stroke(Color.green.opacity(SEMOverlayStyle.lineOpacity), style: SEMOverlayStyle.line(dashed: false))
             ForEach(bands.filter(\.isMatched)) { band in
                 if let start = band.start, let end = band.end, let family = band.family {
                     Text(family)
                         .font(.caption2.weight(.semibold).monospacedDigit())
                         .foregroundStyle(Color.green)
-                        .shadow(color: .black, radius: 1.5)
+                        .padding(.horizontal, SEMOverlayStyle.plateHorizontalPadding)
+                        .padding(.vertical, SEMOverlayStyle.plateVerticalPadding)
+                        .background(Color.black.opacity(SEMOverlayStyle.plateOpacity), in: Capsule())
                         .position(point((start + end) / 2))
                 }
             }
