@@ -60,7 +60,8 @@ package nonisolated struct HoughIndexingSettings: Sendable, Equatable, Codable {
 
 /// Where the room reads the patterns it indexes (D-SEM-83): the Patterns room's processed scan in memory when it is current (the only
 /// way NLPAR reaches the indexer), else the patterns as stored, each through the pipeline's per-pattern stages on the fly
-/// (`PatternPipeline.apply`, the numbers `process` writes), or as stored when no stage is on.
+/// (`PatternPipeline.apply`, the numbers `process` writes), or as stored when no stage is on. A run that has ended keeps its source
+/// `released` (#427): what it read, without the patterns.
 package nonisolated struct IndexingSource: Sendable {
     package enum Kind: String, Sendable, Codable, Equatable {
         case processedScan, perPattern, asStored
@@ -74,7 +75,8 @@ package nonisolated struct IndexingSource: Sendable {
         }
     }
 
-    package let access: any EBSDPatternAccess
+    /// Where the patterns are read; nil once `released`.
+    private let access: (any EBSDPatternAccess)?
     /// The stages applied to each pattern as it is read; nil when the access already holds what is indexed.
     package let pipeline: PatternPipeline?
     package let background: FormatoArray?
@@ -82,6 +84,10 @@ package nonisolated struct IndexingSource: Sendable {
     /// The shape of an indexed pattern (binned when the pipeline bins).
     package let patternRows: Int
     package let patternColumns: Int
+    package let scanRows: Int
+    package let scanColumns: Int
+    /// The type the patterns are held in before the pipeline: the processed scan's, or the file's.
+    package let storedType: FormatoDataType
 
     /// The Patterns room's processed scan.
     package init(processed: EBSDMemoryPatterns) {
@@ -91,6 +97,9 @@ package nonisolated struct IndexingSource: Sendable {
         kind = .processedScan
         patternRows = processed.dataset.patternRows
         patternColumns = processed.dataset.patternColumns
+        scanRows = processed.dataset.scanRows
+        scanColumns = processed.dataset.scanColumns
+        storedType = processed.dataset.dataType
     }
 
     /// The patterns as stored, through `pipeline`'s per-pattern stages (none: as stored).
@@ -103,15 +112,43 @@ package nonisolated struct IndexingSource: Sendable {
         let binning = active ? max(pipeline.binning, 1) : 1
         patternRows = stored.dataset.patternRows / binning
         patternColumns = stored.dataset.patternColumns / binning
+        scanRows = stored.dataset.scanRows
+        scanColumns = stored.dataset.scanColumns
+        storedType = stored.dataset.dataType
     }
 
-    package var scanRows: Int { access.dataset.scanRows }
-    package var scanColumns: Int { access.dataset.scanColumns }
+    private init(releasing source: IndexingSource) {
+        access = nil
+        pipeline = source.pipeline
+        background = nil
+        kind = source.kind
+        patternRows = source.patternRows
+        patternColumns = source.patternColumns
+        scanRows = source.scanRows
+        scanColumns = source.scanColumns
+        storedType = source.storedType
+    }
+
+    /// This source without its patterns (#427): what a run that has ended keeps of what it read (the kind, the stages and the shapes,
+    /// for the method record and Info), so it no longer keeps the Patterns room's processed scan in memory once a newer one replaced
+    /// it. Reading a pattern from it is refused.
+    package var released: IndexingSource { IndexingSource(releasing: self) }
+
+    /// The patterns were let go (`released`).
+    package var isReleased: Bool { access == nil }
+
+    /// Whether `other` reads the patterns this source reads (or read before it was released): the same kind through the same stages,
+    /// of the same type and shapes.
+    package func readsAlike(_ other: IndexingSource) -> Bool {
+        kind == other.kind && pipeline == other.pipeline && storedType == other.storedType
+            && [patternRows, patternColumns, scanRows, scanColumns] == [other.patternRows, other.patternColumns, other.scanRows, other.scanColumns]
+    }
 
     /// One scan row of indexed patterns, in map order, each row-major (row 0 at the top) as the band detector takes it. The row is read
     /// once; its patterns go through the pipeline on every core (`ScanRowWork`), each in its column's place, so the values are the
     /// serial loop's.
     package func patterns(row: Int) throws -> [[Double]] {
+        let access = try readable()
         let dataset = access.dataset
         let slab = try access.row(row)
         let size = dataset.patternPixels * slab.dataType.byteSize
@@ -120,7 +157,7 @@ package nonisolated struct IndexingSource: Sendable {
             let one = try FormatoArray(dataType: slab.dataType, shape: [dataset.patternRows, dataset.patternColumns],
                                        bytes: bytes.subdata(in: (base + column * size)..<(base + (column + 1) * size)))
             do {
-                return try indexed(one)
+                return try indexed(one, dataset: dataset)
             } catch let refusal as PatternPipeline.Refusal {
                 // A stage that fails names the pattern, so a run over the scan says which one stopped it.
                 throw refusal.at(row: row, column: column)
@@ -130,12 +167,18 @@ package nonisolated struct IndexingSource: Sendable {
 
     /// The indexed pattern at one scan position.
     package func pattern(row: Int, column: Int) throws -> [Double] {
-        try indexed(access.pattern(row: row, column: column))
+        let access = try readable()
+        return try indexed(access.pattern(row: row, column: column), dataset: access.dataset)
     }
 
-    private func indexed(_ stored: FormatoArray) throws -> [Double] {
+    /// Where the patterns are read; a released source refuses.
+    private func readable() throws -> any EBSDPatternAccess {
+        guard let access else { throw IndexingRefusal("The run has ended and let go of the patterns it read: Index again to read them.") }
+        return access
+    }
+
+    private func indexed(_ stored: FormatoArray, dataset: EBSDDataset) throws -> [Double] {
         guard let pipeline else { return stored.doubles() }
-        let dataset = access.dataset
         return try pipeline.apply(stored, rows: dataset.patternRows, columns: dataset.patternColumns, background: background).doubles()
     }
 }
@@ -183,7 +226,8 @@ package nonisolated struct IndexingInputs: Sendable, Equatable {
 /// The patterns and the band detector, without any phase: what the pattern pane needs to show a pattern as it is indexed and its
 /// detected bands. Building the detector's Radon line plan takes tens of milliseconds: build it off the main actor, once per settings.
 package nonisolated struct IndexingProbe: Sendable {
-    package let source: IndexingSource
+    /// The patterns read; `released` while the room keeps the probe between pattern draws and runs.
+    package private(set) var source: IndexingSource
     package let detector: HoughBandDetector
 
     package init(source: IndexingSource, settings: HoughIndexingSettings) throws {
@@ -196,6 +240,22 @@ package nonisolated struct IndexingProbe: Sendable {
         self.source = source
     }
 
+    /// This band detector without the patterns (#427): what the room keeps between pattern draws and runs, so it does not keep the
+    /// Patterns room's processed scan in memory once a newer one replaced it.
+    package var released: IndexingProbe {
+        var probe = self
+        probe.source = source.released
+        return probe
+    }
+
+    /// This band detector reading `source`; nil unless `source` reads alike the patterns it was built on (`IndexingSource.readsAlike`).
+    package func reading(_ source: IndexingSource) -> IndexingProbe? {
+        guard source.readsAlike(self.source) else { return nil }
+        var probe = self
+        probe.source = source
+        return probe
+    }
+
     /// The pattern at one scan position as it is indexed, and its detected bands.
     package func inspect(row: Int, column: Int) throws -> (pattern: [Double], bands: [HoughBandDetector.Band]) {
         let pattern = try source.pattern(row: row, column: column)
@@ -204,7 +264,8 @@ package nonisolated struct IndexingProbe: Sendable {
 }
 
 package nonisolated struct IndexingPlan: Sendable {
-    package let source: IndexingSource
+    /// The patterns the run reads; `released` once it has ended (`releasePatterns()`).
+    package private(set) var source: IndexingSource
     /// The phases indexed against, in the indexer's order (a solution's `phase` indexes this list).
     package let phases: [IndexingPhase]
     package let settings: HoughIndexingSettings
@@ -250,6 +311,12 @@ package nonisolated struct IndexingPlan: Sendable {
     }
 
     package var projectionCenter: SIMD3<Double> { indexer.projectionCenter }
+
+    /// Lets go of the patterns (#427): a run that has ended reads none (the Bands families and the .ang read `indexer`, the method
+    /// record the source's kind and stages, which stay).
+    package mutating func releasePatterns() {
+        source = source.released
+    }
 
     /// Indexes scan row `row` (its patterns read here, indexed in parallel by `HoughIndexer.indexMap`). Off the caller's actor.
     @concurrent package func indexRow(_ row: Int) async throws -> [HoughIndexer.Solution] {
