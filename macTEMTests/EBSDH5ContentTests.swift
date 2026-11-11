@@ -16,6 +16,7 @@
 //
 
 import Foundation
+import FormatoCore
 import FormatoHDF5
 import TEMCore
 import TEMSession
