@@ -39,6 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quit.hasDestructiveAction = true
         let cancel = alert.addButton(withTitle: "Cancel")
         cancel.keyEquivalent = "\u{1b}"
+        // A quit asked from the Dock or a script while another app is in front: the question would sit behind that app, unseen, and
+        // the quit would wait on it (driven 2026-11-11, macTEM#487). The person asked macTEM to quit, so it comes forward to ask.
+        NSApp.activate()
         guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
         windows.isTerminating = true
         return .terminateNow
