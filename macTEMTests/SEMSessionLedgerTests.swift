@@ -132,7 +132,7 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
 
         let all = SEMSessionLedger.rows(of: state)
         let text = SEMReportMarkdown.text(of: SEMSessionReport.document(all, options: SEMSessionReport.Options(title: "Two runs", format: .markdown),
-                                                                       context: SEMSessionReport.Context(date: Date(), software: "macTEM")),
+                                                                       context: SEMSessionReport.Context(date: Date(), software: "macEM")),
                                           directory: nil)
         for heading in ["### Dictionary indexing", "### Hough indexing", "### " + SEMMethod.houghIndexing.title,
                         "### " + SEMMethod.dictionaryIndexing.title] {
@@ -245,7 +245,7 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         let outline = SEMSessionReport.outline(rows)
         XCTAssertEqual(outline[.maps], 2)
         XCTAssertEqual(outline[.texture], 1)
-        let context = SEMSessionReport.Context(date: Date(), software: "macTEM")
+        let context = SEMSessionReport.Context(date: Date(), software: "macEM")
         let text = SEMReportMarkdown.text(of: SEMSessionReport.document(rows, options: SEMSessionReport.Options(title: "Steel", format: .markdown),
                                                                        context: context), directory: nil)
         for heading in ["## Maps and grains", "### Grain statistics", "## Texture", "### \(texture.phaseName) texture",

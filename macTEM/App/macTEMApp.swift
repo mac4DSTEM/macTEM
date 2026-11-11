@@ -334,7 +334,7 @@ struct macTEMApp: App {
     private static let isUITesting = LaunchOptions().isUITesting
 
     var body: some Scene {
-        WindowGroup("macTEM", id: "image") {
+        WindowGroup("macEM", id: "image") {
             ImageWindow(menuRelay: menuRelay, windows: windows, recents: recents, lastSession: lastSession)
         }
             .handlesExternalEvents(matching: ["*"])

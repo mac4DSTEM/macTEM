@@ -8,7 +8,7 @@ Every public dataset the SEM program reads, with its source, licence and DOI. Tw
   `tools/parity/sem/data-manifest.txt`, which holds each file's URL and sha256. Zenodo-hosted files are marked
   `manual` in the manifest: the cloud runners cannot reach Zenodo, so they are fetched on the Mac.
 
-The licence rule (program spec, 2026-11-06): GPL-compatible only. macTEM is GPL-3.0-only; CC BY 4.0 data and GPL-3
+The licence rule (program spec, 2026-11-06): GPL-compatible only. macEM is GPL-3.0-only; CC BY 4.0 data and GPL-3
 test files are compatible, and each entry below says which it is. Demo data shipped with the app is listed in the
 "Shipped with the app" section once a build carries it.
 

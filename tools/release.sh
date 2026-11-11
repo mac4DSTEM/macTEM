@@ -1,12 +1,12 @@
 #!/bin/zsh
-# Builds the macTEM download: archive, Developer ID signature, notarized and stapled app, then a signed, notarized and
+# Builds the macEM download: archive, Developer ID signature, notarized and stapled app, then a signed, notarized and
 # stapled DMG. the owner runs it on the Mac with the certificate; it pushes nothing and uploads nothing to GitHub.
 #
 #   tools/release.sh
 #
 # Needs the "Developer ID Application" certificate in the login keychain (DEVELOPER_ID_APPLICATION overrides its name; the
 # built app's signature is checked against that name) and a notarytool keychain profile (default macem-notary; override
-# with NOTARY_PROFILE). Output: build/release/<stamp>/macTEM-<version>.dmg and a copy named macTEM.dmg for the "latest"
+# with NOTARY_PROFILE). Output: build/release/<stamp>/macEM-<version>.dmg and a copy named macEM.dmg for the "latest"
 # link. The steps follow mac4DSTEM's tools/release (build-developer-id.sh, notarize.sh, make-dmg.sh); the DMG here is a
 # plain hdiutil image with an Applications link, no dmgbuild.
 set -euo pipefail
@@ -19,8 +19,8 @@ resolve_mactem_developer_dir
 IDENTITY="${DEVELOPER_ID_APPLICATION:-Developer ID Application: Paul Lobpreis (3B8SMSSAX4)}"
 PROFILE="${NOTARY_PROFILE:-macem-notary}"
 OUT="$ROOT/build/release/$(date +%Y%m%d-%H%M%S)"   # a new folder per run, so a rerun never deletes an earlier archive
-ARCHIVE="$OUT/macTEM.xcarchive"
-APP="$ARCHIVE/Products/Applications/macTEM.app"
+ARCHIVE="$OUT/macEM.xcarchive"
+APP="$ARCHIVE/Products/Applications/macEM.app"
 mkdir -p "$OUT"
 
 [[ -z "$(git -C "$ROOT" status --porcelain)" ]] || { echo "The working tree is not clean; commit first so the build has a commit." >&2; exit 1; }
@@ -51,22 +51,22 @@ codesign --verify --deep --strict "$APP"
 codesign -d --entitlements :- "$APP" 2>/dev/null | grep -q "get-task-allow" && { echo "The app carries get-task-allow." >&2; exit 1; }
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 [[ "$VERSION" == "$EXPECTED" ]] || { echo "The built app says $VERSION but the tag is $TAG." >&2; exit 1; }
-echo "macTEM $VERSION"
+echo "macEM $VERSION"
 
 echo "== Notarize the app"
-ditto -c -k --keepParent "$APP" "$OUT/macTEM-submission.zip"
-xcrun notarytool submit "$OUT/macTEM-submission.zip" --keychain-profile "$PROFILE" --wait
+ditto -c -k --keepParent "$APP" "$OUT/macEM-submission.zip"
+xcrun notarytool submit "$OUT/macEM-submission.zip" --keychain-profile "$PROFILE" --wait
 xcrun stapler staple "$APP"
 xcrun stapler validate "$APP"
 spctl --assess --type execute "$APP"
 
 echo "== DMG"
-DMG="$OUT/macTEM-$VERSION.dmg"
+DMG="$OUT/macEM-$VERSION.dmg"
 STAGE="$OUT/dmg"
 mkdir -p "$STAGE"
-ditto "$APP" "$STAGE/macTEM.app"
+ditto "$APP" "$STAGE/macEM.app"
 ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "macTEM $VERSION" -srcfolder "$STAGE" -format UDZO -ov "$DMG" > /dev/null
+hdiutil create -volname "macEM $VERSION" -srcfolder "$STAGE" -format UDZO -ov "$DMG" > /dev/null
 codesign --sign "$IDENTITY" --timestamp "$DMG"
 
 echo "== Notarize the DMG"
@@ -74,10 +74,14 @@ xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
 xcrun stapler staple "$DMG"
 xcrun stapler validate "$DMG"
 spctl --assess --type open --context context:primary-signature "$DMG"
+cp "$DMG" "$OUT/macEM.dmg"
+# Up to 1.3 the app was macTEM and its DMG macTEM.dmg: the 2.x releases attach a copy under that name too, so the links and
+# bookmarks to releases/latest/download/macTEM.dmg keep working.
 cp "$DMG" "$OUT/macTEM.dmg"
 
 echo
 echo "Done: $DMG"
-echo "Also: $OUT/macTEM.dmg (for releases/latest/download/macTEM.dmg)"
+echo "Also: $OUT/macEM.dmg (for releases/latest/download/macEM.dmg)"
+echo "And:  $OUT/macTEM.dmg (the name up to 1.3; attach it too in 2.x)"
 echo "SHA-256: $(shasum -a 256 "$DMG" | cut -d' ' -f1)"
 echo "Size: $(stat -f%z "$DMG") bytes"

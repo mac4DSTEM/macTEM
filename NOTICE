@@ -1,4 +1,4 @@
-macTEM
+macEM
 Copyright (C) 2026 Paul Lobpreis
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
@@ -236,7 +236,7 @@ MacEMUI (a Swift package the app is built with)
 
 The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.6.0, commit
 b8d3c7c7dc868ab5c306dc427700553c69beaf6a), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
-inspector, the controls, the Metal image view, the EDS room and the agent door macTEM shares with mac4DSTEM.
+inspector, the controls, the Metal image view, the EDS room and the agent door macEM shares with mac4DSTEM.
 
 ================================================================================
 Bundled third-party libraries
@@ -297,7 +297,7 @@ EDS_SEM_TM002.hspy (31,008 bytes, md5 1c3b8fddb2698741a0948d5a7c4eec51)
     about 6 µm holding C, Al, Mn, Cu and Zr on a silicon substrate, acquired on a Carl Zeiss Nvision40 with an Oxford
     Instruments X-max 80 detector at 10 kV (1024 channels of 10 eV from -100 eV; live time 20.0 s). The file is
     `exspy/data/EDS_SEM_TM002.hspy` of the eXSpy package (https://github.com/hyperspy/exspy), Copyright 2007-2026 The eXSpy
-    developers, GPL-3.0-or-later (text in LICENSE, which is version 3 of the same licence). macTEM reads the spectrum with its
+    developers, GPL-3.0-or-later (text in LICENSE, which is version 3 of the same licence). macEM reads the spectrum with its
     own reader of HyperSpy's HDF5 layout (`HyperSpySpectrumFile`); no eXSpy or RosettaSciIO code is copied.
 
 ni_mc_mp_20kv_uint8_gzip_opts9.h5 (908,492 bytes, md5 807c8306a0d02b46effbcb12bd44cd02)
@@ -307,7 +307,7 @@ ni_mc_mp_20kv_uint8_gzip_opts9.h5 (908,492 bytes, md5 807c8306a0d02b46effbcb12bd
     (https://github.com/pyxem/kikuchipy, the file `data.nickel_ebsd_master_pattern_small()` loads), Copyright 2019-2026 the
     kikuchipy developers, GPL-3.0-or-later; the master pattern itself is H. W. Ånes, "EBSD master pattern of nickel at
     20 kV" [Data set], Zenodo, https://doi.org/10.5281/zenodo.7498645, CC BY 4.0 (text in
-    `Licenses/kikuchipy-data-nickel_ebsd_large-LICENSE.txt`, the same licence). macTEM reads it with its own reader
+    `Licenses/kikuchipy-data-nickel_ebsd_large-LICENSE.txt`, the same licence). macEM reads it with its own reader
     (`EMsoftMasterPatternReader`).
 
 sdss_ferrite_austenite.ang (651,687 bytes, md5 0c45548b82445657fbd52d882a27f2fd)
@@ -315,7 +315,7 @@ sdss_ferrite_austenite.ang (651,687 bytes, md5 0c45548b82445657fbd52d882a27f2fd)
     ferrite) with dot product and image quality, indexed with EMsoft; EBSD data by Jarle Hjelen, NTNU. The file is
     `sdss_ferrite_austenite.ang` of the orix data repository https://github.com/pyxem/orix-data (the file orix 0.15's
     `data.sdss_ferrite_austenite()` fetches; doi:10.5281/zenodo.3625780), licensed under CC BY 4.0 (text in
-    `Licenses/orix-data-sdss_ferrite_austenite-LICENSE.txt`). macTEM reads it with its own port of orix's .ang reader.
+    `Licenses/orix-data-sdss_ferrite_austenite-LICENSE.txt`). macEM reads it with its own port of orix's .ang reader.
 
 ================================================================================
 RosettaSciIO (the SEM-EDS map readers are ported from it; its test files are fixtures)
@@ -361,7 +361,7 @@ Validation references (used by the test harnesses; not part of the app)
 
 ncempy 1.16 (https://github.com/ercius/openNCEM, tag v1.16, commit f3c09f96dab1d108861db5a6e8477984455c59f3),
 GPL-3.0-or-later; its io package is dual-licensed GPLv3/MIT. Installed into the gitignored References/ by
-tools/lib/python.sh; tools/parity/metadata-parity compares the metadata macTEM reads against it.
+tools/lib/python.sh; tools/parity/metadata-parity compares the metadata macEM reads against it.
 
 RosettaSciIO (https://github.com/hyperspy/rosettasciio, commit 049e7d7070e84779b499adaf3295beee9facb004),
 GPL-3.0-or-later. Its DigitalMicrograph test files are fetched into References/ by tools/lib/fetch-rsciio.sh and read

@@ -94,7 +94,7 @@ final class AppState {
         default: imageSession.image?.fileName
         }
         if let name, !name.isEmpty { return name }
-        return imageSession.image?.fileName ?? "macTEM"
+        return imageSession.image?.fileName ?? "macEM"
     }
     let eelsRoom = EELSRoomState()
 

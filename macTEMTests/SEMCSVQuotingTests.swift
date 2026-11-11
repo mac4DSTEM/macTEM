@@ -108,7 +108,7 @@ nonisolated final class SEMCSVQuotingTests: XCTestCase {
                                              deltaPercent: -2, oddsText: "one family", verdict: "matches {200}", validation: "",
                                              isCalibrating: true)
         let plain = DiffractionExport.text(rows: [plainRow], header: Self.diffractionHeader(fileName: "gold rings.dm4"))
-        XCTAssertEqual(plain, ["# macTEM diffraction readout",
+        XCTAssertEqual(plain, ["# macEM diffraction readout",
                                "# file: gold rings.dm4",
                                "# centre: row 256, column 256 (typed)",
                                "# calibration: none; delta_q  per A per px; wavelength  A; L  px; L  mm; fit versus file  %",
@@ -140,32 +140,32 @@ nonisolated final class SEMCSVQuotingTests: XCTestCase {
     func testALineBreakInAFileOrRegionNameStaysOnTheEELSAndParticleHeaderLines() throws {
         let broken = "a\nb.dm4"
         let results = Self.lines(EELSExports.resultsCSV([], fileName: "a\r\nb.dm4", regionName: "Region\n1", thickness: "t", method: "m"))
-        XCTAssertEqual(results.first, "# macTEM EELS results, file: a  b.dm4, region: Region 1, " + EELSLiterature.headerLine)
+        XCTAssertEqual(results.first, "# macEM EELS results, file: a  b.dm4, region: Region 1, " + EELSLiterature.headerLine)
         XCTAssertEqual(Array(results.dropFirst().prefix(2)), ["# t", "# m"])
         XCTAssertEqual(Self.lines(EELSExports.resultsCSV([], fileName: "143.dm4", regionName: "Whole map", thickness: "t", method: "m")).first,
-                       "# macTEM EELS results, file: 143.dm4, region: Whole map, " + EELSLiterature.headerLine)
+                       "# macEM EELS results, file: 143.dm4, region: Whole map, " + EELSLiterature.headerLine)
 
         let low = EELSPlotCurve(origin: -1, step: 0.5, counts: [1, 2])
         let plot = EELSPlotData(regionName: "Region\u{2028}1", pixels: 4, low: low, core: nil, zlpMaskEV: nil, model: nil, edges: [], thickness: nil)
         let spectrum = Self.lines(EELSExports.spectrumCSV(plot, fileName: broken))
-        XCTAssertEqual(Array(spectrum.prefix(2)), ["# macTEM EELS spectrum, file: a b.dm4, region: Region 1, 4 px, counts summed over the region",
+        XCTAssertEqual(Array(spectrum.prefix(2)), ["# macEM EELS spectrum, file: a b.dm4, region: Region 1, 4 px, counts summed over the region",
                                                    "segment,energy_eV,counts,model"])
 
         let regions = Self.lines(EELSExports.regionsCSV([], fileName: broken))
-        XCTAssertEqual(Array(regions.prefix(2)), ["# macTEM EELS regions, file: a b.dm4, " + EELSLiterature.headerLine,
+        XCTAssertEqual(Array(regions.prefix(2)), ["# macEM EELS regions, file: a b.dm4, " + EELSLiterature.headerLine,
                                                   "region,pixels,i_total,t_over_lambda"])
 
         let map = try EELSCompute.map(image: try EELSRoomTests.image(), threshold: .fixed(2.5), meanFreePath: nil)
         let diagnostics = Self.lines(EELSCompute.diagnosticsCSV(map, fileName: broken))
-        XCTAssertTrue(diagnostics[0].hasPrefix("# macTEM EELS thickness, file: a b.dm4, method: "), diagnostics[0])
+        XCTAssertTrue(diagnostics[0].hasPrefix("# macEM EELS thickness, file: a b.dm4, method: "), diagnostics[0])
         XCTAssertEqual(diagnostics[1], "x,y,t_over_lambda,sigma_counting,i0,i_total,zlp_centre_eV,threshold_eV,thickness_nm,unavailable")
 
         let report = try ParticleCompute.analyse(pixels: ParticleTests.planted(), width: ParticleTests.width, height: ParticleTests.height,
                                                  settings: ParticleSettings())
         let scale = ParticleScale(perPixel: 0.5, unit: "nm")
         let particles = Self.lines(ParticleFormat.csv(report, scale: scale, fileName: broken))
-        XCTAssertEqual(particles[0], "# macTEM particles, file: a b.dm4")
+        XCTAssertEqual(particles[0], "# macEM particles, file: a b.dm4")
         XCTAssertTrue(particles[1].hasPrefix("# threshold: "), particles[1])
-        XCTAssertEqual(Self.lines(ParticleFormat.csv(report, scale: scale, fileName: "p.dm4")).first, "# macTEM particles, file: p.dm4")
+        XCTAssertEqual(Self.lines(ParticleFormat.csv(report, scale: scale, fileName: "p.dm4")).first, "# macEM particles, file: p.dm4")
     }
 }

@@ -344,8 +344,8 @@ nonisolated extension SessionSidecarFileTests {
         }
     }
 
-    /// The reasons read as sentences a caller can put after "macTEM could not open the sidecar: ", one to a refusal, the
-    /// variable-length string's among them (it says what the file holds, that macTEM does not read it, and why). Red under:
+    /// The reasons read as sentences a caller can put after "macEM could not open the sidecar: ", one to a refusal, the
+    /// variable-length string's among them (it says what the file holds, that macEM does not read it, and why). Red under:
     /// a reason without its full stop; two refusals given one reason.
     func testEveryRefusalHasAReason() {
         let all: [Sidecar.Refusal] = [

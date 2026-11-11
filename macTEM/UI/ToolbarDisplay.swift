@@ -26,7 +26,7 @@ enum ToolbarDisplay {
         }
         switch room {
         case .edx, .eels:
-            guard !appState.windowTitle.isEmpty, appState.windowTitle != "macTEM" else { return nil }
+            guard !appState.windowTitle.isEmpty, appState.windowTitle != "macEM" else { return nil }
             let busy = room == .edx ? appState.edx.isBusy : appState.eels.isBusy
             if busy {
                 return .busy(operation: BusyOperation.name(room: room, appState: appState) ?? room.title, progress: RoomProgress.fraction(room: room, appState: appState),

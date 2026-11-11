@@ -23,7 +23,7 @@ nonisolated final class FFTExportTests: XCTestCase {
 
     // MARK: Fixtures
 
-    private static let software = "macTEM 0.1.0 (1)"
+    private static let software = "macEM 0.1.0 (1)"
     private static let region = PixelCrop(row: 0, col: 16, height: 64, width: 64)
 
     /// The planted image's header for `region` (96 × 64 at 0.05 × 0.04 nm): spectrum 64 × 64, Δq = 1/(64·d).
@@ -94,11 +94,11 @@ nonisolated final class FFTExportTests: XCTestCase {
         let profile = try RadialProfile.compute(Self.spectrum())
         let text = try XCTUnwrap(RadialProfileCSV.text(profile, header: Self.header(notes: ["a note"])))
         let c = Self.table(text).comments
-        XCTAssertEqual(c.first, "# macTEM radial profile")
+        XCTAssertEqual(c.first, "# macEM radial profile")
         XCTAssertTrue(text.contains("NO window, the mean NOT removed"))
         XCTAssertFalse(text.contains("Hann"), "the profile is of the unwindowed transform")
         XCTAssertTrue(c.contains("# subject: region 64 x 64 px at (16, 0) (column, row of its top-left pixel)"))
-        XCTAssertTrue(c.contains("# software: macTEM 0.1.0 (1)"))
+        XCTAssertTrue(c.contains("# software: macEM 0.1.0 (1)"))
         XCTAssertTrue(c.contains("# x scale: 0.05 nm per px, origin 0.0 px"), "\(c)")
         XCTAssertTrue(c.contains("# spectrum: 64 x 64 bins"))
         XCTAssertTrue(c.contains("# dq x: \(CSVText.number(1.0 / (64 * 0.05))) 1/nm per bin (\(CSVText.number(1.0 / (64 * 0.05))) nm\u{207B}\u{00B9})"), "\(c)")
@@ -162,7 +162,7 @@ nonisolated final class FFTExportTests: XCTestCase {
     func testTheSpotsHeaderStatesTheEstimatorTheMaskTheOmittedAndTheNotes() throws {
         let text = try Self.spotsText(notes: ["With noise, d is good to 1\u{2013}5 % at 64 px."], omitted: 4)
         let c = Self.table(text).comments
-        XCTAssertEqual(c.first, "# macTEM spots")
+        XCTAssertEqual(c.first, "# macEM spots")
         XCTAssertTrue(text.contains("Hann-windowed, mean-removed copy of the region (the transform above is not)"))
         XCTAssertTrue(c.contains { $0.hasPrefix("# listed: 2 measured spots; not listed: 4") })
         XCTAssertTrue(c.contains("# mask: radius 3 bins, edge 2 bins (the masked inverse)"), "\(c)")

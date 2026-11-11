@@ -140,7 +140,7 @@ nonisolated final class NORDIFOpeningTests: XCTestCase {
 
     /// A `Setting.txt` that is there and may not be read (the sandbox's case: a signed build is granted the picked `Pattern.dat`, not
     /// its folder) is named in the refusal, with the folder; file mode 000 stands in for the sandbox. A `.dat` with no settings file,
-    /// or with one that opens, gets no such sentence. Red before: the general "is not a format macTEM opens".
+    /// or with one that opens, gets no such sentence. Red before: the general "is not a format macEM opens".
     func testASettingsFileThatMayNotBeReadIsNamedInTheRefusal() throws {
         XCTAssertNotEqual(geteuid(), 0, "root reads a mode-000 file; run this as a user")
         let folder = try folder(patternBytes: try Data(contentsOf: url("Pattern.dat")))
@@ -149,7 +149,7 @@ nonisolated final class NORDIFOpeningTests: XCTestCase {
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: settings.path) }
         let pattern = folder.appendingPathComponent("Pattern.dat")
         XCTAssertFalse(NORDIFOpening.isNORDIFFile(pattern), "a settings file that cannot be opened cannot be recognised")
-        let sentence = "Setting.txt beside Pattern.dat cannot be read: macOS does not let macTEM open it (Permission denied); "
+        let sentence = "Setting.txt beside Pattern.dat cannot be read: macOS does not let macEM open it (Permission denied); "
             + "a NORDIF scan needs the acquisition's folder, not Pattern.dat alone."
         XCTAssertEqual(NORDIFOpening.unreadableSettingsRefusal(pattern), sentence)
         XCTAssertEqual(FileRouting.inventory(path: pattern.path), FileInventory(refusal: sentence))

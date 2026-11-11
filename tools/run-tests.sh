@@ -33,6 +33,8 @@ resolve_mactem_developer_dir
 . "$ROOT/tools/lib/unit-skips.sh"
 # app_warnings <root> <log>: the compiler warnings in macTEM/ and macTEMTests/, listed and counted; exit 1 when there is one.
 . "$ROOT/tools/lib/app-warnings.sh"
+# core_warnings <log>: the warnings `core` counts, all but SwiftPM's repository-cache notes; exit 1 when there is one.
+. "$ROOT/tools/lib/core-warnings.sh"
 
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
 scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
@@ -305,20 +307,24 @@ ui_build() (
 )
 
 # From a fresh scratch path every run: an incremental build compiles nothing and so prints none of the warnings it
-# emitted the first time (a second run on the same tree printed 0 of 2, review 2026-10-12). Any `warning:` fails.
+# emitted the first time (a second run on the same tree printed 0 of 2, review 2026-10-12). Any `warning:` fails, the compiler's
+# or SwiftPM's, except SwiftPM's note that it skipped its repository cache and cloned a package afresh (tools/lib/core-warnings.sh).
 core_build() (
-  local work rc warnings
+  local work rc warnings wrc=0 notes
   work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-core.XXXXXX")"
   trap 'rm -rf "$work"' EXIT
   ( cd "$ROOT" && swift build --scratch-path "$work/build" ) > "$work/core.log" 2>&1 && rc=0 || rc=$?
   grep -vE '^\[[0-9]+ ?/ ?[0-9]+\]' "$work/core.log" || true
   if (( rc != 0 )); then echo "core: swift build exit $rc" >&2; return $rc; fi
-  warnings="$(grep -E 'warning:' "$work/core.log" || true)"
+  warnings="$(core_warnings "$work/core.log")" || wrc=$?
+  (( wrc != 2 )) || return 1
   if [[ -n "$warnings" ]]; then
     echo "core: swift build exit 0 but with warnings; TEMCore and TEMSession build with zero:" >&2
     print -r -- "$warnings" >&2
     return 1
   fi
+  notes="$(skipped_caches "$work/core.log")"
+  (( notes == 0 )) || echo "core: SwiftPM skipped its repository cache $notes times and cloned afresh; those notes are not warnings"
   echo "core: TEMCore + TEMSession built from scratch, 0 warnings"
 )
 
@@ -343,15 +349,15 @@ release_build() (
   grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/release.log" | head -40 || true
   echo "release-build: xcodebuild exit $rc"
   (( rc == 0 )) || return $rc
-  app="$work/DerivedData/Build/Products/Release/macTEM.app"
+  app="$work/DerivedData/Build/Products/Release/macEM.app"
   info="$app/Contents/Info.plist"
-  [[ -f "$info" ]] || { echo "release-build: the build wrote no app at Build/Products/Release/macTEM.app"; return 1; }
+  [[ -f "$info" ]] || { echo "release-build: the build wrote no app at Build/Products/Release/macEM.app"; return 1; }
 
   # Each Mach-O a user receives, named: the executable and FormatoKit's three HDF5 frameworks, each present and arm64 alone. Named,
   # not globbed: a glob that matches nothing passes an app that lost them (mac4DSTEM's release-arch.sh), and FormatoKit loads
   # libhdf5 at run time, so such an app launches and then fails every HDF5, EMD and h5ebsd open. No load command may name a
   # machine-local library either.
-  local -a machos=("$app/Contents/MacOS/macTEM")
+  local -a machos=("$app/Contents/MacOS/macEM")
   for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do machos+=("$app/Contents/Frameworks/$library.framework/$library"); done
   for macho in "${machos[@]}"; do
     if [[ ! -f "$macho" ]]; then echo "  MISSING   ${macho#$app/}"; failures=1; continue; fi
@@ -402,7 +408,7 @@ release_build() (
   fi
 
   if (( failures != 0 )); then echo "release-build: the Release app FAILED the checks above"; return 1; fi
-  echo "release-build: macTEM $version built Release for generic/platform=macOS;" \
+  echo "release-build: macEM $version built Release for generic/platform=macOS;" \
        "arm64 alone with its three frameworks, version, build, floor and identifier as the project declares, privacy manifest," \
        "export answer, licences, sandbox entitlements and a verified signature"
 )
@@ -418,6 +424,9 @@ inventory() {
 
   echo "== the unit gate fails a compiler warning in the app's own sources and tests"
   "$ROOT/tools/lib/app-warnings-selftest.sh" || rc=1
+
+  echo "== the core gate fails a compiler or SwiftPM warning, and not SwiftPM's repository-cache notes"
+  "$ROOT/tools/lib/core-warnings-selftest.sh" || rc=1
 
   echo "== tools classification"
   local -a all=("${scientific[@]}" "${diagnostic[@]}" "${owner_only[@]}" "${retired[@]}" "${support[@]}" "${references[@]}")

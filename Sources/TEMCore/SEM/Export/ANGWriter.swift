@@ -31,7 +31,7 @@ package nonisolated enum ANGWriter {
         package var operatorName: String
 
         package init(imageQuality: String? = nil, confidenceIndex: String? = nil, detectorSignal: String? = nil, patternFit: String? = nil,
-                     extraProperties: [String] = [], operatorName: String = "macTEM") {
+                     extraProperties: [String] = [], operatorName: String = "macEM") {
             self.imageQuality = imageQuality; self.confidenceIndex = confidenceIndex; self.detectorSignal = detectorSignal
             self.patternFit = patternFit; self.extraProperties = extraProperties; self.operatorName = operatorName
         }

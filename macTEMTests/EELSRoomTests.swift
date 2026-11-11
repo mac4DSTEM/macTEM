@@ -225,9 +225,9 @@ nonisolated final class EELSRoomTests: XCTestCase {
     // The window's title follows the room: the spectrum image's file in the EELS room, the image's elsewhere.
     @MainActor func testTheWindowTitleFollowsTheRoom() async throws {
         let state = AppState()
-        XCTAssertEqual(state.windowTitle, "macTEM")
+        XCTAssertEqual(state.windowTitle, "macEM")
         state.navigation.workspaceArea = .eels
-        XCTAssertEqual(state.windowTitle, "macTEM", "no spectrum image open: the app's name")
+        XCTAssertEqual(state.windowTitle, "macEM", "no spectrum image open: the app's name")
     }
 
     /// The reasons a pixel has no t/λ are held by the session once per map.

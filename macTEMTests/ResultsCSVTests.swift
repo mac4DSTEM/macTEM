@@ -26,7 +26,7 @@ nonisolated final class ResultsCSVTests: XCTestCase {
 
     private static let nmX = AxisCalibration(scale: 0.0731, unit: "nm", origin: 0)
     private static let nmY = AxisCalibration(scale: 0.0789, unit: "nm", origin: 0)
-    private static let software = "macTEM 0.1.0 (1)"
+    private static let software = "macEM 0.1.0 (1)"
 
     private func source(notes: [String] = [], fileName: String = "results.dm4", x: AxisCalibration? = ResultsCSVTests.nmX,
                         y: AxisCalibration? = ResultsCSVTests.nmY) -> ExportSource {
@@ -107,8 +107,8 @@ nonisolated final class ResultsCSVTests: XCTestCase {
         let rows = [distance(), angle(), try spot()]
         let text = try XCTUnwrap(ResultsCSV.text(rows, source: source(notes: ["The scale is the file's"]), session: "Saved at 14:03."))
         let parts = split(text)
-        XCTAssertEqual(parts.header.first, "# macTEM results")
-        XCTAssertEqual(header(text, "software"), "macTEM 0.1.0 (1)")
+        XCTAssertEqual(parts.header.first, "# macEM results")
+        XCTAssertEqual(header(text, "software"), "macEM 0.1.0 (1)")
         XCTAssertEqual(header(text, "file"), "results.dm4")
         XCTAssertEqual(header(text, "object"), "ImageList.1")
         XCTAssertEqual(header(text, "image"), "128 x 96 px")

@@ -23,7 +23,7 @@ import TEMSession
 enum MacTEMAgentDoor {
     /// The app's one door. Opened by the Settings switch, and at launch when it was left on.
     static let shared: AgentDoor = {
-        let door = AgentDoor(appName: "macTEM", appVersion: version(), preferredPort: port)
+        let door = AgentDoor(appName: "macEM", appVersion: version(), preferredPort: port)
         door.register(MacTEMAgentDoor.tools)
         return door
     }()
@@ -58,7 +58,7 @@ enum MacTEMAgentDoor {
 
     static let tools: [AgentTool] = [
         AgentTool(name: "get_window", title: "Window state",
-                  summary: "What one macTEM window shows: the room, the open files (the shown one first in its row), each file's size, "
+                  summary: "What one macEM window shows: the room, the open files (the shown one first in its row), each file's size, "
                       + "calibration and voltage once read, how many finished results the shown file has, and the status line.",
                   input: .window) { call in
             guard let appState = call.window?.state as? AppState else { return MacTEMAgentDoor.notAWindow }
@@ -86,7 +86,7 @@ enum MacTEMAgentDoor {
         },
     ]
 
-    private static let notAWindow = AgentToolOutput.refusal(status: 500, message: "That window is not a macTEM window.")
+    private static let notAWindow = AgentToolOutput.refusal(status: 500, message: "That window is not a macEM window.")
 
     // MARK: Answers
 
@@ -137,7 +137,7 @@ enum MacTEMAgentDoor {
 
     static func image(_ appState: AppState, scale: Int) -> AgentToolOutput {
         guard let snapshot = ExportSnapshot.imageSnapshot(in: appState.openItems) else {
-            return .refusal(status: 404, message: "No image is shown: open a file in macTEM, or wait until its read finishes.")
+            return .refusal(status: 404, message: "No image is shown: open a file in macEM, or wait until its read finishes.")
         }
         let options = ExportSnapshot.options(scaleBar: snapshot.defaults.scaleBar, marks: snapshot.defaults.marks,
                                              offersMarks: snapshot.defaults.offersMarks)

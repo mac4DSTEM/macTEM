@@ -48,7 +48,7 @@ package nonisolated enum VeloxImageReader {
             switch self {
             case .notVelox(let what): what.isEmpty ? "it is not a Velox EMD file." : "it is not a Velox EMD file (\(what))."
             case .library(let detail): "the bundled HDF5 library could not be loaded (\(detail))."
-            case .noImage(let holds): "it holds no image macTEM opens (\(holds))."
+            case .noImage(let holds): "it holds no image macEM opens (\(holds))."
             case .unreadable(let detail): "it could not be read (\(detail))."
             }
         }

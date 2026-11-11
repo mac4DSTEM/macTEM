@@ -21,7 +21,7 @@ extension ProfileCSV {
     /// e.g. ("nm", 1e9) for a metre axis); nil when the same, or when the image is not calibrated.
     package nonisolated static func text(_ profile: LineProfile, start: ImagePoint, end: ImagePoint, source: ExportSource,
                                          shown: (unit: String, factor: Double)? = nil) -> String? {
-        text(profile, title: "macTEM line profile", appName: "macTEM", start: start.pixelPoint, end: end.pixelPoint,
+        text(profile, title: "macEM line profile", appName: "macEM", start: start.pixelPoint, end: end.pixelPoint,
                 source: source, validation: validation, shown: shown)
     }
 

@@ -148,7 +148,7 @@ nonisolated final class ParticleTests: XCTestCase {
         let report = try ParticleCompute.analyse(pixels: Self.planted(), width: Self.width, height: Self.height, settings: ParticleSettings())
         let csv = ParticleFormat.csv(report, scale: ParticleScale(perPixel: 0.5, unit: "nm"), fileName: "p.dm4")
         let lines = csv.split(separator: "\n").map(String.init)
-        XCTAssertEqual(lines[0], "# macTEM particles, file: p.dm4")
+        XCTAssertEqual(lines[0], "# macEM particles, file: p.dm4")
         XCTAssertFalse(csv.contains("validation"))
         XCTAssertTrue(lines[1].contains("fraction 0.5 of the raw range = 55"), lines[1])
         XCTAssertTrue(lines.contains("label,counted,touches_edge,small,area_px,centroid_x_px,centroid_y_px,length_px,width_px,angle_deg,length_nm,width_nm,area_nm2"))

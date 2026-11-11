@@ -37,7 +37,7 @@ assert_mactem_arm64_only() {  # <Mach-O>
 # Every Mach-O a user receives: the executable and the three frameworks, each named.
 assert_mactem_bundle_arm64_only() {  # <app>
   local app="$1" library arch_failures=0
-  assert_mactem_arm64_only "$app/Contents/MacOS/macTEM" || arch_failures=1
+  assert_mactem_arm64_only "$app/Contents/MacOS/macEM" || arch_failures=1
   for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do
     if [[ ! -f "$app/Contents/Frameworks/$library.framework/$library" ]]; then
       echo "The app is missing $library.framework." >&2

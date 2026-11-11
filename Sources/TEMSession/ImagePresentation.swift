@@ -132,7 +132,7 @@ package final class ImagePresentation {
 
     /// What the Display section says under Show Scale Bar on a render (`startsWithScaleBar(notes:)`): why the bar starts hidden.
     package nonisolated static let renderScaleBarNote =
-        "A render: any scale bar it shows was drawn into its pixels at export, so macTEM's starts hidden."
+        "A render: any scale bar it shows was drawn into its pixels at export, so macEM's starts hidden."
 
     /// The window as the shader takes it (`DisplayWindow.fractions`).
     package var displayFractions: (low: Float, high: Float) {

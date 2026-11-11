@@ -56,7 +56,7 @@ def main():
         ours = load_ours(args.ours, shape)
         diff = ours.astype(int) - reference.astype(int)
         off = int((diff != 0).sum())
-        panels.append((f"macTEM (TEMCore PatternProcessing)", ours, "gray"))
+        panels.append((f"macEM (TEMCore PatternProcessing)", ours, "gray"))
         panels.append((f"difference: {off} of {diff.size} px off by {np.abs(diff).max()} grey level(s)", diff, "coolwarm"))
     fig, axes = plt.subplots(1, len(panels), figsize=(3.2 * len(panels), 3.6))
     for ax, (name, image, cmap) in zip(np.atleast_1d(axes), panels):

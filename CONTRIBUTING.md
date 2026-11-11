@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for looking. macTEM is a measuring instrument as much as an application: a wrong number that looks plausible is
+Thanks for looking. macEM is a measuring instrument as much as an application: a wrong number that looks plausible is
 worse than a crash, so the conventions below are mostly about making correctness checkable by someone other than the
 author.
 

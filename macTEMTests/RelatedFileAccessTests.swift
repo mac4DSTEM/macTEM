@@ -15,7 +15,7 @@ nonisolated final class RelatedFileAccessTests: XCTestCase {
     /// Mutation: drop NSIsRelatedItemType from the EBSD, SEM-EDS or companion type in macTEM/Info.plist, or add a companion to
     /// the code's list that no related type declares - red. Red before: no type was related.
     func testEveryCompanionExtensionIsARelatedItemTypeOfTheBuiltApp() throws {
-        // The unit tests are hosted by the app: the bundle that holds `AppDelegate` is macTEM.app.
+        // The unit tests are hosted by the app: the bundle that holds `AppDelegate` is macEM.app.
         let bundle = Bundle(for: AppDelegate.self)
         let types = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CFBundleDocumentTypes") as? [[String: Any]])
         let related = Set(types.filter { $0["NSIsRelatedItemType"] as? Bool == true }

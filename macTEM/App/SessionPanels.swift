@@ -72,8 +72,8 @@ enum SessionPanels {
         panel.nameFieldStringValue = expected.lastPathComponent
         panel.nameFieldLabel = "Save As:"
         panel.prompt = "Save"
-        panel.message = "macTEM keeps the marks for \(item.url.lastPathComponent) in this file, beside the image. "
-            + "Keep the name and the folder: macTEM looks for it there when you open the image."
+        panel.message = "macEM keeps the marks for \(item.url.lastPathComponent) in this file, beside the image. "
+            + "Keep the name and the folder: macEM looks for it there when you open the image."
         panel.directoryURL = item.url.deletingLastPathComponent()
         panel.canCreateDirectories = false
         panel.isExtensionHidden = false

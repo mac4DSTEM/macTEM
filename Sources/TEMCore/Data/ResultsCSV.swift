@@ -28,7 +28,7 @@ package nonisolated enum ResultsCSV {
         let validations = ResultRow.Product.allCases.map { (product: $0.rawValue, sentence: $0.validation) }
         do {
             return try TidyResultsCSV.text(
-                kitRows, source: source, title: "macTEM results", session: session,
+                kitRows, source: source, title: "macEM results", session: session,
                 descriptionLines: [
                     "# points: x1, y1, x2, y2, ... are image pixels (x column, y row, pixel centres at integers); an angle's vertex "
                         + "is point 2; click and centroid are bins of the centred spectrum; region is in image pixels",

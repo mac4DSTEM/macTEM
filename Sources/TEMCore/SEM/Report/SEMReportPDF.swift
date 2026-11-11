@@ -25,7 +25,7 @@ package nonisolated enum SEMReportPDF {
     /// The footer's baseline, above the page's bottom edge.
     static let footerBaseline: CGFloat = 30
 
-    /// The PDF's bytes; nil only when Core Graphics cannot open a PDF context. `creator` names the app ("macTEM 1.12.0"), `author` the
+    /// The PDF's bytes; nil only when Core Graphics cannot open a PDF context. `creator` names the app ("macEM 1.12.0"), `author` the
     /// person when the report names them.
     package static func data(of document: SEMReportDocument, creator: String, author: String? = nil) -> Data? {
         let data = NSMutableData()

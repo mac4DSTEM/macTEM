@@ -52,21 +52,21 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertTrue(fourD.contains("scan.mib") && fourD.contains("4D dataset") && fourD.contains("mac4DSTEM"), fourD)
         let unknown = try Self.temp("notes.xyz", Data("hello".utf8))
         XCTAssertEqual(FileRouting.inventory(path: unknown.path).refusal,
-                       "notes.xyz is not a format macTEM opens (or its extension and its first bytes disagree).")
+                       "notes.xyz is not a format macEM opens (or its extension and its first bytes disagree).")
         let liar = try Self.temp("fake.dm4", Data("this is not a DM file".utf8))
         XCTAssertNotNil(FileRouting.inventory(path: liar.path).refusal, "bytes that disagree with the extension are refused")
     }
 
     /// A file that cannot be read at all is refused for what happened, never for its format: one gone from where it was, and one macTEM
     /// may not read (the sandbox closes a path that came neither from the Open panel, a drop, the Finder nor a bookmark; here the
-    /// file's own permissions close it the same way). Red before: both "is not a format macTEM opens", the format blamed for bytes
+    /// file's own permissions close it the same way). Red before: both "is not a format macEM opens", the format blamed for bytes
     /// that were never read (driven 2026-11-11: a Ceta TIFF and a Velox EMD given by path at launch).
     func testAFileThatCannotBeReadIsRefusedForThatNotForItsFormat() throws {
         let tiff = try Self.temp("ceta.tif", Data("II*\0 not read".utf8))
         try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: tiff.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tiff.path) }
         XCTAssertEqual(FileRouting.inventory(path: tiff.path).refusal,
-                       "macTEM was not given access to ceta.tif: open it with File > Open…, drop it on the window or open it from the Finder.")
+                       "macEM was not given access to ceta.tif: open it with File > Open…, drop it on the window or open it from the Finder.")
         let gone = tiff.deletingLastPathComponent().appendingPathComponent("moved.emd")
         XCTAssertEqual(FileRouting.inventory(path: gone.path).refusal, "moved.emd is no longer where it was (moved, renamed or deleted).")
         XCTAssertNil(FileRouting.accessRefusal(path: Self.fixture("planted-2d.dm4")), "a file that reads is judged by its format")
@@ -211,7 +211,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertEqual(drop.accepted, [file("Pattern.dat")])
         XCTAssertEqual(drop.refusals, ["Setting.txt is a .txt file.", "Background.BMP is a .bmp file.", "README is a file without an extension.",
                                        FileRouting.openableSentence])
-        XCTAssertEqual(drop.refusals.joined(separator: " ").components(separatedBy: "macTEM opens").count, 2, "the formats are named once")
+        XCTAssertEqual(drop.refusals.joined(separator: " ").components(separatedBy: "macEM opens").count, 2, "the formats are named once")
         let routed = FileRouting.dropped([file("a.dm4"), file("b.TIF")])
         XCTAssertEqual(routed.accepted, [file("a.dm4"), file("b.TIF")])
         XCTAssertEqual(routed.refusals, [])

@@ -12,22 +12,6 @@ import XCTest
 nonisolated final class SessionReportJourney: Journey {
     private static let exportName = "macTEM-session-report"
 
-    /// Help › Open Demo Data › `title` (DemoDataJourney's walk).
-    @MainActor private func openDemo(_ title: String) throws {
-        try requireFrontmost()
-        let help = app.menuBars.menuBarItems["Help"].firstMatch
-        XCTAssertTrue(help.waitForExistence(timeout: 10), "no Help menu")
-        help.click()
-        let submenu = app.menuItems["Open Demo Data"].firstMatch
-        XCTAssertTrue(submenu.waitForExistence(timeout: 10), "no Open Demo Data in the Help menu")
-        try requireFrontmost()
-        submenu.hover()
-        let item = app.menuItems[title].firstMatch
-        XCTAssertTrue(item.waitForExistence(timeout: 10), "no \(title) in Open Demo Data")
-        try requireFrontmost()
-        item.click()
-    }
-
     /// The room's verb, once it is enabled, clicked.
     @MainActor private func runTheVerb(_ name: String, timeout: TimeInterval) throws {
         let verb = waitFor("workspace.primaryAction", timeout: 60)
@@ -53,7 +37,7 @@ nonisolated final class SessionReportJourney: Journey {
         var exported = false
         try step("launch with no file, exports to the journey folder") { launch(["--export-dir", Self.exportName]) }
         try step("the nickel scan opens in Patterns; Process runs the default stages") {
-            try openDemo("Ni EBSD Patterns (kikuchipy)")
+            try openDemoData("Ni EBSD Patterns (kikuchipy)")
             waitFor("patterns.room", timeout: 60)
             showInspector(waitingFor: "patterns.display")
             try runTheVerb("Process", timeout: 120)

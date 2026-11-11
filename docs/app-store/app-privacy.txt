@@ -4,7 +4,7 @@ Do you or your third-party partners collect data from this app? No.
 Label shown on the store: Data Not Collected.
 
 Why this is correct:
-- macTEM connects to no other computer. Its sandbox entitlements are the App Sandbox, user-selected file read-write, app-scoped bookmarks and network.server for the agent door (Settings > Agents, off by default: it listens on 127.0.0.1 only, for an AI agent the person runs on the same Mac, and sends nothing itself; what that agent sends to its own provider is between the person and that agent); it has no network client entitlement.
+- macEM connects to no other computer. Its sandbox entitlements are the App Sandbox, user-selected file read-write, app-scoped bookmarks and network.server for the agent door (Settings > Agents, off by default: it listens on 127.0.0.1 only, for an AI agent the person runs on the same Mac, and sends nothing itself; what that agent sends to its own provider is between the person and that agent); it has no network client entitlement.
 - No analytics, telemetry, advertising, crash reporting, accounts or tracking identifiers.
 - Files, sessions and exports are read from and written to the user's own storage only, reached through the system Open and Save panels.
 

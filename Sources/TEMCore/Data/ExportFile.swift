@@ -28,7 +28,7 @@ import ImagoCore
 package typealias ExportSource = TidyResultsCSV.Source
 
 extension TidyResultsCSV.Source {
-    /// `software`: "macTEM 0.1.0 (1)", passed in by the app (TEMCore does not know the bundle).
+    /// `software`: "macEM 0.1.0 (1)", passed in by the app (TEMCore does not know the bundle).
     package nonisolated init(image: CalibratedImage, software: String) {
         self.init(software: software, fileName: image.fileName, object: image.source, width: image.width, height: image.height,
                   x: image.x, y: image.y, notes: image.notes)

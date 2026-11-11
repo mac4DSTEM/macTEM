@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Builds the macTEM App Store package from the same release tag as the DMG (macTEM#103; one tag, two builds, decision of
+# Builds the macEM App Store package from the same release tag as the DMG (macTEM#103; one tag, two builds, decision of
 # 2026-11-04). tools/release.sh stays the Developer ID DMG; this is the store flavour beside it, kept as its own script.
 #
 #   tools/release-store.sh            archive, export a signed .pkg, check it
@@ -9,7 +9,7 @@
 # Distribution and Mac Installer Distribution certificates and the App Store profile on first use. Validation and upload
 # need an App Store Connect API key: ASC_KEY_ID, ASC_ISSUER_ID, the .p8 in ~/.appstoreconnect/private_keys/. Without
 # the key it builds and checks the package and stops. STORE_BUILD_NUMBER overrides CURRENT_PROJECT_VERSION for a second
-# upload of the same version. Output: build/release/<stamp>/store/macTEM.pkg.
+# upload of the same version. Output: build/release/<stamp>/store/macEM.pkg.
 set -euo pipefail
 
 UPLOAD=0
@@ -27,8 +27,8 @@ resolve_mactem_developer_dir
 
 TEAM="${DEVELOPMENT_TEAM:-3B8SMSSAX4}"
 OUT="$ROOT/build/release/$(date +%Y%m%d-%H%M%S)"   # a new folder per run, so a rerun never deletes an earlier archive
-ARCHIVE="$OUT/macTEM-store.xcarchive"
-APP="$ARCHIVE/Products/Applications/macTEM.app"
+ARCHIVE="$OUT/macEM-store.xcarchive"
+APP="$ARCHIVE/Products/Applications/macEM.app"
 EXPORT="$OUT/store"
 
 [[ -z "$(git -C "$ROOT" status --porcelain)" ]] || { echo "The working tree is not clean; commit first so the build has a commit." >&2; exit 1; }
@@ -77,7 +77,7 @@ assert_mactem_store_entitlements "$OUT/store-entitlements.plist"
 [[ ! -d "$APP/Contents/Frameworks/Sparkle.framework" ]] || { echo "Sparkle is in the store build." >&2; exit 1; }
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 [[ "$VERSION" == "$EXPECTED" ]] || { echo "The built app says $VERSION but the tag is $TAG." >&2; exit 1; }
-echo "macTEM $VERSION: $PKG"
+echo "macEM $VERSION: $PKG"
 
 if [[ -z "${ASC_KEY_ID:-}" || -z "${ASC_ISSUER_ID:-}" ]]; then
   echo "No App Store Connect API key (ASC_KEY_ID, ASC_ISSUER_ID): built and checked, not validated or uploaded."

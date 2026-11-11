@@ -162,7 +162,7 @@ nonisolated final class ImageOpeningTests: XCTestCase {
         let ser = refusal("/Volumes/Lab Disk/run 7/scan.SER")
         XCTAssertEqual(ser, .unreadableFormat(file: "scan.SER", ext: "ser"))
         XCTAssertEqual(ser?.errorDescription,
-                       "scan.SER is a .ser file. macTEM opens TEM and SEM images (.dm4, .dm3, .tif, .tiff, .mrc, .emd, .img, .map), "
+                       "scan.SER is a .ser file. macEM opens TEM and SEM images (.dm4, .dm3, .tif, .tiff, .mrc, .emd, .img, .map), "
                        + "EDS and EELS spectra and spectrum images (.emd, .dm4, .msa, .hspy, .bcf, .spd, .lsd, .pts, .asw, .spx, .spc, .eds), "
                        + "and EBSD patterns and orientation maps (.h5, .hdf5, .h5oina, .h5ebsd, .ebsp, .ctf, .up1, .up2, .ang, .dat).")
         XCTAssertFalse(ser?.errorDescription?.contains("Lab Disk") ?? true, "the message never shows the folders")
@@ -204,7 +204,7 @@ nonisolated final class ImageOpeningTests: XCTestCase {
     /// read yet". Red before: the sentence named .dm4, .dm3, .tif, .mrc and .emd only, and said other formats were not read yet.
     func testARefusedFileNamesEveryKindAndExtensionAnOpenRoutes() throws {
         let sentence = try XCTUnwrap(ImageOpening.Refusal.unreadableFormat(file: "notes.xyz", ext: "xyz").errorDescription)
-        XCTAssertTrue(sentence.hasPrefix("notes.xyz is a .xyz file. macTEM opens "), sentence)
+        XCTAssertTrue(sentence.hasPrefix("notes.xyz is a .xyz file. macEM opens "), sentence)
         for ext in ["h5", "ang", "bcf"] {
             XCTAssertTrue(sentence.contains(".\(ext),") || sentence.contains(".\(ext))"), "\(ext): \(sentence)")
         }

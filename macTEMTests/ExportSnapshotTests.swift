@@ -45,7 +45,7 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
 
     // MARK: - Fixtures
 
-    private static let software = "macTEM 0.1.0 (1)"
+    private static let software = "macEM 0.1.0 (1)"
     private static let german = Locale(identifier: "de_DE")
 
     private static func axis(_ scale: Double, _ units: String) -> AxisCalibration { AxisCalibration(scale: scale, unit: units, origin: 0) }
@@ -83,18 +83,18 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
     /// the build before the version.
     func testTheSoftwareLineIsTheBundlesVersionAndBuild() {
         XCTAssertEqual(ExportSnapshot.softwareName(info: ["CFBundleShortVersionString": "0.1.0", "CFBundleVersion": "1"]),
-                       "macTEM 0.1.0 (1)")
+                       "macEM 0.1.0 (1)")
         XCTAssertEqual(ExportSnapshot.softwareName(info: ["CFBundleShortVersionString": "2.3.4", "CFBundleVersion": "77"]),
-                       "macTEM 2.3.4 (77)")
-        XCTAssertEqual(ExportSnapshot.softwareName(info: ["CFBundleShortVersionString": "0.1.0"]), "macTEM 0.1.0")
+                       "macEM 2.3.4 (77)")
+        XCTAssertEqual(ExportSnapshot.softwareName(info: ["CFBundleShortVersionString": "0.1.0"]), "macEM 0.1.0")
         XCTAssertEqual(ExportSnapshot.softwareName(info: ["CFBundleShortVersionString": "0.1.0", "CFBundleVersion": ""]),
-                       "macTEM 0.1.0")
-        XCTAssertEqual(ExportSnapshot.softwareName(info: [:]), "macTEM")
-        XCTAssertEqual(ExportSnapshot.softwareName(info: nil), "macTEM")
+                       "macEM 0.1.0")
+        XCTAssertEqual(ExportSnapshot.softwareName(info: [:]), "macEM")
+        XCTAssertEqual(ExportSnapshot.softwareName(info: nil), "macEM")
         // The running bundle (the app is the test host) states both.
         let running = ExportSnapshot.softwareName()
-        XCTAssertNotNil(running.range(of: #"^macTEM \d+\.\d+\.\d+ \(\d+\)$"#, options: .regularExpression),
-                        "\(running) is not 'macTEM <version> (<build>)'")
+        XCTAssertNotNil(running.range(of: #"^macEM \d+\.\d+\.\d+ \(\d+\)$"#, options: .regularExpression),
+                        "\(running) is not 'macEM <version> (<build>)'")
     }
 
     /// "scan" for "scan.dm4", never an extension: the panel's content type supplies it (mac4DSTEM shipped "scan.png.png"
@@ -537,7 +537,7 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
             let rows = text.components(separatedBy: "\n").filter { !$0.hasPrefix("#") && !$0.isEmpty }.dropFirst()
                 .map { $0.components(separatedBy: ",") }
             XCTAssertEqual(rows.compactMap { Double($0[0])?.bitPattern }, profile.positions.map(\.bitPattern), "factor \(factor)")
-            XCTAssertTrue(text.contains("\n# shown in macTEM as: u (x \(factor))\n"), "factor \(factor)")
+            XCTAssertTrue(text.contains("\n# shown in macEM as: u (x \(factor))\n"), "factor \(factor)")
         }
     }
 
@@ -666,7 +666,7 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
         XCTAssertTrue(text.contains("\n# start: x=1.5, y=2.25 (image pixels"), "start is the first end drawn")
         XCTAssertTrue(text.contains("\n# end: x=12.75, y=5.0\n"))
         XCTAssertTrue(text.contains("\n# width: 3 px\n"))
-        XCTAssertTrue(text.contains("\n# shown in macTEM as: nm (x 1000000000.0)\n"))
+        XCTAssertTrue(text.contains("\n# shown in macEM as: nm (x 1000000000.0)\n"))
         XCTAssertTrue(text.contains("\n# x scale: 4.46179e-11 m per px, origin 0.0 px\n"))
         // The whole file, from the test's OWN inputs: the line drawn, the file's pixels and axes, the software, the shown unit.
         let expected = try XCTUnwrap(ProfileCSV.text(LineProfile.sample(image, from: start, to: end, width: 3),

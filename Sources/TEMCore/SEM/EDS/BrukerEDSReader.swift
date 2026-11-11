@@ -372,7 +372,7 @@ package nonisolated enum BrukerEDSReader {
         var builder = try CSRSpectrumImageBuilder(ny: height, nx: width, channels: channels)
         let lineCount = width.multipliedReportingOverflow(by: channels)
         guard !lineCount.overflow, lineCount.partialValue <= SEMEDSFile.largestArray else {
-            throw SEMEDSReadError("\(name) states a map \(width) pixels wide of \(channels) channels, more than macTEM unpacks in one line.")
+            throw SEMEDSReadError("\(name) states a map \(width) pixels wide of \(channels) channels, more than macEM unpacks in one line.")
         }
         var line = [UInt32](repeating: 0, count: lineCount.partialValue)
         for _ in 0..<lines {

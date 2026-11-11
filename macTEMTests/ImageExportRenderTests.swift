@@ -37,7 +37,7 @@ nonisolated final class ImageExportRenderTests: XCTestCase {
                         object: String = "ImageList.1", notes: [String] = []) -> ExportSource {
         let image = CalibratedImage(width: w, height: h, pixels: [Float](repeating: 0, count: w * h), x: x, y: y,
                                     fileName: fileName, source: object, voltage: nil, notes: notes)
-        return ExportSource(image: image, software: "macTEM 0.1.0 (1)")
+        return ExportSource(image: image, software: "macEM 0.1.0 (1)")
     }
 
     /// A canvas of `normalized` (zeros: black through the gray LUT) at the window and gamma given.
@@ -497,7 +497,7 @@ nonisolated final class ImageExportRenderTests: XCTestCase {
                                                       fileName: "sample \(Self.angstrom) \(Self.micro).dm4",
                                                       source: "ImageList.1 \u{00B7} HAADF", voltage: nil,
                                                       notes: ["\(Self.micro) note", "scale unvalidated"]),
-                               software: "macTEM 0.1.0 (1)")
+                               software: "macEM 0.1.0 (1)")
         let rendered = try ImageExport.render(
             source: src, display: display(w, h, normalized: canvas, low: 0.1, high: 0.9, gamma: 1.5, colormap: "viridis",
                                           windowLow: 3.5, windowHigh: 9, rawRange: 1...20),
@@ -505,7 +505,7 @@ nonisolated final class ImageExportRenderTests: XCTestCase {
         let chunks = try XCTUnwrap(Self.chunks(rendered.png))
         let texts = Self.texts(chunks)
         XCTAssertEqual(texts["Title"], "sample \(Self.angstrom) \(Self.micro).dm4")
-        XCTAssertEqual(texts["Software"], "macTEM 0.1.0 (1)")
+        XCTAssertEqual(texts["Software"], "macEM 0.1.0 (1)")
         let description = try XCTUnwrap(texts["Description"])
         XCTAssertTrue(description.hasPrefix("{\"anisotropic\":false,"), "sorted keys: \(description.prefix(40))")
         let lastKey = "\"y_scale\":{\"origin\":2.0,\"scale\":0.25,\"units\":\"\(Self.angstrom)\"}}"
@@ -514,7 +514,7 @@ nonisolated final class ImageExportRenderTests: XCTestCase {
         XCTAssertEqual(Set(json.keys), ["software", "file", "object", "width", "height", "x_scale", "y_scale", "raw_range", "colormap",
                                         "window", "gamma", "masked_pixels", "notes", "overlay_scale", "scale_bar", "marks",
                                         "anisotropic", "validation", "lineage"])
-        XCTAssertEqual(json["software"] as? String, "macTEM 0.1.0 (1)")
+        XCTAssertEqual(json["software"] as? String, "macEM 0.1.0 (1)")
         XCTAssertEqual(json["file"] as? String, "sample \(Self.angstrom) \(Self.micro).dm4")
         XCTAssertEqual(json["object"] as? String, "ImageList.1 \u{00B7} HAADF")
         XCTAssertEqual(json["width"] as? Int, w)

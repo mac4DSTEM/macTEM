@@ -46,12 +46,12 @@ nonisolated class Journey: XCTestCase {
     /// Stops the journey unless macTEM is frontmost with its window on screen and hittable: a click on another app would land in that app. Call it before a click.
     @MainActor func requireFrontmost(file: StaticString = #filePath, line: UInt = #line) throws {
         guard app.state == .runningForeground else {
-            XCTFail("macTEM is not the frontmost app (state \(app.state.rawValue)): no click", file: file, line: line)
+            XCTFail("macEM is not the frontmost app (state \(app.state.rawValue)): no click", file: file, line: line)
             throw XCTSkip("not frontmost")
         }
         let window = app.windows.firstMatch
         guard window.exists, window.isHittable, window.frame.width > 0, window.frame.height > 0 else {
-            XCTFail("macTEM's window is not on screen: no click", file: file, line: line)
+            XCTFail("macEM's window is not on screen: no click", file: file, line: line)
             throw XCTSkip("no window on screen")
         }
     }

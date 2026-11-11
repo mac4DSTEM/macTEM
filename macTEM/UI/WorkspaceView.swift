@@ -168,7 +168,7 @@ struct WelcomeWorkspace: View {
                         .font(.system(size: 54, weight: .light))
                         .foregroundStyle(.tint)
                         .accessibilityHidden(true)
-                    Text("macTEM")
+                    Text("macEM")
                         .font(.largeTitle.weight(.semibold))
                     Text("TEM and SEM images, EDS and EELS spectra, electron diffraction and EBSD, native on the Mac.")
                         .font(.title3)

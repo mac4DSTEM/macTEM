@@ -66,7 +66,7 @@ nonisolated final class VeloxImageReaderTests: XCTestCase {
         let refused = try refusal("velox-maps-only")
         XCTAssertEqual(refused, .velox(file: "velox-maps-only.emd",
                                        .noImage("SuperXG1 5 × 3, no detector index; SuperXG2 5 × 3, an EDS map")))
-        XCTAssertTrue(refused.localizedDescription.hasPrefix("velox-maps-only.emd is not read: it holds no image macTEM opens ("),
+        XCTAssertTrue(refused.localizedDescription.hasPrefix("velox-maps-only.emd is not read: it holds no image macEM opens ("),
                       refused.localizedDescription)
     }
 
@@ -154,7 +154,7 @@ nonisolated final class VeloxImageReaderTests: XCTestCase {
 
     // MARK: The library
 
-    /// The XCTest host is the app, so `Bundle.main` is macTEM.app. The app embeds no libhdf5 of its own: the one
+    /// The XCTest host is the app, so `Bundle.main` is macEM.app. The app embeds no libhdf5 of its own: the one
     /// it carries is FormatoKit's, the FormatoLibHDF5 framework in `Contents/Frameworks` (FormatoKit 0.4.0). With no override the
     /// reader's own lookup must load THAT one: the file opens, and the one libhdf5 the process has loaded is the framework's.
     /// A bare `swift test` has no such host and cannot run this.
