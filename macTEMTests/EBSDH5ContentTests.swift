@@ -31,8 +31,8 @@ nonisolated final class EBSDH5ContentTests: XCTestCase {
     private static func assertPlain(_ sentence: String, names file: String, file path: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(sentence.contains(file), "does not name \(file): \(sentence)", file: path, line: line)
         let rest = sentence.replacingOccurrences(of: file, with: "<file>")
-        for internal in ["'", "/EBSD", "HDF5 failed", "H5D", "H5F", "dataset", "Error Domain"] {
-            XCTAssertFalse(rest.contains(internal), "carries \(internal): \(sentence)", file: path, line: line)
+        for leak in ["'", "/EBSD", "HDF5 failed", "H5D", "H5F", "dataset", "Error Domain"] {
+            XCTAssertFalse(rest.contains(leak), "carries \(leak): \(sentence)", file: path, line: line)
         }
     }
 
