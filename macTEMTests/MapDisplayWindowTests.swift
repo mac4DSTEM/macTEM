@@ -7,7 +7,6 @@
 //
 
 import XCTest
-import TEMCore
 import TEMSession
 @testable import macTEM
 

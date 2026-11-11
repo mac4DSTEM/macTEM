@@ -6,7 +6,6 @@
 //
 
 import XCTest
-@testable import macTEM
 
 nonisolated final class PaneDisplaySectionTests: XCTestCase {
 

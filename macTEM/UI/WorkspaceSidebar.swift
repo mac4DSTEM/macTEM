@@ -4,7 +4,6 @@
 //  are the window's tabs (one file per window, 2026-11-10), not a list here.
 import ShellLayout
 import SwiftUI
-import TEMSession
 
 /// Navigation and nothing else: the five workspaces and the parts of the one in front, filling the column. A workspace or a part
 /// the window's file has nothing for is listed, dimmed, with its reason on hover, and cannot be selected.

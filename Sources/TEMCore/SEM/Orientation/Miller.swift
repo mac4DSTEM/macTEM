@@ -57,8 +57,6 @@ package nonisolated struct Miller: Sendable {
         }
     }
 
-    package var count: Int { xyz.count }
-
     /// Reciprocal-space indices (hkl).
     package var hkl: [SIMD3<Double>] { xyz.map(lattice.hkl(cartesian:)) }
     /// Direct-space indices [uvw].

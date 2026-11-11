@@ -10,7 +10,6 @@
 import XCTest
 import TEMCore
 import TEMSession
-@testable import macTEM
 
 nonisolated final class EBSDPassGenerationTests: XCTestCase {
 

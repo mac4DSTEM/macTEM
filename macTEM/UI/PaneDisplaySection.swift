@@ -9,7 +9,6 @@
 import ShellControls
 import ShellInspector
 import SwiftUI
-import TEMCore
 import TEMSession
 
 /// Which picture the Display rows set.

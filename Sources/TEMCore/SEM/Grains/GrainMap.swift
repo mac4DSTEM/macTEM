@@ -48,8 +48,6 @@ package nonisolated struct GrainMap: Sendable, Equatable {
     /// The scan step (both directions, DefDAP's `step_size`), in the scan unit.
     package let step: Double
 
-    package var count: Int { rows * columns }
-
     package init(rows: Int, columns: Int, quaternions: [SIMD4<Double>], phase: [Int], symmetries: [[SIMD4<Double>]],
                  phaseNames: [String]? = nil, step: Double) throws {
         guard rows >= 1, columns >= 1, quaternions.count == rows * columns, phase.count == rows * columns else {

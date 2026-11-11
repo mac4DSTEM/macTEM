@@ -43,7 +43,6 @@ package nonisolated enum PatternFilters {
     package enum Domain: String, Sendable, CaseIterable, Identifiable {
         case frequency, spatial
         package var id: String { rawValue }
-        package var title: String { rawValue.capitalized }
     }
 
     // MARK: - Frequency domain
