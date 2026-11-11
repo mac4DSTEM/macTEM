@@ -1004,7 +1004,13 @@ struct EELSResultsPanel: View {
     /// standard macOS table does, never squeezing at% or wt% to "95,88…". The table asks its scroll bars to flash when it appears or its edges change, so
     /// a cut column shows that it scrolls even where the scroll bars hide until a scroll (unverified on screen for a Table).
     @ViewBuilder private func edges(_ rows: [EELSEdgeRow]) -> some View {
-        if rows.isEmpty {
+        if rows.isEmpty, session.isFittingSelectedRegion {
+            // A region just drawn or edited: its fit runs on its own, so the body says so rather than asking for a Run (the 2026-11-11 drive).
+            ProgressView(EELSRoomFormat.fittingLine(region: session.selectedRegionName))
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityIdentifier("eels.results.fitting")
+        } else if rows.isEmpty {
             ContentUnavailableView("No edges fitted yet", systemImage: "list.bullet.rectangle",
                                    description: Text(session.pickedEdges.isEmpty ? "Pick edges in the periodic table, then Run."
                                                      : "Picked: " + session.pickedEdges.map(EELSFitCompute.title).joined(separator: ", ") + ". Run fits them."))

@@ -119,10 +119,12 @@ package final class EELSSession {
     package internal(set) var wholeMapPlot: EELSPlotData?
     @ObservationIgnored private(set) var fitUsed: EELSPlotFit?
     @ObservationIgnored var plotTask: Task<Void, Never>?
-    /// While a drag's live spectrum is on screen (`refreshPlot`): the selected region's own spectrum (the whole map's when none is), summed
-    /// without the model and landed before the fitted plot.
+    /// When the plot on screen is not the selected shape's (`refreshPlot`): the selected region's own spectrum (the whole map's when none is),
+    /// summed without the model and landed before the fitted plot.
     @ObservationIgnored package internal(set) var plotInterimTask: Task<Void, Never>?
     @ObservationIgnored var plotRun = 0
+    /// The shape the plot on screen was made for, quick or fitted (`.wholeMap` for the whole map); nil while a drag's live spectrum or nothing is shown.
+    @ObservationIgnored var plottedRegion: EDXRegion?
     /// The live spectrum of a drag (`previewRegion`): the running sum, the shape waiting for it, and whether the plot shows a preview.
     @ObservationIgnored var previewTask: Task<Void, Never>?
     @ObservationIgnored var pendingPreview: EDXRegion?
@@ -193,6 +195,12 @@ package final class EELSSession {
     /// The name of what the results panel's rows belong to (`resultRows`): the selected region, else the whole map ("Spectrum" for a file of one pixel). The
     /// results header says it, not the plot's name, which is a drag's shape while one runs (the 2026-11-11 drive read "Results · Selection").
     package var selectedRegionName: String { selectedPin?.name ?? (isSingleSpectrum ? "Spectrum" : "Whole map") }
+    /// The selected region's fit is on its way: its rows are being made and it has none yet. The results say so instead of "Run fits them", which a region
+    /// drawn after a Run does not need (the 2026-11-11 drive read it for a second after the release).
+    package var isFittingSelectedRegion: Bool {
+        guard isRefreshingRegions, let pin = selectedPin, !fittableEdges.isEmpty else { return false }
+        return pinRows.first { $0.id == pin.id }?.edges.isEmpty ?? true
+    }
 
     package var fileName: String { source?.fileName ?? "" }
     /// The open file's path as it was read ("" for a document made in memory).
@@ -493,7 +501,7 @@ package final class EELSSession {
         cancelPass()
         openTask?.cancel(); openTask = nil; isOpening = false
         // A plot, quick spectrum or live spectrum still on its way lands nothing on the closed room.
-        plotTask?.cancel(); plotInterimTask?.cancel(); plotRun += 1; isPreviewing = false; pendingPreview = nil
+        plotTask?.cancel(); plotInterimTask?.cancel(); plotRun += 1; isPreviewing = false; pendingPreview = nil; plottedRegion = nil
         plot = nil; wholeMapPlot = nil; fitUsed = nil; alignmentShiftTile = nil
         deadTask?.cancel(); coreDeadStretches = []; editedWindows = [:]; references = []; modelReferenceNames = []
         fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil

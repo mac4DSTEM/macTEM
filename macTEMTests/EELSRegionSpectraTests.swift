@@ -5,7 +5,8 @@
 //
 //  WHAT IS PINNED: the sums are the kit's (`CoreLossSpectrumImage.sum(mask:)`) over the region's mask, on a 2 x 2 core loss whose pixel k holds 100 (k + 1) counts in
 //  every channel, so a one-pixel region reads its own level and the whole map 1000. Red under: no core-loss layer; the preview shown on release only; a stale preview
-//  landing over a committed region; the drag's spectrum left up until the fitted plot lands; a kept region drawn again without its spectrum.
+//  landing over a committed region; the drag's spectrum left up until the fitted plot lands; a kept region drawn again without its spectrum; a selection
+//  changed with no drag whose spectrum waits for the fitted plot.
 //
 
 import XCTest
@@ -140,9 +141,59 @@ nonisolated final class EELSRegionSpectraTests: XCTestCase {
         XCTAssertEqual(session.plot?.regionName, pin.name, "no shape was kept: the selected region's spectrum is back")
 
         session.selectWholeMap()
-        XCTAssertNil(session.plotInterimTask, "no drag before it: one landing")
         await session.settled()
         XCTAssertEqual(session.plot?.regionName, "Whole map")
+        session.refreshPlot()
+        XCTAssertNil(session.plotInterimTask, "the shape on screen refreshed: one landing, the model stays up until the new one")
+        await session.settled()
+        XCTAssertEqual(session.plot?.regionName, "Whole map")
+    }
+
+    /// With no drag before it the spectrum still follows the selection at once: a region drawn by Return, a click back to the whole map and a pick in the
+    /// Regions table each put the selected shape's own spectrum up ahead of the fitted plot. On the 2026-11-11 re-drive the header kept Region 1 under a
+    /// new Region 2 and under Whole map while the fitted plots ran. While a new region's fit runs, the results say it is fitting, not "Run fits them".
+    /// Red under: a quick spectrum only after a drag; a region with edges picked and no rows yet read as "not fitted".
+    @MainActor func testTheSpectrumFollowsEveryChangeOfSelectionAtOnce() async throws {
+        let session = try await openRoom()
+        session.toggleEdge(.nitrogenK)
+        session.toggleEdge(.oxygenK)
+        let first = try XCTUnwrap(session.drawRegion(.rectangle(PixelRect(x0: 0, y0: 0, x1: 1, y1: 2))))
+        XCTAssertTrue(session.isFittingSelectedRegion, "the new region's rows are on their way")
+        XCTAssertEqual(EELSRoomFormat.fittingLine(region: session.selectedRegionName), "Fitting Region 1…")
+        XCTAssertNotNil(session.plotInterimTask, "a region drawn without a drag: its spectrum goes up first")
+        await session.plotInterimTask?.value
+        XCTAssertEqual(session.plot?.regionName, first.name)
+        XCTAssertEqual(session.plot?.core?.counts.first, 400)
+        await session.settled()
+        XCTAssertFalse(session.isFittingSelectedRegion, "the rows landed")
+
+        let second = try XCTUnwrap(session.drawRegion(.rectangle(PixelRect(x0: 1, y0: 0, x1: 2, y1: 1))))
+        XCTAssertNotNil(session.plotInterimTask)
+        await session.plotInterimTask?.value
+        XCTAssertEqual(session.plot?.regionName, second.name, "the new region's spectrum, not the one before it")
+        XCTAssertEqual(session.plot?.core?.counts.first, 200)
+
+        session.selectWholeMap()
+        XCTAssertNotNil(session.plotInterimTask, "back to the whole map: its spectrum goes up first")
+        await session.plotInterimTask?.value
+        XCTAssertEqual(session.plot?.regionName, "Whole map")
+        XCTAssertEqual(session.plot?.core?.counts.first, 1000)
+        XCTAssertFalse(session.isFittingSelectedRegion, "the whole map is not a region being fitted")
+
+        session.selectPin(first.id)
+        XCTAssertNotNil(session.plotInterimTask, "a pick in the Regions table: its spectrum goes up first")
+        await session.plotInterimTask?.value
+        XCTAssertEqual(session.plot?.regionName, first.name)
+        await session.settled()
+        XCTAssertEqual(session.plot?.regionName, first.name)
+        XCTAssertEqual(session.plot?.core?.counts.first, 400)
+
+        // No edges picked: a new region has nothing to fit, and the body keeps "No edges fitted yet".
+        session.toggleEdge(.nitrogenK)
+        session.toggleEdge(.oxygenK)
+        session.drawRegion(.rectangle(PixelRect(x0: 1, y0: 1, x1: 2, y1: 2)))
+        XCTAssertFalse(session.isFittingSelectedRegion)
+        await session.settled()
     }
 
     /// Drawing a region that is already kept selects it, and the spectrum follows the selection: Return on the colour mix draws the middle box, and a second
