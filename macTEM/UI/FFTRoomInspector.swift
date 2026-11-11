@@ -407,7 +407,7 @@ private struct FFTSpotRow: View {
 
     private var label: some View {
         HStack(spacing: 8) {
-            Text(verbatim: "\(spot.number)")
+            Text(String(spot.number))
                 .monospacedDigit()
                 .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                 .frame(width: Self.numberWidth, alignment: .trailing)

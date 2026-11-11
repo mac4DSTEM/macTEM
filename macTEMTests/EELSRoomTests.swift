@@ -427,9 +427,9 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(EELSRoomFormat.fitFooter(hasFit: true, convolved: true), "Exact NNLS · power-law background · convolved with the low loss · no deconvolution")
     }
 
-    /// The spectrum's header writes the region's pixel count never grouped, in any locale, as the status line's "over 12432 px". Red
-    /// under: the header as the literal `Text("\(plot.regionName) · \(plot.pixels) px")`, a LocalizedStringKey that SwiftUI wrote
-    /// "Whole map · 12.432 px" in German.
+    /// `spectrumHeader` writes the region's pixel count never grouped, in any locale, as the status line's "over 12432 px". Red under: a
+    /// count written with the locale's grouping ("Whole map · 12.432 px" in German, as the literal
+    /// `Text("\(plot.regionName) · \(plot.pixels) px")` drew it).
     func testTheSpectrumHeaderWritesThePixelCountWithoutGrouping() {
         let german = Locale(identifier: "de_DE"), english = Locale(identifier: "en_US")
         XCTAssertEqual(EELSRoomFormat.spectrumHeader(region: "Whole map", pixels: 12_432, locale: german), "Whole map · 12432 px")
