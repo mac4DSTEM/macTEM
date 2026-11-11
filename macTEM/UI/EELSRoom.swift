@@ -685,7 +685,8 @@ private struct EELSSpectrumView: View {
                 }
                 // The region's name on the right: the counts axis's title owns the top left (they overlapped, the owner's drive 2026-10-23).
                 .overlay(alignment: .topTrailing) {
-                    Text("\(plot.regionName) · \(plot.pixels) px").font(.caption).foregroundStyle(.secondary).padding(.trailing, Self.right + 4).padding(.top, 2)
+                    Text(EELSRoomFormat.spectrumHeader(region: plot.regionName, pixels: plot.pixels))
+                        .font(.caption).foregroundStyle(.secondary).padding(.trailing, Self.right + 4).padding(.top, 2)
                 }
                 .help("Hover for energy and counts; drag a window or its edge to move or resize it, double-click it for its default; scroll or pinch to zoom, drag to pan, drag along an axis to zoom it, double-click elsewhere for the whole spectrum; right-click for a linear or log counts axis and to reset windows")
                 .accessibilityElement()

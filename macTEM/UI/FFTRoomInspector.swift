@@ -389,7 +389,7 @@ private struct FFTSpotRow: View {
                 .accessibilityIdentifier(spot.measured == nil ? "" : "fft.spotSpacing")
                 .accessibilityValue(spot.measured.map { FFTRoomFormat.spacingValue(d: $0.d, unit: $0.units) } ?? "")
             neighbourFlag
-            Toggle("In Mask, spot \(spot.number)", isOn: inMask)
+            Toggle(isOn: inMask) { Text(verbatim: "In Mask, spot \(spot.number)") }
                 .labelsHidden()
                 .toggleStyle(.checkbox)
                 .disabled(spot.measured == nil)
@@ -398,7 +398,7 @@ private struct FFTSpotRow: View {
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
                 .help("Remove")
-                .accessibilityLabel("Remove spot \(spot.number)")
+                .accessibilityLabel(Text(verbatim: "Remove spot \(spot.number)"))
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
@@ -407,7 +407,7 @@ private struct FFTSpotRow: View {
 
     private var label: some View {
         HStack(spacing: 8) {
-            Text("\(spot.number)")
+            Text(verbatim: "\(spot.number)")
                 .monospacedDigit()
                 .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                 .frame(width: Self.numberWidth, alignment: .trailing)

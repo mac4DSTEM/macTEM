@@ -197,7 +197,7 @@ private struct MeasureProfileDetail: View {
             MeasureProfileChart(profile: profile, x: image.x, y: image.y)
             InspectorRow("Width") {
                 HStack(spacing: 8) {
-                    Text("\(mark.width) px")
+                    Text(verbatim: "\(mark.width) px")
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
                     Stepper("Width", value: width(of: mark), in: 1...ImageMeasurements.maximumWidth)

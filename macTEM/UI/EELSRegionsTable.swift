@@ -35,6 +35,10 @@ nonisolated enum EELSRegionSpeech {
         }
     }
 
+    /// The pixels cell's text and value: the region's pixel count, never grouped ("1722" in any locale, as the total beside it). A literal with the
+    /// number in it, `Text("\(row.pixels)")`, is a LocalizedStringKey, which SwiftUI writes in the reader's grouping ("1.722" in German).
+    static func pixelsText(_ pixels: Int, locale: Locale = .autoupdatingCurrent) -> String { Num.fixed(Double(pixels), 0, locale: locale) }
+
     /// The total-counts cell's text: the whole number of counts, never grouped ("2637954" in any locale, as the app writes every count), and a dash
     /// where the sum is not a number.
     static func totalText(_ counts: Double, locale: Locale = .autoupdatingCurrent) -> String {
@@ -100,8 +104,8 @@ struct EELSRegionsTable: View {
                                 // One element, the region's name: the swatch is not a stop of its own, and the dimming of a hidden region is said in words.
                                 .accessibilityElement(children: .combine)
                                 .accessibilityValue(EELSRegionSpeech.visibility(isVisible: pin.isVisible))
-                                Text("\(row.pixels)").monospacedDigit()
-                                    .accessibilityLabel("\(pin.name) pixels").accessibilityValue("\(row.pixels)")
+                                Text(EELSRegionSpeech.pixelsText(row.pixels)).monospacedDigit()
+                                    .accessibilityLabel("\(pin.name) pixels").accessibilityValue(EELSRegionSpeech.pixelsText(row.pixels))
                                     .accessibilityIdentifier("eels.regionTable.\(pin.name).pixels")
                                 Text(EELSRegionSpeech.totalText(row.totalCounts)).monospacedDigit()
                                     .accessibilityLabel("\(pin.name) total counts").accessibilityValue(EELSRegionSpeech.totalValue(row.totalCounts))
