@@ -712,6 +712,18 @@ package final class IndexingSession {
         return Task { await task.value }
     }
 
+    /// The Output line a dictionary run starts with: "Indexing 4125 patterns against the Ni dictionary at 4° (NCC)…"; against several
+    /// phases, "… against 2 dictionaries (Ni, Al) at 4° (NCC); each point takes the phase of its best score…". The resolution in
+    /// `locale` as the Dictionary section's size row writes it (`UnitDisplay.number`): "2,675°" in German, where three significant
+    /// digits by FormatStyle read "2,68°".
+    nonisolated package static func dictionaryStartLine(points: Int, phases: [String], resolution: Double, metric: String,
+                                                        locale: Locale = .autoupdatingCurrent) -> String {
+        let at = "\(UnitDisplay.number(resolution, locale: locale))° (\(metric))"
+        guard phases.count != 1 else { return "Indexing \(points) patterns against the \(phases[0]) dictionary at \(at)…" }
+        return "Indexing \(points) patterns against \(phases.count) dictionaries (\(phases.joined(separator: ", "))) at \(at); "
+            + "each point takes the phase of its best score…"
+    }
+
     /// A dictionary run (D-SEM-92, D-SEM-98): each phase's orientations sampled (or the ones kept for its resolution and point group,
     /// one sampling for every phase of a group), the plans built (one per phase on), then each block of rows read once and matched
     /// against every phase's dictionary in turn, chunk by chunk, its rows landing when every phase has matched them (merged as
@@ -739,13 +751,8 @@ package final class IndexingSession {
         refreshMap()
         refreshBandRows()
         refreshComparison()
-        let resolution = settings.resolution.formatted(.number.precision(.significantDigits(1...3)))
-        if on.count == 1 {
-            onEvent?("Indexing \(rows * columns) patterns against the \(on[0].name) dictionary at \(resolution)° (\(settings.metric.title))…")
-        } else {
-            onEvent?("Indexing \(rows * columns) patterns against \(on.count) dictionaries (\(on.map(\.name).joined(separator: ", "))) at "
-                + "\(resolution)° (\(settings.metric.title)); each point takes the phase of its best score…")
-        }
+        onEvent?(Self.dictionaryStartLine(points: rows * columns, phases: on.map(\.name), resolution: settings.resolution,
+                                          metric: settings.metric.title))
         // The chunks merged, in order, and the phase matching, to the main actor (the newest only: the count only grows).
         let (chunks, chunkSink) = AsyncStream.makeStream(of: (done: Int, phase: Int).self, bufferingPolicy: .bufferingNewest(1))
         Task { [weak self] in

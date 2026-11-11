@@ -274,7 +274,7 @@ struct MapPane: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("maps.map")
         .accessibilityLabel("Orientation map, \(session.layer.title)")
-        .accessibilityValue("\(shape.rows) rows by \(shape.columns) columns, at row \(session.pinned.row) column \(session.pinned.column)")
+        .accessibilityValue(SEMMapPointer.spokenMap(rows: shape.rows, columns: shape.columns, at: session.pinned))
         .accessibilityHint(ZoomPan.accessibilityHint)
     }
 

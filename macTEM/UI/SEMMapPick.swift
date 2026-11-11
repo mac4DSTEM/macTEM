@@ -7,8 +7,8 @@
 //        drag pans and only the marker's grab handle moves the pick. The arrows step the pick (⇧ ten), and any press on a map gives the
 //        room's root the keyboard, so they work right after a click (after a click in the Indexing room's Results table too).
 //
-//  THE POLICY (`SEMMapPointer`, pure, pinned by `SEMMapPointerTests`): who owns a plain press at a zoom, and the scan point under a pane
-//  point. `MarkGeometry` puts a pixel's centre at an integer, so rounding gives each pixel the area it covers, as mac4DSTEM's floor does
+//  THE POLICY (`SEMMapPointer`, pure, pinned by `SEMMapPointerTests`): who owns a plain press at a zoom, the scan point under a pane
+//  point, and what VoiceOver hears of a map and its pick (its numbers never grouped). `MarkGeometry` puts a pixel's centre at an integer, so rounding gives each pixel the area it covers, as mac4DSTEM's floor does
 //  with its centres at +0.5. A press beside the picture (zoomed out) picks nothing; a drag past the edge holds the edge's point.
 //  THE VIEWS: `SEMMapScrubLayer` (the whole map picks, and in Maps ⌘-clicks; mounted only at 1× and below, so zoomed in the drag falls
 //  through to the pan),
@@ -59,6 +59,19 @@ nonisolated enum SEMMapPointer {
     static func isOnImage(_ p: CGPoint, geometry: MarkGeometry) -> Bool {
         let q = geometry.imagePoint(atPanePoint: p)
         return q.x >= -0.5 && q.x <= Double(geometry.imageWidth) - 0.5 && q.y >= -0.5 && q.y <= Double(geometry.imageHeight) - 0.5
+    }
+
+    /// A map's spoken value: "1200 rows by 1500 columns, at row 1100 column 7", every number never grouped (`IndexingInfoFormat.count`).
+    /// A `String`, so `.accessibilityValue` does not take it as a localized key, which grouped "1.200 rows" in German.
+    static func spokenMap(rows: Int, columns: Int, at pick: EBSDPosition, locale: Locale = .autoupdatingCurrent) -> String {
+        let n = { (v: Int) in IndexingInfoFormat.count(v, locale: locale) }
+        return "\(n(rows)) \(UnitDisplay.noun(rows, "row", "rows")) by \(n(columns)) \(UnitDisplay.noun(columns, "column", "columns")), "
+            + "at row \(n(pick.row)) column \(n(pick.column))"
+    }
+
+    /// The picked point's spoken value: "row 1100, column 7", never grouped.
+    static func spokenPosition(_ pick: EBSDPosition, locale: Locale = .autoupdatingCurrent) -> String {
+        "row \(IndexingInfoFormat.count(pick.row, locale: locale)), column \(IndexingInfoFormat.count(pick.column, locale: locale))"
     }
 }
 
@@ -158,7 +171,7 @@ struct SEMScanMarker: View {
         .allowsHitTesting(isHandle)
         .accessibilityElement()
         .accessibilityLabel("Picked point")
-        .accessibilityValue("row \(position.row), column \(position.column)")
+        .accessibilityValue(SEMMapPointer.spokenPosition(position))
         .accessibilityHint("Adjust to move left or right, or use the named actions to move in any direction")
         .accessibilityAdjustableAction { direction in
             switch direction {

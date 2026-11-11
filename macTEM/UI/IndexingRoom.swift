@@ -575,7 +575,7 @@ private struct DetectedBandsOverlay: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Detected bands")
-        .accessibilityValue("\(bands.filter(\.isMatched).count) of \(bands.count) matched")
+        .accessibilityValue(IndexingInfoFormat.matchedBands(bands.filter(\.isMatched).count, of: bands.count))
         .accessibilityIdentifier("indexing.pattern.overlay")
     }
 }

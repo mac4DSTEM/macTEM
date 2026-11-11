@@ -124,6 +124,28 @@ nonisolated final class IndexingInfoFormatTests: XCTestCase {
         XCTAssertTrue(inspector.contains("let mean = IndexingInfoFormat.triple(pc.mean), deviation = IndexingInfoFormat.triple(pc.deviation)"))
     }
 
+    /// The PC row's help counts a Bruker file's projection centres (one per pattern) never grouped, and says one in its own words.
+    /// Red before: no `projectionCentreHelp`; the view passed `.help` a literal, a localized key, which wrote "4.125 projection
+    /// centres" in German and "4,125" in English.
+    func testTheProjectionCentreHelpCountIsNeverGrouped() throws {
+        for locale in [Self.german, Self.us, Self.posix] {
+            XCTAssertEqual(IndexingInfoFormat.projectionCentreHelp(count: 4125, locale: locale),
+                           "The mean of the file's 4125 projection centres, Bruker convention (kikuchipy's pc_average)", locale.identifier)
+            XCTAssertEqual(IndexingInfoFormat.projectionCentreHelp(count: 1, locale: locale), "The file's projection centre, Bruker convention")
+        }
+        let inspector = try ui("IndexingRoomInspector.swift")
+        XCTAssertTrue(inspector.contains(".help(IndexingInfoFormat.projectionCentreHelp(count: detector.projectionCenters.count))"))
+    }
+
+    /// The detected bands' spoken value counts never grouped, as the room's other counts. Red before: no `matchedBands`; the view passed
+    /// `.accessibilityValue` a literal, a localized key, which grouped its counts.
+    func testTheMatchedBandsAreSpokenUngrouped() throws {
+        XCTAssertEqual(IndexingInfoFormat.matchedBands(6, of: 9, locale: Self.us), "6 of 9 matched")
+        XCTAssertEqual(IndexingInfoFormat.matchedBands(1200, of: 1500, locale: Self.german), "1200 of 1500 matched")
+        XCTAssertEqual(IndexingInfoFormat.matchedBands(1200, of: 1500, locale: Self.us), "1200 of 1500 matched")
+        XCTAssertTrue(try ui("IndexingRoom.swift").contains(".accessibilityValue(IndexingInfoFormat.matchedBands(bands.filter(\\.isMatched).count, of: bands.count))"))
+    }
+
     /// The Calibration section's tilts read as the Patterns room's Calibration rows: "Detector tilt", in the reader's decimal mark.
     /// Red before: the Indexing room said "Camera tilt" for the angle the Patterns room calls the detector's.
     func testTheTiltsAreThePatternsRoomsRows() throws {

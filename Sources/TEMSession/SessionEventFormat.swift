@@ -7,10 +7,12 @@
 //
 
 import Foundation
+import TEMCore
 
 package nonisolated enum SessionEventFormat {
-    /// `v` at `places` decimals in `locale`, digits never grouped.
+    /// `v` at `places` decimals in `locale`, digits never grouped, as `UnitDisplay.fixed` writes them: printf's digits (a tie reads
+    /// as the CSV beside it, 0.35 at one place is "0.3"), never "-0.0", and UnitDisplay's dash for a value that is not finite.
     package static func fixed(_ v: Double, _ places: Int, locale: Locale = .autoupdatingCurrent) -> String {
-        v.formatted(.number.precision(.fractionLength(places)).grouping(.never).locale(locale))
+        UnitDisplay.fixed(v, places: places, locale: locale)
     }
 }
