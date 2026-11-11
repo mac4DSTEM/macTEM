@@ -119,7 +119,12 @@ package final class EELSSession {
     package internal(set) var wholeMapPlot: EELSPlotData?
     @ObservationIgnored private(set) var fitUsed: EELSPlotFit?
     @ObservationIgnored var plotTask: Task<Void, Never>?
+    /// While a drag's live spectrum is on screen (`refreshPlot`): the selected region's own spectrum (the whole map's when none is), summed
+    /// without the model and landed before the fitted plot.
+    @ObservationIgnored package internal(set) var plotInterimTask: Task<Void, Never>?
     @ObservationIgnored var plotRun = 0
+    /// The request whose fitted plot is on screen: its quick spectrum never lands after it.
+    @ObservationIgnored var plotLandedRun = 0
     /// The live spectrum of a drag (`previewRegion`): the running sum, the shape waiting for it, and whether the plot shows a preview.
     @ObservationIgnored var previewTask: Task<Void, Never>?
     @ObservationIgnored var pendingPreview: EDXRegion?
@@ -486,7 +491,9 @@ package final class EELSSession {
     package func close() {
         cancelPass()
         openTask?.cancel(); openTask = nil; isOpening = false
-        plotTask?.cancel(); plot = nil; wholeMapPlot = nil; fitUsed = nil; alignmentShiftTile = nil
+        // A plot, quick spectrum or live spectrum still on its way lands nothing on the closed room.
+        plotTask?.cancel(); plotInterimTask?.cancel(); plotRun += 1; isPreviewing = false; pendingPreview = nil
+        plot = nil; wholeMapPlot = nil; fitUsed = nil; alignmentShiftTile = nil
         deadTask?.cancel(); coreDeadStretches = []; editedWindows = [:]; references = []; modelReferenceNames = []
         fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
         deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil

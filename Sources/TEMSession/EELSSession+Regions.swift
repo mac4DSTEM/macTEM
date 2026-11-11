@@ -30,13 +30,21 @@ extension EELSSession {
         colorsIssued = 0; regionsIssued = 0; linesIssued = 0
     }
 
-    /// A region drawn on a map: kept as the next numbered region and selected. A shape that holds no pixel, or one already kept, changes nothing.
+    /// A region drawn on a map: kept as the next numbered region and selected. A shape that holds no pixel changes nothing; one already kept is
+    /// selected and its spectrum shown.
     @discardableResult
     package func drawRegion(_ region: EDXRegion) -> EDXPin? {
         guard let image = source?.image else { return nil }
         let clipped = Self.clipped(region, nx: image.nx, ny: image.ny)
         guard let clipped, clipped.pixelCount(nx: image.nx, ny: image.ny) > 0 else { return nil }
-        if let existing = pins.first(where: { $0.region == clipped }) { selectedPinID = existing.id; return existing }
+        // Already kept: selected, and the spectrum follows the selection (Return on the colour mix draws the middle box again). A key held on a
+        // region that is already shown asks for nothing.
+        if let existing = pins.first(where: { $0.region == clipped }) {
+            let changed = selectedPinID != existing.id
+            selectedPinID = existing.id
+            if changed || isPreviewing { refreshPlot() }
+            return existing
+        }
         regionsIssued += 1; colorsIssued += 1
         let pin = EDXPin(name: "Region \(regionsIssued)", region: clipped, number: colorsIssued)
         pins.append(pin)
@@ -171,29 +179,58 @@ extension EELSSession {
         }
     }
 
-    /// The plot of the selected region (the whole map when none is) off the main actor; a newer request drops an older one.
+    /// The plot of the selected region (the whole map when none is) off the main actor; a newer request drops an older one. Right after a drag the plot on
+    /// screen is the live spectrum of a shape that is not the selected one, and the fitted plot can take a while: the selected shape's own spectrum, summed
+    /// as a preview is and without the model, lands first (the 2026-11-11 drive read "Selection · 552 px" beside a 1722 px region while the fit ran).
     package func refreshPlot() {
         plotTask?.cancel()
+        plotInterimTask?.cancel()
         plotRun += 1
-        guard let low = workingLowLoss else { plot = nil; wholeMapPlot = nil; return }
+        // A drag's live spectrum is on screen until a plot of the selected shape lands (`isPreviewing` is cleared there, not here), so a second
+        // request before that also starts its own quick spectrum.
+        let afterPreview = isPreviewing
+        plotInterimTask = nil
+        guard let low = workingLowLoss else { plot = nil; wholeMapPlot = nil; isPreviewing = false; return }
         let run = plotRun, core = shownCoreLoss, map = map, threshold = threshold, deconvolvedLow = shownDeconvolvedLow, answered = shownAnswered
         let lambda = (try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)) ?? nil
         let pin = selectedPin
         let region = pin?.region ?? .wholeMap, name = pin?.name ?? (isSingleSpectrum ? "Spectrum" : "Whole map")
         // The model is drawn only over the core loss it was fitted to (stored or Fourier-ratio deconvolved).
         let fit = model != nil && fitUsed?.deconvolved == (answered != nil) ? fitUsed : nil
+        let interim: Task<Void, Never>? = if afterPreview {
+            Task.detached(priority: .userInitiated) { [weak self] in
+                let quick = EELSPlotCompute.make(name: name, region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: nil,
+                                                 deconvolvedLow: deconvolvedLow, answered: answered)
+                if Task.isCancelled { return }
+                await self?.landInterimPlot(quick, run: run)
+            }
+        } else {
+            nil
+        }
+        plotInterimTask = interim
         plotTask = Task.detached(priority: .userInitiated) { [weak self] in
             let data = EELSPlotCompute.make(name: name, region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: fit,
                                             deconvolvedLow: deconvolvedLow, answered: answered)
             let whole = pin == nil ? data : EELSPlotCompute.make(name: "Whole map", region: .wholeMap, low: low, core: core, map: map, threshold: threshold,
                                                                   meanFreePath: lambda, fit: nil, deconvolvedLow: deconvolvedLow, answered: answered)
+            // The quick spectrum, when there is one, goes up first: it never covers the fitted plot.
+            await interim?.value
             if Task.isCancelled { return }
             await self?.landPlot(data, whole: whole, run: run)
         }
     }
 
+    /// The selected shape's spectrum without the model, shown until the fitted plot lands; nothing when a newer request came meanwhile, and never
+    /// over the fitted plot of the same request.
+    private func landInterimPlot(_ data: EELSPlotData?, run: Int) {
+        guard run == plotRun, run != plotLandedRun, let data else { return }
+        isPreviewing = false
+        plot = data
+    }
+
     private func landPlot(_ data: EELSPlotData?, whole: EELSPlotData?, run: Int) {
         guard run == plotRun else { return }
+        plotLandedRun = run
         isPreviewing = false
         plot = data
         wholeMapPlot = whole
@@ -213,7 +250,6 @@ extension EELSSession {
             let task = Task { @MainActor [weak self] in
                 await self?.previewTask?.value
                 guard let self, self.plotRun == committed, self.isPreviewing else { return }
-                self.isPreviewing = false
                 self.refreshPlot()
             }
             return task

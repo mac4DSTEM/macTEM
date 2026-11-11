@@ -131,9 +131,10 @@ nonisolated enum EELSResultsSplit {
         return regionsCaptionHeight + min(CGFloat(rows) * regionsRowHeight + regionsGridChrome, regionsGridMaximum)
     }
 
-    /// The edges table's height and the Regions section's in the `available` points between the thickness line and the notes, for `edgeRows` fitted
-    /// edges and `regionRows` regions: the edges table's floor first (all of `available` when it is less), then the Regions section up to its full
-    /// height, then the edges table again. The two add up to `available` and neither is below 0, so nothing is pushed out of the pane.
+    /// The edges table's height and the Regions section's in the `available` points between the thickness line and the lines under the tables (the
+    /// refusal, the exponents line and the footer), for `edgeRows` fitted edges and `regionRows` regions: the edges table's floor first (all of
+    /// `available` when it is less), then the Regions section up to its full height, then the edges table again. The two add up to `available` and
+    /// neither is below 0, so nothing is pushed out of the pane.
     static func heights(available: CGFloat, edgeRows: Int, regionRows: Int) -> (edges: CGFloat, regions: CGFloat) {
         let pane = max(available, 0)
         guard regionRows > 0 else { return (pane, 0) }

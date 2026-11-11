@@ -287,6 +287,9 @@ private struct EELSMapTileHost: View {
                 return EELSRegionBridge.nudgeSelected(dx: step.dx, dy: step.dy, in: session, state: state) ? .handled : .ignored
             }
             .opacity(isRunning ? 0.5 : 1)
+            // The tile went away under a drag (a room switch while the button is held): MacEMUI's drawing layer never reports that drag's end, so its live
+            // spectrum ends here and the selected region's comes back.
+            .onDisappear { session.previewRegion(nil) }
             .task(id: key) {
                 guard !members.isEmpty else { image = nil; return }
                 let count = w * h
@@ -992,8 +995,8 @@ struct EELSResultsPanel: View {
     }
 
     /// One row per fitted edge (I, at%, wt%); before a fit, what to do. A pane narrower than the columns' minimum widths scrolls them sideways, as a
-    /// standard macOS table does, never squeezing at% or wt% to "95,88…"; the scroll bars flash when the table appears or its edges change, so a cut
-    /// column shows that it scrolls even where the scroll bars hide until a scroll.
+    /// standard macOS table does, never squeezing at% or wt% to "95,88…". The table asks its scroll bars to flash when it appears or its edges change, so
+    /// a cut column shows that it scrolls even where the scroll bars hide until a scroll (unverified on screen for a Table).
     @ViewBuilder private func edges(_ rows: [EELSEdgeRow]) -> some View {
         if rows.isEmpty {
             ContentUnavailableView("No edges fitted yet", systemImage: "list.bullet.rectangle",
