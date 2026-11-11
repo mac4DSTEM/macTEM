@@ -48,4 +48,31 @@ nonisolated final class ReadoutAccessibilityValueTests: XCTestCase {
         XCTAssertTrue(modifier.contains("content.accessibilityValue(ReadoutSpeech.value(readout: readout(), fallback: fallback))"),
                       "the readout is read in the modifier's body")
     }
+
+    /// The Image pane speaks the pixel and its value under the pointer, the Diffraction pattern q and d, each as the status line reads them; else
+    /// what they spoke before (the size, and the rings and spots). Red under: the static value, so VoiceOver heard the size wherever the pointer was.
+    func testTheImageAndDiffractionPanesSpeakTheirReadout() throws {
+        let image = try FFTRoomWiringTests.squeezedUI("ImagePane.swift")
+        XCTAssertTrue(image.contains(#".modifier(ReadoutAccessibilityValue(readout: { appState.imageRoomTools.readout }, fallback: "\(image.width) by \(image.height) pixels"))"#))
+        XCTAssertFalse(image.contains(#".accessibilityValue("\(image.width) by \(image.height) pixels")"#), "the static value is gone")
+        let diffraction = try FFTRoomWiringTests.squeezedUI("DiffractionRoom.swift")
+        XCTAssertTrue(diffraction.contains(#".modifier(ReadoutAccessibilityValue(readout: { appState.diffractionReadout }, fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))"))"#))
+        XCTAssertFalse(diffraction.contains(#".accessibilityValue("\(image.width) by \(image.height) pixels, "#), "the static value is gone")
+    }
+
+    /// Each pane speaks a readout only it writes, so it never says what the pointer reads over another pane (the EELS case above). Red under: a
+    /// second writer of either readout in the app's sources.
+    func testEachSpokenReadoutHasOneWriter() throws {
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        var writers: [String: Set<String>] = ["imageRoomTools.readout =": [], "diffractionReadout =": []]
+        for folder in ["macTEM/UI", "macTEM/App"] {
+            let dir = root.appendingPathComponent(folder)
+            for file in try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) where file.pathExtension == "swift" {
+                let code = try String(contentsOf: file, encoding: .utf8).split(separator: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+                for key in writers.keys where code.contains(where: { $0.contains(key) }) { writers[key]?.insert(file.lastPathComponent) }
+            }
+        }
+        XCTAssertEqual(writers["imageRoomTools.readout ="], ["ImagePane.swift"])
+        XCTAssertEqual(writers["diffractionReadout ="], ["DiffractionRoom.swift"])
+    }
 }

@@ -250,7 +250,8 @@ struct ImagePane: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("image.view")
         .accessibilityLabel("Image")
-        .accessibilityValue("\(image.width) by \(image.height) pixels")
+        // The pixel and its value under the pointer, as the status line reads them; else the picture's size. This pane is the readout's one writer.
+        .modifier(ReadoutAccessibilityValue(readout: { appState.imageRoomTools.readout }, fallback: "\(image.width) by \(image.height) pixels"))
         .accessibilityHint(ZoomPan.accessibilityHint)
         .zoomPanAccessibilityActions(zoomModel, box: box)
     }
