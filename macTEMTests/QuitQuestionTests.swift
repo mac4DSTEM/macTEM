@@ -14,5 +14,10 @@ nonisolated final class QuitQuestionTests: XCTestCase {
         let activate = try XCTUnwrap(delegate.range(of: "NSApp.activate()"), "macTEM is not brought forward before the question")
         let ask = try XCTUnwrap(delegate.range(of: "alert.runModal()"))
         XCTAssertLessThan(activate.lowerBound, ask.lowerBound, "it comes forward before it asks, not after")
+        // From the Dock's Quit the system declines the activation (driven 2026-11-11): the Dock icon bounces until the person comes.
+        let bounce = try XCTUnwrap(delegate.range(of: "NSApp.isActive ? nil : NSApp.requestUserAttention(.criticalRequest)"),
+                                   "a quit from the background asks for attention")
+        XCTAssertLessThan(bounce.lowerBound, ask.lowerBound)
+        XCTAssertTrue(delegate.contains("NSApp.cancelUserAttentionRequest(attention)"), "the bounce stops once the question is answered")
     }
 }
