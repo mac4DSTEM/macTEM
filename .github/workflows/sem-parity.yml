@@ -4,11 +4,17 @@
 # orix, diffsims, HyperSpy, exspy, RosettaSciIO, pyEBSDindex on CPython 3.14) emits for the committed fixtures and the
 # fetched datasets. This job rebuilds that stack, fetches the data (raw.githubusercontent.com; Zenodo items are
 # "manual" and no milestone-1 case needs one), emits every bundle afresh and compares within the committed tolerances
-# (tools/parity/sem/check.py). Red means a reference moved: a stack pin, a fixture, or emit.py changed, and the bundle
-# must be regenerated on purpose (`emit.py --out references`) and committed with the reason.
+# (tools/parity/sem/check.py; an array of rotations whose manifest entry names a point group by its misorientation
+# angle, tools/parity/sem/lib/refbundle_selftest.py checks that comparison first). Red means a reference moved: a stack
+# pin, a fixture, or emit.py changed, and the bundle must be regenerated on purpose (`emit.py --out references`) and
+# committed with the reason.
 #
-# The Swift side (macTEMTests/SEMParity*.swift) runs in the unit job of ci.yml on every PR: it holds the ports to these
-# bundles. This job holds the bundles to the stack. Both red on drift; neither per session on a Mac.
+# The Swift side is the macTEMTests that call SEMParityReference.load, in the unit job of ci.yml. A test that compares
+# a bundle runs on every pull request when the bundle's input is a committed fixture or the shipped demo scan, and only
+# nightly and on dispatch when fetch-data.sh downloads its input (ci.yml's NIGHTLY paragraph says which run then).
+# Those tests hold the ports to the bundles a test compares; this job holds every committed bundle to the stack, on the
+# pull requests and pushes to main that touch tools/parity/sem or this file, and on dispatch. Both red on drift;
+# neither per session on a Mac.
 
 name: SEM parity references
 
@@ -51,6 +57,8 @@ jobs:
           key: sem-data-${{ hashFiles('tools/parity/sem/data-manifest.txt') }}
       - name: Provision the pinned stack
         run: tools/parity/sem/setup.sh
+      - name: The drift gate's comparison holds on its own
+        run: References/sem-venv/bin/python -I -B tools/parity/sem/lib/refbundle_selftest.py
       - name: Fetch the datasets
         run: tools/parity/sem/fetch-data.sh
       - name: Fixtures are their checksums

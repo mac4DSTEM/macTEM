@@ -19,6 +19,13 @@ file per array. The manifest is the contract the Swift side (macTEMTests/SEMPari
 Arrays are little-endian, C order, no header; `dtype` is one of uint8, uint16, int32, int64, float32, float64. A
 tolerance of 0/0 is an exact comparison; otherwise numpy's assert_allclose rule, |a - b| <= atol + rtol * |b|, with the
 reference as b. The JSON is written sorted and indented so a regenerated bundle diffs cleanly in git.
+
+An array of rotations may carry three more keys, always together: "symmetry" (an orix point group name, "m-3m"),
+"rotation" (what a row holds: "quaternion", orix's Rotation.data, last axis 4; or "euler_bunge_radians", its
+Rotation.to_euler(), last axis 3) and "angle_tolerance_degrees". The drift gate then compares that array point by point
+by the misorientation angle under the point group, not element by element: pyEBSDindex fits in float32 under numba
+fastmath, so a re-emit on another CPU can hand another of the symmetry-equivalent rotations of one orientation (#434),
+and the orientation is the claim. rtol and atol stay the element tolerance for the readers that want one.
 """
 
 from __future__ import annotations
@@ -33,6 +40,8 @@ import numpy as np
 
 SCHEMA = 1
 DTYPES = {"uint8", "uint16", "int32", "int64", "float32", "float64"}
+ORIENTATION_KEYS = ("symmetry", "rotation", "angle_tolerance_degrees")
+ROTATIONS = {"quaternion": 4, "euler_bunge_radians": 3}   # what a row of an orientation array holds, and its width
 
 
 def sha256_of_file(path: Path) -> str:
@@ -114,7 +123,10 @@ class Bundle:
     def scalar(self, name: str, v, rtol: float = 0.0, atol: float = 0.0) -> None:
         self.manifest["scalars"][name] = {"value": float(v), "rtol": rtol, "atol": atol}
 
-    def array(self, name: str, a: np.ndarray, rtol: float = 0.0, atol: float = 0.0, note: str | None = None) -> None:
+    def array(self, name: str, a: np.ndarray, rtol: float = 0.0, atol: float = 0.0, note: str | None = None,
+              symmetry: str | None = None, rotation: str | None = None, angle_tolerance_degrees: float | None = None) -> None:
+        """One array and its element tolerance. With `symmetry`, `rotation` and `angle_tolerance_degrees` (all three, see
+        the module's docstring) the drift gate compares it by orientation instead."""
         a = np.ascontiguousarray(a)
         if a.dtype.name not in DTYPES:
             raise ValueError(f"{self.case}/{name}: dtype {a.dtype.name} is not one the Swift loader reads ({sorted(DTYPES)})")
@@ -130,6 +142,14 @@ class Bundle:
         }
         if note:
             entry["note"] = note
+        given = {"symmetry": symmetry, "rotation": rotation, "angle_tolerance_degrees": angle_tolerance_degrees}
+        orientation = {k: v for k, v in given.items() if v is not None}
+        problem = orientation_problem(orientation, entry["shape"])
+        if problem:
+            raise ValueError(f"{self.case}/{name}: {problem}")
+        if orientation:
+            orientation["angle_tolerance_degrees"] = float(orientation["angle_tolerance_degrees"])
+        entry.update(orientation)
         self.manifest["arrays"][name] = entry
         self._arrays[name] = a
 
@@ -163,10 +183,104 @@ def all_cases(root: Path) -> list[Path]:
     return sorted(p.parent for p in root.rglob("manifest.json"))
 
 
+def orientation_keys(entry: dict) -> dict:
+    """The orientation keys an array entry carries (empty for an array compared element by element)."""
+    return {k: entry[k] for k in ORIENTATION_KEYS if k in entry}
+
+
+def point_group(name):
+    """orix's point group of exactly that name ("m-3m", "432", "6/mmm"), looked up as compare_cases.py does; a
+    ValueError for any other name, an EDAX alias among them."""
+    from orix.crystal_map import Phase
+
+    group = None
+    if isinstance(name, str):
+        try:
+            group = Phase(point_group=name).point_group
+        except ValueError:
+            group = None
+    if group is None or group.name != name:
+        raise ValueError(f"symmetry {name!r} is not the name of an orix point group")
+    return group
+
+
+def orientation_problem(keys: dict, shape: list[int]) -> str | None:
+    """Why an array entry's orientation keys cannot be used, or None: none of them, or all three with a point group orix
+    names, a rotation ROTATIONS lists whose row width is the last axis, and a bound above 0 and below 180 degrees."""
+    if not keys:
+        return None
+    if set(keys) != set(ORIENTATION_KEYS):
+        return f"the orientation keys {', '.join(ORIENTATION_KEYS)} come together; the entry has {', '.join(sorted(keys))}"
+    width = ROTATIONS.get(keys["rotation"]) if isinstance(keys["rotation"], str) else None
+    if width is None:
+        return f"rotation {keys['rotation']!r} is not one of {', '.join(ROTATIONS)}"
+    if not shape or shape[-1] != width:
+        return f"a {keys['rotation']} row has {width} elements; the array's shape is {shape}"
+    bound = keys["angle_tolerance_degrees"]
+    if isinstance(bound, bool) or not isinstance(bound, (int, float)) or not 0 < bound < 180:
+        return f"angle_tolerance_degrees {bound!r} is not a number of degrees above 0 and below 180"
+    try:
+        point_group(keys["symmetry"])
+    except ValueError as err:
+        return str(err)
+    return None
+
+
+def _no_rotation(rows: np.ndarray, rotation: str) -> np.ndarray:
+    """The rows that hold no rotation: a NaN or an infinity in them, or a quaternion of four zeros. orix's
+    `angle_with` would hand 0 degrees for any of these (it turns a NaN angle into 0), so they are compared as values."""
+    void = (~np.isfinite(rows)).any(axis=1)
+    if rotation == "quaternion":
+        void |= ~(rows != 0).any(axis=1)
+    return void
+
+
+def _orientations(rows: np.ndarray, rotation: str, group):
+    from orix.quaternion import Orientation
+
+    if rotation == "euler_bunge_radians":
+        return Orientation.from_euler(rows, group)   # orix's defaults: radians, lab2crystal, Rotation.to_euler's inverse
+    return Orientation(rows, group)
+
+
+def orientation_drift(case: str, name: str, keys: dict, x: np.ndarray, y: np.ndarray) -> list[str]:
+    """An orientation array compared point by point, x committed and y fresh: the misorientation angle of each row
+    under the point group (orix's `Orientation.angle_with`, the smallest angle over the group's equivalents) is at most
+    angle_tolerance_degrees, so a re-emit that hands another twin of the same orientation agrees. A row that holds no
+    rotation (an unindexed point stored as NaN) matches the same row only, NaN matching NaN. One line, or none."""
+    rotation = keys["rotation"]
+    width = ROTATIONS[rotation]
+    group = point_group(keys["symmetry"])
+    bound = float(keys["angle_tolerance_degrees"])
+    xr = x.astype(np.float64).reshape(-1, width)
+    yr = y.astype(np.float64).reshape(-1, width)
+    void = _no_rotation(xr, rotation) | _no_rotation(yr, rotation)
+    unequal = ((xr != yr) & ~(np.isnan(xr) & np.isnan(yr))).any(axis=1)
+    void_bad = void & unequal
+    degrees = np.zeros(xr.shape[0])
+    held = ~void
+    if held.any():
+        a = _orientations(xr[held], rotation, group)
+        b = _orientations(yr[held], rotation, group)
+        degrees[held] = np.rad2deg(a.angle_with(b))
+    bad = void_bad | (degrees > bound)
+    if not bad.any():
+        return []
+    k = int(np.flatnonzero(void_bad)[0]) if void_bad.any() else int(np.argmax(degrees))
+    at = [int(i) for i in np.unravel_index(k, x.shape[:-1])]
+    if void_bad[k]:
+        worst = f"{xr[k].tolist()} committed, {yr[k].tolist()} fresh (a row without a rotation matches only itself)"
+    else:
+        worst = f"{float(degrees[k])!r} degrees between {xr[k].tolist()} committed and {yr[k].tolist()} fresh"
+    return [f"{case}: array {name} drifts at {int(bad.sum())} of {xr.shape[0]} points by misorientation under "
+            f"{keys['symmetry']} (bound {bound} degrees); worst at {at}: {worst}"]
+
+
 def compare_bundles(committed: Path, fresh: Path) -> list[str]:
     """Every difference between a committed bundle and a freshly emitted one, as one line each; empty when they agree
-    within the committed tolerances. The stack versions are compared too: a reference computed by another version is
-    drift even when the numbers agree, because the pin is part of the claim."""
+    within the committed tolerances (an array with orientation keys within its misorientation bound, every other array
+    element by element). The stack versions are compared too: a reference computed by another version is drift even
+    when the numbers agree, because the pin is part of the claim."""
     a = read_manifest(committed)
     b = read_manifest(fresh)
     out: list[str] = []
@@ -197,11 +311,21 @@ def compare_bundles(committed: Path, fresh: Path) -> list[str]:
         if e["dtype"] != f["dtype"] or e["shape"] != f["shape"]:
             out.append(f"{a['case']}: array {name} is {e['dtype']}{e['shape']} committed, {f['dtype']}{f['shape']} fresh")
             continue
+        keys = orientation_keys(e)
+        if keys != orientation_keys(f):
+            out.append(f"{a['case']}: array {name} has the orientation keys {json.dumps(keys, sort_keys=True)} committed, "
+                       f"{json.dumps(orientation_keys(f), sort_keys=True)} fresh")
+        problem = orientation_problem(keys, e["shape"])
+        if problem:
+            out.append(f"{a['case']}: array {name}: {problem}")
+            continue
         x = read_array(committed, e)
         y = read_array(fresh, f)
         if sha256_of_array(x) != e["sha256"]:
             out.append(f"{a['case']}: array {name}: the committed file is not the manifest's sha256 (edited by hand?)")
-        if e["rtol"] == 0 and e["atol"] == 0:
+        if keys:
+            out += orientation_drift(a["case"], name, keys, x, y)
+        elif e["rtol"] == 0 and e["atol"] == 0:
             floats = x.dtype.kind == "f"
             if not np.array_equal(x, y, equal_nan=floats):  # NaN matches NaN only, as the Swift loader compares
                 n = int(np.count_nonzero((x != y) & ~(np.isnan(x) & np.isnan(y)))) if floats else int(np.count_nonzero(x != y))
@@ -212,7 +336,10 @@ def compare_bundles(committed: Path, fresh: Path) -> list[str]:
             xf, yf = x.astype(np.float64), y.astype(np.float64)
             bad = (diff > bound) | (np.isnan(xf) != np.isnan(yf))
             if bad.any():
-                i = np.unravel_index(int(np.argmax(diff - bound)), x.shape)
+                # The worst element among those out of tolerance, a NaN against a number first: argmax over every
+                # element would name a NaN-NaN pair, which agrees.
+                excess = np.where(bad, np.nan_to_num(diff - bound, nan=np.inf), -np.inf)
+                i = np.unravel_index(int(np.argmax(excess)), x.shape)
                 out.append(f"{a['case']}: array {name} drifts in {int(bad.sum())} elements; worst at {[int(k) for k in i]}: "
                            f"{float(x[i])!r} committed, {float(y[i])!r} fresh (rtol {e['rtol']}, atol {e['atol']})")
     return out
