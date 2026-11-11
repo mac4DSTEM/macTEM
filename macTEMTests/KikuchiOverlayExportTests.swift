@@ -20,8 +20,8 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         let url = try XCTUnwrap(DemoDocuments.Shipped.nickelEBSD.url, "DemoData/ is not in the bundle")
         let session = EBSDSession()
         await session.open(url: url).value
-        for _ in 0..<6000 where session.patternPresentation.canvas == nil || session.isMapping || session.isComputingMean {
-            try await Task.sleep(for: .milliseconds(5))
+        try await waitUntil("the first pattern to show and the scan's passes to end", seconds: 30) {
+            session.patternPresentation.canvas != nil && !session.isMapping && !session.isComputingMean
         }
         return session
     }

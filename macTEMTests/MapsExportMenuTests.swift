@@ -60,7 +60,7 @@ nonisolated final class MapsExportMenuTests: XCTestCase {
         XCTAssertNil(ExportSnapshot.mapsAvailability(of: state), "no map yet")
         await state.ebsd.bind(try DemoDocuments.ebsd()).value
         XCTAssertTrue(state.maps.hasMap, "the demo scan carries its own crystal map")
-        for _ in 0..<4000 where state.maps.raster == nil || state.maps.keys.isEmpty { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the demo map's picture and colour keys", seconds: 20) { state.maps.raster != nil && !state.maps.keys.isEmpty }
         state.navigation.workspaceArea = .image
         XCTAssertNil(ExportSnapshot.mapsAvailability(of: state), "another room lists none")
         state.navigation.workspaceArea = .maps

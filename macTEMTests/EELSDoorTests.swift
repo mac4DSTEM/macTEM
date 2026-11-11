@@ -75,7 +75,7 @@ nonisolated final class EELSDoorTests: XCTestCase {
         XCTAssertTrue(state.openItems.items.isEmpty, "a spectrum is not an open image")
         XCTAssertNil(state.errorMessage)
 
-        for _ in 0..<2000 where !state.eels.hasImage { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the spectrum to land in the EELS room", seconds: 10) { state.eels.hasImage }
         XCTAssertEqual(state.eels.fileName, "point.msa", "the app's Open handed the file to the room")
         await state.eels.settled()
         XCTAssertEqual(recorder.lines.filter { $0 == "Opening point.msa…" }.count, 1, "the session was handed the file once: \(recorder.lines)")

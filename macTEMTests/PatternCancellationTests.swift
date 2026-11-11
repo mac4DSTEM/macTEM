@@ -70,7 +70,7 @@ nonisolated final class PatternCancellationTests: XCTestCase {
         defer { gated.release() }
         let session = EBSDSession()
         await session.bind(EBSDSession.Document(fileName: demo.fileName, url: nil, dataset: demo.dataset, access: gated)).value
-        for _ in 0..<6000 where session.isMapping || session.isComputingMean { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the demo scan's map and mean passes to end", seconds: 30) { !session.isMapping && !session.isComputingMean }
         XCTAssertTrue(session.canProcess)
         var events: [String] = []
         session.onEvent = { events.append($0) }
@@ -90,7 +90,7 @@ nonisolated final class PatternCancellationTests: XCTestCase {
         // Stop then Process while the stopped run is held: the new run waits for it, then runs and lands alone.
         reads = gated.hold()
         let first = session.process()
-        for _ in 0..<2000 where gated.rowReads == reads { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the first run to enter its first row", seconds: 10) { gated.rowReads != reads }
         session.stop()
         let second = session.process()
         XCTAssertTrue(session.isProcessing)

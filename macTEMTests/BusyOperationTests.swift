@@ -181,8 +181,8 @@ nonisolated final class BusyOperationTests: XCTestCase {
     @MainActor func testAnIndexRunningBehindTheMapsRoomShowsAndStops() async throws {
         let state = AppState()
         await state.ebsd.bind(try DemoDocuments.ebsd()).value
-        for _ in 0..<6000 where state.ebsd.isBusy || state.ebsd.isComputingMean || state.maps.isBusy {
-            try await Task.sleep(for: .milliseconds(5))
+        try await waitUntil("the demo scan's passes in the Patterns and Maps rooms to end", seconds: 30) {
+            !state.ebsd.isBusy && !state.ebsd.isComputingMean && !state.maps.isBusy
         }
         state.navigation.workspaceArea = .maps
         XCTAssertNil(BusyOperation.backgroundRoom(state), "nothing runs")
@@ -217,8 +217,8 @@ nonisolated final class BusyOperationTests: XCTestCase {
     @MainActor func testARoomWithoutAVerbOffersCancelForARunInAnotherRoom() async throws {
         let state = AppState()
         await state.ebsd.bind(try DemoDocuments.ebsd()).value
-        for _ in 0..<6000 where state.ebsd.isBusy || state.ebsd.isComputingMean || state.maps.isBusy {
-            try await Task.sleep(for: .milliseconds(5))
+        try await waitUntil("the demo scan's passes in the Patterns and Maps rooms to end", seconds: 30) {
+            !state.ebsd.isBusy && !state.ebsd.isComputingMean && !state.maps.isBusy
         }
         state.navigation.workspaceArea = .image
         XCTAssertNil(RoomPrimaryAction.current(state), "nothing runs: no verb, no Cancel")
@@ -274,8 +274,8 @@ nonisolated final class BusyOperationTests: XCTestCase {
     @MainActor func testALayersPictureDoesNotHideARunInAnotherRoom() async throws {
         let state = AppState()
         await state.ebsd.bind(try DemoDocuments.ebsd()).value
-        for _ in 0..<6000 where state.ebsd.isBusy || state.ebsd.isComputingMean || state.maps.isBusy {
-            try await Task.sleep(for: .milliseconds(5))
+        try await waitUntil("the demo scan's passes in the Patterns and Maps rooms to end", seconds: 30) {
+            !state.ebsd.isBusy && !state.ebsd.isComputingMean && !state.maps.isBusy
         }
         state.navigation.workspaceArea = .maps
         XCTAssertTrue(state.maps.hasMap, "the demo carries its own crystal map")

@@ -18,9 +18,8 @@ import XCTest
 
 nonisolated final class SEMSessionLedgerTests: XCTestCase {
     @MainActor private func waitIdle(_ state: AppState) async throws {
-        for _ in 0..<12_000 where state.ebsd.isOpening || state.ebsd.isMapping || state.ebsd.isComputingMean || state.ebsd.isProcessing
-            || state.maps.isBusy {
-            try await Task.sleep(for: .milliseconds(5))
+        try await waitUntil("the Patterns and Maps rooms' passes to end", seconds: 60) {
+            !state.ebsd.isOpening && !state.ebsd.isMapping && !state.ebsd.isComputingMean && !state.ebsd.isProcessing && !state.maps.isBusy
         }
         XCTAssertFalse(state.ebsd.isBusy)
     }
@@ -99,7 +98,9 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         await indexing.index().value
         indexing.setMethod(.dictionary)
         indexing.editDictionarySettings { $0.resolution = 10 }
-        for _ in 0..<6000 where indexing.masterPatterns.isEmpty || indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the master pattern and the dictionary's size", seconds: 30) {
+            !indexing.masterPatterns.isEmpty && indexing.dictionarySize != nil
+        }
         XCTAssertNil(indexing.refusal, indexing.refusal ?? "")
         await indexing.index().value
         XCTAssertEqual(indexing.result?.method, .dictionary)

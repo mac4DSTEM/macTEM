@@ -161,8 +161,8 @@ nonisolated final class FFTPreprocessTests: XCTestCase {
         for _ in 0..<2000 where !analysis.isSpectrumCurrent { try await Task.sleep(for: .milliseconds(5)) }
         XCTAssertTrue(analysis.isSpectrumCurrent)
         analysis.findSpots()
-        for _ in 0..<2000 where analysis.spots.contains(where: { if case .measuring = $0.outcome { true } else { false } }) || analysis.spots.isEmpty {
-            try await Task.sleep(for: .milliseconds(5))
+        try await waitUntil("the found spots to be measured", seconds: 10) {
+            !analysis.spots.isEmpty && !analysis.spots.contains(where: { if case .measuring = $0.outcome { true } else { false } })
         }
         XCTAssertEqual(analysis.spots.count, 2)
         for spot in analysis.spots {
@@ -174,11 +174,11 @@ nonisolated final class FFTPreprocessTests: XCTestCase {
 
         analysis.setPreprocess(FFTPreprocess(window: .hann))
         XCTAssertTrue(analysis.spots.isEmpty, "the spots belong to the old transform")
-        for _ in 0..<2000 where !analysis.isSpectrumCurrent { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the windowed spectrum to land", seconds: 10) { analysis.isSpectrumCurrent }
         XCTAssertEqual(analysis.spectrum?.key.preprocess, FFTPreprocess(window: .hann))
         analysis.findSpots()
-        for _ in 0..<2000 where analysis.spots.contains(where: { if case .measuring = $0.outcome { true } else { false } }) || analysis.spots.isEmpty {
-            try await Task.sleep(for: .milliseconds(5))
+        try await waitUntil("the spots found on the windowed spectrum to be measured", seconds: 10) {
+            !analysis.spots.isEmpty && !analysis.spots.contains(where: { if case .measuring = $0.outcome { true } else { false } })
         }
         XCTAssertGreaterThanOrEqual(analysis.spots.count, 2, "a windowed lattice still has its reflections")
         let first = try XCTUnwrap(analysis.spots.first?.measured)
@@ -202,10 +202,10 @@ nonisolated final class FFTPreprocessTests: XCTestCase {
         analysis.setSpotFinder(thresholdFraction: 0.75, minDistance: 8, count: 1)
         let image = try Self.lattice()
         analysis.show(image, contentVersion: 1)
-        for _ in 0..<2000 where !analysis.isSpectrumCurrent { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the spectrum to land", seconds: 10) { analysis.isSpectrumCurrent }
         analysis.findSpots()
-        for _ in 0..<2000 where analysis.spots.contains(where: { if case .measuring = $0.outcome { true } else { false } }) || analysis.spots.isEmpty {
-            try await Task.sleep(for: .milliseconds(5))
+        try await waitUntil("the found spot to be measured", seconds: 10) {
+            !analysis.spots.isEmpty && !analysis.spots.contains(where: { if case .measuring = $0.outcome { true } else { false } })
         }
         XCTAssertEqual(analysis.spots.count, 1, "the lattice has two reflections; the count asked for one")
     }

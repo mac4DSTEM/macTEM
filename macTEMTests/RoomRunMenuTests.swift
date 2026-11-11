@@ -29,9 +29,7 @@ nonisolated final class RoomRunMenuTests: XCTestCase {
 
         state.navigation.workspaceArea = .patterns
         await state.ebsd.bind(try DemoDocuments.ebsd()).value
-        for _ in 0..<6000 where state.ebsd.isBusy || state.ebsd.isComputingMean {
-            try await Task.sleep(for: .milliseconds(5))
-        }
+        try await waitUntil("the demo scan's passes to end", seconds: 30) { !state.ebsd.isBusy && !state.ebsd.isComputingMean }
         XCTAssertTrue(state.ebsd.canProcess, state.ebsd.processingRefusal?.sentence ?? "")
         XCTAssertEqual(RoomPrimaryAction.runTitle(state), "Process")
         XCTAssertTrue(RoomPrimaryAction.canRun(RoomPrimaryAction.current(state)))

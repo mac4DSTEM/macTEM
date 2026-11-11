@@ -114,7 +114,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertEqual(state.navigation.workspaceArea, .image)
         await state.open(urls: [msa])?.value
         XCTAssertEqual(state.navigation.workspaceArea, .edx)
-        for _ in 0..<2000 where !state.edx.hasImage { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the spectrum to land in the EDS room", seconds: 10) { state.edx.hasImage }
         XCTAssertEqual(state.edx.fileName, "spectrum.msa")
         await state.edx.settled()
         XCTAssertEqual(state.edx.regionPixels, 1)

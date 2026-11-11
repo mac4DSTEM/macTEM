@@ -107,7 +107,7 @@ nonisolated final class EBSDMeanPassTests: XCTestCase {
         session.editPipeline { $0.dynamicStage.std = 12 }
         XCTAssertTrue(session.isComputingMean)
         XCTAssertTrue(session.isBusy, "the mean's own pass is busy")
-        for _ in 0..<2000 where gated.rowReads == before { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the mean's own pass to enter its first row", seconds: 10) { gated.rowReads != before }
         session.stop()
         XCTAssertFalse(session.isComputingMean)
         XCTAssertFalse(session.isBusy)
@@ -116,7 +116,7 @@ nonisolated final class EBSDMeanPassTests: XCTestCase {
         // The next edit sums it again; it lands, the stopped passes having read no row after Stop.
         session.editPipeline { $0.dynamicStage.std = 10 }
         XCTAssertTrue(session.isComputingMean)
-        for _ in 0..<6000 where session.isComputingMean { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the mean's pass to land", seconds: 30) { !session.isComputingMean }
         let mean = try XCTUnwrap(session.scanMeanBackground)
         let reference = try XCTUnwrap(PatternPipeline.meanBackground(demo.access))
         assertSameArray(mean, reference, "the mean summed after Stop")
@@ -140,7 +140,7 @@ nonisolated final class EBSDMeanPassTests: XCTestCase {
         session.onEvent = { events.append($0) }
         let firstPattern = session.bind(EBSDSession.Document(fileName: "planted.h5", url: nil, dataset: dataset, access: access))
         await firstPattern.value
-        for _ in 0..<6000 where session.isMapping || session.isComputingMean { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the map and mean passes to end", seconds: 30) { !session.isMapping && !session.isComputingMean }
         XCTAssertFalse(session.isComputingMean)
         XCTAssertNil(session.scanMeanBackground)
         let line = events.first { $0.hasPrefix("The scan's mean pattern could not be computed") }
