@@ -74,7 +74,7 @@ look instant, work cancellable). Pattern (0, 0) is in the live pane before the p
 - **Status line**: `row 12 · col 40 · BSE 1 203 · IQ 0,71 · mean 118` (control placement §7): every virtual image's
   value at the hovered position, the map's first.
 - **Toolbar**: no verb in phase 1 (the room shows; nothing runs but the open). Phase 2 adds `Process` (pattern-
-  processing.md). The centre display: `patterns_v2.h5 · Patterns · 55 × 75 of 60 × 60`.
+  processing.md). The centre display: `patterns_v2.h5 · Patterns · 75 × 55 of 60 × 60` (width × height, X before Y, as AZtec and mac4DSTEM give sizes; #518).
 - **Scan navigator**: none here, the map is the scan. It appears in Indexing and Maps beside a pane that is not a map of
   scan positions (mac4DSTEM's `ScanNavigatorPlacement`).
 
@@ -88,7 +88,7 @@ Image-room order (control placement §2): `Calibration · Display · Virtual ima
 | Row | Value | Note |
 |---|---|---|
 | Step | `1,5 µm × 1,5 µm` | from the file |
-| Scan | `55 × 75` | rows × columns |
+| Scan | `75 × 55` | width × height (columns × rows) |
 | Pattern | `60 × 60 px · binned 8×` | |
 | Detector | `NORDIF UF-1100` | |
 | Beam | `20 kV` | |

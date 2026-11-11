@@ -177,11 +177,11 @@ nonisolated enum MapsRoomFormat {
         return fields
     }
 
-    /// The toolbar's detail: "100 × 117 · 2 phases".
+    /// The toolbar's detail: "117 × 100 · 2 phases", the map's width × height in points (X before Y, as AZtec's X and Y Cells).
     static func capsuleDetail(_ map: CrystalMap) -> String {
         let (rows, columns) = OrientationMaps.gridShape(map)
         let phases = indexedPhases(map).count
-        return "\(rows) × \(columns) · \(phases) \(phases == 1 ? "phase" : "phases")"
+        return "\(columns) × \(rows) · \(phases) \(phases == 1 ? "phase" : "phases")"
     }
 
     /// The indexed phases of the map's points, in id order.
@@ -432,7 +432,7 @@ nonisolated enum MapsRoomFormat {
             EBSDBrowsing.Row("File", document.fileName),
             EBSDBrowsing.Row("Format", document.format),
             EBSDBrowsing.Row("Source", Self.infoSource(document.source)),
-            EBSDBrowsing.Row("Map", "\(rows) × \(columns)"),
+            EBSDBrowsing.Row("Map", "\(columns) × \(rows)"),
             EBSDBrowsing.Row("Step", "\(UnitDisplay.number(map.dx, locale: locale)) \(unit) × \(UnitDisplay.number(map.dy, locale: locale)) \(unit)"),
             EBSDBrowsing.Row("Points", "\(map.size)"),
         ]

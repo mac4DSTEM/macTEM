@@ -330,7 +330,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             guard radius >= 1 else { return Refusal(.nlpar, "The search radius must be at least 1.") }
             // The radius is held against the scan before the window 2 r + 1 is formed, so no typed radius overflows it.
             guard radius <= (min(dataset.scanRows, dataset.scanColumns) - 1) / 2 else {
-                let scan = "this one is \(dataset.scanRows) × \(dataset.scanColumns)."
+                let scan = "this one is \(dataset.scanColumns) × \(dataset.scanRows)."
                 guard radius <= Int.max / 2 else { return Refusal(.nlpar, "A search radius of \(radius) is wider than any scan; " + scan) }
                 let window = 2 * radius + 1
                 return Refusal(.nlpar, "A search radius of \(radius) needs a scan of at least \(window) × \(window); " + scan)

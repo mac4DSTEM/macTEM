@@ -93,9 +93,8 @@ package nonisolated enum CTFReader {
     static func radians(_ degrees: Double) -> Double { degrees * (Double.pi / 180) }
 
     package static func read(text: String) throws -> File {
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map { line -> Substring in
-            line.last == "\r" ? line.dropLast() : line
-        }
+        // LF, CRLF (AZtec on Windows) and CR end a line, as Python's `open()` reads them for orix (#518).
+        let lines = TextLines.split(text)
 
         // _get_header: the lines up to the column line, and the vendor.
         var header: [String] = []

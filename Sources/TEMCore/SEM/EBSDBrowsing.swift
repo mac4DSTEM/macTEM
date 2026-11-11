@@ -97,9 +97,10 @@ package nonisolated enum EBSDBrowsing {
         "Pattern · row \(position.row) · col \(position.column)"
     }
 
-    /// The toolbar's centre: "55 × 75 of 60 × 60".
+    /// The toolbar's centre: "75 × 55 of 60 × 60", the scan's width × height in points of the patterns' width × height in pixels, as
+    /// AZtec, mac4DSTEM and the image rooms give sizes (X before Y).
     package static func capsuleDetail(_ dataset: EBSDDataset) -> String {
-        "\(dataset.scanRows) × \(dataset.scanColumns) of \(dataset.patternRows) × \(dataset.patternColumns)"
+        "\(dataset.scanColumns) × \(dataset.scanRows) of \(dataset.patternColumns) × \(dataset.patternRows)"
     }
 
     /// One row of the Calibration or Info section.
@@ -123,8 +124,8 @@ package nonisolated enum EBSDBrowsing {
         let four = { (v: Double) in UnitDisplay.number(v, digits: 4, locale: locale) }
         var rows = [
             Row("Step", "\(n(dataset.stepX)) \(unit) × \(n(dataset.stepY)) \(unit)"),
-            Row("Scan", "\(dataset.scanRows) × \(dataset.scanColumns)"),
-            Row("Pattern", "\(dataset.patternRows) × \(dataset.patternColumns) px" + (detector.binning > 1 ? " · binned \(detector.binning)×" : "")),
+            Row("Scan", "\(dataset.scanColumns) × \(dataset.scanRows)"),
+            Row("Pattern", "\(dataset.patternColumns) × \(dataset.patternRows) px" + (detector.binning > 1 ? " · binned \(detector.binning)×" : "")),
             Row("Beam", dataset.sem.beamEnergyKeV.map { "\(n($0)) kV" } ?? "None in the file"),
             Row("Sample tilt", "\(n(detector.sampleTilt))°"),
             Row("Detector tilt", "\(n(detector.tilt))°"),
