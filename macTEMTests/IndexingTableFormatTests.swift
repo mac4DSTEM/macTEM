@@ -188,7 +188,7 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
     func testTheBandsTableCopiesItsSelectedBands() throws {
         let room = squeezed(try source("macTEM/UI/IndexingRoom.swift"))
         XCTAssertTrue(room.contains("@State private var selection: Set<IndexedBand.ID> = []"))
-        XCTAssertTrue(room.contains("Table(session.detectedBands, selection: $selection) {"))
+        XCTAssertTrue(room.contains("Table(session.detectedBands, selection: picks) {"), "through the setter that takes the keys (TableFocusTests)")
         XCTAssertTrue(room.contains(".onCopyCommand(perform: selection.isEmpty ? nil : { copiedBands() })"))
         XCTAssertTrue(room.contains("let picked = session.detectedBands.filter { selection.contains($0.id) }"), "the bands in the table's order")
         XCTAssertTrue(room.contains("NSItemProvider(object: IndexingTableFormat.bandsCopyText(picked) as NSString)"))

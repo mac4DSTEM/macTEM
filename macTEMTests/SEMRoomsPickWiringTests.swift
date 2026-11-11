@@ -86,7 +86,7 @@ nonisolated final class SEMRoomsPickWiringTests: XCTestCase {
             XCTAssertFalse(text.contains(".focusable()"), "\(path) makes its own focusable root")
         }
         let pick = try code("macTEM/UI/SEMMapPick.swift")
-        XCTAssertTrue(pick.contains(".focusable() .focusEffectDisabled()"))
+        XCTAssertTrue(pick.contains(".focusable(interactions: .activate) .focusEffectDisabled()"), "the root takes no keys on a click of its own")
         // Bound to a value: a Bool bound with `focused(_:)` reads true while the Results, Bands or Grains table inside the root has the
         // keyboard, so the press would leave the arrows with the table (Apple's `FocusState`, "Nest focusable views").
         XCTAssertTrue(pick.contains("@FocusState private var focus: Target?"))

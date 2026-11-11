@@ -169,6 +169,7 @@ struct MapsGrainsTable: View {
     let session: OrientationMapSession
     @State private var sortOrder = [KeyPathComparator(\GrainRow.id)]
     @State private var rows: [GrainRow] = []
+    @FocusState private var tableFocused: Bool
 
     var body: some View {
         Group {
@@ -179,7 +180,12 @@ struct MapsGrainsTable: View {
                     Text(verbatim: MapsRoomFormat.grainSummary(analysis))
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                         .accessibilityIdentifier("maps.grains.summary")
-                    Table(rows, selection: Binding(get: { session.selectedGrains }, set: { session.selectGrains($0) }), sortOrder: $sortOrder) {
+                    // The person's selection takes the keyboard for the table (#353); a ⌘-click on the map selects grains through the
+                    // session and leaves the keys with the map.
+                    Table(rows, selection: Binding(get: { session.selectedGrains }, set: { picked in
+                        session.selectGrains(picked)
+                        if !picked.isEmpty { tableFocused = true }
+                    }), sortOrder: $sortOrder) {
                         TableColumn("Grain", value: \.id) { Text(verbatim: "\($0.id)").monospacedDigit() }
                         TableColumn("Phase", value: \.phaseName)
                         TableColumn("Points", value: \.points) { Text(verbatim: "\($0.points)").monospacedDigit() }
@@ -195,6 +201,7 @@ struct MapsGrainsTable: View {
                         TableColumn("Schmid") { row in Text(GrainTableFormat.schmid(row, slip: session.slip)).monospacedDigit() }
                         TableColumn("Neighbours", value: \.neighbours) { Text(verbatim: "\($0.neighbours)").monospacedDigit() }
                     }
+                    .focused($tableFocused)
                     .onCopyCommand(perform: session.selectedGrains.isEmpty ? nil : { copied(unit: unit, places: places) })
                     .accessibilityIdentifier("maps.grains.table")
                 }

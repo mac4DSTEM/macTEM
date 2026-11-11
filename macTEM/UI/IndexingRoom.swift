@@ -147,6 +147,19 @@ private struct IndexingKeyedRoom: ViewModifier {
                 return .handled
             }
             .onChange(of: session.patterns.pinned) { session.showPattern() }
+            // ⌘C with the keys on the room (after a click on the map): the picked point's Results row, so a pick then ⌘C copies it
+            // even when that row was already selected and the click on it changed nothing (#353, PaneKeys' arrangement).
+            .onCopyCommand(perform: pickedRow == nil ? nil : { copiedPickedRow() })
+    }
+
+    private var pickedRow: IndexingResult.Row? {
+        session.result?.rows.first { $0.position == session.patterns.pinned }
+    }
+
+    private func copiedPickedRow() -> [NSItemProvider] {
+        guard let result = session.result, let row = pickedRow else { return [] }
+        let text = IndexingTableFormat.copyText([row], method: result.method, scoreTitle: result.scoreTitle)
+        return [NSItemProvider(object: text as NSString)]
     }
 }
 
@@ -591,6 +604,17 @@ struct IndexingResultsTable: View {
     @State private var rows: [IndexingResult.Row] = []
     @State private var selection: Set<IndexingResult.Row.ID> = []
     @State private var sortOrder = [KeyPathComparator(\IndexingResult.Row.id)]
+    @FocusState private var tableFocused: Bool
+
+    /// The table's selection as the person sets it: a click (or ⇧/⌘-click) writes it and takes the keyboard for the table, as AppKit's
+    /// click makes the clicked view first responder; the pick selecting its row (`SelectsThePickedRow`) writes `selection` itself and
+    /// leaves the keys with the map (#353).
+    private var picks: Binding<Set<IndexingResult.Row.ID>> {
+        Binding(get: { selection }, set: { picked in
+            selection = picked
+            if !picked.isEmpty { tableFocused = true }
+        })
+    }
 
     /// What the rows are of: the run (its id, so the Refine switch's swap of a Dictionary run and its refinement, alike in every other
     /// field, rebuilds them; its rows done, and whether it still runs).
@@ -626,6 +650,7 @@ struct IndexingResultsTable: View {
                 .frame(height: LayoutPolicy.paneHeaderHeight)
                 .accessibilityIdentifier("indexing.results.title")
             table
+            .focused($tableFocused)
             .onCopyCommand(perform: selection.isEmpty ? nil : { copied() })
             .overlay {
                 if session.result == nil {
@@ -649,7 +674,7 @@ struct IndexingResultsTable: View {
     /// orientation similarity).
     @ViewBuilder private var table: some View {
         if let result = session.result, result.method == .dictionary {
-            Table(rows, selection: $selection, sortOrder: $sortOrder) {
+            Table(rows, selection: picks, sortOrder: $sortOrder) {
                 TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
                 TableColumn(SEMColumnSpeech.header("Col"), value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
                 TableColumn("Phase", value: \.phase)
@@ -669,7 +694,7 @@ struct IndexingResultsTable: View {
                 }
             }
         } else {
-            Table(rows, selection: $selection, sortOrder: $sortOrder) {
+            Table(rows, selection: picks, sortOrder: $sortOrder) {
                 TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
                 TableColumn(SEMColumnSpeech.header("Col"), value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
                 TableColumn("Phase", value: \.phase)
@@ -817,6 +842,15 @@ struct IndexingBestMatchPane: View {
 struct IndexingBandsTable: View {
     let session: IndexingSession
     @State private var selection: Set<IndexedBand.ID> = []
+    @FocusState private var tableFocused: Bool
+
+    /// The selection as the person sets it, which takes the keyboard for the table (#353); clearing it on new bands leaves the keys.
+    private var picks: Binding<Set<IndexedBand.ID>> {
+        Binding(get: { selection }, set: { picked in
+            selection = picked
+            if !picked.isEmpty { tableFocused = true }
+        })
+    }
 
     private var header: String {
         guard let position = session.patternPosition else { return "Bands" }
@@ -831,7 +865,7 @@ struct IndexingBandsTable: View {
                 .font(.headline).lineLimit(1)
                 .frame(height: LayoutPolicy.paneHeaderHeight)
                 .accessibilityIdentifier("indexing.bands.title")
-            Table(session.detectedBands, selection: $selection) {
+            Table(session.detectedBands, selection: picks) {
                 TableColumn(SEMColumnSpeech.header("#")) { Text(verbatim: "\($0.id)").monospacedDigit() }
                 TableColumn(SEMColumnSpeech.header("ρ px")) { Text(IndexingTableFormat.angle($0.rho, digits: 2)).monospacedDigit() }
                 TableColumn(SEMColumnSpeech.header("θ °")) { Text(IndexingTableFormat.angle($0.thetaDegrees, digits: 2)).monospacedDigit() }
@@ -840,6 +874,7 @@ struct IndexingBandsTable: View {
                 TableColumn("Family") { Text(IndexingTableFormat.bandFamily($0.family, isValid: $0.isValid)) }
                 TableColumn(SEMColumnSpeech.header("Fit °")) { Text(IndexingTableFormat.bandFit($0.fitDegrees)).monospacedDigit() }
             }
+            .focused($tableFocused)
             .onCopyCommand(perform: selection.isEmpty ? nil : { copiedBands() })
             .accessibilityIdentifier("indexing.bands")
         }
