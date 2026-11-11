@@ -14,7 +14,7 @@
 //  colours `IndexingRaster`'s (orix's keys), the patterns `IndexingSource`'s. This owner decides WHEN: a run in one detached task that
 //  indexes the scan row by row (Hough) or block of rows by block (dictionary, its chunks counted for the toolbar) and lands each only if
 //  no newer run or dataset started meanwhile (`generation`), so the map grows in place and Stop keeps the indexed rows; the pattern
-//  under the pointer in a task the next hover cancels; the band detector (the Radon line plan) built once per settings off the main
+//  at the picked position in a task the next pick cancels; the band detector (the Radon line plan) built once per settings off the main
 //  actor and kept (`probe`); the dictionary's orientations sampled once per resolution and point group and kept (`sampled`), one
 //  sampling for every phase of a point group.
 //
@@ -144,9 +144,7 @@ package final class IndexingSession {
     }()
     /// The pattern as it is indexed (through the pipeline), drawn with its own contrast.
     package let patternPresentation = ImagePresentation()
-    /// The position under the pointer while it hovers the map, else nil (the pinned position is the Patterns room's).
-    package private(set) var hovered: EBSDPosition?
-    /// The position of the pattern on screen.
+    /// The position of the pattern on screen (the picked position is the Patterns room's, `patterns.pinned`).
     package private(set) var patternPosition: EBSDPosition?
     /// The detected bands of the pattern on screen, with what the run matched them to.
     package private(set) var detectedBands: [IndexedBand] = []
@@ -233,8 +231,6 @@ package final class IndexingSession {
 
     package var hasDataset: Bool { patterns.hasDataset }
     package var isBusy: Bool { isIndexing }
-    /// What the pattern pane shows: the hovered position while there is one, else the pinned.
-    package var shown: EBSDPosition { hovered ?? patterns.pinned }
     package var phasesOn: [IndexingPhase] { phases.filter(\.isOn) }
     /// The inputs a run of `method` would take now.
     package func inputs(for method: IndexingMethod) -> IndexingInputs {
@@ -297,7 +293,7 @@ package final class IndexingSession {
         showsCompare = false; comparison = nil; comparePictures = nil; compareTask = nil; compareKey = nil
         mapRGBA = nil; palette = nil; probe = nil; shownKey = nil; shownRaw = []
         mapPresentation.resetWindow()
-        hovered = nil; patternPosition = nil; detectedBands = []; patternFailure = nil; patternShape = (rows: 0, columns: 0)
+        patternPosition = nil; detectedBands = []; patternFailure = nil; patternShape = (rows: 0, columns: 0)
         bestMatchPosition = nil; bestMatchFailure = nil; bestMatchKey = nil
         overlayBands = [:]; overlayMasters = [:]; overlayMemo = nil
         for task in overlayMasterTasks.values { task.cancel() }
@@ -891,17 +887,17 @@ package final class IndexingSession {
             refinedRun?.seconds = seconds
             let base = runs[.dictionary]?.result
             let change = base.flatMap { IndexingRefinement.meanScores(base: $0, refined: r.result) }.map {
-                " · mean \(base?.scoreTitle ?? "NCC") \(String(format: "%.3f", $0.before)) → NCC \(String(format: "%.3f", $0.after))"
+                " · mean \(base?.scoreTitle ?? "NCC") \(SessionEventFormat.fixed($0.before, 3)) → NCC \(SessionEventFormat.fixed($0.after, 3))"
             } ?? ""
             onEvent?("Refined \(r.result.indexedCount) of \(r.result.pointCount) patterns (\(r.refinement?.settings.target.noun ?? "")) in "
-                + "\(String(format: "%.1f", seconds)) s" + change)
+                + "\(SessionEventFormat.fixed(seconds, 1)) s" + change)
         } else if let finished {
             runs[finished]?.seconds = seconds
             if let result = runs[finished]?.result {
                 // A run against several phases says how many points each took.
                 let byPhase = result.method == .dictionary && result.phases.count > 1
                     ? " (" + zip(result.phases, result.countsByPhase).map { "\($0.name) \($1)" }.joined(separator: " · ") + ")" : ""
-                onEvent?("Indexed \(result.indexedCount) of \(result.pointCount) patterns with \(result.method.title) in \(String(format: "%.1f", seconds)) s"
+                onEvent?("Indexed \(result.indexedCount) of \(result.pointCount) patterns with \(result.method.title) in \(SessionEventFormat.fixed(seconds, 1)) s"
                     + byPhase)
             }
         }
@@ -964,23 +960,11 @@ package final class IndexingSession {
 
     // MARK: - The position
 
-    /// The pointer is over map position `position` (nil: it left the map); the pattern pane follows it.
-    package func hover(_ position: EBSDPosition?) {
-        guard let dataset = patterns.dataset else { return }
-        let inside = position.flatMap { $0.isInside(rows: dataset.scanRows, columns: dataset.scanColumns) ? $0 : nil }
-        guard inside != hovered else { return }
-        hovered = inside
-        showPattern()
-    }
-
-    /// Pins `position` (a click on the map, a Results row, Space, an arrow key): the shared marker moves.
+    /// Picks `position` (a click or a drag on the map or a compared map, a Results row, an arrow key): the shared marker moves and the
+    /// pattern pane follows it. The pointer over the map picks nothing (D-SEM-110).
     package func pin(_ position: EBSDPosition) {
         patterns.pin(position)
         showPattern()
-    }
-
-    package func pinHovered() {
-        if let hovered { pin(hovered) }
     }
 
     package func step(_ direction: EBSDPosition.Direction, by count: Int = 1) {
@@ -990,12 +974,12 @@ package final class IndexingSession {
 
     // MARK: - The pattern
 
-    /// Shows the pattern at `shown` as it is indexed, with its detected bands: read, processed and detected off the main actor in a task
-    /// the next request cancels. The returned task ends when the pattern is on screen.
+    /// Shows the pattern at the picked position (`patterns.pinned`) as it is indexed, with its detected bands: read, processed and detected
+    /// off the main actor in a task the next request cancels. The returned task ends when the pattern is on screen.
     @discardableResult
     package func showPattern() -> Task<Void, Never> {
         guard patterns.document != nil else { return Task {} }
-        let position = shown
+        let position = patterns.pinned
         let source: IndexingSource
         switch self.source() {
         case .success(let s):

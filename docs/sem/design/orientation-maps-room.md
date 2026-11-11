@@ -37,7 +37,7 @@ an `.ang`/`.ctf` alone opens straight here, `RoomHoldings.orientations`), or fro
 ┌──────────────────────────────┬───────────────────────────────┐
 │ Maps block (main pane)       │ Live pattern pane (open by    │
 │ the anchor map (IPF-Z) with  │ default): the pattern at the  │
-│ the grain boundaries, and    │ hovered point, the solution   │
+│ the grain boundaries, and    │ picked point, the solution    │
 │ the tiles the Maps control   │ overlay if a solution exists; │
 │ picks, one shared transform  │ or the vendor's, no pattern:  │
 │                              │ the orientation as a unit     │
@@ -56,7 +56,7 @@ an `.ang`/`.ctf` alone opens straight here, `RoomHoldings.orientations`), or fro
   tile (regions drawn here) is the `Anchor` the Maps control names, IPF-Z by default; grain boundaries draw over every
   tile as thin lines coloured by angle class once `Segment` ran; the scan marker as in Patterns. One `ZoomableContainer`
   over the block (all tiles follow).
-- **Live pattern pane**: open by default, the pattern at the hovered point with the solution overlay
+- **Live pattern pane**: open by default, the pattern at the picked point (D-SEM-110) with the solution overlay
   (simulation-overlay.md) when patterns are open; for a vendor-indexed file without patterns the pane draws the
   orientation as the unit cell in the sample frame (a wireframe cube or hexagonal prism rotated by the orientation,
   the standard EBSD teaching picture) with the IPF colour swatch and the Euler angles underneath; the toggle hides it.
@@ -119,10 +119,11 @@ orix implements it), one row each with its reference, the EELS room's `Methods` 
   live*: IPF, phase, CI, KAM on open; `Segment` enabled with help "Segment 4 125 points into grains at 5°"; *segmented*:
   grains, boundaries, table, statistics; *stale*: a Grains or Misorientation change stales `Segment` (● on the title),
   the dependent tiles dim; *refused*: "Point group unknown for phase 2: no misorientation" under Phases.
-- **Hover**: the pattern pane follows; the status line carries every shown map's value; hovering a grain highlights
-  its row in the Grains table (scrolls it into view) and its boundary.
-- **Select**: a click on the map at 1× pins and selects the grain under it; the pole figures mark the grain's points in
-  the accent; ⌘-click adds grains to the selection; Esc clears.
+- **Hover**: the status line carries every shown map's value; the pattern pane does not move (D-SEM-110); hovering a
+  grain highlights its row in the Grains table (scrolls it into view) and its boundary.
+- **Select**: a click or a drag on the map at 1× and below picks the point and selects the grain under it, and the
+  pattern or orientation pane follows; zoomed in, the marker's handle moves the pick; ← → ↑ ↓ step it (⇧ ten); the pole
+  figures mark the grain's points in the accent; ⌘-click adds grains to the selection; Esc clears.
 - **Regions**: drawn on the anchor; the pole figures, histogram and statistics switch to the region (`Pole figures ·
   Region 1 · 312 points`); the Grains table filters to grains with their centroid inside.
 - **Unindexed**: points with CI under `Maps › CI cutoff` (a field in Maps, 0,1 default) hatch on every tile with the

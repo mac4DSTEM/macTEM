@@ -92,9 +92,9 @@ package nonisolated enum EBSDBrowsing {
         "x \(x), y \(y) · \(UnitDisplay.number(Double(value), digits: 5, locale: locale))"
     }
 
-    /// The live pane's header sentence: "Pattern · row 12 · col 40 · hovering" / "· pinned".
-    package static func patternTitle(_ position: EBSDPosition, hovering: Bool) -> String {
-        "Pattern · row \(position.row) · col \(position.column) · \(hovering ? "hovering" : "pinned")"
+    /// The live pane's header sentence: "Pattern · row 12 · col 40", the picked position (the pane shows nothing else, D-SEM-110).
+    package static func patternTitle(_ position: EBSDPosition) -> String {
+        "Pattern · row \(position.row) · col \(position.column)"
     }
 
     /// The toolbar's centre: "55 × 75 of 60 × 60".

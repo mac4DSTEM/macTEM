@@ -2,11 +2,12 @@
 //  IndexingCompare.swift
 //  Role: the Indexing room's Compare (docs/sem/design/indexing-room.md §3, §6; #230, D-SEM-97), in the bottom pane while
 //        `Display › Compare` is on: A and B side by side on the compare layer (IPF-Z, IPF-X or IPF-Y), one zoom and pan for both, the
-//        pinned point's crosshair on each, each captioned with its source (and `stale` when its run's inputs changed), the scale bar
+//        picked point's marker on each, each captioned with its source (and `stale` when its run's inputs changed), the scale bar
 //        under A and the IPF key under B; beside them the histogram of the disorientation between A and B at every point compared,
 //        on 1° bars with the median and the 2° line, its footer giving the points compared, the median, the share over 2° and what was
-//        left out. Hovering either map moves the pattern pane and writes both solutions and their disorientation in the status line;
-//        a click pins the point; pointing at a bar reads it. The tiles publish no View › Zoom target: the indexed map keeps it (one
+//        left out. A click or a drag on either map picks the point and the pattern pane follows (zoomed in, the marker's handle;
+//        `SEMMapPick.swift`, D-SEM-110); hovering either only writes both solutions and their disorientation in the status line;
+//        pointing at a bar reads it. The tiles publish no View › Zoom target: the indexed map keeps it (one
 //        target per scene). Presentation only: the numbers are `IndexingComparison`'s (TEMCore) through `IndexingSession`
 //        (TEMSession), the words `IndexingCompareFormat`'s.
 //
@@ -72,7 +73,7 @@ private struct IndexingCompareMaps: View {
     }
 }
 
-/// One compared map: its picture, the pinned point, its caption, and under it the scale bar (A) or the IPF key (B).
+/// One compared map: its picture, the picked point, its caption, and under it the scale bar (A) or the IPF key (B).
 private struct IndexingCompareTile: View {
     let session: IndexingSession
     let state: IndexingRoomState
@@ -86,9 +87,9 @@ private struct IndexingCompareTile: View {
     private var zp: ZoomPan { zoomModel.state }
 
     /// The tile's accessibility identifiers, written out so the journeys' inventory finds them.
-    private var ids: (map: String, title: String, empty: String) {
-        isLeading ? ("indexing.compare.mapA", "indexing.compare.mapA.title", "indexing.compare.mapA.empty")
-            : ("indexing.compare.mapB", "indexing.compare.mapB.title", "indexing.compare.mapB.empty")
+    private var ids: (map: String, title: String, empty: String, marker: String) {
+        isLeading ? ("indexing.compare.mapA", "indexing.compare.mapA.title", "indexing.compare.mapA.empty", "indexing.compare.mapA.marker")
+            : ("indexing.compare.mapB", "indexing.compare.mapB.title", "indexing.compare.mapB.empty", "indexing.compare.mapB.marker")
     }
 
     /// The point groups of both sides' phases, by orix name, in order: the IPF key under B.
@@ -101,6 +102,7 @@ private struct IndexingCompareTile: View {
     var body: some View {
         let transform = MetalDisplayTransform(paneSize: box, imageBox: box, zoom: zp.drawZoom, offset: zp.effectiveOffset)
         let geometry = MarkGeometry(transform: transform, imageWidth: dataset.scanColumns, imageHeight: dataset.scanRows)
+        let mode = SEMMapPointer.mode(zoom: zp.effectiveZoom)
         let points = dataset.scanRows * dataset.scanColumns
         let title = IndexingCompareFormat.tileTitle(letter, source, layer: session.compareLayer, stale: session.isStale(source: source))
         let shown = pixels.flatMap { $0.count == points * 4 ? $0 : nil }
@@ -115,18 +117,17 @@ private struct IndexingCompareTile: View {
                 } else {
                     Rectangle().fill(.quaternary).frame(width: box.width, height: box.height)
                 }
-                ScanMarker(center: geometry.panePoint(of: ImagePoint(x: Double(session.patterns.pinned.column), y: Double(session.patterns.pinned.row))),
-                           pointsPerPixel: geometry.pointsPerPixel)
-                    .allowsHitTesting(false)
+                // At 1× and below a click or a drag anywhere picks; zoomed in the drag is the shared pan.
+                if mode == .scrub {
+                    SEMMapScrubLayer(geometry: geometry, zoomModel: zoomModel) { session.pin($0) }
+                }
+                SEMScanMarker(position: session.patterns.pinned, geometry: geometry, isHandle: mode == .panAndGrab, identifier: ids.marker,
+                              pick: { session.pin($0) }, step: { session.step($0) })
             }
             .frame(width: box.width, height: box.height)
+            .coordinateSpace(.named(SEMMapPointer.space))
             .clipped()
             .contentShape(Rectangle())
-            .onTapGesture { location in
-                let q = geometry.imagePoint(atPanePoint: location)
-                let position = EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded()))
-                if position.isInside(rows: dataset.scanRows, columns: dataset.scanColumns) { session.pin(position) }
-            }
             .border(Color.white.opacity(0.08))
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry) })
             .zoomPanWheel(zoomModel, box: box)
@@ -185,24 +186,20 @@ private struct IndexingCompareTile: View {
         .accessibilityValue(title)
         .accessibilityHint(ZoomPan.accessibilityHint)
         .zoomPanAccessibilityActions(zoomModel, box: box)
+        // Any press on the tile gives the room the keyboard; an ancestor of the tile's gestures, so it takes none.
+        .modifier(SEMMapPress())
     }
 
-    /// The pattern pane follows the pointer; the status line gives both solutions and their disorientation there (the run's own line
-    /// while the comparison is on its way).
+    /// The status line gives both solutions under the pointer and their disorientation (the run's own line while the comparison is on
+    /// its way): hovering reads, it never moves the pattern (D-SEM-110).
     private func hovered(_ phase: HoverPhase, geometry: MarkGeometry) {
         switch phase {
-        case .active(let p):
-            let q = geometry.imagePoint(atPanePoint: p)
-            let position = EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded()))
-            guard position.isInside(rows: dataset.scanRows, columns: dataset.scanColumns) else {
-                session.hover(nil); state.readout = nil; return
-            }
-            session.hover(position)
+        case .active(let p) where SEMMapPointer.isOnImage(p, geometry: geometry):
+            let position = SEMMapPointer.position(at: p, geometry: geometry)
             state.readout = session.comparison.flatMap {
                 IndexingCompareFormat.readout($0, a: session.compareA, b: session.compareB, at: position, columns: dataset.scanColumns)
             } ?? session.readout(at: position)
-        case .ended:
-            session.hover(nil)
+        case .active, .ended:
             state.readout = nil
         }
     }
@@ -211,7 +208,7 @@ private struct IndexingCompareTile: View {
 // MARK: - The histogram
 
 /// The disorientation histogram: one bar per degree, the median and the 2° line, the bar under the pointer read in the status line,
-/// the hovered point's angle marked.
+/// the picked point's angle marked.
 private struct IndexingCompareHistogram: View {
     let session: IndexingSession
     let state: IndexingRoomState
@@ -260,10 +257,8 @@ private struct IndexingCompareHistogram: View {
     private func chart(_ comparison: IndexingComparison, _ histogram: AngleHistogram) -> some View {
         let bins = IndexingCompareFormat.drawnBins(histogram)
         let top = histogram.edges.last ?? 1
-        let hoveredAngle = session.hovered.flatMap { p -> Double? in
-            guard let columns = session.patterns.dataset?.scanColumns else { return nil }
-            return comparison.degrees(at: p.row * columns + p.column)
-        }
+        let picked = session.patterns.pinned
+        let pickedAngle = session.patterns.dataset.flatMap { comparison.degrees(at: picked.row * $0.scanColumns + picked.column) }
         return Chart {
             ForEach(bins) { bin in
                 BarMark(xStart: .value(xTitle, bin.low), xEnd: .value(xTitle, bin.high), y: .value(yTitle, bin.count))
@@ -276,8 +271,8 @@ private struct IndexingCompareHistogram: View {
             RuleMark(x: .value("Threshold", IndexingComparison.thresholdDegrees))
                 .foregroundStyle(.secondary)
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-            if let hoveredAngle {
-                RuleMark(x: .value("Hovered point", hoveredAngle))
+            if let pickedAngle {
+                RuleMark(x: .value("Picked point", pickedAngle))
                     .foregroundStyle(.orange)
             }
         }

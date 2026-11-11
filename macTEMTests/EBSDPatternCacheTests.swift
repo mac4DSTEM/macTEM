@@ -1,12 +1,12 @@
 //
 //  EBSDPatternCacheTests.swift
 //  The Patterns room's cache of raw patterns is bounded by their bytes and lets the least recently shown go first (#294). On a
-//  planted 600 x 1 scan of 512 x 512 uint16 patterns (512 KB each) every position is hovered in turn, and the origin again after
+//  planted 600 x 1 scan of 512 x 512 uint16 patterns (512 KB each) every position is picked in turn, and the origin again after
 //  every hundred: the cache never holds more than its 64 MB (128 of these patterns), the origin is read once, since a pattern shown
-//  again is the last to be let go, and a position hovered long ago is read again.
+//  again is the last to be let go, and a position picked long ago is read again.
 //
 //  Red before the change: the cache held 512 patterns whatever their size (256 MB of these) and let go the one read first, however
-//  recently it was shown, so the origin was read a second time once the 513th position had been hovered.
+//  recently it was shown, so the origin was read a second time once the 513th position had been picked.
 //
 
 import XCTest
@@ -30,10 +30,9 @@ nonisolated final class EBSDPatternCacheTests: XCTestCase {
                                                 fileShape: [rows, 1, side, side], dataType: .uint16))
     }
 
-    /// Hovers `position` and waits until its pattern is the one on screen.
-    @MainActor private func hover(_ session: EBSDSession, _ position: EBSDPosition) async throws {
-        session.hover(position)
-        for _ in 0..<5000 where session.patternPosition != position { try await Task.sleep(for: .milliseconds(1)) }
+    /// Picks `position` (a click on the map) and waits until its pattern is the one on screen.
+    @MainActor private func show(_ session: EBSDSession, _ position: EBSDPosition) async {
+        await session.pin(position).value
         XCTAssertEqual(session.patternPosition, position)
     }
 
@@ -47,17 +46,17 @@ nonisolated final class EBSDPatternCacheTests: XCTestCase {
 
         var most = session.cacheBytes
         for row in 1..<Self.rows {
-            try await hover(session, EBSDPosition(row: row, column: 0))
+            await show(session, EBSDPosition(row: row, column: 0))
             most = max(most, session.cacheBytes)
-            if row % 100 == 0 { try await hover(session, .origin) }
+            if row % 100 == 0 { await show(session, .origin) }
         }
-        try await hover(session, .origin)
+        await show(session, .origin)
         XCTAssertLessThanOrEqual(most, EBSDSession.cacheBudget)
         XCTAssertEqual(session.cacheBytes, EBSDSession.cacheBudget, "128 patterns of 512 KB are the 64 MB")
         XCTAssertEqual(access.reads(at: 0), 1, "the origin, shown again after every hundred positions, was never let go")
         XCTAssertEqual(access.total, Self.rows, "every position was read once")
 
-        try await hover(session, EBSDPosition(row: 1, column: 0))
+        await show(session, EBSDPosition(row: 1, column: 0))
         XCTAssertEqual(access.reads(at: 1), 2, "a position shown 599 positions ago was let go, and is read again")
         XCTAssertEqual(session.cacheBytes, EBSDSession.cacheBudget)
 

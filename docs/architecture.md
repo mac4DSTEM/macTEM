@@ -67,10 +67,11 @@ build `-Onone` in Debug (see "Known limitations").
    An open in flight is drawn over the image already shown, which stays if it fails.
 5. **Show.** `ImagePane` letterboxes the image at its pixel aspect, draws it through MacEMUI's `MetalImageView` (the one
    SwiftUI↔Metal bridge) inside one `scaleEffect`/`offset` container (`ZoomPan`), and puts the scale bar in a
-   `PaneFooter` outside that container. The bar measures the screen horizontal, so it uses the x axis's sampling
-   (`ImageScaleBar`), and counts pixels when x is not calibrated — a unit and a finite, positive scale
-   (`AxisCalibration.isCalibrated`), the one definition the inspector shares. The contrast window and gamma reach only the
-   shader (`DisplayWindow`); the marks are drawn in one pane-sized `Canvas` mapped through the shader's own
+   `PaneFooter` outside that container, shown while Show Scale Bar is on: on a file's first read it starts on, except on a
+   render, whose own bar may be in its pixels (`ImagePresentation.startsWithScaleBar`). The bar measures the screen
+   horizontal, so it uses the x axis's sampling (`ImageScaleBar`), and counts pixels when x is not calibrated — a unit and a
+   finite, positive scale (`AxisCalibration.isCalibrated`), the one definition the inspector shares. The contrast window
+   and gamma reach only the shader (`DisplayWindow`); the marks are drawn in one pane-sized `Canvas` mapped through the shader's own
    transform (`MarkGeometry`), and their numbers come from the file's pixels, never the canvas.
 
 EBSD patterns, orientation maps and SEM-EDS files take their own path into their rooms ("The SEM program", below).
@@ -147,8 +148,8 @@ ported from where, and `NOTICE` the licences.
 | `EDX/` (`SEMEDSLines`, `XrayLineDatabase`) | exspy's SEM-EDS line intensities and window quantification, on exspy's element database | SEM-EDS (exspy's window path) |
 
 **The owners and the rooms.** TEMSession holds one owner per SEM room, the room's only state, which its views read:
-`EBSDSession` (with `EBSDSession+Overlay`) is the Patterns room's: the open EBSD or TKD dataset, the pinned and hovered
-positions, the pattern on screen, the navigation map, the processing pipeline and the simulation overlay. `IndexingSession`
+`EBSDSession` (with `EBSDSession+Overlay`) is the Patterns room's: the open EBSD or TKD dataset, the picked
+position (`pinned`), the pattern on screen, the navigation map, the processing pipeline and the simulation overlay. `IndexingSession`
 (with `+Compare`, `+Overlay` and `IndexingRun`) is the Indexing room's, on the Patterns room's dataset: the phases, the method
 (Hough or Dictionary) and its settings, the master patterns, the last run of each method, Compare and the overlay.
 `OrientationMapSession` is the Maps room's: the map shown (an `.ang` or `.ctf` opened on its own, the dataset's crystal map,
@@ -211,7 +212,8 @@ mac4DSTEM's, unchanged (its `docs/architecture.md`, "The UI contract"):
 
 1. **SwiftUI only.** `MetalImageView` is the one platform bridge; no `import AppKit` in `UI/` (gated).
 2. **No AppKit shell.** `HSplitView`, `VSplitView`, `NSSplitView`, `NSSplitViewController` are banned (gated).
-3. **No bar or wash in the chrome**; the science panes are exempt (gated).
+3. **No bar or wash in the chrome**; the science panes are exempt, and a line marked `// science` (a label plate drawn on
+   the data) (gated).
 4. **`LayoutPolicy` is the whole number budget**: a numeric `.frame` outside it is science drawing geometry only —
    the panes and overlays (gated).
 5. **No pane focus model; no UI selection stored beside the navigation seam** — the sidebar's selection is a binding

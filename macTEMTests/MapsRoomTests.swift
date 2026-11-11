@@ -188,6 +188,38 @@ nonisolated final class MapsRoomTests: XCTestCase {
         XCTAssertFalse(state.maps.hasMap)
     }
 
+    /// On the Patterns room's scan the map's marker and the live pattern pane name one point (D-SEM-110, what `MapsKeyedRoom` calls): the
+    /// map takes the point picked in Patterns as the room shows, the pattern pane follows a Grains-table row, and a ⌘-click selection of
+    /// two grains survives the round trip. Run on the generated demo scan, which carries its own crystal map. Red before: nothing copied
+    /// the Patterns pick into the map (the marker at the origin beside the pattern at row 5 col 7), and a Grains-table row moved the
+    /// marker alone.
+    @MainActor func testTheMapAndTheLivePatternPaneNameOnePoint() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.ebsd.bind(try DemoDocuments.ebsd()).value
+        let dataset = try XCTUnwrap(state.ebsd.dataset)
+        XCTAssertTrue(state.maps.isOnScan(of: dataset), "the demo carries its own crystal map")
+        await state.ebsd.pin(EBSDPosition(row: 5, column: 7)).value
+        XCTAssertEqual(state.maps.pinned, .origin)
+        state.mapsFollowPatternsPin()
+        XCTAssertEqual(state.maps.pinned, EBSDPosition(row: 5, column: 7), "the marker takes the Patterns room's pick")
+
+        await state.maps.segment().value
+        let analysis = try XCTUnwrap(state.maps.analysis)
+        let grains = Array(analysis.table.sorted { $0.points > $1.points }.prefix(2))
+        XCTAssertEqual(grains.count, 2, "the demo map has two grains or more")
+        state.maps.selectGrains([grains[0].id])
+        state.followMapsPin()
+        XCTAssertEqual(state.ebsd.pinned, state.maps.pinned, "the pattern pane follows a Grains-table row")
+
+        let p = analysis.grains.segmentation.grains[grains[1].id - 1].points[0]
+        state.maps.toggleGrain(at: EBSDPosition(row: p / analysis.columns, column: p % analysis.columns))
+        state.followMapsPin()
+        state.mapsFollowPatternsPin()
+        XCTAssertEqual(state.ebsd.pinned, state.maps.pinned)
+        XCTAssertEqual(state.maps.selectedGrains, Set(grains.map(\.id)), "the round trip keeps the ⌘-click selection")
+        state.ebsd.close()
+    }
+
     // MARK: - Export
 
     /// Map PNG… writes the figure (map, scale bar, key) as a PNG wider than the map, named after the file and the layer.

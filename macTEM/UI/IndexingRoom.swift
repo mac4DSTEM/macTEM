@@ -2,11 +2,10 @@
 //  IndexingRoom.swift
 //  Role: the Indexing room (docs/sem/design/indexing-room.md §3): the indexed map on the left (the result on the layer `Display › Map`
 //        picks, one pixel per scan point: an orientation or phase layer over the Patterns room's mean map dimmed until a point is
-//        reached, a scalar layer through the Map Display's colormap, window and gamma; the pinned position's crosshair; the layer's
+//        reached, a scalar layer through the Map Display's colormap, window and gamma; the picked position's marker; the layer's
 //        legend in the footer beside the scale bar: the IPF key, the Euler key's ranges, the phases or the colour bar, D-SEM-96) and the
-//        pattern pane on the right (the pattern under the pointer while it hovers the map, the pinned one otherwise, as the indexer sees
-//        it, with its detected bands: the ones the solution matched solid green and labelled with their family, the others dashed
-//        orange). Under them the Results table (one row per point reached; a single row selected pins the pattern, ⌘C copies the
+//        pattern pane on the right (the pattern at the picked position as the indexer sees it, with its detected bands: the ones the
+//        solution matched solid green and labelled with their family, the others dashed orange). Under them the Results table (one row per point reached; a single row selected picks the pattern, ⌘C copies the
 //        selected rows as TSV) beside, for a Hough result, the Bands table of the pattern on screen (pyEBSDindex's band list: ρ, θ,
 //        peak, width, the family and the fit) or, for a dictionary result, the Best match pane (the point's best orientation simulated
 //        from the master pattern, its score). While `Display › Compare` is on, Compare takes the tables' place: two results side by
@@ -15,9 +14,11 @@
 //        the inspector's (`IndexingRoomInspector.swift`). Presentation only: every number is `HoughIndexer`'s, `DictionaryIndexing`'s or
 //        `IndexingComparison`'s (TEMCore) through `IndexingSession` (TEMSession).
 //
-//  KEYS: as the Patterns room (`PatternsKeys`): ← → ↑ ↓ step the pinned position by one (⇧ by ten), Space pins the hovered position; a
-//  click on the map pins the point under it. The pinned position is the Patterns room's: the two rooms share one marker. In the Results
-//  table, ⌘A selects every row and ⌘C copies the selected ones (Copy is off with none selected).
+//  PICK AND KEYS: as the Patterns room (`SEMMapPick.swift`, D-SEM-110): a click or a drag on the map, or on a compared map, picks the
+//  point under it and the pattern pane follows (zoomed in, the marker's handle); the pointer over a map only writes the status line;
+//  ← → ↑ ↓ step the pick by one (⇧ by ten, `PatternsKeys`), and a press on a map takes the keyboard back from the Results table. The
+//  picked position is the Patterns room's: the two rooms share one marker. In the Results table, ⌘A selects every row and ⌘C copies the
+//  selected ones (Copy is off with none selected).
 //
 
 import CoreGraphics
@@ -76,13 +77,12 @@ struct IndexingRoom: View {
                 }
                 .id(document.fileName)
                 .modifier(IndexingKeyedRoom(session: session))
-                // The map's backdrop is the Patterns room's mean map, which lands after the open; the pattern follows the shared marker
-                // and the Patterns room's processing.
+                // The map's backdrop is the Patterns room's mean map, which lands after the open; the pattern follows the Patterns
+                // room's processing (and the shared marker, in `IndexingKeyedRoom`).
                 .onChange(of: session.patterns.meanIntensities == nil, initial: true) {
                     session.refreshMap()
                     session.refreshComparison()
                 }
-                .onChange(of: session.patterns.pinned) { session.showPattern() }
                 .onChange(of: session.patterns.pipeline) { session.showPattern() }
                 .onChange(of: session.patterns.processedWith) { session.showPattern() }
                 .onAppear { session.showPattern() }
@@ -132,30 +132,29 @@ struct IndexingExportFile: FileDocument {
 
 // MARK: - The keys
 
-/// The arrows step the pinned position (⇧ ten), Space pins the hovered one: the Patterns room's keys (`PatternsKeys`).
+/// The arrows step the picked position (⇧ ten): the Patterns room's keys (`PatternsKeys`), on the room's one focusable container (`SEMRoomFocus`).
+/// The pattern pane follows the pick however it moved (`IndexingSession.pin` and `step` show it already; `showPattern` asks again only for
+/// a point it does not show): here, not on the room's root, so a drag's stream of picks does not run the room's body.
 private struct IndexingKeyedRoom: ViewModifier {
     let session: IndexingSession
 
     func body(content: Content) -> some View {
         content
-            .focusable()
-            .focusEffectDisabled()   // DEVIATION as `FFTKeyedRoom`'s, named there
+            .modifier(SEMRoomFocus())
             .onKeyPress(phases: .down) { press in
-                if let step = PatternsKeys.step(key: press.key, modifiers: press.modifiers) {
-                    session.step(step.direction, by: step.count)
-                    return .handled
-                }
-                if press.key == .space, press.modifiers.isEmpty { session.pinHovered(); return .handled }
-                return .ignored
+                guard let step = PatternsKeys.step(key: press.key, modifiers: press.modifiers) else { return .ignored }
+                session.step(step.direction, by: step.count)
+                return .handled
             }
+            .onChange(of: session.patterns.pinned) { session.showPattern() }
     }
 }
 
 // MARK: - The indexed map
 
 /// The result on its layer, one pixel per scan point, growing row by row while Index runs; before a run the mean map dimmed, with the
-/// one sentence that says what fills it. Hovering it puts the point's solution in the status line and its pattern in the pattern pane;
-/// a click pins the point.
+/// one sentence that says what fills it. A click or a drag picks the point and the pattern pane follows; hovering it only puts the point's
+/// solution in the status line.
 struct IndexingMapPane: View {
     let session: IndexingSession
     let state: IndexingRoomState
@@ -173,6 +172,8 @@ struct IndexingMapPane: View {
         }
         .padding(8)
         .clipped()
+        // Any press on the pane gives the room the keyboard (from the Results table too); an ancestor of the map's gestures, so it takes none.
+        .modifier(SEMMapPress())
     }
 
     /// "Indexed map · Hough · IPF-Z" ("Dictionary · Refined" for a refinement, D-SEM-109), with "· stale" once the inputs changed
@@ -225,6 +226,7 @@ struct IndexingMapPane: View {
         let box = LayoutPolicy.fitted(in: size, aspect: CGFloat(dataset.scanColumns) / CGFloat(dataset.scanRows))
         let transform = MetalDisplayTransform(paneSize: box, imageBox: box, zoom: zp.drawZoom, offset: zp.effectiveOffset)
         let geometry = MarkGeometry(transform: transform, imageWidth: dataset.scanColumns, imageHeight: dataset.scanRows)
+        let mode = SEMMapPointer.mode(zoom: zp.effectiveZoom)
         let points = dataset.scanRows * dataset.scanColumns
         let presentation = session.mapPresentation
         return ZStack {
@@ -247,18 +249,17 @@ struct IndexingMapPane: View {
                 } else {
                     Rectangle().fill(.quaternary).frame(width: box.width, height: box.height)
                 }
-                ScanMarker(center: geometry.panePoint(of: ImagePoint(x: Double(session.patterns.pinned.column), y: Double(session.patterns.pinned.row))),
-                           pointsPerPixel: geometry.pointsPerPixel)
-                    .allowsHitTesting(false)
+                // At 1× and below a click or a drag anywhere picks; zoomed in the drag is the pane's pan.
+                if mode == .scrub {
+                    SEMMapScrubLayer(geometry: geometry, zoomModel: zoomModel) { session.pin($0) }
+                }
+                SEMScanMarker(position: session.patterns.pinned, geometry: geometry, isHandle: mode == .panAndGrab, identifier: "indexing.map.marker",
+                              pick: { session.pin($0) }, step: { session.step($0) })
             }
             .frame(width: box.width, height: box.height)
+            .coordinateSpace(.named(SEMMapPointer.space))
             .clipped()
             .contentShape(Rectangle())
-            .onTapGesture { location in
-                let q = geometry.imagePoint(atPanePoint: location)
-                let position = EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded()))
-                if position.isInside(rows: dataset.scanRows, columns: dataset.scanColumns) { session.pin(position) }
-            }
             .border(Color.white.opacity(0.08))
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry) })
             .zoomPanWheel(zoomModel, box: box)
@@ -298,19 +299,12 @@ struct IndexingMapPane: View {
         .accessibilityHint(ZoomPan.accessibilityHint)
     }
 
-    /// The status line's readout (the point's solution) and the hovered position (the pattern pane follows it).
+    /// The status line's readout of the point under the pointer (its solution): hovering reads, it never moves the pattern (D-SEM-110).
     private func hovered(_ phase: HoverPhase, geometry: MarkGeometry) {
         switch phase {
-        case .active(let p):
-            let q = geometry.imagePoint(atPanePoint: p)
-            let position = EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded()))
-            guard position.isInside(rows: dataset.scanRows, columns: dataset.scanColumns) else {
-                session.hover(nil); state.readout = nil; return
-            }
-            session.hover(position)
-            state.readout = session.readout(at: position)
-        case .ended:
-            session.hover(nil)
+        case .active(let p) where SEMMapPointer.isOnImage(p, geometry: geometry):
+            state.readout = session.readout(at: SEMMapPointer.position(at: p, geometry: geometry))
+        case .active, .ended:
             state.readout = nil
         }
     }
@@ -444,7 +438,7 @@ nonisolated enum IPFKeyPicture {
 
 // MARK: - The pattern pane
 
-/// The pattern at the shown position (hovered, else pinned) as the indexer reads it, with its detected bands drawn over it.
+/// The pattern at the picked position as the indexer reads it, with its detected bands drawn over it.
 struct IndexedPatternPane: View {
     let session: IndexingSession
     let dataset: EBSDDataset
@@ -465,7 +459,7 @@ struct IndexedPatternPane: View {
 
     private var title: String {
         guard let position = session.patternPosition else { return "Pattern" }
-        return EBSDBrowsing.patternTitle(position, hovering: session.hovered != nil) + " · as indexed"
+        return EBSDBrowsing.patternTitle(position) + " · as indexed"
     }
 
     private var rows: Int { session.patternShape.rows > 0 ? session.patternShape.rows : dataset.patternRows }
@@ -542,7 +536,9 @@ struct IndexedPatternPane: View {
 }
 
 /// The detected bands' centre lines through the pane's geometry (they keep their place at any zoom): a band the solution matched solid
-/// green with its family, one it did not dashed orange; each over a dark halo so it reads on any pattern.
+/// green with its family on a dark plate, one it did not dashed orange. Stroked as mac4DSTEM strokes its overlays (`SEMOverlayStyle`):
+/// every band's solid dark track first, then the lines on top, so a dashed line reads on an unbroken track and no track cuts a line
+/// where two bands cross.
 private struct DetectedBandsOverlay: View {
     let bands: [IndexedBand]
     let geometry: MarkGeometry
@@ -561,16 +557,18 @@ private struct DetectedBandsOverlay: View {
 
     var body: some View {
         ZStack {
-            path(true).stroke(Color.black.opacity(0.55), lineWidth: 3.5)
-            path(true).stroke(Color.green, lineWidth: 1.5)
-            path(false).stroke(Color.black.opacity(0.45), style: StrokeStyle(lineWidth: 3, dash: [5, 4]))
-            path(false).stroke(Color.orange, style: StrokeStyle(lineWidth: 1.25, dash: [5, 4]))
+            path(false).stroke(Color.black.opacity(SEMOverlayStyle.haloOpacity), style: SEMOverlayStyle.halo)
+            path(true).stroke(Color.black.opacity(SEMOverlayStyle.haloOpacity), style: SEMOverlayStyle.halo)
+            path(false).stroke(Color.orange.opacity(SEMOverlayStyle.lineOpacity), style: SEMOverlayStyle.line(dashed: true))
+            path(true).stroke(Color.green.opacity(SEMOverlayStyle.lineOpacity), style: SEMOverlayStyle.line(dashed: false))
             ForEach(bands.filter(\.isMatched)) { band in
                 if let start = band.start, let end = band.end, let family = band.family {
                     Text(family)
                         .font(.caption2.weight(.semibold).monospacedDigit())
                         .foregroundStyle(Color.green)
-                        .shadow(color: .black, radius: 1.5)
+                        .padding(.horizontal, SEMOverlayStyle.plateHorizontalPadding)
+                        .padding(.vertical, SEMOverlayStyle.plateVerticalPadding)
+                        .background(Color.black.opacity(SEMOverlayStyle.plateOpacity), in: Capsule()) // science: a label plate on the pattern
                         .position(point((start + end) / 2))
                 }
             }
@@ -584,7 +582,7 @@ private struct DetectedBandsOverlay: View {
 
 // MARK: - The tables
 
-/// One row per point reached (design §3, the Results tab): sortable by any column; a row clicked pins its pattern, and the pinned
+/// One row per point reached (design §3, the Results tab): sortable by any column; a row clicked picks its pattern, and the picked
 /// point's row is selected; ⌘C copies the selected rows (⌘A: all) as TSV in the table's order (`IndexingTableFormat`, D-SEM-96). The
 /// rows are rebuilt as the run lands them, every twentieth of the scan and once at its end.
 struct IndexingResultsTable: View {
@@ -644,11 +642,7 @@ struct IndexingResultsTable: View {
                   row.position != session.patterns.pinned else { return }
             session.pin(row.position)
         }
-        .onChange(of: session.patterns.pinned) {
-            // A point pinned elsewhere (the map, the arrows) selects its row alone; one already in the selection leaves it.
-            let id = session.patterns.pinned.row * dataset.scanColumns + session.patterns.pinned.column
-            if !selection.contains(id), rows.contains(where: { $0.id == id }) { selection = [id] }
-        }
+        .modifier(SelectsThePickedRow(patterns: session.patterns, columns: dataset.scanColumns, rows: rows, selection: $selection))
     }
 
     /// A Hough result's columns (CI, fit, matched bands, pattern quality) or a dictionary result's (the score, the simulation index, the
@@ -698,9 +692,30 @@ struct IndexingResultsTable: View {
     }
 }
 
+/// A point picked elsewhere (the map, a compared map, the arrows) selects its Results row alone, once the pick rests; one already in the
+/// selection leaves it. A drag streams picks, and each would walk the rows and redraw the table: this modifier alone reads the pick, so
+/// the table's body does not run at the drag's rate, and the walk waits until the pick has rested for `rest`.
+private struct SelectsThePickedRow: ViewModifier {
+    let patterns: EBSDSession
+    let columns: Int
+    let rows: [IndexingResult.Row]
+    @Binding var selection: Set<IndexingResult.Row.ID>
+
+    static let rest = Duration.milliseconds(120)
+
+    func body(content: Content) -> some View {
+        content.task(id: patterns.pinned) {
+            guard (try? await Task.sleep(for: Self.rest)) != nil else { return }   // cancelled: the pick moved on
+            let pinned = patterns.pinned
+            let id = pinned.row * columns + pinned.column
+            if !selection.contains(id), rows.contains(where: { $0.id == id }) { selection = [id] }
+        }
+    }
+}
+
 /// A dictionary run's best match at the pattern pane's point (design §3, the Dictionary tab): the simulated pattern of the point's best
 /// orientation on the run's detector, from its master pattern, to set beside the experimental pattern; the score and the simulation index
-/// in the header. The bottom pane holds no controls: the pattern follows the hovered or pinned point.
+/// in the header. The bottom pane holds no controls: the pattern follows the picked point.
 struct IndexingBestMatchPane: View {
     let session: IndexingSession
     @State var zoomModel = PaneZoomModel()

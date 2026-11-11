@@ -14,7 +14,7 @@ the same questions for a pattern dataset):
   projection centre the vendor stored and its convention, phases the file names.
 - *See the scan*: a virtual image of the scan from the patterns themselves (the virtual BSE), and the vendor's maps
   when the file carries them (image quality, band contrast, mean intensity).
-- *Browse the patterns*: hover across the map and watch the pattern follow, pin one, step with the arrow keys, compare
+- *Browse the patterns*: click or drag across the map and watch the pattern follow, step with the arrow keys, compare
   a few; see where the pattern is bad (vacuum, edge, charging).
 - *Sift a dataset*: open several files, see which is worth indexing.
 
@@ -42,9 +42,9 @@ look instant, work cancellable). Pattern (0, 0) is in the live pane before the p
 ```
 ┌──────────────────────────────────────┬──────────────────────────┐
 │ Scan map (main pane)                 │ Live pattern pane        │
-│ virtual BSE, 1 px per scan point     │ the pattern under the    │
-│ scan marker ⌖ at the pinned position │ pointer, else the pinned │
-│ regions; scale bar in the footer     │ one; detector grid when  │
+│ virtual BSE, 1 px per scan point     │ the pattern at the       │
+│ scan marker ◯ at the picked position │ picked position;         │
+│ regions; scale bar in the footer     │ detector grid when       │
 │                                      │ Virtual images is open   │
 ├──────────────────────────────────────┴──────────────────────────┤
 │ Bottom pane  tabs: Virtual images · Patterns · Metadata         │
@@ -55,17 +55,18 @@ look instant, work cancellable). Pattern (0, 0) is in the live pane before the p
 ```
 
 - **Scan map**: the virtual BSE image, one pixel per scan point, drawn with `MetalImageView` in one `ZoomableContainer`;
-  the scale bar from the step size (`ImageScaleBar`); the scan marker is a crosshair with a grab handle, drawn in the same
-  transformed container as the picture (mac4DSTEM's `RealSpacePointerPolicy`: at 1× a click or drag anywhere scrubs the
-  position; zoomed in a drag pans and the marker moves by its handle). Regions (`Tools`) are drawn here; every tile in the
-  bottom pane shows the outline.
+  the scale bar from the step size (`ImageScaleBar`); the scan marker is mac4DSTEM's double-stroked circle (white 1.5 pt
+  over black 0.75 at 3.5 pt, 11 pt across), drawn through the same transform as the picture so it stays on its scan
+  point at any zoom (mac4DSTEM's `RealSpacePointerPolicy`, macTEM's `SEMMapPointer`: at 1× and below a click or drag
+  anywhere scrubs the position; zoomed in a drag pans and the marker, then a 20 pt grab handle with a white centre, moves
+  the pick; D-SEM-110). Regions (`Tools`) are drawn here; every tile in the bottom pane shows the outline.
 - **Live pattern pane**: open by default, 38 % of the centre width, `PaneSplit` stored per window. Shows the raw pattern
-  at the hovered scan position while the pointer is over the map, the pinned one when it is not; the header sentence says
-  which: `Pattern · row 12 · col 40 · hovering` / `· pinned`. Its own `ZoomableContainer`, its own Display popover from
-  its scale bar (a pattern is in pixels or, once the geometry is known, in degrees across). Overlays live in the pane's
-  transformed container: the detector-grid tiles while the Virtual images tab is open, the projection centre glyph once
-  Calibration knows one. The pattern draws on every hover, so the pane's update is the hovered index only, never a
-  layout change (performance: the Metal view takes the new texture; nothing above it re-renders).
+  at the picked scan position; the header sentence names it: `Pattern · row 12 · col 40`. Its own `ZoomableContainer`,
+  its own Display popover from its scale bar (a pattern is in pixels or, once the geometry is known, in degrees across).
+  Overlays live in the pane's transformed container: the detector-grid tiles while the Virtual images tab is open, the
+  projection centre glyph once Calibration knows one. The pattern draws on every point a drag crosses, so the pane's
+  update is the picked index only, never a layout change (performance: the Metal view takes the new texture; nothing
+  above it re-renders).
 - **Bottom pane**: `Virtual images` (the tiles the room has computed; the BSE anchor is also the map), `Patterns` (the
   pinned patterns side by side, each with its row · col and a Remove ×, max six; ⌘P pins the current one), `Metadata`
   (the EBSD header as a two-column table: key, value, the file's own words). Selection in `Virtual images` makes that
@@ -129,11 +130,14 @@ is the summary (one screen).
   read, then the virtual BSE pass in the centre display with its bar and Stop; the map draws tile by tile; the pattern
   pane shows (0, 0) as soon as the header is read. *opened*: map, pattern, tiles. *refused*: the reader's sentence in
   the canvas (`ContentUnavailableView`) with `Try Again`, and in Output.
-- **Hover**: the pattern pane follows the pointer; leaving the map returns it to the pinned position; the status line
-  carries the readout. ⌥ while hovering holds the hovered pattern as a ghost (50 %) over the pinned one for comparison
-  until ⌥ is released (the EDS room's ⌥ pixel-spectrum move).
-- **Pin**: click or drag on the map at 1× moves the marker (scrub); Space pins the hovered position; ← → ↑ ↓ step by
-  one, ⇧ by ten; Home/End go to the first and last column of the row. ⌘P adds the pinned pattern to the Patterns tab.
+- **Hover**: the status line carries the readout of the point under the pointer; the pattern pane does not move
+  (D-SEM-110, as mac4DSTEM: HyperSpy and kikuchipy, py4D-browser and EDAX APEX move a marker, Bruker ESPRIT alone follows
+  the pointer). No ⌥ ghost.
+- **Pick**: a click or a drag on the map at 1× and below picks the position under the pointer and the pattern pane
+  follows, streaming during the drag (scrub); zoomed in, a plain drag pans and the marker's grab handle moves the pick.
+  The click gives the room the keyboard: ← → ↑ ↓ step by one, ⇧ by ten; Home/End go to the first and last column of
+  the row. ⌘P adds the picked pattern to the Patterns tab. VoiceOver: the marker is adjustable (right and left) and
+  names Move left, right, up and down.
 - **Zoom**: wheel and pinch zoom about the pointer, double-click fits, ⌘+ ⌘− ⌘0, continuous; the map and the tiles share
   one transform; the pattern pane has its own.
 - **Regions**: `arrow · ▭ · ◯ · ⬠ · ╱` (⌃⌘0–4) in Tools, drawn on the map; a region's mean pattern replaces the pinned
@@ -142,8 +146,8 @@ is the summary (one screen).
   it, under Display.
 - **Large scans**: the virtual BSE pass reads the file once in scan order in 64 MB chunks; the map shows progress by
   drawing; Stop keeps what was drawn and marks the rest hatched (unavailable, with a count in the tile's footer).
-  Patterns are cached by scan index; hovering past the cache reads the pattern synchronously off the main actor and the
-  pane keeps the last pattern until the new one arrives (never a blank).
+  Patterns are cached by scan index; a pick past the cache reads the pattern off the main actor, the next pick cancels
+  that read, and the pane keeps the last pattern until the new one arrives (never a blank).
 - **Several files**: each open dataset is an item in Open Files; selecting one makes it the room's document; the pinned
   position and regions are per item.
 
@@ -172,8 +176,10 @@ BSE tile. The reference numbers are NS-1's.
 1. `testTheDemoDatasetOpensInPatterns`: launch `--demo-ebsd` → `patterns.room` → the map (`patterns.map`) and the
    pattern pane (`patterns.pattern`) exist → hover the map at (0,3, 0,4) → the status line reads `row` and `col` and a
    BSE value → screenshot.
-2. `testHoverPinAndStep`: hover, Space pins, → steps the column by one, the pattern header reads `pinned` and the new
-   column; ⌘P adds to the Patterns tab; the tab shows one pattern.
+2. `testTheDemoDatasetOpensInPatternsAndThePaneFollowsThePick` (D-SEM-110): hovering the map leaves the pattern at
+   (0, 0); a click picks the hovered position (the header reads its row and column), → steps the column by one and ⇧→
+   by ten right after the click; a drag ends the pattern where the drag ended. Later, not in the journey yet: ⌘P adds to
+   the Patterns tab; the tab shows one pattern.
 3. `testVirtualImageGrid`: pick `5 × 5`, click three cells on the pattern pane, the colour mix tile appears in the bottom
    pane and becomes the map on selection; screenshot (the NS-1 shot for the gate).
 4. `testTheCalibrationRowsAreTheFiles`: every Calibration row shows the demo file's values as text.

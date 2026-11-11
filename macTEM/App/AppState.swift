@@ -294,10 +294,21 @@ final class AppState {
     }
 
     /// A map on the Patterns room's scan takes the pattern pinned there, or the origin when it does not reach it (a stopped run's
-    /// rows): the Patterns room follows, so the crosshair and the live pattern pane beside it show the same point.
-    private func followMapsPin() {
+    /// rows): the Patterns room follows, so the crosshair and the live pattern pane beside it show the same point. The Maps room also
+    /// calls it on every change of its pick, whatever made it (the map, the arrows, ⌘-click, a Grains-table row).
+    func followMapsPin() {
         guard let dataset = ebsd.dataset, maps.isOnScan(of: dataset), ebsd.pinned != maps.pinned else { return }
         ebsd.pin(maps.pinned)
+    }
+
+    /// The other way, as the Maps room shows and while it does: a map on the Patterns room's scan takes the point picked in Patterns or
+    /// Indexing, so its marker and the live pattern pane beside it name one point; where the map does not reach it (a stopped run's
+    /// rows) the Patterns room takes the map's (`followMapsPin`). Only when the two differ: `OrientationMapSession.pin` re-selects the
+    /// grain under the point, which would collapse a ⌘-click selection.
+    func mapsFollowPatternsPin() {
+        guard let dataset = ebsd.dataset, maps.isOnScan(of: dataset), ebsd.pinned != maps.pinned else { return }
+        maps.pin(ebsd.pinned)
+        followMapsPin()
     }
 
     /// What the Maps room says of the map it shows when that is an Indexing run (`IndexingSession.staleness(ofRun:method:)`), nil

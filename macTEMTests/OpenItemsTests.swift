@@ -11,7 +11,8 @@
 //  bookmark, and follows the file when the bookmark resolves elsewhere; a re-read the selection left, or of a closed
 //  item, is cancelled (the queue moves on without waiting) and its late answer, from a reader that ignored the
 //  cancellation, is dropped; a selected file still queued for its first read is read next, once; no read moves the
-//  selection; reads run one at a time; a view reading the selected item is not told of an unrelated open or close.
+//  selection; reads run one at a time; a view reading the selected item is not told of an unrelated open or close; a
+//  render's scale bar starts hidden on its first read and a re-read keeps the person's choice.
 //  Every test names, in its comment, the change to the production code that turns it red.
 //
 
@@ -39,18 +40,19 @@ nonisolated final class OpenItemsTests: XCTestCase {
         var errorDescription: String? { "cannot read \(path)" }
     }
 
-    /// A reader that answers every file with a 4 × 3 image (or the size it was told) and a thumbnail that names the read
-    /// (`thumbnail(read:)`), records every request, makes a new bookmark with each read (or none), can be told to fail a
-    /// file, to answer from another URL (a bookmark that resolved elsewhere), and can hold a file's read at a gate until
-    /// released. A held read honours its task's cancellation as a real reader does — the gate opens and the read throws
-    /// `CancellationError` — and records it; `ignoreCancellation` makes it a reader that never checks, whose answer then
-    /// comes late.
+    /// A reader that answers every file with a 4 × 3 image (or the size it was told) with the notes it was told (none by default)
+    /// and a thumbnail that names the read (`thumbnail(read:)`), records every request, makes a new bookmark with each read (or
+    /// none), can be told to fail a file, to answer from another URL (a bookmark that resolved elsewhere), and can hold a file's
+    /// read at a gate until released. A held read honours its task's cancellation as a real reader does — the gate opens and
+    /// the read throws `CancellationError` — and records it; `ignoreCancellation` makes it a reader that never checks, whose
+    /// answer then comes late.
     actor FakeReader {
         private(set) var requests: [ReadRequest] = []
         private(set) var maxInFlight = 0
         private(set) var cancelledPaths: [String] = []
         private var inFlight = 0
         private var sizes: [String: (width: Int, height: Int)] = [:]
+        private var notesByPath: [String: [String]] = [:]
         private var failing: Set<String> = []
         private var withoutBookmark: Set<String> = []
         private var held: Set<String> = []
@@ -67,6 +69,8 @@ nonisolated final class OpenItemsTests: XCTestCase {
         }
 
         func size(_ url: URL, _ width: Int, _ height: Int) { sizes[url.path] = (width, height) }
+        /// The reader's notes on every read of `url` (`CalibratedImage.notes`).
+        func notes(_ url: URL, _ notes: [String]) { notesByPath[url.path] = notes }
         func fail(_ url: URL, _ on: Bool = true) { if on { failing.insert(url.path) } else { failing.remove(url.path) } }
         func noBookmark(_ url: URL) { withoutBookmark.insert(url.path) }
         func hold(_ url: URL) { held.insert(url.path) }
@@ -128,7 +132,8 @@ nonisolated final class OpenItemsTests: XCTestCase {
             answered[path] = n
             let (width, height) = sizes[path] ?? (4, 3)
             let image = CalibratedImage(width: width, height: height, pixels: [Float](repeating: Float(n), count: width * height),
-                                        x: nil, y: nil, fileName: request.url.lastPathComponent, source: "fake", voltage: nil)
+                                        x: nil, y: nil, fileName: request.url.lastPathComponent, source: "fake", voltage: nil,
+                                        notes: notesByPath[path] ?? [])
             let canvas = CanvasPixels(width: width, height: height, normalized: [Float](repeating: 0, count: width * height),
                                       contentVersion: n, rawRange: nil)
             let bookmark = withoutBookmark.contains(path) ? nil : Data("bookmark:\(path):\(n)".utf8)
@@ -629,6 +634,65 @@ nonisolated final class OpenItemsTests: XCTestCase {
         XCTAssertNil(oldPresentation, "…and the presentation that held the display copy")
         XCTAssertNil(b.session.image, "the item has fresh, empty ones")
         XCTAssertNil(b.presentation.canvas)
+    }
+
+    // MARK: - The scale bar of a render
+
+    /// A TIFF render (FormatoKit's note "8-bit render, not counts"): its acquisition software may have burned its own bar into it.
+    private static let render = URL(fileURLWithPath: "/data/render.tif")
+
+    /// A render's scale bar starts hidden and the other files' shown; the bar the person turns on stays on while the render is cold and
+    /// after it is read again. Red under: the rule left out of `publish` (the render opens with its bar shown), put inside its
+    /// `if let identity` block (this reader makes no identity: the same), or applied on every read (the re-read hides the bar the
+    /// person turned on).
+    @MainActor func testARenderStartsWithItsScaleBarHiddenAndARereadKeepsThePersonsChoice() async throws {
+        let fake = FakeReader()
+        await fake.notes(Self.render, [TIFFImageReader.Note.render, TIFFImageReader.Note.veloxUnvalidated])
+        await fake.notes(Self.c, ["frame 1 of 212"])
+        let items = makeItems(fake)
+        items.open(urls: [Self.a, Self.render, Self.c])
+        await items.settled()
+        let a = try item(items, Self.a), render = try item(items, Self.render), c = try item(items, Self.c)
+        XCTAssertFalse(render.presentation.showsScaleBar, "a render's own bar may be in its pixels, where macTEM draws its own")
+        XCTAssertTrue(a.presentation.showsScaleBar, "a file without notes")
+        XCTAssertTrue(c.presentation.showsScaleBar, "a file whose notes say nothing of a render")
+        items.select(render.id)
+        render.presentation.showsScaleBar = true   // the person's Show Scale Bar
+        items.select(c.id)
+        items.select(a.id)
+        items.budgetBytes = 250   // 144 + 96 + 96 held: the render, the least recently selected, goes
+        XCTAssertEqual(render.residency, .cold, "setup: the render went cold")
+        XCTAssertTrue(render.presentation.showsScaleBar, "kept while cold")
+        items.select(render.id)
+        items.restoreSelected()
+        await items.settled()
+        XCTAssertEqual(render.residency, .resident, "setup: read again")
+        XCTAssertEqual(render.session.image?.notes.first, TIFFImageReader.Note.render, "setup: the re-read is a render too")
+        XCTAssertTrue(render.presentation.showsScaleBar, "the re-read keeps the person's choice")
+        XCTAssertTrue(a.presentation.showsScaleBar)
+    }
+
+    /// The rule on a file's notes: a render (FormatoKit's note, alone or among others) starts with the bar hidden; ordinary notes and
+    /// none start with it shown. Red under: the rule turned round, or keyed on another note's words.
+    func testOnlyARendersNotesStartTheScaleBarHidden() {
+        XCTAssertFalse(ImagePresentation.startsWithScaleBar(notes: [TIFFImageReader.Note.render]))
+        XCTAssertFalse(ImagePresentation.startsWithScaleBar(notes: [TIFFImageReader.Note.render, TIFFImageReader.Note.veloxDisagree]))
+        XCTAssertFalse(ImagePresentation.startsWithScaleBar(notes: ["8-bit render, not counts"]), "the reader's words, as a file carries them")
+        XCTAssertTrue(ImagePresentation.startsWithScaleBar(notes: [TIFFImageReader.Note.veloxUnvalidated]), "a Velox TIFF's scale note alone")
+        XCTAssertTrue(ImagePresentation.startsWithScaleBar(notes: ["frame 1 of 212"]))
+        XCTAssertTrue(ImagePresentation.startsWithScaleBar(notes: []), "no notes: a file read by a published convention")
+    }
+
+    /// The Display section's note on a render, pinned literally ("any": a render may carry no bar of its own), and shown from the
+    /// constant under Show Scale Bar when the inspector finds the shown file a render by the same rule. Red under: the words changed,
+    /// the note written out in the view, or the flag not passed.
+    func testTheDisplaySectionSaysWhyARendersBarStartsHidden() throws {
+        XCTAssertEqual(ImagePresentation.renderScaleBarNote,
+                       "A render: any scale bar it shows was drawn into its pixels at export, so macTEM's starts hidden.")
+        let display = try FFTRoomWiringTests.squeezedUI("ImageRoomDisplay.swift")
+        XCTAssertTrue(display.contains("if isRender { InspectorNote(ImagePresentation.renderScaleBarNote) }"))
+        let inspector = try FFTRoomWiringTests.squeezedUI("ImageRoomInspector.swift")
+        XCTAssertTrue(inspector.contains("isRender: !ImagePresentation.startsWithScaleBar(notes: image.notes))"))
     }
 
     // MARK: - Thumbnail
