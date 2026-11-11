@@ -260,8 +260,9 @@ struct MapsTextureFigures: View {
             } else if session.isTexturing {
                 ProgressView("Computing the texture…").controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // Never blank: stopped, not made, or no phase to make it for, with the inspector's Compute Texture (macTEM#410).
-                let words = MapsRoomFormat.textureUnavailable(stopped: session.textureStopped, hasPhases: !session.texturePhases.isEmpty)
+                // Never blank: no phase to make it for, refused and why, or stopped, with the inspector's Compute Texture (macTEM#410).
+                let words = MapsRoomFormat.textureUnavailable(stopped: session.textureStopped, failure: session.textureFailure,
+                                                              hasPhases: !session.texturePhases.isEmpty)
                 ContentUnavailableView {
                     Label(words.title, systemImage: words.systemImage)
                 } description: {
@@ -518,13 +519,13 @@ struct MapsTextureSection: View {
                     .accessibilityIdentifier("maps.texture.phaseInspector")
                 }
                 // The in-pane picker exists only with more than one phase, and this one never fires for the phase already picked:
-                // after ⌘. or a Source switch the texture is made again here (macTEM#410). One action alone is full width.
+                // after ⌘. the texture is made again here (macTEM#410). One action alone is full width.
                 InspectorActionRow {
+                    let canCompute = session.canComputeTexture
                     Button("Compute Texture") { _ = session.showTexture() }
-                        .disabled(!session.canComputeTexture)
-                        .help(session.isTexturing ? "The texture is being computed"
-                              : session.canComputeTexture ? "The phase's pole figures, IPF-Z density and ODF sections, in the Pole figures and ODF tabs"
-                              : "The Pole figures and ODF tabs show this phase's texture")
+                        .disabled(!canCompute)
+                        .help(MapsRoomFormat.computeTextureHelp(isTexturing: session.isTexturing, failure: session.textureFailure,
+                                                                canCompute: canCompute))
                         .accessibilityIdentifier("maps.texture.compute")
                 }
                 InspectorNote("Pole figures and the IPF-Z density: orix's pole density function, 1° bins smoothed 5°, upper hemisphere. ODF sections: a de la Vallée Poussin kernel of 10° half-width at 5° nodes.")
