@@ -147,10 +147,11 @@ package nonisolated enum FileRouting {
         }
         let kind = FormatoLoader.sniff(path: path)
         // An h5ebsd file (kikuchipy, Bruker, EDAX, Oxford H5OINA): FormatoKit's sniff knows `.h5` as HDF5 and `.h5oina` not at all, so the
-        // EBSD reader's own sniff decides for both (one HDF5 open). A `.h5` that is neither an EBSD scan nor a Velox file keeps its refusal.
+        // EBSD reader's own sniff decides for both. A `.h5` that is neither an EBSD scan nor a Velox file keeps its refusal. An H5OINA
+        // that holds a map but no patterns (AZtec's map export) opens in the Maps room, as a `.ctf` alone does (#513).
         if kind == .hdf5 || (kind == .unknown && EBSDOpening.h5Extensions.contains(url.pathExtension.lowercased())),
-           EBSDH5Reader.sniff(url: url) != nil {
-            return FileInventory(ebsdPatterns: true)
+           let found = EBSDH5Reader.probe(url: url) {
+            return found.mapOnly ? FileInventory(orientationMap: true) : FileInventory(ebsdPatterns: true)
         }
         switch kind {
         case .digitalMicrograph:

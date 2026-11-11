@@ -6,6 +6,8 @@
 //        header keys, the same defaults, the same projection-centre conversion to the Bruker convention, the same refusals (hex
 //        grids, non-rectangular regions). The patterns themselves stay in the file and are read by map position (`EBSDPatternReader`).
 //        Parity: macTEMTests/EBSDH5ReaderTests.swift against ebsd-h5ebsd.truth.json (tools/parity/sem-readers/make_h5ebsd_fixtures.py).
+//        An H5OINA that holds a map but no patterns (AZtec's map export) is the Maps room's: `probe` says so, and
+//        EBSDH5Reader+OxfordMap.swift reads its map (#513).
 //
 
 import Foundation
@@ -26,10 +28,17 @@ package nonisolated enum EBSDH5Reader {
 
     /// What the top group says the file is: the layout, or nil when the file is not an h5ebsd file of a known manufacturer
     /// (no `manufacturer` and `version` datasets, or no scan group with `EBSD/Data` and `EBSD/Header`). One HDF5 open; run off the main actor.
-    package static func sniff(url: URL) -> EBSDFileFormat? {
+    package static func sniff(url: URL) -> EBSDFileFormat? { probe(url: url)?.format }
+
+    /// `sniff`, and whether the file is an Oxford H5OINA whose first scan holds no patterns: AZtec's map export, an orientation map
+    /// alone, which opens in the Maps room as a `.ctf` alone does (`readOxfordMap`, #513). nil where `sniff` is nil.
+    package static func probe(url: URL) -> (format: EBSDFileFormat, mapOnly: Bool)? {
         guard let reader = try? HDF5Reader(url: url), let top = try? TopGroup(reader) else { return nil }
-        guard let format = format(ofManufacturer: top.manufacturer), !top.scanGroups.isEmpty else { return nil }
-        return format
+        guard let format = format(ofManufacturer: top.manufacturer), let scan = top.scanGroups.first else { return nil }
+        guard format == .oxfordH5OINA, let data = try? H5Group(H5File(reader: reader, url: url), "/\(scan)/EBSD/Data") else {
+            return (format, false)
+        }
+        return (format, !holdsOxfordPatterns(data))
     }
 
     /// The scan `scanGroup` (the first scan group when nil) of the h5ebsd file at `url`.
@@ -422,6 +431,10 @@ package nonisolated enum EBSDH5Reader {
     static func readOxford(_ file: H5File, scan: String, version: String, processed: Bool = true) throws -> EBSDDataset {
         let header = try H5Group(file, "/\(scan)/EBSD/Header")
         let data = try H5Group(file, "/\(scan)/EBSD/Data")
+        // A map exported without its patterns (#513) is the Maps room's: said in words, not as the 'Pattern Height' it lacks.
+        guard holdsOxfordPatterns(data) else {
+            throw EBSDReadError(text: "\(file.url.lastPathComponent) holds an orientation map but no EBSD patterns: it opens in the Maps room.")
+        }
         let ny = try header.requiredInt("Y Cells")
         let nx = try header.requiredInt("X Cells")
         let sy = try header.requiredInt("Pattern Height")

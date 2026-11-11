@@ -175,7 +175,8 @@ FormatoKit's sniff decides, since the sniff knows none of these formats (an h5eb
   NORDIF `Setting.txt` beside it): a pattern file, or a map with the pattern file of its name beside it, is a pattern
   dataset for the Patterns room; an `.ang` or `.ctf` alone (`EBSDOpening.isLoneMap`) is an orientation map for the Maps room.
 - An HDF5 file, or a `.h5oina` or `.h5ebsd` the sniff does not know, that `EBSDH5Reader.sniff` recognises is an h5ebsd
-  pattern dataset.
+  pattern dataset, except an Oxford H5OINA whose scan holds no patterns (AZtec's map export, `EBSDH5Reader.probe`): that is
+  an orientation map for the Maps room (`EBSDH5Reader.readOxfordMap`, #513).
 
 `AppState.open(urls:)` then opens the batch's first pattern dataset in `EBSDSession` and its first lone map in
 `OrientationMapSession`, and lands in the richest room: Patterns, then Maps, EDS, EELS, Image (`FileInventory.Landing`). A

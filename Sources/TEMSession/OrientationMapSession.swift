@@ -215,7 +215,7 @@ package final class OrientationMapSession {
 
     // MARK: Opening
 
-    /// Reads the `.ang` or `.ctf` at `url` off the main actor (inside its security scope), then shows it.
+    /// Reads the `.ang`, `.ctf` or map-only `.h5oina` at `url` off the main actor (inside its security scope), then shows it.
     @discardableResult
     package func open(url: URL) -> Task<Void, Never> {
         openTask?.cancel()
@@ -237,7 +237,7 @@ package final class OrientationMapSession {
         return task
     }
 
-    /// The map in an `.ang` (orix's reader port) or a `.ctf`.
+    /// The map in an `.ang` (orix's reader port), a `.ctf`, or an Oxford `.h5oina` that holds no patterns (`EBSDH5Reader.readOxfordMap`).
     @concurrent
     nonisolated package static func read(_ url: URL) async throws -> Document {
         let scoped = url.startAccessingSecurityScopedResource()
@@ -256,10 +256,21 @@ package final class OrientationMapSession {
             } catch let refusal as CTFReader.Refusal {
                 throw MapReadError(text: "\(url.lastPathComponent): \(refusal.reason)")
             }
+        case let ext where EBSDOpening.h5Extensions.contains(ext):
+            // An Oxford H5OINA without patterns, AZtec's map export (#513): routing sends it here; its refusals come out in its words.
+            do {
+                let map = try EBSDH5Reader.readOxfordMap(url: url)
+                return Document(fileName: url.lastPathComponent, url: url, map: map, source: .mapFile, format: Self.h5oinaFormat)
+            } catch let refusal as EBSDReadError {
+                throw MapReadError(text: refusal.text)
+            }
         default:
-            throw MapReadError(text: "\(url.lastPathComponent) is not an orientation map (.ang or .ctf).")
+            throw MapReadError(text: "\(url.lastPathComponent) is not an orientation map (.ang, .ctf or .h5oina).")
         }
     }
+
+    /// The format an H5OINA map is shown with.
+    nonisolated static let h5oinaFormat = ".h5oina (Oxford Instruments)"
 
     nonisolated static func angFormat(_ vendor: ANGMap.Vendor) -> String {
         switch vendor {

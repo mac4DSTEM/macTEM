@@ -62,8 +62,8 @@ The rooms:
   or .ctf.
 - **Maps**: IPF and phase maps with their colour keys; grains, and grain and phase boundaries over the map; grain size
   (mean and area-weighted ECD, mean lineal intercept, ASTM E112); KAM, GOS and GND; Schmid factors and slip traces; pole
-  figures, ODF sections and histograms. A map comes from an .ang or .ctf file, from a pattern file that carries one, or
-  from the Indexing room.
+  figures, ODF sections and histograms. A map comes from an .ang, .ctf or map-only .h5oina file, from a pattern file that
+  carries one, or from the Indexing room.
 - **Results**: every measurement of a file in one table, exported as CSV. The SEM results have a table of their own and
   a session report, as PDF or Markdown.
 
