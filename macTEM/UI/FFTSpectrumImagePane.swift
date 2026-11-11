@@ -544,7 +544,7 @@ struct FFTSpectrumImagePane: View {
             if withWords {
                 Text(FFTPaneFormat.updating).font(.caption).foregroundStyle(.secondary)
             }
-            ProgressView().controlSize(.small)
+            ProgressView().controlSize(.small).accessibilityLabel("Updating")
         }
         .fixedSize()
         .opacity(isUpdating ? 1 : 0)
@@ -560,7 +560,7 @@ struct FFTSpectrumImagePane: View {
         } description: {
             Text(words.detail)
         } actions: {
-            if failure == nil { ProgressView().controlSize(.small) }
+            if failure == nil { ProgressView().controlSize(.small).accessibilityLabel("Computing the spectrum") }
         }
         .fftPaneAccessibility(label: "Fourier transform", value: words.title, identifier: "fft.spectrumPane")
     }

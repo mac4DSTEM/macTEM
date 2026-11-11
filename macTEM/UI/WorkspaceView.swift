@@ -146,6 +146,7 @@ struct WorkspaceView: View {
         VStack(spacing: 12) {
             ProgressView()
                 .controlSize(.small)
+                .accessibilityLabel("Opening image")
             Text("Opening image")
                 .font(.headline)
         }
