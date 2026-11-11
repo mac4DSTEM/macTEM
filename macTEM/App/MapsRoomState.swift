@@ -390,6 +390,14 @@ nonisolated enum MapsRoomFormat {
         return "\(texture.phaseName): \(points), upper hemisphere, 1° bins smoothed 5°, multiples of random. IPF-Z in the colour key's sector."
     }
 
+    /// What the Pole figures and ODF panes say while no texture is shown or being made: stopped by ⌘., not made (a Source switch, a phase
+    /// it could not be made for), or no phase to make it for; the first two name the inspector's Compute Texture (macTEM#410).
+    static func textureUnavailable(stopped: Bool, hasPhases: Bool) -> (title: String, detail: String, systemImage: String) {
+        guard hasPhases else { return ("No texture", "No indexed phase with a point group.", "circle.grid.cross") }
+        if stopped { return ("Texture stopped", "Compute Texture in the inspector's Texture section makes it again.", "stop.circle") }
+        return ("No texture", "Compute Texture in the inspector's Texture section makes it.", "circle.grid.cross")
+    }
+
     /// The grain table as CSV: one header line, one line per grain; lengths in the scan unit, angles in degrees.
     static func grainsCSV(_ analysis: MapAnalysis, slip: [GrainSlip], loadDirection: SampleDirection) -> String {
         let unit = analysis.scanUnit

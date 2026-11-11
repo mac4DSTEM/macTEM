@@ -386,5 +386,37 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         XCTAssertNil(session.texture)
         XCTAssertFalse(session.isTexturing)
         XCTAssertEqual(events.last, "No texture for this phase: The phase has no point group: no texture.", "\(events)")
+        XCTAssertFalse(session.textureStopped, "not made is not stopped")
+        XCTAssertTrue(session.canComputeTexture, "Compute Texture asks again")
+        XCTAssertEqual(MapsRoomFormat.textureUnavailable(stopped: session.textureStopped, hasPhases: true).title, "No texture")
+    }
+
+    /// A texture stopped by ⌘. leaves the Pole figures and ODF panes saying so and naming the inspector's Compute Texture, never blank; a
+    /// map bound again forgets the stop. Red before (macTEM#410): no flag, no words, and the pane's text was "".
+    @MainActor func testAStoppedTexturePaneSaysSoAndHowToComputeItAgain() async throws {
+        let session = OrientationMapSession()
+        await session.open(url: Self.sdss).value
+        let texturing = session.showTexture()
+        XCTAssertTrue(session.isTexturing)
+        session.stop()
+        await texturing.value
+        XCTAssertNil(session.texture)
+        XCTAssertTrue(session.textureStopped)
+
+        let stopped = MapsRoomFormat.textureUnavailable(stopped: session.textureStopped, hasPhases: !session.texturePhases.isEmpty)
+        XCTAssertEqual(stopped.title, "Texture stopped")
+        XCTAssertEqual(stopped.detail, "Compute Texture in the inspector's Texture section makes it again.")
+
+        let notMade = MapsRoomFormat.textureUnavailable(stopped: false, hasPhases: true)
+        XCTAssertEqual(notMade.title, "No texture")
+        XCTAssertTrue(notMade.detail.contains("Compute Texture"), notMade.detail)
+        let noPhase = MapsRoomFormat.textureUnavailable(stopped: true, hasPhases: false)
+        XCTAssertEqual(noPhase.title, "No texture")
+        XCTAssertEqual(noPhase.detail, "No indexed phase with a point group.", "nothing to compute, so no Compute Texture")
+        for words in [stopped, notMade, noPhase] { XCTAssertFalse(words.title.isEmpty || words.detail.isEmpty) }
+
+        await session.open(url: Self.sdss).value
+        XCTAssertFalse(session.textureStopped, "a map bound again forgets the stop")
+        XCTAssertTrue(session.canComputeTexture)
     }
 }

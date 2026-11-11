@@ -260,8 +260,14 @@ struct MapsTextureFigures: View {
             } else if session.isTexturing {
                 ProgressView("Computing the texture…").controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                Text(session.texturePhases.isEmpty ? "No indexed phase with a point group: no texture." : "")
-                    .foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Never blank: stopped, not made, or no phase to make it for, with the inspector's Compute Texture (macTEM#410).
+                let words = MapsRoomFormat.textureUnavailable(stopped: session.textureStopped, hasPhases: !session.texturePhases.isEmpty)
+                ContentUnavailableView {
+                    Label(words.title, systemImage: words.systemImage)
+                } description: {
+                    Text(words.detail)
+                }
+                .accessibilityIdentifier("maps.texture.empty")
             }
         }
         .task(id: session.fileName) { _ = session.showTexture() }
@@ -494,7 +500,7 @@ struct MapsSlipSection: View {
     }
 }
 
-/// Texture: which phase the Pole figures and ODF tabs show and how they are made.
+/// Texture: which phase the Pole figures and ODF tabs show, Compute Texture to make it, and how it is made.
 struct MapsTextureSection: View {
     let session: OrientationMapSession
 
@@ -510,6 +516,16 @@ struct MapsTextureSection: View {
                     }
                     .labelsHidden()
                     .accessibilityIdentifier("maps.texture.phaseInspector")
+                }
+                // The in-pane picker exists only with more than one phase, and this one never fires for the phase already picked:
+                // after ⌘. or a Source switch the texture is made again here (macTEM#410). One action alone is full width.
+                InspectorActionRow {
+                    Button("Compute Texture") { _ = session.showTexture() }
+                        .disabled(!session.canComputeTexture)
+                        .help(session.isTexturing ? "The texture is being computed"
+                              : session.canComputeTexture ? "The phase's pole figures, IPF-Z density and ODF sections, in the Pole figures and ODF tabs"
+                              : "The Pole figures and ODF tabs show this phase's texture")
+                        .accessibilityIdentifier("maps.texture.compute")
                 }
                 InspectorNote("Pole figures and the IPF-Z density: orix's pole density function, 1° bins smoothed 5°, upper hemisphere. ODF sections: a de la Vallée Poussin kernel of 10° half-width at 5° nodes.")
             }
