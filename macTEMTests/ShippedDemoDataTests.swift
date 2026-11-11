@@ -121,7 +121,7 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         let fake = dir.appendingPathComponent("fake.hspy")
         try Data("not an HDF5 file".utf8).write(to: fake)
         XCTAssertFalse(HyperSpySpectrumFile.isHyperSpyFile(path: fake.path))
-        XCTAssertEqual(FileRouting.inventory(path: fake.path).refusal, "fake.hspy is not a format macTEM opens (or its extension and its first bytes disagree).")
+        XCTAssertEqual(FileRouting.inventory(path: fake.path).refusal, "fake.hspy is not a format macEM opens (or its extension and its first bytes disagree).")
     }
 
     /// Help > Open Demo Data and `--demo-sem-eds` open the shipped spectrum into the EDS room through the app's own Open.

@@ -85,8 +85,8 @@ nonisolated enum FolderGrants {
     /// The panel's sentence: what is asked for and why.
     static func askSentence(for file: URL) -> String {
         let folder = file.deletingLastPathComponent().lastPathComponent
-        return "macTEM reads the NORDIF scan \(file.lastPathComponent) with the Setting.txt and the background pattern beside it, "
-            + "and macOS lets it open them only with the folder. Choose “\(folder)” and click Allow; macTEM remembers the folder."
+        return "macEM reads the NORDIF scan \(file.lastPathComponent) with the Setting.txt and the background pattern beside it, "
+            + "and macOS lets it open them only with the folder. Choose “\(folder)” and click Allow; macEM remembers the folder."
     }
 
     /// The folder `data` resolves to while it is still the one at `path`: a bookmark follows a folder that was moved or renamed, and

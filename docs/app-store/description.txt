@@ -1,4 +1,4 @@
-macTEM analyses TEM and SEM images, EDS and EELS spectrum images, electron diffraction patterns and EBSD scans natively on Apple silicon. Open a file, look, measure, and export a figure, with every number traceable to the method it came from.
+macEM analyses TEM and SEM images, EDS and EELS spectrum images, electron diffraction patterns and EBSD scans natively on Apple silicon. Open a file, look, measure, and export a figure, with every number traceable to the method it came from.
 
 No data at hand? Help > Open Demo Data opens generated TEM documents and three public SEM datasets.
 
@@ -27,7 +27,7 @@ YOUR DATA STAYS ON YOUR MAC
 No account, no analytics, no telemetry, and no network access. Your files are read from and written to your own storage only.
 
 OPEN SOURCE
-macTEM is free software under GPL-3.0. The source and the issue tracker are at github.com/mac4DSTEM/macTEM.
+macEM is free software under GPL-3.0. The source and the issue tracker are at github.com/mac4DSTEM/macTEM.
 
 Its companion app, mac4DSTEM, analyses 4D-STEM data: virtual images, strain, orientation, ptychography and EDS.
 

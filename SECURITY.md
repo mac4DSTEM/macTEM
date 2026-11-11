@@ -1,6 +1,6 @@
 # Security
 
-macTEM is a desktop application that reads microscopy files you choose. It runs in the macOS App Sandbox, makes no
+macEM is a desktop application that reads microscopy files you choose. It runs in the macOS App Sandbox, makes no
 network connection, and has no telemetry or analytics. It reads and writes only the files you pick; security-scoped
 bookmarks let it reopen them.
 

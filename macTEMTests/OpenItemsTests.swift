@@ -653,7 +653,7 @@ nonisolated final class OpenItemsTests: XCTestCase {
         items.open(urls: [Self.a, Self.render, Self.c])
         await items.settled()
         let a = try item(items, Self.a), render = try item(items, Self.render), c = try item(items, Self.c)
-        XCTAssertFalse(render.presentation.showsScaleBar, "a render's own bar may be in its pixels, where macTEM draws its own")
+        XCTAssertFalse(render.presentation.showsScaleBar, "a render's own bar may be in its pixels, where macEM draws its own")
         XCTAssertTrue(a.presentation.showsScaleBar, "a file without notes")
         XCTAssertTrue(c.presentation.showsScaleBar, "a file whose notes say nothing of a render")
         items.select(render.id)
@@ -688,7 +688,7 @@ nonisolated final class OpenItemsTests: XCTestCase {
     /// the note written out in the view, or the flag not passed.
     func testTheDisplaySectionSaysWhyARendersBarStartsHidden() throws {
         XCTAssertEqual(ImagePresentation.renderScaleBarNote,
-                       "A render: any scale bar it shows was drawn into its pixels at export, so macTEM's starts hidden.")
+                       "A render: any scale bar it shows was drawn into its pixels at export, so macEM's starts hidden.")
         let display = try FFTRoomWiringTests.squeezedUI("ImageRoomDisplay.swift")
         XCTAssertTrue(display.contains("if isRender { InspectorNote(ImagePresentation.renderScaleBarNote) }"))
         let inspector = try FFTRoomWiringTests.squeezedUI("ImageRoomInspector.swift")

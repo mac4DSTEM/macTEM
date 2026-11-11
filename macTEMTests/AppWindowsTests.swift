@@ -192,13 +192,13 @@ nonisolated final class AppWindowsTests: XCTestCase {
         XCTAssertEqual(asked, 1, "one tab, for b")
         XCTAssertEqual(windows.takeWaitingURLs(), [b])
         XCTAssertNil(windows.takeWaitingURLs())
-        XCTAssertEqual(first.errorMessage, "notes.xyz is not a format macTEM opens (or its extension and its first bytes disagree).")
+        XCTAssertEqual(first.errorMessage, "notes.xyz is not a format macEM opens (or its extension and its first bytes disagree).")
 
         // A window that holds a file, and only a refused one opened: the alert, no tab.
         first.errorMessage = nil
         await first.open(urls: [junk])?.value
         XCTAssertEqual(asked, 1)
-        XCTAssertEqual(first.errorMessage, "notes.xyz is not a format macTEM opens (or its extension and its first bytes disagree).")
+        XCTAssertEqual(first.errorMessage, "notes.xyz is not a format macEM opens (or its extension and its first bytes disagree).")
     }
 
     /// A launch restores no window: a restored window came back empty (its file is read only when the person asks, File > Reopen Last
@@ -207,7 +207,7 @@ nonisolated final class AppWindowsTests: XCTestCase {
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
         let app = try String(contentsOf: root.appendingPathComponent("macTEM/App/macTEMApp.swift"), encoding: .utf8)
             .split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        let scene = try XCTUnwrap(app.components(separatedBy: "WindowGroup(\"macTEM\", id: \"image\")").last?.components(separatedBy: ".commands").first)
+        let scene = try XCTUnwrap(app.components(separatedBy: "WindowGroup(\"macEM\", id: \"image\")").last?.components(separatedBy: ".commands").first)
         XCTAssertTrue(scene.contains(".restorationBehavior(.disabled)"), scene)
         XCTAssertFalse(scene.contains(".automatic"), scene)
     }

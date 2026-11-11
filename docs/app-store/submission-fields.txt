@@ -9,7 +9,7 @@ Price: Free (Tier 0), all territories
 Seller: individual; EU Digital Services Act: non-trader
 Sign-in required for review: No
 Content rights: contains third-party content, with the necessary rights (the demo data are public datasets under CC BY 4.0 and GPL-3.0-or-later, credited in NOTICE, with the licence texts in Licenses/ and LICENSE; code ported from GPL-3.0, Apache-2.0, BSD and other open-source projects is credited in NOTICE)
-Export compliance: uses no non-exempt encryption (Info.plist ITSAppUsesNonExemptEncryption = NO; macTEM makes no network connection)
+Export compliance: uses no non-exempt encryption (Info.plist ITSAppUsesNonExemptEncryption = NO; macEM makes no network connection)
 Version: the release tag's version (Config/Version.xcconfig); build: CURRENT_PROJECT_VERSION, or STORE_BUILD_NUMBER for a re-upload
 Build: uploaded with tools/release-store.sh --upload from the release tag
 Release: manual release after approval

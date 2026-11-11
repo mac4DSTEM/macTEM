@@ -280,7 +280,7 @@ package nonisolated struct IndexingPlan: Sendable {
     /// `det.get_indexer(phase_list, nBands=…, tSigma=…, rSigma=…)`).
     package func methodJSON(fileName: String, points: Int, indexed: Int) throws -> Data {
         let pc = projectionCenter
-        let record = Record(software: "macTEM", method: "Hough indexing (Radon band detection, triplet voting, QUEST)",
+        let record = Record(software: "macEM", method: "Hough indexing (Radon band detection, triplet voting, QUEST)",
                             reference: "pyEBSDindex 0.3.10.1 EBSDIndexer, vendor KIKUCHIPY, as kikuchipy 0.13.1 EBSD.hough_indexing drives it",
                             file: fileName, patterns: source.kind.title, processing: source.pipeline, settings: settings, phases: phases,
                             projectionCenterBruker: [pc.x, pc.y, pc.z], sampleTilt: indexer.sampleTilt,

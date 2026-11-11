@@ -105,11 +105,11 @@ enum ExportSnapshot {
 
     // MARK: Software
 
-    /// "macTEM 0.1.0 (1)": the version and build the bundle states. What the export files name as their writer.
+    /// "macEM 0.1.0 (1)": the version and build the bundle states. What the export files name as their writer.
     nonisolated static func softwareName(info: [String: Any]? = Bundle.main.infoDictionary) -> String {
-        guard let version = info?["CFBundleShortVersionString"] as? String, !version.isEmpty else { return "macTEM" }
-        guard let build = info?["CFBundleVersion"] as? String, !build.isEmpty else { return "macTEM \(version)" }
-        return "macTEM \(version) (\(build))"
+        guard let version = info?["CFBundleShortVersionString"] as? String, !version.isEmpty else { return "macEM" }
+        guard let build = info?["CFBundleVersion"] as? String, !build.isEmpty else { return "macEM \(version)" }
+        return "macEM \(version) (\(build))"
     }
 
     // MARK: Names

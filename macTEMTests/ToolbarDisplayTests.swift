@@ -35,7 +35,7 @@ nonisolated final class ToolbarDisplayTests: XCTestCase {
     }
 
     /// A window with nothing open shows nothing, whichever room is shown. Red under: the spectrum rooms' guard on the window's title
-    /// dropped (the line then reads "macTEM · EDS · spectrum image").
+    /// dropped (the line then reads "macEM · EDS · spectrum image").
     @MainActor func testNothingShowsWithoutADocument() {
         let state = AppState(launch: LaunchOptions(arguments: []))
         for room in WorkspaceArea.allCases {

@@ -29,7 +29,7 @@ package nonisolated enum CTFWriter {
     static let laueIDs = ["-1": 1, "2/m": 2, "mmm": 3, "4/m": 4, "4/mmm": 5, "-3": 6, "-3m": 7, "6/m": 8, "6/mmm": 9, "m-3": 10, "m-3m": 11]
 
     /// The file's text; `project` is the `Prj` line, `author` the `Author` line.
-    package static func text(of map: CrystalMap, project: String = "macTEM", author: String = "macTEM") throws -> String {
+    package static func text(of map: CrystalMap, project: String = "macEM", author: String = "macEM") throws -> String {
         let grid = try CrystalMapExtent(map)
         let n = grid.count
         let phases = map.phases.entries.filter { $0.id != PhaseList.notIndexedID }
@@ -85,7 +85,7 @@ package nonisolated enum CTFWriter {
     }
 
     /// Writes the file through `FormatoFileWrite` (a scratch file first, then over `url`).
-    package static func write(_ map: CrystalMap, to url: URL, project: String? = nil, author: String = "macTEM") throws {
+    package static func write(_ map: CrystalMap, to url: URL, project: String? = nil, author: String = "macEM") throws {
         let name = project ?? url.deletingPathExtension().lastPathComponent
         try FormatoFileWrite.write(Data(try text(of: map, project: name, author: author).utf8), to: url)
     }

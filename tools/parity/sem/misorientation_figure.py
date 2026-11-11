@@ -43,7 +43,7 @@ def main() -> None:
     if a.ours:
         rows = [line.split("\t") for line in a.ours.read_text().splitlines() if line.strip()]
         ours = np.array([int(r[1]) for r in rows])
-        ax.step(edges, np.append(ours, ours[-1]), where="post", color="#d62728", lw=1.0, label="macTEM TEMCore")
+        ax.step(edges, np.append(ours, ours[-1]), where="post", color="#d62728", lw=1.0, label="macEM TEMCore")
         title += "  |  counts equal" if np.array_equal(ours, counts) else f"  |  {int(np.sum(ours != counts))} bins differ"
     ax.set_yscale("log")
     ax.set_xlabel("Disorientation angle (degrees), 1-degree bins")

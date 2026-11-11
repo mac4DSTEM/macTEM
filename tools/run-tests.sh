@@ -343,15 +343,15 @@ release_build() (
   grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/release.log" | head -40 || true
   echo "release-build: xcodebuild exit $rc"
   (( rc == 0 )) || return $rc
-  app="$work/DerivedData/Build/Products/Release/macTEM.app"
+  app="$work/DerivedData/Build/Products/Release/macEM.app"
   info="$app/Contents/Info.plist"
-  [[ -f "$info" ]] || { echo "release-build: the build wrote no app at Build/Products/Release/macTEM.app"; return 1; }
+  [[ -f "$info" ]] || { echo "release-build: the build wrote no app at Build/Products/Release/macEM.app"; return 1; }
 
   # Each Mach-O a user receives, named: the executable and FormatoKit's three HDF5 frameworks, each present and arm64 alone. Named,
   # not globbed: a glob that matches nothing passes an app that lost them (mac4DSTEM's release-arch.sh), and FormatoKit loads
   # libhdf5 at run time, so such an app launches and then fails every HDF5, EMD and h5ebsd open. No load command may name a
   # machine-local library either.
-  local -a machos=("$app/Contents/MacOS/macTEM")
+  local -a machos=("$app/Contents/MacOS/macEM")
   for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do machos+=("$app/Contents/Frameworks/$library.framework/$library"); done
   for macho in "${machos[@]}"; do
     if [[ ! -f "$macho" ]]; then echo "  MISSING   ${macho#$app/}"; failures=1; continue; fi
@@ -402,7 +402,7 @@ release_build() (
   fi
 
   if (( failures != 0 )); then echo "release-build: the Release app FAILED the checks above"; return 1; fi
-  echo "release-build: macTEM $version built Release for generic/platform=macOS;" \
+  echo "release-build: macEM $version built Release for generic/platform=macOS;" \
        "arm64 alone with its three frameworks, version, build, floor and identifier as the project declares, privacy manifest," \
        "export answer, licences, sandbox entitlements and a verified signature"
 )

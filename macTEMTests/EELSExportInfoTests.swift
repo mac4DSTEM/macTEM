@@ -76,7 +76,7 @@ nonisolated final class EELSExportInfoTests: XCTestCase {
         XCTAssertEqual(value(spectrum, "COLLANGLE"), .number(10))
         XCTAssertEqual(value(spectrum, "XTILTSTGE"), .number(12.5))
         XCTAssertEqual(value(spectrum, "TITLE"), .text("dual.dm4 Whole map core loss"))
-        XCTAssertEqual(value(spectrum, "COMMENT"), .text("File created by macTEM"))
+        XCTAssertEqual(value(spectrum, "COMMENT"), .text("File created by macEM"))
         // RosettaSciIO's Y format: each count as C's %f, then the separator, CR LF.
         XCTAssertEqual(spectrum.signal.data.doubles(), core.counts.map { Double(String(format: "%f", $0))! })
         let text = String(decoding: bytes, as: UTF8.self)

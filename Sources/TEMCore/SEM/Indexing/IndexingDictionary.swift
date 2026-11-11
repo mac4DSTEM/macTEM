@@ -450,7 +450,7 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         let pc = detector.projectionCenters.first ?? SIMD3(0, 0, 0)
         let m = master.master
         let record = Record(
-            software: "macTEM", method: "Dictionary indexing (simulated patterns of a master pattern, normalised cross-correlation or dot product)",
+            software: "macEM", method: "Dictionary indexing (simulated patterns of a master pattern, normalised cross-correlation or dot product)",
             reference: "kikuchipy 0.13.1 EBSD.dictionary_indexing and EBSDMasterPattern.get_patterns; orix 0.15.0 sample_SO3 (cubochoric)",
             file: fileName, patterns: source.kind.title, processing: source.pipeline, phase: phase,
             masterPattern: Record.Master(file: master.fileName, phase: m.phase.name, spaceGroup: m.phase.spaceGroup, energies: m.energies,
@@ -519,7 +519,7 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         }
         let keep = plans.map { min(first.settings.keep, $0.rotations.count) }.min() ?? first.settings.keep
         let record = MergedRecord(
-            software: "macTEM",
+            software: "macEM",
             method: "Dictionary indexing against several phases (one dictionary each, simulated from the phase's master pattern), each point taking the phase whose best match scores highest",
             reference: "kikuchipy 0.13.1 EBSD.dictionary_indexing, EBSDMasterPattern.get_patterns, indexing.merge_crystal_maps and indexing.orientation_similarity_map; orix 0.15.0 sample_SO3 (cubochoric)",
             file: fileName, patterns: first.source.kind.title, processing: first.source.pipeline, phases: phases,

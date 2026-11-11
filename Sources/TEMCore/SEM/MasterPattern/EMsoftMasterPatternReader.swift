@@ -316,7 +316,7 @@ package nonisolated enum EMsoftMasterPatternReader {
     /// Room in `out` for `patterns` patterns of `n` values, once the dataset's shape is known to hold them.
     private static func reserve(_ out: inout [Float], patterns: Int, of n: Int, path: String, shape: [Int]) throws {
         let total = patterns.multipliedReportingOverflow(by: n)
-        guard !total.overflow else { throw EBSDReadError(text: "'\(path)' has shape \(shape), more values than macTEM holds.") }
+        guard !total.overflow else { throw EBSDReadError(text: "'\(path)' has shape \(shape), more values than macEM holds.") }
         out.reserveCapacity(total.partialValue)
     }
 

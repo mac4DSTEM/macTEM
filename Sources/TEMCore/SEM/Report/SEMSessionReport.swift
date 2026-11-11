@@ -75,7 +75,7 @@ package nonisolated enum SEMSessionReport {
     /// What the report says about itself: when it was made, by which app, for whom, and what the app was built with.
     package struct Context: Sendable, Equatable {
         package var date: Date
-        /// "macTEM 1.12.0 (45)".
+        /// "macEM 1.12.0 (45)".
         package var software: String
         /// The person's name when they chose to be named; nil otherwise.
         package var author: String?

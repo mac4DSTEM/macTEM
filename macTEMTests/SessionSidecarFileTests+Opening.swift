@@ -199,7 +199,7 @@ nonisolated extension SessionSidecarFileTests {
     /// A file the system does not let this process read is `.notPermitted`, named apart from `.cannotOpen` so the app can ask
     /// for the file (the sandbox grants only what the user chose): a mode-000 file, on a read and on the check a write makes
     /// (which leaves the file as it was). A path that holds nothing and a file that is not HDF5 stay `.cannotOpen` (P3). The
-    /// sentence says macOS does not let macTEM read it. Red under: the probe removed (a denied read is `.cannotOpen`); a
+    /// sentence says macOS does not let macEM read it. Red under: the probe removed (a denied read is `.cannotOpen`); a
     /// missing file or any failed probe called `.notPermitted`; EACCES left out.
     func testAFileTheSystemDoesNotLetUsReadIsNotPermittedAndNeverOverwritten() throws {
         XCTAssertNotEqual(geteuid(), 0, "root reads a mode-000 file; run this as a user")
@@ -222,6 +222,6 @@ nonisolated extension SessionSidecarFileTests {
         try Data("not HDF5\n".utf8).write(to: junk)
         XCTAssertTrue(isCannotOpen(refusal { try Sidecar.read(url: junk) }))
         XCTAssertTrue(isCannotOpen(refusal { try Sidecar.read(url: directory.appendingPathComponent("missing.mactem.h5")) }))
-        XCTAssertTrue(Sidecar.Refusal.notPermitted("Permission denied").reason.contains("does not let macTEM read it"))
+        XCTAssertTrue(Sidecar.Refusal.notPermitted("Permission denied").reason.contains("does not let macEM read it"))
     }
 }

@@ -18,7 +18,7 @@ final class RunActivity {
     private var token: (any NSObjectProtocol)?
 
     init(begin: @escaping () -> any NSObjectProtocol = {
-             ProcessInfo.processInfo.beginActivity(options: .userInitiated, reason: "macTEM is running an analysis")
+             ProcessInfo.processInfo.beginActivity(options: .userInitiated, reason: "macEM is running an analysis")
          },
          end: @escaping (any NSObjectProtocol) -> Void = { ProcessInfo.processInfo.endActivity($0) }) {
         self.begin = begin

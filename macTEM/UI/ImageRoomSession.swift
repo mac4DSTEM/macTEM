@@ -68,7 +68,7 @@ enum SessionFormat {
         if input.needsAccess {
             tail.lines = [
                 .init(kind: .warning(symbol: "lock.fill"),
-                      text: "A session file for this image is beside it, but macOS has not given macTEM access to read it."),
+                      text: "A session file for this image is beside it, but macOS has not given macEM access to read it."),
                 .init(kind: .note, text: "Saving is off until you choose it, so its marks are not overwritten."),
             ]
             tail.chooseFile = input.hasMarks ? "Remove the marks drawn here to restore the session file's marks." : ""
@@ -77,7 +77,7 @@ enum SessionFormat {
         if let version = input.newerVersion {
             tail.lines = [
                 .init(kind: .warning(symbol: "exclamationmark.triangle.fill"),
-                      text: "\(name) was written by a newer macTEM (lineage version \(version)); its marks are not shown."),
+                      text: "\(name) was written by a newer macEM (lineage version \(version)); its marks are not shown."),
                 .init(kind: .note, text: savingOff(name, refused: false)),
             ]
             tail.showsFinder = true
@@ -155,7 +155,7 @@ enum SessionFormat {
     static func chosenLine(_ outcome: SidecarOutcome, adopted: Bool, name: String) -> String {
         switch outcome {
         case .none: "No session file was found at that place."
-        case .needsAccess: "macOS has not given macTEM access to \(name)."
+        case .needsAccess: "macOS has not given macEM access to \(name)."
         case .refused: "\(name) was not used."
         case .restored: adopted ? "Restored the marks from \(name)"
             : "The marks in \(name) were not restored: marks are already drawn in this window. Remove them first."

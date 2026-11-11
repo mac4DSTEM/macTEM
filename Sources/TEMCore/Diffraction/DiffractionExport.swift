@@ -68,7 +68,7 @@ package nonisolated enum DiffractionExport {
         // A CIF whose data block names nothing, or only a VESTA placeholder, gives the crystal its file's base name, which may hold a line break.
         let crystal = CSVText.headerValue(h.crystal) + (h.crystalSHA256.map { " sha256 \($0)" } ?? "")
         var lines = [
-            "# macTEM diffraction readout",
+            "# macEM diffraction readout",
             "# file: \(CSVText.headerValue(h.fileName))",
             "# centre: row \(g(h.centreRow)), column \(g(h.centreColumn)) (\(h.centreSource))",
             "# calibration: \(h.calibration); delta_q \(g(h.deltaQ)) per A per px; wavelength \(g(h.wavelengthAngstroms)) A; L \(g(h.lengthPixels)) px; L \(g(h.lengthMM)) mm; fit versus file \(g(h.fitVersusFilePercent)) %",

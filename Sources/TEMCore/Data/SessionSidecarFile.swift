@@ -186,23 +186,23 @@ package nonisolated enum SessionSidecarFile {
                 "its name, with \(SessionSidecarFile.suffix), would be \(units) UTF-16 units long; the file system takes \(SessionSidecarFile.maxNameUnits)."
             case .library(let detail): "the bundled HDF5 library could not be loaded (\(detail))."
             case .cannotOpen(let detail): "it is not an HDF5 file, or it cannot be opened (\(detail))."
-            case .notPermitted(let detail): "macOS does not let macTEM read it (\(detail))."
+            case .notPermitted(let detail): "macOS does not let macEM read it (\(detail))."
             case .hdf5(let operation, let detail): "HDF5 failed while \(operation) (\(detail))."
-            case .foreign: "it is an HDF5 file, but not a macTEM session sidecar (no \(SessionSidecarFile.identityAttribute))."
+            case .foreign: "it is an HDF5 file, but not a macEM session sidecar (no \(SessionSidecarFile.identityAttribute))."
             case .missingAttribute(let name): "its \(name) attribute is missing."
             case .malformedAttribute(let name): "its \(name) attribute is not a single UTF-8 text value of the expected kind."
             case .variableLengthString(let name):
-                "its \(name) attribute is variable-length text, which macTEM does not read (a damaged one can hang the HDF5 library). This sidecar is from an early build and a save cannot replace it: delete the file and save again."
+                "its \(name) attribute is variable-length text, which macEM does not read (a damaged one can hang the HDF5 library). This sidecar is from an early build and a save cannot replace it: delete the file and save again."
             case .newerMinReader(let found, let supported):
-                "it needs a macTEM that reads session schema \(found) or newer; this one reads up to \(supported)."
+                "it needs a macEM that reads session schema \(found) or newer; this one reads up to \(supported)."
             case .newerSchema(let found, let supported):
-                "it was written by session schema \(found), newer than the \(supported) this macTEM writes; replacing it would drop what this one cannot read."
+                "it was written by session schema \(found), newer than the \(supported) this macEM writes; replacing it would drop what this one cannot read."
             case .stringTooLong(let attribute, let bytes):
                 "its \(attribute) attribute is \(bytes) bytes; the limit is \(SessionSidecarFile.maxStringBytes)."
             case .invalidUTF8(let name): "its \(name) attribute is not valid UTF-8."
             case .embeddedNUL(let name): "the \(name) text holds a NUL byte, which a stored string cannot."
             case .denseAttributeStorage:
-                "its attributes are stored in a form macTEM does not write (HDF5 dense attribute storage), which macTEM does not read. A sidecar macTEM saved never is; delete the file and save again."
+                "its attributes are stored in a form macEM does not write (HDF5 dense attribute storage), which macEM does not read. A sidecar macEM saved never is; delete the file and save again."
             case .sidecarTooLarge(let bytes):
                 "the session record would be \(bytes) bytes of text; the limit is \(SessionSidecarFile.maxTotalTextBytes). Remove some marks."
             case .cannotWrite(let operation, let detail): "the write failed while \(operation) (\(detail)); nothing was changed."

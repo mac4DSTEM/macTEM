@@ -114,7 +114,7 @@ struct FFTExportParity {
         try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: planted.appendingPathComponent("manifest.json")))
         let lut = [UInt8](try Data(contentsOf: planted.appendingPathComponent(manifest.lut)))
-        let software = "macTEM 0.1.0 (1)"
+        let software = "macEM 0.1.0 (1)"
 
         for c in manifest.cases where only?.contains(c.name) ?? true {
             let image = CalibratedImage(

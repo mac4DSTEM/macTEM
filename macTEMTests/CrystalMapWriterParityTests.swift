@@ -144,7 +144,7 @@ nonisolated final class CrystalMapWriterParityTests: XCTestCase {
         try CTFWriter.write(ti, to: ctfURL)
         XCTAssertEqual(try String(contentsOf: angURL, encoding: .utf8), try ANGWriter.text(of: ti))
         XCTAssertEqual(try String(contentsOf: ctfURL, encoding: .utf8), try CTFWriter.text(of: ti, project: "ti"))
-        XCTAssertTrue(try ANGWriter.text(of: ti).contains("# OPERATOR: macTEM\n"))
+        XCTAssertTrue(try ANGWriter.text(of: ti).contains("# OPERATOR: macEM\n"))
     }
 
     /// A property asked for by name that the map lacks is refused; a one-point map has no grid to write.

@@ -72,15 +72,15 @@ package nonisolated enum HyperSpySpectrumFile {
             throw Refusal(text: "\(name) holds no Experiments group: it is not a HyperSpy file.")
         }
         guard experiments.count == 1, let first = experiments.first else {
-            throw Refusal(text: "\(name) holds \(experiments.count) experiments: macTEM opens a HyperSpy file of one spectrum.")
+            throw Refusal(text: "\(name) holds \(experiments.count) experiments: macEM opens a HyperSpy file of one spectrum.")
         }
         let experiment = "/Experiments/\(first)"
         let axes = ((try? reader.children(of: experiment)) ?? []).filter { $0.hasPrefix("axis-") }.sorted()
         guard let info = try? reader.datasetInfo(experiment + "/data"), case .numeric = info.type else {
-            throw Refusal(text: "\(first) in \(name) has no numeric data: macTEM opens single spectra from HyperSpy files.")
+            throw Refusal(text: "\(first) in \(name) has no numeric data: macEM opens single spectra from HyperSpy files.")
         }
         guard axes.count == 1, info.shape.count == 1, let channels = info.shape.first, channels > 0 else {
-            throw Refusal(text: "\(first) in \(name) is not one spectrum (\(info.shape.count) dimensions, \(axes.count) axes): macTEM opens single spectra from HyperSpy files.")
+            throw Refusal(text: "\(first) in \(name) is not one spectrum (\(info.shape.count) dimensions, \(axes.count) axes): macEM opens single spectra from HyperSpy files.")
         }
         let axis = experiment + "/" + axes[0]
         guard let offset = number(reader, "offset", of: axis), let scale = number(reader, "scale", of: axis), scale > 0 else {

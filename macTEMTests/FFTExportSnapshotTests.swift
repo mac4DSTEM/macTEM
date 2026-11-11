@@ -25,7 +25,7 @@ import ImagoFFT
 
 nonisolated final class FFTExportSnapshotTests: XCTestCase {
 
-    private static let software = "macTEM 0.1.0 (1)"
+    private static let software = "macEM 0.1.0 (1)"
     private static let url = URL(fileURLWithPath: "/data/run1/plant.dm4")
 
     /// An owner showing the plant with region A transformed and its spectrum landed.

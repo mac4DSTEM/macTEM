@@ -253,7 +253,7 @@ package nonisolated enum DemoDocuments {
 
     /// Writes the demo stack as a multi-page TIFF (little-endian, baseline, one strip per page) and returns its URL in the temporary folder.
     package static func stackFile() throws -> URL {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macTEM-demo-stack")
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macEM-demo-stack")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("Demo stack.tif")
         try writeStackTIFF(to: url, frames: stackFrames, width: stackSide, height: stackSide, pixel: stackPixel)
@@ -329,7 +329,7 @@ package nonisolated enum DemoDocuments {
     /// Writes the demo SEM image and returns its URL in the temporary folder. The write is atomic: Help > Open Demo Data can ask for
     /// the file again while a window is still reading the one written before, and a reader never sees half a file.
     package static func semImageFile() throws -> URL {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macTEM-demo-sem")
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macEM-demo-sem")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("Demo SEM image.tif")
         try semTIFF().write(to: url, options: .atomic)
@@ -402,7 +402,7 @@ package nonisolated enum DemoDocuments {
     /// The demo EDX image's pooled spectrum as an `.msa` file in the temporary folder (what a person would open from the File menu).
     package static func spectrumFile() throws -> URL {
         let demo = edx()
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macTEM-demo-spectrum")
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macEM-demo-spectrum")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("Demo EDX spectrum.msa")
         try EDXExports.msa(counts: demo.image.sum(mask: nil), axis: demo.energyAxis, title: "Demo EDX spectrum", beamEnergyKeV: Truth.edxBeamKeV, host: .macTEM).write(to: url)
@@ -466,7 +466,7 @@ package nonisolated enum DemoDocuments {
         }
         let detector = EBSDDetectorGeometry(rows: side, columns: side, pixelSize: 70, binning: Truth.ebsdBinning, tilt: 0, azimuthal: 0, twist: 0,
                                             sampleTilt: Truth.ebsdSampleTilt, projectionCenters: [Truth.ebsdProjectionCenter])
-        let dataset = EBSDDataset(format: .generated, manufacturer: "macTEM", version: "", scanGroup: "Demo", scanGroups: ["Demo"],
+        let dataset = EBSDDataset(format: .generated, manufacturer: "macEM", version: "", scanGroup: "Demo", scanGroups: ["Demo"],
                                   scanRows: rows, scanColumns: columns, patternRows: side, patternColumns: side, dataType: .uint8,
                                   stepY: Truth.ebsdStepUm, stepX: Truth.ebsdStepUm, detector: detector,
                                   sem: EBSDSEMHeader(beamEnergyKeV: Truth.ebsdBeamKeV, magnification: 200, workingDistanceMM: 24.7, microscope: "generated demo"),

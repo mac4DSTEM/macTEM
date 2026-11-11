@@ -1,6 +1,6 @@
 Notes for App Review
 
-macTEM analyses images, spectra and diffraction patterns from transmission and scanning electron microscopes, and EBSD scans of crystalline materials. You do not need data of your own to try it.
+macEM analyses images, spectra and diffraction patterns from transmission and scanning electron microscopes, and EBSD scans of crystalline materials. You do not need data of your own to try it.
 
 How to try it:
 1. Launch the app.
@@ -21,9 +21,9 @@ With the shipped SEM datasets:
 
 Results, in the sidebar, lists every measurement and the SEM results in tables. The Export Report… button in its inspector writes a session report as PDF or Markdown through a save panel.
 
-No account, sign-in, purchase or network connection is needed anywhere in the app. macTEM makes no network requests.
+No account, sign-in, purchase or network connection is needed anywhere in the app. macEM makes no network requests.
 
 Open source:
-macTEM is free software under GPL-3.0. Source: https://github.com/mac4DSTEM/macTEM
+macEM is free software under GPL-3.0. Source: https://github.com/mac4DSTEM/macTEM
 
 Contact: mail@mac4dstem.com

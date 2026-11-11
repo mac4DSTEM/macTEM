@@ -24,7 +24,7 @@ import TEMSession
 
 nonisolated final class ResultsWiringTests: XCTestCase {
 
-    private static let software = "macTEM 0.1.0 (1)"
+    private static let software = "macEM 0.1.0 (1)"
 
     /// The repo's own source file at `path`, read beside this test file.
     private func source(_ path: String) throws -> String {

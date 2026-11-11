@@ -403,7 +403,7 @@ nonisolated final class SessionUITests: XCTestCase {
         XCTAssertNil(SessionSaving.panelRefusal(chosen: expected, expected: expected))
         let decomposed = URL(fileURLWithPath: "/data/Å/scan.dm4.mactem.h5".decomposedStringWithCanonicalMapping)
         XCTAssertNil(SessionSaving.panelRefusal(chosen: decomposed, expected: expected), "NFC and NFD are one name")
-        let sentence = "Keep the name “scan.dm4.mactem.h5” and the image's folder, so macTEM finds the session file when you open the image."
+        let sentence = "Keep the name “scan.dm4.mactem.h5” and the image's folder, so macEM finds the session file when you open the image."
         XCTAssertEqual(SessionSaving.panelRefusal(chosen: URL(fileURLWithPath: "/data/Å/other.h5"), expected: expected), sentence)
         XCTAssertEqual(SessionSaving.panelRefusal(chosen: URL(fileURLWithPath: "/elsewhere/scan.dm4.mactem.h5"), expected: expected), sentence)
     }
@@ -823,7 +823,7 @@ nonisolated final class SessionUITests: XCTestCase {
     @MainActor func testTheTailExplainsANewerFile() {
         let tail = SessionFormat.tail(input { $0.newerVersion = 2; $0.canSave = false })
         XCTAssertEqual(tail.lines[0].text,
-                       "scan.dm4.mactem.h5 was written by a newer macTEM (lineage version 2); its marks are not shown.")
+                       "scan.dm4.mactem.h5 was written by a newer macEM (lineage version 2); its marks are not shown.")
         XCTAssertTrue(tail.showsFinder)
         XCTAssertFalse(tail.showsSave)
     }

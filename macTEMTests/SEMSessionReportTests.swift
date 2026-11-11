@@ -51,7 +51,7 @@ nonisolated final class SEMSessionReportTests: XCTestCase {
         ]
     }
 
-    private static let context = SEMSessionReport.Context(date: t0.addingTimeInterval(200), software: "macTEM 9.9.9 (1)",
+    private static let context = SEMSessionReport.Context(date: t0.addingTimeInterval(200), software: "macEM 9.9.9 (1)",
                                                           packages: [SEMSessionField("FormatoKit", "0.12.1")],
                                                           timeZone: TimeZone(identifier: "UTC")!)
 
@@ -73,7 +73,7 @@ nonisolated final class SEMSessionReportTests: XCTestCase {
         let expected = """
         # Nickel session
 
-        2026-11-07 16:45 · macTEM 9.9.9 (1)
+        2026-11-07 16:45 · macEM 9.9.9 (1)
 
         ## Opened files
 
@@ -136,7 +136,7 @@ nonisolated final class SEMSessionReportTests: XCTestCase {
 
         | Package | Role |
         |---|---|
-        | macTEM 9.9.9 (1) | the app that made this report |
+        | macEM 9.9.9 (1) | the app that made this report |
         | FormatoKit 0.12.1 | a Swift package the app is built with |
         \(references)
 
@@ -186,7 +186,7 @@ nonisolated final class SEMSessionReportTests: XCTestCase {
     /// numbered pages.
     func testThePDFIsTextWithItsHeadingsAndDrawsTheFigure() throws {
         let document = SEMSessionReport.document(try Self.rows(), options: Self.options(.pdf), context: Self.context)
-        let data = try XCTUnwrap(SEMReportPDF.data(of: document, creator: "macTEM 9.9.9 (1)"))
+        let data = try XCTUnwrap(SEMReportPDF.data(of: document, creator: "macEM 9.9.9 (1)"))
         let pdf = try XCTUnwrap(PDFDocument(data: data))
         let text = try XCTUnwrap(pdf.string)
         for heading in ["Processing", "Indexing", "Methods and references", "Versions", "Nickel session"] {
@@ -200,7 +200,7 @@ nonisolated final class SEMSessionReportTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(images, 1, "the map PNG is drawn in the PDF")
 
         let long = SEMReportDocument(title: "Long", subtitle: "", blocks: (0..<120).map { .paragraph("Paragraph \($0) of the long report.") })
-        let pages = try XCTUnwrap(PDFDocument(data: try XCTUnwrap(SEMReportPDF.data(of: long, creator: "macTEM"))))
+        let pages = try XCTUnwrap(PDFDocument(data: try XCTUnwrap(SEMReportPDF.data(of: long, creator: "macEM"))))
         XCTAssertGreaterThanOrEqual(pages.pageCount, 2)
         XCTAssertTrue(pages.string?.contains("page 2") == true, "the footer numbers the pages")
         XCTAssertTrue(pages.string?.contains("Paragraph 119") == true, "the last paragraph is on a page")

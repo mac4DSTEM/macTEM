@@ -59,7 +59,7 @@ nonisolated final class EDXRealFileJourney: Journey {
     /// script cannot drive the drag from the runner: System Events refuses the sandboxed runner, "Application isn't running".) Returns
     /// false when nothing was sent.
     @MainActor func realDrag(from a: CGPoint, to b: CGPoint) -> Bool {
-        guard app.state == .runningForeground else { attach("drag refused", "macTEM is not frontmost"); return false }
+        guard app.state == .runningForeground else { attach("drag refused", "macEM is not frontmost"); return false }
         let w = app.windows.firstMatch.frame
         guard w.contains(a), w.contains(b) else { attach("drag refused", "a point is outside the window \(w)"); return false }
         func post(_ type: CGEventType, _ p: CGPoint) { CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap) }

@@ -65,7 +65,7 @@ def main() -> int:
         rgb = key.orientation2color(ours_o).reshape(rows, cols, 3)
         mis = np.degrees(ours_o.angle_with(ref_o)).reshape(rows, cols)
         within = float((mis[phase >= 0] < 1).mean())
-        panels.append(("macTEM HoughIndexer (app's background chain)", rgb, None))
+        panels.append(("macEM HoughIndexer (app's background chain)", rgb, None))
         panels.append((f"misorientation, degrees ({100 * within:.2f} % under 1°)", mis, "viridis"))
     fig, axes = plt.subplots(1, len(panels), figsize=(4.6 * len(panels), 3.9), squeeze=False)
     for ax, (title, img, cmap) in zip(axes[0], panels):

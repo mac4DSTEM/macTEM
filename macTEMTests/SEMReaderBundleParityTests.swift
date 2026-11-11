@@ -220,7 +220,7 @@ nonisolated final class SEMReaderBundleParityTests: XCTestCase {
         let url = try input(ref)
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
         let routing = "\(url.lastPathComponent) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: "
-            + "macTEM opens images, spectra and EBSD patterns; open it in mac4DSTEM."
+            + "macEM opens images, spectra and EBSD patterns; open it in mac4DSTEM."
         XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(refusal: routing))
         XCTAssertThrowsError(try EBSDOpening.open(url: url)) { error in
             XCTAssertEqual((error as? EBSDReadError)?.text, "the top group has no 'manufacturer' dataset: not an h5ebsd file.")

@@ -204,10 +204,10 @@ final class PatternsRoomState {
     }
 
     /// The colour mix's RGBA bytes as a PNG, one pixel per scan point, through the app's one encoder (`ImageExport.encodePNG`) with
-    /// `fileName` as Title and macTEM as Software, as the map PNG carries them.
+    /// `fileName` as Title and macEM as Software, as the map PNG carries them.
     nonisolated static func mixPNG(rgba: [UInt8], width: Int, height: Int, fileName: String) -> Data? {
         guard let image = EDXMapRaster.cgImage(rgba: rgba, width: width, height: height) else { return nil }
-        return try? ImageExport.encodePNG(image, title: fileName, software: "macTEM")
+        return try? ImageExport.encodePNG(image, title: fileName, software: "macEM")
     }
 
     static func mapName(_ choice: EBSDSession.MapChoice) -> String {
@@ -248,7 +248,7 @@ final class PatternsRoomState {
                                     fileName: fileName, source: "scan map \(map)", voltage: dataset.sem.beamEnergyKeV.map { $0 * 1000 },
                                     notes: ["\(dataset.format.rawValue)"])
         let display = ExportSnapshot.display(canvas: canvas, presentation: presentation)
-        return try ImageExport.render(source: ExportSource(image: image, software: "macTEM"), display: display, marks: [],
+        return try ImageExport.render(source: ExportSource(image: image, software: "macEM"), display: display, marks: [],
                                       options: ImageExport.Options(scaleBar: presentation.showsScaleBar, marks: false)).png
     }
 
@@ -260,7 +260,7 @@ final class PatternsRoomState {
                                     fileName: fileName, source: "pattern row \(position.row) col \(position.column)", voltage: dataset.sem.beamEnergyKeV.map { $0 * 1000 },
                                     notes: ["\(dataset.format.rawValue)"])
         let display = ExportSnapshot.display(canvas: canvas, presentation: presentation)
-        return try ImageExport.render(source: ExportSource(image: image, software: "macTEM"), display: display, marks: [],
+        return try ImageExport.render(source: ExportSource(image: image, software: "macEM"), display: display, marks: [],
                                       options: ImageExport.Options(scaleBar: false, marks: false)).png
     }
 }

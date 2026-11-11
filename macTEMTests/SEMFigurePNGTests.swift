@@ -1,7 +1,7 @@
 //
 //  SEMFigurePNGTests.swift
 //  The SEM rooms' figure PNGs through the app's one encoder (`ImageExport.encodePNG`, #331): the Maps room's map figure and the
-//  Patterns room's colour mix (the Indexing room's colour map is the same function) carry the file's name as Title and macTEM as
+//  Patterns room's colour mix (the Indexing room's colour map is the same function) carry the file's name as Title and macEM as
 //  Software, as the Patterns room's map PNG does; the pixels are ImageIO's, as before; the encoder writes its text in order, leaves
 //  out what it is not given and makes a control character a space; the IPF colour key's image comes from the one RGBA builder
 //  (`MapsFigure.cgImage`), smoothed or not. The texture figure's Title is pinned in MapsAnalysisTests, the overlay figure's Description
@@ -51,14 +51,14 @@ nonisolated final class SEMFigurePNGTests: XCTestCase {
         return out
     }
 
-    /// Map PNG… of the Maps room carries the file's name as Title and macTEM as Software. Red before: the figure dropped its
+    /// Map PNG… of the Maps room carries the file's name as Title and macEM as Software. Red before: the figure dropped its
     /// file name and wrote no text chunk.
     @MainActor func testTheMapFigureCarriesItsFileName() throws {
         let map = try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-tsl.ang")).map
         let png = try MapsFigure.png(raster: OrientationMaps.raster(.phase, of: map), layer: .phase, map: map, keys: [],
                                      presentation: ImagePresentation(), fileName: "sdss.ang")
         XCTAssertEqual(try Self.text(png), [PNGTextEntry(keyword: "Title", value: "sdss.ang"),
-                                            PNGTextEntry(keyword: "Software", value: "macTEM")])
+                                            PNGTextEntry(keyword: "Software", value: "macEM")])
     }
 
     /// The Patterns room's colour mix: the planted pixels come back as they went in, as ImageIO wrote them before, and the file's
@@ -66,7 +66,7 @@ nonisolated final class SEMFigurePNGTests: XCTestCase {
     func testTheColourMixKeepsItsPixelsAndCarriesItsFileName() throws {
         let png = try XCTUnwrap(PatternsRoomState.mixPNG(rgba: Self.planted, width: 3, height: 2, fileName: "patterns_v2.h5"))
         XCTAssertEqual(try Self.text(png), [PNGTextEntry(keyword: "Title", value: "patterns_v2.h5"),
-                                            PNGTextEntry(keyword: "Software", value: "macTEM")])
+                                            PNGTextEntry(keyword: "Software", value: "macEM")])
         XCTAssertEqual(try Self.rgba(png), Self.planted)
     }
 

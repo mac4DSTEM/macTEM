@@ -34,7 +34,7 @@ package nonisolated enum EELSExports {
     /// `unavailable` cell, and so does a row with no at% (the table's tooltip and the Results room give the same words).
     package static func resultsCSV(_ rows: [EELSEdgeRow], fileName: String, regionName: String, thickness: String, method: String,
                                    deconvolution: String? = nil, quality: String? = nil) -> String {
-        var out = ["# macTEM EELS results, file: \(CSVText.headerValue(fileName)), region: \(CSVText.headerValue(regionName)), \(EELSLiterature.headerLine)",
+        var out = ["# macEM EELS results, file: \(CSVText.headerValue(fileName)), region: \(CSVText.headerValue(regionName)), \(EELSLiterature.headerLine)",
                    "# \(thickness)",
                    "# \(method)"]
         if let deconvolution { out.append("# deconvolution: \(deconvolution)") }
@@ -52,7 +52,7 @@ package nonisolated enum EELSExports {
 
     /// The shown spectrum: the low loss then the core loss, each channel's energy and counts, and the model where the fit holds one.
     package static func spectrumCSV(_ plot: EELSPlotData, fileName: String) -> String {
-        var out = ["# macTEM EELS spectrum, file: \(CSVText.headerValue(fileName)), region: \(CSVText.headerValue(plot.regionName)), \(plot.pixels) px, "
+        var out = ["# macEM EELS spectrum, file: \(CSVText.headerValue(fileName)), region: \(CSVText.headerValue(plot.regionName)), \(plot.pixels) px, "
                    + "counts summed over the region",
                    "segment,energy_eV,counts,model"]
         for (i, c) in plot.low.counts.enumerated() { out.append("low_loss,\(g(plot.low.energy(i))),\(g(c)),") }
@@ -84,7 +84,7 @@ package nonisolated enum EELSExports {
     /// `Y` data printed with `%f`). An MSA file holds one spectrum on one axis, so it is the core loss when the file has one (the Fourier-ratio
     /// deconvolved one when the plot shows it), else the low loss; the Spectrum CSV keeps both and the model. The axis is in eV, the signal EELS
     /// (`SIGNALTYPE ELS`), the microscope as `BEAMKV`, `CONVANGLE`, `COLLANGLE` and `XTILTSTGE` where known. The counts are the region's sums as plotted.
-    package static func spectrumMSA(_ plot: EELSPlotData, fileName: String, microscope: MSAMicroscope, creator: String = "macTEM") throws -> Data {
+    package static func spectrumMSA(_ plot: EELSPlotData, fileName: String, microscope: MSAMicroscope, creator: String = "macEM") throws -> Data {
         let segment: (curve: EELSPlotCurve, words: String)
         if let core = plot.core {
             segment = (core, plot.coreDeconvolved ? "core loss, Fourier-ratio deconvolved" : "core loss")
@@ -120,7 +120,7 @@ package nonisolated enum EELSExports {
         let edges = rows.flatMap(\.edges).reduce(into: [String]()) { out, e in if !out.contains(e.title) { out.append(e.title) } }
         var header = ["region", "pixels", "i_total", "t_over_lambda"]
         for e in edges { header += ["\(e) intensity", "\(e) intensity_sigma", "\(e) atomic_percent", "\(e) atomic_percent_sigma"].map(quoted) }
-        var out = ["# macTEM EELS regions, file: \(CSVText.headerValue(fileName)), \(EELSLiterature.headerLine)", header.joined(separator: ",")]
+        var out = ["# macEM EELS regions, file: \(CSVText.headerValue(fileName)), \(EELSLiterature.headerLine)", header.joined(separator: ",")]
         for r in rows {
             var cells = [quoted(r.pin.name), "\(r.pixels)", g(r.totalCounts), g(r.tOverLambda)]
             for e in edges {

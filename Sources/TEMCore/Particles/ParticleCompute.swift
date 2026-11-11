@@ -186,7 +186,7 @@ package nonisolated enum ParticleFormat {
         let densityLine = scale.isCalibrated && r.summary.arealDensity != nil
             ? "# areal density: \(String(format: "%.6g", r.summary.arealDensity!)) per \(scale.unit)^2, counted objects weighted by Miles-Lantuejoul's edge correction (ImagoKit ObjectStatistics.arealDensity)"
             : "# areal density: none (the image is not calibrated)"
-        var out = ["# macTEM particles, file: \(CSVText.headerValue(fileName))",
+        var out = ["# macEM particles, file: \(CSVText.headerValue(fileName))",
                    "# threshold: \(r.settings.polarity.rawValue) objects, \(threshold(r)), smoothing sigma \(csvNumber(r.settings.sigma)) px, connectivity \(r.settings.connectivity.rawValue), minimum area \(r.settings.minimumArea) px (smaller objects removed: ImagoKit BinaryMorphology.removeSmallObjects)",
                    "# \(ParticleFormat.counts(r.summary)); labels, centroids, lengths, widths and angles: ImagoKit Segmentation.objectMoments; counted = not touching the image edge",
                    densityLine,
