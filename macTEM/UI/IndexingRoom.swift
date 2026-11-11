@@ -811,8 +811,9 @@ struct IndexingBestMatchPane: View {
 
 /// The detected bands of the pattern on screen (design §3, the Log tab: pyEBSDindex's band list), strongest first, with the family the
 /// solution matched each to and its fit. ⌘C copies the selected bands (⌘A: all) as TSV in the table's order (`IndexingTableFormat`,
-/// #353); another pattern clears the selection, so a rank picked on one pattern is not copied from the next. The symbol headers are said
-/// in words (`SEMColumnSpeech`, #320).
+/// #353). Other bands clear the selection (another point, the same point detected again after new processing or detector settings, a
+/// run that matches them), so a rank picked on one detection is never copied from the next, and Copy is never on for a rank the table no
+/// longer has. The symbol headers are said in words (`SEMColumnSpeech`, #320).
 struct IndexingBandsTable: View {
     let session: IndexingSession
     @State private var selection: Set<IndexedBand.ID> = []
@@ -843,7 +844,7 @@ struct IndexingBandsTable: View {
             .accessibilityIdentifier("indexing.bands")
         }
         .padding(8)
-        .onChange(of: session.patternPosition) { selection = [] }
+        .onChange(of: session.detectedBands) { selection = [] }
     }
 
     /// ⌘C: the selected bands as TSV, in the table's order (strongest first), under the column titles.

@@ -181,8 +181,10 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
     }
 
     /// The Bands table selects several bands and copies them with ⌘C through `bandsCopyText` in the table's order (Copy is off with
-    /// nothing selected); another pattern clears the selection, so a rank picked on one pattern is not copied from the next; its cells
-    /// are drawn by the functions the copy writes them with. Red before: `Table(session.detectedBands)` with no selection and no copy.
+    /// nothing selected); other bands clear the selection, so a rank picked on one detection is not copied from the next: another point,
+    /// and also the same point detected again (new processing, the detector's band count), which keeps the position; its cells are drawn
+    /// by the functions the copy writes them with. Red before: `Table(session.detectedBands)` with no selection and no copy; then the
+    /// selection cleared only on another position, so a re-detected pattern kept its ranks and Copy stayed on for ranks gone.
     func testTheBandsTableCopiesItsSelectedBands() throws {
         let room = squeezed(try source("macTEM/UI/IndexingRoom.swift"))
         XCTAssertTrue(room.contains("@State private var selection: Set<IndexedBand.ID> = []"))
@@ -190,7 +192,25 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
         XCTAssertTrue(room.contains(".onCopyCommand(perform: selection.isEmpty ? nil : { copiedBands() })"))
         XCTAssertTrue(room.contains("let picked = session.detectedBands.filter { selection.contains($0.id) }"), "the bands in the table's order")
         XCTAssertTrue(room.contains("NSItemProvider(object: IndexingTableFormat.bandsCopyText(picked) as NSString)"))
-        XCTAssertTrue(room.contains(".onChange(of: session.patternPosition) { selection = [] }"))
+        XCTAssertTrue(room.contains(".onChange(of: session.detectedBands) { selection = [] }"), "other bands clear the selection")
+        XCTAssertFalse(room.contains(".onChange(of: session.patternPosition) { selection = [] }"), "a re-detection keeps the position")
+
+        // What the change compares: the same detection read again is the same rows (a refresh keeps the selection); the same point
+        // detected for fewer bands is not (ranks 7 to 9 are gone, so the selection goes).
+        var pattern = [Double](repeating: 10, count: 3600)
+        for k in 24...26 {
+            for j in 0..<60 { pattern[k * 60 + j] = 200; pattern[j * 60 + k + 15] = 200 }
+        }
+        func detected(bands: Int) throws -> [IndexedBand] {
+            var settings = HoughIndexingSettings.roomDefault.detectorSettings
+            settings.bands = bands
+            let detector = try HoughBandDetector(rows: 60, columns: 60, settings: settings)
+            return IndexedBand.bands(try detector.detect(pattern), solution: nil, libraries: [], rows: 60, columns: 60)
+        }
+        let nine = try detected(bands: 9)
+        XCTAssertEqual(nine.count, 9)
+        XCTAssertEqual(try detected(bands: 9), nine, "the same detection again: the selection stays")
+        XCTAssertNotEqual(try detected(bands: 6), nine, "fewer bands at the same point: the selection goes")
         for cell in ["Text(IndexingTableFormat.angle($0.rho, digits: 2))", "Text(IndexingTableFormat.angle($0.thetaDegrees, digits: 2))",
                      "Text(IndexingTableFormat.number($0.peak))", "Text(IndexingTableFormat.number($0.width))"] {
             XCTAssertTrue(room.contains(cell), "the table draws \(cell) as the copy writes it")
