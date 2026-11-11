@@ -120,6 +120,41 @@ nonisolated final class EELSExportInfoTests: XCTestCase {
         try? FileManager.default.removeItem(at: dir)
     }
 
+    /// A journey's export onto a folder of the file's name says why in `ExportFile`'s words and leaves the folder as it was, with what it
+    /// held. Red under: the bytes written past `ExportFile.write` (the system's own sentence, not the refusal by name).
+    @MainActor func testAJourneyExportOntoAFolderSaysWhyAndKeepsIt() async throws {
+        let session = try await dualRoom()
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("eels-msa-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let folder = dir.appendingPathComponent("dual spectrum.msa", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("keep".utf8).write(to: folder.appendingPathComponent("inside.txt"))
+        var said = ""
+        EELSRoomState().export(.spectrumMSA, from: session, maps: [], directory: dir) { said = $0 }
+        XCTAssertEqual(said, "Export failed: The file could not be written. \u{201C}dual spectrum.msa\u{201D} is a folder.")
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory) && isDirectory.boolValue)
+        XCTAssertEqual(try String(contentsOf: folder.appendingPathComponent("inside.txt"), encoding: .utf8), "keep")
+    }
+
+    /// A journey's export keeps its file's name and the session's bytes, byte for byte, the spectrum as CSV and as MSA, and leaves nothing else in
+    /// the folder. Red under: a name or a byte changed on the way to the folder; a scratch file left beside the export.
+    @MainActor func testAJourneyExportKeepsItsNamesAndBytes() async throws {
+        let session = try await dualRoom()
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("eels-names-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let csv = Data(try XCTUnwrap(session.spectrumCSV).utf8)
+        let msa = try XCTUnwrap(try session.spectrumMSA())
+        let expected: [(EELSExportKind, String, Data)] = [(.spectrum, "dual spectrum.csv", csv), (.spectrumMSA, "dual spectrum.msa", msa)]
+        for (kind, name, bytes) in expected {
+            var said = ""
+            EELSRoomState().export(kind, from: session, maps: [], directory: dir) { said = $0 }
+            XCTAssertEqual(said, "Exported \(name)")
+            XCTAssertEqual(try Data(contentsOf: dir.appendingPathComponent(name)), bytes, name)
+        }
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["dual spectrum.csv", "dual spectrum.msa"])
+    }
+
     // MARK: Method JSON
 
     private func object(_ json: String) throws -> [String: Any] {
