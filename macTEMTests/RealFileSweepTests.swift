@@ -130,8 +130,25 @@ nonisolated final class RealFileSweepTests: XCTestCase {
         return text
     }
 
-    static func summary(_ rows: [Row]) -> String {
-        var lines = ["macEM real-file sweep: \(rows.count) files, \(rows.filter(\.passes).count) pass, \(rows.filter { !$0.passes }.count) fail",
+    /// The data folder as the summary names it: the home folder shortened to ~, so the summary can be quoted.
+    static func shown(_ root: URL) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
+        let path = root.standardizedFileURL.path
+        return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
+    }
+
+    /// Why an opted-in sweep cannot run on `root`, nil when it can. A sweep with no folder checked nothing, which must not
+    /// look like a pass (#533): a worktree has no data/ beside it, so MACEM_DATA has to name the folder.
+    static func folderProblem(_ root: URL) -> String? {
+        var isFolder: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: root.path, isDirectory: &isFolder), isFolder.boolValue else {
+            return "no data folder at \(shown(root)): set MACEM_DATA to the data folder (a worktree has no data/ beside it)"
+        }
+        return nil
+    }
+
+    static func summary(_ rows: [Row], root: URL) -> String {
+        var lines = ["macEM real-file sweep of \(shown(root)): \(rows.count) files, \(rows.filter(\.passes).count) pass, \(rows.filter { !$0.passes }.count) fail",
                      "File names are replaced by <file> and their folders by <folder>.", "", "Landed, per room:"]
         let landed = Dictionary(grouping: rows.filter { $0.result == "landed" }, by: \.room)
         for (room, group) in landed.sorted(by: { $0.key < $1.key }) {
@@ -155,7 +172,7 @@ nonisolated final class RealFileSweepTests: XCTestCase {
     @MainActor func testEveryRealFileLandsInARoomOrIsRefusedInPlainWords() async throws {
         try optIn()
         let root = URL(fileURLWithPath: RealDataFolder.path).standardizedFileURL
-        try XCTSkipUnless(FileManager.default.fileExists(atPath: root.path), "no data folder at \(root.path)")
+        if let problem = Self.folderProblem(root) { return XCTFail(problem) }
         let environment = ProcessInfo.processInfo.environment
         let folders = environment["MACTEM_SWEEP_FOLDERS"].flatMap { list -> [String]? in
             let names = list.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
@@ -177,7 +194,7 @@ nonisolated final class RealFileSweepTests: XCTestCase {
             print("SWEEP \(index + 1)/\(files.count) \(row.result) \(row.room) \(String(format: "%.1f", row.seconds)) s .\(row.kind)")
             if !row.passes { XCTFail("\(row.relative): \(row.result) in \(row.room)\(row.problem.map { ", \($0)" } ?? ""): \(row.message)") }
         }
-        let summary = Self.summary(rows)
+        let summary = Self.summary(rows, root: root)
         try summary.write(toFile: NSTemporaryDirectory() + "macem-real-files-summary.txt", atomically: true, encoding: .utf8)
         print(summary)
     }
@@ -195,5 +212,21 @@ nonisolated final class RealFileSweepTests: XCTestCase {
         XCTAssertEqual(Self.problem("  ", file: "x.h5"), "empty")
         XCTAssertEqual(Self.anonymised("scan_17.h5 in Sample A: no patterns (scan_17)", "Sample A/scan_17.h5"),
                        "<file> in <folder>: no patterns (<file>)")
+    }
+
+    /// #533: an opted-in sweep with no data folder fails and names where it looked; the summary's first line names the folder
+    /// and the count. Red before: the sweep skipped, and the summary named neither.
+    func testASweepWithNoDataFolderFailsAndTheSummaryNamesTheFolder() throws {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let missing = home.appendingPathComponent("GitHub/.worktrees/macTEM-533/../data-that-is-not-there")
+        XCTAssertEqual(Self.folderProblem(missing),
+                       "no data folder at ~/GitHub/.worktrees/data-that-is-not-there: set MACEM_DATA to the data folder (a worktree has no data/ beside it)")
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("sweep-533-\(UUID().uuidString)")
+        try Data().write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        XCTAssertNotNil(Self.folderProblem(file), "a file is not a data folder")
+        XCTAssertNil(Self.folderProblem(FileManager.default.temporaryDirectory))
+        let first = Self.summary([], root: home.appendingPathComponent("data")).split(separator: "\n").first.map(String.init)
+        XCTAssertEqual(first, "macEM real-file sweep of ~/data: 0 files, 0 pass, 0 fail")
     }
 }
