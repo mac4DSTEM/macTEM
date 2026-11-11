@@ -112,10 +112,8 @@ package nonisolated struct IndexingMasterPattern: Sendable, Identifiable {
     package var id: String { url.standardizedFileURL.path }
     package var fileName: String { url.lastPathComponent }
 
-    /// The energies, "20 kV" or "10 to 20 kV", in the reader's locale (`energyWords(locale:)`).
-    package var energyWords: String { self.energyWords(locale: .autoupdatingCurrent) }
-
-    /// `energyWords` with its numbers in `locale`: the session report passes its own (`en_US_POSIX`), "12.5 kV" on every Mac.
+    /// The energies, "20 kV" or "10 to 20 kV", with their numbers in `locale`: `summary` passes the reader's, the session report its
+    /// own (`en_US_POSIX`), "12.5 kV" on every Mac.
     package func energyWords(locale: Locale) -> String {
         guard let low = master.energies.min(), let high = master.energies.max() else { return "no energy" }
         let format = { (v: Double) in v.formatted(.number.locale(locale).precision(.significantDigits(1...4))) }

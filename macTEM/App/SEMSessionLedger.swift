@@ -221,7 +221,7 @@ enum SEMSessionLedger {
             fields += houghFields(run.inputs.settings, locale: locale)
         }
         let refined = run.refinement   // a refinement of the Dictionary run (D-SEM-109)
-        if let refined { fields.append(SEMSessionField("Refine", refined.settings.words(locale: locale))) }
+        if let refined { fields.append(refineField(refined.settings, locale: locale)) }
         fields.append(SEMSessionField("State", IndexingInfoFormat.state(of: run, session: session)))
         // A refinement's row: the Dictionary run's time, then the refinement's own.
         if let refined, let s = session.runs[.dictionary].flatMap({ $0.id == refined.base ? $0.seconds : nil }) {
@@ -259,6 +259,11 @@ enum SEMSessionLedger {
         }
         fields.append(SEMSessionField("Dictionary", IndexingInfoFormat.dictionaries(plans, locale: locale)))
         return fields
+    }
+
+    /// A refinement's row: its settings in Output's words (`IndexingRefineSettings.words`), the trust region in `locale`.
+    nonisolated static func refineField(_ s: IndexingRefineSettings, locale: Locale) -> SEMSessionField {
+        SEMSessionField("Refine", s.words(locale: locale))
     }
 
     /// The Hough settings in the inspector's words.

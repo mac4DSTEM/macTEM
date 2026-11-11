@@ -48,13 +48,18 @@ nonisolated final class IndexingFileWordsTests: XCTestCase {
     }
 
     /// The Refine words the report's row takes (the ledger passes its locale): the trust region with a point, the screen's with the
-    /// reader's mark.
+    /// reader's mark. Red under: the ledger's Refine row made with `words`, which drops the locale (the de_DE control reads a point).
     func testTheRefineWordsHaveAPointInTheReport() {
         let both = IndexingRefineSettings(target: .both, trustAngle: 2.5, trustPC: 0.05)
         XCTAssertEqual(both.words(locale: Self.report), "Both · ±2.5° · PC ±0.05 · Nelder–Mead")
         XCTAssertEqual(both.words(locale: Self.german), "Both · ±2,5° · PC ±0,05 · Nelder–Mead", "the control: de_DE writes a comma")
         XCTAssertEqual(both.words, both.words(locale: .autoupdatingCurrent), "Output and Info keep the reader's locale")
         XCTAssertEqual(IndexingRefineSettings().words(locale: Self.report), "Orientation · ±2° · Nelder–Mead")
+
+        let row = SEMSessionLedger.refineField(both, locale: Self.report)
+        XCTAssertEqual(row.name, "Refine")
+        XCTAssertEqual(row.value, "Both · ±2.5° · PC ±0.05 · Nelder–Mead")
+        XCTAssertEqual(SEMSessionLedger.refineField(both, locale: Self.german).value, "Both · ±2,5° · PC ±0,05 · Nelder–Mead", "the control")
     }
 
     /// The master pattern's energies and the energy a dictionary is projected for, in the locale asked for; the room's words stay in

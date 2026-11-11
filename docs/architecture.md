@@ -237,10 +237,11 @@ how a number and a time are written, and that depends on where they go (#302).
   (`macTEM/App/ExportSnapshot.swift`, the app's constant for `en_US_POSIX`; TEMCore and TEMSession cannot see it and
   name the locale themselves) to a helper that takes a `locale`, or it uses a format that has none: `String(format:)`
   without a locale argument writes a point whatever the process locale is, and so do `JSONEncoder`,
-  `JSONSerialization` and a Swift number's `description`. A helper made only for a file takes a `locale` with no
-  default (`EELSRoomFormat.fitQuality`). A room's words that a file quotes have a `locale` form beside the reader's
-  one: `IndexingRefineSettings.words(locale:)`, `IndexingMasterPattern.summary(locale:)` and the `energyWords(locale:)`
-  of the master pattern and of `DictionaryIndexingPlan`.
+  `JSONSerialization` and a Swift number's `description`. A helper made only for a file never defaults to the reader's
+  locale: `EELSRoomFormat.fitQuality` takes a `locale` with no default, and the Maps figure labels default to
+  `labelLocale`. A room's words that a file quotes have a `locale` form beside the reader's one:
+  `IndexingRefineSettings.words(locale:)`, `IndexingMasterPattern.summary(locale:)` (over its `energyWords(locale:)`)
+  and `DictionaryIndexingPlan.energyWords(locale:)`.
 
 Which of the two each writer uses:
 
@@ -258,7 +259,7 @@ Which of the two each writer uses:
 | Diffraction CSV | `DiffractionExport` (`Sources/TEMCore/Diffraction/DiffractionExport.swift`) | `%.9g`. |
 | Particles CSV | `ParticleFormat.csv` (`Sources/TEMCore/Particles/ParticleCompute.swift`) | `String(format:)`. |
 | EDX CSV and MSA | MacEMUI's `ShellEDXModel` | `String(format:)` in the CSVs; the `.msa` is FormatoKit's `MSAWriter` (`EDXExports.msa`). |
-| Session report, Markdown and PDF | `SEMSessionReport` (`Sources/TEMCore/SEM/Report/SEMSessionReport.swift`), from `ExportPanels.exportSessionReport` | Rows: `SEMSessionLedger.rows(of:locale:)` with `labelLocale`, which reaches the Refine words and the dictionary's master and energy words (`SEMSessionLedger.dictionaryFields`). Dates: `SEMSessionReport.Clock`, a `DateFormatter` in `en_US_POSIX` on the Gregorian calendar ("2026-11-07 16:42"). |
+| Session report, Markdown and PDF | `SEMSessionReport` (`Sources/TEMCore/SEM/Report/SEMSessionReport.swift`), from `ExportPanels.exportSessionReport` | Rows: `SEMSessionLedger.rows(of:locale:)` with `labelLocale`, which reaches the Refine words and the dictionary's master and energy words (`SEMSessionLedger.refineField` and `dictionaryFields`). Dates: `SEMSessionReport.Clock`, a `DateFormatter` in `en_US_POSIX` on the Gregorian calendar ("2026-11-07 16:42"). |
 | Session sidecar | `SessionSidecarFile` and `SessionLineage` (`Sources/TEMCore/Data/`) | `JSONEncoder`: integers, times as milliseconds. |
 
 A test holds each writer that passes a locale: the file's string is the `en_US_POSIX` one, and the same value in `de_DE`
