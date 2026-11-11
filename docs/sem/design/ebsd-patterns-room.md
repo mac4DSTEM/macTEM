@@ -178,8 +178,8 @@ BSE tile. The reference numbers are NS-1's.
    BSE value → screenshot.
 2. `testTheDemoDatasetOpensInPatternsAndThePaneFollowsThePick` (D-SEM-110): hovering the map leaves the pattern at
    (0, 0); a click picks the hovered position (the header reads its row and column), → steps the column by one and ⇧→
-   by ten right after the click; a drag ends the pattern where the drag ended. ⌘P adds to the Patterns tab; the tab
-   shows one pattern.
+   by ten right after the click; a drag ends the pattern where the drag ended. Later, not in the journey yet: ⌘P adds to
+   the Patterns tab; the tab shows one pattern.
 3. `testVirtualImageGrid`: pick `5 × 5`, click three cells on the pattern pane, the colour mix tile appears in the bottom
    pane and becomes the map on selection; screenshot (the NS-1 shot for the gate).
 4. `testTheCalibrationRowsAreTheFiles`: every Calibration row shows the demo file's values as text.

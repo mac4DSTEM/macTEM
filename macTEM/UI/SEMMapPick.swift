@@ -10,13 +10,15 @@
 //  THE POLICY (`SEMMapPointer`, pure, pinned by `SEMMapPointerTests`): who owns a plain press at a zoom, and the scan point under a pane
 //  point. `MarkGeometry` puts a pixel's centre at an integer, so rounding gives each pixel the area it covers, as mac4DSTEM's floor does
 //  with its centres at +0.5. A press beside the picture (zoomed out) picks nothing; a drag past the edge holds the edge's point.
-//  THE VIEWS: `SEMMapScrubLayer` (the whole map picks; mounted only at 1× and below, so zoomed in the drag falls through to the pan),
+//  THE VIEWS: `SEMMapScrubLayer` (the whole map picks, and in Maps ⌘-clicks; mounted only at 1× and below, so zoomed in the drag falls
+//  through to the pan),
 //  `SEMScanMarker` (mac4DSTEM's double-stroked circle at mac4DSTEM's sizes, drawn in pane points, so it keeps its size at any zoom; zoomed
 //  in, the grab handle; for VoiceOver the pick itself, adjustable and with four named moves), `SEMMapPress` (a press anywhere on a map
 //  gives the room the keyboard) and `SEMRoomFocus` (the keyboard half of the room's root, made explicit as `StackArrowKeys` is).
 //  mac4DSTEM holds its own copy of the policy and the marker; MacEMUI taking them, so both apps hold one, is a follow-up.
 //
 
+import AppKit   // `NSEvent.modifierFlags` only: the scrub's ⌘ check (`SEMMapScrubLayer.commandIsDown`)
 import ShellControls
 import ShellMetal
 import SwiftUI
@@ -66,10 +68,15 @@ nonisolated enum SEMMapPointer {
 /// The whole map picks: a press on the picture picks the point under it, and the drag that follows streams the pick (the pattern pane
 /// follows every point it crosses). Mounted only in the scrub mode, so zoomed in the plain drag falls through to the pane's pan. It takes
 /// the clicks ZoomPan's double-click would see, so it fits on a double-click itself, as ZoomPan does.
+///
+/// The Maps room's ⌘-click (`commandClick`, macTEM#239) is the layer's own, simultaneous with the pick, not a gesture over it: an
+/// ancestor's high-priority ⌘-tap would hold the pick back until the tap failed, and a ⌘-drag that failed it would pick and collapse
+/// the grain selection. While ⌘ is down the drag picks nothing, and a ⌘-click on the picture calls `commandClick` with its point.
 struct SEMMapScrubLayer: View {
     let geometry: MarkGeometry
     let zoomModel: PaneZoomModel
     let pick: (EBSDPosition) -> Void
+    var commandClick: ((EBSDPosition) -> Void)? = nil
     @Environment(\.semRoomKeys) private var roomKeys
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -79,13 +86,21 @@ struct SEMMapScrubLayer: View {
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named(SEMMapPointer.space)).onChanged { value in
                 roomKeys.take()
-                // A press beside the picture (zoomed out) picks nothing, nor does the drag it starts.
-                guard SEMMapPointer.isOnImage(value.startLocation, geometry: geometry) else { return }
+                // A press beside the picture (zoomed out) picks nothing, nor does the drag it starts; with ⌘ down it is a ⌘-click (below).
+                guard SEMMapPointer.isOnImage(value.startLocation, geometry: geometry), !(commandClick != nil && Self.commandIsDown) else { return }
                 pick(SEMMapPointer.position(at: value.location, geometry: geometry))
             })
             .simultaneousGesture(TapGesture(count: 2).onEnded { fit() })
+            .simultaneousGesture(SpatialTapGesture(coordinateSpace: .named(SEMMapPointer.space)).modifiers(.command).onEnded { value in
+                guard let commandClick, SEMMapPointer.isOnImage(value.location, geometry: geometry) else { return }
+                commandClick(SEMMapPointer.position(at: value.location, geometry: geometry))
+            }, including: commandClick == nil ? .none : .all)
             .accessibilityHidden(true)
     }
+
+    /// Whether ⌘ is down at this event. AppKit (`NSEvent.modifierFlags`): a drag's value carries no modifier keys, and
+    /// `onModifierKeysChanged` keeps a state that can miss a ⌘ released in another app, which would leave a plain click picking nothing.
+    private static var commandIsDown: Bool { NSEvent.modifierFlags.contains(.command) }
 
     /// Back to 1×, animated unless the reader asked for Reduce Motion, as ZoomPan's own double-click.
     private func fit() {
@@ -188,16 +203,21 @@ struct SEMMapPress: ViewModifier {
 /// The keyboard half of an SEM room's root (`PatternsKeyedRoom`, `IndexingKeyedRoom`, `MapsKeyedRoom` add the arrows): the one focusable
 /// container (the arrangement of `PaneKeys.swift`), the window's default focus while nothing else claims it, and given the keyboard
 /// explicitly by a press on the room's map (`SEMRoomKeys`) rather than left to SwiftUI's defaults, as `StackArrowKeys` does.
+///
+/// Bound to a value, not a Bool: a Bool bound with `focused(_:)` reads true while a focusable descendant has the keyboard (the Indexing
+/// room's Results or Bands table, the Maps room's Grains table or bottom-pane picker; Apple's `FocusState`, "Nest focusable views"), so
+/// a click on the map would leave the arrows with the table. `focused(_:equals:)` reads `.room` only while the root itself has it.
 struct SEMRoomFocus: ViewModifier {
-    @FocusState private var hasKeys: Bool
+    enum Target: Hashable { case room }
+    @FocusState private var focus: Target?
 
     func body(content: Content) -> some View {
         content
             .focusable()
             .focusEffectDisabled()   // DEVIATION as `FFTKeyedRoom`'s, named there
-            .focused($hasKeys)
+            .focused($focus, equals: .room)
             // The DEFAULT focus: the room has the keyboard when nothing else claims it, and never takes it from a field the person is in.
-            .defaultFocus($hasKeys, true)
-            .environment(\.semRoomKeys, SEMRoomKeys { if !hasKeys { hasKeys = true } })
+            .defaultFocus($focus, .room)
+            .environment(\.semRoomKeys, SEMRoomKeys { if focus != .room { focus = .room } })
     }
 }

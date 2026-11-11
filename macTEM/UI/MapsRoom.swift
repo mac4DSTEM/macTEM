@@ -124,10 +124,13 @@ struct MapsExportFile: FileDocument {
 // MARK: - The keys
 
 /// The arrows step the picked point (⇧ ten), on the room's one focusable container (`SEMRoomFocus`); the pattern pane follows when the
-/// map has patterns.
+/// map has patterns. On the Patterns room's scan the map and the pattern pane name one point: as the room shows, the map takes the point
+/// picked in Patterns or Indexing, and the pane follows every change of the map's pick, whatever made it (the map, the arrows, ⌘-click,
+/// a Grains-table row). A modifier of its own reads both picks, so the room's body does not run at a drag's rate.
 private struct MapsKeyedRoom: ViewModifier {
     let session: OrientationMapSession
     let patterns: EBSDSession?
+    @Environment(AppState.self) private var appState
 
     func body(content: Content) -> some View {
         content
@@ -138,6 +141,8 @@ private struct MapsKeyedRoom: ViewModifier {
                 patterns?.pin(session.pinned)
                 return .handled
             }
+            .onChange(of: patterns?.pinned, initial: true) { appState.mapsFollowPatternsPin() }
+            .onChange(of: session.pinned) { appState.followMapsPin() }
     }
 }
 
@@ -224,9 +229,9 @@ struct MapPane: View {
                         .allowsHitTesting(false)
                         .accessibilityIdentifier("maps.grain.outline")
                 }
-                // At 1× and below a click or a drag anywhere picks; zoomed in the drag is the pane's pan.
+                // At 1× and below a click or a drag anywhere picks, and ⌘-click is the scrub's own; zoomed in the drag is the pane's pan.
                 if mode == .scrub {
-                    SEMMapScrubLayer(geometry: geometry, zoomModel: zoomModel) { pick($0) }
+                    SEMMapScrubLayer(geometry: geometry, zoomModel: zoomModel) { pick($0) } commandClick: { toggle($0) }
                 }
                 SEMScanMarker(position: session.pinned, geometry: geometry, isHandle: mode == .panAndGrab, identifier: "maps.map.marker",
                               pick: { pick($0) }, step: { session.step($0); patterns?.pin(session.pinned) })
@@ -235,12 +240,12 @@ struct MapPane: View {
             .coordinateSpace(.named(SEMMapPointer.space))
             .clipped()
             .contentShape(Rectangle())
-            // ⌘-click adds the grain under the point to the selection, or takes it out (macTEM#239); a plain click or drag picks.
+            // ⌘-click adds the grain under the point to the selection, or takes it out (macTEM#239). Zoomed in only, where no scrub is
+            // mounted: at 1× and below it is the scrub's, so no gesture over the pick holds a plain click or drag back.
             .highPriorityGesture(SpatialTapGesture().modifiers(.command).onEnded { value in
-                let q = geometry.imagePoint(atPanePoint: value.location)
-                session.toggleGrain(at: EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded())))
-                patterns?.pin(session.pinned)
-            })
+                guard SEMMapPointer.isOnImage(value.location, geometry: geometry) else { return }
+                toggle(SEMMapPointer.position(at: value.location, geometry: geometry))
+            }, including: mode == .panAndGrab ? .all : .subviews)
             .border(Color.white.opacity(0.08))
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry) })
             .zoomPanWheel(zoomModel, box: box)
@@ -276,6 +281,12 @@ struct MapPane: View {
     /// A click, a drag or the handle picks `point`; the live pattern pane follows when the map has patterns.
     private func pick(_ point: EBSDPosition) {
         session.pin(point)
+        patterns?.pin(session.pinned)
+    }
+
+    /// ⌘-click: the grain at `point` joins the selection or leaves it, and the point is picked; the live pattern pane follows.
+    private func toggle(_ point: EBSDPosition) {
+        session.toggleGrain(at: point)
         patterns?.pin(session.pinned)
     }
 

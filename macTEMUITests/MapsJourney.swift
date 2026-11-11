@@ -16,9 +16,10 @@ nonisolated final class MapsJourney: Journey {
         return !e.label.isEmpty ? e.label : ((e.value as? String) ?? "")
     }
 
-    /// The row and column the orientation pane's header names ("Orientation · row 12 col 40"); nil when it names none.
+    /// The row and column the orientation pane's header ("Orientation · row 12 col 40") or the status line ("row 12 · col 40 · …") names;
+    /// nil when it names none.
     private static func position(in text: String) -> (row: Int, column: Int)? {
-        guard let range = text.range(of: #"row \d+ col \d+"#, options: .regularExpression) else { return nil }
+        guard let range = text.range(of: #"row \d+ (· )?col \d+"#, options: .regularExpression) else { return nil }
         let numbers = text[range].split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
         return numbers.count == 2 ? (numbers[0], numbers[1]) : nil
     }
@@ -49,7 +50,13 @@ nonisolated final class MapsJourney: Journey {
             let at = try XCTUnwrap(Self.position(in: picked), picked)
             let map = waitFor("maps.map")
             map.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.2)).hover()
-            waitStatus(containing: ["row", "col"], timeout: 20)
+            // The status line already named the clicked point: wait until it names the hovered one, so the hover has landed.
+            let bar = waitFor("status.bar", timeout: 20)
+            let read = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                guard let p = Self.position(in: "\(bar.label) \((bar.value as? String) ?? "")") else { return false }
+                return p.row != at.row || p.column != at.column
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [read], timeout: 20), .completed, "the status line never named the hovered point")
             XCTAssertEqual(label("maps.orientation.title"), picked, "hovering moved the orientation pane")
             try requireFrontmost()
             app.typeKey(.rightArrow, modifierFlags: [])

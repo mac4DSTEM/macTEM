@@ -55,7 +55,6 @@ nonisolated final class OrientationMapSessionTests: XCTestCase {
         }
         let seconds = Date().timeIntervalSince(start)
         XCTAssertEqual(words, 200)
-        XCTAssertEqual(session.pinned, .origin, "the pointer's words pick nothing")
         XCTAssertLessThan(seconds, 2, "200 readouts took \(seconds) s")
         // The status line's words are the ones `OrientationMaps.readout` makes from the map's own shape.
         let en = Locale(identifier: "en_US")

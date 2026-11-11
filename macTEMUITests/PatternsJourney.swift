@@ -46,7 +46,10 @@ nonisolated final class PatternsJourney: Journey {
         try step("hovering the map puts the position and its mean in the status line; the pattern stays where it is") {
             waitFor("patterns.map").coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4)).hover()
             let line = waitStatus(containing: ["row", "col", "mean"], timeout: 30)
-            XCTAssertTrue(patternTitle().hasPrefix("Pattern · row 0 · col 0"), "hovering moved the pattern: \(patternTitle()) · \(line)")
+            // A hover that picked would move the header only when its pattern read lands: give it two seconds to, which must pass idle.
+            let moved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in !self.patternTitle().hasPrefix("Pattern · row 0 · col 0") },
+                                                  object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [moved], timeout: 2), .timedOut, "hovering moved the pattern: \(patternTitle()) · \(line)")
         }
         try step("a click on the map picks the position under it; → then steps it by one, ⇧→ by ten") {
             let line = waitStatus(containing: ["row", "col", "mean"], timeout: 10)

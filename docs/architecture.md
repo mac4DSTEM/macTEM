@@ -147,8 +147,8 @@ ported from where, and `NOTICE` the licences.
 | `EDX/` (`SEMEDSLines`, `XrayLineDatabase`) | exspy's SEM-EDS line intensities and window quantification, on exspy's element database | SEM-EDS (exspy's window path) |
 
 **The owners and the rooms.** TEMSession holds one owner per SEM room, the room's only state, which its views read:
-`EBSDSession` (with `EBSDSession+Overlay`) is the Patterns room's: the open EBSD or TKD dataset, the pinned and hovered
-positions, the pattern on screen, the navigation map, the processing pipeline and the simulation overlay. `IndexingSession`
+`EBSDSession` (with `EBSDSession+Overlay`) is the Patterns room's: the open EBSD or TKD dataset, the picked
+position (`pinned`), the pattern on screen, the navigation map, the processing pipeline and the simulation overlay. `IndexingSession`
 (with `+Compare`, `+Overlay` and `IndexingRun`) is the Indexing room's, on the Patterns room's dataset: the phases, the method
 (Hough or Dictionary) and its settings, the master patterns, the last run of each method, Compare and the overlay.
 `OrientationMapSession` is the Maps room's: the map shown (an `.ang` or `.ctf` opened on its own, the dataset's crystal map,

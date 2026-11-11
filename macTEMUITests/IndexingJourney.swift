@@ -102,8 +102,10 @@ nonisolated final class IndexingJourney: Journey {
             waitWords("indexing.pattern.title", timeout: 30) { !$0.contains("row 0 · col 10") && Self.position(in: $0) != nil }
             let title = words("indexing.pattern.title")
             let picked = try XCTUnwrap(Self.position(in: title), title)
-            app.typeKey(.rightArrow, modifierFlags: [])
-            waitWords("indexing.pattern.title", timeout: 30) { $0.contains("row \(picked.row) · col \(picked.column + 1) ·") }
+            // ↓, not →: a table that kept the keyboard would move its selection to the next row in scan order (one column on), and
+            // ignores → (which reaches the room through the focus chain either way).
+            app.typeKey(.downArrow, modifierFlags: [])
+            waitWords("indexing.pattern.title", timeout: 30) { $0.contains("row \(picked.row + 1) · col \(picked.column) ·") }
         }
         try step("Method · Dictionary names the dictionary's size against the shipped master pattern") {
             showInspector(waitingFor: "indexing.method")

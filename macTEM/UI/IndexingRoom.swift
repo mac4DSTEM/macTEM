@@ -77,13 +77,12 @@ struct IndexingRoom: View {
                 }
                 .id(document.fileName)
                 .modifier(IndexingKeyedRoom(session: session))
-                // The map's backdrop is the Patterns room's mean map, which lands after the open; the pattern follows the shared marker
-                // and the Patterns room's processing.
+                // The map's backdrop is the Patterns room's mean map, which lands after the open; the pattern follows the Patterns
+                // room's processing (and the shared marker, in `IndexingKeyedRoom`).
                 .onChange(of: session.patterns.meanIntensities == nil, initial: true) {
                     session.refreshMap()
                     session.refreshComparison()
                 }
-                .onChange(of: session.patterns.pinned) { session.showPattern() }
                 .onChange(of: session.patterns.pipeline) { session.showPattern() }
                 .onChange(of: session.patterns.processedWith) { session.showPattern() }
                 .onAppear { session.showPattern() }
@@ -134,6 +133,8 @@ struct IndexingExportFile: FileDocument {
 // MARK: - The keys
 
 /// The arrows step the picked position (⇧ ten): the Patterns room's keys (`PatternsKeys`), on the room's one focusable container (`SEMRoomFocus`).
+/// The pattern pane follows the pick however it moved (`IndexingSession.pin` and `step` show it already; `showPattern` asks again only for
+/// a point it does not show): here, not on the room's root, so a drag's stream of picks does not run the room's body.
 private struct IndexingKeyedRoom: ViewModifier {
     let session: IndexingSession
 
@@ -145,6 +146,7 @@ private struct IndexingKeyedRoom: ViewModifier {
                 session.step(step.direction, by: step.count)
                 return .handled
             }
+            .onChange(of: session.patterns.pinned) { session.showPattern() }
     }
 }
 
@@ -636,11 +638,7 @@ struct IndexingResultsTable: View {
                   row.position != session.patterns.pinned else { return }
             session.pin(row.position)
         }
-        .onChange(of: session.patterns.pinned) {
-            // A point picked elsewhere (the map, the arrows) selects its row alone; one already in the selection leaves it.
-            let id = session.patterns.pinned.row * dataset.scanColumns + session.patterns.pinned.column
-            if !selection.contains(id), rows.contains(where: { $0.id == id }) { selection = [id] }
-        }
+        .modifier(SelectsThePickedRow(patterns: session.patterns, columns: dataset.scanColumns, rows: rows, selection: $selection))
     }
 
     /// A Hough result's columns (CI, fit, matched bands, pattern quality) or a dictionary result's (the score, the simulation index, the
@@ -687,6 +685,27 @@ struct IndexingResultsTable: View {
         guard !picked.isEmpty else { return [] }
         let text = IndexingTableFormat.copyText(picked, method: result.method, scoreTitle: result.scoreTitle)
         return [NSItemProvider(object: text as NSString)]
+    }
+}
+
+/// A point picked elsewhere (the map, a compared map, the arrows) selects its Results row alone, once the pick rests; one already in the
+/// selection leaves it. A drag streams picks, and each would walk the rows and redraw the table: this modifier alone reads the pick, so
+/// the table's body does not run at the drag's rate, and the walk waits until the pick has rested for `rest`.
+private struct SelectsThePickedRow: ViewModifier {
+    let patterns: EBSDSession
+    let columns: Int
+    let rows: [IndexingResult.Row]
+    @Binding var selection: Set<IndexingResult.Row.ID>
+
+    static let rest = Duration.milliseconds(120)
+
+    func body(content: Content) -> some View {
+        content.task(id: patterns.pinned) {
+            guard (try? await Task.sleep(for: Self.rest)) != nil else { return }   // cancelled: the pick moved on
+            let pinned = patterns.pinned
+            let id = pinned.row * columns + pinned.column
+            if !selection.contains(id), rows.contains(where: { $0.id == id }) { selection = [id] }
+        }
     }
 }
 
