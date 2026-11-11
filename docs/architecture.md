@@ -237,7 +237,11 @@ how a number and a time are written, and that depends on where they go (#302).
   (`macTEM/App/ExportSnapshot.swift`, the app's constant for `en_US_POSIX`; TEMCore and TEMSession cannot see it and
   name the locale themselves) to a helper that takes a `locale`, or it uses a format that has none: `String(format:)`
   without a locale argument writes a point whatever the process locale is, and so do `JSONEncoder`,
-  `JSONSerialization` and a Swift number's `description`.
+  `JSONSerialization` and a Swift number's `description`. A helper made only for a file never defaults to the reader's
+  locale: `EELSRoomFormat.fitQuality` takes a `locale` with no default, and the Maps figure labels default to
+  `labelLocale`. A room's words that a file quotes have a `locale` form beside the reader's one:
+  `IndexingRefineSettings.words(locale:)`, `IndexingMasterPattern.summary(locale:)` (over its `energyWords(locale:)`)
+  and `DictionaryIndexingPlan.energyWords(locale:)`.
 
 Which of the two each writer uses:
 
@@ -250,25 +254,22 @@ Which of the two each writer uses:
 | Grains and histogram CSV | `MapsRoomFormat.grainsCSV` and `histogramCSV` (`macTEM/App/MapsRoomState.swift`) | `String(format:)`, `%.6g`. |
 | Indexing results CSV, `.ang`, `.ctf` | `IndexingResult.csv` (`Sources/TEMCore/SEM/Indexing/IndexingResult.swift`), `ANGWriter` and `CTFWriter` (`Sources/TEMCore/SEM/Export/`) | `String(format:)`. |
 | Kikuchi overlay CSV | `KikuchiOverlay.csv` (`Sources/TEMCore/SEM/Simulation/KikuchiOverlay.swift`) | A number's `description`. |
-| Method and metadata JSON | `methodJSON` of `IndexingPlan`, `DictionaryIndexingPlan`, `PatternPipeline` and `EELSCompute`; `EBSDBrowsing.metadataJSON` | `JSONEncoder` or `JSONSerialization`. |
+| Method and metadata JSON | `methodJSON` of `IndexingPlan`, `DictionaryIndexingPlan`, `PatternPipeline` and `EELSCompute`; `EBSDBrowsing.metadataJSON` | `JSONEncoder` or `JSONSerialization`. The dictionary record's `energy` words: `DictionaryIndexingPlan.energyWords(locale:)` in `en_US_POSIX`; `energyKeV` beside them is the number. |
 | EELS CSV and MSA | `EELSExports` (`Sources/TEMCore/EELS/EELSExports.swift`) | `%.9g`; the `.msa` is FormatoKit's `MSAWriter`. The results CSV's thickness, fit quality and deconvolution lines are made in `en_US_POSIX` (`EELSSession.resultsCSV`, `EELSDeconvolveCompute.recordLine`). |
 | Diffraction CSV | `DiffractionExport` (`Sources/TEMCore/Diffraction/DiffractionExport.swift`) | `%.9g`. |
 | Particles CSV | `ParticleFormat.csv` (`Sources/TEMCore/Particles/ParticleCompute.swift`) | `String(format:)`. |
 | EDX CSV and MSA | MacEMUI's `ShellEDXModel` | `String(format:)` in the CSVs; the `.msa` is FormatoKit's `MSAWriter` (`EDXExports.msa`). |
-| Session report, Markdown and PDF | `SEMSessionReport` (`Sources/TEMCore/SEM/Report/SEMSessionReport.swift`), from `ExportPanels.exportSessionReport` | Rows: `SEMSessionLedger.rows(of:locale:)` with `labelLocale`. Dates: `SEMSessionReport.Clock`, a `DateFormatter` in `en_US_POSIX` on the Gregorian calendar ("2026-11-07 16:42"). |
+| Session report, Markdown and PDF | `SEMSessionReport` (`Sources/TEMCore/SEM/Report/SEMSessionReport.swift`), from `ExportPanels.exportSessionReport` | Rows: `SEMSessionLedger.rows(of:locale:)` with `labelLocale`, which reaches the Refine words and the dictionary's master and energy words (`SEMSessionLedger.refineField` and `dictionaryFields`). Dates: `SEMSessionReport.Clock`, a `DateFormatter` in `en_US_POSIX` on the Gregorian calendar ("2026-11-07 16:42"). |
 | Session sidecar | `SessionSidecarFile` and `SessionLineage` (`Sources/TEMCore/Data/`) | `JSONEncoder`: integers, times as milliseconds. |
 
 A test holds each writer that passes a locale: the file's string is the `en_US_POSIX` one, and the same value in `de_DE`
 reads differently, so the literal separates the two on any Mac (`ExportSnapshotTests`, `MapsFigureLabelTests`,
-`SEMSessionLedgerTests`, `EELSFitTextTests`, `ResultsWiringTests`; `FFTExportSnapshotTests` with `NumberFormatTests` for
-the spots CSV's note). `ProfileCSVTests` holds `String(format:)` under a German C locale. A new writer comes with
-its own.
+`SEMSessionLedgerTests`, `EELSFitTextTests`, `ResultsWiringTests`, `IndexingFileWordsTests`; `FFTExportSnapshotTests`
+with `NumberFormatTests` for the spots CSV's note). `ProfileCSVTests` holds `String(format:)` under a German C locale. A
+new writer comes with its own.
 
 The session report quotes two things as the room wrote them at the time, in the reader's locale: the Output lines, and
-the settings a room recorded with an exported file. Not yet in `en_US_POSIX` (#302): the report's SEM-EDS rows, until
-the EDS room's rework (#267), and the dictionary's energy words (`DictionaryIndexingPlan.energyWords`), which reach
-the report's Energy and master rows and the `energy` string of the dictionary method JSON; `energyKeV` beside it is
-the number.
+the settings a room recorded with an exported file.
 
 ## Requirements, build, test
 

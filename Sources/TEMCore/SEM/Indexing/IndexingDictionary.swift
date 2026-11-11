@@ -102,20 +102,30 @@ package nonisolated struct IndexingMasterPattern: Sendable, Identifiable {
     package let url: URL
     package let master: EBSDMasterPattern
 
+    /// `master` as read from `url` (`load` reads it).
+    package init(url: URL, master: EBSDMasterPattern) {
+        self.url = url
+        self.master = master
+    }
+
     /// The file's path: opening the same file again picks the one already open.
     package var id: String { url.standardizedFileURL.path }
     package var fileName: String { url.lastPathComponent }
 
-    /// The energies, "20 kV" or "10 to 20 kV".
-    package var energyWords: String {
+    /// The energies, "20 kV" or "10 to 20 kV", with their numbers in `locale`: `summary` passes the reader's, the session report its
+    /// own (`en_US_POSIX`), "12.5 kV" on every Mac.
+    package func energyWords(locale: Locale) -> String {
         guard let low = master.energies.min(), let high = master.energies.max() else { return "no energy" }
-        let format = { (v: Double) in v.formatted(.number.precision(.significantDigits(1...4))) }
+        let format = { (v: Double) in v.formatted(.number.locale(locale).precision(.significantDigits(1...4))) }
         return low == high ? "\(format(low)) kV" : "\(format(low)) to \(format(high)) kV"
     }
 
-    /// The value row: "ni · 20 kV · Lambert · 401 × 401".
-    package var summary: String {
-        "\(master.phase.name) · \(energyWords) · Lambert · \(master.side) × \(master.side)"
+    /// The value row: "ni · 20 kV · Lambert · 401 × 401", in the reader's locale (`summary(locale:)`).
+    package var summary: String { self.summary(locale: .autoupdatingCurrent) }
+
+    /// `summary` with its energies in `locale` (the session report's Master row).
+    package func summary(locale: Locale) -> String {
+        "\(master.phase.name) · \(self.energyWords(locale: locale)) · Lambert · \(master.side) × \(master.side)"
     }
 
     /// The master pattern a phase takes until one is picked for it (D-SEM-98): the latest opened whose phase has the phase's space
@@ -155,9 +165,12 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
     package let rotations: [SIMD4<Double>]
     /// The detector the dictionary is projected on: the indexed pattern's shape, the file's tilts, its mean projection centre.
     package let detector: EBSDDetectorGeometry
-    /// The master pattern's energy the projection takes (nil: its highest, kikuchipy's default), and the words that say which.
+    /// The master pattern's energy the projection takes (nil: its highest, kikuchipy's default), and the words that say which, in
+    /// the reader's locale (`energyWords(locale:)` writes them in another).
     package let energy: Double?
     package let energyWords: String
+    /// The scan's beam energy the plan was built for, which the words name.
+    private let beamEnergy: Double?
     /// kikuchipy's arguments, with the backend the whole run takes (`DictionaryIndexing`'s automatic choice from the whole scan's work).
     package let options: DictionaryIndexing.Options
     /// Scan rows per block (the last may hold fewer).
@@ -201,9 +214,11 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
 
     /// The energy the dictionary is projected for: the master pattern's one energy; with several, the scan's beam energy (refused
     /// outside the master pattern's), or the highest when the scan states none (kikuchipy's default). A beam energy of 0 or less is
-    /// none: kikuchipy's h5ebsd writer stores 0 when the signal has no beam energy.
-    package static func energy(master: EBSDMasterPattern, beamEnergy: Double?) -> Result<(value: Double?, words: String), IndexingRefusal> {
-        let format = { (v: Double) in v.formatted(.number.precision(.significantDigits(1...4))) }
+    /// none: kikuchipy's h5ebsd writer stores 0 when the signal has no beam energy. The words and the refusal have their numbers in
+    /// `locale`: the reader's for the room, `en_US_POSIX` for the method JSON (`energyWords(locale:)`).
+    package static func energy(master: EBSDMasterPattern, beamEnergy: Double?,
+                               locale: Locale = .autoupdatingCurrent) -> Result<(value: Double?, words: String), IndexingRefusal> {
+        let format = { (v: Double) in v.formatted(.number.locale(locale).precision(.significantDigits(1...4))) }
         guard let low = master.energies.min(), let high = master.energies.max() else {
             return .failure(IndexingRefusal("The master pattern holds no energy."))
         }
@@ -217,6 +232,13 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         }
         let nearest = master.energies.min { abs($0 - beam) < abs($1 - beam) } ?? high
         return .success((min(max(beam, low), high), "\(format(nearest)) kV, the scan's beam energy"))
+    }
+
+    /// `energyWords` with its numbers in `locale`: the method JSON writes `en_US_POSIX`, the session report its own locale, so a German
+    /// Mac writes "12.5 kV" in a file and "12,5 kV" on screen.
+    package func energyWords(locale: Locale) -> String {
+        guard case .success(let energy) = Self.energy(master: master.master, beamEnergy: beamEnergy, locale: locale) else { return energyWords }
+        return energy.words
     }
 
     /// The detector a dictionary of patterns of `rows` × `columns` px is projected on: the file's (its shape is the stored pattern's) with
@@ -282,6 +304,7 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         self.detector = detector
         self.energy = energy.value
         energyWords = energy.words
+        self.beamEnergy = beamEnergy
         let mask = try settings.signalMask(rows: source.patternRows, columns: source.patternColumns)
         let kept = mask.map { $0.filter { !$0 }.count } ?? source.patternRows * source.patternColumns
         options = DictionaryIndexing.Options(metric: settings.metric, keepN: settings.keep, signalMask: mask,
@@ -380,6 +403,9 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
 
     // MARK: - The method record
 
+    /// The locale of the words a method record writes (the energy's): a decimal point on every Mac.
+    private static let fileLocale = Locale(identifier: "en_US_POSIX")
+
     private struct Record: Encodable {
         struct Master: Encodable {
             var file: String
@@ -429,7 +455,8 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
             file: fileName, patterns: source.kind.title, processing: source.pipeline, phase: phase,
             masterPattern: Record.Master(file: master.fileName, phase: m.phase.name, spaceGroup: m.phase.spaceGroup, energies: m.energies,
                                          side: m.side, projection: m.projection.rawValue, hemisphere: m.hemisphere.rawValue),
-            energy: energyWords, energyKeV: energy, samplingResolutionDegrees: settings.resolution, samplingMethod: "cubochoric", dictionarySize: rotations.count,
+            energy: energyWords(locale: Self.fileLocale), energyKeV: energy, samplingResolutionDegrees: settings.resolution,
+            samplingMethod: "cubochoric", dictionarySize: rotations.count,
             metric: settings.metric.rawValue, keepN: min(settings.keep, rotations.count), signalMask: settings.signalMask.rawValue,
             detectorShape: [detector.rows, detector.columns], projectionCenterBruker: [pc.x, pc.y, pc.z], sampleTilt: detector.sampleTilt,
             cameraElevation: detector.tilt, azimuthal: detector.azimuthal, twist: detector.twist, points: points, indexed: indexed)
@@ -487,7 +514,7 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
                 phase: plan.phase,
                 masterPattern: Record.Master(file: plan.master.fileName, phase: m.phase.name, spaceGroup: m.phase.spaceGroup, energies: m.energies,
                                              side: m.side, projection: m.projection.rawValue, hemisphere: m.hemisphere.rawValue),
-                energy: plan.energyWords, energyKeV: plan.energy, dictionarySize: plan.rotations.count,
+                energy: plan.energyWords(locale: Self.fileLocale), energyKeV: plan.energy, dictionarySize: plan.rotations.count,
                 indexed: indexedByPhase.indices.contains(i) ? indexedByPhase[i] : 0)
         }
         let keep = plans.map { min(first.settings.keep, $0.rotations.count) }.min() ?? first.settings.keep

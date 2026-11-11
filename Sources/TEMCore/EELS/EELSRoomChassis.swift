@@ -528,9 +528,9 @@ extension EELSRoomFormat {
         return fixed(value, places, locale: locale) + " ± " + fixed(sigma, places, locale: locale)
     }
 
-    /// The fit quality value row and the footer's part: "RSS 1.234e5 · χ²ᵣ 1.04 (Pearson, 312 dof)"; the kit's RSS, and Pearson's χ² over the degrees
-    /// of freedom (or why there is none).
-    package static func fitQuality(_ q: EELSFitQuality, locale: Locale = .autoupdatingCurrent) -> String {
+    /// The results CSV's fit quality: "RSS 1.234e5 · χ²ᵣ 1.04 (Pearson, 312 dof)"; the kit's RSS, and Pearson's χ² over the degrees of freedom (or
+    /// why there is none). A file's words, so `locale` has no default: the writer names `en_US_POSIX` (the screen's words are `fitQualityText`).
+    package static func fitQuality(_ q: EELSFitQuality, locale: Locale) -> String {
         let rss = "RSS " + scientific(q.rss, 4, locale: locale)
         guard let chi = q.reducedChiSquared else { return rss + " · " + (q.chiSquaredUnavailable ?? EELSFitQuality.noFreedom) }
         return rss + " · \u{03C7}\u{00B2}\u{1D63} " + sig(chi, 3, locale: locale) + " (Pearson, \(q.degreesOfFreedom) dof)"
