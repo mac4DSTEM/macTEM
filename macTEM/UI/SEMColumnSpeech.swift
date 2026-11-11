@@ -2,9 +2,9 @@
 //  SEMColumnSpeech.swift
 //  Role: the words VoiceOver says for a symbol the SEM rooms draw in a column header or a line of values (#320): "φ₁ °" was read sign
 //        by sign, "ECD µm" and "GOS °" letter by letter. One table of symbols and one rule for the unit after them, as `EELSColumnSpeech`
-//        is for the EELS room. The Maps room's Grains table and its orientation pane's Euler line say them; the Indexing room's Results
-//        and Bands tables can take their headers from here too. What is drawn stays as it was. Pure, but for `header`, which makes the
-//        drawn header with its words.
+//        is for the EELS room. The Maps room's Grains table and its orientation pane's Euler line say them, and so do the Indexing room's
+//        Results and Bands tables' headers. What is drawn stays as it was. Pure, but for `header`, which makes the drawn header with its
+//        words.
 //
 
 import SwiftUI

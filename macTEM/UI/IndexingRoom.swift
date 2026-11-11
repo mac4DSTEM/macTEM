@@ -17,8 +17,8 @@
 //  PICK AND KEYS: as the Patterns room (`SEMMapPick.swift`, D-SEM-110): a click or a drag on the map, or on a compared map, picks the
 //  point under it and the pattern pane follows (zoomed in, the marker's handle); the pointer over a map only writes the status line;
 //  ← → ↑ ↓ step the pick by one (⇧ by ten, `PatternsKeys`), and a press on a map takes the keyboard back from the Results table. The
-//  picked position is the Patterns room's: the two rooms share one marker. In the Results table, ⌘A selects every row and ⌘C copies the
-//  selected ones (Copy is off with none selected).
+//  picked position is the Patterns room's: the two rooms share one marker. In the Results and Bands tables, ⌘A selects every row and ⌘C
+//  copies the selected ones (Copy is off with none selected); the tables' symbol headers are said in words (`SEMColumnSpeech`).
 //
 
 import CoreGraphics
@@ -651,29 +651,41 @@ struct IndexingResultsTable: View {
         if let result = session.result, result.method == .dictionary {
             Table(rows, selection: $selection, sortOrder: $sortOrder) {
                 TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
-                TableColumn("Col", value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("Col"), value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
                 TableColumn("Phase", value: \.phase)
-                TableColumn("φ₁ °", value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
-                TableColumn("Φ °", value: \.capitalPhiKey) { Text(IndexingTableFormat.angle($0.capitalPhi)).monospacedDigit() }
-                TableColumn("φ₂ °", value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
-                TableColumn(result.scoreTitle, value: \.confidence) { Text(IndexingTableFormat.fraction($0.confidence)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("φ₁ °"), value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("Φ °"), value: \.capitalPhiKey) {
+                    Text(IndexingTableFormat.angle($0.capitalPhi)).monospacedDigit()
+                }
+                TableColumn(SEMColumnSpeech.header("φ₂ °"), value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header(result.scoreTitle), value: \.confidence) {
+                    Text(IndexingTableFormat.fraction($0.confidence)).monospacedDigit()
+                }
                 TableColumn("Simulation", value: \.simulationIndex) {
                     Text(IndexingTableFormat.simulation($0.simulationIndex)).monospacedDigit()
                 }
-                TableColumn("OSM", value: \.similarityKey) { Text(IndexingTableFormat.angle($0.similarity, digits: 2)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("OSM"), value: \.similarityKey) {
+                    Text(IndexingTableFormat.angle($0.similarity, digits: 2)).monospacedDigit()
+                }
             }
         } else {
             Table(rows, selection: $selection, sortOrder: $sortOrder) {
                 TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
-                TableColumn("Col", value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("Col"), value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
                 TableColumn("Phase", value: \.phase)
-                TableColumn("φ₁ °", value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
-                TableColumn("Φ °", value: \.capitalPhiKey) { Text(IndexingTableFormat.angle($0.capitalPhi)).monospacedDigit() }
-                TableColumn("φ₂ °", value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
-                TableColumn("CI", value: \.confidence) { Text(IndexingTableFormat.fraction($0.confidence)).monospacedDigit() }
-                TableColumn("Fit °", value: \.fitKey) { Text(IndexingTableFormat.angle($0.fit, digits: 2)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("φ₁ °"), value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("Φ °"), value: \.capitalPhiKey) {
+                    Text(IndexingTableFormat.angle($0.capitalPhi)).monospacedDigit()
+                }
+                TableColumn(SEMColumnSpeech.header("φ₂ °"), value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("CI"), value: \.confidence) { Text(IndexingTableFormat.fraction($0.confidence)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("Fit °"), value: \.fitKey) {
+                    Text(IndexingTableFormat.angle($0.fit, digits: 2)).monospacedDigit()
+                }
                 TableColumn("Bands", value: \.bands) { Text(verbatim: "\($0.bands)").monospacedDigit() }
-                TableColumn("PQ", value: \.patternQualityKey) { Text(IndexingTableFormat.number($0.patternQuality)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("PQ"), value: \.patternQualityKey) {
+                    Text(IndexingTableFormat.number($0.patternQuality)).monospacedDigit()
+                }
             }
         }
     }
@@ -798,9 +810,12 @@ struct IndexingBestMatchPane: View {
 }
 
 /// The detected bands of the pattern on screen (design §3, the Log tab: pyEBSDindex's band list), strongest first, with the family the
-/// solution matched each to and its fit.
+/// solution matched each to and its fit. ⌘C copies the selected bands (⌘A: all) as TSV in the table's order (`IndexingTableFormat`,
+/// #353); another pattern clears the selection, so a rank picked on one pattern is not copied from the next. The symbol headers are said
+/// in words (`SEMColumnSpeech`, #320).
 struct IndexingBandsTable: View {
     let session: IndexingSession
+    @State private var selection: Set<IndexedBand.ID> = []
 
     private var header: String {
         guard let position = session.patternPosition else { return "Bands" }
@@ -815,17 +830,26 @@ struct IndexingBandsTable: View {
                 .font(.headline).lineLimit(1)
                 .frame(height: LayoutPolicy.paneHeaderHeight)
                 .accessibilityIdentifier("indexing.bands.title")
-            Table(session.detectedBands) {
-                TableColumn("#") { Text(verbatim: "\($0.id)").monospacedDigit() }
-                TableColumn("ρ px") { Text(IndexingTableFormat.angle($0.rho, digits: 2)).monospacedDigit() }
-                TableColumn("θ °") { Text(IndexingTableFormat.angle($0.thetaDegrees, digits: 2)).monospacedDigit() }
+            Table(session.detectedBands, selection: $selection) {
+                TableColumn(SEMColumnSpeech.header("#")) { Text(verbatim: "\($0.id)").monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("ρ px")) { Text(IndexingTableFormat.angle($0.rho, digits: 2)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("θ °")) { Text(IndexingTableFormat.angle($0.thetaDegrees, digits: 2)).monospacedDigit() }
                 TableColumn("Peak") { Text(IndexingTableFormat.number($0.peak)).monospacedDigit() }
                 TableColumn("Width") { Text(IndexingTableFormat.number($0.width)).monospacedDigit() }
                 TableColumn("Family") { Text(IndexingTableFormat.bandFamily($0.family, isValid: $0.isValid)) }
-                TableColumn("Fit °") { Text(IndexingTableFormat.bandFit($0.fitDegrees)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("Fit °")) { Text(IndexingTableFormat.bandFit($0.fitDegrees)).monospacedDigit() }
             }
+            .onCopyCommand(perform: selection.isEmpty ? nil : { copiedBands() })
             .accessibilityIdentifier("indexing.bands")
         }
         .padding(8)
+        .onChange(of: session.patternPosition) { selection = [] }
+    }
+
+    /// ⌘C: the selected bands as TSV, in the table's order (strongest first), under the column titles.
+    private func copiedBands() -> [NSItemProvider] {
+        let picked = session.detectedBands.filter { selection.contains($0.id) }
+        guard !picked.isEmpty else { return [] }
+        return [NSItemProvider(object: IndexingTableFormat.bandsCopyText(picked) as NSString)]
     }
 }

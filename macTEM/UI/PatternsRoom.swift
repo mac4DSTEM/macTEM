@@ -287,7 +287,8 @@ struct ScanMapPane: View {
 // MARK: - The live pattern pane
 
 /// The pattern at the picked position, drawn with its own contrast; hovering it puts the detector pixel and its stored value in the status
-/// line, and VoiceOver reads the same words as the pane's value (`ReadoutAccessibilityValue`, #345).
+/// line, and VoiceOver reads the same words as the pane's value (`ReadoutAccessibilityValue`, #345). Another pattern under a resting
+/// pointer reads the same pixel again, and the pane going takes its readout with it.
 struct LivePatternPane: View {
     let session: EBSDSession
     let state: PatternsRoomState
@@ -305,6 +306,7 @@ struct LivePatternPane: View {
         }
         .padding(8)
         .clipped()
+        .modifier(RereadsThePatternPixel(presentation: session.patternPresentation, state: state))
     }
 
     private var title: String {
@@ -395,20 +397,38 @@ struct LivePatternPane: View {
         .accessibilityHint(ZoomPan.accessibilityHint)
     }
 
-    /// The detector pixel under the pointer and its stored value (the raw range maps the normalised copy back to counts), marked as the
-    /// pattern pane's readout so the pane speaks it.
+    /// The detector pixel under the pointer and its stored value (`PatternsRoomState.patternWords`), marked as the pattern pane's readout
+    /// so the pane speaks it.
     private func hovered(_ phase: HoverPhase, geometry: MarkGeometry, canvas: CanvasPixels?) {
         switch phase {
         case .active(let p):
-            guard let canvas, let range = canvas.rawRange else { state.setPatternReadout(nil); return }
             let q = geometry.imagePoint(atPanePoint: p)
-            let x = Int(q.x.rounded()), y = Int(q.y.rounded())
-            guard x >= 0, x < canvas.width, y >= 0, y < canvas.height else { state.setPatternReadout(nil); return }
-            let value = range.lowerBound + canvas.normalized[y * canvas.width + x] * (range.upperBound - range.lowerBound)
-            state.setPatternReadout(EBSDBrowsing.patternReadout(x: x, y: y, value: value))
+            state.hoverPattern(SIMD2(Int(q.x.rounded()), Int(q.y.rounded())), on: canvas)
         case .ended:
-            state.setPatternReadout(nil)
+            state.hoverPattern(nil, on: canvas)
         }
+    }
+}
+
+/// The pattern pane's readout follows the pattern it names (#345): another pattern under a resting pointer (an arrow step, Raw or
+/// Processed, new processing) reads the pixel the pointer rests on again, and the pane going takes its readout with it, as the Image pane's
+/// goes with its frame. A modifier, so the pane's body does not follow the canvas.
+private struct RereadsThePatternPixel: ViewModifier {
+    let presentation: ImagePresentation
+    let state: PatternsRoomState
+
+    /// What the readout is read from: the pattern's pixels and the raw range they map back to.
+    private struct Shown: Equatable {
+        var version: Int?
+        var range: ClosedRange<Float>?
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: Shown(version: presentation.canvas?.contentVersion, range: presentation.canvas?.rawRange)) {
+                state.rereadPattern(on: presentation.canvas)
+            }
+            .onDisappear { state.patternPaneLeft() }
     }
 }
 

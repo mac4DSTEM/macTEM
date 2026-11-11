@@ -1,9 +1,10 @@
 //
 //  TSV.swift
 //  Role: one line of the text ⌘C writes for a table's rows: the cells joined by tabs, a tab or a line break inside a cell made a
-//        space first, so a pasted row keeps its columns whatever a file's or a phase's name holds. The app's three table copies
-//        write their lines through it: the Results room's image table (`ResultsFormat.copyLine`), its SEM session table
-//        (`ResultsSessionFormat.copyText`) and the Indexing room's Results table (`IndexingTableFormat.copyText`). Pure.
+//        space first, so a pasted row keeps its columns whatever a file's or a phase's name holds. These table copies write
+//        their lines through it: the Results room's image table (`ResultsFormat.copyLine`), its SEM session table
+//        (`ResultsSessionFormat.copyText`) and the Indexing room's Results and Bands tables (`IndexingTableFormat.copyText`,
+//        `bandsCopyText`). Pure.
 //
 
 import Foundation
