@@ -23,10 +23,13 @@ import TEMSession
 enum MacTEMAgentDoor {
     /// The app's one door. Opened by the Settings switch, and at launch when it was left on.
     static let shared: AgentDoor = {
-        let door = AgentDoor(appName: "macTEM", appVersion: version())
+        let door = AgentDoor(appName: "macTEM", appVersion: version(), preferredPort: port)
         door.register(MacTEMAgentDoor.tools)
         return door
     }()
+
+    /// macTEM's own port on 127.0.0.1 (mac4DSTEM's is 47811), so the copied connection command stays good; another when taken.
+    static let port: UInt16 = 47812
 
     /// The preference behind Settings > Agents: off until the person turns it on.
     static let enabledKey = "prefs.agentDoorEnabled"
