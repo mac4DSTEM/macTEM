@@ -61,12 +61,22 @@ extension IndexingSession {
         return nil
     }
 
-    /// Index refines alone (design §3): the Dictionary run is current and complete, and its refinement is missing, stale, stopped
-    /// or incomplete.
+    /// Index refines alone (design §3): the Dictionary run is current and complete, the patterns it read can be read
+    /// (`refinePlan(of:)`), and its refinement is missing, stale, stopped or incomplete.
     var refinesAlone: Bool {
-        guard let base = runs[.dictionary], !isStale(of: .dictionary), base.result.isComplete, !base.wasStopped else { return false }
+        guard let base = runs[.dictionary], !isStale(of: .dictionary), base.result.isComplete, !base.wasStopped,
+              refinePlan(of: base) != nil else { return false }
         guard let held = heldRefinement else { return true }
         return isRefinementStale || held.wasStopped || !held.result.isComplete
+    }
+
+    /// The plan the Refine stage reads the Dictionary run `base`'s patterns through: the run's own while it holds them (Index →
+    /// Refine: the stage starts as the run ends), else that plan reading them again from the Patterns room (`patternsRead(by:)`) once
+    /// the ended run has let them go (#427). nil when they cannot be read again so.
+    func refinePlan(of base: IndexingRun) -> DictionaryIndexingPlan? {
+        guard let plan = base.dictionaryPlans.first else { return nil }
+        guard plan.source.isReleased else { return plan }
+        return patternsRead(by: base).flatMap { plan.reading($0) }
     }
 
     /// The inspector's numbers: the mean score over the refined points as indexed (in the run's metric) and as refined (NCC), kept
@@ -94,11 +104,12 @@ extension IndexingSession {
     }
 
     /// The Refine stage: the Dictionary run's indexed rows refined block by block against its master pattern on its detector, with
-    /// its signal mask. nil when the Dictionary run cannot be refined (`refineStageRefusal`). The returned task ends when the
-    /// refinement has landed (or was stopped or failed).
+    /// its signal mask, reading the patterns the run read (`refinePlan(of:)`). nil when the Dictionary run cannot be refined
+    /// (`refineStageRefusal`, or its patterns cannot be read again). The returned task ends when the refinement has landed (or was
+    /// stopped or failed).
     @discardableResult
     func refineDictionaryRun() -> Task<Void, Never>? {
-        guard refineStageRefusal == nil, let base = runs[.dictionary], let plan = base.dictionaryPlans.first else { return nil }
+        guard refineStageRefusal == nil, let base = runs[.dictionary], let plan = refinePlan(of: base) else { return nil }
         let settings = refineSettings
         runTask?.cancel()
         runGeneration += 1

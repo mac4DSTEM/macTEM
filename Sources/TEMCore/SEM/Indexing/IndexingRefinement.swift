@@ -163,7 +163,7 @@ package nonisolated enum IndexingRefinement {
     /// Whether the source's patterns are float32 data (kikuchipy then rescales each to −1 … 1): the pipeline's output type
     /// (float32 under Normalise or NLPAR, `PatternPipeline.outputType`), else the stored or processed scan's own type.
     package static func isFloat32(_ source: IndexingSource) -> Bool {
-        let stored = source.access.dataset.dataType
+        let stored = source.storedType
         return (source.pipeline?.outputType(stored) ?? stored) == .float32
     }
 

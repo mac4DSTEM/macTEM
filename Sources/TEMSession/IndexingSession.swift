@@ -204,7 +204,8 @@ package final class IndexingSession {
     /// run keeps it as its id (`IndexingRun.id`): the Maps room names a run it shows by it (D-SEM-99), Compare the runs it compares.
     package internal(set) var runGeneration = 0
     @ObservationIgnored private var palette: IndexingPalette?
-    /// The band detector of the current settings, kept between hovers and handed to the run.
+    /// The band detector of the current settings, kept between hovers and handed to the run; kept without the patterns (#427), and
+    /// given the patterns current when it is used.
     @ObservationIgnored private var probe: (key: ProbeKey, probe: IndexingProbe)?
     @ObservationIgnored private var shownKey: ShownKey?
     @ObservationIgnored private var shownRaw: [HoughBandDetector.Band] = []
@@ -606,6 +607,21 @@ package final class IndexingSession {
         return .success(IndexingSource(stored: document.access, pipeline: pipeline, background: patterns.staticBackground))
     }
 
+    /// The patterns `run` read, to read them again once the ended run has let them go (#427; Refine on a Dictionary run, D-SEM-109):
+    /// the same kind through the same stages as `source()` gave the run, while the Patterns room's processing is still the run's. nil
+    /// when they cannot be read so now: the processed scan the run read was replaced by one processed with other stages.
+    func patternsRead(by run: IndexingRun) -> IndexingSource? {
+        guard let document = patterns.document, run.inputs.pipeline == patterns.pipeline else { return nil }
+        switch run.source {
+        case .processedScan:
+            guard let processed = patterns.processed, patterns.processedWith == patterns.pipeline else { return nil }
+            return IndexingSource(processed: processed)
+        case .perPattern, .asStored:
+            let source = IndexingSource(stored: document.access, pipeline: patterns.pipeline, background: patterns.staticBackground)
+            return source.kind == run.source ? source : nil
+        }
+    }
+
     /// Why Index cannot run now with the method picked; nil when it can.
     package var refusal: String? {
         guard let document = patterns.document else { return "No EBSD dataset is open." }
@@ -673,7 +689,7 @@ package final class IndexingSession {
     private func indexWithHough(_ document: EBSDSession.Document, source: IndexingSource) -> Task<Void, Never> {
         let inputs = currentInputs
         let key = ProbeKey(pipeline: inputs.pipeline, settings: inputs.settings, kind: source.kind, generation: generation)
-        let cached = probe?.key == key ? probe?.probe : nil
+        let cached = probe?.key == key ? probe?.probe.reading(source) : nil
         let phases = self.phases, settings = self.settings, detector = document.dataset.detector
         let rows = document.dataset.scanRows, columns = document.dataset.scanColumns
         runTask?.cancel()
@@ -828,6 +844,7 @@ package final class IndexingSession {
                 }
             }
         }
+        releasePatterns(ofRefinement: refining, method: stopped)
         if shownRun?.id != before {
             shownResultChanged()
         } else {
@@ -836,10 +853,22 @@ package final class IndexingSession {
         }
     }
 
+    /// The run that ended lets go of the patterns it read (#427): the refinement, or the run of `method`.
+    private func releasePatterns(ofRefinement refined: Bool, method: IndexingMethod?) {
+        if refined {
+            refinedRun?.releasePatterns()
+        } else if let method {
+            runs[method]?.releasePatterns()
+        }
+    }
+
+    /// The run's plan lands. One built while Stop was pressed lands after it (the task asks for cancellation only between rows): the
+    /// run has ended, so the plan lands without its patterns (#427).
     private func landPlan(_ plan: IndexingPlan, probe built: IndexingProbe, key: ProbeKey, run: Int) {
         guard run == runGeneration else { return }
         runs[.hough]?.houghPlan = plan
-        probe = (key: key, probe: built)
+        if !isIndexing { runs[.hough]?.releasePatterns() }
+        probe = (key: key, probe: built.released)
     }
 
     private func landRow(_ solutions: [HoughIndexer.Solution], row: Int, run: Int) {
@@ -854,6 +883,8 @@ package final class IndexingSession {
                                      run: Int) {
         guard run == runGeneration else { return }
         runs[.dictionary]?.dictionaryPlans = plans
+        // Plans built while Stop was pressed land after it: the run has ended (#427).
+        if !isIndexing { runs[.dictionary]?.releasePatterns() }
         keepSampled(landed)
         chunksTotal = chunks
     }
@@ -882,6 +913,10 @@ package final class IndexingSession {
         isRefining = false
         runningMethod = nil
         chunkPhase = nil
+        // The ended run lets go of the patterns it read (#427), on every way out of here, the failure's included. A Refine stage
+        // started below as the Dictionary stage ends reads them through its own copy of the plan, taken as it starts, and lets go
+        // of them when it ends.
+        defer { releasePatterns(ofRefinement: refined, method: finished) }
         let shownChanged = shownRun?.id != before
         if let failure {
             onEvent?("Error: \(failure)")
@@ -1002,14 +1037,14 @@ package final class IndexingSession {
         guard request != shownKey else { return Task {} }
         shownKey = request
         patternTask?.cancel()
-        let cached = probe?.key == key ? probe?.probe : nil
+        let cached = probe?.key == key ? probe?.probe.reading(source) : nil
         let settings = self.settings
         let gen = generation
         let task = Task { [weak self] in
             do {
                 let inspected = try await Self.inspect(cached: cached, source: source, settings: settings, position: position)
                 guard let self, !Task.isCancelled, gen == self.generation else { return }
-                self.probe = (key: key, probe: inspected.probe)
+                self.probe = (key: key, probe: inspected.probe.released)
                 self.patternPresentation.show(inspected.canvas)
                 self.patternPosition = position
                 self.patternShape = (rows: inspected.probe.source.patternRows, columns: inspected.probe.source.patternColumns)

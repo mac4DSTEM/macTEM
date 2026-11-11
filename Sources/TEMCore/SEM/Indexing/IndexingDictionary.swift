@@ -157,7 +157,8 @@ package nonisolated struct IndexingMasterPattern: Sendable, Identifiable {
 /// detector and the energy the dictionary is projected for, and the scan's row blocks. A run against several phases holds one per
 /// phase (`plans`, D-SEM-98).
 package nonisolated struct DictionaryIndexingPlan: Sendable {
-    package let source: IndexingSource
+    /// The patterns the run reads; `released` once it has ended (`releasePatterns()`).
+    package private(set) var source: IndexingSource
     package let phase: IndexingPhase
     package let master: IndexingMasterPattern
     package let settings: DictionaryIndexingSettings
@@ -350,6 +351,21 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         let (perPoint, a) = dictionary.multipliedReportingOverflow(by: keptPixels)
         let (work, b) = points.multipliedReportingOverflow(by: perPoint)
         return DictionaryIndexing.usesMetal(.automatic, work: a || b ? .max : work) ? .metal : .cpu
+    }
+
+    /// Lets go of the patterns (#427): a run that has ended reads none (Best match reads the master pattern, the detector and the
+    /// energy, the method record the source's kind and stages, which stay).
+    package mutating func releasePatterns() {
+        source = source.released
+    }
+
+    /// This plan reading its patterns from `source` again after `releasePatterns()`: the Refine stage of a Dictionary run that has
+    /// ended (D-SEM-109). nil unless `source` reads the patterns the run read (`IndexingSource.readsAlike`).
+    package func reading(_ source: IndexingSource) -> DictionaryIndexingPlan? {
+        guard source.readsAlike(self.source) else { return nil }
+        var plan = self
+        plan.source = source
+        return plan
     }
 
     /// The scan's row blocks, in order.
