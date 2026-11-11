@@ -45,6 +45,8 @@ nonisolated final class TableFocusTests: XCTestCase {
     func testTheKeysContainerCopiesThePickedRow() throws {
         let indexing = try code("macTEM/UI/IndexingRoom.swift")
         XCTAssertTrue(indexing.contains(".modifier(SEMRoomFocus(copy: pickedRow == nil ? nil : { copiedPickedRow() }))"))
+        XCTAssertTrue(indexing.contains("if PaneKey(key: press.key, modifiers: press.modifiers) == .copy { guard let text = pickedRowText else { return .ignored } SystemPaneTextWriter().write(text) return .handled }"),
+                      "⌘C as a key, as FFTKeyedRoom and ImageKeyedRoom take it")
         let pick = try code("macTEM/UI/SEMMapPick.swift")
         XCTAssertTrue(pick.contains("named there .onCopyCommand(perform: copy) .focused($focus, equals: .room)"),
                       "the copy on the focusable view itself, as ImageKeyedRoom")

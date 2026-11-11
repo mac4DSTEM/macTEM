@@ -150,6 +150,13 @@ private struct IndexingKeyedRoom: ViewModifier {
             // that row was already selected and the click on it changed nothing (#353, PaneKeys' arrangement).
             .modifier(SEMRoomFocus(copy: pickedRow == nil ? nil : { copiedPickedRow() }))
             .onKeyPress(phases: .down) { press in
+                // ⌘C as a key, as FFTKeyedRoom and ImageKeyedRoom take it (PaneKeys, "the key path of ⌘C"): the picked point's row
+                // onto the pasteboard through the app's one writer; Edit › Copy goes through the copy command above.
+                if PaneKey(key: press.key, modifiers: press.modifiers) == .copy {
+                    guard let text = pickedRowText else { return .ignored }
+                    SystemPaneTextWriter().write(text)
+                    return .handled
+                }
                 guard let step = PatternsKeys.step(key: press.key, modifiers: press.modifiers) else { return .ignored }
                 session.step(step.direction, by: step.count)
                 return .handled
@@ -161,9 +168,14 @@ private struct IndexingKeyedRoom: ViewModifier {
         session.result?.rows.first { $0.position == session.patterns.pinned }
     }
 
+    /// The picked point's Results row as the table copies it (header and row), nil before a run reaches the point.
+    private var pickedRowText: String? {
+        guard let result = session.result, let row = pickedRow else { return nil }
+        return IndexingTableFormat.copyText([row], method: result.method, scoreTitle: result.scoreTitle)
+    }
+
     private func copiedPickedRow() -> [NSItemProvider] {
-        guard let result = session.result, let row = pickedRow else { return [] }
-        let text = IndexingTableFormat.copyText([row], method: result.method, scoreTitle: result.scoreTitle)
+        guard let text = pickedRowText else { return [] }
         return [NSItemProvider(object: text as NSString)]
     }
 }
