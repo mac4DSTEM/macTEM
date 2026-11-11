@@ -1,8 +1,9 @@
 //
 //  MapsJourney.swift
 //  The Maps room's first slice (docs/sem/design/orientation-maps-room.md) on the shipped two-phase steel map: launch with `--demo-ang`,
-//  the room shows the IPF-Z map with both phases' colour keys in the bottom pane and the unit cell of the pinned point beside the map;
-//  a click on the map moves the orientation pane's point; the inspector's Map control switches to the phase map and its legend. P5-04:
+//  the room shows the IPF-Z map with both phases' colour keys in the bottom pane and the unit cell of the picked point beside the map;
+//  a click on the map moves the orientation pane's point, hovering does not, → steps it (D-SEM-110); the inspector's Map control switches
+//  to the phase map and its legend. P5-04:
 //  Segment fills the Grains tab, a click outlines its grain, the Pole figures tab draws three stereograms and the IPF density, the
 //  grain table exports as CSV. A screenshot at every step.
 //
@@ -13,6 +14,13 @@ nonisolated final class MapsJourney: Journey {
     @MainActor private func label(_ id: String) -> String {
         let e = waitFor(id, timeout: 30)
         return !e.label.isEmpty ? e.label : ((e.value as? String) ?? "")
+    }
+
+    /// The row and column the orientation pane's header names ("Orientation · row 12 col 40"); nil when it names none.
+    private static func position(in text: String) -> (row: Int, column: Int)? {
+        guard let range = text.range(of: #"row \d+ col \d+"#, options: .regularExpression) else { return nil }
+        let numbers = text[range].split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
+        return numbers.count == 2 ? (numbers[0], numbers[1]) : nil
     }
 
     @MainActor func testTheShippedMapShowsItsIPFMapKeysAndPhases() throws {
@@ -35,6 +43,19 @@ nonisolated final class MapsJourney: Journey {
                                                   object: nil)
             XCTAssertEqual(XCTWaiter().wait(for: [moved], timeout: 20), .completed, label("maps.orientation.title"))
             waitFor("maps.orientation.values")
+        }
+        try step("hovering the map only reads the point; → steps the picked point by one (D-SEM-110)") {
+            let picked = label("maps.orientation.title")
+            let at = try XCTUnwrap(Self.position(in: picked), picked)
+            let map = waitFor("maps.map")
+            map.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.2)).hover()
+            waitStatus(containing: ["row", "col"], timeout: 20)
+            XCTAssertEqual(label("maps.orientation.title"), picked, "hovering moved the orientation pane")
+            try requireFrontmost()
+            app.typeKey(.rightArrow, modifierFlags: [])
+            let stepped = "Orientation · row \(at.row) col \(at.column + 1)"
+            let moved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.label("maps.orientation.title") == stepped }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [moved], timeout: 20), .completed, "never \(stepped); last \(label("maps.orientation.title"))")
         }
         try step("the Map control shows the phase map and its legend") {
             showInspector(waitingFor: "maps.layer")

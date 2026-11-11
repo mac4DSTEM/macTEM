@@ -32,7 +32,7 @@ In the live pattern pane's transformed container, over the pattern, in the accen
   master pattern at the solution and PC), with a `Blend` slider.
 
 The layer is a SwiftUI `Canvas` the size of the pane mapped through the shader's transform (`MarkGeometry`, the Image
-room's marks pattern), redrawn only when the solution, PC or zoom changes; the hovered pattern's texture update does not
+room's marks pattern), redrawn only when the solution, PC or zoom changes; the picked pattern's texture update does not
 redraw the canvas (it is keyed on the solution, not the pattern).
 
 ## 3. Inspector: Simulation (Indexing room, after Refine, before Export; closed by default)
@@ -57,8 +57,8 @@ line (`[u v w]` and the polar angles).
 
 - The overlay exists only for a point with a solution (indexed, or the vendor's from the file); on a point without one
   the pane shows the pattern alone and the status line reads `not indexed`.
-- Hovering the map moves the overlay with the solution at the hovered point, so a grain boundary is seen as the bands
-  jumping; the geometrical simulation of one point is sub-millisecond, the dynamical one a few ms (one Lambert
+- A drag across the map moves the overlay with the solution at each point it picks (D-SEM-110: hovering only reads),
+  so a grain boundary is seen as the bands jumping; the geometrical simulation of one point is sub-millisecond, the dynamical one a few ms (one Lambert
   interpolation per pixel on the GPU or Accelerate), both debounced to the display refresh.
 - The PC drag (indexing-room.md §6) previews with this overlay.
 - A band family picked in `Families` highlights that family's lines; a click on a line in the pane reads its `{hkl}`
@@ -84,7 +84,7 @@ simulation figure (NS-6).
 
 `SimulationOverlayJourney.swift`: (1) launch `--demo-ebsd-indexed` (the demo with its Hough result restored from the
 sidecar, so the journey does not index), `Overlay · Geometrical`, `indexing.pattern.overlay` exists with at least four
-labelled lines (accessibility children named `{111}` …); screenshot; (2) hover a second grain, the labels change; (3)
+labelled lines (accessibility children named `{111}` …); screenshot; (2) click a second grain, the labels change; (3)
 `Overlay · Dynamical`, the `Blend` slider appears, the Dictionary tab's simulated pattern shows an NCC above 0,3; (4)
 `Export › Pattern with overlay…` writes a PNG.
 

@@ -1,7 +1,7 @@
 //
 //  EBSDSession.swift
 //  Role: the one owner of the Patterns room's state (docs/sem/design/ebsd-patterns-room.md): the open EBSD or TKD dataset and where
-//        its patterns are read from, the pinned position and the hovered one, the pattern on screen, the navigation map (the mean
+//        its patterns are read from, the picked position (`pinned`), the pattern on screen, the navigation map (the mean
 //        intensity of every pattern, one pass over the scan) and how the two pictures are drawn (`ImagePresentation` each, so the
 //        map and the pattern keep their own contrast). The room's views read it; they hold none of it.
 //
@@ -9,8 +9,8 @@
 //  owner decides WHEN to read: the map in one detached pass that lands only if no newer dataset was bound and no other grid was picked
 //  meanwhile (`mapGeneration`), and that sums the patterns for the scan's mean on the way when the file carries no static background,
 //  so such a file is read once at open; the scan's mean asked for later, Process and the quality pass land only for the dataset they
-//  started on (`generation`), so a new grid never drops them; the hovered pattern in a task that is cancelled by the next hover, so a
-//  fast sweep over the map reads the pattern the pointer rests on, not every one it passed. Patterns read once stay in a cache by map
+//  started on (`generation`), so a new grid never drops them; the picked pattern in a task that is cancelled by the next pick, so a
+//  fast drag over the map reads the pattern the pointer rests on, not every one it passed. Patterns read once stay in a cache by map
 //  index that is bounded by their bytes (`cacheBudget`) and lets the least recently shown go first.
 //
 //  Processing (docs/sem/design/pattern-processing.md): `pipeline` holds the stages' settings (`PatternPipeline`, TEMCore). The pattern pane
@@ -185,7 +185,7 @@ package final class EBSDSession {
         guard new != pipeline else { return }
         pipeline = new
         if new.staticStage.isOn, new.staticStage.source == .mean, scanMeanBackground == nil, !isComputingMean, let document { startMean(document) }
-        if patternDisplay == .processed { showPattern(at: shown) }
+        if patternDisplay == .processed { showPattern(at: pinned) }
     }
 
     /// Edits the pipeline in place (one stage's row).
@@ -198,7 +198,7 @@ package final class EBSDSession {
     package func setPatternDisplay(_ display: PatternDisplay) {
         guard display != patternDisplay else { return }
         patternDisplay = display
-        if document != nil { showPattern(at: shown) }
+        if document != nil { showPattern(at: pinned) }
     }
 
     /// The room's verb: the whole scan through the pipeline, off the main actor, with progress; Stop (⌘.) ends it and keeps the last run.
@@ -267,7 +267,7 @@ package final class EBSDSession {
             let nlpar = run.nlpar.isOn ? lambda.map { " · NLPAR λ \(String(format: "%.3f", $0))" } ?? "" : ""
             onEvent?("Processed \(result.dataset.patternCount) patterns in \(String(format: "%.1f", seconds)) s · \(String(format: "%.1f", mb)) MB in memory" + nlpar)
             // Already showing Processed: re-draw, so the pane trades the one-pattern preview for the run (the whole-scan stages show).
-            if patternDisplay == .processed { showPattern(at: shown) } else { setPatternDisplay(.processed) }
+            if patternDisplay == .processed { showPattern(at: pinned) } else { setPatternDisplay(.processed) }
         } else if let failure {
             onEvent?("Error: \(failure)")
         }
@@ -300,17 +300,13 @@ package final class EBSDSession {
         isComputingMean = false
         scanMeanBackground = mean
         if mean == nil { onEvent?("The scan's mean pattern could not be computed" + (failure.map { ": " + $0 } ?? ".")) }
-        if patternDisplay == .processed { showPattern(at: shown) }
+        if patternDisplay == .processed { showPattern(at: pinned) }
     }
 
     // MARK: The position
 
-    /// The pinned position: where the marker stands and what the pattern pane shows while the pointer is off the map.
+    /// The picked position: where the marker stands and what the pattern pane shows. The pointer over the map picks nothing (D-SEM-110).
     package private(set) var pinned = EBSDPosition.origin
-    /// The position under the pointer while it hovers the map, else nil.
-    package private(set) var hovered: EBSDPosition?
-    /// What the pattern pane shows: the hovered position while there is one, else the pinned.
-    package var shown: EBSDPosition { hovered ?? pinned }
 
     // MARK: The pictures
 
@@ -517,7 +513,7 @@ package final class EBSDSession {
         mapTask?.cancel(); patternTask?.cancel()
         self.document = document
         cache = [:]; cacheOrder = []; cacheBytes = 0
-        pinned = .origin; hovered = nil
+        pinned = .origin
         patternPosition = nil; meanIntensities = nil; mapFailure = nil; mapProgress = 0
         virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
         qualityTask?.cancel(); imageQualityMap = nil; dotProductMap = nil; isQualityMapping = false; qualityProgress = 0
@@ -576,7 +572,7 @@ package final class EBSDSession {
         openTask?.cancel(); mapTask?.cancel(); patternTask?.cancel()
         isOpening = false; isMapping = false
         document = nil; cache = [:]; cacheOrder = []; cacheBytes = 0
-        meanIntensities = nil; mapFailure = nil; patternPosition = nil; hovered = nil; pinned = .origin
+        meanIntensities = nil; mapFailure = nil; patternPosition = nil; pinned = .origin
         virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
         qualityTask?.cancel(); imageQualityMap = nil; dotProductMap = nil; isQualityMapping = false; qualityProgress = 0; showsTiles = false
         processTask?.cancel(); meanTask?.cancel()
@@ -700,28 +696,15 @@ package final class EBSDSession {
 
     // MARK: The position
 
-    /// The pointer is over map position `position` (nil: it left the map); the pattern pane follows it.
-    package func hover(_ position: EBSDPosition?) {
-        guard let dataset = document?.dataset else { return }
-        let inside = position.flatMap { $0.isInside(rows: dataset.scanRows, columns: dataset.scanColumns) ? $0 : nil }
-        guard inside != hovered else { return }
-        hovered = inside
-        showPattern(at: shown)
-    }
-
-    /// Pins `position` (a click on the map, Space on the hovered one, an arrow key): the marker moves and the pattern pane shows it while
-    /// the pointer is off the map.
-    package func pin(_ position: EBSDPosition) {
-        guard let dataset = document?.dataset else { return }
+    /// Picks `position` (a click or a drag on the map, an arrow key, a Results row), held inside the scan: the marker moves and the
+    /// pattern pane shows it. The returned task ends when that pattern is on screen (the read in flight when the pick is the same one).
+    @discardableResult
+    package func pin(_ position: EBSDPosition) -> Task<Void, Never> {
+        guard let dataset = document?.dataset else { return Task {} }
         let clamped = position.clamped(rows: dataset.scanRows, columns: dataset.scanColumns)
-        guard clamped != pinned else { return }
+        guard clamped != pinned else { return patternTask ?? Task {} }
         pinned = clamped
-        if hovered == nil { showPattern(at: clamped) }
-    }
-
-    /// Space: the hovered position becomes the pinned one (nothing when the pointer is off the map).
-    package func pinHovered() {
-        if let hovered { pin(hovered) }
+        return showPattern(at: clamped)
     }
 
     /// An arrow key: the pinned position moves `by` positions, held inside the scan.

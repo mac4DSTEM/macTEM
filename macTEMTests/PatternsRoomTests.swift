@@ -2,7 +2,7 @@
 //  PatternsRoomTests.swift
 //  The Patterns room's first slice (SEM program P1-06): the position arithmetic and the arrow keys, the mean-intensity map through
 //  `EBSDBrowsing` on a planted scan and on the kikuchipy fixture (each pattern's mean is numpy's mean over the pattern axes, a float64
-//  sum: exact to rounding), the session's hover, pin and step through `EBSDSession`, the generated demo dataset, the Calibration and
+//  sum: exact to rounding), the session's pick and step through `EBSDSession`, the generated demo dataset, the Calibration and
 //  Info rows, the metadata export, and the routing of an h5ebsd file into the room through the app's own Open.
 //
 
@@ -89,9 +89,10 @@ nonisolated final class PatternsRoomTests: XCTestCase {
 
     // MARK: The session
 
-    /// Binding a dataset shows pattern (0, 0) at once and starts the map; hovering shows the hovered pattern and leaving the map returns to the
-    /// pinned one; Space pins the hovered position; an arrow steps the pinned one. Red under: the pane not following the pointer, a step past the edge.
-    @MainActor func testTheSessionFollowsHoverPinAndTheKeys() async throws {
+    /// Binding a dataset shows pattern (0, 0) at once and starts the map; a pick (a click or a drag on the map) shows its pattern, the same
+    /// pick again shows it still, a pick off the scan is held inside it; an arrow steps the pick. The pointer over the map picks nothing
+    /// (D-SEM-110): the session has no hover to follow. Red under: the pane not following the pick, a pick or a step past the edge.
+    @MainActor func testTheSessionShowsThePickAndTheArrowsStepIt() async throws {
         let session = EBSDSession()
         var events: [String] = []
         session.onEvent = { events.append($0) }
@@ -100,16 +101,16 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         XCTAssertEqual(session.patternPresentation.canvas?.width, DemoDocuments.Truth.ebsdPatternSide)
         XCTAssertTrue(events.first?.hasPrefix("Opened Demo EBSD") == true, "\(events)")
 
-        session.hover(EBSDPosition(row: 3, column: 4))
-        XCTAssertEqual(session.shown, EBSDPosition(row: 3, column: 4))
-        for _ in 0..<2000 where session.patternPosition != EBSDPosition(row: 3, column: 4) { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertEqual(session.patternPosition, EBSDPosition(row: 3, column: 4))
-        XCTAssertEqual(session.pinned, .origin, "hovering pins nothing")
-
-        session.pinHovered()
+        await session.pin(EBSDPosition(row: 3, column: 4)).value
         XCTAssertEqual(session.pinned, EBSDPosition(row: 3, column: 4))
-        session.hover(nil)
-        XCTAssertEqual(session.shown, EBSDPosition(row: 3, column: 4), "off the map the pinned pattern is shown")
+        XCTAssertEqual(session.patternPosition, EBSDPosition(row: 3, column: 4), "the pattern pane follows the pick")
+        await session.pin(EBSDPosition(row: 3, column: 4)).value
+        XCTAssertEqual(session.patternPosition, EBSDPosition(row: 3, column: 4), "the same pick keeps its pattern")
+        await session.pin(EBSDPosition(row: -2, column: 999)).value
+        XCTAssertEqual(session.pinned, EBSDPosition(row: 0, column: DemoDocuments.Truth.ebsdScanColumns - 1), "a pick is held inside the scan")
+        XCTAssertEqual(session.patternPosition, session.pinned)
+
+        await session.pin(EBSDPosition(row: 3, column: 4)).value
         session.step(.right, by: 10)
         XCTAssertEqual(session.pinned, EBSDPosition(row: 3, column: 14))
         session.step(.right, by: 100)
@@ -241,7 +242,7 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         XCTAssertTrue(info.contains { $0.label == "Scan" && $0.value.contains("of 2") }, "the fixture holds two scans")
         XCTAssertEqual(EBSDBrowsing.mapReadout(EBSDPosition(row: 12, column: 40), mean: 118.25), "row 12 · col 40 · mean \(UnitDisplay.number(118.25, digits: 4))")
         XCTAssertEqual(EBSDBrowsing.mapReadout(.origin, mean: nil), "row 0 · col 0")
-        XCTAssertEqual(EBSDBrowsing.patternTitle(EBSDPosition(row: 1, column: 2), hovering: true), "Pattern · row 1 · col 2 · hovering")
+        XCTAssertEqual(EBSDBrowsing.patternTitle(EBSDPosition(row: 1, column: 2)), "Pattern · row 1 · col 2")
         XCTAssertEqual(EBSDBrowsing.capsuleDetail(dataset), "3 × 3 of 60 × 60")
         let json = try JSONSerialization.jsonObject(with: EBSDBrowsing.metadataJSON(dataset, fileName: "x.h5")) as? [String: Any]
         XCTAssertEqual(json?["scan_shape"] as? [Int], [3, 3])

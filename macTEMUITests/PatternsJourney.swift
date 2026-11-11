@@ -1,49 +1,78 @@
 //
 //  PatternsJourney.swift
 //  The Patterns room on the generated demo dataset (docs/sem/design/ebsd-patterns-room.md §9): launch with `--demo-ebsd-fixture`, see the
-//  scan map and the live pattern pane, hover the map and read the position in the status line, pin with Space, step with the arrow keys and
-//  read the pinned position in the pattern pane's header, change the map's colormap in the Display section, then the Virtual images section: a
+//  scan map and the live pattern pane, hover the map and read the position in the status line while the pattern stays where it is, click
+//  the map to pick that position (D-SEM-110), step it with the arrow keys right after the click, drag over the map and see the pattern end
+//  where the drag ended, change the map's colormap in the Display section, then the Virtual images section: a
 //  tile on the map, the colour mix of three tiles and the tiles pane (north star F1 on the demo dataset), then the image quality and average dot product maps (F3), listed in the Map menu before the tiles. A screenshot at every step.
 //
 
 import XCTest
 
 nonisolated final class PatternsJourney: Journey {
-    /// The pattern pane's header ("Pattern · row 3 · col 4 · pinned"), by its identifier.
+    /// The pattern pane's header ("Pattern · row 3 · col 4"), by its identifier.
     @MainActor private func patternTitle() -> String {
         let e = waitFor("patterns.pattern.title", timeout: 30)
         return !e.label.isEmpty ? e.label : ((e.value as? String) ?? "")
     }
 
-    @MainActor func testTheDemoDatasetOpensInPatternsAndThePaneFollowsThePointer() throws {
+    /// Waits until the pattern pane's header reads `title`, whole (a prefix "col 4" would also take "col 41").
+    @MainActor private func waitTitle(_ title: String, timeout: TimeInterval = 20, file: StaticString = #filePath, line: UInt = #line) {
+        let shown = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.patternTitle() == title }, object: nil)
+        XCTAssertEqual(XCTWaiter().wait(for: [shown], timeout: timeout), .completed, "the pattern header never read \(title); last \(patternTitle())",
+                       file: file, line: line)
+    }
+
+    /// The row and column a status line names ("row 12 · col 40 · mean 118.3"); nil when it names none.
+    private static func position(in text: String) -> (row: Int, column: Int)? {
+        guard let range = text.range(of: #"row \d+ · col \d+"#, options: .regularExpression) else { return nil }
+        let numbers = text[range].split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
+        return numbers.count == 2 ? (numbers[0], numbers[1]) : nil
+    }
+
+    @MainActor func testTheDemoDatasetOpensInPatternsAndThePaneFollowsThePick() throws {
         try step("launch with the demo EBSD dataset") { launch(["--demo-ebsd-fixture"]) }
         try step("the Patterns room shows the scan map and the pattern pane") {
             waitFor("patterns.room", timeout: 30)
             waitFor("patterns.map", timeout: 30)
             waitFor("patterns.pattern", timeout: 30)
             XCTAssertEqual(app.windows.firstMatch.title, "Demo EBSD")
-            // The pointer off the map (on the room's row), wherever the last journey left it: the pane shows the first point, not a hovered one.
+            // The pointer off the map (on the room's row), wherever the last journey left it: the pane shows the first point.
             try requireFrontmost()
             waitFor("workspace.patterns", timeout: 10).hover()
             let first = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.patternTitle().hasPrefix("Pattern · row 0 · col 0") }, object: nil)
             XCTAssertEqual(XCTWaiter().wait(for: [first], timeout: 20), .completed, patternTitle())
         }
-        try step("hovering the map puts the position and its mean in the status line") {
+        try step("hovering the map puts the position and its mean in the status line; the pattern stays where it is") {
             waitFor("patterns.map").coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4)).hover()
             let line = waitStatus(containing: ["row", "col", "mean"], timeout: 30)
-            XCTAssertTrue(patternTitle().hasSuffix("hovering"), "\(patternTitle()) · \(line)")
+            XCTAssertTrue(patternTitle().hasPrefix("Pattern · row 0 · col 0"), "hovering moved the pattern: \(patternTitle()) · \(line)")
         }
-        try step("Space pins the hovered position; → steps it by one") {
+        try step("a click on the map picks the position under it; → then steps it by one, ⇧→ by ten") {
+            let line = waitStatus(containing: ["row", "col", "mean"], timeout: 10)
+            let hovered = try XCTUnwrap(Self.position(in: line), "no row and col in the status line: \(line)")
             try requireFrontmost()
-            app.typeKey(.space, modifierFlags: [])
-            waitFor("workspace.patterns", timeout: 10).hover()   // the pointer off the map (on the room row): the pinned pattern is shown
-            let pinned = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.patternTitle().hasSuffix("pinned") }, object: nil)
-            XCTAssertEqual(XCTWaiter().wait(for: [pinned], timeout: 20), .completed, patternTitle())
-            let before = patternTitle()
+            waitFor("patterns.map").coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4)).click()
+            waitTitle("Pattern · row \(hovered.row) · col \(hovered.column)")
+            // Right after the click: the click gave the room the keyboard (the demo scan is 40 columns wide, so neither step meets the edge).
             app.typeKey(.rightArrow, modifierFlags: [])
-            let stepped = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.patternTitle() != before }, object: nil)
-            XCTAssertEqual(XCTWaiter().wait(for: [stepped], timeout: 20), .completed, "the header stayed \(before)")
-            XCTAssertTrue(patternTitle().hasSuffix("pinned"), patternTitle())
+            waitTitle("Pattern · row \(hovered.row) · col \(hovered.column + 1)")
+            app.typeKey(.rightArrow, modifierFlags: .shift)
+            waitTitle("Pattern · row \(hovered.row) · col \(hovered.column + 11)")
+        }
+        try step("a drag over the map moves the pick with it; the pattern ends where the drag ended") {
+            try requireFrontmost()
+            let map = waitFor("patterns.map")
+            let before = patternTitle()
+            map.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4))
+                .press(forDuration: 0.1, thenDragTo: map.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.7)))
+            // The status line names the position under the pointer where the drag ended: off the map and back, so it reads afresh.
+            waitFor("workspace.patterns", timeout: 10).hover()
+            map.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.7)).hover()
+            let line = waitStatus(containing: ["row", "col", "mean"], timeout: 10)
+            let end = try XCTUnwrap(Self.position(in: line), "no row and col in the status line: \(line)")
+            waitTitle("Pattern · row \(end.row) · col \(end.column)")
+            XCTAssertNotEqual(patternTitle(), before, "the drag left the pattern where the keys had put it")
         }
         try step("the Calibration rows read the demo file's values") {
             showInspector(waitingFor: "patterns.calibration.step")

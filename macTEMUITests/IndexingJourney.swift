@@ -2,9 +2,10 @@
 //  IndexingJourney.swift
 //  The Indexing room on the shipped nickel scan (docs/sem/design/indexing-room.md §9, steps 1 to 4): open the scan from Help › Open
 //  Demo Data, EBSD › Indexing, Index (enabled with the file's phase in the list), the map fills (the empty sentence goes, the header counts the
-//  indexed points), hovering it puts the three Euler angles and the CI in the status line (figure F8 on screen), a Results row pins its
-//  pattern and the detected bands are drawn over it; then Method · Dictionary with the shipped Ni master pattern: the dictionary's size
-//  at 4°, Index, the map fills again, the status line carries the NCC score and the Best match pane the pinned point's simulated
+//  indexed points), hovering it puts the three Euler angles and the CI in the status line (figure F8 on screen), a Results row picks its
+//  pattern and the detected bands are drawn over it, a click on the map picks its point and → steps it at once (D-SEM-110: the click takes
+//  the keyboard back from the table); then Method · Dictionary with the shipped Ni master pattern: the dictionary's size
+//  at 4°, Index, the map fills again, the status line carries the NCC score and the Best match pane the picked point's simulated
 //  pattern (figure F9 on screen); then Display › Compare (§9 step 4, D-SEM-97): Hough against the file's own indexing side by side,
 //  the disorientation histogram's median under 1°, hovering a compared map puts both solutions and their disorientation in the status
 //  line; B · Dictionary compares the two runs (the 4° dictionary's grid reads above 1°). A screenshot at every step.
@@ -40,6 +41,13 @@ nonisolated final class IndexingJourney: Journey {
         guard let range = footer.range(of: "median ") else { return nil }
         let number = footer[range.upperBound...].prefix { $0 != "°" }
         return Double(number.replacingOccurrences(of: ",", with: "."))
+    }
+
+    /// The row and column a pattern header names ("Pattern · row 12 · col 40 · as indexed"); nil when it names none.
+    private static func position(in text: String) -> (row: Int, column: Int)? {
+        guard let range = text.range(of: #"row \d+ · col \d+"#, options: .regularExpression) else { return nil }
+        let numbers = text[range].split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
+        return numbers.count == 2 ? (numbers[0], numbers[1]) : nil
     }
 
     @MainActor private func waitWords(_ id: String, timeout: TimeInterval, _ check: @escaping (String) -> Bool) {
@@ -78,15 +86,24 @@ nonisolated final class IndexingJourney: Journey {
             let line = waitStatus(containing: ["φ₁", "Φ", "φ₂", "CI", "bands"], timeout: 30)
             XCTAssertTrue(line.contains("ni"), line)
         }
-        try step("a Results row pins its pattern; the detected bands are drawn over it") {
+        try step("a Results row picks its pattern; the detected bands are drawn over it") {
             let table = waitFor("indexing.results", timeout: 30)
             let row = table.tableRows.element(boundBy: 10)
             XCTAssertTrue(row.waitForExistence(timeout: 30), "the Results table has no eleventh row")
             try requireFrontmost()
             row.click()
-            waitWords("indexing.pattern.title", timeout: 30) { $0.contains("row 0 · col 10") && $0.contains("pinned") }
+            waitWords("indexing.pattern.title", timeout: 30) { $0.contains("row 0 · col 10") }
             waitFor("indexing.pattern.overlay", timeout: 30)
             waitWords("indexing.bands.title", timeout: 30) { $0.contains("matched") }
+        }
+        try step("a click on the map picks its point and takes the arrows back from the Results table") {
+            try requireFrontmost()
+            waitFor("indexing.map", timeout: 10).coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+            waitWords("indexing.pattern.title", timeout: 30) { !$0.contains("row 0 · col 10") && Self.position(in: $0) != nil }
+            let title = words("indexing.pattern.title")
+            let picked = try XCTUnwrap(Self.position(in: title), title)
+            app.typeKey(.rightArrow, modifierFlags: [])
+            waitWords("indexing.pattern.title", timeout: 30) { $0.contains("row \(picked.row) · col \(picked.column + 1) ·") }
         }
         try step("Method · Dictionary names the dictionary's size against the shipped master pattern") {
             showInspector(waitingFor: "indexing.method")

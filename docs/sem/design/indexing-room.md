@@ -30,7 +30,7 @@ takes the phase whose best match scores highest, as kikuchipy's `merge_crystal_m
 ```
 ┌──────────────────────────────┬───────────────────────────────┐
 │ Indexed map (main pane)      │ Live pattern pane             │
-│ IPF-Z of the current result, │ the hovered/pinned pattern    │
+│ IPF-Z of the current result, │ the picked pattern            │
 │ or CI, phase, OSM; scan      │ with the solution's Kikuchi   │
 │ marker; regions              │ bands and PC drawn over it    │
 ├──────────────────────────────┴───────────────────────────────┤
@@ -47,7 +47,8 @@ takes the phase whose best match scores highest, as kikuchipy's `merge_crystal_m
   per scan point, the IPF colour key as the legend in the pane's footer beside the scale bar (`OrientationColorKey`);
   before `Index` runs it is the Patterns room's virtual BSE dimmed, with the empty-state sentence "Index to see the
   orientations" (the one verb that fills it). Regions pick where to index (`Apply to · Scan · Region`).
-- **Live pattern pane**: as in Patterns (hover follows, pin, Space, arrows); overlays in its transformed container: the
+- **Live pattern pane**: as in Patterns (a click or drag on the map or on a compared map picks and the pane follows,
+  the arrows step the pick, hovering only reads; D-SEM-110); overlays in its transformed container: the
   solution's bands (the geometrical simulation, `simulation-overlay.md`), the PC glyph (draggable here during
   refinement, see §6), the detected Hough bands as thin lines when `Display › Show detected bands` is on.
 - **Bottom pane**: `Results` (a `Table`, ⌘C TSV, sorted by column, the selected row pins the pattern; footer: method ·
@@ -115,8 +116,9 @@ the kit versions the numbers come from (pyEBSDindex, kikuchipy, orix pins from `
   row by row (the result is published per chunk), Stop keeps the indexed prefix and hatches the rest. *indexed*: map,
   results, pattern overlay. *refused*: "Master pattern is for Fe, the phase is Ni" under the Dictionary rows and in
   Output.
-- **Hover and pin**: as Patterns; hovering the map updates the pattern pane and the overlay (the solution at that point),
-  so the user watches the fit hold or break across a boundary.
+- **Hover and pick**: as Patterns (D-SEM-110); hovering the map writes the point's solution in the status line, and a
+  drag across the map updates the pattern pane and the overlay (the solution at each point it crosses), so the user
+  watches the fit hold or break across a boundary. A click on the map also takes the arrows back from the Results table.
 - **PC drag**: while `Refine › Apply to · Pinned point` is picked, the PC glyph in the pattern pane is draggable
   (direct manipulation); release previews the simulated bands at the new PC on the pinned pattern and writes the three
   numbers into Geometry as `Typed`; `Index` with `Refine · PC` commits a fit from there.
@@ -152,7 +154,8 @@ at 2° with `Refine · Orientation` reproduces NS-4.
 `IndexingJourney.swift`: (1) launch `--demo-ebsd`, `Index` is enabled with the Ni phase named in its help; (2) click
 `Index`, wait on `indexing.map` to show the IPF-Z (the empty sentence is gone), hover the map, the status line reads
 three Euler angles and `CI`; screenshot (NS-3 gate); (3) select a Results row, the pattern pane header reads that row
-and the overlay is drawn (`indexing.pattern.overlay` exists); (4) `Method · Dictionary`, the caption names the
+and the overlay is drawn (`indexing.pattern.overlay` exists), then a click on the map picks its point and → steps it by
+one (the click takes the keys back from the table, D-SEM-110); (4) `Method · Dictionary`, the caption names the
 dictionary size, `Index`, the map fills; `Display › Compare` shows Hough against the file's indexing with a median
 under 1° (0.44°; Hough against the 4° dictionary reads 2.4°, the dictionary's grid), then `B · Dictionary`;
 screenshot (NS-4 gate); (5) `Export › Results ang…` writes a file the unit tests read back.
