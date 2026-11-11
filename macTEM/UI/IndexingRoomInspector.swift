@@ -77,8 +77,7 @@ private struct IndexingCalibrationSection: View {
                 .accessibilityIdentifier("indexing.calibration.patterns")
             if let pc = IndexingPlan.meanProjectionCenter(detector) {
                 InspectorValueRow("PC", IndexingInfoFormat.triple(pc))
-                    .help(detector.projectionCenters.count > 1 ? "The mean of the file's \(detector.projectionCenters.count) projection centres, Bruker convention (kikuchipy's pc_average)"
-                          : "The file's projection centre, Bruker convention")
+                    .help(IndexingInfoFormat.projectionCentreHelp(count: detector.projectionCenters.count))
                     .accessibilityIdentifier("indexing.calibration.pc")
             } else {
                 InspectorValueRow("PC", "None in the file")

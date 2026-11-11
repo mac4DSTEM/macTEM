@@ -60,6 +60,19 @@ nonisolated enum SEMMapPointer {
         let q = geometry.imagePoint(atPanePoint: p)
         return q.x >= -0.5 && q.x <= Double(geometry.imageWidth) - 0.5 && q.y >= -0.5 && q.y <= Double(geometry.imageHeight) - 0.5
     }
+
+    /// A map's spoken value: "1200 rows by 1500 columns, at row 1100 column 7", every number never grouped (`IndexingInfoFormat.count`).
+    /// A `String`, so `.accessibilityValue` does not take it as a localized key, which grouped "1.200 rows" in German.
+    static func spokenMap(rows: Int, columns: Int, at pick: EBSDPosition, locale: Locale = .autoupdatingCurrent) -> String {
+        let n = { (v: Int) in IndexingInfoFormat.count(v, locale: locale) }
+        return "\(n(rows)) \(UnitDisplay.noun(rows, "row", "rows")) by \(n(columns)) \(UnitDisplay.noun(columns, "column", "columns")), "
+            + "at row \(n(pick.row)) column \(n(pick.column))"
+    }
+
+    /// The picked point's spoken value: "row 1100, column 7", never grouped.
+    static func spokenPosition(_ pick: EBSDPosition, locale: Locale = .autoupdatingCurrent) -> String {
+        "row \(IndexingInfoFormat.count(pick.row, locale: locale)), column \(IndexingInfoFormat.count(pick.column, locale: locale))"
+    }
 }
 
 // MARK: - The scrub
@@ -158,7 +171,7 @@ struct SEMScanMarker: View {
         .allowsHitTesting(isHandle)
         .accessibilityElement()
         .accessibilityLabel("Picked point")
-        .accessibilityValue("row \(position.row), column \(position.column)")
+        .accessibilityValue(SEMMapPointer.spokenPosition(position))
         .accessibilityHint("Adjust to move left or right, or use the named actions to move in any direction")
         .accessibilityAdjustableAction { direction in
             switch direction {

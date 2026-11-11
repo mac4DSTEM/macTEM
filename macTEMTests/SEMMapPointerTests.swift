@@ -82,4 +82,22 @@ nonisolated final class SEMMapPointerTests: XCTestCase {
         XCTAssertTrue(SEMMapPointer.isOnImage(CGPoint(x: 400, y: 300), geometry: one))
         XCTAssertFalse(SEMMapPointer.isOnImage(CGPoint(x: 401, y: 150), geometry: one))
     }
+
+    /// What VoiceOver hears of a map and its pick: rows, columns and the picked point never grouped, one row or column in the singular,
+    /// the same words in every SEM room. Red before: no `spokenMap` or `spokenPosition`; the rooms passed `.accessibilityValue` a
+    /// literal, a localized key, which grouped "1.200 rows" in German on a map of 1000 rows or more.
+    func testTheSpokenMapIsNeverGrouped() throws {
+        let pick = EBSDPosition(row: 1100, column: 7)
+        for locale in [Locale(identifier: "de_DE"), Locale(identifier: "en_US")] {
+            XCTAssertEqual(SEMMapPointer.spokenMap(rows: 1200, columns: 1500, at: pick, locale: locale),
+                           "1200 rows by 1500 columns, at row 1100 column 7", locale.identifier)
+            XCTAssertEqual(SEMMapPointer.spokenPosition(pick, locale: locale), "row 1100, column 7", locale.identifier)
+        }
+        XCTAssertEqual(SEMMapPointer.spokenMap(rows: 1, columns: 1, at: .origin), "1 row by 1 column, at row 0 column 0")
+        XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("PatternsRoom.swift")
+            .contains(".accessibilityValue(SEMMapPointer.spokenMap(rows: dataset.scanRows, columns: dataset.scanColumns, at: session.pinned))"))
+        XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("MapsRoom.swift")
+            .contains(".accessibilityValue(SEMMapPointer.spokenMap(rows: shape.rows, columns: shape.columns, at: session.pinned))"))
+        XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("SEMMapPick.swift").contains(".accessibilityValue(SEMMapPointer.spokenPosition(position))"))
+    }
 }

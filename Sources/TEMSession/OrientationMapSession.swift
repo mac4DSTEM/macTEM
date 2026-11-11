@@ -573,9 +573,7 @@ package final class OrientationMapSession {
         phaseBoundaryEdges = edges.phase
         updateSlip()
         followPinnedGrain()
-        let s = result.settings
-        onEvent?("Segmented \(UnitDisplay.count(result.table.count, "grain", "grains")) (boundaries above \(Self.degrees(s.boundaryDegrees))°, "
-                 + "at least \(UnitDisplay.count(s.minimumSize, "point", "points")))")
+        onEvent?(Self.segmentedLine(grains: result.table.count, settings: result.settings))
         if case .derived(let d) = layer, !derivedLayers.contains(d) { layer = .derived(.grains) }
         if case .derived = layer { draw() }
     }
@@ -590,7 +588,13 @@ package final class OrientationMapSession {
         texture = nil; texturePhaseID = nil; isTexturing = false
     }
 
-    nonisolated private static func degrees(_ v: Double) -> String { v.formatted(.number.grouping(.never).precision(.fractionLength(0...2))) }
+    /// The Output line a Segment lands with: "Segmented 14 grains (boundaries above 5°, at least 5 points)". The angle in `locale` as the
+    /// Grains section's "Made with" row writes it (`MapsRoomFormat.number`, four significant digits): "2.675°", where two decimals by
+    /// FormatStyle read "2.68°".
+    nonisolated package static func segmentedLine(grains: Int, settings s: MapAnalysisSettings, locale: Locale = .autoupdatingCurrent) -> String {
+        "Segmented \(UnitDisplay.count(grains, "grain", "grains")) (boundaries above \(UnitDisplay.number(s.boundaryDegrees, digits: 4, locale: locale))°, "
+            + "at least \(UnitDisplay.count(s.minimumSize, "point", "points")))"
+    }
 
     // MARK: Grains
 

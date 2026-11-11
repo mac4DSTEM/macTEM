@@ -62,6 +62,15 @@ nonisolated final class IndexingFileWordsTests: XCTestCase {
         XCTAssertEqual(SEMSessionLedger.refineField(both, locale: Self.german).value, "Both · ±2,5° · PC ±0,05 · Nelder–Mead", "the control")
     }
 
+    /// The Refine words take `UnitDisplay.number`'s three significant digits, printf's rounding of a decimal tie, as every other
+    /// number of the room. Red before: FormatStyle wrote "±2.68°" for a trust of 2.675° (the binary value is 2.67499…).
+    func testTheRefineWordsRoundAsUnitDisplay() {
+        let tie = IndexingRefineSettings(target: .orientation, trustAngle: 2.675)
+        XCTAssertEqual(tie.words(locale: Self.report), "Orientation · ±2.67° · Nelder–Mead")
+        XCTAssertEqual(tie.words(locale: Self.german), "Orientation · ±2,67° · Nelder–Mead")
+        XCTAssertEqual(IndexingRefineSettings(target: .projectionCenter, trustPC: 0.0125).words(locale: Self.report), "PC · PC ±0.0125 · Nelder–Mead")
+    }
+
     /// The master pattern's energies and the energy a dictionary is projected for, in the locale asked for; the room's words stay in
     /// the reader's.
     func testTheEnergyWordsTakeTheLocaleAskedFor() throws {

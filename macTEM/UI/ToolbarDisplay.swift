@@ -46,7 +46,7 @@ enum ToolbarDisplay {
             let session = appState.indexing
             guard let dataset = session.patterns.dataset else { return nil }
             if session.isBusy {
-                // "Hough · 2 340 of 4 125", "Dictionary · 1 of 3 chunks · NCC" (`BusyOperation.indexingLine`).
+                // "Hough · 2340 of 4125", "Dictionary · 1 of 3 chunks · NCC" (`BusyOperation.indexingLine`).
                 return .busy(operation: BusyOperation.indexingLine(session, dataset: dataset), progress: RoomProgress.fraction(room: room, appState: appState),
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }

@@ -11,12 +11,11 @@ import SwiftUI
 import TEMCore
 
 nonisolated enum SEMEDSFormat {
-    /// `places` decimals in `locale`, never grouped (the SEM rows' rule, #272): "12345 counts", "1,486 keV" in de_DE. A non-finite
-    /// value is UnitDisplay's dash, and a value that rounds to zero carries no sign ("0,000", never "-0,000").
+    /// `places` decimals in `locale`, never grouped (the SEM rows' rule, #272): "12345 counts", "1,486 keV" in de_DE, as
+    /// `UnitDisplay.fixed` writes them: printf's digits, so a tie reads as the CSV beside it (0.35 at one place is "0.3"), UnitDisplay's
+    /// dash for a non-finite value, and no sign on a value that rounds to zero ("0,000", never "-0,000").
     static func fixed(_ v: Double, _ places: Int, locale: Locale = .autoupdatingCurrent) -> String {
-        guard v.isFinite else { return UnitDisplay.number(v) }
-        let text = v.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(places)))
-        return text.hasPrefix("-") && !text.contains(where: { ("1"..."9").contains($0) }) ? String(text.dropFirst()) : text
+        UnitDisplay.fixed(v, places: places, locale: locale)
     }
 
     static func keV(_ v: Double, locale: Locale = .autoupdatingCurrent) -> String { fixed(v, 3, locale: locale) }
@@ -37,6 +36,25 @@ nonisolated enum SEMEDSFormat {
             text += " keV"
         }
         return text
+    }
+
+    /// The take-off row's label: the one row of "SEM Conditions" with help and an identifier of its own.
+    static let takeOff = "Take-off"
+
+    /// The "SEM Conditions" rows in `locale`, never grouped: the angles, the beam and the resolution as `UnitDisplay.number` writes them,
+    /// the take-off angle and the live time at one place (`fixed`): "Live time 1234,5 s" in de_DE, where FormatStyle grouped "1.234,5 s".
+    /// A row the file does not state (the beam, the live time) is left out.
+    static func conditionRows(_ c: SEMEDSLines.Conditions, microscope: String?,
+                              locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
+        let n = { (v: Double) in UnitDisplay.number(v, locale: locale) }
+        var rows = [EBSDBrowsing.Row("Microscope", "SEM" + (microscope.map { " · \($0)" } ?? ""))]
+        if let kV = c.beamEnergyKeV { rows.append(EBSDBrowsing.Row("Beam", "\(n(kV)) kV")) }
+        rows.append(EBSDBrowsing.Row(takeOff, "\(fixed(c.takeOffAngleDeg, 1, locale: locale))°"))
+        rows.append(EBSDBrowsing.Row("Elevation", "\(n(c.elevationAngleDeg))°"))
+        rows.append(EBSDBrowsing.Row("Stage tilt", "\(n(c.tiltAlphaDeg))°"))
+        rows.append(EBSDBrowsing.Row("Resolution", "\(n(c.energyResolutionMnKaEV)) eV at Mn Kα"))
+        if let live = c.liveTimeS { rows.append(EBSDBrowsing.Row("Live time", "\(fixed(live, 1, locale: locale)) s")) }
+        return rows
     }
 }
 
@@ -77,15 +95,15 @@ struct SEMEDSInfo: View {
     var body: some View {
         if state.isSEMSpectrum, let c = state.spectrum?.conditions {
             InspectorSection("SEM Conditions") {
-                InspectorValueRow("Microscope", "SEM" + (state.spectrum?.microscope.map { " · \($0)" } ?? ""))
-                if let kV = c.beamEnergyKeV { InspectorValueRow("Beam", "\(kV.formatted()) kV") }
-                InspectorValueRow("Take-off", "\(c.takeOffAngleDeg.formatted(.number.precision(.fractionLength(1))))°")
-                    .help("90° − acos(sin α cos β cos φ cos θ − sin β sin φ cos θ − cos α cos β sin θ): α stage tilt, β = −tilt β, φ azimuth, θ = −elevation (exspy take_off_angle).")
-                    .accessibilityIdentifier("edx.sem.takeOff")
-                InspectorValueRow("Elevation", "\(c.elevationAngleDeg.formatted())°")
-                InspectorValueRow("Stage tilt", "\(c.tiltAlphaDeg.formatted())°")
-                InspectorValueRow("Resolution", "\(c.energyResolutionMnKaEV.formatted()) eV at Mn Kα")
-                if let live = c.liveTimeS { InspectorValueRow("Live time", "\(live.formatted(.number.precision(.fractionLength(1)))) s") }
+                ForEach(SEMEDSFormat.conditionRows(c, microscope: state.spectrum?.microscope)) { row in
+                    if row.label == SEMEDSFormat.takeOff {
+                        InspectorValueRow(row.label, row.value)
+                            .help("90° − acos(sin α cos β cos φ cos θ − sin β sin φ cos θ − cos α cos β sin θ): α stage tilt, β = −tilt β, φ azimuth, θ = −elevation (exspy take_off_angle).")
+                            .accessibilityIdentifier("edx.sem.takeOff")
+                    } else {
+                        InspectorValueRow(row.label, row.value)
+                    }
+                }
             }
             SEMEDSLineWindowsSection(state: state)
         }

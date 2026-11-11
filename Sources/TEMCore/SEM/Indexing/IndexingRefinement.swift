@@ -97,9 +97,10 @@ package nonisolated struct IndexingRefineSettings: Sendable, Equatable {
     package var words: String { self.words(locale: .autoupdatingCurrent) }
 
     /// `words` with its numbers in `locale`: the session report passes its own (`en_US_POSIX`), so a German Mac writes "±2.5°" there
-    /// and "±2,5°" on screen.
+    /// and "±2,5°" on screen. Three significant digits as `UnitDisplay.number` writes them, never grouped: a trust of 2.675° reads
+    /// "±2.67°", printf's digits, where FormatStyle rounded the decimal tie to "±2.68°".
     package func words(locale: Locale) -> String {
-        let f = { (v: Double) in v.formatted(.number.locale(locale).precision(.significantDigits(1...3))) }
+        let f = { (v: Double) in UnitDisplay.number(v, digits: 3, locale: locale) }
         let bounds = switch target {
         case .orientation: "±\(f(trustAngle))°"
         case .projectionCenter: "PC ±\(f(trustPC))"

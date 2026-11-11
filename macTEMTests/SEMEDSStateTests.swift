@@ -56,6 +56,39 @@ nonisolated final class SEMEDSStateTests: XCTestCase {
         XCTAssertEqual(SEMEDSFormat.keV(-0.043, locale: Self.us), "-0.043")
     }
 
+    /// The words take printf's digits through `UnitDisplay.fixed`, so a decimal tie reads as the CSV beside it. Red before: FormatStyle
+    /// rounded the shortest decimal spelling, "0.4" and "5.898" (the binary values are 0.34999… and 5.89749…).
+    func testTheSEMEDSWordsRoundAsPrintf() {
+        XCTAssertEqual(SEMEDSFormat.fixed(0.35, 1, locale: Self.posix), "0.3")
+        XCTAssertEqual(SEMEDSFormat.keV(5.8975, locale: Self.posix), "5.897")
+        XCTAssertEqual(SEMEDSFormat.fixed(0.35, 1, locale: Self.de), UnitDisplay.fixed(0.35, places: 1, locale: Self.de))
+    }
+
+    /// The SEM Conditions rows in the locale given, never grouped: the live time and the take-off angle at one place, the others as
+    /// `UnitDisplay.number` writes them; a row the file does not state is left out. Red before: no `conditionRows`; the view wrote the
+    /// rows with FormatStyle in the system's locale, "1.234,5 s" in German.
+    func testTheConditionRowsAreNeverGrouped() throws {
+        let c = SEMEDSLines.Conditions(beamEnergyKeV: 20, energyResolutionMnKaEV: 128.5, elevationAngleDeg: 35, tiltAlphaDeg: 0,
+                                       liveTimeS: 1234.5)
+        let de = SEMEDSFormat.conditionRows(c, microscope: "Zeiss", locale: Self.de)
+        XCTAssertEqual(de.map(\.label), ["Microscope", "Beam", SEMEDSFormat.takeOff, "Elevation", "Stage tilt", "Resolution", "Live time"])
+        let values = Dictionary(uniqueKeysWithValues: de.map { ($0.label, $0.value) })
+        XCTAssertEqual(values["Microscope"], "SEM · Zeiss")
+        XCTAssertEqual(values["Beam"], "20 kV")
+        XCTAssertEqual(values[SEMEDSFormat.takeOff], "\(UnitDisplay.fixed(c.takeOffAngleDeg, places: 1, locale: Self.de))°")
+        XCTAssertEqual(values["Elevation"], "35°")
+        XCTAssertEqual(values["Stage tilt"], "0°")
+        XCTAssertEqual(values["Resolution"], "128,5 eV at Mn Kα")
+        XCTAssertEqual(values["Live time"], "1234,5 s")
+        let posix = SEMEDSFormat.conditionRows(c, microscope: nil, locale: Self.posix)
+        XCTAssertEqual(posix.first?.value, "SEM")
+        XCTAssertEqual(posix.last?.value, "1234.5 s")
+
+        let bare = SEMEDSFormat.conditionRows(SEMEDSLines.Conditions(beamEnergyKeV: nil), microscope: nil, locale: Self.us)
+        XCTAssertEqual(bare.map(\.label), ["Microscope", SEMEDSFormat.takeOff, "Elevation", "Stage tilt", "Resolution"],
+                       "no beam and no live time in the file: no rows for them")
+    }
+
     /// The session rows of the spectrum's lines in the locale the report asks for: one decimal mark through the row, ungrouped counts,
     /// no k-factor or composition of their own (the shared EDS room quantifies, D-SEM-107). Mutation: a row in the reader's locale
     /// inside a POSIX report, or a grouped count.
