@@ -93,9 +93,13 @@ package nonisolated struct IndexingRefineSettings: Sendable, Equatable {
         return nil
     }
 
-    /// "Orientation · ±2° · Nelder–Mead": Output, Info and the ledger.
-    package var words: String {
-        let f = { (v: Double) in v.formatted(.number.precision(.significantDigits(1...3))) }
+    /// "Orientation · ±2° · Nelder–Mead": Output and Info, in the reader's locale (`words(locale:)`).
+    package var words: String { self.words(locale: .autoupdatingCurrent) }
+
+    /// `words` with its numbers in `locale`: the session report passes its own (`en_US_POSIX`), so a German Mac writes "±2.5°" there
+    /// and "±2,5°" on screen.
+    package func words(locale: Locale) -> String {
+        let f = { (v: Double) in v.formatted(.number.locale(locale).precision(.significantDigits(1...3))) }
         let bounds = switch target {
         case .orientation: "±\(f(trustAngle))°"
         case .projectionCenter: "PC ±\(f(trustPC))"

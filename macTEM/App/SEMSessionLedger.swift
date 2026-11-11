@@ -215,21 +215,13 @@ enum SEMSessionLedger {
         }
         fields.append(SEMSessionField("Patterns", run.source.title))
         if let pc = run.projectionCenter { fields.append(SEMSessionField("PC", IndexingInfoFormat.projectionCentre(pc, locale: locale))) }
-        if result.method == .dictionary, run.dictionaryPlans.count == 1, let plan = run.dictionaryPlans.first {
-            fields.append(SEMSessionField("Master", IndexingInfoFormat.master(plan)))
-            fields.append(SEMSessionField("Energy", plan.energyWords))
-            fields.append(SEMSessionField("Dictionary", IndexingInfoFormat.dictionary(plan, locale: locale)))
-        } else if result.method == .dictionary, !run.dictionaryPlans.isEmpty {
-            // A run against several phases (D-SEM-98): each phase's master pattern and energy, then the dictionaries.
-            for plan in run.dictionaryPlans {
-                fields.append(SEMSessionField("\(plan.phase.name) master", IndexingInfoFormat.phaseMaster(plan)))
-            }
-            fields.append(SEMSessionField("Dictionary", IndexingInfoFormat.dictionaries(run.dictionaryPlans, locale: locale)))
+        if result.method == .dictionary, !run.dictionaryPlans.isEmpty {
+            fields += dictionaryFields(run.dictionaryPlans, locale: locale)
         } else if result.method == .hough {
             fields += houghFields(run.inputs.settings, locale: locale)
         }
         let refined = run.refinement   // a refinement of the Dictionary run (D-SEM-109)
-        if let refined { fields.append(SEMSessionField("Refine", refined.settings.words)) }
+        if let refined { fields.append(SEMSessionField("Refine", refined.settings.words(locale: locale))) }
         fields.append(SEMSessionField("State", IndexingInfoFormat.state(of: run, session: session)))
         // A refinement's row: the Dictionary run's time, then the refinement's own.
         if let refined, let s = session.runs[.dictionary].flatMap({ $0.id == refined.base ? $0.seconds : nil }) {
@@ -248,6 +240,25 @@ enum SEMSessionLedger {
         return SEMSessionRow(id: id, kind: .indexing, label: refined == nil ? "\(result.method.title) indexing" : "Refined dictionary indexing",
                              value: "\(IndexingInfoFormat.indexed(result, locale: locale)) indexed · \(result.phases.map(\.name).joined(separator: ", "))",
                              source: "Indexing · \(document.fileName)", time: ended?.time, fields: fields, methods: methods, log: log)
+    }
+
+    /// A dictionary run's rows in the Indexing room's Info words (`IndexingInfoFormat.master`, `phaseMaster`, `dictionary` and
+    /// `dictionaries`), every number in `locale`, the energies too: one plan's master pattern, energy and dictionary; for a run against
+    /// several phases (D-SEM-98), each phase's master pattern and energy, then the dictionaries.
+    nonisolated static func dictionaryFields(_ plans: [DictionaryIndexingPlan], locale: Locale) -> [SEMSessionField] {
+        guard let first = plans.first else { return [] }
+        if plans.count == 1 {
+            return [
+                SEMSessionField("Master", "\(first.master.fileName) · \(first.master.summary(locale: locale))"),
+                SEMSessionField("Energy", first.energyWords(locale: locale)),
+                SEMSessionField("Dictionary", IndexingInfoFormat.dictionary(first, locale: locale)),
+            ]
+        }
+        var fields = plans.map { plan in
+            SEMSessionField("\(plan.phase.name) master", "\(plan.master.fileName) · \(plan.energyWords(locale: locale))")
+        }
+        fields.append(SEMSessionField("Dictionary", IndexingInfoFormat.dictionaries(plans, locale: locale)))
+        return fields
     }
 
     /// The Hough settings in the inspector's words.
