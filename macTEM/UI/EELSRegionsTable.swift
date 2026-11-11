@@ -35,8 +35,16 @@ nonisolated enum EELSRegionSpeech {
         }
     }
 
-    /// The total-counts cell's value: the whole number of counts, no grouping.
-    static func totalValue(_ counts: Double, locale: Locale = .autoupdatingCurrent) -> String { Num.fixed(counts, 0, locale: locale) }
+    /// The total-counts cell's text: the whole number of counts, never grouped ("2637954" in any locale, as the app writes every count), and a dash
+    /// where the sum is not a number.
+    static func totalText(_ counts: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        counts.isFinite ? Num.fixed(counts, 0, locale: locale) : UnitDisplay.noValue
+    }
+
+    /// The total-counts cell's value: the text the cell shows; "none" for a cell that shows a dash.
+    static func totalValue(_ counts: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        counts.isFinite ? totalText(counts, locale: locale) : "none"
+    }
 
     /// The t/λ cell's value: the four decimals the cell shows, in the reader's decimal mark ("0,5012" in a comma locale, as the cell beside it); nothing
     /// where the cell shows a dash.
@@ -95,7 +103,7 @@ struct EELSRegionsTable: View {
                                 Text("\(row.pixels)").monospacedDigit()
                                     .accessibilityLabel("\(pin.name) pixels").accessibilityValue("\(row.pixels)")
                                     .accessibilityIdentifier("eels.regionTable.\(pin.name).pixels")
-                                Text(EDXRoomFormat.counts(row.totalCounts)).monospacedDigit()
+                                Text(EELSRegionSpeech.totalText(row.totalCounts)).monospacedDigit()
                                     .accessibilityLabel("\(pin.name) total counts").accessibilityValue(EELSRegionSpeech.totalValue(row.totalCounts))
                                     .accessibilityIdentifier("eels.regionTable.\(pin.name).total")
                                 Text(row.tOverLambda.map { Num.fixed($0, 4) } ?? UnitDisplay.noValue).monospacedDigit()
