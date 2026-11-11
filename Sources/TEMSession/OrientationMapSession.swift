@@ -4,7 +4,7 @@
 //        `CrystalMap` from an `.ang` or `.ctf` opened on its own, the crystal map of the EBSD dataset the Patterns room holds, or a run
 //        of the Indexing room on that dataset, handed over by its `Open in Maps`, D-SEM-99) and the others held for `Source`, which layer
 //        the map pane draws (IPF-Z, IPF-X, IPF-Y, Phase or a property) and its picture, the colour keys of the map's phases, and the
-//        pinned and hovered scan points. The room's views read it; they hold none of it.
+//        picked scan point (`pinned`). The room's views read it; they hold none of it.
 //
 //        P5-04 completes it: `segment()` runs the grain analysis (`MapAnalysis`: grains, boundaries, KAM, GOS, GND, the grain table) off the
 //        main actor with the inspector's settings, the slip of each grain under the load direction follows from it, and the texture of one
@@ -165,9 +165,9 @@ package final class OrientationMapSession {
     package private(set) var texturePhaseID: Int?
     package private(set) var isTexturing = false
 
+    /// The picked point: where the marker stands and what the orientation or pattern pane shows. The pointer over the map picks nothing
+    /// (D-SEM-110).
     package private(set) var pinned = EBSDPosition.origin
-    package private(set) var hovered: EBSDPosition?
-    package var shown: EBSDPosition { hovered ?? pinned }
 
     package var onEvent: ((String) -> Void)?
     package var onFailure: ((any Error) -> Void)?
@@ -293,7 +293,6 @@ package final class OrientationMapSession {
         sources.sort { $0.source.kind < $1.source.kind }
         let rows = document.rows, columns = document.columns
         self.pinned = pinned.isInside(rows: rows, columns: columns) ? pinned : .origin
-        hovered = nil
         self.layer = OrientationMaps.layers(of: document.map).contains(layer) ? layer : .ipf(.z)
         raster = nil; rasterRGBA = nil; keys = []
         resetAnalysis()
@@ -314,7 +313,7 @@ package final class OrientationMapSession {
         slipFiles = [:]
         document = nil; sources = []; isOpening = false; isDrawing = false
         raster = nil; rasterRGBA = nil; grid = []; keys = []
-        pinned = .origin; hovered = nil; layer = .ipf(.z)
+        pinned = .origin; layer = .ipf(.z)
     }
 
     /// The Patterns room bound another dataset, `map` its crystal map when it carries one (`patternsDocument`), or closed it (`map`
@@ -444,12 +443,7 @@ package final class OrientationMapSession {
 
     // MARK: Points
 
-    package func hover(_ position: EBSDPosition?) {
-        guard let position else { hovered = nil; return }
-        let (rows, columns) = gridShape
-        hovered = position.isInside(rows: rows, columns: columns) ? position : nil
-    }
-
+    /// Picks `position` (a click or a drag on the map): nothing outside the map.
     package func pin(_ position: EBSDPosition) {
         let (rows, columns) = gridShape
         guard position.isInside(rows: rows, columns: columns) else { return }
@@ -457,13 +451,11 @@ package final class OrientationMapSession {
         followPinnedGrain()
     }
 
-    package func pinHovered() { if let hovered { pinned = hovered; followPinnedGrain() } }
-
+    /// An arrow key: the pick moves `by` points, held inside the map.
     package func step(_ direction: EBSDPosition.Direction, by count: Int = 1) {
         let (rows, columns) = gridShape
         guard rows > 0, columns > 0 else { return }
         pinned = pinned.stepped(direction, by: count, rows: rows, columns: columns)
-        hovered = nil
         followPinnedGrain()
     }
 

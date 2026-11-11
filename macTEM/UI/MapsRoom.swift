@@ -1,8 +1,8 @@
 //
 //  MapsRoom.swift
 //  Role: the Maps room's first slice (docs/sem/design/orientation-maps-room.md §3, §6; brief P3-04): the map on the left (the layer the
-//        inspector's Maps section picks: IPF-Z, IPF-X, IPF-Y, Phase or a property of the file, one pixel per scan point, a crosshair at the
-//        pinned point, the scale bar from the step), on the right the live pattern pane when the map came with its patterns (the Patterns
+//        inspector's Maps section picks: IPF-Z, IPF-X, IPF-Y, Phase or a property of the file, one pixel per scan point, the marker at the
+//        picked point, the scale bar from the step), on the right the live pattern pane when the map came with its patterns (the Patterns
 //        room's own pane, following the same point) or the orientation pane when it did not (the point's unit cell in the sample frame, its
 //        IPF colour and Euler angles), and the colour key in the bottom pane (each phase's TSL key for an IPF layer, the phase legend for
 //        Phase, the colour bar's range for a property). Presentation only: the pictures and words are `OrientationMaps`' (TEMCore), the
@@ -14,8 +14,9 @@
 //
 //  ⌘-click on the map adds the grain under the pointer to the selection, or takes it out (macTEM#239).
 //
-//  KEYS: the room's root is the one focusable container (as the Patterns room's): ← → ↑ ↓ step the pinned point by one (⇧ by ten), Space
-//  pins the hovered one. A click on the map at 1× pins the point under it.
+//  PICK AND KEYS: as the Patterns room (`SEMMapPick.swift`, D-SEM-110): a click or a drag on the map at 1× and below picks the point under
+//  it and the pattern or orientation pane follows (zoomed in, the marker's handle); the pointer over the map only writes the status line.
+//  The room's root is the one focusable container, given the keyboard by any press on the map: ← → ↑ ↓ step the pick by one (⇧ by ten).
 //
 
 import ShellControls
@@ -122,39 +123,38 @@ struct MapsExportFile: FileDocument {
 
 // MARK: - The keys
 
-/// The arrows step the pinned point (⇧ ten), Space pins the hovered one; the pattern pane follows when the map has patterns.
+/// The arrows step the picked point (⇧ ten), on the room's one focusable container (`SEMRoomFocus`); the pattern pane follows when the
+/// map has patterns. On the Patterns room's scan the map and the pattern pane name one point: as the room shows, the map takes the point
+/// picked in Patterns or Indexing, and the pane follows every change of the map's pick, whatever made it (the map, the arrows, ⌘-click,
+/// a Grains-table row). A modifier of its own reads both picks, so the room's body does not run at a drag's rate.
 private struct MapsKeyedRoom: ViewModifier {
     let session: OrientationMapSession
     let patterns: EBSDSession?
+    @Environment(AppState.self) private var appState
 
     func body(content: Content) -> some View {
         content
-            .focusable()
-            .focusEffectDisabled()   // DEVIATION as `FFTKeyedRoom`'s, named there
+            .modifier(SEMRoomFocus())
             .onKeyPress(phases: .down) { press in
-                if let step = PatternsKeys.step(key: press.key, modifiers: press.modifiers) {
-                    session.step(step.direction, by: step.count)
-                    patterns?.pin(session.pinned)
-                    return .handled
-                }
-                if press.key == .space, press.modifiers.isEmpty {
-                    session.pinHovered()
-                    patterns?.pin(session.pinned)
-                    return .handled
-                }
-                return .ignored
+                guard let step = PatternsKeys.step(key: press.key, modifiers: press.modifiers) else { return .ignored }
+                session.step(step.direction, by: step.count)
+                patterns?.pin(session.pinned)
+                return .handled
             }
+            .onChange(of: patterns?.pinned, initial: true) { appState.mapsFollowPatternsPin() }
+            .onChange(of: session.pinned) { appState.followMapsPin() }
     }
 }
 
 // MARK: - The map
 
-/// The shown layer, one pixel per scan point, with the pinned point's crosshair: hovering puts the point's phase, Euler angles and properties
-/// in the status line (and the pattern under the pointer in the pattern pane); a click at 1× pins the point.
+/// The shown layer, one pixel per scan point, with the picked point's marker: a click or a drag at 1× picks the point (zoomed in, the
+/// marker's handle) and the pattern or orientation pane follows; hovering only puts the point's phase, Euler angles and properties in the
+/// status line.
 struct MapPane: View {
     let session: OrientationMapSession
     let state: MapsRoomState
-    /// The Patterns room's session when the map came with its patterns: hover and pin follow there too.
+    /// The Patterns room's session when the map came with its patterns: the pick follows there too.
     let patterns: EBSDSession?
     let map: CrystalMap
     /// Why the map is stale, when it is an Indexing run the room has moved on from (D-SEM-99).
@@ -172,6 +172,8 @@ struct MapPane: View {
         }
         .padding(8)
         .clipped()
+        // Any press on the pane gives the room the keyboard; an ancestor of the pick's, the pan's and ⌘-click's gestures, so it takes none.
+        .modifier(SEMMapPress())
     }
 
     private var header: some View {
@@ -197,6 +199,7 @@ struct MapPane: View {
         let box = LayoutPolicy.fitted(in: size, aspect: CGFloat(max(shape.columns, 1)) / CGFloat(max(shape.rows, 1)))
         let transform = MetalDisplayTransform(paneSize: box, imageBox: box, zoom: zp.drawZoom, offset: zp.effectiveOffset)
         let geometry = MarkGeometry(transform: transform, imageWidth: shape.columns, imageHeight: shape.rows)
+        let mode = SEMMapPointer.mode(zoom: zp.effectiveZoom)
         let presentation = session.propertyPresentation
         let notIndexed = session.notIndexedCount
         return ZStack {
@@ -226,25 +229,23 @@ struct MapPane: View {
                         .allowsHitTesting(false)
                         .accessibilityIdentifier("maps.grain.outline")
                 }
-                ScanMarker(center: geometry.panePoint(of: ImagePoint(x: Double(session.pinned.column), y: Double(session.pinned.row))),
-                           pointsPerPixel: geometry.pointsPerPixel)
-                    .allowsHitTesting(false)
+                // At 1× and below a click or a drag anywhere picks, and ⌘-click is the scrub's own; zoomed in the drag is the pane's pan.
+                if mode == .scrub {
+                    SEMMapScrubLayer(geometry: geometry, zoomModel: zoomModel) { pick($0) } commandClick: { toggle($0) }
+                }
+                SEMScanMarker(position: session.pinned, geometry: geometry, isHandle: mode == .panAndGrab, identifier: "maps.map.marker",
+                              pick: { pick($0) }, step: { session.step($0); patterns?.pin(session.pinned) })
             }
             .frame(width: box.width, height: box.height)
+            .coordinateSpace(.named(SEMMapPointer.space))
             .clipped()
             .contentShape(Rectangle())
-            // ⌘-click adds the grain under the point to the selection, or takes it out (macTEM#239); a plain click pins.
+            // ⌘-click adds the grain under the point to the selection, or takes it out (macTEM#239). Zoomed in only, where no scrub is
+            // mounted: at 1× and below it is the scrub's, so no gesture over the pick holds a plain click or drag back.
             .highPriorityGesture(SpatialTapGesture().modifiers(.command).onEnded { value in
-                let q = geometry.imagePoint(atPanePoint: value.location)
-                session.toggleGrain(at: EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded())))
-                patterns?.pin(session.pinned)
-            })
-            .onTapGesture { location in
-                let q = geometry.imagePoint(atPanePoint: location)
-                let point = EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded()))
-                session.pin(point)
-                patterns?.pin(session.pinned)
-            }
+                guard SEMMapPointer.isOnImage(value.location, geometry: geometry) else { return }
+                toggle(SEMMapPointer.position(at: value.location, geometry: geometry))
+            }, including: mode == .panAndGrab ? .all : .subviews)
             .border(Color.white.opacity(0.08))
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry) })
             .zoomPanWheel(zoomModel, box: box)
@@ -273,25 +274,28 @@ struct MapPane: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("maps.map")
         .accessibilityLabel("Orientation map, \(session.layer.title)")
-        .accessibilityValue("\(shape.rows) rows by \(shape.columns) columns, pinned at row \(session.pinned.row) column \(session.pinned.column)")
+        .accessibilityValue("\(shape.rows) rows by \(shape.columns) columns, at row \(session.pinned.row) column \(session.pinned.column)")
         .accessibilityHint(ZoomPan.accessibilityHint)
     }
 
+    /// A click, a drag or the handle picks `point`; the live pattern pane follows when the map has patterns.
+    private func pick(_ point: EBSDPosition) {
+        session.pin(point)
+        patterns?.pin(session.pinned)
+    }
+
+    /// ⌘-click: the grain at `point` joins the selection or leaves it, and the point is picked; the live pattern pane follows.
+    private func toggle(_ point: EBSDPosition) {
+        session.toggleGrain(at: point)
+        patterns?.pin(session.pinned)
+    }
+
+    /// The status line's readout of the point under the pointer: hovering reads, it never moves the pick (D-SEM-110).
     private func hovered(_ phase: HoverPhase, geometry: MarkGeometry) {
         switch phase {
-        case .active(let p):
-            let q = geometry.imagePoint(atPanePoint: p)
-            let point = EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded()))
-            let shape = session.gridShape
-            guard point.isInside(rows: shape.rows, columns: shape.columns) else {
-                session.hover(nil); patterns?.hover(nil); state.readout = nil; return
-            }
-            session.hover(point)
-            patterns?.hover(point)
-            state.readout = session.readout(at: point)
-        case .ended:
-            session.hover(nil)
-            patterns?.hover(nil)
+        case .active(let p) where SEMMapPointer.isOnImage(p, geometry: geometry):
+            state.readout = session.readout(at: SEMMapPointer.position(at: p, geometry: geometry))
+        case .active, .ended:
             state.readout = nil
         }
     }
@@ -299,17 +303,17 @@ struct MapPane: View {
 
 // MARK: - The orientation pane
 
-/// For a map without patterns (design §3): the shown point's unit cell in the sample frame seen down z (x to the right, y down, as the
+/// For a map without patterns (design §3): the picked point's unit cell in the sample frame seen down z (x to the right, y down, as the
 /// map), its IPF colour, phase and Euler angles.
 struct OrientationPane: View {
     let session: OrientationMapSession
 
     var body: some View {
-        let point = session.shown
+        let point = session.pinned
         let found = session.orientation(at: point)
         VStack(spacing: 6) {
             HStack(spacing: 8) {
-                Text(verbatim: "Orientation · row \(point.row) col \(point.column)" + (session.hovered == nil ? " · pinned" : ""))
+                Text(verbatim: "Orientation · row \(point.row) col \(point.column)")
                     .font(.headline).lineLimit(1)
                     .accessibilityIdentifier("maps.orientation.title")
                 Spacer(minLength: 8)

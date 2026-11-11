@@ -45,20 +45,17 @@ nonisolated final class OrientationMapSessionTests: XCTestCase {
         XCTAssertTrue(session.canSegment)
         XCTAssertNil(session.segmentBlocker)
 
-        // 200 moves of the pointer, each a hover and the status line's words: under 2 s with the stored grid (well under 0.1 s on the
-        // dev Mac; generous for a shared runner).
+        // 200 moves of the pointer, each the status line's words (the pointer picks nothing, D-SEM-110): under 2 s with the stored grid
+        // (well under 0.1 s on the dev Mac; generous for a shared runner).
         let start = Date()
         var words = 0
-        var last = EBSDPosition.origin
         for k in 0..<200 {
-            last = EBSDPosition(row: (k * 37) % 1000, column: (k * 91) % 1000)
-            session.hover(last)
-            if session.readout(at: last) != nil { words += 1 }
+            let point = EBSDPosition(row: (k * 37) % 1000, column: (k * 91) % 1000)
+            if session.readout(at: point) != nil { words += 1 }
         }
         let seconds = Date().timeIntervalSince(start)
         XCTAssertEqual(words, 200)
-        XCTAssertEqual(session.hovered, last)
-        XCTAssertLessThan(seconds, 2, "200 hovers and readouts took \(seconds) s")
+        XCTAssertLessThan(seconds, 2, "200 readouts took \(seconds) s")
         // The status line's words are the ones `OrientationMaps.readout` makes from the map's own shape.
         let en = Locale(identifier: "en_US")
         XCTAssertEqual(OrientationMaps.readout(map, grid: session.grid, row: 3, column: 5, shape: session.gridShape, locale: en),

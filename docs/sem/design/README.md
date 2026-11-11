@@ -77,8 +77,8 @@ centre the three new rooms share one arrangement, the browser arrangement of mac
 
 - **Main pane**: the map of the scan (virtual BSE in Patterns, the indexed map in Indexing, the chosen map in Maps);
   the anchor where regions and the scan marker are drawn; one `ZoomableContainer`; a scale bar in its `PaneFooter`.
-- **Live pattern pane**: the pattern at the scan position under the pointer while it hovers the map, the pinned
-  position otherwise; open by default; the toggle is in the infobar's pane toggles (⌃⌘P) and the View menu; it carries
+- **Live pattern pane**: the pattern at the picked scan position (a click or a drag on the map, the arrows; D4,
+  D-SEM-110); open by default; the toggle is in the infobar's pane toggles (⌃⌘P) and the View menu; it carries
   the overlays of its room (the projection centre, the Kikuchi bands, the indexed solution) in one transformed
   container so the overlays stay pixel-accurate at any zoom, as mac4DSTEM's `ImagePanes` does.
 - **Bottom pane**: results beside the data, never in the inspector (control placement §1): tabs per room, selection
@@ -90,8 +90,8 @@ centre the three new rooms share one arrangement, the browser arrangement of mac
   file · room · size, then the running stage with its bar and ETA.
 - **Status line**: `row 42 · col 17 · BSE 1 203 · φ₁ 12,3° Φ 44,0° φ₂ 271,5° · Ni · CI 0,82`: the hovered position
   first, every map's value at that position after it, in one line (control placement §7). No chip on a tile.
-- **Keys**: ⌘1–9 rooms; ⌘↩ verb; ⌘. stop; ← → ↑ ↓ step the scan position by one pixel while the map has focus, ⇧ by
-  ten; Space pins and unpins the pattern; ⌃⌘0–4 tools; ⌘+ ⌘− ⌘0 zoom.
+- **Keys**: ⌘1–9 rooms; ⌘↩ verb; ⌘. stop; ← → ↑ ↓ step the picked scan position by one pixel while the room has the
+  keyboard (a click on the map gives it), ⇧ by ten; ⌃⌘0–4 tools; ⌘+ ⌘− ⌘0 zoom.
 
 ## Shared components to reuse from macTEM and MacEMUI
 
@@ -122,7 +122,7 @@ mac4DSTEM are untouched, Paul's rule):
   pipeline, orientations and symmetry, Hough and dictionary indexing, maps and grains. Every function has a parity test
   against `tools/parity` references (kikuchipy, pyEBSDindex, orix) at the tolerance stated in `docs/parity.md`.
 - `TEMSession/EBSDSession`: the window's EBSD owner: the dataset, the processing stages with their state (current ·
-  stale · refused), the indexing result, the maps, the grains, regions, the selected and hovered scan positions.
+  stale · refused), the indexing result, the maps, the grains, regions, the picked scan position.
 - `macTEM/UI/ScanMapPane`, `LivePatternPane`, `ScanNavigator` (the thumbnail with the marker, drawn beside a pane that
   is not a map of scan positions, as mac4DSTEM's `ScanNavigatorPlacement`), `PoleFigurePane`, `GrainTable`.
 - `macTEM/UI/OrientationColorKey`: the IPF colour key legend as a view, the one legend for maps, tables and exports.
@@ -202,10 +202,13 @@ reversed by a one-line PR to the doc it touches.
 - **D3 No Simulation room.** The kinematic and dynamical overlays are a layer of the Indexing room's pattern pane with a
   `Simulation` inspector section; the master pattern is a tab of its bottom pane. The overlay is a check on the
   indexing, and a tenth room has no key.
-- **D4 The live pattern pane follows the pointer.** Open by default in all three rooms; the pattern under the pointer
-  while it hovers the map, the pinned position otherwise; a click or drag at 1× scrubs, Space pins, arrows step, ⌥
-  ghosts the hovered over the pinned. Toggle ⌃⌘P in the infobar's pane toggles and the View menu. This is mac4DSTEM's
-  browser with hover added, the "live view: preview, then commit" pattern of the design DNA.
+- **D4 The live pattern pane follows the pick** (reversed by D-SEM-110, Paul 2026-11-11; it said the pane followed the
+  pointer). Open by default in all three rooms; the pattern at the picked position, as mac4DSTEM's real-space pane:
+  a click or a drag on the map at 1× and below picks the position under the pointer and the pane follows, streaming
+  during the drag; zoomed in, a plain drag pans and only the marker's grab handle moves the pick; the pointer over the
+  map only writes the status line; ← → ↑ ↓ step the pick (⇧ ten), and a click on the map gives the room the keyboard.
+  No Space and no ⌥ ghost: there is no hovered pattern to pin or to ghost. Toggle ⌃⌘P in the infobar's pane toggles
+  and the View menu.
 - **D5 Demo data.** The demo Ni dataset (kikuchipy `nickel_ebsd_large`, CC BY 4.0) with its static background and Ni
   20 kV master pattern, orix's `sdss_ferrite_austenite.ang`, exspy's `EDS_SEM_TM002`, and one public SEM TIFF with a
   databar; all listed in `docs/data-sources.md` by the parity thread, which owns the licence check. Launch options

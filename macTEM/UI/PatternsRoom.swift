@@ -1,16 +1,17 @@
 //
 //  PatternsRoom.swift
 //  Role: the Patterns room (docs/sem/design/ebsd-patterns-room.md §3, §6): the scan map on the left (the mean intensity of every pattern,
-//        one pixel per scan point, a crosshair at the pinned position, the scale bar from the step) and the live pattern pane on the right
-//        (the pattern under the pointer while it hovers the map, the pinned one otherwise, with the simulation overlay when it is on), split by
-//        MacEMUI's `PaneSplit`. Each picture is
+//        one pixel per scan point, the marker at the picked position, the scale bar from the step) and the live pattern pane on the right
+//        (the pattern at the picked position, with the simulation overlay when it is on), split by MacEMUI's `PaneSplit`. Each picture is
 //        a `MetalImageView` under the shell's `zoomPan` modifiers, drawn as the Image room draws its canvas (`ImagePane`): the Metal view stays pane-sized
 //        and the shader applies the zoom. The room has its own document, the dataset, held by `EBSDSession` (TEMSession); the
 //        Calibration, Display and Export sections are the inspector's (`PatternsRoomInspector.swift`). Presentation only: every number on
 //        screen is the file's or `EBSDBrowsing`'s (TEMCore).
 //
-//  KEYS: the room's root is the one focusable container (the arrangement of `PaneKeys.swift`): ← → ↑ ↓ step the pinned position by one
-//  (⇧ by ten), Space pins the hovered position. A click on the map at 1× pins the position under it (design §6, the scrub).
+//  PICK AND KEYS (`SEMMapPick.swift`, D-SEM-110, as mac4DSTEM's real-space pane): a click or a drag on the map at 1× and below picks the
+//  position under it and the pattern pane follows, streaming during the drag; zoomed in, a drag pans and the marker's handle moves the
+//  pick. The pointer over the map only writes the status line. The room's root is the one focusable container (the arrangement of
+//  `PaneKeys.swift`), given the keyboard by any press on the map: ← → ↑ ↓ step the pick by one (⇧ by ten).
 //
 
 import ShellControls
@@ -114,21 +115,17 @@ struct PatternsExportFile: FileDocument {
 
 // MARK: - The keys
 
-/// The arrows step the pinned position (⇧ ten), Space pins the hovered one. One focusable container for the room, as `ImageKeyedRoom`.
+/// The arrows step the picked position (⇧ ten). One focusable container for the room (`SEMRoomFocus`), as `ImageKeyedRoom`.
 private struct PatternsKeyedRoom: ViewModifier {
     let session: EBSDSession
 
     func body(content: Content) -> some View {
         content
-            .focusable()
-            .focusEffectDisabled()   // DEVIATION as `FFTKeyedRoom`'s, named there
+            .modifier(SEMRoomFocus())
             .onKeyPress(phases: .down) { press in
-                if let step = PatternsKeys.step(key: press.key, modifiers: press.modifiers) {
-                    session.step(step.direction, by: step.count)
-                    return .handled
-                }
-                if press.key == .space, press.modifiers.isEmpty { session.pinHovered(); return .handled }
-                return .ignored
+                guard let step = PatternsKeys.step(key: press.key, modifiers: press.modifiers) else { return .ignored }
+                session.step(step.direction, by: step.count)
+                return .handled
             }
     }
 }
@@ -151,8 +148,8 @@ nonisolated enum PatternsKeys {
 
 // MARK: - The scan map
 
-/// The mean-intensity map, one pixel per scan point, with the pinned position's crosshair: hovering it puts the position and its mean in the
-/// status line and the pattern under the pointer in the pattern pane; a click at 1× pins the position (the scrub of design §6).
+/// The mean-intensity map, one pixel per scan point, with the picked position's marker: a click or a drag at 1× picks the position and the
+/// pattern pane follows (zoomed in, the marker's handle); hovering it only puts the position and its mean in the status line.
 struct ScanMapPane: View {
     let session: EBSDSession
     let state: PatternsRoomState
@@ -170,6 +167,8 @@ struct ScanMapPane: View {
         }
         .padding(8)
         .clipped()
+        // Any press on the pane gives the room the keyboard; an ancestor of the pick's, the pan's and the fit's gestures, so it takes none.
+        .modifier(SEMMapPress())
     }
 
     private var header: some View {
@@ -213,6 +212,7 @@ struct ScanMapPane: View {
         let presentation = session.mapPresentation
         let transform = MetalDisplayTransform(paneSize: box, imageBox: box, zoom: zp.drawZoom, offset: zp.effectiveOffset)
         let geometry = MarkGeometry(transform: transform, imageWidth: dataset.scanColumns, imageHeight: dataset.scanRows)
+        let mode = SEMMapPointer.mode(zoom: zp.effectiveZoom)
         let unit = EBSDBrowsing.unitLabel(dataset.scanUnit)
         return ZStack {
             ZStack {
@@ -234,19 +234,18 @@ struct ScanMapPane: View {
                     // The pass has not landed yet: the map's area, with the progress in the header.
                     Rectangle().fill(.quaternary).frame(width: box.width, height: box.height)
                 }
-                // The pinned position: a crosshair through the shader's own map, so it cannot slip from its scan point at any zoom.
-                ScanMarker(center: geometry.panePoint(of: ImagePoint(x: Double(session.pinned.column), y: Double(session.pinned.row))),
-                           pointsPerPixel: geometry.pointsPerPixel)
-                    .allowsHitTesting(false)
+                // At 1× and below a click or a drag anywhere picks; zoomed in the drag is the pane's pan.
+                if mode == .scrub {
+                    SEMMapScrubLayer(geometry: geometry, zoomModel: zoomModel) { session.pin($0) }
+                }
+                // The picked position, through the shader's own map, so it cannot slip from its scan point at any zoom; zoomed in, its handle.
+                SEMScanMarker(position: session.pinned, geometry: geometry, isHandle: mode == .panAndGrab, identifier: "patterns.map.marker",
+                              pick: { session.pin($0) }, step: { session.step($0) })
             }
             .frame(width: box.width, height: box.height)
+            .coordinateSpace(.named(SEMMapPointer.space))
             .clipped()
             .contentShape(Rectangle())
-            // A click pins the position under it (the drag is the pane's pan).
-            .onTapGesture { location in
-                let q = geometry.imagePoint(atPanePoint: location)
-                session.pin(EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded())))
-            }
             .border(Color.white.opacity(0.08))
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry) })
             .zoomPanWheel(zoomModel, box: box)
@@ -269,63 +268,26 @@ struct ScanMapPane: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("patterns.map")
         .accessibilityLabel("Scan map")
-        .accessibilityValue("\(dataset.scanRows) rows by \(dataset.scanColumns) columns, pinned at row \(session.pinned.row) column \(session.pinned.column)")
+        .accessibilityValue("\(dataset.scanRows) rows by \(dataset.scanColumns) columns, at row \(session.pinned.row) column \(session.pinned.column)")
         .accessibilityHint(ZoomPan.accessibilityHint)
     }
 
-    /// The status line's readout and the hovered position (the pattern pane follows it).
+    /// The status line's readout of the position under the pointer: hovering reads, it never moves the pattern (D-SEM-110).
     private func hovered(_ phase: HoverPhase, geometry: MarkGeometry) {
         switch phase {
-        case .active(let p):
-            let q = geometry.imagePoint(atPanePoint: p)
-            let position = EBSDPosition(row: Int(q.y.rounded()), column: Int(q.x.rounded()))
-            guard position.isInside(rows: dataset.scanRows, columns: dataset.scanColumns) else {
-                session.hover(nil); state.readout = nil; return
-            }
-            session.hover(position)
+        case .active(let p) where SEMMapPointer.isOnImage(p, geometry: geometry):
+            let position = SEMMapPointer.position(at: p, geometry: geometry)
             state.readout = EBSDBrowsing.mapReadout(position, mean: session.meanIntensity(at: position), map: session.mapValue(at: position))
-        case .ended:
-            session.hover(nil)
+        case .active, .ended:
             state.readout = nil
         }
     }
 }
 
-/// The crosshair at the pinned scan point: a box one scan pixel wide and two arms, in the accent colour with a dark halo so it reads on any map.
-/// The Indexing and Maps rooms draw it too.
-struct ScanMarker: View {
-    let center: CGPoint
-    let pointsPerPixel: CGFloat
-
-    var body: some View {
-        let side = max(pointsPerPixel, 6), arm: CGFloat = 10
-        ZStack {
-            Rectangle().stroke(Color.black.opacity(0.6), lineWidth: 3).frame(width: side, height: side)
-            Rectangle().stroke(Color.accentColor, lineWidth: 1.5).frame(width: side, height: side)
-            Path { p in
-                for (dx, dy) in [(1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0)] {
-                    p.move(to: CGPoint(x: center.x + dx * side / 2, y: center.y + dy * side / 2))
-                    p.addLine(to: CGPoint(x: center.x + dx * (side / 2 + arm), y: center.y + dy * (side / 2 + arm)))
-                }
-            }
-            .stroke(Color.black.opacity(0.6), lineWidth: 3)
-            Path { p in
-                for (dx, dy) in [(1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0)] {
-                    p.move(to: CGPoint(x: center.x + dx * side / 2, y: center.y + dy * side / 2))
-                    p.addLine(to: CGPoint(x: center.x + dx * (side / 2 + arm), y: center.y + dy * (side / 2 + arm)))
-                }
-            }
-            .stroke(Color.accentColor, lineWidth: 1.5)
-        }
-        .position(center)
-        .accessibilityHidden(true)
-    }
-}
-
 // MARK: - The live pattern pane
 
-/// The pattern at the shown position (hovered, else pinned), drawn with its own contrast; hovering it puts the detector pixel and its stored value
-/// in the status line, and VoiceOver reads the same words as the pane's value (`ReadoutAccessibilityValue`, #345).
+/// The pattern at the picked position, drawn with its own contrast; hovering it puts the detector pixel and its stored value in the status
+/// line, and VoiceOver reads the same words as the pane's value (`ReadoutAccessibilityValue`, #345).
 struct LivePatternPane: View {
     let session: EBSDSession
     let state: PatternsRoomState
@@ -347,7 +309,7 @@ struct LivePatternPane: View {
 
     private var title: String {
         guard let position = session.patternPosition else { return "Pattern" }
-        return EBSDBrowsing.patternTitle(position, hovering: session.hovered != nil) + (session.patternIsProcessed ? " · processed" : "")
+        return EBSDBrowsing.patternTitle(position) + (session.patternIsProcessed ? " · processed" : "")
     }
 
     /// The tile on the map, outlined on the pattern.

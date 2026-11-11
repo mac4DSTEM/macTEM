@@ -2,7 +2,7 @@
 //  EBSDSession+Overlay.swift
 //  Role: the Patterns room's simulation overlay (docs/sem/design/simulation-overlay.md §2, §4): on or off, its settings, and the
 //        geometrical Kikuchi simulation of the shown pattern's orientation (`KikuchiOverlay`, TEMCore). The overlay follows the pattern
-//        pane: the position whose pattern is on screen (the hovered one while the pointer is on the map), so a grain boundary shows as the
+//        pane: the position whose pattern is on screen (the picked one), so a grain boundary crossed by a drag shows as the
 //        bands jumping. One position's simulation is well under a millisecond in release; the last one is kept, the bands per phase
 //        and the scan's r_max per dataset. `Kinematical` adds the point's kinematical simulation (the phase's kinematical master
 //        pattern, made once per phase and spacing, put on the detector) and the master pattern's picture. `Band width` adds the band edges at the Bragg angle for the file's beam energy (#201).
