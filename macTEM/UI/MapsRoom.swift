@@ -60,6 +60,7 @@ struct MapsRoom: View {
             if session.isOpening {
                 VStack(spacing: 12) {
                     ProgressView().progressViewStyle(.linear).frame(maxWidth: EDXLayout.openingBarWidth)
+                        .accessibilityLabel("Opening orientation map")
                     Text("Opening orientation map").font(.headline)
                     Button("Stop") { session.stop() }
                         .keyboardShortcut(.cancelAction)
@@ -338,7 +339,10 @@ struct OrientationPane: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(verbatim: "\(found.phase.name) · \(found.phase.pointGroupName ?? "no point group") · IPF-\(found.direction.rawValue.uppercased())")
                             .font(.callout)
-                        Text(verbatim: MapsRoomFormat.eulerText(found.euler)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                        // The angles' symbols are said in words (`SEMColumnSpeech`, #320); what is drawn is unchanged.
+                        let euler = MapsRoomFormat.eulerValues(found.euler)
+                        Text(verbatim: MapsRoomFormat.eulerLine(euler)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                            .accessibilityLabel(SEMColumnSpeech.spokenEuler(euler))
                     }
                     Spacer(minLength: 0)
                 }
@@ -415,7 +419,7 @@ struct MapsKeyPane: View {
         return VStack(alignment: .leading, spacing: 4) {
             Text(verbatim: "\(key.name) · \(key.pointGroup) · IPF-\(direction.rawValue.uppercased())").font(.caption).lineLimit(1)
             ZStack(alignment: .topLeading) {
-                if let image = MapsFigure.cgImage(premultipliedRGBA: key.image.premultipliedRGBA8, width: key.image.width, height: key.image.height) {
+                if let image = MapsFigure.cgImage(key.image) {
                     Image(decorative: image, scale: 1)
                         .resizable()
                         .interpolation(.high)

@@ -1,12 +1,12 @@
 //
 //  TableCopyFormat.swift
-//  Role: the words of two tables a row is selected in, and ⌘C's text for them (#353): the Image room's object table (Particles) and the
-//        Diffraction room's readout. They copy as the Indexing room's Results table does (`IndexingTableFormat.copyText`): one header
-//        line with the column titles, then one line per selected row in the table's order, the cells as the table shows them,
-//        tab-separated, numbers in the reader's locale without grouping (a spreadsheet in that locale reads them as numbers; the CSV
-//        exports are the locale-free channel). The tables draw their cells through these functions, so what is copied is what is
-//        shown. The readout's columns also carry what VoiceOver calls them (#320): its headers are symbols and units, and one is
-//        empty. Pure: no view, no session.
+//  Role: the words of three tables rows are selected in, and ⌘C's text for them (#353): the Image room's object table (Particles), the
+//        Diffraction room's readout and the Maps room's Grains table. They copy as the Indexing room's Results table does
+//        (`IndexingTableFormat.copyText`): one header line with the column titles, then one line per selected row in the table's order,
+//        the cells as the table shows them, tab-separated, numbers in the reader's locale without grouping (a spreadsheet in that locale
+//        reads them as numbers; the CSV exports are the locale-free channel). The tables draw their cells through these functions, so
+//        what is copied is what is shown. The readout's columns also carry what VoiceOver calls them (#320): its headers are symbols and
+//        units, and one is empty; the Grains table's symbol headers are said through `SEMColumnSpeech`. Pure: no view, no session.
 //
 
 import Foundation
@@ -125,5 +125,34 @@ nonisolated enum DiffractionReadoutFormat {
     /// ⌘C's text for `rows` (in the order given: the table's); "" for no rows.
     static func copyText(_ rows: [DiffractionReadoutRow], locale: Locale = .autoupdatingCurrent) -> String {
         TableCopyText.text(titles: Column.allCases.map(\.copiedTitle), rows: rows.map { cells($0, locale: locale) })
+    }
+}
+
+/// The Maps room's Grains table: its column titles, a grain's cells as the table shows them, and ⌘C's text.
+nonisolated enum GrainTableFormat {
+    /// The titles, with the unit the equivalent circle diameter is shown in (the scan's: "µm", or "px" for a map without one).
+    static func titles(unit: String) -> [String] {
+        ["Grain", "Phase", "Points", "ECD \(unit)", "φ₁ °", "Φ °", "φ₂ °", "GOS °", "Schmid", "Neighbours"]
+    }
+
+    /// The grain's largest Schmid factor for the Slip section's systems (`slip`), three decimals; a dash for a grain they leave out.
+    static func schmid(_ row: GrainRow, slip: [GrainSlip], locale: Locale = .autoupdatingCurrent) -> String {
+        MapsRoomFormat.fraction(slip.first { $0.grain == row.id }?.maximumSchmid ?? .nan, locale: locale)
+    }
+
+    /// A grain's cells in `titles` order: its number, phase, points and neighbours as they are (never grouped), the diameter at the
+    /// table's `places` decimals (`MapsRoomFormat.lengthPlaces`), the mean orientation's Euler angles to one decimal, GOS to two, the
+    /// largest Schmid factor to three.
+    static func cells(_ row: GrainRow, slip: [GrainSlip], places: Int = 2, locale: Locale = .autoupdatingCurrent) -> [String] {
+        ["\(row.id)", row.phaseName, "\(row.points)", MapsRoomFormat.length(row.diameter, places: places, locale: locale),
+         MapsRoomFormat.angle(row.euler.x, locale: locale), MapsRoomFormat.angle(row.euler.y, locale: locale),
+         MapsRoomFormat.angle(row.euler.z, locale: locale), MapsRoomFormat.angle(row.gosDegrees, digits: 2, locale: locale),
+         schmid(row, slip: slip, locale: locale), "\(row.neighbours)"]
+    }
+
+    /// ⌘C's text for `rows` (in the order given: the table's); "" for no rows.
+    static func copyText(_ rows: [GrainRow], unit: String, slip: [GrainSlip], places: Int = 2,
+                         locale: Locale = .autoupdatingCurrent) -> String {
+        TableCopyText.text(titles: titles(unit: unit), rows: rows.map { cells($0, slip: slip, places: places, locale: locale) })
     }
 }

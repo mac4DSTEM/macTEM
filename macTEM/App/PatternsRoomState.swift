@@ -54,6 +54,11 @@ final class PatternsRoomState {
     private(set) var importRequest = 0
     /// The status line's cursor readout: the position and its mean over the map, the detector pixel over the pattern; nil when the pointer is elsewhere.
     var readout: String?
+    /// What the pattern pane last wrote to `readout` (`setPatternReadout`).
+    private var patternText: String?
+    /// `readout` while it is the pattern pane's own (the detector pixel and its value under the pointer); nil while it is the scan map's position,
+    /// or nothing. The pattern pane's accessibility value says this, so it never speaks the map's position as its own (#345).
+    var patternReadout: String? { readout != nil && readout == patternText ? readout : nil }
     /// The export whose save panel is up, and the position it is of.
     var exporting: PatternsExportKind?
     private(set) var exportPosition = EBSDPosition.origin
@@ -73,6 +78,12 @@ final class PatternsRoomState {
     }
 
     func requestImport() { importRequest &+= 1 }
+
+    /// The pattern pane's hover: the status line's readout, marked as the pattern pane's (`patternReadout`); nil when the pointer leaves the pattern.
+    func setPatternReadout(_ text: String?) {
+        patternText = text
+        readout = text
+    }
 
     /// Makes the bytes of `kind` from the session and opens the save panel, or, with `directory` (the UI journeys' export folder), writes the
     /// file there; says why when there is nothing to write.

@@ -44,6 +44,7 @@ struct PatternsRoom: View {
             if session.isOpening {
                 VStack(spacing: 12) {
                     ProgressView().progressViewStyle(.linear).frame(maxWidth: EDXLayout.openingBarWidth)
+                        .accessibilityLabel("Opening dataset")
                     Text("Opening dataset").font(.headline)
                     Button("Stop") { session.stop() }
                         .keyboardShortcut(.cancelAction)
@@ -324,7 +325,7 @@ struct ScanMarker: View {
 // MARK: - The live pattern pane
 
 /// The pattern at the shown position (hovered, else pinned), drawn with its own contrast; hovering it puts the detector pixel and its stored value
-/// in the status line.
+/// in the status line, and VoiceOver reads the same words as the pane's value (`ReadoutAccessibilityValue`, #345).
 struct LivePatternPane: View {
     let session: EBSDSession
     let state: PatternsRoomState
@@ -427,22 +428,24 @@ struct LivePatternPane: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("patterns.pattern")
         .accessibilityLabel("Pattern")
-        .accessibilityValue(title)
+        // The detector pixel under the pointer while it is over the pattern (the status line's words), else which pattern is shown.
+        .modifier(ReadoutAccessibilityValue(readout: { state.patternReadout }, fallback: title))
         .accessibilityHint(ZoomPan.accessibilityHint)
     }
 
-    /// The detector pixel under the pointer and its stored value (the raw range maps the normalised copy back to counts).
+    /// The detector pixel under the pointer and its stored value (the raw range maps the normalised copy back to counts), marked as the
+    /// pattern pane's readout so the pane speaks it.
     private func hovered(_ phase: HoverPhase, geometry: MarkGeometry, canvas: CanvasPixels?) {
         switch phase {
         case .active(let p):
-            guard let canvas, let range = canvas.rawRange else { state.readout = nil; return }
+            guard let canvas, let range = canvas.rawRange else { state.setPatternReadout(nil); return }
             let q = geometry.imagePoint(atPanePoint: p)
             let x = Int(q.x.rounded()), y = Int(q.y.rounded())
-            guard x >= 0, x < canvas.width, y >= 0, y < canvas.height else { state.readout = nil; return }
+            guard x >= 0, x < canvas.width, y >= 0, y < canvas.height else { state.setPatternReadout(nil); return }
             let value = range.lowerBound + canvas.normalized[y * canvas.width + x] * (range.upperBound - range.lowerBound)
-            state.readout = EBSDBrowsing.patternReadout(x: x, y: y, value: value)
+            state.setPatternReadout(EBSDBrowsing.patternReadout(x: x, y: y, value: value))
         case .ended:
-            state.readout = nil
+            state.setPatternReadout(nil)
         }
     }
 }
