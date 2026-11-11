@@ -46,6 +46,11 @@ enum MacTEMAgentDoor {
         shared.setEnabled(defaults.bool(forKey: enabledKey))
     }
 
+    /// A window closed: the door forgets it.
+    static func withdraw(_ appState: AppState) {
+        shared.withdraw(appState)
+    }
+
     // MARK: Tools
 
     static let tools: [AgentTool] = [

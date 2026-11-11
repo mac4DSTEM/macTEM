@@ -104,7 +104,7 @@ private struct ImageWindow: View {
             .background(WindowTabbing(state: appState, windows: windows))
             .onDisappear {
                 windows.withdraw(appState)
-                MacTEMAgentDoor.shared.withdraw(appState)
+                MacTEMAgentDoor.withdraw(appState)
             }
             .onChange(of: appearsActive) { _, active in if active { windows.bringForward(appState) } }
             // Info.plist declares CFBundleDocumentTypes, which puts macTEM in Finder's "Open With" — this is
