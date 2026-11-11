@@ -221,11 +221,16 @@ struct SEMMapPress: ViewModifier {
 struct SEMRoomFocus: ViewModifier {
     enum Target: Hashable { case room }
     @FocusState private var focus: Target?
+    /// ⌘C while the container has the keys (the Indexing room: the picked point's Results row); nil leaves Edit › Copy off. On the
+    /// focusable view itself, as `ImageKeyedRoom` places its copy: applied around the focus modifiers it was never asked (drive,
+    /// 2026-11-11: the arrows reached the container, ⌘C did nothing).
+    var copy: (() -> [NSItemProvider])? = nil
 
     func body(content: Content) -> some View {
         content
             .focusable()
             .focusEffectDisabled()   // DEVIATION as `FFTKeyedRoom`'s, named there
+            .onCopyCommand(perform: copy)
             .focused($focus, equals: .room)
             // The DEFAULT focus: the room has the keyboard when nothing else claims it, and never takes it from a field the person is in.
             .defaultFocus($focus, .room)

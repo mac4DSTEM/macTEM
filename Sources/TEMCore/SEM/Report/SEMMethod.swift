@@ -244,7 +244,7 @@ package nonisolated enum SEMReferenceVersions {
         SEMSessionField("ImagoKit", "0.9.1"),
         SEMSessionField("DiffractoKit", "0.11.0"),
         SEMSessionField("SpectroKit", "0.13.2"),
-        SEMSessionField("MacEMUI", "0.5.1"),
+        SEMSessionField("MacEMUI", "0.6.0"),
     ]
 
     /// "kikuchipy 0.13.1"; the bare name when the package is not pinned.

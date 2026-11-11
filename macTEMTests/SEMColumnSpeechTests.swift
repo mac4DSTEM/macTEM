@@ -1,12 +1,13 @@
 //
 //  SEMColumnSpeechTests.swift
 //  The words VoiceOver says for the SEM rooms' symbol headers (#320, `SEMColumnSpeech`): each symbol the Maps and Indexing tables draw
-//  has a word form, a header that is a word already is said as drawn, and the Maps room's Grains table and its orientation pane's Euler
-//  line take their words from the one table, while what they draw stays as it was. Red before: no such table; "φ₁ °", "ECD µm" and
-//  "GOS °" were read sign by sign.
+//  has a word form, a header that is a word already is said as drawn, and the Maps room's Grains table, its orientation pane's Euler
+//  line and the Indexing room's Results and Bands tables take their words from the one table, while what they draw stays as it was.
+//  Red before: no such table; "φ₁ °", "ECD µm", "GOS °", "CI" and "ρ px" were read sign by sign.
 //
 
 import XCTest
+import TEMCore
 @testable import macTEM
 
 nonisolated final class SEMColumnSpeechTests: XCTestCase {
@@ -83,5 +84,41 @@ nonisolated final class SEMColumnSpeechTests: XCTestCase {
         let room = try FFTRoomWiringTests.squeezedUI("MapsRoom.swift")
         XCTAssertTrue(room.contains("let euler = MapsRoomFormat.eulerValues(found.euler) Text(verbatim: MapsRoomFormat.eulerLine(euler))"))
         XCTAssertTrue(room.contains(".accessibilityLabel(SEMColumnSpeech.spokenEuler(euler))"))
+    }
+
+    /// The Indexing room's Results tables (Hough and dictionary) draw each symbol header through the table of words, the copied title
+    /// (`IndexingTableFormat.titles`) and still sortable; a word header ("Row", "Phase", "Simulation", "Bands") stays as it was, and a
+    /// dictionary's score is said by its metric. Red before: "Col", "φ₁ °", "CI", "Fit °", "PQ" and "OSM" were bare strings, read sign by
+    /// sign or letter by letter.
+    func testTheIndexingResultsTablesTakeTheirWordsFromTheTable() throws {
+        let room = try FFTRoomWiringTests.squeezedUI("IndexingRoom.swift")
+        let titles = IndexingTableFormat.titles(method: .hough, scoreTitle: "CI") + IndexingTableFormat.titles(method: .dictionary, scoreTitle: "NCC")
+        for title in Set(titles) where title != "NCC" {
+            if SEMColumnSpeech.spoken(title) == title {
+                XCTAssertTrue(room.contains("TableColumn(\"\(title)\", value:"), "\(title) is a word, drawn as it was")
+            } else {
+                XCTAssertTrue(room.contains("TableColumn(SEMColumnSpeech.header(\"\(title)\"), value:"), "\(title) is said in words")
+                XCTAssertFalse(room.contains("TableColumn(\"\(title)\""), "\(title) drawn without its words")
+            }
+        }
+        XCTAssertTrue(room.contains("TableColumn(SEMColumnSpeech.header(result.scoreTitle), value: \\.confidence)"), "the dictionary's score")
+        XCTAssertFalse(room.contains("TableColumn(result.scoreTitle"), "the score drawn without its words")
+        XCTAssertEqual(SEMColumnSpeech.spoken("NDP"), "normalised dot product")
+    }
+
+    /// The Bands table draws its symbol headers ("#", "ρ px", "θ °", "Fit °") through the table of words, each the copied title
+    /// (`IndexingTableFormat.bandTitles`); its word headers stay as they were. The table sorts on nothing, so its columns take no `value:`,
+    /// which tells its "Fit °" from the Results table's. Red before: "#" read as "number sign", "ρ px" sign by sign.
+    func testTheBandsTableTakesItsWordsFromTheTable() throws {
+        let room = try FFTRoomWiringTests.squeezedUI("IndexingRoom.swift")
+        for title in IndexingTableFormat.bandTitles {
+            if SEMColumnSpeech.spoken(title) == title {
+                XCTAssertTrue(room.contains("TableColumn(\"\(title)\") {"), "\(title) is a word, drawn as it was")
+            } else {
+                XCTAssertTrue(room.contains("TableColumn(SEMColumnSpeech.header(\"\(title)\")) {"), "\(title) is said in words")
+                XCTAssertFalse(room.contains("TableColumn(\"\(title)\") {"), "\(title) drawn without its words")
+            }
+        }
+        XCTAssertEqual(IndexingTableFormat.bandTitles.filter { SEMColumnSpeech.spoken($0) != $0 }, ["#", "ρ px", "θ °", "Fit °"])
     }
 }

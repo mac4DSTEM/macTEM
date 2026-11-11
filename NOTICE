@@ -234,9 +234,9 @@ histogram. Its references are NumPy, SciPy and scikit-image; none of their code 
 MacEMUI (a Swift package the app is built with)
 ================================================================================
 
-The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.5.1, commit
-7abd010de8868cbe7be326ba96542f7ff9ae9bac), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
-inspector, the controls, the Metal image view and the EDS room macEM shares with mac4DSTEM.
+The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.6.0, commit
+b8d3c7c7dc868ab5c306dc427700553c69beaf6a), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
+inspector, the controls, the Metal image view, the EDS room and the agent door macEM shares with mac4DSTEM.
 
 ================================================================================
 Bundled third-party libraries

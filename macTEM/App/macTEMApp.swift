@@ -92,6 +92,8 @@ private struct ImageWindow: View {
             .onAppear {
                 windows.openWindow = { openWindow(id: "image") }
                 windows.enroll(appState)
+                // The agent door (Settings > Agents) lists this window, and opens when it was left on.
+                MacTEMAgentDoor.start(with: appState)
                 // The launch's other `--open` files, each in a tab of its own (one file per window).
                 if !appState.launchFilesForTabs.isEmpty {
                     windows.openInTabs(appState.launchFilesForTabs)
@@ -100,7 +102,10 @@ private struct ImageWindow: View {
             }
             // New windows join the front window's tabs (`WindowTabbing`, AppKit). The tab's title is the window's (`AppState.windowTitle`).
             .background(WindowTabbing(state: appState, windows: windows))
-            .onDisappear { windows.withdraw(appState) }
+            .onDisappear {
+                windows.withdraw(appState)
+                MacTEMAgentDoor.withdraw(appState)
+            }
             .onChange(of: appearsActive) { _, active in if active { windows.bringForward(appState) } }
             // Info.plist declares CFBundleDocumentTypes, which puts macTEM in Finder's "Open With" — this is
             // the handler that requires. It gets only the FIRST file of a multi-file open; `AppDelegate` gets
@@ -352,6 +357,8 @@ struct macTEMApp: App {
                 // View > Zoom In, Zoom Out, Zoom to Fit (⌘+ ⌘− ⌘0) on the pane that publishes its zoom (control placement §6).
                 ZoomCommands()
             }
+        // Settings (⌘,): the agent door's switch (`AgentSettingsView`).
+        Settings { AgentSettingsView() }
         // The Particles view's object table, beside the image (ImageRoomParticles.swift); never opened at launch.
         Window("Objects", id: ParticleTableWindow.id) { ObjectsWindow(windows: windows) }
             .defaultLaunchBehavior(.suppressed)

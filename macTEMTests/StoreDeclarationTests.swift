@@ -1,7 +1,7 @@
 //
 //  StoreDeclarationTests.swift
 //  What the store is told against what the code does (#351). App Store Connect rejects an upload that calls a required-reason
-//  API its privacy manifest does not declare, and the store's privacy answer and SECURITY.md rest on the app having no network
+//  API its privacy manifest does not declare, and the store's privacy answer and SECURITY.md rest on the app having no network client
 //  entitlement. PrivacyManifestTests checks that the BUILT app's manifest holds today's reasons; these read the sources, the
 //  manifest and the entitlements beside this test file, so a new call or a new entitlement goes red here before an upload does.
 //  The kits' and MacEMUI's sources are other repositories and are not scanned.
@@ -156,18 +156,20 @@ nonisolated final class StoreDeclarationTests: XCTestCase {
         XCTAssertTrue(names.contains("UserDefaults") && names.contains("UserDefaults("))
     }
 
-    /// The entitlements file holds the App Sandbox, user-selected read-write and app-scope bookmarks, each on, and no other key of
-    /// any prefix; and every configuration signs with that file. The store's privacy answer (Data Not Collected) and SECURITY.md
-    /// say the app makes no network connection, which holds because no network entitlement is there.
+    /// The entitlements file holds the App Sandbox, user-selected read-write, app-scope bookmarks and the agent door's listener
+    /// (`network.server`, loopback only, off until Settings > Agents), each on, and no other key of any prefix; and every
+    /// configuration signs with that file. The store's privacy answer (Data Not Collected) and SECURITY.md say the app connects
+    /// to no other computer, which holds because no network client entitlement is there.
     /// Mutation: com.apple.security.network.client or any other key added, a key turned off, or a configuration signed with
     /// another entitlements file - red.
-    func testTheEntitlementsAreTheSandboxAndItsTwoFileKeysAndNothingElse() throws {
+    func testTheEntitlementsAreTheSandboxItsTwoFileKeysAndTheAgentDoorAndNothingElse() throws {
         let url = root.appendingPathComponent("macTEM/macTEM.entitlements")
         let entitlements = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil)
             as? [String: Any])
         XCTAssertEqual(entitlements.keys.sorted(), ["com.apple.security.app-sandbox", "com.apple.security.files.bookmarks.app-scope",
-                                                    "com.apple.security.files.user-selected.read-write"],
-                       "the store's privacy answer and SECURITY.md name these three and no network entitlement")
+                                                    "com.apple.security.files.user-selected.read-write",
+                                                    "com.apple.security.network.server"],
+                       "the store's privacy answer and SECURITY.md name these four and no network client")
         for (key, value) in entitlements {
             XCTAssertEqual(value as? Bool, true, "\(key) is not on")
         }

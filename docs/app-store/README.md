@@ -7,14 +7,14 @@ One plain UTF-8 file per App Store Connect field. Counts are characters (`wc -m`
 - `name.txt`: 5 / 30
 - `subtitle.txt`: 28 / 30
 - `promotional-text.txt`: 162 / 170
-- `description.txt`: 3879 / 4000 (plain text, no markdown)
+- `description.txt`: 3977 / 4000 (plain text, no markdown)
 - `keywords.txt`: 97 / 100 (comma-separated, no spaces after commas; no word from the name or subtitle, which Apple indexes already, and no other product names)
 - `whats-new.txt`: 35 / 4000 (Apple does not show What's New for a first version; this is for the record and the first update)
 - `category.txt`: primary Education, secondary Productivity (no limit)
 - `urls.txt`: support, marketing and privacy policy URLs on mac4dstem.com (no limit)
 - `age-rating.txt`: questionnaire answers, all None, rating 4+ (no limit)
-- `app-privacy.txt`: Data Not Collected; macEM has no network entitlement (no limit)
-- `review-notes.txt`: 2657 / 4000; walks a reviewer through every room with Help > Open Demo Data
+- `app-privacy.txt`: Data Not Collected; macEM has no network client entitlement; its one listener is the agent door on 127.0.0.1 (no limit)
+- `review-notes.txt`: 3319 / 4000; walks a reviewer through every room with Help > Open Demo Data
 
 Every claim comes from the README and the app's code as of 2026-11-10; nothing from the roadmap. Every signed build is
 sandboxed. The formats read with a file of the same name beside them (EDAX .spd with its .spc and .ipr, EDAX .lsd with

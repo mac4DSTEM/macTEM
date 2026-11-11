@@ -1,9 +1,10 @@
 //
 //  IndexingTableFormat.swift
-//  Role: the words of the Indexing room's Results table (design §3): each cell as the table shows it, and ⌘C's text, the selected rows
-//        as TSV (D-SEM-96): one header line with the table's column titles, then one line per row in the table's order, the cells as
-//        shown, tab-separated. Numbers in the reader's locale without grouping, as the status line and `UnitDisplay` write them (a
-//        spreadsheet in that locale reads them as numbers); the CSV export is the locale-free channel. Pure: no view, no session.
+//  Role: the words of the Indexing room's Results and Bands tables (design §3): each cell as the table shows it, and ⌘C's text, the
+//        selected rows as TSV (D-SEM-96, #353): one header line with the table's column titles, then one line per row in the table's
+//        order, the cells as shown, tab-separated. Numbers in the reader's locale without grouping, as the status line and `UnitDisplay`
+//        write them (a spreadsheet in that locale reads them as numbers); the CSV export is the locale-free channel. Pure: no view, no
+//        session.
 //
 
 import Foundation
@@ -30,6 +31,24 @@ nonisolated enum IndexingTableFormat {
 
     /// The Bands table's Fit ° cell: two decimals, `UnitDisplay.noValue` for a band the fit did not weigh.
     static func bandFit(_ degrees: Double?, locale: Locale = .autoupdatingCurrent) -> String { angle(degrees ?? .nan, digits: 2, locale: locale) }
+
+    /// The Bands table's column titles: the band's rank, ρ and θ, the Radon peak and width, the family matched and the fit.
+    static let bandTitles = ["#", "ρ px", "θ °", "Peak", "Width", "Family", "Fit °"]
+
+    /// A band's cells, as the Bands table shows them, in `bandTitles` order: the rank as it is (never grouped), ρ and θ to two
+    /// decimals, the peak and the width to four significant digits, the family and the fit.
+    static func bandCells(_ band: IndexedBand, locale: Locale = .autoupdatingCurrent) -> [String] {
+        [String(band.id), angle(band.rho, digits: 2, locale: locale), angle(band.thetaDegrees, digits: 2, locale: locale),
+         number(band.peak, locale: locale), number(band.width, locale: locale), bandFamily(band.family, isValid: band.isValid),
+         bandFit(band.fitDegrees, locale: locale)]
+    }
+
+    /// ⌘C's text for the Bands table: the header line, then `bands` (in the order given: the table's, strongest first), each its cells
+    /// joined by tabs (`TSV.line`). "" for no bands.
+    static func bandsCopyText(_ bands: [IndexedBand], locale: Locale = .autoupdatingCurrent) -> String {
+        guard !bands.isEmpty else { return "" }
+        return ([TSV.line(bandTitles)] + bands.map { TSV.line(bandCells($0, locale: locale)) }).joined(separator: "\n")
+    }
 
     /// The table's column titles: Row, Col, Phase, the Euler angles, then Hough's CI, Fit, Bands, PQ or a dictionary's score (named by
     /// its metric, `scoreTitle`), Simulation, OSM.
