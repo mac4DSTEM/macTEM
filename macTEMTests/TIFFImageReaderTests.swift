@@ -81,7 +81,7 @@ nonisolated final class TIFFImageReaderTests: XCTestCase {
             do { _ = try TIFFImageReader.read(data: tiff.build(), fileName: "x.tif"); return nil }
             catch { return error as? TIFFImageReader.Refusal }
         }
-        XCTAssertEqual(refusal { $0.extra[259] = .short([5]) }, .compressed(scheme: 5))
+        XCTAssertEqual(refusal { $0.extra[259] = .short([7]) }, .compressed(scheme: 7))
         XCTAssertEqual(refusal { $0.extra[322] = .short([16]) }, .tiled)
         XCTAssertEqual(refusal { $0.secondPage = true }, .multiPage)
         XCTAssertEqual(refusal { $0.photometric = 0 }, .sampleFormat("1 sample(s) per pixel, photometric 0, planar 1"))
@@ -89,6 +89,27 @@ nonisolated final class TIFFImageReaderTests: XCTestCase {
         XCTAssertThrowsError(try TIFFImageReader.read(data: Data("GIF89a..".utf8), fileName: "x.tif")) {
             XCTAssertEqual($0 as? TIFFImageReader.Refusal, .notTIFF)
         }
+    }
+
+    /// A TIFF the app cannot read is refused in a sentence that starts with the file's name and names the compression in words, not
+    /// its tag number (#531). Red before: the stack reader ran first and its kit error ("The page is compressed (Compression 7); ...")
+    /// reached the screen without the file's name.
+    func testACompressedTIFFIsRefusedInASentenceThatNamesTheFile() throws {
+        var tiff = TIFFBuilder(width: 2, height: 2, bits: 8, format: 1, samples: 1, bytes: [1, 2, 3, 4])
+        tiff.extra[259] = .short([7])
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("tiff-531-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        let url = folder.appendingPathComponent("ADF Image.tif")
+        try tiff.build().write(to: url)
+        XCTAssertNil(try ImageStackSource.open(path: url.path), "a page the kit refuses is the single-image reader's to answer")
+        XCTAssertThrowsError(try ImageOpening.openNow(path: url.path)) { error in
+            let sentence = (error as? LocalizedError)?.errorDescription ?? ""
+            XCTAssertEqual(sentence, "ADF Image.tif is not read: its pixels are compressed with JPEG, which macEM does not read yet.")
+            for leak in ["Compression", "scheme", "7"] { XCTAssertFalse(sentence.contains(leak), "carries \(leak): \(sentence)") }
+        }
+        XCTAssertEqual(TIFFImageReader.compressionName(32773), "PackBits")
+        XCTAssertEqual(TIFFImageReader.compressionName(12345), "a scheme it does not know")
     }
 
     // MARK: The Velox convention (tag 34683)

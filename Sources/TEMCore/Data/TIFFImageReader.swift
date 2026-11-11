@@ -47,12 +47,28 @@ package nonisolated enum TIFFImageReader {
             case .notTIFF: "it is not a TIFF file."
             case .truncated: "the file ends before its image does."
             case .multiPage: "it holds more than one page, and they are not grey frames of one size; other image stacks are not read yet."
-            case .compressed(let scheme): "its pixels are compressed (scheme \(scheme)); only uncompressed TIFF is read."
+            case .compressed(let scheme): "its pixels are compressed with \(TIFFImageReader.compressionName(scheme)), which macEM does not read yet."
             case .tiled: "its pixels are stored in tiles; only striped TIFF is read."
             case .unequalChannels(let row, let column):
                 "it is a colour image (row \(row), column \(column) differs between red, green and blue); only a grey render is read."
             case .sampleFormat(let what): "its pixel layout is not read (\(what))."
             }
+        }
+    }
+
+    /// TIFF Compression tag values by name (TIFF 6.0, libtiff's tiff.h), so a refusal names the scheme, not its number.
+    package static func compressionName(_ scheme: Int) -> String {
+        switch scheme {
+        case 2, 3, 4: "CCITT fax coding"
+        case 5: "LZW"
+        case 6, 7, 34892: "JPEG"
+        case 8, 32946: "Deflate (ZIP)"
+        case 32773: "PackBits"
+        case 34925: "LZMA"
+        case 50000: "Zstandard"
+        case 50001: "WebP"
+        case 34933, 50002: "JPEG XL"
+        default: "a scheme it does not know"
         }
     }
 
