@@ -334,8 +334,11 @@ struct macTEMApp: App {
         }
             .handlesExternalEvents(matching: ["*"])
             .defaultLaunchBehavior(.presented)
-            // A UI-testing launch restores nothing, so the window is always presented (a saved "window closed" state hid it); a person's launch restores as usual.
-            .restorationBehavior(Self.isUITesting ? .disabled : .automatic)
+            // Not restored: a window comes back without its file (a file is never read before the person asks: File > Reopen Last
+            // Session, through bookmarks), so a restored window was an empty tab, and one restored from a Finder open had the open
+            // handed to it again by path, which the sandbox does not grant: refused, with an empty tab (driven 2026-11-11). A launch
+            // presents one window (`defaultLaunchBehavior`).
+            .restorationBehavior(.disabled)
             .defaultSize(width: LayoutPolicy.datasetWindowIdealSize.width,
                          height: LayoutPolicy.datasetWindowIdealSize.height)
             .windowStyle(.titleBar)

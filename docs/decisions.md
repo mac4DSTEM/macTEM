@@ -313,3 +313,21 @@ drawing over one it missed.
 **Reverse it.** If a reader learns where a render's bar is (a field in the file that states it), draw macTEM's bar by that
 instead. If renders without a bar of their own turn out to be the common case, return true from
 `ImagePresentation.startsWithScaleBar(notes:)` for every file and drop the Display note.
+## 2026-11-11 — A file that cannot be read is refused for that; a refused file gets no tab
+
+**What.** Before its format is asked, a file is opened once for reading (`FileRouting.accessRefusal`): one that is gone is
+refused as "no longer where it was", one macTEM may not read as "macTEM was not given access to … open it with File > Open…,
+drop it on the window or open it from the Finder". A file of a batch that would get a tab of its own is looked at first
+(`tabsChecked`): a refused one is named in the alert of the window it came from and gets no tab.
+
+**Why.** Driven 2026-11-11: a Ceta TIFF and a Velox EMD given by path at launch (`--open`, which the sandbox does not grant)
+were refused as "not a format macTEM opens", the sniff having read no bytes, and each left an empty tab. Preview opens no
+window for a file it cannot open.
+
+**What would reverse it.** A reader that needs to be handed an unreadable path (none does).
+
+**Also decided (same day).** The image windows are not restored at launch (`restorationBehavior(.disabled)`, was `.automatic`
+for a person's launch). A restored window came back without its file, because a file is read only when the person asks
+(File > Reopen Last Session, through bookmarks). So it was an empty tab. One restored from a Finder open had that open handed
+to it again by path, which the sandbox does not grant (driven 2026-11-11: a plain launch alerting on a TIFF opened in the
+previous run). A launch presents one window.

@@ -122,6 +122,9 @@ package nonisolated enum FileRouting {
     /// only): run it off the main actor.
     package static func inventory(path: String) -> FileInventory {
         let name = (path as NSString).lastPathComponent
+        // A file that cannot be read at all is not judged by its format: its bytes were never seen (a sandboxed app reads the files a
+        // person picks, drops or opens from the Finder, and those it holds a bookmark for; a path handed over any other way is closed).
+        if let why = accessRefusal(path: path) { return FileInventory(refusal: why) }
         // SEM-EDS map files (Bruker, EDAX, JEOL; FormatoKit's sniff knows none of them), by extension: a spectrum image or one spectrum for
         // the EDS room, a JEOL image or element map for the Image room. The readers say in words what a file lacks when it is opened.
         if SEMEDSOpening.isImageFile(path: path) { return FileInventory(image: true) }
@@ -179,6 +182,23 @@ package nonisolated enum FileRouting {
             // A `.dat` whose `Setting.txt` is there but may not be read (the sandbox granted the file, not its folder) says so.
             if let why = NORDIFOpening.unreadableSettingsRefusal(url) { return FileInventory(refusal: why) }
             return FileInventory(refusal: "\(name) is not a format macTEM opens (or its extension and its first bytes disagree).")
+        }
+    }
+
+    /// Why the file at `path` cannot be read at all, asked before its format: it is gone (moved, renamed or deleted), or macTEM was not
+    /// given it (the sandbox: a path that came neither from the Open panel, a drop, the Finder nor a bookmark). Nil when it opens for
+    /// reading, and for any other failure, which the format's own reader then words. One `open(2)`, closed at once.
+    package static func accessRefusal(path: String) -> String? {
+        let name = (path as NSString).lastPathComponent
+        let descriptor = Darwin.open(path, O_RDONLY)
+        if descriptor >= 0 { Darwin.close(descriptor); return nil }
+        switch errno {
+        case ENOENT, ENOTDIR:
+            return "\(name) is no longer where it was (moved, renamed or deleted)."
+        case EACCES, EPERM:
+            return "macTEM was not given access to \(name): open it with File > Open…, drop it on the window or open it from the Finder."
+        default:
+            return nil
         }
     }
 
