@@ -214,7 +214,7 @@ nonisolated final class MapsRoomTests: XCTestCase {
     @MainActor func testTheMapsRoomIsTheLastPartOfEBSD() {
         XCTAssertEqual(WorkspaceArea.maps.group, .ebsd)
         XCTAssertEqual(WorkspaceGroup.ebsd.parts.last, .maps)
-        XCTAssertEqual(WorkspaceGroup.ebsd.shortcutDigit, "4")
+        XCTAssertEqual(WorkspaceGroup.ebsd.shortcutDigit, "3")
         XCTAssertEqual(WorkspaceGroup.results.shortcutDigit, "5")
         XCTAssertEqual(WorkspaceArea.maps.title, "Maps")
         XCTAssertEqual(WorkspaceArea.maps.systemImage, "map")

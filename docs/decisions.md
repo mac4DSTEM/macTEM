@@ -268,3 +268,14 @@ Finder stay in the File menu.
 Window menu list the open files, so a second list in the sidebar said the same thing twice.
 
 **Reverse it.** Put `OpenItemsList` back under the rooms list in `WorkspaceSidebar` with the fixed height it had.
+
+## 2026-11-11 — The workspaces' order: Imaging, Diffraction, EBSD, Spectroscopy, Results
+
+**What.** The sidebar and Go to ⌘1…⌘5 list Imaging ⌘1, Diffraction ⌘2, EBSD ⌘3, Spectroscopy ⌘4, Results ⌘5 (were Imaging,
+Spectroscopy, Diffraction, EBSD, Results). The names stay; TKD stays inside EBSD (the same patterns, indexing and maps; the
+TKD geometry is a Patterns setting) and the workspace's hover text names both.
+
+**Why.** Paul, 2026-11-11: this order "would feel natural": the images, then the two diffraction kinds side by side, then the
+spectra. The keys follow the list, so they move with it.
+
+**What would reverse it.** Paul's taste.

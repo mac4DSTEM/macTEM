@@ -194,7 +194,7 @@ nonisolated final class EELSRoomTests: XCTestCase {
     @MainActor func testTheEELSRoomIsBuiltAndFifth() {
         XCTAssertEqual(WorkspaceArea.allCases[3], .eels)
         XCTAssertEqual(WorkspaceGroup.spectroscopy.parts, [.edx, .eels])
-        XCTAssertEqual(WorkspaceGroup.spectroscopy.shortcutDigit, "2")
+        XCTAssertEqual(WorkspaceGroup.spectroscopy.shortcutDigit, "4")
         XCTAssertEqual(WorkspaceArea.eels.title, "EELS")
         let state = AppState()
         state.selectWorkspace(.eels)

@@ -32,7 +32,7 @@ window they are sections and layers of the Patterns and Indexing rooms.
 ## The sidebar after the SEM rooms
 
 **Superseded 2026-11-10** (Paul: "isnt this all part of ebsd"; `docs/decisions.md`): the rooms are grouped into five workspaces as
-mac4DSTEM's are, `Imaging ⌘1 · Spectroscopy ⌘2 · Diffraction ⌘3 · EBSD ⌘4 · Results ⌘5`, and the one in front lists its parts
+mac4DSTEM's are, `Imaging ⌘1 · Diffraction ⌘2 · EBSD ⌘3 · Spectroscopy ⌘4 · Results ⌘5` (order since 2026-11-11), and the one in front lists its parts
 under it: EBSD lists Patterns, Indexing and Maps. The nine-room ceiling below no longer applies; a new technique is a part, not a
 key. The rest of this section is the history.
 
