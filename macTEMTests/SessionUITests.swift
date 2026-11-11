@@ -471,8 +471,8 @@ nonisolated final class SessionUITests: XCTestCase {
     /// writer's refusal and from the owner's.
     /// Red under: the over-budget branch dropped from `Failure.errorDescription` (the generic sentence then lacks the advice).
     @MainActor func testASaveRefusedAsTooLargeSaysSoAndWhatToDo() {
-        let limit = SessionSidecarFile.maxTotalTextBytes.formatted()
-        let expected = "Could not save scan.dm4.mactem.h5. The marks and their record would take \(61_234.formatted()) bytes of "
+        let limit = String(SessionSidecarFile.maxTotalTextBytes)
+        let expected = "Could not save scan.dm4.mactem.h5. The marks and their record would take 61234 bytes of "
             + "text; a session file holds \(limit). Remove some marks, then save again."
         let writer = SessionSaving.Failure.refused(name: "scan.dm4.mactem.h5", .file(.sidecarTooLarge(bytes: 61_234)))
         XCTAssertEqual(writer.errorDescription, expected)
@@ -486,22 +486,22 @@ nonisolated final class SessionUITests: XCTestCase {
     /// a number, and the tail's standing line.
     /// Red under: a case of `MarkRefusalText` merged into another, or its advice dropped.
     @MainActor func testARefusedMarkSaysWhatHappenedAndWhatToDo() {
-        let limit = SessionSidecarFile.maxTotalTextBytes.formatted()
+        let limit = String(SessionSidecarFile.maxTotalTextBytes)
         let budget = SessionLineage.Refusal.tooLargeToSave(bytes: 60_300, limit: SessionSidecarFile.maxTotalTextBytes)
         XCTAssertEqual(MarkRefusalText.refused(budget, .added),
-                       "The mark was not added. With it the session record would take \(60_300.formatted()) bytes of text, over the "
+                       "The mark was not added. With it the session record would take 60300 bytes of text, over the "
                        + "\(limit) a session file holds. Remove a mark to make room.")
         XCTAssertEqual(MarkRefusalText.refused(nil, .moved),
                        "The mark was not moved. With it the session record would take more than the \(limit) bytes of text a "
                        + "session file holds. Remove a mark to make room.")
         XCTAssertTrue(MarkRefusalText.refused(nil, .widthChanged).hasPrefix("The width was not changed."))
-        let full = "The session record is full: it holds \(2000.formatted()) entries, removed marks included. "
+        let full = "The session record is full: it holds 2000 entries, removed marks included. "
             + "To start a new record, move the session file aside and open the image again."
         XCTAssertEqual(MarkRefusalText.refused(.tooManyNodes(2001), .added), "The mark was not added. " + full)
         XCTAssertEqual(MarkRefusalText.refused(.idsExhausted, .added), "The mark was not added. " + full)
         XCTAssertEqual(MarkRefusalText.refused(.notFinite, .added), "The mark was not added. A point of it is not a number.")
         XCTAssertEqual(MarkRefusalText.standing(budget),
-                       "The session record is full: another mark would take it to \(60_300.formatted()) bytes of text, over the "
+                       "The session record is full: another mark would take it to 60300 bytes of text, over the "
                        + "\(limit) a session file holds. Remove a mark to draw another.")
         XCTAssertEqual(MarkRefusalText.standing(.tooManyNodes(2001)), full)
     }

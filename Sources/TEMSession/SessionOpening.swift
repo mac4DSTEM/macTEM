@@ -114,8 +114,8 @@ package nonisolated enum SessionSaving {
                 return "macTEM no longer has access to the session file. Save again and choose the file in the panel."
             case .refused(let name, let refusal):
                 if let bytes = refusal.tooLargeBytes {
-                    return "Could not save \(name). The marks and their record would take \(bytes.formatted()) bytes of text; "
-                        + "a session file holds \(SessionSidecarFile.maxTotalTextBytes.formatted()). "
+                    return "Could not save \(name). The marks and their record would take \(bytes) bytes of text; "
+                        + "a session file holds \(SessionSidecarFile.maxTotalTextBytes). "
                         + "Remove some marks, then save again."
                 }
                 var text = "Could not save \(name). \(Self.capitalised(refusal.reason))"
