@@ -109,7 +109,7 @@ Reused as they are, named so a room PR links the existing type instead of a twin
 | opening a file, the read off the main actor, the item list | `AppState.open(urls:)`, `ImageOpening`, `OpenItems`, `FileInventory` | `macTEM/App`, TEMCore |
 | metadata in the Info tab | `AcquisitionMetadata`, `ImageRoomAcquisition` | TEMCore, `macTEM/UI` |
 | measure, marks, particles, lineage on an image | the Image room's sections and `ImageRoomTools` | `macTEM/UI/ImageRoom*.swift` |
-| exports | `EELSExportKind` pattern, `ResultsCSV`, `FFTExport`, `EDXFigureContent` for a figure of tiles | TEMCore, ShellEDXModel |
+| exports | `EELSExportKind` pattern, `ResultsCSV`, `FFTExport`, `EDXFigureContent` for a figure of tiles | `macTEM/App/EELSRoomWords.swift`, TEMCore, ShellEDXModel |
 | demo data | `DemoDocument` and `DemoDocuments` (Help › Open Demo Data, `--demo-<name>` launch options, the same path for the menu and the journeys) | `macTEM/App/DemoData.swift`, TEMSession |
 | the periodic table and the EDS pipeline | the shared EDS room (`ShellEDXModel`, `ShellSpectroscopy`), SpectroKit | MacEMUI, SpectroKit |
 | journeys and screenshots | `Journey` (launch with demo arguments, `step` attaches a screenshot, waits never sleep, identifiers never labels), `tools/lib/ui-screenshots.sh` | `macTEMUITests/Support` |
