@@ -16,12 +16,12 @@ References (versions and source hashes asserted below, as tools/parity/export-pa
            applied to those tags (below, "How the DM mapping is applied"); dateutil for the date text (through it).
   FEI SEM  RosettaSciIO 049e7d70 `rsciio.tiff.file_reader` on the file: its `mapping_fei` (beam_energy kV, dwell_time
            s, General.date / General.time, microscope) applied to its original_metadata; the detector name from the
-           same original_metadata (`fei_metadata.Detectors.Name`; mapped by no reference, so labelled unvalidated).
+           same original_metadata (`fei_metadata.Detectors.Name`; mapped by no reference, so it carries UNVAL_FEI).
   Velox    tifffile 2026.9.20 for tag 34683's text, xml.etree for the XML (xml.parsers.expat for the guard, policy
            (m)); the two conversions RosettaSciIO applies to
            the same schema (`rsciio/emd/_emd_velox.py:938-945`: AccelerationVoltage / 1e3, CameraLength * 1e3) are
            EXTRACTED FROM THAT FILE by ast and run as written -- not retyped. Every other Velox field has no published
-           reader: the registered path is read from the XML text, the value labelled unvalidated.
+           reader: the registered path is read from the XML text, the value carries UNVAL_VELOX.
   MRC      mrcfile 1.5.4: `MrcFile.indexed_extended_header` with its own FEI1 / FEI2 dtype (the byte order follows the
            machine stamp: dtypes.get_ext_header_dtype), the four bitmasks. The date is the one place mrcfile says
            too little: override (h) below.
@@ -68,7 +68,7 @@ Overrides, each named where it is applied (the rules, AcquisitionMetadata.swift 
   (j) a Velox ProjectorMode / OperatingMode that opens the camera-length gate is matched without regard to case (macTEM
       policy: the registration states no case, no pinned reader reads ProjectorMode); the mode shown is the stored text;
   (k) see (f), the second start stamp;
-  (l) an MRC mode is the stored Instrument-mode int32 as text, an MRC exposure the Integration time, both "unvalidated"
+  (l) an MRC mode is the stored Instrument-mode int32 as text, an MRC exposure the Integration time, both with UNVAL_MRC
       (mrcfile lays the fields out; no published reader reads them);
   (m) a Velox document is read only if a guard passes (macTEM policy): a tag of at most 4 MiB, element depth at most 64,
       at most 1 MiB of character data, no entity declaration, well-formed; a string value over 256 characters is not
@@ -83,10 +83,12 @@ Overrides, each named where it is applied (the rules, AcquisitionMetadata.swift 
   string trimmed. A difference between the two readings is printed (it needs a whitespace-only name).
 A mode, an exposure and the rest are the registered paths; see the functions.
 
-Notes, exact texts: "local time, zone not stored" (a Velox, DM or FEI SEM date), "clock of the writer, zone not
-stored" (an MRC date), "mm (assumed)" (DM camera length), "month-first order assumed" (DM date), "unvalidated: the
-mode is not checked" (MRC camera length), "unvalidated: no published reader reads it" (a value whose path no pinned
-reference maps), joined with "; " in that order.
+Notes, exact texts, as FormatoKit 0.12.1's readers word them under `convention: .app` (the constants below): "local
+time, zone not stored" (a Velox, DM or FEI SEM date), "clock of the writer, zone not stored" (an MRC date), "mm
+(assumed)" (DM camera length), "month-first order assumed" (DM date), NOMODE (MRC camera length), and on a value whose
+path no pinned reference maps, the format's own wording of "no published reader reads this field", which names where
+the value is stored: UNVAL_DM (a DM image object, and a TIFF's tag 65027 stream, read by the DM rules), UNVAL_VELOX (a
+Velox TIFF), UNVAL_FEI (a FEI SEM TIFF), UNVAL_MRC (an MRC FEI extended header); joined with "; " in that order.
 
 Slice S-b (the DM wiring and tag 65027): the manifest gains `reads`, the cases of
 AcquisitionMetadata.read(path:) end to end. For a real DM object: its ImageList number `n` (C1: the object the open shows),
@@ -149,8 +151,13 @@ LOCAL = "local time, zone not stored"
 WRITER = "clock of the writer, zone not stored"
 MM = "mm (assumed)"
 MONTH_FIRST = "month-first order assumed"
-NOMODE = "unvalidated: the mode is not checked"
-UNVAL = "unvalidated: no published reader reads it"
+NOMODE = "shown as stored; the instrument mode is not checked, as no published reader decodes it"
+# The note on a value no pinned reference reads, in each format's wording (FormatoKit 0.12.1): it names where the value
+# is stored. A TIFF's tag 65027 stream is read by the DM rules, so it carries the DM wording.
+UNVAL_DM = "no published reader reads this field; read as stored in the DM image tags"
+UNVAL_VELOX = "no published reader reads this field; read as stored in the Velox XML of the TIFF"
+UNVAL_FEI = "no published reader reads this field; read as stored in the FEI header of the TIFF"
+UNVAL_MRC = "no published reader reads this field; read as stored in the FEI extended header, at the offset mrcfile declares"
 # The Velox document guard (policy (m)) and the second-stamp floor (policy (f)/(k)).
 MAX_TAG_BYTES = 4 * 1024 * 1024
 MAX_DEPTH = 64
@@ -282,10 +289,11 @@ def text(s):
     return s or None
 
 
-def reading(value, *, mm=False, local=False, writer=False, month=False, nomode=False, unval=False, other=None):
-    """One recorded value; notes joined in the registered order."""
+def reading(value, *, mm=False, local=False, writer=False, month=False, nomode=False, unval=None, other=None):
+    """One recorded value; notes joined in the registered order. `unval`: the format's no-published-reader note (UNVAL_DM,
+    UNVAL_VELOX, UNVAL_FEI or UNVAL_MRC), None when a published reader maps the value."""
     notes = [n for n, on in ((LOCAL, local), (WRITER, writer), (MM, mm), (MONTH_FIRST, month), (NOMODE, nomode),
-                             (UNVAL, unval)) if on]
+                             (unval, unval is not None)) if on]
     return {"value": value, "note": "; ".join(notes) if notes else None, "otherCopy": other}
 
 
@@ -424,10 +432,10 @@ class DMReference:
         if cl is not None:
             out["cameraLengthMM"] = reading(cl, mm=True)
 
-        # detector: no RosettaSciIO mapping reads Acquisition.Device.Name -> unvalidated
+        # detector: no RosettaSciIO mapping reads Acquisition.Device.Name -> UNVAL_DM
         det = text(S("Acquisition.Device.Name"))
         if det is not None:
-            out["detector"] = reading(det, unval=True)
+            out["detector"] = reading(det, unval=UNVAL_DM)
 
         # dwell: DigiScan.Sample Time is us (RosettaSciIO / 1e6 -> s; back x 1e6); override (b). EXCEPTION, named: (b)
         # is tested on RosettaSciIO's seconds here, while the Swift tests the us as stored (it converts nothing); the
@@ -437,14 +445,15 @@ class DMReference:
             out["dwellUS"] = reading(dwell_s * 1e6)
 
         # exposure: Detector.exposure (s) first, the DataBar copy second (rule f). RosettaSciIO maps the first only,
-        # and only outside DigiScan: asserted equal where it does.
+        # and only outside DigiScan: asserted equal where it does. The DataBar copy alone is read by no published reader,
+        # so it carries UNVAL_DM, as the DM reader labels it.
         e1, e2 = positive(N("Acquisition.Parameters.Detector.exposure (s)")), positive(N("DataBar.Exposure Time (s)"))
         if "instr.Camera.exposure" in rs and positive(rs["instr.Camera.exposure"]) != e1:
             fail(f"exposure: RosettaSciIO {rs['instr.Camera.exposure']!r} is not the registered first copy {e1!r}")
         if e1 is not None:
             out["exposureS"] = reading(e1, other=differing(e1, e2))
         elif e2 is not None:
-            out["exposureS"] = reading(e2)
+            out["exposureS"] = reading(e2, unval=UNVAL_DM)
 
         # date: RosettaSciIO's dateutil reading of DataBar.Acquisition Date / Time (e). OVERRIDE (e): RosettaSciIO maps
         # the date alone when no time reads; the registered rule needs both, or the date is not recorded.
@@ -735,7 +744,7 @@ def fei_expected(file_reader, path):
     except KeyError:
         det = None
     if det is not None:
-        out["detector"] = reading(det, unval=True)
+        out["detector"] = reading(det, unval=UNVAL_FEI)
     return out, said
 
 
@@ -855,7 +864,7 @@ def velox_expected(path, conversions):
         out["highTensionKV"] = reading(ht)
     mag = positive(value("Optics/NominalMagnification"))
     if mag is not None:
-        out["magnification"] = reading(mag, unval=True)
+        out["magnification"] = reading(mag, unval=UNVAL_VELOX)
     # rule (c): the camera length is real in diffraction or STEM (RosettaSciIO applies no gate: DEVIATION); policy (j):
     # the two modes are matched without regard to case; m * 1e3 -> mm (RosettaSciIO)
     projector, mode = value("Optics/ProjectorMode"), value("Optics/OperatingMode")
@@ -865,7 +874,7 @@ def velox_expected(path, conversions):
             out["cameraLengthMM"] = reading(cl)
     det = value("BinaryResult/Detector")
     if det is not None:
-        out["detector"] = reading(det, unval=True)
+        out["detector"] = reading(det, unval=UNVAL_VELOX)
         # policy (i): the exposure of the Detectors/* element that names this detector, never another detector's
         for element in root.findall("./Detectors/*"):
             named = element.find("DetectorName")
@@ -874,7 +883,7 @@ def velox_expected(path, conversions):
             exposed = element.find("ExposureTime")
             exposure = positive(None if exposed is None else exposed.text)
             if exposure is not None:
-                out["exposureS"] = reading(exposure, unval=True)
+                out["exposureS"] = reading(exposure, unval=UNVAL_VELOX)
                 break
     # dwell: the dwell path of a Velox STEM TIFF is unobserved (no such file exists here): not recorded, whatever
     # ScanSettings/FrameTime holds (a scan setting, not a dwell)
@@ -883,12 +892,13 @@ def velox_expected(path, conversions):
     if second is not None and int(second[:4]) < FLOOR_YEAR:     # policy (f)/(k): an unset second stamp, not a copy
         second = None
     if first is not None:
-        out["acquired"] = reading(first, local=True, unval=True, other=second if second not in (None, first) else None)
+        out["acquired"] = reading(first, local=True, unval=UNVAL_VELOX,
+                                  other=second if second not in (None, first) else None)
     model = value("Instrument/InstrumentModel")
     if model is not None:
-        out["instrument"] = reading(model, unval=True)
+        out["instrument"] = reading(model, unval=UNVAL_VELOX)
     if mode is not None:
-        out["mode"] = reading(mode, unval=True)
+        out["mode"] = reading(mode, unval=UNVAL_VELOX)
     return out
 
 
@@ -1122,9 +1132,9 @@ def mrc_expected(path):
     if written("Integration time"):
         exposure = positive(float(rec["Integration time"]))
         if exposure is not None:
-            out["exposureS"] = reading(exposure, unval=True)
+            out["exposureS"] = reading(exposure, unval=UNVAL_MRC)
     if written("Instrument mode"):
-        out["mode"] = reading(str(int(rec["Instrument mode"])), unval=True)   # 0 is a stored value
+        out["mode"] = reading(str(int(rec["Instrument mode"])), unval=UNVAL_MRC)   # 0 is a stored value
     return out
 
 
@@ -1168,7 +1178,7 @@ PREDICTED_65027 = {   # WRITTEN before the code (slice S-b, "Predicted"), by han
     "highTensionKV": reading(200.0),                                  # Microscope Info.Voltage 200000 V
     "magnification": reading(51.0),                                   # Indicated 51; the Actual 83 is ignored
     "cameraLengthMM": None,                                           # TEM + IMAGING; the STEM Camera Length 255 is stale
-    "detector": reading("BM-UltraScan", unval=True),
+    "detector": reading("BM-UltraScan", unval=UNVAL_DM),
     "dwellUS": None,
     "exposureS": reading(0.5),
     "acquired": reading("2015-07-20 18:48:25", local=True),           # 20 > 12: no order note

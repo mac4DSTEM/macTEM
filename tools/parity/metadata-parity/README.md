@@ -19,11 +19,21 @@ acquired, instrument, mode):
 - a value: text equal exactly, a number to 1e-9 relative;
 - the `note` equal exactly (nil when the reference has none) and the second stored copy `otherCopy` likewise.
 
-Notes, exact texts, joined with `; ` in this order: `local time, zone not stored` (a Velox, DM or FEI SEM date),
-`clock of the writer, zone not stored` (an MRC date), `mm (assumed)` (a DM camera length), `month-first order assumed` (a
-DM date whose first two fields are both ≤ 12; a FEI SEM date is month-first by format and never carries it),
-`unvalidated: the mode is not checked` (an MRC camera length), `unvalidated: no published reader reads it` (a value whose
-path no pinned reference maps: most Velox values, the FEI SEM detector, an MRC mode and exposure).
+Notes, exact texts as FormatoKit 0.12.1's readers word them (`convention: .app`), joined with `; ` in this order:
+`local time, zone not stored` (a Velox, DM or FEI SEM date), `clock of the writer, zone not stored` (an MRC date),
+`mm (assumed)` (a DM camera length), `month-first order assumed` (a DM date whose first two fields are both ≤ 12; a FEI
+SEM date is month-first by format and never carries it),
+`shown as stored; the instrument mode is not checked, as no published reader decodes it` (an MRC camera length), and on a
+value whose path no pinned reference maps, the format's own wording, which names where the value is stored (`UNVAL_DM`,
+`UNVAL_VELOX`, `UNVAL_FEI`, `UNVAL_MRC` in both scripts):
+
+- DM, and a TIFF's tag 65027 stream (read by the DM rules), on the detector and on the DataBar exposure when it is the
+  only copy: `no published reader reads this field; read as stored in the DM image tags`;
+- Velox TIFF, on every value but the high tension and the camera length:
+  `no published reader reads this field; read as stored in the Velox XML of the TIFF`;
+- FEI SEM TIFF, on the detector: `no published reader reads this field; read as stored in the FEI header of the TIFF`;
+- MRC, on the mode and the exposure:
+  `no published reader reads this field; read as stored in the FEI extended header, at the offset mrcfile declares`.
 
 A case marked `nilOrThrows` (a file that is not what it says) passes when the function throws or returns every field nil;
 a file the harness itself cannot read is a failure, never a refusal.
@@ -103,8 +113,8 @@ reproduce every PLANTED truth that `make_fixture.py` wrote; a disagreement exits
 | Format | Reference | Read how |
 |---|---|---|
 | DM | ncempy 1.16 `fileDM(…).allTags` (the sha256 of `ncempy/io/dm.py` pinned) for the tag maps; RosettaSciIO `rsciio/digitalmicrograph/_api.py` `ImageObject.get_mapping()` applied to them | the `{numbers, strings}` maps the Swift function takes (keys relative to `ImageList.N.ImageTags.`): a scalar number or boolean is a number, a string a string, arrays are not carried. RosettaSciIO's own parser is run on the same object and its mapped values must equal the ones from ncempy's tags. |
-| FEI SEM TIFF (tag 34682 / 34680) | RosettaSciIO `rsciio.tiff.file_reader` (tifffile's `read_fei_metadata` inside it), its `mapping_fei` applied to its `original_metadata` | `Beam.HV` V → kV, `Scan.Dwelltime` s → µs, `User.Date` + `User.Time` (dateutil), `System.SystemType`; the detector `Detectors.Name` is mapped by no reference (labelled unvalidated). tifffile's INI semantics are the reference as they stand: a repeated key takes its last line, an empty one included; a repeated section replaces the earlier one. |
-| Velox TIFF (tag 34683) | tifffile 2026.9.20 for the text, `xml.etree` for the XML, `xml.parsers.expat` for the document guard (m); RosettaSciIO `rsciio/emd/_emd_velox.py:938-945` for the two conversions | `Optics/AccelerationVoltage` / 1e3, `Optics/CameraLength` × 1e3 — the two lambdas are EXTRACTED from that file by `ast` and run as written; every other field has no published reader and is labelled unvalidated |
+| FEI SEM TIFF (tag 34682 / 34680) | RosettaSciIO `rsciio.tiff.file_reader` (tifffile's `read_fei_metadata` inside it), its `mapping_fei` applied to its `original_metadata` | `Beam.HV` V → kV, `Scan.Dwelltime` s → µs, `User.Date` + `User.Time` (dateutil), `System.SystemType`; the detector `Detectors.Name` is mapped by no reference (it carries the FEI SEM TIFF's note above). tifffile's INI semantics are the reference as they stand: a repeated key takes its last line, an empty one included; a repeated section replaces the earlier one. |
+| Velox TIFF (tag 34683) | tifffile 2026.9.20 for the text, `xml.etree` for the XML, `xml.parsers.expat` for the document guard (m); RosettaSciIO `rsciio/emd/_emd_velox.py:938-945` for the two conversions | `Optics/AccelerationVoltage` / 1e3, `Optics/CameraLength` × 1e3 — the two lambdas are EXTRACTED from that file by `ast` and run as written; every other field has no published reader and carries the Velox TIFF's note above |
 | MRC | mrcfile 1.5.4 `indexed_extended_header` (its FEI1 / FEI2 dtype; the byte order follows the machine stamp) | record 0 and the four bitmasks; the date on the OLE epoch 1899-12-30 (override (h), executable evidence below) |
 | DM tag stream in a TIFF (tag 65027, S-b) | ncempy 1.16 `allTags` of the tag's bytes written to a temp file (`block_reading`), RosettaSciIO's mapping as for DM | the maps of the bare stream (keys without prefix) through the DM rules. macTEM's own policy, restated in `tiff_block`: none of 34680, 34682, 34683, and TIFF type 1; a stream ncempy cannot parse reads nothing |
 
@@ -125,7 +135,7 @@ reproduce every PLANTED truth that `make_fixture.py` wrote; a disagreement exits
   `ScanSettings/FrameTime` holds.
 - **Exposure** (s): DM `Acquisition.Parameters.Detector.exposure (s)` with `DataBar.Exposure Time (s)` as the second copy (f);
   Velox the `ExposureTime` of the `Detectors/*` element whose `DetectorName` is `BinaryResult/Detector` (policy (i)); MRC the
-  FEI `Integration time` (unvalidated, override (l)); FEI SEM none.
+  FEI `Integration time` (with the MRC note, override (l)); FEI SEM none.
 - **Acquired** (e): `YYYY-MM-DD HH:MM:SS` in the file's own clock; a date without a time, or a time without a date, is not
   recorded (DM, FEI SEM). DM `DataBar.Acquisition Date` + `Time`, FEI SEM `[User] Date` (MM/DD/YYYY) + `Time` (12-hour),
   Velox `AcquisitionStartDatetime` with `AcquisitionDatetime` as the second copy when it differs at the second and is not
@@ -134,7 +144,7 @@ reproduce every PLANTED truth that `make_fixture.py` wrote; a disagreement exits
   empty nor the text `[]`, only where the file has a `Microscope Info` group (RosettaSciIO's `_get_microscope_name`, `_api.py:820-837`,
   gate `:963`), FEI SEM `[System] SystemType`, Velox `Instrument/InstrumentModel`, MRC `Microscope type`. **Mode**: DM
   `Illumination Mode` and `Imaging Mode` joined by " · ", Velox `Optics/OperatingMode` as stored, MRC `Instrument mode` — the
-  stored int32 as decimal text, "unvalidated" (override (l); compared to mrcfile's field at offset 244, no enum is decoded), FEI
+  stored int32 as decimal text, with the MRC note (override (l); compared to mrcfile's field at offset 244, no enum is decoded), FEI
   SEM none.
 - (a) absent, empty or unparseable is nil; (b) a strictly positive quantity stored as 0, negative or non-finite is nil — in
   every format after the unit conversion (the DM dwell, which converts nothing in the Swift, is the one named exception); MRC: a field whose bitmask bit is unset is nil whatever its bytes hold.
@@ -194,8 +204,8 @@ of the writer" and not "local time".
 - (k) a second Velox start stamp from before 1990 is an unset field, not a copy: the Velox XML schema postdates 1990, and the
   sentinel form is inferred from same-schema EMD files (no Velox STEM TIFF exists here); a stamp from 1990 on is kept
   (`planted-velox-second-stamp-*`).
-- (l) an MRC mode is the stored `Instrument mode` int32 as text and an MRC exposure the `Integration time`, both "unvalidated": mrcfile
-  lays the fields out, no published reader reads them.
+- (l) an MRC mode is the stored `Instrument mode` int32 as text and an MRC exposure the `Integration time`, both with the MRC note:
+  mrcfile lays the fields out, no published reader reads them.
 - (m) a Velox document is read only if it passes the guard: a tag of at most 4 MiB, element depth at most 64, at most 1 MiB of
   character data, no entity declaration, well-formed; a string value over 256 characters is not recorded; a refused document
   reads empty (`planted-velox-hostile-*`, `planted-velox-value-*`). The real Ceta tags are about 14 KB and 6 deep.

@@ -18,11 +18,13 @@ truth is written by hand from the rules (AcquisitionMetadata.swift rules a-g), n
 running any reader. reference.py then has to reproduce it from the pinned references; a reference that disagrees with
 the plant exits 1, loudly.
 
-Notes (exact texts): "local time, zone not stored" (a Velox, DM or FEI SEM date), "clock of the writer, zone not stored"
-(an MRC date), "mm (assumed)" (a DM camera length), "month-first order assumed" (a DM date whose first two fields are
-both <= 12), "unvalidated: the mode is not checked" (an MRC camera length), "unvalidated: no published reader reads it"
-(a value whose path no pinned reference reads); several on one value joined with "; " in the order the harness lists
-them.
+Notes (exact texts, as FormatoKit 0.12.1's readers word them under `convention: .app`; the constants below):
+"local time, zone not stored" (a Velox, DM or FEI SEM date), "clock of the writer, zone not stored" (an MRC date),
+"mm (assumed)" (a DM camera length), "month-first order assumed" (a DM date whose first two fields are both <= 12),
+NOMODE (an MRC camera length), and on a value whose path no pinned reference reads, the format's own wording of "no
+published reader reads this field", which names where the value is stored: UNVAL_DM (a DM image object, or a TIFF's tag
+65027 stream, which goes through the DM rules), UNVAL_VELOX (a Velox TIFF), UNVAL_FEI (a FEI SEM TIFF), UNVAL_MRC (an
+MRC FEI extended header). Several on one value are joined with "; " in the order the harness lists them.
 
 Mutant inputs. A case that a negative control targets also carries `mutants`: the input the real code would need to
 see for the BROKEN reader's output to appear (README.md says which mutation does what). A mutant is written here, from
@@ -49,8 +51,13 @@ LOCAL = "local time, zone not stored"
 WRITER = "clock of the writer, zone not stored"
 MM = "mm (assumed)"
 MONTH_FIRST = "month-first order assumed"
-NOMODE = "unvalidated: the mode is not checked"
-UNVAL = "unvalidated: no published reader reads it"
+NOMODE = "shown as stored; the instrument mode is not checked, as no published reader decodes it"
+# The note on a value no pinned reference reads, in each format's wording (FormatoKit 0.12.1): it names where the value
+# is stored. A TIFF's tag 65027 stream is read by the DM rules, so it carries the DM wording.
+UNVAL_DM = "no published reader reads this field; read as stored in the DM image tags"
+UNVAL_VELOX = "no published reader reads this field; read as stored in the Velox XML of the TIFF"
+UNVAL_FEI = "no published reader reads this field; read as stored in the FEI header of the TIFF"
+UNVAL_MRC = "no published reader reads this field; read as stored in the FEI extended header, at the offset mrcfile declares"
 FIELDS = ["highTensionKV", "magnification", "cameraLengthMM", "detector", "dwellUS", "exposureS", "acquired",
           "instrument", "mode"]
 
@@ -288,7 +295,7 @@ def main(out):
         return name
 
     # ---------------------------------------------------------------- Velox TIFF (tag 34683) ---------------------
-    # HT and camera length carry no 'unvalidated' note (RosettaSciIO emd/_emd_velox.py:938-945 converts them); the
+    # HT and camera length carry no UNVAL_VELOX note (RosettaSciIO emd/_emd_velox.py:938-945 converts them); the
     # other fields' XML paths are read by no pinned reference.
     base = dict(ht="300000", mode="TEM", projector="Diffraction", cl="0.5", exposure="0.25", frame_time="7.5",
                 start="2025-03-04T09:08:07.000", model="Themis Z")
@@ -296,8 +303,8 @@ def main(out):
     kv = write_velox("planted-velox-diffraction.kv-unscaled", velox_tree(**{**base, "ht": "300000000"}))
     mm = write_velox("planted-velox-diffraction.mm-unscaled", velox_tree(**{**base, "cl": "0.0005"}))
     add("planted-velox-diffraction", "tiff", truth(
-        highTensionKV=R(300.0), cameraLengthMM=R(500.0), detector=R("BM-Ceta", UNVAL), exposureS=R(0.25, UNVAL),
-        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL), instrument=R("Themis Z", UNVAL), mode=R("TEM", UNVAL)),
+        highTensionKV=R(300.0), cameraLengthMM=R(500.0), detector=R("BM-Ceta", UNVAL_VELOX), exposureS=R(0.25, UNVAL_VELOX),
+        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX), instrument=R("Themis Z", UNVAL_VELOX), mode=R("TEM", UNVAL_VELOX)),
         file=f, mutants={"kv-unscaled": {"file": kv}, "mm-unscaled": {"file": mm}},
         comment="diffraction mode: the camera length is real (500 mm); FrameTime 7.5 s present, the dwell is not "
                 "recorded; no NominalMagnification")
@@ -305,26 +312,26 @@ def main(out):
     f = write_velox("planted-velox-imaging", velox_tree(ht="200000", mode="TEM", projector="Imaging", mag="17749.325",
                                                         cl="0.844", exposure="1"))
     add("planted-velox-imaging", "tiff", truth(
-        highTensionKV=R(200.0), magnification=R(17749.325, UNVAL), detector=R("BM-Ceta", UNVAL),
-        exposureS=R(1.0, UNVAL), acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL), instrument=R("Themis Z", UNVAL),
-        mode=R("TEM", UNVAL)), file=f,
+        highTensionKV=R(200.0), magnification=R(17749.325, UNVAL_VELOX), detector=R("BM-Ceta", UNVAL_VELOX),
+        exposureS=R(1.0, UNVAL_VELOX), acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX), instrument=R("Themis Z", UNVAL_VELOX),
+        mode=R("TEM", UNVAL_VELOX)), file=f,
         comment="imaging mode with a CameraLength of 0.844 m stored: not in effect, so not recorded (rule c)")
 
     f = write_velox("planted-velox-stem", velox_tree(ht="200000", mode="STEM", projector="Imaging", mag="225000",
                                                      cl="0.145", detector="HAADF", frame_time="3.2"))
     add("planted-velox-stem", "tiff", truth(
-        highTensionKV=R(200.0), magnification=R(225000.0, UNVAL), cameraLengthMM=R(145.0),
-        detector=R("HAADF", UNVAL), acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL), instrument=R("Themis Z", UNVAL),
-        mode=R("STEM", UNVAL)), file=f, extra={"frameTimeS": 3.2},
+        highTensionKV=R(200.0), magnification=R(225000.0, UNVAL_VELOX), cameraLengthMM=R(145.0),
+        detector=R("HAADF", UNVAL_VELOX), acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX), instrument=R("Themis Z", UNVAL_VELOX),
+        mode=R("STEM", UNVAL_VELOX)), file=f, extra={"frameTimeS": 3.2},
         comment="STEM: the camera length is real (145 mm); FrameTime 3.2 s is a scan setting, not a dwell (the dwell "
                 "path of a Velox STEM TIFF is unobserved: not recorded)")
 
     f = write_velox("planted-velox-two-datetimes", velox_tree(start="2025-03-04T09:08:07.000",
                                                               acq="2025-03-04T09:08:21.500"))
     add("planted-velox-two-datetimes", "tiff", truth(
-        highTensionKV=R(200.0), detector=R("BM-Ceta", UNVAL),
-        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL, other="2025-03-04 09:08:21"),
-        instrument=R("Themis Z", UNVAL), mode=R("TEM", UNVAL)), file=f,
+        highTensionKV=R(200.0), detector=R("BM-Ceta", UNVAL_VELOX),
+        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX, other="2025-03-04 09:08:21"),
+        instrument=R("Themis Z", UNVAL_VELOX), mode=R("TEM", UNVAL_VELOX)), file=f,
         comment="AcquisitionStartDatetime and AcquisitionDatetime differ by 14 s: the start first, the other kept "
                 "(rule f)")
 
@@ -344,23 +351,23 @@ def main(out):
     f = write_velox("planted-velox-converted-to-zero", velox_tree(ht="5e-324", mode="STEM", projector="Imaging",
                                                                   cl="1e306", detector="HAADF"))
     add("planted-velox-converted-to-zero", "tiff", truth(
-        detector=R("HAADF", UNVAL), acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL), instrument=R("Themis Z", UNVAL),
-        mode=R("STEM", UNVAL)), file=f,
+        detector=R("HAADF", UNVAL_VELOX), acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX), instrument=R("Themis Z", UNVAL_VELOX),
+        mode=R("STEM", UNVAL_VELOX)), file=f,
         comment="a stored AccelerationVoltage of 5e-324 V is 0.0 kV and a CameraLength of 1e306 m (STEM: real) is inf "
                 "mm after the conversion: both not recorded (rule b after the unit conversion)")
     f = write_velox("planted-velox-converted-finite", velox_tree(ht="1e300", mode="STEM", projector="Imaging",
                                                                  cl="5e-324", detector="HAADF"))
     add("planted-velox-converted-finite", "tiff", truth(
-        highTensionKV=R(1e300 / 1e3), cameraLengthMM=R(5e-324 * 1e3), detector=R("HAADF", UNVAL),
-        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL), instrument=R("Themis Z", UNVAL), mode=R("STEM", UNVAL)),
+        highTensionKV=R(1e300 / 1e3), cameraLengthMM=R(5e-324 * 1e3), detector=R("HAADF", UNVAL_VELOX),
+        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX), instrument=R("Themis Z", UNVAL_VELOX), mode=R("STEM", UNVAL_VELOX)),
         file=f, comment="1e300 V is 1e297 kV and a CameraLength of 5e-324 m is 4.94e-321 mm: still positive and "
                         "finite after the conversion, so recorded")
 
     f = write_velox("planted-velox-padded", velox_tree(ht="\n   200000  \n", detector="  BM-Ceta  ", exposure=" 2 ",
                                                        model=" Themis Z "))
     add("planted-velox-padded", "tiff", truth(
-        highTensionKV=R(200.0), detector=R("BM-Ceta", UNVAL), exposureS=R(2.0, UNVAL),
-        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL), instrument=R("Themis Z", UNVAL), mode=R("TEM", UNVAL)),
+        highTensionKV=R(200.0), detector=R("BM-Ceta", UNVAL_VELOX), exposureS=R(2.0, UNVAL_VELOX),
+        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX), instrument=R("Themis Z", UNVAL_VELOX), mode=R("TEM", UNVAL_VELOX)),
         file=f, comment="surrounding whitespace is not part of a value (rule a)")
 
     # The exposure is the one of the Detectors/* element whose DetectorName is BinaryResult/Detector (macTEM policy (i)
@@ -370,8 +377,8 @@ def main(out):
             "ScanningDetector": {"DetectorName": "HAADF"},
             "ImagingDetector": {"DetectorName": "BM-Ceta", "ExposureTime": "1"}}))
     add("planted-velox-exposure-decoy", "tiff", truth(
-        highTensionKV=R(200.0), cameraLengthMM=R(145.0), detector=R("HAADF", UNVAL),
-        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL), instrument=R("Themis Z", UNVAL), mode=R("STEM", UNVAL)),
+        highTensionKV=R(200.0), cameraLengthMM=R(145.0), detector=R("HAADF", UNVAL_VELOX),
+        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX), instrument=R("Themis Z", UNVAL_VELOX), mode=R("STEM", UNVAL_VELOX)),
         file=f, comment="STEM image from the HAADF detector, which stores no exposure; a decoy ImagingDetector "
                         "(BM-Ceta, 1 s) is another detector's: exposure not recorded")
     f = write_velox("planted-velox-exposure-named", velox_tree(
@@ -379,8 +386,8 @@ def main(out):
             "ImagingDetector": {"DetectorName": "Falcon", "ExposureTime": "9"},
             "AnalyticalDetector": {"DetectorName": "BM-Ceta", "ExposureTime": "3"}}))
     add("planted-velox-exposure-named", "tiff", truth(
-        highTensionKV=R(200.0), detector=R("BM-Ceta", UNVAL), exposureS=R(3.0, UNVAL),
-        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL), instrument=R("Themis Z", UNVAL), mode=R("TEM", UNVAL)),
+        highTensionKV=R(200.0), detector=R("BM-Ceta", UNVAL_VELOX), exposureS=R(3.0, UNVAL_VELOX),
+        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX), instrument=R("Themis Z", UNVAL_VELOX), mode=R("TEM", UNVAL_VELOX)),
         file=f, comment="the image's detector (BM-Ceta) is the second listed and not an ImagingDetector element; "
                         "the ImagingDetector (Falcon, 9 s) is another detector's: 3 s")
 
@@ -388,13 +395,13 @@ def main(out):
     # no case, no pinned reader reads ProjectorMode); the mode shown is the stored text.
     f = write_velox("planted-velox-mode-case-projector", velox_tree(mode="tem", projector="dIFFRACTION", cl="0.5"))
     add("planted-velox-mode-case-projector", "tiff", truth(
-        highTensionKV=R(200.0), cameraLengthMM=R(500.0), detector=R("BM-Ceta", UNVAL),
-        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL), instrument=R("Themis Z", UNVAL), mode=R("tem", UNVAL)),
+        highTensionKV=R(200.0), cameraLengthMM=R(500.0), detector=R("BM-Ceta", UNVAL_VELOX),
+        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX), instrument=R("Themis Z", UNVAL_VELOX), mode=R("tem", UNVAL_VELOX)),
         file=f, comment="ProjectorMode 'dIFFRACTION': a diffraction mode, the camera length is real (500 mm)")
     f = write_velox("planted-velox-mode-case-operating", velox_tree(mode="Stem", projector="imaging", cl="0.145"))
     add("planted-velox-mode-case-operating", "tiff", truth(
-        highTensionKV=R(200.0), cameraLengthMM=R(145.0), detector=R("BM-Ceta", UNVAL),
-        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL), instrument=R("Themis Z", UNVAL), mode=R("Stem", UNVAL)),
+        highTensionKV=R(200.0), cameraLengthMM=R(145.0), detector=R("BM-Ceta", UNVAL_VELOX),
+        acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX), instrument=R("Themis Z", UNVAL_VELOX), mode=R("Stem", UNVAL_VELOX)),
         file=f, comment="OperatingMode 'Stem': the STEM mode, the camera length is real (145 mm)")
 
     # The second start stamp: a year before 1990 is an unset field, not a copy (policy (k): the Velox schema postdates
@@ -407,9 +414,9 @@ def main(out):
         f = write_velox("planted-velox-second-stamp-" + suffix,
                         velox_tree(start="2026-06-05T13:05:31.000", acq=second))
         add("planted-velox-second-stamp-" + suffix, "tiff", truth(
-            highTensionKV=R(200.0), detector=R("BM-Ceta", UNVAL),
-            acquired=R("2026-06-05 13:05:31", LOCAL, UNVAL, other=other), instrument=R("Themis Z", UNVAL),
-            mode=R("TEM", UNVAL)), file=f,
+            highTensionKV=R(200.0), detector=R("BM-Ceta", UNVAL_VELOX),
+            acquired=R("2026-06-05 13:05:31", LOCAL, UNVAL_VELOX, other=other), instrument=R("Themis Z", UNVAL_VELOX),
+            mode=R("TEM", UNVAL_VELOX)), file=f,
             comment=f"AcquisitionDatetime {second} ({note}) beside a start stamp of 2026-06-05 13:05:31")
 
     # A string value over 256 characters is not recorded; 200 characters are (policy (m)).
@@ -418,9 +425,9 @@ def main(out):
         f = write_velox(f"planted-velox-value-{n}", velox_tree(
             detector=name_, model=name_, detectors={"ImagingDetector": {"DetectorName": name_, "ExposureTime": "2"}}))
         add(f"planted-velox-value-{n}", "tiff", truth(
-            highTensionKV=R(200.0), detector=R(name_, UNVAL) if kept else None,
-            exposureS=R(2.0, UNVAL) if kept else None, acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL),
-            instrument=R(name_, UNVAL) if kept else None, mode=R("TEM", UNVAL)), file=f,
+            highTensionKV=R(200.0), detector=R(name_, UNVAL_VELOX) if kept else None,
+            exposureS=R(2.0, UNVAL_VELOX) if kept else None, acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX),
+            instrument=R(name_, UNVAL_VELOX) if kept else None, mode=R("TEM", UNVAL_VELOX)), file=f,
             comment=f"detector and instrument names of {n} characters: " +
                     ("read" if kept else "not recorded (so no exposure is looked up either)"))
 
@@ -480,30 +487,30 @@ def main(out):
                                               extra="[EBeam]\nHV=12345\n"))
     add("planted-fei-sem-full", "tiff", truth(
         highTensionKV=R(30.0), dwellUS=R(25.0), acquired=R("2019-11-27 13:02:03", LOCAL),
-        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)), file=f,
+        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)), file=f,
         comment="[Beam] HV 30000 V (an [EBeam] HV of 12345 beside it is not read); dwell 2.5e-5 s = 25 us; US date "
                 "and 12-hour clock")
     f = write_fei("planted-fei-sem-hv-empty", ini(""), tag=34680)
     add("planted-fei-sem-hv-empty", "tiff", truth(
         dwellUS=R(10.0), acquired=R("2022-05-17 09:07:08", LOCAL), instrument=R("Quanta 250 FEG"),
-        detector=R("ETD", UNVAL)), file=f,
+        detector=R("ETD", UNVAL_FEI)), file=f,
         comment="[Beam] HV empty (as the Helios navcam files; tag 34680): high tension not recorded, never 0")
     f = write_fei("planted-fei-sem-hv-notafloat", ini("notafloat"))
     add("planted-fei-sem-hv-notafloat", "tiff", truth(
         dwellUS=R(10.0), acquired=R("2022-05-17 09:07:08", LOCAL), instrument=R("Quanta 250 FEG"),
-        detector=R("ETD", UNVAL)), file=f, comment="[Beam] HV = notafloat: not recorded")
+        detector=R("ETD", UNVAL_FEI)), file=f, comment="[Beam] HV = notafloat: not recorded")
     f = write_fei("planted-fei-sem-hv-zero", ini("0", dwell="0"))
     add("planted-fei-sem-hv-zero", "tiff", truth(
-        acquired=R("2022-05-17 09:07:08", LOCAL), instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)),
+        acquired=R("2022-05-17 09:07:08", LOCAL), instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)),
         file=f, comment="HV 0 and Dwelltime 0 stored: strictly positive quantities, so not recorded (rule b)")
     f = write_fei("planted-fei-sem-12am", ini("5000", date="12/31/2020", time="12:05:09 AM"))
     add("planted-fei-sem-12am", "tiff", truth(
         highTensionKV=R(5.0), dwellUS=R(10.0), acquired=R("2020-12-31 00:05:09", LOCAL),
-        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)), file=f, comment="12:05:09 AM is 00:05:09")
+        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)), file=f, comment="12:05:09 AM is 00:05:09")
     f = write_fei("planted-fei-sem-12pm", ini("5000", date="01/15/2021", time="12:30:00 PM"))
     add("planted-fei-sem-12pm", "tiff", truth(
         highTensionKV=R(5.0), dwellUS=R(10.0), acquired=R("2021-01-15 12:30:00", LOCAL),
-        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)), file=f, comment="12:30:00 PM is 12:30:00")
+        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)), file=f, comment="12:30:00 PM is 12:30:00")
     f = write_fei("planted-fei-sem-garbage", ini("-30000", dwell="notafloat", date="notadate", time="nonsense",
                                                  system="   ", det=""))
     add("planted-fei-sem-garbage", "tiff", truth(), file=f,
@@ -513,13 +520,13 @@ def main(out):
     # Rule (b) after the unit conversion (see planted-velox-converted-to-zero): 5e-324 V is 0.0 kV and 1e306 s is inf us.
     f = write_fei("planted-fei-sem-converted-to-zero", ini("5e-324", dwell="1e306"))
     add("planted-fei-sem-converted-to-zero", "tiff", truth(
-        acquired=R("2022-05-17 09:07:08", LOCAL), instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)), file=f,
+        acquired=R("2022-05-17 09:07:08", LOCAL), instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)), file=f,
         comment="[Beam] HV 5e-324 V is 0.0 kV and [Scan] Dwelltime 1e306 s is inf us after the conversion: both not "
                 "recorded (rule b after the unit conversion)")
     f = write_fei("planted-fei-sem-converted-finite", ini("1e300", dwell="5e-324"))
     add("planted-fei-sem-converted-finite", "tiff", truth(
         highTensionKV=R(1e300 / 1e3), dwellUS=R(5e-324 * 1e6), acquired=R("2022-05-17 09:07:08", LOCAL),
-        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)), file=f,
+        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)), file=f,
         comment="HV 1e300 V is 1e297 kV and Dwelltime 5e-324 s is 4.94e-318 us: still positive and finite after the "
                 "conversion, so recorded")
 
@@ -528,45 +535,46 @@ def main(out):
     f = write_fei("planted-fei-sem-repeated-key-empty", ini("5000\nHV="))
     add("planted-fei-sem-repeated-key-empty", "tiff", truth(
         dwellUS=R(10.0), acquired=R("2022-05-17 09:07:08", LOCAL), instrument=R("Quanta 250 FEG"),
-        detector=R("ETD", UNVAL)), file=f,
+        detector=R("ETD", UNVAL_FEI)), file=f,
         comment="[Beam] HV=5000 and then HV= : the later, empty copy is the value (as tifffile): high tension not "
                 "recorded, not 5 kV")
     f = write_fei("planted-fei-sem-repeated-key-later", ini("5000\nHV=6000"))
     add("planted-fei-sem-repeated-key-later", "tiff", truth(
         highTensionKV=R(6.0), dwellUS=R(10.0), acquired=R("2022-05-17 09:07:08", LOCAL),
-        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)), file=f,
+        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)), file=f,
         comment="[Beam] HV=5000 and then HV=6000: the later copy wins")
     f = write_fei("planted-fei-sem-repeated-section", ini("5000", extra="[Beam]\nPixelWidth=1e-08\n"))
     add("planted-fei-sem-repeated-section", "tiff", truth(
         dwellUS=R(10.0), acquired=R("2022-05-17 09:07:08", LOCAL), instrument=R("Quanta 250 FEG"),
-        detector=R("ETD", UNVAL)), file=f,
+        detector=R("ETD", UNVAL_FEI)), file=f,
         comment="a second [Beam] section without HV replaces the first (as tifffile): high tension not recorded")
 
     # The FEI [User] Date is month-first by format (as mapping_fei parses it): no order note, whatever the fields.
     f = write_fei("planted-fei-sem-ambiguous-date", ini("5000", date="05/06/2022"))
     add("planted-fei-sem-ambiguous-date", "tiff", truth(
         highTensionKV=R(5.0), dwellUS=R(10.0), acquired=R("2022-05-06 09:07:08", LOCAL),
-        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)), file=f,
+        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)), file=f,
         comment="05/06/2022 is May 6 (month first by format) and says no more than 'local time'")
     f = write_fei("planted-fei-sem-day-first", ini("5000", date="13/06/2022"))
     add("planted-fei-sem-day-first", "tiff", truth(
         highTensionKV=R(5.0), dwellUS=R(10.0), acquired=R("2022-06-13 09:07:08", LOCAL),
-        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)), file=f,
+        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)), file=f,
         comment="13/06/2022: a first field above 12 can only be a day (as dateutil reads it)")
     # A date needs its time (rule e): either one alone is not recorded (RosettaSciIO would map the date alone).
     f = write_fei("planted-fei-sem-date-no-time", ini("5000", time=""))
     add("planted-fei-sem-date-no-time", "tiff", truth(
-        highTensionKV=R(5.0), dwellUS=R(10.0), instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)), file=f,
+        highTensionKV=R(5.0), dwellUS=R(10.0), instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)), file=f,
         comment="[User] Date without a Time: the acquisition date is not recorded")
     f = write_fei("planted-fei-sem-time-no-date", ini("5000", date=""))
     add("planted-fei-sem-time-no-date", "tiff", truth(
-        highTensionKV=R(5.0), dwellUS=R(10.0), instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)), file=f,
+        highTensionKV=R(5.0), dwellUS=R(10.0), instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)), file=f,
         comment="[User] Time without a Date: the acquisition date is not recorded")
 
     # ---------------------------------------------------------------- MRC, FEI extended header ------------------
     # The rules as amended after a review: the date carries WRITER (of the two pinned files one is on local time, the
     # other on UTC); the camera length is shown as stored and says the mode is not checked (NOMODE); the mode is the
-    # stored int32 as text (UNVAL, no published reader reads it); the exposure is the camera's Integration time (UNVAL).
+    # stored int32 as text (UNVAL_MRC, no published reader reads it); the exposure is the camera's Integration time
+    # (UNVAL_MRC).
     t_img = datetime(2023, 3, 4, 9, 8, 7, 350000)
     t_stm = datetime(2022, 12, 5, 12, 13, 7, 350000)
     f_img_vals = {"Timestamp": ole_days(t_img), "Microscope type": "Titan Themis", "HT": 200000.0,
@@ -574,8 +582,8 @@ def main(out):
                   "Camera name": "BM-Ceta"}
     img_written = list(f_img_vals)
     img_truth = truth(highTensionKV=R(200.0), magnification=R(52000.5), cameraLengthMM=R(200.0, NOMODE),
-                      detector=R("BM-Ceta"), exposureS=R(0.5, UNVAL), acquired=R("2023-03-04 09:08:07", WRITER),
-                      instrument=R("Titan Themis"), mode=R("1", UNVAL))
+                      detector=R("BM-Ceta"), exposureS=R(0.5, UNVAL_MRC), acquired=R("2023-03-04 09:08:07", WRITER),
+                      instrument=R("Titan Themis"), mode=R("1", UNVAL_MRC))
     f = write_blob("planted-fei2-imaging.mrc", mrc_bytes(fei_record("FEI2", f_img_vals, img_written)))
     add("planted-fei2-imaging", "mrc", img_truth, file=f,
         comment="little-endian FEI2: every field's bit set; 200 kV, 52000.5 x, camera length 0.2 m shown as stored "
@@ -592,7 +600,7 @@ def main(out):
     fb = write_blob("planted-fei2-stem.mrc-big-endian.mrc", bytes(flipped))
     add("planted-fei2-stem", "mrc", truth(
         highTensionKV=R(300.0), cameraLengthMM=R(91.1, NOMODE), detector=R("HAADF"), dwellUS=R(10.0),
-        acquired=R("2022-12-05 12:13:07", WRITER), mode=R("2", UNVAL)), file=f,
+        acquired=R("2022-12-05 12:13:07", WRITER), mode=R("2", UNVAL_MRC)), file=f,
         mutants={"mrc-big-endian": {"file": fb}},
         comment="STEM: Magnification 0.0 and Integration time 0.0 with their bits SET are not recorded (rule b); an "
                 "empty Microscope type; the STEM detector name wins over the camera name; dwell 1e-5 s = 10 us; OLE "
@@ -617,7 +625,7 @@ def main(out):
                  "Dwell time": 0.0, "Detector commercial name": "Ceta-S speed"}
     f = write_blob("planted-fei2-zero-set.mrc", mrc_bytes(fei_record("FEI2", zero_vals, list(zero_vals))))
     add("planted-fei2-zero-set", "mrc", truth(detector=R("Ceta-S speed"), instrument=R("Spectra"),
-                                              mode=R("0", UNVAL)), file=f,
+                                              mode=R("0", UNVAL_MRC)), file=f,
         comment="bits set on a zero HT, camera length, Integration time and dwell and a negative magnification: not "
                 "recorded (rule b); a recorded Instrument mode of 0 is a value, not 'not recorded'; empty "
                 "STEM-detector and camera names fall through to the commercial name; 'Spectra   ' is trimmed")
@@ -642,8 +650,8 @@ def main(out):
     f = write_blob("planted-fei1.mrc", mrc_bytes(fei_record("FEI1", fei1_vals, list(fei1_vals)), kind="FEI1"))
     add("planted-fei1", "mrc", truth(
         highTensionKV=R(120.0), magnification=R(8000.0), cameraLengthMM=R(150.0, NOMODE), detector=R("BM-Ceta"),
-        dwellUS=R(2.0), exposureS=R(0.125, UNVAL), acquired=R("2021-11-12 13:14:15", WRITER),
-        instrument=R("Tecnai"), mode=R("3", UNVAL)), file=f,
+        dwellUS=R(2.0), exposureS=R(0.125, UNVAL_MRC), acquired=R("2021-11-12 13:14:15", WRITER),
+        instrument=R("Tecnai"), mode=R("3", UNVAL_MRC)), file=f,
         comment="exttyp FEI1: the 768-byte record (the FEI2 fields up to Alpha tilt max)")
 
     # The seconds are TRUNCATED: a clock shows 12:00:07 until 12:00:08, and 23:59:59.99 does not roll the day over.
@@ -651,8 +659,8 @@ def main(out):
                   "Instrument mode": 4, "Integration time": 0.25}
     f = write_blob("planted-fei2-seconds-truncated.mrc", mrc_bytes(fei_record("FEI2", trunc_vals, list(trunc_vals))))
     add("planted-fei2-seconds-truncated", "mrc", truth(
-        highTensionKV=R(200.0), exposureS=R(0.25, UNVAL), acquired=R("2022-12-05 12:00:07", WRITER),
-        mode=R("4", UNVAL)), file=f,
+        highTensionKV=R(200.0), exposureS=R(0.25, UNVAL_MRC), acquired=R("2022-12-05 12:00:07", WRITER),
+        mode=R("4", UNVAL_MRC)), file=f,
         comment="OLE date of 12:00:07.75 shows :07 (truncated, not rounded to :08); Integration time 0.25 s; mode 4")
     midnight_vals = {"Timestamp": ole_days(datetime(2022, 12, 31, 23, 59, 59, 990000)), "HT": 200000.0}
     f = write_blob("planted-fei2-midnight.mrc", mrc_bytes(fei_record("FEI2", midnight_vals, list(midnight_vals))))
@@ -708,7 +716,7 @@ def main(out):
     s1 = {MI + "Illumination Mode": "TEM", MI + "Imaging Mode": "IMAGING", MI + "Name": "FEI Tecnai",
           "Acquisition.Device.Name": "BM-UltraScan", DATE: "7/20/2015", TIME: "6:48:25 PM"}
     dm("planted-dm-tem-imaging-stem255", n1, s1, truth(
-        highTensionKV=R(200.0), magnification=R(51.0), detector=R("BM-UltraScan", UNVAL), exposureS=R(0.5),
+        highTensionKV=R(200.0), magnification=R(51.0), detector=R("BM-UltraScan", UNVAL_DM), exposureS=R(0.5),
         acquired=R("2015-07-20 18:48:25", LOCAL), instrument=R("FEI Tecnai"), mode=R("TEM · IMAGING")),
         comment="TEM imaging with a stale STEM Camera Length of 255 (as test_dm_image_um_unit): not recorded")
 
@@ -726,7 +734,7 @@ def main(out):
     s3 = {MI + "Illumination Mode": "TEM", MI + "Imaging Mode": "DIFFRACTION", MI + "Name": "FEI Tecnai",
           "Acquisition.Device.Name": "BM-UltraScan", DATE: "7/9/2014", TIME: "6:56:37 PM"}
     dm("planted-dm-tem-diffraction", d3, s3, truth(
-        highTensionKV=R(200.0), cameraLengthMM=R(320.0, MM), detector=R("BM-UltraScan", UNVAL),
+        highTensionKV=R(200.0), cameraLengthMM=R(320.0, MM), detector=R("BM-UltraScan", UNVAL_DM),
         exposureS=R(0.2), acquired=R("2014-07-09 18:56:37", LOCAL, MONTH_FIRST), instrument=R("FEI Tecnai"),
         mode=R("TEM · DIFFRACTION")),
         mutants={"dm-date-swapped": {"numbers": d3, "strings": {**s3, DATE: "9/7/2014"}}},
@@ -871,7 +879,7 @@ def main(out):
     SBC = "source.Tags at creation."
     # The truth of the maps n1/s1 and d4/s4 above (the S-a plants planted-dm-tem-imaging-stem255 and
     # planted-dm-actual-ne-indicated): the same hand arithmetic, restated for the file cases.
-    truth_n1 = truth(highTensionKV=R(200.0), magnification=R(51.0), detector=R("BM-UltraScan", UNVAL),
+    truth_n1 = truth(highTensionKV=R(200.0), magnification=R(51.0), detector=R("BM-UltraScan", UNVAL_DM),
                      exposureS=R(0.5), acquired=R("2015-07-20 18:48:25", LOCAL), instrument=R("FEI Tecnai"),
                      mode=R("TEM · IMAGING"))
     truth_d4 = truth(highTensionKV=R(200.0), magnification=R(225000.0), cameraLengthMM=R(135.0, MM), dwellUS=R(3.5),
@@ -972,8 +980,8 @@ def main(out):
     f_dm_only = write_tiff("planted-tiff-velox-and-dm.tiff-dm-before-velox",
                            [(65027, "B", len(stream_120), stream_120, True)])
     read_plant("planted-tiff-velox-and-dm", "tiff", truth(
-        highTensionKV=R(200.0), detector=R("BM-Ceta", UNVAL), acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL),
-        instrument=R("Themis Z", UNVAL), mode=R("TEM", UNVAL)), file=f, via="velox",
+        highTensionKV=R(200.0), detector=R("BM-Ceta", UNVAL_VELOX), acquired=R("2025-03-04 09:08:07", LOCAL, UNVAL_VELOX),
+        instrument=R("Themis Z", UNVAL_VELOX), mode=R("TEM", UNVAL_VELOX)), file=f, via="velox",
         block={"numbers": hv_n, "strings": hv_s}, mutants={"tiff-dm-before-velox": {"file": f_dm_only}},
         comment="tag 34683 (200 kV, Velox) and tag 65027 (120 kV, DM): Velox is read, the DM tree is not; the "
                 "mutant's twin has the DM tag only")
@@ -981,7 +989,7 @@ def main(out):
                                                 (65027, "B", len(stream_120), stream_120, True)])
     read_plant("planted-tiff-fei-and-dm", "tiff", truth(
         highTensionKV=R(30.0), dwellUS=R(10.0), acquired=R("2022-05-17 09:07:08", LOCAL),
-        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL)), file=f, via="fei",
+        instrument=R("Quanta 250 FEG"), detector=R("ETD", UNVAL_FEI)), file=f, via="fei",
         block={"numbers": hv_n, "strings": hv_s},
         comment="tag 34682 (30 kV, FEI SEM) and tag 65027 (120 kV, DM): the FEI SEM INI is read, the DM tree is not")
     # The Velox convention is the EXISTENCE of tag 34683: one that is not text (a SHORT here) still closes the DM tree off.
