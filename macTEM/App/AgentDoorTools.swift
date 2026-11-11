@@ -16,6 +16,7 @@ import Foundation
 import ImageIO
 import ImagoCore
 import ShellAgentDoor
+import ShellLayout
 import TEMCore
 import TEMSession
 
