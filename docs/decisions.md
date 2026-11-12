@@ -371,7 +371,7 @@ real-file check before 2.0.1 (#523), and fails it there if it does not open both
 
 **What.** An 8-bit RGB TIFF whose channels differ opens in the image room as grey, each pixel the largest of its red, green
 and blue (HSV value), with the note "Colour render (the file's colour table and any annotations burnt in), shown as grey"
-and the file's calibration (DM tags) kept. Before, it was refused naming a pixel. The code is app-side
+and the file's calibration kept where its tags give one. Before, it was refused naming a pixel. The code is app-side
 (`TIFFImageReader.colourRender`, delete at FormatoKit 0.16.0) until the kit's `TIFFAppImage` reads it.
 
 **Why.** The real-file sweep after FormatoKit 0.15.0 (#541) found all 7 of Paul's GMS LZW TIFFs are RGB display renders: two
@@ -382,6 +382,12 @@ table's ramp exactly and keeps the marks visible; luminance would scale a red or
 and Preview show such a file in colour; HyperSpy reads it as an RGB signal.
 
 **Paul, 2026-11-12:** chose grey (brightest channel) over a colour picture or a refusal.
+
+**Calibration (screen check, 2026-11-12).** Both GMS exports checked open "not calibrated". That is the file's own
+reading, not a loss: their Digital Micrograph tags carry only placeholder scales (65009/65010 = 1.0, offsets 0) and no unit
+tags (65003, 65004 and 65005 are absent). The kit takes a DM axis only with a unit, and RosettaSciIO treats a TIFF as DM only
+when 65003 to 65005 are present. The scale GMS burnt in as a bar is not read. Tag 65027 holds a DM tag group ("DataBar",
+"EELS") whose decoding waits on an established reader that does it (macTEM#551).
 
 **What would reverse it.** Paul choosing to see these files in colour (a colour picture in the image room, measurements on
 distance only), or a real file where the brightest channel hides structure the colours carried.
