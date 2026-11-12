@@ -250,6 +250,26 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         XCTAssertEqual(((json?["phases"] as? [[String: Any]])?.first?["name"]) as? String, "ni")
     }
 
+    /// #538: a pattern's size reads width × height (columns × rows) everywhere, as the toolbar and the Calibration row write it.
+    /// The fixture's patterns are 5 wide and 4 high. Red before: Info read "4 × 5 px" and the refusals "the 4 × 5 px pattern".
+    func testAPatternSizeReadsWidthByHeightInInfoAndTheRefusals() throws {
+        let dataset = try EBSDH5Reader.read(url: fixture("ebsd-oxford-map-patterns", "h5oina"))
+        XCTAssertEqual([dataset.patternColumns, dataset.patternRows], [5, 4])
+        let info = Dictionary(EBSDBrowsing.infoRows(dataset, fileName: "x.h5oina").map { ($0.label, $0.value) },
+                              uniquingKeysWith: { first, _ in first })
+        XCTAssertTrue(info["Patterns"]?.contains("· 5 × 4 px ·") == true, info["Patterns"] ?? "none")
+        XCTAssertEqual(EBSDBrowsing.calibrationRows(dataset).first { $0.label == "Pattern" }?.value.hasPrefix("5 × 4 px"), true)
+        var bin = PatternPipeline.roomDefault
+        bin.binning = 3
+        bin.staticStage.isOn = false  // the fixture carries no static background, which would be refused first
+        bin.dynamicStage.isOn = false
+        XCTAssertEqual(bin.refusal(for: dataset, background: nil)?.sentence,
+                       "Bin 3 does not divide the 5 × 4 px pattern.")
+        let wrong = try FormatoArray(dataType: .uint8, shape: [2, 3], bytes: Data([1, 2, 3, 4, 5, 6]))
+        XCTAssertEqual(PatternPipeline.roomDefault.refusal(for: dataset, background: wrong)?.sentence.hasPrefix(
+            "Static background is 3 × 2 uint8, the patterns are 5 × 4 "), true)
+    }
+
     /// The Calibration rows name the detector's tilt "Detector tilt", as the design and the processing sections do (the Indexing
     /// room's "Camera tilt" follows in its own PR), and the Info rows write their numbers in the locale they are given.
     func testTheCalibrationSaysDetectorTiltAndInfoTakesTheLocale() throws {
