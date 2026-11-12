@@ -16,10 +16,11 @@ package nonisolated enum EELSDeadStretch {
     package static func channelSums(of core: CoreLossSpectrumImage) -> [Double] {
         var sums = [Double](repeating: 0, count: core.channels)
         let n = core.channels
-        core.counts.withUnsafeBufferPointer { c in
-            for p in 0..<core.pixelCount {
-                let base = p * n
-                for k in 0..<n { sums[k] += c[base + k] }
+        // A pixel at a time, the same additions in the same order (a float32 cube is never widened whole: macTEM#571).
+        let stored = core.storedCounts
+        for p in 0..<core.pixelCount {
+            stored.withRow(start: p * n, count: n) { c in
+                for k in 0..<n { sums[k] += c[k] }
             }
         }
         return sums

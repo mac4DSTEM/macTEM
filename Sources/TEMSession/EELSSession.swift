@@ -33,6 +33,9 @@ package final class EELSSession {
     // MARK: The spectrum image
 
     package private(set) var source: LoadedEELS?
+    /// The file `source` was read from, to read again when Align runs a second time on cubes it has replaced (`LoadedEELS.replaceCubes`). Nil for a
+    /// document made in memory (bound directly), whose cubes Align never replaces.
+    @ObservationIgnored private var sourceURL: URL?
     package private(set) var isOpening = false
 
     // MARK: The choices
@@ -420,10 +423,10 @@ package final class EELSSession {
 
     /// The Align section's readout: "offset −21.503 → 0.000 eV, 2041 of 2048 channels kept".
     package var alignmentReadout: String? {
-        guard let alignment, let before = source?.image else { return nil }
-        return EELSRoomFormat.alignmentReadout(offsetBefore: before.energyOffsetEV, offsetAfter: alignment.aligned.energyOffsetEV,
+        guard let alignment, let before = source?.fileAxis else { return nil }
+        return EELSRoomFormat.alignmentReadout(offsetBefore: before.offsetEV, offsetAfter: alignment.aligned.energyOffsetEV,
                                                kept: alignment.aligned.channels, of: before.channels)
-            + " · " + EELSRoomFormat.shiftSummary(alignment.shiftEV, channelEV: before.energyScaleEV)
+            + " · " + EELSRoomFormat.shiftSummary(alignment.shiftEV, channelEV: before.scaleEV)
     }
 
     /// The tiles on screen: the map's, with the "before" zero-loss centre next to its own once Align has run.
@@ -465,7 +468,7 @@ package final class EELSSession {
                 let loaded = try await Self.read(url)
                 guard let self, !Task.isCancelled else { return }
                 self.isOpening = false
-                await self.bind(loaded).value
+                await self.bind(loaded, from: url).value
             } catch {
                 guard let self, !Task.isCancelled else { return }
                 self.isOpening = false
@@ -485,9 +488,10 @@ package final class EELSSession {
 
     /// Starts the room over on `loaded` with the defaults (estimated threshold, no λ); the returned task ends when the first map has landed.
     @discardableResult
-    package func bind(_ loaded: LoadedEELS) -> Task<Void, Never> {
+    package func bind(_ loaded: LoadedEELS, from url: URL? = nil) -> Task<Void, Never> {
         cancelPass()
         source = loaded
+        sourceURL = url
         threshold = .estimated; meanFreePath = .none; typedBeamEnergyKeV = nil
         alignment = nil; alignmentTile = nil; alignmentShiftTile = nil; inputVersion += 1; fitUsed = nil
         alignChoice = EELSAlignChoice(); alignedWith = nil; alignNotice = nil
@@ -514,7 +518,7 @@ package final class EELSSession {
         fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
         deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil
         alignChoice = EELSAlignChoice(); alignedWith = nil; alignNotice = nil
-        source = nil; alignment = nil; alignmentTile = nil; pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""; map = nil; tiles = []; unavailableReasons = []; failure = nil
+        source = nil; sourceURL = nil; alignment = nil; alignmentTile = nil; pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""; map = nil; tiles = []; unavailableReasons = []; failure = nil
         resetRegions()
     }
 
@@ -987,6 +991,8 @@ package final class EELSSession {
         let gen = generation
         let low = loaded.image
         let core = loaded.coreLoss
+        // The cubes are an earlier Align's: this one starts from the file again (read off the main actor, in the pass).
+        let reread = loaded.cubesAreAligned ? sourceURL : nil
         let choice = alignChoice
         failure = nil
         isComputing = true
@@ -996,9 +1002,16 @@ package final class EELSSession {
             do {
                 let interval = Signposts.begin("eels.align"); defer { Signposts.end(interval) }
                 let gate = ProgressGate()
+                var input = low, alsoInput = core.map { [$0] } ?? []
+                if let reread {
+                    let fresh = try await Self.read(reread)
+                    input = fresh.image; alsoInput = fresh.coreLoss.map { [$0] } ?? []
+                }
                 // The Signal range (±5 eV about 0 by default) cut to the axis, and Crop.
-                let options = choice.kitOptions(for: low)
-                let result = try EELSAlignment.alignZeroLossPeak(low, alsoAlign: core.map { [$0] } ?? [], options: options, progress: { f in
+                let options = choice.kitOptions(for: input)
+                // Handed over (`consume`): the kit shifts the cube in place. The room still holds its own copy until the result lands, so the pass
+                // holds two cubes at its peak, and one after (`landAlignment`).
+                let result = try EELSAlignment.alignZeroLossPeak(consume input, alsoAlign: consume alsoInput, options: options, progress: { f in
                     guard gate.shouldReport(f) else { return }
                     Task { @MainActor in self?.landProgress(f, generation: gen) }
                 })
@@ -1019,6 +1032,8 @@ package final class EELSSession {
     private func landAlignment(_ result: ZeroLossAlignment, choice: EELSAlignChoice, generation gen: Int) {
         guard gen == generation else { return }
         alignment = result
+        // The room keeps the aligned cubes only: the file's are let go (macTEM#571). A document made in memory keeps them (it cannot be read again).
+        if sourceURL != nil { source?.replaceCubes(with: result) }
         alignedWith = choice
         alignmentTile = EELSCompute.beforeTile(result, nx: source?.image.nx ?? 0, ny: source?.image.ny ?? 0, version: inputVersion + 1)
         alignmentShiftTile = EELSCompute.shiftTile(result, nx: source?.image.nx ?? 0, ny: source?.image.ny ?? 0, version: inputVersion + 1)

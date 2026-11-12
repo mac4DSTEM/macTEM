@@ -105,9 +105,10 @@ package nonisolated enum EELSDeconvolveCompute {
         let width = channels ?? (stops.compactMap { $0 }.max() ?? 0)
         guard width >= 2 else { throw EELSDeconvolutionError.tooFewChannels(width) }
         var out = [Double](repeating: 0, count: low.pixelCount * width)
+        let stored = low.storedCounts
         for p in 0..<low.pixelCount {
             guard let stop = stops[p] else { continue }
-            for c in 0..<min(stop, width) { out[p * width + c] = low.counts[p * low.channels + c] }
+            for c in 0..<min(stop, width) { out[p * width + c] = stored[p * low.channels + c] }
         }
         let image = try LowLossSpectrumImage(nx: low.nx, ny: low.ny, channels: width, counts: out, energyOffsetEV: low.energyOffsetEV, energyScaleEV: low.energyScaleEV)
         return (image, stops.map { $0 == nil })
