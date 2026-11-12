@@ -58,7 +58,10 @@ nonisolated struct MarkGeometry: Equatable {
 
 /// Draws the selected file's marks and takes the gestures that make and move them.
 struct ImageMarksOverlay: View {
-    let image: CalibratedImage
+    /// The item whose image the marks are on, read at the gesture's end (`image`), never stored: a stored image kept its pixels alive
+    /// in this overlay's hover closure after the tab closed (see `ImagePane.image`).
+    let item: OpenItem
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
     let geometry: MarkGeometry
     let measurements: ImageMeasurements
     /// An angle whose first arm is drawn, waiting for the click on its third point; outlives the drag on purpose. The room
@@ -99,9 +102,9 @@ struct ImageMarksOverlay: View {
             Color.clear
                 .contentShape(hitShape(marks))
                 .gesture(drag(marks))
-                .onContinuousHover { phase in
-                    guard angleArm != nil else { return }
-                    if case .active(let p) = phase { hover = p } else { hover = nil }
+                .onContinuousHover { [arm = $angleArm, pointer = $hover] phase in
+                    guard arm.wrappedValue != nil else { return }
+                    if case .active(let p) = phase { pointer.wrappedValue = p } else { pointer.wrappedValue = nil }
                 }
                 .pointerStyle(tool == .pan ? .grabIdle : .rectSelection)
         }

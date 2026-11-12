@@ -109,7 +109,7 @@ struct WorkspaceView: View {
                     } else if appState.navigation.workspaceArea == .diffraction {
                         DiffractionRoom(image: image, item: item)
                     } else {
-                        ImagePane(image: image, canvas: canvas, item: item)
+                        ImagePane(item: item)
                     }
                 }
                     .id(item.id)

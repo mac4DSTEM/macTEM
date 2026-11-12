@@ -25,8 +25,6 @@ import TEMCore
 import TEMSession
 
 struct ImagePane: View {
-    let image: CalibratedImage
-    let canvas: CanvasPixels
     /// The item this pane shows: its committed zoom and pan are where `zp` starts and where a finished gesture writes
     /// back, so switching items and back restores them exactly. The pane is keyed by the item's id.
     let item: OpenItem
@@ -37,9 +35,7 @@ struct ImagePane: View {
     /// An angle whose first arm is drawn: the marks overlay's gesture state, held here so Escape (the room's key) can drop it.
     @State private var angleArm: AngleArm?
 
-    init(image: CalibratedImage, canvas: CanvasPixels, item: OpenItem) {
-        self.image = image
-        self.canvas = canvas
+    init(item: OpenItem) {
         self.item = item
         var start = ZoomPan()
         start.zoom = item.viewport.zoom
@@ -48,6 +44,15 @@ struct ImagePane: View {
         model.state = start
         _zoomModel = State(initialValue: model)
     }
+
+    /// The image and its canvas, read from the item, never stored on the pane: SwiftUI keeps a pane's hover and gesture closures (and so a
+    /// copy of the pane) for a while after the pane is gone, and a stored image kept its 1.5 GB of pixels alive after the tab closed
+    /// (12 Nov, the 375 MB SEM TIFF: the memgraph traced the array to a HoverResponder's closure). A pane whose item has let go of its
+    /// pixels (closed, gone cold) reads one blank pixel until SwiftUI drops it.
+    private var image: CalibratedImage { item.session.image ?? Self.blankImage }
+    private var canvas: CanvasPixels { item.presentation.canvas ?? Self.blankCanvas }
+    static let blankImage = CalibratedImage(width: 1, height: 1, pixels: [0], x: nil, y: nil, fileName: "", source: "", voltage: nil)
+    static let blankCanvas = CanvasPixels(width: 1, height: 1, normalized: [0], contentVersion: 0, rawRange: nil)
 
     var body: some View {
         VStack(spacing: 6) {
@@ -215,7 +220,7 @@ struct ImagePane: View {
                 // Pane-sized and untransformed, like the Metal view: the marks are mapped through the shader's own
                 // transform (`MarkGeometry`), so they keep their stroke at any zoom and cannot slip from the image.
                 ImageMarksOverlay(
-                    image: image,
+                    item: item,
                     geometry: MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box,
                                                                             zoom: zp.drawZoom, offset: zp.effectiveOffset),
                                            imageWidth: canvas.width, imageHeight: canvas.height),
