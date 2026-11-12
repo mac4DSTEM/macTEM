@@ -2,7 +2,8 @@
 //  EELSMapTilesTests.swift
 //  Two tiles of the EELS maps block as the drive of 2026-11-02 saw them on real spectrum images:
 //  - the ZLP shift tile was almost all white: its diverging scale reached the largest |shift|, and one far pixel (a zero-loss peak lost at the scan's edge)
-//    put every other pixel in the white of the centre. The scale now reaches max(|p1|, |p99|), still centred on 0, on the same red-blue map.
+//    put every other pixel in the white of the centre. The scale then reached max(|p1|, |p99|), centred on 0; since the drive of 2026-11-12 (a
+//    calibrated shift is mostly one offset, so the centred scale drew one solid colour) it runs from p1 to p99 on viridis, as exSpy users see it.
 //  - an empty bubble stood over the colour mix: its scale bar opened a popover with nothing in it. It now lists the maps in the mix, as the EDS room's.
 //  The tiles' colours change; the values, the hover readout and the numbers the exports write do not (they read the tile's raw values).
 //
@@ -29,17 +30,26 @@ nonisolated final class EELSMapTilesTests: XCTestCase {
         return MapRaster.rgba(values: scaled.values, coloring: EELSTileStyle.defaultColoring(tile.id), upper: 1, adjustment: MapAdjustment())
     }
 
-    /// Red under the largest-|value| scale: 999 of 1000 pixels were within 1 % of the centre, drawn near white.
-    func testOneFarPixelNoLongerWhitensTheShiftTile() {
+    /// One pixel far out (a zero-loss peak the alignment lost) takes the end colour; the scale is the bulk's 1st to 99th percentile, not the far pixel's.
+    /// Red under a plain min-to-max scale: the far pixel at 5 eV squeezed the other 999 into the bottom 2 % of the scale.
+    func testOneFarPixelDoesNotSetTheShiftTilesScale() {
         let tile = Self.plantedShift()
-        let rgba = Self.render(tile)
-        let nearWhite = stride(from: 0, to: rgba.count, by: 4).filter { rgba[$0] > 230 && rgba[$0 + 1] > 230 && rgba[$0 + 2] > 230 }.count
-        XCTAssertLessThan(nearWhite, 300, "\(nearWhite) of 1000 pixels near white: the scale is still set by the one far pixel")
-        let scaled = EELSMapScale.scaled(tile.values, mode: .diverging)
-        XCTAssertEqual(scaled.high, -scaled.low, "centred on 0")
+        let scaled = EELSMapScale.scaled(tile.values, mode: EELSMapScale.mode(forTileID: tile.id))
         XCTAssertLessThan(scaled.high, 0.06, "the range is the bulk's, not the far pixel's")
+        XCTAssertGreaterThan(scaled.low, -0.06)
         XCTAssertEqual(scaled.values[0], 1, "the far pixel takes the end colour")
-        XCTAssertEqual(EELSTileStyle.defaultColoring("zlpShift"), .colormap(.rdbu), "the red-blue diverging map")
+        XCTAssertEqual(EELSTileStyle.defaultColoring("zlpShift"), .colormap(.viridis), "sequential, as exSpy users see the shift")
+    }
+
+    /// With Calibrate the shift is mostly one offset for the whole scan (−1 eV here) and a small drift across it: the tile spreads the drift over the
+    /// whole scale. Red before (centred on 0, drive 2026-11-12): every pixel sat at the scale's end and the tile was one solid colour.
+    func testAnOffsetShiftMapShowsItsDrift() {
+        let values = (0..<1000).map { -1 + 0.02 * Double($0 % 40) / 39 }
+        let tile = EELSMapTile(id: "zlpShift", title: "ZLP shift", unit: "eV", width: 40, height: 25, values: values, version: 1, footer: nil)
+        let scaled = EELSMapScale.scaled(tile.values, mode: EELSMapScale.mode(forTileID: tile.id))
+        XCTAssertEqual(scaled.values.min() ?? .nan, 0, accuracy: 1e-9)
+        XCTAssertEqual(scaled.values.max() ?? .nan, 1, accuracy: 1e-9)
+        XCTAssertGreaterThan(Set(Self.render(tile)).count, 20, "many colours, not one")
     }
 
     /// The colours move; the numbers do not: the tile's values are untouched and the readout reads them raw.
@@ -69,7 +79,7 @@ nonisolated final class EELSMapTilesTests: XCTestCase {
         let items = EELSMixComposition.colorItems(maps: maps)
         XCTAssertEqual(items.map(\.id), ["zlpShift", "edge-C-K"])
         XCTAssertEqual(items.map(\.title), ["ZLP shift", "C K"])
-        XCTAssertEqual(items[0].defaultColoring, .colormap(.rdbu))
+        XCTAssertEqual(items[0].defaultColoring, .colormap(.viridis))
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
         let room = try String(contentsOf: root.appendingPathComponent("macTEM/UI/EELSRoom.swift"), encoding: .utf8)
         XCTAssertFalse(room.contains("controls: { EmptyView() }"), "a scale bar with nothing to open")

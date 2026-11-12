@@ -357,10 +357,10 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertTrue(EELSMapsComposition.isStale("at-Mg", thickness: .current, fit: .stale, align: .current))
     }
 
-    /// The colour scales: the zero-loss shift is centred on 0 (diverging), t/λ runs from its smallest to its largest, an edge from 0; NaN stays NaN (drawn at
+    /// The colour scales: the zero-loss centre is centred on 0 (diverging), t/λ runs from its smallest to its largest, an edge from 0; NaN stays NaN (drawn at
     /// the bottom of the scale, never as a value).
     func testTheTileScalesAreCentredOrMinToMaxOrFromZero() {
-        let d = EELSMapScale.scaled([-2, 0, 1, .nan], mode: EELSMapScale.mode(forTileID: "zlpShift"))
+        let d = EELSMapScale.scaled([-2, 0, 1, .nan], mode: EELSMapScale.mode(forTileID: "zlpCentre"))
         // Centred on 0 out to max(|p1|, |p99|) = 1.96 (NumPy's linear percentiles of [-2, 0, 1]); -2 is past the end and takes the end colour.
         XCTAssertEqual(d.low, -1.96, accuracy: 1e-12); XCTAssertEqual(d.high, 1.96, accuracy: 1e-12)
         XCTAssertEqual(d.values[0], 0); XCTAssertEqual(d.values[1], 0.5); XCTAssertEqual(d.values[2], 2.96 / 3.92, accuracy: 1e-12); XCTAssertTrue(d.values[3].isNaN)
