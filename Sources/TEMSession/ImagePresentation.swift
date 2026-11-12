@@ -17,39 +17,112 @@ import TEMCore
 
 /// What the canvas uploads: the image normalised to [0, 1] over its finite range, with non-finite pixels at
 /// `FloatImage.invalidDisplayValue` (drawn as the masked colour). Built off the main actor at open.
+///
+/// A canvas of raw pixels (`make`) keeps the raw values themselves, shared with the image (no copy), and the view normalises
+/// them on upload (`MetalImageView.PixelScale.raw`): a full-size normalised copy beside them cost 1.5 GB for a 19433 × 19320
+/// SEM TIFF (macTEM#562). Draw it with `values` and `scale`; read one display value with `normalizedValue(at:)`. `normalized`
+/// builds the whole normalised array, a full-size copy for a raw canvas: only for a one-off (an export), never in a view's body.
 package nonisolated struct CanvasPixels: Sendable, Equatable {
     package let width: Int
     package let height: Int
-    package let normalized: [Float]
-    /// Changes exactly when `normalized` does (`MetalImageView.contentVersion`); the view re-uploads on it.
+    /// The pixels the view draws, as `scale` says: display values in [0, 1] (masked < 0), or the raw values over `rawRange`.
+    package let values: [Float]
+    package let scale: MetalImageView.PixelScale
+    /// Changes exactly when the drawn pixels do (`MetalImageView.contentVersion`); the view re-uploads on it.
     package let contentVersion: Int
-    /// The finite raw range `normalized` spans (0 maps to its lower bound, 1 to its upper); nil when the image
+    /// The finite raw range the display values span (0 maps to its lower bound, 1 to its upper); nil when the image
     /// holds no finite value, and every pixel is drawn masked.
     package let rawRange: ClosedRange<Float>?
     /// The histogram of the image's finite RAW pixels (`IntensityHistogram`: 96 bins over `rawRange`, widened for a
     /// constant image, no bins where numpy refuses the range); nil when none is finite.
     package let histogram: IntensityHistogram?
 
+    /// A canvas of display values already normalised.
     package init(width: Int, height: Int, normalized: [Float], contentVersion: Int, rawRange: ClosedRange<Float>?,
                  histogram: IntensityHistogram? = nil) {
+        self.init(width: width, height: height, values: normalized, scale: .normalized, contentVersion: contentVersion,
+                  rawRange: rawRange, histogram: histogram)
+    }
+
+    private init(width: Int, height: Int, values: [Float], scale: MetalImageView.PixelScale, contentVersion: Int,
+                 rawRange: ClosedRange<Float>?, histogram: IntensityHistogram?) {
         self.width = width
         self.height = height
-        self.normalized = normalized
+        self.values = values
+        self.scale = scale
         self.contentVersion = contentVersion
         self.rawRange = rawRange
         self.histogram = histogram
     }
 
-    /// The canvas of raw `pixels`: normalised over their finite range, the version, the raw range and the histogram. Built off the
-    /// main actor at open (`AppState.canvas(for:)`, the Patterns room's map and pattern).
+    /// The canvas of raw `pixels`: the pixels themselves (shared, not copied), their finite range, the version and the
+    /// histogram. Built off the main actor at open (`AppState.canvas(for:)`, the Patterns room's map and pattern).
     package static func make(width: Int, height: Int, pixels: [Float]) -> CanvasPixels {
-        let floatImage = FloatImage(width: width, height: height, pixels: pixels)
-        let normalized = floatImage.normalized()
         // `minMax` answers 0…1 for an image with no finite value; that is not a range the data holds.
-        let range: ClosedRange<Float>? = pixels.contains(where: \.isFinite) ? floatImage.minMax.0...floatImage.minMax.1 : nil
-        return CanvasPixels(width: width, height: height, normalized: normalized,
-                            contentVersion: MetalImageView.contentVersion(of: normalized, width: width, height: height),
+        let minMax = FloatImage(width: width, height: height, pixels: pixels).minMax
+        let range: ClosedRange<Float>? = pixels.contains(where: \.isFinite) ? minMax.0...minMax.1 : nil
+        // The range is a function of the pixels, so the raw pixels' hash versions what is drawn.
+        return CanvasPixels(width: width, height: height, values: pixels, scale: .raw(range: range),
+                            contentVersion: MetalImageView.contentVersion(of: pixels, width: width, height: height),
                             rawRange: range, histogram: IntensityHistogram.compute(pixels))
+    }
+
+    /// The display value of pixel `index` (row-major): what the view draws there, [0, 1] or the masked sentinel. Value for
+    /// value `DisplayNormalization.normalized` for a raw canvas.
+    package func normalizedValue(at index: Int) -> Float {
+        let v = values[index]
+        guard case .raw(let range) = scale else { return v }
+        guard let range, v.isFinite else { return FloatImage.invalidDisplayValue }
+        let span = range.upperBound - range.lowerBound
+        return span > 0 ? (v - range.lowerBound) / span : 0
+    }
+
+    /// Every display value, row-major. A raw canvas builds them, a full-size copy: for a one-off only (an export).
+    package var normalized: [Float] {
+        guard case .raw = scale else { return values }
+        return (0..<values.count).map(normalizedValue(at:))
+    }
+
+    /// The sidebar thumbnail: `Thumbnail.make` of the display values, without the full-size copy for a raw canvas (each
+    /// box sums the same display values in the same order, so it is the same thumbnail, value for value).
+    package func thumbnail(maxSide: Int = Thumbnail.defaultMaxSide) -> Thumbnail? {
+        guard case .raw = scale else { return Thumbnail.make(normalized: values, width: width, height: height, maxSide: maxSide) }
+        guard width >= 1, height >= 1, maxSide >= 1, values.count == width * height else { return nil }
+        let long = max(width, height)
+        if long <= maxSide { return Thumbnail(width: width, height: height, normalized: normalized) }
+        func scaled(_ side: Int) -> Int {
+            side == long ? maxSide : max(1, Int((Double(side) * Double(maxSide) / Double(long)).rounded()))
+        }
+        let w = scaled(width), h = scaled(height)
+        let invalid = DisplayNormalization.invalidValue
+        var colBox = [Int](repeating: 0, count: width)
+        var i = 0
+        for x in 0..<width {
+            while (i + 1) * width / w <= x { i += 1 }
+            colBox[x] = i
+        }
+        var rowBox = [Int](repeating: 0, count: height)
+        var j = 0
+        for y in 0..<height {
+            while (j + 1) * height / h <= y { j += 1 }
+            rowBox[y] = j
+        }
+        var sums = [Double](repeating: 0, count: w * h)
+        var counts = [Int32](repeating: 0, count: w * h)
+        for y in 0..<height {
+            let rowBase = rowBox[y] * w, srcBase = y * width
+            for x in 0..<width {
+                let v = normalizedValue(at: srcBase + x)
+                if v.isFinite && v != invalid {
+                    let k = rowBase + colBox[x]
+                    sums[k] += Double(v)
+                    counts[k] += 1
+                }
+            }
+        }
+        var out = [Float](repeating: invalid, count: w * h)
+        for k in 0..<(w * h) where counts[k] > 0 { out[k] = Float(sums[k] / Double(counts[k])) }
+        return Thumbnail(width: w, height: h, normalized: out)
     }
 
     /// The canvas of a diffraction pattern: its display values, log10(1 + max(I, 0)) when `log` (a pattern spans decades), else
@@ -80,13 +153,14 @@ package nonisolated enum DisplayWindow {
     /// default window of a map that opens on its 1st to 99th percentile (control placement §11). Read from the normalised pixels on at
     /// most `sampleCap` of them, evenly strided (a display default, never a number). Nil with fewer than two finite pixels or no span.
     package static func quantileWindow(of canvas: CanvasPixels, _ quantiles: ClosedRange<Double>, sampleCap: Int = 1 << 16) -> ClosedRange<Float>? {
-        guard let raw = canvas.rawRange, raw.upperBound > raw.lowerBound, !canvas.normalized.isEmpty else { return nil }
-        let stride = max(1, canvas.normalized.count / max(sampleCap, 2))
+        let count = canvas.values.count
+        guard let raw = canvas.rawRange, raw.upperBound > raw.lowerBound, count > 0 else { return nil }
+        let stride = max(1, count / max(sampleCap, 2))
         var sample: [Float] = []
-        sample.reserveCapacity(canvas.normalized.count / stride + 1)
+        sample.reserveCapacity(count / stride + 1)
         var i = 0
-        while i < canvas.normalized.count {
-            let v = canvas.normalized[i]
+        while i < count {
+            let v = canvas.normalizedValue(at: i)
             if v.isFinite, v >= 0, v <= 1 { sample.append(v) }
             i += stride
         }

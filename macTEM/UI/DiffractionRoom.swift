@@ -153,9 +153,9 @@ private struct DiffractionPatternPane: View {
                 Color.black
                 if let canvas = view.presentation.canvas {
                     let display = view.presentation
-                    MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                    MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
                                    colormap: display.colormap, displayLo: display.displayFractions.low, displayHi: display.displayFractions.high,
-                                   gamma: Float(display.gamma))
+                                   gamma: Float(display.gamma), pixelScale: canvas.scale)
                         .displayTransform(MetalDisplayTransform(paneSize: box, imageBox: box, zoom: layout.zoom, offset: layout.offset))
                         .allowsHitTesting(false)
                 }

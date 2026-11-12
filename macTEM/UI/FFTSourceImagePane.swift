@@ -496,9 +496,9 @@ struct FFTSourceImagePane: View {
                 .frame(width: box.width, height: box.height)
                 .background {
                     MetalImageView(
-                        pixels: shown.normalized, width: shown.width, height: shown.height,
+                        pixels: shown.values, width: shown.width, height: shown.height,
                         contentVersion: shown.contentVersion, colormap: layer.colormap,
-                        displayLo: layer.window.low, displayHi: layer.window.high, gamma: layer.gamma
+                        displayLo: layer.window.low, displayHi: layer.window.high, gamma: layer.gamma, pixelScale: shown.scale
                     )
                     .displayTransform(geometry.transform)
                     .frame(width: box.width, height: box.height)

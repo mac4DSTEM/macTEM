@@ -224,9 +224,9 @@ struct ScanMapPane: View {
                         .frame(width: box.width, height: box.height)
                         .allowsHitTesting(false)
                 } else if let canvas = presentation.canvas {
-                    MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                    MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
                                    colormap: presentation.colormap, displayLo: presentation.displayFractions.low,
-                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma))
+                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma), pixelScale: canvas.scale)
                         .displayTransform(transform)
                         .frame(width: box.width, height: box.height)
                         .allowsHitTesting(false)
@@ -346,9 +346,9 @@ struct LivePatternPane: View {
         return ZStack {
             Group {
                 if let canvas = presentation.canvas {
-                    MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                    MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
                                    colormap: presentation.colormap, displayLo: presentation.displayFractions.low,
-                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma))
+                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma), pixelScale: canvas.scale)
                         .displayTransform(transform)
                         .allowsHitTesting(false)
                 } else {
@@ -408,7 +408,7 @@ struct LivePatternPane: View {
             let q = geometry.imagePoint(atPanePoint: p)
             let x = Int(q.x.rounded()), y = Int(q.y.rounded())
             guard x >= 0, x < canvas.width, y >= 0, y < canvas.height else { state.setPatternReadout(nil); return }
-            let value = range.lowerBound + canvas.normalized[y * canvas.width + x] * (range.upperBound - range.lowerBound)
+            let value = range.lowerBound + canvas.normalizedValue(at: y * canvas.width + x) * (range.upperBound - range.lowerBound)
             state.setPatternReadout(EBSDBrowsing.patternReadout(x: x, y: y, value: value))
         case .ended:
             state.setPatternReadout(nil)
@@ -498,7 +498,7 @@ struct VirtualTilesPane: View {
         let canvas = CanvasPixels.make(width: dataset.scanColumns, height: dataset.scanRows, pixels: image)
         let selected = session.mapChoice == choice
         return VStack(spacing: 3) {
-            MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion, colormap: .gray)
+            MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion, colormap: .gray, pixelScale: canvas.scale)
                 .aspectRatio(CGFloat(dataset.scanColumns) / CGFloat(dataset.scanRows), contentMode: .fit)
                 .overlay(Rectangle().stroke(selected ? Color.accentColor : Color.white.opacity(0.15), lineWidth: selected ? 2 : 1))
             Text(title).font(.caption.monospacedDigit()).foregroundStyle(selected ? Color.accentColor : .secondary)

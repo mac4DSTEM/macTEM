@@ -263,9 +263,9 @@ struct IndexingMapPane: View {
             ZStack {
                 if session.showsScalarMap, let canvas = presentation.canvas, canvas.width == dataset.scanColumns, canvas.height == dataset.scanRows {
                     // A scalar layer's values through the Map Display (colormap, window, gamma), as the Patterns room's map.
-                    MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                    MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
                                    colormap: presentation.colormap, displayLo: presentation.displayFractions.low,
-                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma))
+                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma), pixelScale: canvas.scale)
                         .displayTransform(transform)
                         .frame(width: box.width, height: box.height)
                         .allowsHitTesting(false)
@@ -515,9 +515,9 @@ struct IndexedPatternPane: View {
         return ZStack {
             Group {
                 if let canvas = presentation.canvas {
-                    MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                    MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
                                    colormap: presentation.colormap, displayLo: presentation.displayFractions.low,
-                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma))
+                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma), pixelScale: canvas.scale)
                         .displayTransform(transform)
                         .allowsHitTesting(false)
                 } else {
@@ -825,9 +825,9 @@ struct IndexingBestMatchPane: View {
         return ZStack {
             Group {
                 if let canvas {
-                    MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                    MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
                                    colormap: presentation.colormap, displayLo: presentation.displayFractions.low,
-                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma))
+                                   displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma), pixelScale: canvas.scale)
                         .displayTransform(transform)
                         .allowsHitTesting(false)
                 } else {

@@ -190,13 +190,13 @@ struct ImagePane: View {
                 // pane-sized at any zoom — a scaled MTKView grows its drawable with the zoom (mac4DSTEM
                 // `46e1237e` measured 14656² px, ~1.3 GB at 16×). Inside the clip, behind the layer.
                 MetalImageView(
-                    pixels: canvas.normalized,
+                    pixels: canvas.values,
                     width: canvas.width, height: canvas.height,
                     contentVersion: canvas.contentVersion,
                     colormap: item.presentation.colormap,
                     displayLo: item.presentation.displayFractions.low,
                     displayHi: item.presentation.displayFractions.high,
-                    gamma: Float(item.presentation.gamma)
+                    gamma: Float(item.presentation.gamma), pixelScale: canvas.scale
                 )
                 .displayTransform(MetalDisplayTransform(
                     paneSize: box, imageBox: box,
@@ -337,8 +337,9 @@ struct DatabarStrip: View, Equatable {
 
     /// 8-bit grey of `normalized` (0...1; a non-finite pixel is black).
     nonisolated static func picture(_ strip: CanvasPixels) -> CGImage? {
-        guard strip.width > 0, strip.height > 0, strip.normalized.count == strip.width * strip.height else { return nil }
-        let bytes = strip.normalized.map { v -> UInt8 in v.isFinite ? UInt8((min(max(v, 0), 1) * 255).rounded()) : 0 }
+        let normalized = strip.normalized
+        guard strip.width > 0, strip.height > 0, normalized.count == strip.width * strip.height else { return nil }
+        let bytes = normalized.map { v -> UInt8 in v.isFinite ? UInt8((min(max(v, 0), 1) * 255).rounded()) : 0 }
         guard let provider = CGDataProvider(data: Data(bytes) as CFData) else { return nil }
         return CGImage(width: strip.width, height: strip.height, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: strip.width,
                        space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),

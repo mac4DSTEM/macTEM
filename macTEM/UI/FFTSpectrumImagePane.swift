@@ -578,9 +578,9 @@ struct FFTSpectrumImagePane: View {
                 .frame(width: box.width, height: box.height)
                 .background {
                     MetalImageView(
-                        pixels: canvas.normalized, width: canvas.width, height: canvas.height,
+                        pixels: canvas.values, width: canvas.width, height: canvas.height,
                         contentVersion: canvas.contentVersion, colormap: .gray,
-                        displayLo: window.low, displayHi: window.high, gamma: 1
+                        displayLo: window.low, displayHi: window.high, gamma: 1, pixelScale: canvas.scale
                     )
                     .displayTransform(geometry.transform)
                     .frame(width: box.width, height: box.height)

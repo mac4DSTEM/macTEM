@@ -816,7 +816,7 @@ nonisolated enum MapsFigure {
         let display = ExportSnapshot.display(canvas: canvas, presentation: presentation)
         guard let mapping = DisplayMapping(low: display.low, high: display.high, gamma: display.gamma, lut: display.lut) else { return nil }
         var rgba = [UInt8](repeating: 255, count: canvas.width * canvas.height * 4)
-        for (i, v) in canvas.normalized.enumerated() {
+        for (i, v) in display.normalized.enumerated() {
             let (r, g, b) = mapping.rgb(v)
             rgba[4 * i] = r; rgba[4 * i + 1] = g; rgba[4 * i + 2] = b
         }
