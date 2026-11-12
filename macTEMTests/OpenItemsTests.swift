@@ -452,6 +452,29 @@ nonisolated final class OpenItemsTests: XCTestCase {
         XCTAssertEqual(items.selectedID, b.id)
     }
 
+    /// A closed file's pixels are given back: nothing in `OpenItems` keeps the item, its session or its read alive once it is
+    /// closed (macTEM#562: the 375 MB SEM TIFF's 2.9 GB stayed after its tab closed). Red under: a closed item kept in the read
+    /// queue, a finished read's task kept on the item, or the selection left on the closed item.
+    @MainActor func testAClosedItemAndItsImageAreReleased() async throws {
+        let fake = FakeReader()
+        let items = makeItems(fake)
+        items.open(urls: [Self.a, Self.b])
+        await items.settled()
+        weak var closed: OpenItem?
+        weak var session: ImageSession?
+        do {
+            let a = try item(items, Self.a)
+            XCTAssertNotNil(a.session.image, "setup: a was read")
+            closed = a
+            session = a.session
+            items.close(a.id)
+        }
+        await items.settled()
+        XCTAssertNil(closed, "the closed item is released")
+        XCTAssertNil(session, "and with it the session that holds its image")
+        XCTAssertEqual(items.items.map(\.url), [Self.b])
+    }
+
     /// ⌘W. Red under: `closeSelected` closing the first item (`remove(items[0], …)`) instead of the selected one.
     @MainActor func testCloseSelectedClosesTheSelectedItemAndWithNoneOpenDoesNothing() async throws {
         let fake = FakeReader()
