@@ -78,6 +78,30 @@ nonisolated final class AppWindowsTests: XCTestCase {
         XCTAssertEqual(made, 1)
     }
 
+    /// A window closed with nothing to lose lets go of its file at once; one with unsaved marks keeps it. Red before (12 Nov memgraph): the
+    /// closed window's state, kept alive by SwiftUI's scene list, still selected its item and held the 375 MB SEM TIFF's 1.5 GB of pixels.
+    @MainActor func testAWindowClosedWithNothingToLoseLetsGoOfItsFile() async throws {
+        let windows = AppWindows()
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.open(urls: [try plantedCopy(named: "clean.dm4")])?.value
+        let item = try XCTUnwrap(state.openItems.selected)
+        let presentation = item.presentation, session = item.session
+        XCTAssertNotNil(session.image)
+        windows.enroll(state)
+        windows.windowWillClose(state)
+        windows.withdraw(state)
+        XCTAssertTrue(state.openItems.items.isEmpty)
+        XCTAssertNil(state.openItems.selected, "the closed window selects nothing")
+        XCTAssertNil(session.image, "the image is let go even while its session is held")
+        XCTAssertNil(presentation.canvas, "the canvas too")
+
+        let dirty = try await dirtyState(named: "dirty.dm4")
+        windows.enroll(dirty)
+        windows.windowWillClose(dirty)
+        windows.withdraw(dirty)
+        XCTAssertNotNil(dirty.openItems.selected?.session.image, "a window parked for its unsaved marks keeps its file")
+    }
+
     /// Red under: two windows' files not both named.
     @MainActor func testTheQuitQuestionNamesEveryWindowsFiles() async throws {
         let windows = AppWindows()

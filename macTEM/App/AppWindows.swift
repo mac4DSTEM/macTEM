@@ -67,6 +67,16 @@ final class AppWindows {
         if !isTerminating { (front ?? onScreen.last)?.recordLastSession() }
     }
 
+    /// The window really closed (AppKit's `willClose`, from `WindowTabbing`; not a tab moving behind another): a state with nothing to
+    /// lose lets go of its files now, as the header promises. SwiftUI keeps a closed window's state alive in its scene list (12 Nov
+    /// memgraph after closing the 375 MB SEM TIFF's tab: the 1.5 GB pixels <- ImagePresentation <- OpenItem <- OpenItems.selected <-
+    /// AppState <- AppWindows.openWindow's context), so a state left holding them keeps them for the app's life. A state parked for
+    /// what it would lose keeps everything; nothing is released while the app quits.
+    func windowWillClose(_ state: AppState) {
+        guard !isTerminating, state.quitQuestion == nil else { return }
+        state.releaseFiles()
+    }
+
     /// Each file in a tab of its own (one file per window): a file a window on screen holds already comes forward there, not read
     /// twice; every other waits as a batch of one for the window opened for it (`takeWaitingURLs`). The system makes that window a
     /// tab of the one in front (`WindowTabbing`).
@@ -128,6 +138,15 @@ final class AppWindows {
 }
 
 extension AppState {
+    /// Closes every file this window holds (images, the spectrum images, the EBSD dataset), letting go of their pixels: its window closed
+    /// with nothing to lose (`AppWindows.windowWillClose`).
+    func releaseFiles() {
+        for id in openItems.items.map(\.id) { openItems.close(id) }
+        eels.close()
+        edx.close()
+        ebsd.close()
+    }
+
     /// The open files whose marks are not saved to their session file, by the sidebar's titles (the quit question's names).
     var unsavedFileNames: [String] {
         let titles = openItems.displayTitles
