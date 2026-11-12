@@ -112,6 +112,30 @@ nonisolated final class TIFFImageReaderTests: XCTestCase {
         XCTAssertEqual(TIFFImageReader.compressionName(12345), "a scheme it does not know")
     }
 
+    /// LZW (Compression 5), as Gatan DigitalMicrograph and many SEMs write TIFF, opens since FormatoKit 0.15.0 (#530). The two
+    /// files are FormatoKit's tifffile-written fixtures (its tools/tiff-lzw/generate.py): a float32 image over five strips as GMS
+    /// writes it, and uint16 with the horizontal predictor. Their pixels are the generator's formula, so each value is checked.
+    /// Red before: "f32-gms.tif is not read: its pixels are compressed with LZW, which macEM does not read yet."
+    func testAnLZWCompressedTIFFOpensWithEveryPixel() throws {
+        let folder = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/tiff-lzw")
+        func expected(_ x: Int, _ y: Int, _ value: (Double, Bool) -> Double) -> Float {
+            let disc = (x - 26) * (x - 26) + (y - 18) * (y - 18) < 144
+            return Float(value(Double(x * 3 + y * 7), disc))
+        }
+        let cases: [(String, (Double, Bool) -> Double)] = [
+            ("f32-gms.tif", { ramp, disc in Double(Float(ramp * 0.37 - 20 + (disc ? 400 : 0))) }),
+            // uint16 wraps as numpy's astype wrote it.
+            ("u16-pred2.tif", { ramp, disc in Double((Int(ramp) * 300 + (disc ? 1000 : 0)) % 65536) }),
+        ]
+        for (name, value) in cases {
+            let image = try ImageOpening.openNow(path: folder.appendingPathComponent(name).path)
+            XCTAssertEqual([image.width, image.height], [53, 37], name)
+            var wrong = 0
+            for y in 0..<37 { for x in 0..<53 where image.pixels[y * 53 + x] != expected(x, y, value) { wrong += 1 } }
+            XCTAssertEqual(wrong, 0, "\(name): pixels that differ from the written values")
+        }
+    }
+
     // MARK: The Velox convention (tag 34683)
 
     func testVeloxPixelSizeCalibratesWhenTheResolutionTagsAgree() throws {

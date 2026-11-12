@@ -205,8 +205,8 @@ table eXSpy uses, values unchanged (SpectroKit's NOTICE). Its eXSpy/HyperSpy and
 FormatoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links FormatoKit (https://github.com/mac4DSTEM/FormatoKit, tag 0.14.0, commit
-65ffb009f2942dae5dca2626f9518e663e2b70c2), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for its DM3/DM4, Velox EMD, TIFF
+The app links FormatoKit (https://github.com/mac4DSTEM/FormatoKit, tag 0.15.0, commit
+24f63c36eda72a7aacb167b218da7206aa1f8d01), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for its DM3/DM4, Velox EMD, TIFF
 and MRC readers and its HDF5 layer, which SpectroKit held until 0.4.0, including the root-attribute file layer
 (`HDF5RootAttributes`) the session sidecar is written and read through since FormatoKit 0.5.0: it was this app's own HDF5 binding (an adapted
 copy of mac4DSTEM's BraggVectorEMDWriter binding), moved into the kit, and the app no longer carries a copy. Its own third-party notices
@@ -278,7 +278,7 @@ The full license text for each ships in the application bundle at `Contents/Reso
 directory in this repository.
 
 Identity of the three binaries, so that what is redistributed is stated rather than described. SHA-256 of the vendored
-files (FormatoKit 0.14.0, tools/xcframework/vendored/) the frameworks are built from; the HDF5 library version string reads
+files (FormatoKit 0.15.0, tools/xcframework/vendored/) the frameworks are built from; the HDF5 library version string reads
 "HDF5 library version: 2.1.1", libaec 1.1.7:
 
     libhdf5.dylib   d3789c224e6664cd487016a7ef5e71005984f8a04f69a7f643fcdf0332a33491

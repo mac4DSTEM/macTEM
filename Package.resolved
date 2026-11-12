@@ -1,5 +1,5 @@
 {
-  "originHash" : "ef2ce8d7723240e2befcae2da778ffd1af317017e4d81b35bd77f0e7329a5edf",
+  "originHash" : "7641c314f41da4a94eddf9c7bfbbba1c4d042ddbdfa3f3c0805707c49ec91b26",
   "pins" : [
     {
       "identity" : "diffractokit",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/FormatoKit",
       "state" : {
-        "revision" : "65ffb009f2942dae5dca2626f9518e663e2b70c2",
-        "version" : "0.14.0"
+        "revision" : "24f63c36eda72a7aacb167b218da7206aa1f8d01",
+        "version" : "0.15.0"
       }
     },
     {
