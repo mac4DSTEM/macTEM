@@ -366,3 +366,22 @@ real-file check before 2.0.1 (#523), and fails it there if it does not open both
 **Why.** Holding a tested fix for a file nobody here has would block the plan. The real-file gate still catches it.
 
 **What would reverse it.** A real LZF `.h5oina` with patterns whose map does not reach the Maps room.
+
+## 2026-11-12 — A colour TIFF (a GMS display export) opens as grey, the brightest of its channels
+
+**What.** An 8-bit RGB TIFF whose channels differ opens in the image room as grey, each pixel the largest of its red, green
+and blue (HSV value), with the note "Colour render (the file's colour table and any annotations burnt in), shown as grey"
+and the file's calibration (DM tags) kept. Before, it was refused naming a pixel. The code is app-side
+(`TIFFImageReader.colourRender`, delete at FormatoKit 0.16.0) until the kit's `TIFFAppImage` reads it.
+
+**Why.** The real-file sweep after FormatoKit 0.15.0 (#541) found all 7 of Paul's GMS LZW TIFFs are RGB display renders: two
+element maps through one-colour tables (C K red, O K blue: 99.7 % of pixels one hue), one map almost black with a few
+coloured marks, and four ADF images that are grey with green-tinted marks on 0.2 to 45 % of pixels (probe numbers in #541).
+They are pictures, not data; refusing real GMS exports fails the shippable bar. The brightest channel gives back a one-colour
+table's ramp exactly and keeps the marks visible; luminance would scale a red or blue map down by 0.21 or 0.07. ImageJ/Fiji
+and Preview show such a file in colour; HyperSpy reads it as an RGB signal.
+
+**Paul, 2026-11-12:** chose grey (brightest channel) over a colour picture or a refusal.
+
+**What would reverse it.** Paul choosing to see these files in colour (a colour picture in the image room, measurements on
+distance only), or a real file where the brightest channel hides structure the colours carried.

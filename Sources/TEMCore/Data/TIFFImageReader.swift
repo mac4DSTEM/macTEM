@@ -49,8 +49,8 @@ package nonisolated enum TIFFImageReader {
             case .multiPage: "it holds more than one page, and they are not grey frames of one size; other image stacks are not read yet."
             case .compressed(let scheme): "its pixels are compressed with \(TIFFImageReader.compressionName(scheme)), which macEM does not read yet."
             case .tiled: "its pixels are stored in tiles; only striped TIFF is read."
-            case .unequalChannels(let row, let column):
-                "it is a colour image (row \(row), column \(column) differs between red, green and blue); only a grey render is read."
+            case .unequalChannels:
+                "it is a colour image whose colours could not be read as one picture."
             case .sampleFormat(let what): "its pixel layout is not read (\(what))."
             }
         }
@@ -77,13 +77,49 @@ package nonisolated enum TIFFImageReader {
         package static let render = TIFFAppImage.Note.render
         package static let veloxUnvalidated = TIFFAppImage.Note.veloxUnvalidated
         package static let veloxDisagree = TIFFAppImage.Note.veloxDisagree
+        /// A colour TIFF opened as grey (#541): what is on screen is the file's picture, not its data.
+        package static let colourRender = "Colour render (the file's colour table and any annotations burnt in), shown as grey: "
+            + "each pixel is the brightest of its red, green and blue, not counts"
     }
 
     // MARK: - Reading
 
     package static func read(path: String) throws -> CalibratedImage {
         let data = try Data(contentsOf: URL(fileURLWithPath: path), options: .alwaysMapped)
-        return try read(data: data, fileName: formatoDisplayFileName(path))
+        let fileName = formatoDisplayFileName(path)
+        do {
+            return try read(data: data, fileName: fileName)
+        } catch Refusal.unequalChannels {
+            return try colourRender(path: path, data: data, fileName: fileName)
+        }
+    }
+
+    /// An 8-bit RGB TIFF whose channels differ, as Gatan DigitalMicrograph exports a displayed image (its colour table and
+    /// annotations burnt in; real-file sweep, #541), opens as grey: each pixel the brightest of its three channels (HSV value),
+    /// which keeps a one-colour table's ramp exact and leaves annotations visible. The calibration is the kit's for the file.
+    /// App-side until FormatoKit's `TIFFAppImage` reads it: delete at FormatoKit 0.16.0.
+    static func colourRender(path: String, data: Data, fileName: String) throws -> CalibratedImage {
+        let calibrated: TIFFAppImage.Image
+        do {
+            calibrated = try TIFFAppImage.read(data: data, fileName: fileName, acceptUnequalChannels: true)
+        } catch let refusal as TIFFAppImage.Refusal {
+            throw Refusal(refusal)
+        }
+        let rgb = try TIFFSignals(path: path).signal(series: 0).load().data
+        let count = calibrated.width * calibrated.height
+        guard rgb.dataType == .rgb8, rgb.shape == [calibrated.height, calibrated.width], rgb.bytes.count == 3 * count else {
+            throw Refusal.unequalChannels(row: 0, column: 0)
+        }
+        var pixels = [Float](repeating: 0, count: count)
+        rgb.bytes.withUnsafeBytes { (p: UnsafeRawBufferPointer) in
+            for i in 0..<count { pixels[i] = Float(max(p[3 * i], p[3 * i + 1], p[3 * i + 2])) }
+        }
+        let notes = calibrated.notes.filter { $0 != Note.render } + [Note.colourRender]
+        return CalibratedImage(width: calibrated.width, height: calibrated.height, pixels: pixels,
+                               x: calibrated.x.map(AxisCalibration.init), y: calibrated.y.map(AxisCalibration.init),
+                               fileName: calibrated.fileName,
+                               source: calibrated.source.replacingOccurrences(of: Note.render, with: "colour render shown as grey, not counts"),
+                               voltage: nil, notes: notes)
     }
 
     package static func read(data: Data, fileName: String) throws -> CalibratedImage {
