@@ -77,17 +77,32 @@ package nonisolated enum HyperSpySpectrumFile {
         let experiment = "/Experiments/\(first)"
         let axes = ((try? reader.children(of: experiment)) ?? []).filter { $0.hasPrefix("axis-") }.sorted()
         guard let info = try? reader.datasetInfo(experiment + "/data"), case .numeric = info.type else {
-            throw Refusal(text: "\(first) in \(name) has no numeric data: macEM opens single spectra from HyperSpy files.")
+            throw Refusal(text: "\(name) has no numeric data: macEM opens single spectra from HyperSpy files.")
         }
         guard axes.count == 1, info.shape.count == 1, let channels = info.shape.first, channels > 0 else {
-            throw Refusal(text: "\(first) in \(name) is not one spectrum (\(info.shape.count) dimensions, \(axes.count) axes): macEM opens single spectra from HyperSpy files.")
+            throw Refusal(text: "\(name) holds \(dimensionWords(info.shape.count)), not one spectrum: macEM opens single spectra from HyperSpy files.")
         }
         let axis = experiment + "/" + axes[0]
         guard let offset = number(reader, "offset", of: axis), let scale = number(reader, "scale", of: axis), scale > 0 else {
-            throw Refusal(text: "\(first) in \(name) has no calibrated energy axis.")
+            throw Refusal(text: "\(name) has no calibrated energy axis.")
         }
-        let title = text(reader, "title", of: experiment + "/metadata/General") ?? first
+        // An untitled signal's group is HyperSpy's "__unnamed__", which is no name to show: the file's stem stands in.
+        let stored = text(reader, "title", of: experiment + "/metadata/General").flatMap { $0.isEmpty ? nil : $0 }
+        let title = stored ?? (first == "__unnamed__" ? (name as NSString).deletingPathExtension : first)
         return Header(experiment: experiment, title: title, channels: channels, offset: offset, scale: scale, units: text(reader, "units", of: axis) ?? "")
+    }
+
+    /// "a 4-dimensional signal": what a HyperSpy file holds, in words. The experiment's group name is HyperSpy's own (a signal
+    /// without a title is "__unnamed__"), so the refusals name the file instead.
+    static func dimensionWords(_ count: Int) -> String {
+        switch count {
+        case 0: "a single value"
+        case 1: "a 1-dimensional signal whose axes do not match its data"
+        case 2: "a 2-dimensional signal (an image or a line scan)"
+        case 3: "a 3-dimensional signal (a spectrum image or an image stack)"
+        case 4: "a 4-dimensional signal (a 4D-STEM or EBSD dataset)"
+        default: "a \(count)-dimensional signal"
+        }
     }
 
     /// The spectrum: `header` and the counts, with the beam energy (the SEM's, else the TEM's), the microscope and the elements the

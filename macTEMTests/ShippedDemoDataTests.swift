@@ -124,6 +124,20 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertEqual(FileRouting.inventory(path: fake.path).refusal, "fake.hspy is not a format macEM opens (or its extension and its first bytes disagree).")
     }
 
+    /// A 4D HyperSpy file (as a 4D-STEM .hspy is) is refused naming the file and what it holds, never HyperSpy's internal group name
+    /// "__unnamed__" (real-file sweep, 12 Nov). Fixture: tools/parity/sem-readers/make_hspy_4d_fixture.py.
+    /// Red before: "__unnamed__ in hyperspy-4d-unnamed.hspy is not one spectrum (4 dimensions, 4 axes): ...".
+    func testAHyperSpyFileThatIsNotOneSpectrumIsRefusedWithoutItsGroupName() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/sem/hyperspy-4d-unnamed.hspy")
+        XCTAssertTrue(HyperSpySpectrumFile.isHyperSpyFile(path: url.path))
+        XCTAssertThrowsError(try HyperSpySpectrumFile.header(path: url.path)) { error in
+            let text = (error as? HyperSpySpectrumFile.Refusal)?.text ?? "\(error)"
+            XCTAssertEqual(text, "hyperspy-4d-unnamed.hspy holds a 4-dimensional signal (a 4D-STEM or EBSD dataset), not one spectrum: "
+                           + "macEM opens single spectra from HyperSpy files.")
+            XCTAssertFalse(text.contains("__unnamed__"))
+        }
+    }
+
     /// Help > Open Demo Data and `--demo-sem-eds` open the shipped spectrum into the EDS room through the app's own Open.
     /// The shipped SEM spectrum is quantified by the shared EDS room (D-SEM-107): once the room has opened it and Auto ID has answered,
     /// the five elements the file names are picked, so the room's Quantify is offered; exspy's line table is read for Info. A second call
