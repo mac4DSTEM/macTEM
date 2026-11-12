@@ -11,9 +11,10 @@
 import XCTest
 
 nonisolated final class PaneRetentionTests: XCTestCase {
+    private static let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+
     private static func source(_ path: String) throws -> String {
-        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
-        return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
+        try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
     }
 
     /// The stored properties of `type` in `text`: its lines at four spaces' indent that begin `let ` or `var ` and are not computed.
@@ -58,19 +59,24 @@ nonisolated final class PaneRetentionTests: XCTestCase {
         XCTAssertTrue(text.contains(".onDisappear { view.presentation.releaseCanvas() }"))
     }
 
-    /// No EELS view binds the file or a cube to a name in its body: a closure there (a text field's commit, a section's content) captures it and AppKit
-    /// keeps the closure, so the file's cubes outlived Align (12 Nov memgraph on 145_STEM: the two original cubes in one closure context reached from
-    /// the inspector's text field, 1.45 GB too many). The views read numbers from the session instead. Red before: `let file = session.source` in
-    /// the Fitting section and `let image = session.source?.image` in the room.
-    func testNoEELSViewHoldsTheFileOrACube() throws {
-        let files = ["macTEM/UI/EELSRoomInspector.swift", "macTEM/UI/EELSRoom.swift", "macTEM/UI/EELSRegionBridge.swift"]
-        let pattern = try NSRegularExpression(pattern: #"let \w+ = session\.(source|workingLowLoss|workingCoreLoss|shownCoreLoss|fitCoreLoss|alignment)(\?\.(image|coreLoss))?\s*$"#,
-                                              options: [.anchorsMatchLines])
-        for path in files {
-            let text = try Self.source(path)
-            let hits = pattern.matches(in: text, range: NSRange(text.startIndex..., in: text)).map { (text as NSString).substring(with: $0.range) }
-            XCTAssertTrue(hits.isEmpty, "\(path): \(hits)")
+    /// No view body binds a file, a cube or an image to a name: a closure of that body (a text field's commit, a section's content, a hover) captures
+    /// it, AppKit or SwiftUI keeps the closure, and the data outlives what replaced or closed it (12 Nov memgraph on 145_STEM: the two original cubes in
+    /// one closure context reached from the EELS inspector's text field, 1.45 GB too many after Align). Views read numbers, or read the data where it is
+    /// used, from the owner. `stack` is a reference the item releases on close, so binding it holds nothing. Red before: `let file = session.source`
+    /// (EELS Fitting), `let image = session.source?.image` (EELS room), `if let source = session.source {` (EELS Info).
+    func testNoViewBindsAFileOrACube() throws {
+        let ui = Self.root.appendingPathComponent("macTEM/UI")
+        let names = try FileManager.default.contentsOfDirectory(atPath: ui.path).filter { $0.hasSuffix(".swift") }.sorted()
+        XCTAssertGreaterThan(names.count, 50, "the views were found")
+        let pattern = try NSRegularExpression(
+            pattern: #"^\s*(?:let|if let|guard let) \w+ = [\w.]*\b(?:session|item|appState\.\w+)\??\.(?:source|image|session\.image|workingLowLoss|workingCoreLoss|shownCoreLoss|fitCoreLoss|alignment|pixels)(?:\?\.(?:image|coreLoss))?\s*(?:\{|$|else)"#,
+            options: [.anchorsMatchLines])
+        var hits: [String] = []
+        for name in names {
+            let text = try String(contentsOf: ui.appendingPathComponent(name), encoding: .utf8)
+            hits += pattern.matches(in: text, range: NSRange(text.startIndex..., in: text)).map { "\(name): " + (text as NSString).substring(with: $0.range) }
         }
+        XCTAssertTrue(hits.isEmpty, "\(hits)")
         XCTAssertTrue(try Self.source("macTEM/UI/EELSRoomInspector.swift").contains("let file = EELSFileMicroscope(session.source)"))
     }
 }

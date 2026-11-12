@@ -564,9 +564,10 @@ struct EELSRoomInfo: View {
 
     var body: some View {
         let session = appState.eels
-        if let source = session.source {
+        // The rows, made here: the section's content closure holds them, never the file and its cubes (macTEM#571).
+        if let rows = session.source.map({ EELSInfoFormat.rows($0, beamEnergyKeV: session.beamEnergyKeV, beamEnergySource: session.beamEnergySource) }) {
             InspectorSection("Spectrum Image") {
-                ForEach(EELSInfoFormat.rows(source, beamEnergyKeV: session.beamEnergyKeV, beamEnergySource: session.beamEnergySource)) { row in
+                ForEach(rows) { row in
                     InspectorValueRow(row.label, row.value)
                 }
                 InspectorNote("Counts are as the file stores them (no gain or dark reference).")
