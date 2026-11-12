@@ -223,6 +223,24 @@ nonisolated final class IndexingMapsHandOffTests: XCTestCase {
         XCTAssertEqual(info["Euler angles"], "Bunge (φ₁, Φ, φ₂), lab to crystal, from the run's rotations as orix converts them")
     }
 
+    /// #539: the Euler row names the reader that read the angles. An H5OINA's map, with or without its patterns, is read as its
+    /// .ctf is (orix has no H5OINA reader); orix's own file, an .ang and a kikuchipy h5ebsd's map go through orix's readers.
+    /// Red before: an H5OINA with patterns said "as orix reads the file" (seen on Zenodo 20331737's F82H file).
+    func testTheEulerRowNamesTheReaderThatReadTheAngles() throws {
+        let map = try Self.map(rows: 2, columns: 3)
+        func euler(_ source: OrientationMapSession.Document.Source, _ format: String) -> String? {
+            let document = OrientationMapSession.Document(fileName: "f", url: nil, map: map, source: source, format: format)
+            return MapsRoomFormat.infoRows(document).first { $0.label == "Euler angles" }?.value
+        }
+        let h5oina = "Bunge (φ₁, Φ, φ₂), lab to crystal, as the H5OINA file stores them (read as its .ctf is)"
+        let orix = "Bunge (φ₁, Φ, φ₂), lab to crystal, as orix reads the file"
+        XCTAssertEqual(euler(.patterns, EBSDFileFormat.oxfordH5OINA.rawValue), h5oina)
+        XCTAssertEqual(euler(.mapFile, OrientationMapSession.h5oinaFormat), h5oina)
+        XCTAssertEqual(euler(.mapFile, OrientationMapSession.orixFormat), orix)
+        XCTAssertEqual(euler(.mapFile, ".ang (EDAX TSL)"), orix)
+        XCTAssertEqual(euler(.patterns, EBSDFileFormat.kikuchipyH5EBSD.rawValue), orix)
+    }
+
     /// The Export section offers `Open in Maps` through the window's hand-off; the Maps inspector's Source pop-up moves between the
     /// maps held and the stale note shows; the room shows the patterns beside any map on the scan and rebuilds on a new source.
     func testTheRoomsAreWired() throws {
