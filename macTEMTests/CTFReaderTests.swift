@@ -171,6 +171,22 @@ nonisolated final class CTFReaderTests: XCTestCase {
         XCTAssertEqual(map.shape, [381, 507])
     }
 
+    /// #515: a Laue-10 phase (pyrite, m-3) reads point group m-3, which the app's symmetry table knows. orix 0.15.0 names id 10
+    /// "m3" and its own Phase refuses that name, so orix cannot load such a file; the H5OINA reader and CTFWriter already say m-3.
+    /// Red before: pointGroupName "m3", for which PointGroup.named has no group.
+    func testALaueGroupTenPhaseReadsAsMMinusThree() throws {
+        let text = "Channel Text File\nXCells\t2\nYCells\t1\nXStep\t1\nYStep\t1\nPhases\t1\n5.417;5.417;5.417\t90;90;90\tPyrite\t10\t205\n"
+            + "Phase\tX\tY\tBands\tError\tEuler1\tEuler2\tEuler3\tMAD\tBC\tBS\n"
+            + "1\t0\t0\t8\t0\t10\t20\t30\t0.5\t100\t100\n1\t1\t0\t8\t0\t11\t21\t31\t0.5\t100\t100\n"
+        let phase = try XCTUnwrap(CTFReader.read(text: text).map.phases.entries.first { $0.id == 1 }?.phase)
+        XCTAssertEqual(phase.pointGroupName, "m-3")
+        XCTAssertNotNil(PointGroup.named(try XCTUnwrap(phase.pointGroupName)))
+        for (id, name) in CTFReader.laueGroups {
+            XCTAssertNotNil(PointGroup.named(name), "Laue id \(id): \(name) is a point group the app knows")
+            XCTAssertEqual(CTFWriter.laueIDs[name], id, "the reader and the writer number \(name) alike")
+        }
+    }
+
     func testAFileWithoutColumnsIsRefusedByName() throws {
         XCTAssertThrowsError(try CTFReader.read(text: "Channel Text File\nPrj x\n")) { error in
             XCTAssertEqual(error as? CTFReader.Refusal, .noColumnLine)

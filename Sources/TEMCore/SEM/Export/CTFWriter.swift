@@ -26,7 +26,7 @@ package nonisolated enum CTFWriter {
     package static let fileExtension = "ctf"
 
     /// orix's reader's Laue group ids (`_get_phases_from_header`), inverted.
-    static let laueIDs = ["-1": 1, "2/m": 2, "mmm": 3, "4/m": 4, "4/mmm": 5, "-3": 6, "-3m": 7, "6/m": 8, "6/mmm": 9, "m-3": 10, "m-3m": 11]
+    package static let laueIDs = ["-1": 1, "2/m": 2, "mmm": 3, "4/m": 4, "4/mmm": 5, "-3": 6, "-3m": 7, "6/m": 8, "6/mmm": 9, "m-3": 10, "m-3m": 11]
 
     /// The file's text; `project` is the `Prj` line, `author` the `Author` line.
     package static func text(of map: CrystalMap, project: String = "macEM", author: String = "macEM") throws -> String {
