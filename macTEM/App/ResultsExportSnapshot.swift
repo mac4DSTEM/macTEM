@@ -67,7 +67,7 @@ extension ExportSnapshot {
         return ExportResultsSnapshot(
             rows: rows, source: ExportSource(image: image, software: software), session: sessionHeader(SessionTailInput(item: item)),
             defaultName: ResultsFormat.exportName(fileName: image.fileName),
-            directory: item.url.deletingLastPathComponent(),
+            directory: ExportPanels.defaultFolder(for: item.url),
             message: ResultsFormat.exportMessage(rows: rows.count, groups: groups))
     }
 

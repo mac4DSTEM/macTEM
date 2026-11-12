@@ -199,7 +199,7 @@ extension ExportSnapshot {
         return ExportTransformSnapshot(
             header: fftHeader(image: image, spectrum: spectrum, software: software), display: display, marks: marks,
             defaultName: fftName(fileName: image.fileName, product: "fft", crop: crop),
-            directory: url?.deletingLastPathComponent(),
+            directory: ExportPanels.defaultFolder(for: url),
             message: transformMessage(crop: crop, imageWidth: image.width, imageHeight: image.height, width: spectrum.width,
                                       height: spectrum.height, spacingX: spectrum.spacingX, spacingY: spectrum.spacingY),
             defaults: ExportImageDefaults(scaleBar: true, marks: true, offersMarks: !marks.isEmpty))
@@ -214,7 +214,7 @@ extension ExportSnapshot {
         return ExportRadialProfileSnapshot(
             header: fftHeader(image: image, spectrum: spectrum, software: software), profile: profile,
             defaultName: fftName(fileName: image.fileName, product: "radial-profile", crop: spectrum.key.crop),
-            directory: url?.deletingLastPathComponent(),
+            directory: ExportPanels.defaultFolder(for: url),
             message: radialProfileMessage(bins: bins, reciprocalLabel: shown.label, nativeUnit: profile.units), bins: bins)
     }
 
@@ -230,7 +230,7 @@ extension ExportSnapshot {
             header: fftHeader(image: image, spectrum: spectrum, software: software), rows: rows, omitted: omitted,
             maskRadius: analysis.maskRadius, maskEdge: analysis.maskEdge, notes: notes,
             defaultName: fftName(fileName: image.fileName, product: "spots", crop: spectrum.key.crop),
-            directory: url?.deletingLastPathComponent(), message: spotsMessage(listed: rows.count, omitted: omitted))
+            directory: ExportPanels.defaultFolder(for: url), message: spotsMessage(listed: rows.count, omitted: omitted))
     }
 
     /// The window's selected item's: an export is of the file on screen, never of another open one.

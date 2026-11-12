@@ -254,7 +254,7 @@ enum ExportSnapshot {
             display: display(canvas: canvas, presentation: presentation),
             marks: exportMarks(marks, x: image.x, y: image.y),
             defaultName: imageName(fileName: image.fileName),
-            directory: url?.deletingLastPathComponent(),
+            directory: ExportPanels.defaultFolder(for: url),
             message: imageMessage(width: image.width, height: image.height),
             defaults: ExportImageDefaults(scaleBar: presentation.showsScaleBar, marks: true, offersMarks: !marks.isEmpty))
     }
@@ -279,7 +279,7 @@ enum ExportSnapshot {
             start: selected.mark.points[0], end: selected.mark.points[1],
             shown: shownPositions(of: profile, x: image.x, y: image.y),
             defaultName: profileName(fileName: image.fileName, number: selected.number, count: selected.count),
-            directory: url?.deletingLastPathComponent(),
+            directory: ExportPanels.defaultFolder(for: url),
             message: profileMessage(samples: profile.samples.count, unit: profile.unit,
                                     isPhysical: profile.isPhysical, width: profile.width))
     }
