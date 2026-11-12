@@ -52,6 +52,21 @@ nonisolated final class EELSMapTilesTests: XCTestCase {
         XCTAssertGreaterThan(Set(Self.render(tile)).count, 20, "many colours, not one")
     }
 
+    /// A file aligned at acquisition: one shift on almost every pixel (5e-5 eV, equal but for the last bits) and a few pixels far out (a lost
+    /// zero-loss peak, up to 8 eV). Red before (drive 2026-11-12, 145_STEM): the percentiles were a rounding error apart, so the bulk was
+    /// stretched to the top of the scale and the tile was solid yellow. The bulk now takes one colour and the far pixels their own.
+    func testAShiftMapFlatButForRoundingShowsItsFarPixels() {
+        var values = (0..<1000).map { 5e-5 + Double($0 % 3) * 1e-19 }
+        values[10] = 8.12; values[20] = -3
+        let scaled = EELSMapScale.scaled(values, mode: EELSMapScale.mode(forTileID: "zlpShift"))
+        XCTAssertEqual(scaled.low, -3); XCTAssertEqual(scaled.high, 8.12)
+        XCTAssertEqual(scaled.values[10], 1); XCTAssertEqual(scaled.values[20], 0)
+        XCTAssertEqual(Set(scaled.values.enumerated().filter { $0.offset != 10 && $0.offset != 20 }.map { ($0.element * 1e6).rounded() }).count, 1,
+                       "the bulk is one colour")
+        let flat = EELSMapScale.scaled((0..<1000).map { 5e-5 + Double($0 % 3) * 1e-19 }, mode: .robustMinToMax)
+        XCTAssertTrue(flat.values.allSatisfy { $0 == EELSMapScale.flatLevel }, "rounding error alone draws flat, mid-scale")
+    }
+
     /// The colours move; the numbers do not: the tile's values are untouched and the readout reads them raw.
     func testTheValuesAndTheReadoutStayTheSame() {
         let tile = Self.plantedShift()

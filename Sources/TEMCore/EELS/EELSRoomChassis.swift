@@ -205,9 +205,13 @@ package nonisolated enum EELSMapScale {
             guard let first = sorted.first, let last = sorted.last else {
                 return Scaled(values: values.map { _ in .nan }, low: 0, high: 1)
             }
+            // Percentiles a rounding error apart also meet: a file already aligned at acquisition gives one shift on almost every pixel, equal but
+            // for the last bits (drive 2026-11-12, 145_STEM: 5e-5 eV everywhere), and stretching those bits over the colour scale drew the tile
+            // solid at its top. A range that is rounding error on either fallback draws the map flat, at the middle of the scale.
+            func meets(_ lo: Double, _ hi: Double) -> Bool { !(hi - lo > 1e-6 * max(abs(lo), abs(hi))) }
             var lo = percentile(sorted, 0.01), hi = percentile(sorted, 0.99)
-            if !(hi > lo) { (lo, hi) = (first, last) }
-            guard hi > lo else { return Scaled(values: values.map { $0.isFinite ? 0 : .nan }, low: lo, high: hi) }
+            if meets(lo, hi) { (lo, hi) = (first, last) }
+            guard !meets(lo, hi) else { return Scaled(values: values.map { $0.isFinite ? flatLevel : .nan }, low: lo, high: hi) }
             return Scaled(values: values.map { $0.isFinite ? min(max(($0 - lo) / (hi - lo), 0), 1) : .nan }, low: lo, high: hi)
         case .diverging:
             // Centred on 0, reaching the larger of |1st percentile| and |99th percentile| (the display range the EDS room gives a filtered map): one
