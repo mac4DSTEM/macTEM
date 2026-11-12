@@ -327,6 +327,7 @@ struct IndexingMapPane: View {
         .accessibilityLabel("Indexed map")
         .accessibilityValue(title + (count.map { ", " + $0 } ?? ""))
         .accessibilityHint(ZoomPan.accessibilityHint)
+        .zoomPanAccessibilityActions(zoomModel, box: box)
     }
 
     /// The status line's readout of the point under the pointer (its solution): hovering reads, it never moves the pattern (D-SEM-110).
@@ -555,6 +556,7 @@ struct IndexedPatternPane: View {
         .accessibilityLabel("Pattern as indexed")
         .accessibilityValue(title)
         .accessibilityHint(ZoomPan.accessibilityHint)
+        .zoomPanAccessibilityActions(zoomModel, box: box)
     }
 }
 
@@ -846,6 +848,7 @@ struct IndexingBestMatchPane: View {
         .accessibilityLabel("Best match")
         .accessibilityValue(canvas == nil ? emptyWords : header)
         .accessibilityHint(ZoomPan.accessibilityHint)
+        .zoomPanAccessibilityActions(zoomModel, box: box)
     }
 }
 

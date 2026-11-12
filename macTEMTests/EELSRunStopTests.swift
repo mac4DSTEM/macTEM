@@ -18,8 +18,8 @@ import ShellEDXModel
 nonisolated final class EELSRunStopTests: XCTestCase {
 
     /// Stop while Align runs ends the Run there: Deconvolve and Fit never start (their results stay nil), the stopped alignment does not land, and
-    /// the room is idle with no failure. The Stop comes before Align can land: the chain's first stage and the Stop both run on the main actor,
-    /// where a landing waits its turn. Red under: the chain guarded only by `failure == nil`, which ran Fourier-log and then the fit after the Stop.
+    /// the room is idle with no failure. The Stop comes from Align's start (`onAlignStarted`), before its landing can take a turn on the main actor.
+    /// Red under: the chain guarded only by `failure == nil`, which ran Fourier-log and then the fit after the Stop.
     @MainActor func testStopEndsTheWholeRunNotOnlyTheStageInFlight() async throws {
         let loaded = LoadedEELS(fileName: "run-stop.dm4", image: try EELSRoomTests.image(), beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: 10,
                                 origin: "planted", coreLoss: try EELSControlsTests.core(), coreLossOrigin: "planted core")
@@ -36,16 +36,18 @@ nonisolated final class EELSRunStopTests: XCTestCase {
         XCTAssertEqual(session.stages.map(\.state), [.notRun, .current, .notRun, .current, .notRun], "Align, Deconvolve and Fit are pending")
         XCTAssertTrue(session.canRun)
 
-        let run = session.run()
-        // Yields, not the shared wait's 5 ms sleeps, in which Align could land before the Stop; the assertion below fails if it never starts.
-        var turns = 0
-        while !session.isComputing, turns < 1_000 {
-            await Task.yield()
-            turns += 1
+        // The Stop comes from Align's start, on the main actor before its landing can run. Waiting with yields let Align land first on a
+        // fast runner (#556): each yield is a turn the landing can take.
+        var stoppedDuringAlign = false
+        session.onAlignStarted = { [unowned session] in
+            guard !stoppedDuringAlign else { return }
+            XCTAssertEqual(session.computingStage, .align, "Align is in flight")
+            stoppedDuringAlign = true
+            session.stop()
         }
-        XCTAssertEqual(session.computingStage, .align, "Align is in flight")
-        session.stop()
+        let run = session.run()
         await run.value
+        XCTAssertTrue(stoppedDuringAlign, "Align started")
         await session.settled()
 
         XCTAssertNil(session.deconvolution, "Deconvolve started after the Stop")

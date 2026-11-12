@@ -167,6 +167,8 @@ package final class EELSSession {
     /// The infobar's events and the errors the person must see; set by the window.
     @ObservationIgnored package var onEvent: ((String) -> Void)?
     @ObservationIgnored package var onFailure: ((any Error) -> Void)?
+    /// Called on the main actor once Align's pass is in flight and before it can land (tests stop the Run there, #556).
+    @ObservationIgnored package var onAlignStarted: (() -> Void)?
 
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var passTask: Task<Void, Never>?
@@ -1010,6 +1012,7 @@ package final class EELSSession {
             }
         }
         passTask = task
+        onAlignStarted?()
         return task
     }
 
