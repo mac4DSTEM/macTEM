@@ -53,9 +53,11 @@ package nonisolated enum CTFReader {
         }
     }
 
-    /// orix's Laue group ids (`laue_ids` in ctf.py).
+    /// orix's Laue group ids (`laue_ids` in ctf.py), except 10: orix 0.15.0 names it "m3", a point group its own `Phase` does not
+    /// know, so its loader raises on a `.ctf` with a Laue-10 phase (pyrite, for one). Read as "m-3", as Oxford means it and as
+    /// `CTFWriter.laueIDs` and the H5OINA reader write it (#515; docs/parity.md).
     package static let laueGroups: [Int: String] = [
-        1: "-1", 2: "2/m", 3: "mmm", 4: "4/m", 5: "4/mmm", 6: "-3", 7: "-3m", 8: "6/m", 9: "6/mmm", 10: "m3", 11: "m-3m",
+        1: "-1", 2: "2/m", 3: "mmm", 4: "4/m", 5: "4/mmm", 6: "-3", 7: "-3m", 8: "6/m", 9: "6/mmm", 10: "m-3", 11: "m-3m",
     ]
 
     /// Who wrote the file, as orix detects it from the header; `orientationTable` is a headerless export (first line the
