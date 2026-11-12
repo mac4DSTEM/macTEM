@@ -8,6 +8,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). App
 - **Runs on macOS 26** (was macOS 27) on Apple silicon. MacEMUI 0.3.2. CI builds and runs the unit tests, on Xcode 26.6.
 - Exports no longer carry internal milestone ids: the `validation` and `lineage` text in PNG metadata, FFT CSVs and the line profile and measurement CSVs names what each number is checked against (numpy, scikit-image, ImagoKit's parity tests), without "V1-…" or "until V1-2".
 
+## [2.0.1](https://github.com/mac4DSTEM/macTEM/compare/v2.0.0...v2.0.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* a .ctf phase of Laue group 10 reads as point group m-3, not orix's unknown "m3" ([#545](https://github.com/mac4DSTEM/macTEM/issues/545)) ([b89d459](https://github.com/mac4DSTEM/macTEM/commit/b89d459297b508696f47f02a12c5558b7139bd33))
+* a .ctf saved on Windows opens, and scan and map sizes read width × height ([#519](https://github.com/mac4DSTEM/macTEM/issues/519)) ([1f6fbfa](https://github.com/mac4DSTEM/macTEM/commit/1f6fbfa0e1e4b605996c7cc2dff0a96f58a982ed))
+* a colour TIFF as GMS exports a displayed image opens as grey instead of being refused ([#550](https://github.com/mac4DSTEM/macTEM/issues/550)) ([3eb7fd1](https://github.com/mac4DSTEM/macTEM/commit/3eb7fd10d54a488c9a466c19e329ff748254acb8))
+* a DM file with no 2D image says what it holds in words, not dimension tuples ([#543](https://github.com/mac4DSTEM/macTEM/issues/543)) ([5f65d82](https://github.com/mac4DSTEM/macTEM/commit/5f65d8269648e54cf23006b1043fbb8abf043054))
+* a DM4 spectrum image with picked spectra no longer also raises a can't-open alert ([#554](https://github.com/mac4DSTEM/macTEM/issues/554)) ([afc5e19](https://github.com/mac4DSTEM/macTEM/commit/afc5e1942c0be7a7e2af5784be83f9f4c271bf7f))
+* a file macEM cannot open is titled "macEM can't open this file", not "Something went wrong" ([#552](https://github.com/mac4DSTEM/macTEM/issues/552)) ([559dca8](https://github.com/mac4DSTEM/macTEM/commit/559dca81d1deacfc72b8a607428044a1b99271ca))
+* a HyperSpy file that is not one spectrum is refused naming the file, not HyperSpy's __unnamed__ group ([#544](https://github.com/mac4DSTEM/macTEM/issues/544)) ([b6a51fd](https://github.com/mac4DSTEM/macTEM/commit/b6a51fd6689bdf1fb23a6ddb2b8f8c1f449ec0b5))
+* a map-only Oxford .h5oina opens in the Maps room ([#516](https://github.com/mac4DSTEM/macTEM/issues/516)) ([833bcf3](https://github.com/mac4DSTEM/macTEM/commit/833bcf33eb4edb8b99dfed1b6bdd638119a537fa))
+* a pattern's size reads width × height in Info and in the processing refusals ([#547](https://github.com/mac4DSTEM/macTEM/issues/547)) ([b4028a7](https://github.com/mac4DSTEM/macTEM/commit/b4028a717a637ad94f324e93e5260afb5e6d0c36))
+* a TIFF macEM cannot read is refused in a sentence that names the file and the compression in words ([#534](https://github.com/mac4DSTEM/macTEM/issues/534)) ([0d7097b](https://github.com/mac4DSTEM/macTEM/commit/0d7097b1c25c00584e25c392df3ae8d1f9ea5588))
+* an EELS line scan is refused once and no longer also opens as a grey image ([#560](https://github.com/mac4DSTEM/macTEM/issues/560)) ([9d813d0](https://github.com/mac4DSTEM/macTEM/commit/9d813d0f8ac152ba87f3d3278e4eba4f04955798)), closes [#559](https://github.com/mac4DSTEM/macTEM/issues/559)
+* EBSD HDF5 files without patterns go to the Maps room or are refused in words that name them ([#528](https://github.com/mac4DSTEM/macTEM/issues/528)) ([7c44c77](https://github.com/mac4DSTEM/macTEM/commit/7c44c77dfda6cef17f26127293f2747ce50f9ac5))
+* export panels suggest no folder for the on-disk demo files ([#549](https://github.com/mac4DSTEM/macTEM/issues/549)) ([c7eb1fe](https://github.com/mac4DSTEM/macTEM/commit/c7eb1feaa91b0bc612a590e27bca042f33b6e7a7)), closes [#507](https://github.com/mac4DSTEM/macTEM/issues/507)
+* LZW-compressed TIFFs open (FormatoKit 0.15.0) ([#537](https://github.com/mac4DSTEM/macTEM/issues/537)) ([1db1944](https://github.com/mac4DSTEM/macTEM/commit/1db19446ad7dcfa5072fee7d8565603764b72e2f))
+* the .ctf map's format names its writer in words, and a pattern file's own map keeps the Patterns line ([#548](https://github.com/mac4DSTEM/macTEM/issues/548)) ([631b583](https://github.com/mac4DSTEM/macTEM/commit/631b583e9e519f78a1e3871a58f6fe21f9071e35))
+* the CTF map's format names its writer in words, and a pattern file's own map keeps the Patterns line ([631b583](https://github.com/mac4DSTEM/macTEM/commit/631b583e9e519f78a1e3871a58f6fe21f9071e35)), closes [#522](https://github.com/mac4DSTEM/macTEM/issues/522)
+* the Maps grains CSV quotes a phase name with a quote, one IPF key image builder, and one unused Indexing property gone ([#498](https://github.com/mac4DSTEM/macTEM/issues/498)) ([1feb50b](https://github.com/mac4DSTEM/macTEM/commit/1feb50b87f55c6f7251e801a1f1224d72e925b8c))
+* the Maps room's Euler row names the H5OINA convention for an H5OINA with patterns, not orix ([#546](https://github.com/mac4DSTEM/macTEM/issues/546)) ([9b23296](https://github.com/mac4DSTEM/macTEM/commit/9b232965c51a812ef39185a4b6038a1542729e75))
+* the six SEM picture panes have the VoiceOver zoom actions their hint promises ([#557](https://github.com/mac4DSTEM/macTEM/issues/557)) ([922cbb8](https://github.com/mac4DSTEM/macTEM/commit/922cbb868cea55a6b0810b83066cd6fa0dcef56c))
+
 ## [2.0.0](https://github.com/mac4DSTEM/macTEM/compare/v1.3.0...v2.0.0) (2026-11-11)
 
 
