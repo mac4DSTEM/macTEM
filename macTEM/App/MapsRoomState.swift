@@ -366,10 +366,38 @@ nonisolated enum MapsRoomFormat {
         }
     }
 
-    /// "SF 0.47 · trace 132° · inclined 61°".
+    /// "SF 0.47 · trace 132° in blue · inclined 61°": the trace names the colour it is drawn in, so a plane row and its line on the map
+    /// match by words, not by colour alone, and VoiceOver hears it (#356).
     static func planeText(_ plane: GrainSlip.Plane) -> String {
-        let trace = plane.traceAngle.isFinite ? "trace \(angle(plane.traceAngle * 180 / .pi, digits: 0))°" : "no trace"
-        return "SF \(fraction(plane.schmid)) · \(trace) · inclined \(angle(plane.inclination * 180 / .pi, digits: 0))°"
+        "SF \(fraction(plane.schmid)) · \(traceText(plane.traceAngle, colour: plane.colour)) · inclined \(angle(plane.inclination * 180 / .pi, digits: 0))°"
+    }
+
+    /// "trace 132° in blue", from the trace's angle in radians and DefDAP's colour name; "no trace" for a plane parallel to the map.
+    static func traceText(_ radians: Double, colour: String, locale: Locale = .autoupdatingCurrent) -> String {
+        guard radians.isFinite else { return "no trace" }
+        return "trace \(angle(radians * 180 / .pi, digits: 0, locale: locale))° in \(colourWord(colour))"
+    }
+
+    /// DefDAP's matplotlib colour name as a word: its one-letter names spelled out ("m" magenta, "w" white), the rest as they are.
+    static func colourWord(_ name: String) -> String {
+        switch name.lowercased() {
+        case "m": "magenta"
+        case "w": "white"
+        case "b": "blue"
+        case "g": "green"
+        case "r": "red"
+        case "c": "cyan"
+        case "y": "yellow"
+        case "k": "black"
+        case "": "black"
+        default: name.lowercased()
+        }
+    }
+
+    /// The traces the overlay draws, for its spoken label: "traces (111) in blue, (11-1) in green"; nil when none is drawn.
+    static func tracesSpeech(_ planes: [GrainSlip.Plane]) -> String? {
+        let drawn = planes.filter { $0.traceAngle.isFinite }.map { "\($0.label) in \(colourWord($0.colour))" }
+        return drawn.isEmpty ? nil : "traces " + drawn.joined(separator: ", ")
     }
 
     /// A trace's direction on the map (x right, y down): `angle` from +y counter-clockwise, as DefDAP's `calc_slip_traces`.
