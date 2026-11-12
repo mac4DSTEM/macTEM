@@ -408,7 +408,8 @@ nonisolated enum MapsRoomFormat {
             : "The Pole figures and ODF tabs show this phase's texture"
     }
 
-    /// The grain table as CSV: one header line, one line per grain; lengths in the scan unit, angles in degrees.
+    /// The grain table as CSV: one header line, one line per grain; lengths in the scan unit, angles in degrees. The phase name is an
+    /// RFC 4180 cell (`CSVText.quoted`, #338), as in the indexing results CSV.
     static func grainsCSV(_ analysis: MapAnalysis, slip: [GrainSlip], loadDirection: SampleDirection) -> String {
         let unit = analysis.scanUnit
         var bySlip: [Int: Double] = [:]
@@ -416,8 +417,7 @@ nonisolated enum MapsRoomFormat {
         var lines = ["grain,phase,points,area_\(unit)2,ecd_\(unit),phi1_deg,Phi_deg,phi2_deg,gos_deg,neighbours,centroid_column,centroid_row,schmid_max_load_\(loadDirection.rawValue)"]
         func f(_ v: Double) -> String { v.isFinite ? String(format: "%.6g", v) : "" }
         for r in analysis.table {
-            let name = r.phaseName.contains(",") ? "\"\(r.phaseName)\"" : r.phaseName
-            lines.append([String(r.id), name, String(r.points), f(r.area), f(r.diameter), f(r.euler.x), f(r.euler.y), f(r.euler.z),
+            lines.append([String(r.id), CSVText.quoted(r.phaseName), String(r.points), f(r.area), f(r.diameter), f(r.euler.x), f(r.euler.y), f(r.euler.z),
                           f(r.gosDegrees), String(r.neighbours), f(r.centroid.x), f(r.centroid.y), f(bySlip[r.id] ?? .nan)].joined(separator: ","))
         }
         return lines.joined(separator: "\n") + "\n"
@@ -520,8 +520,8 @@ nonisolated enum MapsFigure {
         "0 to \(UnitDisplay.number(maximum, digits: 3, locale: locale)) MRD"
     }
 
-    /// An image of premultiplied RGBA bytes, the app's one RGBA-to-image builder (#331): each pixel a block where it is drawn larger (a map,
-    /// a figure), or smoothed with `interpolate` (the Indexing room's colour key, which its own `IPFKeyPicture` still builds).
+    /// An image of premultiplied RGBA bytes (#331: the IPF colour key has no other builder): each pixel a block where it is drawn larger
+    /// (a map, a figure, the Maps room's key), or smoothed with `interpolate` (the Indexing room's key, `IndexingIPFKey.picture`).
     static func cgImage(premultipliedRGBA rgba: [UInt8], width: Int, height: Int, interpolate: Bool = false) -> CGImage? {
         guard width > 0, height > 0, rgba.count == width * height * 4,
               let provider = CGDataProvider(data: Data(rgba) as CFData),

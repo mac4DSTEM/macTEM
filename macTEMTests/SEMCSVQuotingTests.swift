@@ -1,9 +1,9 @@
 //
 //  SEMCSVQuotingTests.swift
 //  The CSV writers quote a text cell and keep a file or region name on its header line with ImagoKit's `CSVText` (#338): a phase
-//  called `Fe "a", bcc` stays one cell of the indexing results CSV, a verdict holding a carriage return is quoted in the Diffraction
-//  readout, and a line break in a file, region or crystal name does not start a line of its own in the Diffraction, Particles and
-//  EELS headers. Ordinary names write the bytes they wrote before.
+//  called `Fe "a", bcc` stays one cell of the indexing results CSV and of the Maps room's grains CSV, a verdict holding a carriage
+//  return is quoted in the Diffraction readout, and a line break in a file, region or crystal name does not start a line of its own
+//  in the Diffraction, Particles and EELS headers. Ordinary names write the bytes they wrote before.
 //
 //  Red before the change: the phase cell is `"Fe "a", bcc"` (the quote not doubled, so an RFC 4180 reader takes `Fe a, bcc`), the
 //  verdict is written bare, and `b.dm4` (or the crystal's `film`) lands on a line of its own without the `#`.
@@ -12,6 +12,7 @@
 import XCTest
 import SpectroEELS
 import TEMCore
+@testable import macTEM
 
 nonisolated final class SEMCSVQuotingTests: XCTestCase {
 
@@ -64,6 +65,18 @@ nonisolated final class SEMCSVQuotingTests: XCTestCase {
         return (lines(result.csv(stepX: 1.5, stepY: 1.5)).filter { !$0.isEmpty }, row)
     }
 
+    /// The Maps room's grains CSV of a 4 × 4 map of one orientation in one phase under `name` (one grain of 16 points), without its
+    /// empty last line.
+    private static func grainsCSV(phaseNamed name: String) throws -> [String] {
+        let grid = CrystalMap.coordinates(shape: (rows: 4, columns: 4), steps: (dy: 1.5, dx: 1.5))
+        let phase = CrystalPhase(name: name, spaceGroup: 229, pointGroup: "m-3m", lattice: [2.87, 2.87, 2.87, 90, 90, 90])
+        let map = try CrystalMap(euler: Array(repeating: SIMD3<Double>(0.1, 0.2, 0.3), count: 16), phaseIDs: Array(repeating: 0, count: 16),
+                                 x: grid.x, y: grid.y, phaseList: PhaseList([(0, phase)]), scanUnit: "um")
+        let analysis = try MapAnalysis.run(map, settings: MapAnalysisSettings(boundaryDegrees: 5, minimumSize: 1, kamMaxDegrees: 5))
+        XCTAssertEqual(analysis.table.count, 1)
+        return lines(MapsRoomFormat.grainsCSV(analysis, slip: [], loadDirection: .z)).filter { !$0.isEmpty }
+    }
+
     private static func diffractionHeader(fileName: String) -> DiffractionExportHeader {
         DiffractionExportHeader(fileName: fileName, centreRow: 256, centreColumn: 256, centreSource: "typed", calibration: "none", deltaQ: nil,
                                 wavelengthAngstroms: nil, lengthPixels: nil, lengthMM: nil, fitVersusFilePercent: nil, crystal: "Au",
@@ -90,6 +103,26 @@ nonisolated final class SEMCSVQuotingTests: XCTestCase {
         let r = plain.row
         XCTAssertEqual(plain.lines[0], "row,column,x,y,phase,phi1_deg,Phi_deg,phi2_deg,ci,fit_deg,matched_bands,pattern_quality")
         XCTAssertEqual(plain.lines[1], "0,0,0,0,Ni,\(number(r.phi1)),\(number(r.capitalPhi)),\(number(r.phi2)),0.5,1,8,10")
+    }
+
+    /// The same phase name is one RFC 4180 cell of the Maps room's grains CSV too, so the header and the grain line keep their thirteen
+    /// fields and the name reads back whole; a name with only a comma is quoted as before and an ordinary name is written bare. Red
+    /// before: the cell was `"Fe "a", bcc"`, which a reader takes as `Fe a, bcc`.
+    func testAPhaseNameWithAQuoteAndACommaStaysOneCellOfTheGrainsCSV() throws {
+        let name = "Fe \"a\", bcc"
+        let quoted = try Self.grainsCSV(phaseNamed: name)
+        XCTAssertEqual(quoted.count, 2)
+        XCTAssertTrue(quoted[1].contains(",\"Fe \"\"a\"\", bcc\","), quoted[1])
+        XCTAssertEqual(Self.cells(quoted[0]).count, 13, quoted[0])
+        let fields = Self.cells(quoted[1])
+        XCTAssertEqual(fields.count, 13, quoted[1])
+        XCTAssertEqual(fields[1], name)
+
+        XCTAssertTrue(try Self.grainsCSV(phaseNamed: "Ti, alpha")[1].hasPrefix("1,\"Ti, alpha\",16,"))
+        let plain = try Self.grainsCSV(phaseNamed: "Ni")
+        XCTAssertEqual(plain[0], "grain,phase,points,area_um2,ecd_um,phi1_deg,Phi_deg,phi2_deg,gos_deg,neighbours,centroid_column,centroid_row,"
+                                 + "schmid_max_load_z")
+        XCTAssertTrue(plain[1].hasPrefix("1,Ni,16,"), plain[1])
     }
 
     /// A line break in the file name stays on the `# file:` line of the Diffraction readout, so every line before the column header is

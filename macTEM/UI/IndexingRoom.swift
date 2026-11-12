@@ -437,10 +437,14 @@ struct IndexingIPFKey: View {
     let layer: IndexingLayer
     let groups: [String]
 
+    /// A key's picture: its premultiplied RGBA through `MapsFigure.cgImage`, the key's one builder (#331), smoothed, since the legend
+    /// draws it larger.
+    nonisolated static func picture(_ key: IPFKeyImage) -> CGImage? { MapsFigure.cgImage(key, interpolate: true) }
+
     var body: some View {
         HStack(alignment: .bottom, spacing: 6) {
             ForEach(groups, id: \.self) { name in
-                if let key = session.keyImages[name], let image = IPFKeyPicture.cgImage(key) {
+                if let key = session.keyImages[name], let image = Self.picture(key) {
                     VStack(spacing: 2) {
                         Image(decorative: image, scale: 1).resizable().interpolation(.medium).aspectRatio(contentMode: .fit)
                             .frame(height: LayoutPolicy.indexingKeyHeight)
@@ -452,17 +456,6 @@ struct IndexingIPFKey: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(layer.title) colour key of point group \(groups.joined(separator: ", "))")
-    }
-}
-
-/// The IPF key as a picture: its premultiplied RGBA (transparent outside the sector) as a `CGImage`.
-nonisolated enum IPFKeyPicture {
-    static func cgImage(_ key: IPFKeyImage) -> CGImage? {
-        guard key.width > 0, key.height > 0, let provider = CGDataProvider(data: Data(key.premultipliedRGBA8) as CFData),
-              let space = CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
-        return CGImage(width: key.width, height: key.height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: key.width * 4, space: space,
-                       bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue), provider: provider, decode: nil,
-                       shouldInterpolate: true, intent: .defaultIntent)
     }
 }
 

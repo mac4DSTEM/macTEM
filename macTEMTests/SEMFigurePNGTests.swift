@@ -70,20 +70,33 @@ nonisolated final class SEMFigurePNGTests: XCTestCase {
         XCTAssertEqual(try Self.rgba(png), Self.planted)
     }
 
-    /// The IPF colour key goes through the one RGBA builder (#331): its premultiplied bytes as they are, each pixel a block for the Maps
-    /// room's key and figure, smoothed with `interpolate` as the Indexing room's legend draws it (what `IPFKeyPicture` builds there).
-    /// Red under: a second builder's bytes, the Maps key smoothed (its pixels would change), the flag ignored.
+    /// The IPF colour key goes through the one RGBA builder (#331), for the Maps room's key and figure (each pixel a block) and for the
+    /// Indexing room's legend (`IndexingIPFKey.picture`, smoothed with `interpolate`; its own builder is gone). Every property that
+    /// decides how the key draws is pinned: its premultiplied bytes as they are, 8-bit RGBA with the alpha last and premultiplied in
+    /// sRGB, no decode array, the default intent. The Indexing builder made exactly this image (compared property by property and drawn
+    /// smoothed at 7×, byte for byte, on six point groups before it was deleted), so its legend draws as it did.
+    /// Red under: a second builder's bytes or colour space, the Maps key smoothed (its pixels would change), the flag ignored, the
+    /// legend's picture not smoothed or not this builder's.
     func testTheColourKeyImageIsItsBytesWithOrWithoutSmoothing() throws {
-        let key = OrientationMaps.keyImage(for: try XCTUnwrap(PointGroup.named("432"))).0
-        let block = try XCTUnwrap(MapsFigure.cgImage(key))
-        let smooth = try XCTUnwrap(MapsFigure.cgImage(key, interpolate: true))
-        XCTAssertFalse(block.shouldInterpolate)
-        XCTAssertTrue(smooth.shouldInterpolate)
-        for image in [block, smooth] {
-            XCTAssertEqual([image.width, image.height, image.bytesPerRow], [key.width, key.height, key.width * 4])
-            XCTAssertEqual(image.alphaInfo, .premultipliedLast)
-            let bytes = try XCTUnwrap(image.dataProvider?.data) as Data
-            XCTAssertEqual([UInt8](bytes), key.premultipliedRGBA8)
+        for group in ["432", "6/mmm"] {
+            let key = OrientationMaps.keyImage(for: try XCTUnwrap(PointGroup.named(group))).0
+            let block = try XCTUnwrap(MapsFigure.cgImage(key))
+            let smooth = try XCTUnwrap(MapsFigure.cgImage(key, interpolate: true))
+            let legend = try XCTUnwrap(IndexingIPFKey.picture(key))
+            XCTAssertFalse(block.shouldInterpolate, group)
+            XCTAssertTrue(smooth.shouldInterpolate, group)
+            XCTAssertTrue(legend.shouldInterpolate, group)
+            for image in [block, smooth, legend] {
+                XCTAssertEqual([image.width, image.height, image.bitsPerComponent, image.bitsPerPixel, image.bytesPerRow],
+                               [key.width, key.height, 8, 32, key.width * 4], group)
+                XCTAssertEqual(image.bitmapInfo, CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue), group)
+                XCTAssertEqual(image.alphaInfo, .premultipliedLast, group)
+                XCTAssertEqual(image.colorSpace?.name, CGColorSpace.sRGB, group)
+                XCTAssertNil(image.decode, group)
+                XCTAssertEqual(image.renderingIntent, .defaultIntent, group)
+                let bytes = try XCTUnwrap(image.dataProvider?.data) as Data
+                XCTAssertEqual([UInt8](bytes), key.premultipliedRGBA8, group)
+            }
         }
     }
 
