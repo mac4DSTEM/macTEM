@@ -72,6 +72,35 @@ nonisolated final class TIFFImageReaderTests: XCTestCase {
         }
     }
 
+    /// #541: a colour TIFF as GMS exports a displayed image (an element map through a one-colour table, a grey image with a
+    /// coloured mark burnt in) opens from its file as grey, each pixel the brightest of its channels, noted as a render; from
+    /// bytes alone it is still refused, now without pixel coordinates. Red before: every such file was refused, naming a pixel.
+    func testAColourTIFFOpensFromItsFileAsTheBrightestOfItsChannels() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("tiff-541-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        // A red-table map (C K) and a blue-table map (O K): value v is (v, 0, 0) or (0, 0, v).
+        let ramp: [UInt8] = [123, 150, 200, 255, 130, 0]
+        // A grey image with one green-tinted mark at row 1, column 0.
+        var marked: [UInt8] = [10, 10, 10, 60, 60, 60, 90, 90, 90, 14, 20, 14, 30, 30, 30, 255, 255, 255]
+        marked[9] = 140; marked[10] = 200; marked[11] = 140
+        let cases: [(String, [UInt8], [Float])] = [
+            ("C K.tif", ramp.flatMap { [$0, 0, 0] }, ramp.map(Float.init)),
+            ("O K.tif", ramp.flatMap { [0, 0, $0] }, ramp.map(Float.init)),
+            ("ADF.tif", marked, [10, 60, 90, 200, 30, 255]),
+        ]
+        for (name, bytes, want) in cases {
+            let url = folder.appendingPathComponent(name)
+            try TIFFBuilder(width: 3, height: 2, bits: 8, format: 1, samples: 3, bytes: bytes).build().write(to: url)
+            let image = try ImageOpening.openNow(path: url.path)
+            XCTAssertEqual([image.width, image.height], [3, 2], name)
+            XCTAssertEqual(image.pixels, want, name)
+            XCTAssertEqual(image.notes, [TIFFImageReader.Note.colourRender], name)
+            XCTAssertTrue(image.source.contains("colour render shown as grey, not counts"), image.source)
+        }
+        XCTAssertFalse(TIFFImageReader.Refusal.unequalChannels(row: 1, column: 2).reason.contains("row"))
+    }
+
     // MARK: Refusals
 
     func testCompressionTilesPagesAndWhiteIsZeroAreRefusedByName() {
