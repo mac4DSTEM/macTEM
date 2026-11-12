@@ -268,7 +268,9 @@ struct ScanMapPane: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("patterns.map")
         .accessibilityLabel("Scan map")
-        .accessibilityValue(SEMMapPointer.spokenMap(rows: dataset.scanRows, columns: dataset.scanColumns, at: session.pinned))
+        .accessibilityValue(SEMMapPointer.spokenPinnedMap(rows: dataset.scanRows, columns: dataset.scanColumns, at: session.pinned,
+                                                           mean: session.meanIntensity(at: session.pinned),
+                                                           map: session.mapValue(at: session.pinned)))
         .accessibilityHint(ZoomPan.accessibilityHint)
         .zoomPanAccessibilityActions(zoomModel, box: box)
     }

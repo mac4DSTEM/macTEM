@@ -94,6 +94,28 @@ nonisolated final class MapsRoomTests: XCTestCase {
         XCTAssertNil(OrientationMaps.directionLabel(SIMD3(0.3, 0.7, 1)))
     }
 
+    /// #298: a cubic key says which colour means which direction, as mac4DSTEM's does ("001 red, 101 green, 111 blue"), from the TSL
+    /// key's own colour at each corner; a key that is not cubic has no labelled corners and keeps its title. Red before: no colour on a
+    /// label, no `keyCorners`, no `IPFKeySpeech`; VoiceOver heard "Colour key of Ni, IPF-Z" alone.
+    func testACubicKeySaysWhichColourIsWhichDirection() throws {
+        let group = try XCTUnwrap(PointGroup.named("m-3m"))
+        let want = ["[001]": "red", "[101]": "green", "[111]": "blue"]
+        let labels = OrientationMaps.keyImage(for: group).1
+        XCTAssertEqual(Dictionary(uniqueKeysWithValues: labels.map { ($0.text, $0.colour) }), want)
+        let corners = OrientationMaps.keyCorners(for: group)
+        XCTAssertEqual(Dictionary(uniqueKeysWithValues: corners.map { ($0.direction, $0.colour) }), want)
+        XCTAssertTrue(OrientationMaps.keyCorners(for: try XCTUnwrap(PointGroup.named("6/mmm"))).isEmpty, "a hexagonal key has no labelled corners")
+        XCTAssertEqual(OrientationMaps.colourWord(SIMD3(0.9, 0.1, 0.05)), "red")
+        XCTAssertEqual(OrientationMaps.colourWord(SIMD3(0.95, 0.95, 0.9)), "white")
+
+        let sorted = corners.sorted { $0.direction < $1.direction }
+        XCTAssertEqual(IPFKeySpeech.label(title: "Colour key of Ni, IPF-Z", corners: sorted),
+                       "Colour key of Ni, IPF-Z: [001] red, [101] green, [111] blue")
+        XCTAssertEqual(IPFKeySpeech.label(title: "Colour key of Ti, IPF-Z", corners: []), "Colour key of Ti, IPF-Z")
+        XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("MapsRoom.swift").contains("IPFKeySpeech.label("))
+        XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("IndexingRoom.swift").contains("IPFKeySpeech.label("))
+    }
+
     /// The unit cell the orientation pane draws: twelve edges, the farthest corner at 1; at the identity a cube's edges lie along the axes,
     /// turned 90° about z its x edges lie along y.
     func testTheUnitCellIsTheLatticeTurnedIntoTheSampleFrame() throws {

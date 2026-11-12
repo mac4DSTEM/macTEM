@@ -153,6 +153,8 @@ package final class IndexingSession {
     package private(set) var patternFailure: String?
     /// The IPF colour key of each point group in the phases, by orix name, once made.
     package private(set) var keyImages: [String: IPFKeyImage] = [:]
+    /// Each key's labelled corners and its colour at each, by point group name, for VoiceOver (`OrientationMaps.keyCorners`, #298).
+    package private(set) var keyCorners: [String: [(direction: String, colour: String)]] = [:]
     /// A dictionary run's best match at the pattern pane's point: the simulated pattern of its orientation on the run's detector.
     package let bestMatchPresentation = ImagePresentation()
     /// The point the best match on screen is of; nil when there is none (no dictionary result there).
@@ -1094,17 +1096,22 @@ package final class IndexingSession {
         let names = Array(wanted).sorted()
         Task { [weak self] in
             let made = await Self.makeKeys(names)
-            self?.keyImages.merge(made) { kept, _ in kept }
+            self?.keyImages.merge(made.images) { kept, _ in kept }
+            self?.keyCorners.merge(made.corners) { kept, _ in kept }
         }
     }
 
     @concurrent
-    nonisolated private static func makeKeys(_ names: [String]) async -> [String: IPFKeyImage] {
-        var out: [String: IPFKeyImage] = [:]
+    nonisolated private static func makeKeys(_ names: [String]) async
+        -> (images: [String: IPFKeyImage], corners: [String: [(direction: String, colour: String)]]) {
+        var images: [String: IPFKeyImage] = [:]
+        var corners: [String: [(direction: String, colour: String)]] = [:]
         for name in names {
-            if let group = PointGroup.named(name) { out[name] = IndexingColorKey.image(group) }
+            guard let group = PointGroup.named(name) else { continue }
+            images[name] = IndexingColorKey.image(group)
+            corners[name] = OrientationMaps.keyCorners(for: group)
         }
-        return out
+        return (images, corners)
     }
 
     // MARK: - The best match

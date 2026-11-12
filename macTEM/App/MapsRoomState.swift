@@ -146,6 +146,15 @@ final class MapsRoomState {
 
 // MARK: - Words
 
+/// An IPF colour key as VoiceOver hears it: its title, then each labelled corner and the key's colour there, so the colours carry words
+/// (#298): "Colour key of Ni, IPF-Z: [001] red, [101] green, [111] blue". A key without labelled corners (not cubic) is its title.
+nonisolated enum IPFKeySpeech {
+    static func label(title: String, corners: [(direction: String, colour: String)]) -> String {
+        let named = corners.filter { !$0.colour.isEmpty }
+        return named.isEmpty ? title : title + ": " + named.map { "\($0.direction) \($0.colour)" }.joined(separator: ", ")
+    }
+}
+
 nonisolated enum MapsRoomFormat {
     /// The methods a map figure of `layer` rests on, for the session report (D-SEM-104).
     static func methods(of layer: OrientationMapLayer) -> [SEMMethod] {
@@ -292,6 +301,24 @@ nonisolated enum MapsRoomFormat {
     static func histogramSpoken(_ kind: MapAnalysis.HistogramKind, histogram: AngleHistogram) -> String {
         let n = histogram.counts.reduce(0, +)
         return "Histogram of \(kind.rawValue), \(UnitDisplay.count(n, "value", "values")) in \(UnitDisplay.count(histogram.counts.count, "bin", "bins"))"
+    }
+
+    /// What the bars show, for VoiceOver (#299): the range, the tallest bin with its count, and the selected grains' ticks; "0 to 5°, most
+    /// values 0.5 to 0.625° (812), selected grain at 1.2°". "no values" for an empty histogram.
+    static func histogramSpeech(_ histogram: AngleHistogram, unit: String, ticks: [Double], locale: Locale = .autoupdatingCurrent) -> String {
+        let n = { (v: Double) in number(v, locale: locale) }
+        let space = unit == "°" ? "" : " "
+        let edges = histogram.edges, counts = histogram.counts
+        guard let low = edges.first, let high = edges.last, let top = counts.max(), top > 0, let k = counts.firstIndex(of: top) else {
+            return "no values"
+        }
+        var text = "\(n(low)) to \(n(high))\(space)\(unit), most values \(n(edges[k])) to \(n(edges[k + 1]))\(space)\(unit) (\(top))"
+        let marks = ticks.filter(\.isFinite)
+        if !marks.isEmpty {
+            text += ", " + (marks.count == 1 ? "selected grain at " : "selected grains at ")
+                + marks.map { "\(n($0))\(space)\(unit)" }.joined(separator: ", ")
+        }
+        return text
     }
 
     /// "102 grains · mean ECD 3.14 µm · ASTM 14.2", the length as the grain table writes it.

@@ -437,4 +437,18 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         XCTAssertFalse(session.textureStopped, "a map bound again forgets the stop")
         XCTAssertTrue(session.canComputeTexture)
     }
+
+    /// #299: the histogram speaks what its bars show: the range, the tallest bin with its count, and the selected grains' ticks.
+    /// Red before: the Canvas had a label and no value, so the shape and the ticks were never heard.
+    func testTheHistogramSpeaksItsPeakAndTheSelectedGrainsTicks() throws {
+        let en = Locale(identifier: "en_US")
+        let histogram = AngleHistogram(values: [0.2, 0.6, 0.7, 0.8, 1.9, 3.1], edges: [0, 1, 2, 3, 4])
+        XCTAssertEqual(MapsRoomFormat.histogramSpeech(histogram, unit: "°", ticks: [1.2], locale: en),
+                       "0 to 4°, most values 0 to 1° (4), selected grain at 1.2°")
+        XCTAssertEqual(MapsRoomFormat.histogramSpeech(histogram, unit: "µm", ticks: [1.2, .nan, 2.5], locale: en),
+                       "0 to 4 µm, most values 0 to 1 µm (4), selected grains at 1.2 µm, 2.5 µm")
+        XCTAssertEqual(MapsRoomFormat.histogramSpeech(AngleHistogram(values: [], edges: [0, 1]), unit: "°", ticks: []), "no values")
+        XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("MapsRoomAnalysis.swift")
+            .contains(".accessibilityValue(MapsRoomFormat.histogramSpeech(histogram, unit: unit, ticks: ticks))"))
+    }
 }

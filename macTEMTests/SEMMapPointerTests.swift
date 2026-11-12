@@ -95,9 +95,23 @@ nonisolated final class SEMMapPointerTests: XCTestCase {
         }
         XCTAssertEqual(SEMMapPointer.spokenMap(rows: 1, columns: 1, at: .origin), "1 row by 1 column, at row 0 column 0")
         XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("PatternsRoom.swift")
-            .contains(".accessibilityValue(SEMMapPointer.spokenMap(rows: dataset.scanRows, columns: dataset.scanColumns, at: session.pinned))"))
+            .contains(".accessibilityValue(SEMMapPointer.spokenPinnedMap(rows: dataset.scanRows, columns: dataset.scanColumns, at: session.pinned, mean: session.meanIntensity(at: session.pinned), map: session.mapValue(at: session.pinned)))"))
         XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("MapsRoom.swift")
             .contains(".accessibilityValue(SEMMapPointer.spokenMap(rows: shape.rows, columns: shape.columns, at: session.pinned))"))
         XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("SEMMapPick.swift").contains(".accessibilityValue(SEMMapPointer.spokenPosition(position))"))
+    }
+
+    /// #327: the Patterns room's scan map speaks the picked point's mean intensity and the shown virtual image's value with its
+    /// position, the numbers the status line shows over the map only while the pointer hovers, never grouped. Red before: no
+    /// `spokenPinnedMap`; the value was the position alone.
+    func testTheScanMapSpeaksThePickedPointsValues() {
+        let pick = EBSDPosition(row: 3, column: 4)
+        XCTAssertEqual(SEMMapPointer.spokenPinnedMap(rows: 60, columns: 80, at: pick, mean: 118.3, map: nil, locale: Locale(identifier: "en_US")),
+                       "60 rows by 80 columns, at row 3 column 4, mean 118.3")
+        XCTAssertEqual(SEMMapPointer.spokenPinnedMap(rows: 60, columns: 80, at: pick, mean: 118.3, map: ("r2 c1", 12034),
+                                                     locale: Locale(identifier: "de_DE")),
+                       "60 rows by 80 columns, at row 3 column 4, mean 118,3, r2 c1 12034")
+        XCTAssertEqual(SEMMapPointer.spokenPinnedMap(rows: 60, columns: 80, at: pick, mean: nil, map: nil),
+                       SEMMapPointer.spokenMap(rows: 60, columns: 80, at: pick), "before the mean pass ends, the position alone")
     }
 }

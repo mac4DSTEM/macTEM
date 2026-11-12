@@ -456,7 +456,9 @@ struct IndexingIPFKey: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(layer.title) colour key of point group \(groups.joined(separator: ", "))")
+        .accessibilityLabel(groups.map { name in
+            IPFKeySpeech.label(title: "\(layer.title) colour key of point group \(name)", corners: session.keyCorners[name] ?? [])
+        }.joined(separator: "; "))
     }
 }
 

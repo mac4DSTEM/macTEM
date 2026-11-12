@@ -217,6 +217,8 @@ package nonisolated enum OrientationMaps {
         package var text: String
         package var column: Double
         package var row: Double
+        /// The key's own colour at the corner as a word ("red" at [001] of m-3m), for VoiceOver (#298).
+        package var colour: String = ""
     }
 
     /// The pixels across the key image's longer side.
@@ -237,9 +239,31 @@ package nonisolated enum OrientationMaps {
         for vertex in key.sector.vertices {
             guard let text = directionLabel(vertex), let xy = projection.vectorToXY([vertex]).first else { continue }
             labels.append(KeyLabel(text: text, column: (xy.x - extent.x.lowerBound) / image.step,
-                                   row: Double(image.height - 1) - (xy.y - extent.y.lowerBound) / image.step))
+                                   row: Double(image.height - 1) - (xy.y - extent.y.lowerBound) / image.step,
+                                   colour: key.color(of: [vertex]).first.map(colourWord) ?? ""))
         }
         return (image, labels)
+    }
+
+    /// The labelled corners of `group`'s key and the key's colour at each as a word, without the image: "[001]" red, "[101]" green,
+    /// "[111]" blue for m-3m; none for a group that is not cubic (`keyImage` labels only those).
+    package static func keyCorners(for group: PointGroup) -> [(direction: String, colour: String)] {
+        let key = DirectionColorKeyTSL(group)
+        guard key.symmetry.system == "cubic" else { return [] }
+        return key.sector.vertices.compactMap { vertex in
+            guard let text = directionLabel(vertex), let rgb = key.color(of: [vertex]).first else { return nil }
+            return (text, colourWord(rgb))
+        }
+    }
+
+    /// The nearest of eight plain colour words to `rgb` (components in [0, 1]): red, green, blue, yellow, cyan, magenta, white, black.
+    package static func colourWord(_ rgb: SIMD3<Double>) -> String {
+        let named: [(String, SIMD3<Double>)] = [
+            ("red", [1, 0, 0]), ("green", [0, 1, 0]), ("blue", [0, 0, 1]), ("yellow", [1, 1, 0]),
+            ("cyan", [0, 1, 1]), ("magenta", [1, 0, 1]), ("white", [1, 1, 1]), ("black", [0, 0, 0]),
+        ]
+        func distance(_ c: SIMD3<Double>) -> Double { let d = c - rgb; return (d * d).sum() }
+        return named.min { distance($0.1) < distance($1.1) }?.0 ?? ""
     }
 
     /// "[101]" for a direction whose components are small whole multiples of its smallest non-zero one (a bar over a negative index
