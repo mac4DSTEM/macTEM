@@ -278,6 +278,7 @@ struct MapPane: View {
         .accessibilityLabel("Orientation map, \(session.layer.title)")
         .accessibilityValue(SEMMapPointer.spokenMap(rows: shape.rows, columns: shape.columns, at: session.pinned))
         .accessibilityHint(ZoomPan.accessibilityHint)
+        .zoomPanAccessibilityActions(zoomModel, box: box)
     }
 
     /// A click, a drag or the handle picks `point`; the live pattern pane follows when the map has patterns.

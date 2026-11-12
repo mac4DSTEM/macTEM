@@ -270,6 +270,7 @@ struct ScanMapPane: View {
         .accessibilityLabel("Scan map")
         .accessibilityValue(SEMMapPointer.spokenMap(rows: dataset.scanRows, columns: dataset.scanColumns, at: session.pinned))
         .accessibilityHint(ZoomPan.accessibilityHint)
+        .zoomPanAccessibilityActions(zoomModel, box: box)
     }
 
     /// The status line's readout of the position under the pointer: hovering reads, it never moves the pattern (D-SEM-110).
@@ -393,6 +394,7 @@ struct LivePatternPane: View {
         // The detector pixel under the pointer while it is over the pattern (the status line's words), else which pattern is shown.
         .modifier(ReadoutAccessibilityValue(readout: { state.patternReadout }, fallback: title))
         .accessibilityHint(ZoomPan.accessibilityHint)
+        .zoomPanAccessibilityActions(zoomModel, box: box)
     }
 
     /// The detector pixel under the pointer and its stored value (the raw range maps the normalised copy back to counts), marked as the
