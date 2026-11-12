@@ -444,7 +444,8 @@ struct MapsKeyPane: View {
             .frame(width: LayoutPolicy.mapsKeyWidth + 2 * inset, height: height + 16, alignment: .topLeading)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Colour key of \(key.name), IPF-\(direction.rawValue.uppercased())")
+        .accessibilityLabel(IPFKeySpeech.label(title: "Colour key of \(key.name), IPF-\(direction.rawValue.uppercased())",
+                                               corners: key.labels.map { ($0.text, $0.colour) }))
         .accessibilityIdentifier("maps.key.\(key.phaseID)")
     }
 

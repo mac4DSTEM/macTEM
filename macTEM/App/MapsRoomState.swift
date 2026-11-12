@@ -146,6 +146,15 @@ final class MapsRoomState {
 
 // MARK: - Words
 
+/// An IPF colour key as VoiceOver hears it: its title, then each labelled corner and the key's colour there, so the colours carry words
+/// (#298): "Colour key of Ni, IPF-Z: [001] red, [101] green, [111] blue". A key without labelled corners (not cubic) is its title.
+nonisolated enum IPFKeySpeech {
+    static func label(title: String, corners: [(direction: String, colour: String)]) -> String {
+        let named = corners.filter { !$0.colour.isEmpty }
+        return named.isEmpty ? title : title + ": " + named.map { "\($0.direction) \($0.colour)" }.joined(separator: ", ")
+    }
+}
+
 nonisolated enum MapsRoomFormat {
     /// The methods a map figure of `layer` rests on, for the session report (D-SEM-104).
     static func methods(of layer: OrientationMapLayer) -> [SEMMethod] {
