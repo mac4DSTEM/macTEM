@@ -165,8 +165,12 @@ package nonisolated enum FileRouting {
             if path.lowercased().hasSuffix(".dm4"), let objects = try? DM4Experiment.list(path: path) {
                 found.edsSpectrumImage = SpectrumImageOpener.kind(ofFileAt: path) != .other
                 found.eelsSpectrumImage = objects.contains { $0.role == .eels }
-                // A file of spectrum cubes alone has no image to draw (a GMS thumbnail or survey is one).
-                found.image = objects.isEmpty || objects.contains { $0.role != .eels && $0.role != .eds }
+                // The Image room takes the file only when it holds an image the image reader opens (`primaryImageObject`: a survey or
+                // a scan signal, not a thumbnail, a spectrum or a picked spectrum beside a cube). A spectrum image that opened in its room
+                // raised "can't open this file" from the image path too, once per file (#553). A file no room takes still goes to the
+                // image reader, whose refusal says in words what it holds.
+                let roomTakesIt = found.edsSpectrumImage || found.eelsSpectrumImage
+                found.image = objects.isEmpty || ImageOpening.primaryImageObject(in: objects) != nil || !roomTakesIt
                 found.scan = scan(of: objects)
             }
             return found
