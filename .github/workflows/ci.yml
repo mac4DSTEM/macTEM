@@ -1,7 +1,7 @@
 # Adapted from mac4DSTEM (.github/workflows/ci.yml).
 #
-# CI — what a public checkout can reproduce, on every push and pull request. Every job here runs on GitHub's own
-# runners (macos-26 or ubuntu-latest), never on the org's Mac, so no PR waits on that Mac being awake (SEM program,
+# CI — what a public checkout can reproduce, on every pull request (a push to main: MAIN below). Every job here runs on
+# GitHub's own runners (macos-26 or ubuntu-latest), never on the org's Mac, so no PR waits on that Mac being awake (SEM program,
 # 2026-11-06; docs/decisions.md). The Mac runner keeps only what needs a screen: the UI journeys and their screenshots
 # (.github/workflows/ui.yml, nightly and by hand, queued while the Mac is offline).
 #
@@ -38,7 +38,13 @@
 #   * `tools/run-tests.sh ui-build` — the UI journeys (macTEMUITests) compiled and not run. On a pull request
 #     ui-build.yml runs it, for the paths that can break the journeys' build, and it is not a required check there, so a
 #     pull request can merge with it red; this run is what then says main no longer compiles them. Not a required check.
-# Every other job skips the schedule event. Dispatch CI on a branch to run them before merging, and on main before a tag.
+# The nightly also runs `core` and `inventory`; the Linux jobs skip the schedule event. Dispatch CI on a branch to run
+# them before merging, and on main before a tag.
+#
+# MAIN: a push to main runs only the Linux jobs. `unit`, `core` and `inventory` ran on the pull request that made the
+# commit; running them again on main took the same macOS slots a second time, and GitHub gives the org five at once
+# (12 Nov 2026: PR `unit` jobs waited 13-22 min for a slot). They run on tags, by hand and in the nightly, which is
+# where a break between two PRs that each passed alone shows.
 #
 # XCODE: every macOS job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
 # change the toolchain on an unchanged tree.
@@ -70,7 +76,7 @@ on:
     tags: ['*']
   pull_request:
   workflow_dispatch:
-  # Nightly: the unit job with the SEM reference data, `scientific`, `release-build` and `ui-build` (every other job skips the schedule event).
+  # Nightly: the unit job with the SEM reference data, `scientific`, `release-build` and `ui-build`, `core`, `inventory` (the Linux jobs skip it).
   schedule:
     - cron: "0 1 * * *"
 
@@ -93,6 +99,8 @@ env:
 jobs:
   unit:
     name: unit (XCTest)
+    # Not on a push to main: the PR run tested the change; nightly and tags run it (MAIN in the header).
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -247,7 +255,8 @@ jobs:
 
   inventory:
     name: inventory (repo review)
-    if: github.event_name != 'schedule'
+    # Not on a push to main: the PR run tested the change; nightly and tags run it (MAIN in the header).
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
     runs-on: macos-26
     timeout-minutes: 10
     steps:
@@ -271,7 +280,8 @@ jobs:
 
   core:
     name: core (TEMCore + TEMSession package build)
-    if: github.event_name != 'schedule'
+    # Not on a push to main: the PR run tested the change; nightly and tags run it (MAIN in the header).
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
     runs-on: macos-26
     timeout-minutes: 30
     steps:
