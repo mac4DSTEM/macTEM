@@ -807,7 +807,7 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(EELSMapsComposition.aspect(nx: nil, ny: nil), 1)
         let room = squeezed(try source("macTEM/UI/EELSRoom.swift"))
         XCTAssertTrue(room.contains("aspect: CGFloat(aspect)"), "AnchoredMapsBlock fits the tiles to the scan")
-        XCTAssertTrue(room.contains("EELSMapsComposition.aspect(nx: image?.nx, ny: image?.ny)"))
+        XCTAssertTrue(room.contains("EELSMapsComposition.aspect(nx: session.source?.image.nx, ny: session.source?.image.ny)"))
         XCTAssertTrue(room.contains("coloring: .colormap(.gray)"), "a flat map is grey, not the diverging scale's white")
         XCTAssertTrue(room.contains("detail: tile.detailText"))
     }
