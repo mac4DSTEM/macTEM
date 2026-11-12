@@ -365,9 +365,11 @@ struct FFTRegionOverlay: View {
 // MARK: - The pane
 
 struct FFTSourceImagePane: View {
-    let image: CalibratedImage
-    let canvas: CanvasPixels
     let item: OpenItem
+    /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
+    /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
+    private var canvas: CanvasPixels { item.presentation.canvas ?? ImagePane.blankCanvas }
     /// The room's keys and View > Zoom are for the pane pressed last; any press in this pane says it is this one (`FFTPanePress`).
     @Binding var keyPane: FFTKeyPane?
     @State private var zoomModel = PaneZoomModel()

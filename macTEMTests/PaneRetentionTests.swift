@@ -26,6 +26,19 @@ nonisolated final class PaneRetentionTests: XCTestCase {
         }
     }
 
+    /// Every room's panes, the same rule (macTEM#574): the FFT, Results and Diffraction rooms stored the image too.
+    func testNoRoomPaneStoresPixels() throws {
+        let views = [("FFTRoom", "macTEM/UI/FFTRoom.swift"), ("FFTSourceImagePane", "macTEM/UI/FFTSourceImagePane.swift"),
+                     ("ResultsRoom", "macTEM/UI/ResultsRoom.swift"), ("ResultsTable", "macTEM/UI/ResultsRoom.swift"),
+                     ("DiffractionRoom", "macTEM/UI/DiffractionRoom.swift"), ("DiffractionHeader", "macTEM/UI/DiffractionRoom.swift"),
+                     ("DiffractionPatternPane", "macTEM/UI/DiffractionRoom.swift"), ("DiffractionZoomCommands", "macTEM/UI/DiffractionRoom.swift")]
+        for (type, path) in views {
+            let stored = Self.storedProperties(of: type, in: try Self.source(path))
+            XCTAssertFalse(stored.isEmpty, "\(type)'s properties were found")
+            XCTAssertTrue(stored.allSatisfy { !$0.contains("CalibratedImage") && !$0.contains("CanvasPixels") }, "\(type): \(stored)")
+        }
+    }
+
     func testTheImagePaneStoresNoPixels() throws {
         let stored = Self.storedProperties(of: "ImagePane", in: try Self.source("macTEM/UI/ImagePane.swift"))
         XCTAssertFalse(stored.isEmpty, "the pane's properties were found")
