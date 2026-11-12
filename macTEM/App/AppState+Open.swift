@@ -178,6 +178,7 @@ extension AppState {
     func presentRefusals(_ sentences: [String]) {
         guard !sentences.isEmpty else { return }
         errorMessage = sentences.joined(separator: "\n")
+        errorTitle = ErrorDetail.openTitle(files: sentences.count)
         statusText = "Error: " + sentences.joined(separator: " ")
     }
 
