@@ -181,6 +181,27 @@ nonisolated final class EBSDH5ReaderTests: XCTestCase {
         }
     }
 
+    /// AZtec stores H5OINA patterns LZF-compressed (HDF5 filter 32000, h5py's), which libhdf5 lacks; FormatoKit 0.14.0 decodes it (#524).
+    /// ebsd-oxford-lzf.h5oina is ebsd-oxford.h5oina with every dataset LZF-compressed by h5py's encoder
+    /// (tools/parity/sem-readers/make_h5oina_lzf_fixture.py), so it must read value for value as the uncompressed file.
+    /// Red under FormatoKit 0.12.1: the filter is not available and the patterns, the background and the Euler angles do not read.
+    func testLZFCompressedOxfordFileReadsAsTheUncompressedOne() throws {
+        let plain = try EBSDH5Reader.read(url: url("ebsd-oxford", "h5oina"))
+        let lzf = try EBSDH5Reader.read(url: url("ebsd-oxford-lzf", "h5oina"))
+        XCTAssertEqual(EBSDH5Reader.sniff(url: try url("ebsd-oxford-lzf", "h5oina")), .oxfordH5OINA)
+        XCTAssertEqual(lzf.format, plain.format)
+        XCTAssertEqual([lzf.scanRows, lzf.scanColumns, lzf.patternRows, lzf.patternColumns],
+                       [plain.scanRows, plain.scanColumns, plain.patternRows, plain.patternColumns])
+        XCTAssertEqual(lzf.dataType, plain.dataType)
+        XCTAssertEqual(sha256(try lzf.allPatterns().bytes), sha256(try plain.allPatterns().bytes), "LZF patterns")
+        let reader = try EBSDPatternReader(lzf)
+        let plainReader = try EBSDPatternReader(plain)
+        XCTAssertEqual(try reader.pattern(row: lzf.scanRows - 1, column: 0).doubles(),
+                       try plainReader.pattern(row: plain.scanRows - 1, column: 0).doubles(), "one LZF pattern")
+        XCTAssertEqual(lzf.staticBackground?.doubles(), plain.staticBackground?.doubles(), "LZF static background")
+        XCTAssertEqual(lzf.crystalMap?.euler, plain.crystalMap?.euler, "LZF Euler angles")
+    }
+
     func testKikuchipyFileHoldsTwoScansAndTheSecondReadsByName() throws {
         let url = try url("ebsd-kikuchipy-h5ebsd", "h5")
         let first = try EBSDH5Reader.read(url: url)
@@ -191,7 +212,7 @@ nonisolated final class EBSDH5ReaderTests: XCTestCase {
         XCTAssertEqual(second.patterns.datasetPath, "/Scan 2/EBSD/Data/patterns")
         XCTAssertEqual([second.scanRows, second.scanColumns], [3, 3])
         XCTAssertThrowsError(try EBSDH5Reader.read(url: url, scanGroup: "Scan 3")) { error in
-            XCTAssertTrue((error as? EBSDReadError)?.text.contains("Scan 'Scan 3' is not among the scans") == true, "\(error)")
+            XCTAssertEqual((error as? EBSDReadError)?.text, "ebsd-kikuchipy-h5ebsd.h5 has no scan named Scan 3; its scans are Scan 1, Scan 2.")
         }
     }
 
@@ -246,7 +267,7 @@ nonisolated final class EBSDH5ReaderTests: XCTestCase {
         XCTAssertNil(EBSDH5Reader.sniff(url: velox))
         XCTAssertThrowsError(try EBSDH5Reader.read(url: velox)) { error in
             let text = (error as? EBSDReadError)?.text ?? ""
-            XCTAssertTrue(text.contains("not an h5ebsd file"), text)
+            XCTAssertTrue(text.contains("not an EBSD file"), text)
         }
         XCTAssertNil(EBSDH5Reader.format(ofManufacturer: "Thermo"))
         XCTAssertEqual(EBSDH5Reader.format(ofManufacturer: "Oxford Instruments"), .oxfordH5OINA)

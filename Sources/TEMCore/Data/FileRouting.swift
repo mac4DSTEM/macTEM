@@ -23,7 +23,8 @@ package nonisolated struct FileInventory: Equatable, Sendable {
     /// An EBSD or TKD pattern dataset (an h5ebsd file of kikuchipy, Bruker, EDAX or Oxford; EDAX `.up1`/`.up2` or Oxford `.ebsp` with the map
     /// next to it): the Patterns room.
     package var ebsdPatterns = false
-    /// An orientation map on its own (an `.ang` or `.ctf` without the pattern file of its name next to it): the Maps room. A map with its
+    /// An orientation map on its own (an `.ang` or `.ctf` without the pattern file of its name next to it, an Oxford `.h5oina` that holds
+    /// no patterns, #513, or orix's own `.h5`, #514): the Maps room. A map with its
     /// patterns is `ebsdPatterns`, and the Maps room shows it through the dataset.
     package var orientationMap = false
     /// Set instead of the above when the file is not opened here: the sentence says what it is and where it goes.
@@ -88,7 +89,7 @@ package nonisolated enum FileRouting {
         return openableKinds.flatMap { $0.extensions }.filter { seen.insert($0).inserted }
     }()
 
-    /// What macTEM opens, in words, from `openableKinds`, each extension once in its kind: "macTEM opens TEM and SEM images (.dm4, .dm3,
+    /// What macEM opens, in words, from `openableKinds`, each extension once in its kind: "macEM opens TEM and SEM images (.dm4, .dm3,
     /// …), EDS and EELS spectra and spectrum images (.emd, .dm4, …), and EBSD patterns and orientation maps (.h5, …)."
     package static let openableSentence: String = {
         let kinds = openableKinds.map { entry -> String in
@@ -98,7 +99,7 @@ package nonisolated enum FileRouting {
         }
         guard let last = kinds.last else { return "" }
         let head = kinds.dropLast().joined(separator: ", ")
-        return "macTEM opens " + (head.isEmpty ? last : head + ", and " + last) + "."
+        return "macEM opens " + (head.isEmpty ? last : head + ", and " + last) + "."
     }()
 
     /// What a drop on the window asks for: the files of an extension an Open routes (`accepted`, in the drop's order; a dragged web
@@ -122,6 +123,9 @@ package nonisolated enum FileRouting {
     /// only): run it off the main actor.
     package static func inventory(path: String) -> FileInventory {
         let name = (path as NSString).lastPathComponent
+        // A file that cannot be read at all is not judged by its format: its bytes were never seen (a sandboxed app reads the files a
+        // person picks, drops or opens from the Finder, and those it holds a bookmark for; a path handed over any other way is closed).
+        if let why = accessRefusal(path: path) { return FileInventory(refusal: why) }
         // SEM-EDS map files (Bruker, EDAX, JEOL; FormatoKit's sniff knows none of them), by extension: a spectrum image or one spectrum for
         // the EDS room, a JEOL image or element map for the Image room. The readers say in words what a file lacks when it is opened.
         if SEMEDSOpening.isImageFile(path: path) { return FileInventory(image: true) }
@@ -131,7 +135,7 @@ package nonisolated enum FileRouting {
         // refused in the reader's words.
         if HyperSpySpectrumFile.isHyperSpyFile(path: path) {
             do { _ = try HyperSpySpectrumFile.header(path: path); return FileInventory(singleSpectrum: true) } catch {
-                return FileInventory(refusal: (error as? LocalizedError)?.errorDescription ?? "\(name) is not a spectrum macTEM opens.")
+                return FileInventory(refusal: (error as? LocalizedError)?.errorDescription ?? "\(name) is not a spectrum macEM opens.")
             }
         }
         // A vendor's EBSD file (EDAX `.up1`/`.up2`/`.ang`, Oxford `.ebsp`/`.ctf`): FormatoKit's sniff knows none of them; the pattern file's header
@@ -143,11 +147,17 @@ package nonisolated enum FileRouting {
             return FileInventory(ebsdPatterns: true)
         }
         let kind = FormatoLoader.sniff(path: path)
-        // An h5ebsd file (kikuchipy, Bruker, EDAX, Oxford H5OINA): FormatoKit's sniff knows `.h5` as HDF5 and `.h5oina` not at all, so the
-        // EBSD reader's own sniff decides for both (one HDF5 open). A `.h5` that is neither an EBSD scan nor a Velox file keeps its refusal.
+        // An h5ebsd file (kikuchipy, Bruker, EDAX, Oxford H5OINA) or orix's own map file: FormatoKit's sniff knows `.h5` as HDF5 and
+        // `.h5oina` not at all, so the EBSD reader's `content` decides for both. A `.h5` that is neither an EBSD file nor a Velox file
+        // keeps its refusal. A map without patterns (AZtec's H5OINA map export, #513; orix's file, #514) opens in the Maps room, as a
+        // `.ctf` alone does; a file of a known maker that holds neither (an EDS-only H5OINA) is refused in its own sentence.
         if kind == .hdf5 || (kind == .unknown && EBSDOpening.h5Extensions.contains(url.pathExtension.lowercased())),
-           EBSDH5Reader.sniff(url: url) != nil {
-            return FileInventory(ebsdPatterns: true)
+           let found = EBSDH5Reader.content(url: url) {
+            switch found {
+            case .patterns: return FileInventory(ebsdPatterns: true)
+            case .map: return FileInventory(orientationMap: true)
+            case .refused(let sentence): return FileInventory(refusal: sentence)
+            }
         }
         switch kind {
         case .digitalMicrograph:
@@ -174,11 +184,28 @@ package nonisolated enum FileRouting {
             if !found.image, !found.edsSpectrumImage, !found.eelsSpectrumImage, !found.singleSpectrum { found.image = true }
             return found
         case .empad, .merlinMIB, .hdf5:
-            return FileInventory(refusal: "\(name) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: macTEM opens images, spectra and EBSD patterns; open it in mac4DSTEM.")
+            return FileInventory(refusal: "\(name) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: macEM opens images, spectra and EBSD patterns; open it in mac4DSTEM.")
         case .unknown:
             // A `.dat` whose `Setting.txt` is there but may not be read (the sandbox granted the file, not its folder) says so.
             if let why = NORDIFOpening.unreadableSettingsRefusal(url) { return FileInventory(refusal: why) }
-            return FileInventory(refusal: "\(name) is not a format macTEM opens (or its extension and its first bytes disagree).")
+            return FileInventory(refusal: "\(name) is not a format macEM opens (or its extension and its first bytes disagree).")
+        }
+    }
+
+    /// Why the file at `path` cannot be read at all, asked before its format: it is gone (moved, renamed or deleted), or macTEM was not
+    /// given it (the sandbox: a path that came neither from the Open panel, a drop, the Finder nor a bookmark). Nil when it opens for
+    /// reading, and for any other failure, which the format's own reader then words. One `open(2)`, closed at once.
+    package static func accessRefusal(path: String) -> String? {
+        let name = (path as NSString).lastPathComponent
+        let descriptor = Darwin.open(path, O_RDONLY)
+        if descriptor >= 0 { Darwin.close(descriptor); return nil }
+        switch errno {
+        case ENOENT, ENOTDIR:
+            return "\(name) is no longer where it was (moved, renamed or deleted)."
+        case EACCES, EPERM:
+            return "macEM was not given access to \(name): open it with File > Open…, drop it on the window or open it from the Finder."
+        default:
+            return nil
         }
     }
 

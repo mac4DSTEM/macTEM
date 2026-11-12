@@ -1,5 +1,5 @@
 {
-  "originHash" : "d9043bc7a12397bcf47605cca1d4b5f1aceea785a5ce25688958d866bde77a40",
+  "originHash" : "7641c314f41da4a94eddf9c7bfbbba1c4d042ddbdfa3f3c0805707c49ec91b26",
   "pins" : [
     {
       "identity" : "diffractokit",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/FormatoKit",
       "state" : {
-        "revision" : "5103e008420ec72039034bc6add17c8bfbcabfb3",
-        "version" : "0.12.1"
+        "revision" : "24f63c36eda72a7aacb167b218da7206aa1f8d01",
+        "version" : "0.15.0"
       }
     },
     {
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/MacEMUI",
       "state" : {
-        "revision" : "7abd010de8868cbe7be326ba96542f7ff9ae9bac",
-        "version" : "0.5.1"
+        "revision" : "b8d3c7c7dc868ab5c306dc427700553c69beaf6a",
+        "version" : "0.6.0"
       }
     },
     {

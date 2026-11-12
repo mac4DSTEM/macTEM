@@ -3,7 +3,7 @@ Age rating questionnaire (App Store Connect)
 Features
 - Parental Controls: No
 - Age Assurance: No
-- Unrestricted Web Access: No (the app makes no network connection)
+- Unrestricted Web Access: No (the app connects to no other computer; the agent door listens on this Mac only)
 - User-Generated Content: No
 - Messaging and Chat: No
 - Advertising: No

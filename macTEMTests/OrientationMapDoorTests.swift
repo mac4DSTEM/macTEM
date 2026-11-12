@@ -114,14 +114,14 @@ nonisolated final class OrientationMapDoorTests: XCTestCase {
         XCTAssertEqual(noPhases, "no-phases.ctf: its header has no `Phases` line with a count of phases.")
     }
 
-    /// Any other extension, or none, is not an orientation map: the sentence names the file and the two that are.
+    /// Any other extension, or none, is not an orientation map: the sentence names the file and the four that are.
     func testAFileThatIsNeitherANGNorCTFIsRefusedByName() async throws {
         let folder = try scratchFolder()
         let text = try write("x\n", as: "x.txt", in: folder)
         let textRefusal = await refusal(of: text)
-        XCTAssertEqual(textRefusal, "x.txt is not an orientation map (.ang or .ctf).")
+        XCTAssertEqual(textRefusal, "x.txt is not an orientation map (.ang, .ctf, .h5oina or orix's .h5).")
         let bare = try write(Self.tslANG(grid: "SqrGrid"), as: "scan", in: folder)
         let bareRefusal = await refusal(of: bare)
-        XCTAssertEqual(bareRefusal, "scan is not an orientation map (.ang or .ctf).")
+        XCTAssertEqual(bareRefusal, "scan is not an orientation map (.ang, .ctf, .h5oina or orix's .h5).")
     }
 }

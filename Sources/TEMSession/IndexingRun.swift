@@ -41,10 +41,12 @@ package nonisolated struct IndexingRun: Sendable {
     package internal(set) var seconds: Double?
     /// The run was stopped: its indexed rows stay, the rest of the map shows the navigator.
     package internal(set) var wasStopped = false
-    /// A Hough run's libraries once built (the Bands table's families, the .ang's phases, the method record).
+    /// A Hough run's libraries once built (the Bands table's families, the .ang's phases, the method record); without the patterns
+    /// once the run has ended (`releasePatterns()`).
     package internal(set) var houghPlan: IndexingPlan?
     /// A dictionary run's plans once built, one per phase it indexed against in `result.phases` order (D-SEM-98): each phase's master
-    /// pattern, orientations, detector and energy. Empty before they are built and for Hough.
+    /// pattern, orientations, detector and energy; without the patterns once the run has ended. Empty before they are built and for
+    /// Hough.
     package internal(set) var dictionaryPlans: [DictionaryIndexingPlan] = []
     /// A refinement's record (the Dictionary run it refined, its settings, its PCs; D-SEM-109); nil for a run as indexed.
     package internal(set) var refinement: IndexingRefinementRecord?
@@ -58,6 +60,13 @@ package nonisolated struct IndexingRun: Sendable {
     }
 
     package var method: IndexingMethod { result.method }
+
+    /// The plans let go of the patterns they read (#427): once the run has ended nothing reads them, and the Patterns room's
+    /// processed scan they held would stay in memory beside a newer one.
+    package mutating func releasePatterns() {
+        houghPlan?.releasePatterns()
+        for i in dictionaryPlans.indices { dictionaryPlans[i].releasePatterns() }
+    }
 
     /// "Hough", "Dictionary", "Dictionary · Refined".
     package var title: String { refinement == nil ? method.title : "\(method.title) · Refined" }

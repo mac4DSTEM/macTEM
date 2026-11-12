@@ -61,7 +61,7 @@ STEM_IMAGE = ("digitalmicrograph/2D/test_STEM_image.dm3",
 
 UM = "µm"                 # the DM files' micro sign, U+00B5
 ANGSTROM = "Å"            # U+00C5
-SOFTWARE = "macTEM 0.1.0 (1)"
+SOFTWARE = "macEM 0.1.0 (1)"
 VALIDATION_PNG = ("display rendering: window, gamma, 8-bit colour, not intensities; "
                   "the scale bar's length checked against its label (export-parity)")
 LINEAGE_PNG = "none — marks carry no lineage id; the marks' parameters stand in"
@@ -1102,7 +1102,7 @@ def analytic_profile(fn, start, end, width):
 
 ANALYTIC = {"ramp": ramp_value, "dm4": lambda r, c: 1000 * r + c - 12000}
 HEADER_KEYS = ["software", "file", "object", "image", "start", "end", "width", "samples", "length", "x scale", "y scale",
-               "position", "shown in macTEM as", "method", "notes", "validation", "lineage", "numbers"]
+               "position", "shown in macEM as", "method", "notes", "validation", "lineage", "numbers"]
 
 
 def check_csv(rep, stats, ld, c):
@@ -1153,10 +1153,10 @@ def check_csv(rep, stats, ld, c):
         key, sep, value = line[2:].partition(": ")
         kv.append((key, value) if sep else (key, None))
     bad = []
-    if not header or header[0] != "# macTEM line profile":
+    if not header or header[0] != "# macEM line profile":
         bad.append(f"first line {header[:1]!r}")
     keys = [k for k, _ in kv[1:]]
-    want_keys = [k for k in HEADER_KEYS if k != "shown in macTEM as" or c["shown"]]
+    want_keys = [k for k in HEADER_KEYS if k != "shown in macEM as" or c["shown"]]
     if keys != want_keys:
         bad.append(f"keys {keys} vs {want_keys}")
     d = dict(kv[1:])
@@ -1192,9 +1192,9 @@ def check_csv(rep, stats, ld, c):
                 or bits(float(m.group(3))) != bits(a["origin"]):
             bad.append(f"{name_}: {value!r} vs {a!r}")
     if c["shown"]:
-        m = re.fullmatch(r"(.*) \(x (\S+)\)", d.get("shown in macTEM as") or "")
+        m = re.fullmatch(r"(.*) \(x (\S+)\)", d.get("shown in macEM as") or "")
         if not m or m.group(1) != sanitize(c["shown"]["unit"]) or bits(float(m.group(2))) != bits(c["shown"]["factor"]):
-            bad.append(f"shown: {d.get('shown in macTEM as')!r} vs {c['shown']!r}")
+            bad.append(f"shown: {d.get('shown in macEM as')!r} vs {c['shown']!r}")
     if not rows or rows[0] != [f"position ({sanitize(unit)})", "value"]:
         bad.append(f"column header {rows[:1]!r} vs {[f'position ({sanitize(unit)})', 'value']!r}")
     if prof["unit"] != unit or prof["isPhysical"] != physical or prof["width"] != c["width"]:
@@ -1308,7 +1308,7 @@ def check_results(rep, stats, ld, c):
     problems = []
     # a file with reader notes quotes them after every claim (header lines and the validation column)
     suffix = reader_note(ld.identity(c["image"])["notes"])
-    if header[0] != "# macTEM results":
+    if header[0] != "# macEM results":
         problems.append(f"first line {header[0]!r}")
     if got_validation != {p: sentences[p] + suffix for p in present}:
         problems.append(f"validation lines {sorted(got_validation)} for products {present}, or a sentence that is not the producer's constant")

@@ -78,7 +78,7 @@ package nonisolated enum ANGReader {
 
     package static func read(text: String, url: URL) throws -> ANGMap {
         let name = url.lastPathComponent
-        let lines = text.split(omittingEmptySubsequences: false, whereSeparator: { $0 == "\n" || $0 == "\r\n" }).map(String.init)
+        let lines = TextLines.split(text).map(String.init)   // LF, CRLF and CR, as Python's `open()` reads them for orix (#518)
         // _get_header: the leading lines that start with '#', at most 1000, each rstripped.
         var headerLines: [String] = []
         for line in lines.prefix(1000) {

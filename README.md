@@ -1,10 +1,10 @@
-<p align="center"><img src="docs/banner.png" width="100%" alt="macTEM: TEM images, spectra and diffraction, native on Apple silicon"></p>
+<p align="center"><img src="docs/banner.png" width="100%" alt="macEM: TEM and SEM images, spectra and diffraction, native on Apple silicon"></p>
 
-# macTEM
+# macEM
 
 TEM and SEM images, EDS and EELS spectrum images, electron diffraction and EBSD, analysed natively on the Mac.
 
-macTEM is the companion to [mac4DSTEM](https://github.com/mac4DSTEM/mac4DSTEM). Both are free, open source and built for
+macEM is the companion to [mac4DSTEM](https://github.com/mac4DSTEM/mac4DSTEM). Both are free, open source and built for
 Apple silicon.
 
 ## Download
@@ -13,10 +13,13 @@ Get the signed and notarised DMG from the [latest release](https://github.com/ma
 macOS 26 or later on an Apple silicon Mac. The SEM rooms and SEM files below are not in a release yet: to use them
 now, build the app yourself.
 
+Up to 1.3 the app was called macTEM. To update, quit macTEM, drag macEM to Applications, then move macTEM to the Trash.
+Your recent files, the folders you allowed and your `.mactem.h5` session files carry over.
+
 ## What it does
 
 Open a file and work through the sidebar. It lists five workspaces, Imaging, Spectroscopy, Diffraction, EBSD and Results,
-and under the one in front its rooms. What the file holds decides the room it opens in. macTEM reads:
+and under the one in front its rooms. What the file holds decides the room it opens in. macEM reads:
 
 - **TEM**: DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIFF and MRC images; EDS spectrum images from Velox and GMS,
   EELS spectrum images from GMS, and single .msa spectra.
@@ -26,7 +29,7 @@ and under the one in front its rooms. What the file holds decides the room it op
   HyperSpy .hspy file.
 - **EBSD and TKD patterns**: h5ebsd from kikuchipy, Bruker, EDAX and Oxford Instruments (.h5oina), EDAX .up1 and .up2,
   Oxford .ebsp and NORDIF Pattern.dat.
-- **Orientation maps**: .ang and .ctf.
+- **Orientation maps**: .ang, .ctf, and Oxford .h5oina saved without patterns (AZtec's map export).
 
 TKD patterns are read and indexed as EBSD patterns are; no TKD dataset has been checked in the app yet.
 
@@ -59,8 +62,8 @@ The rooms:
   or .ctf.
 - **Maps**: IPF and phase maps with their colour keys; grains, and grain and phase boundaries over the map; grain size
   (mean and area-weighted ECD, mean lineal intercept, ASTM E112); KAM, GOS and GND; Schmid factors and slip traces; pole
-  figures, ODF sections and histograms. A map comes from an .ang or .ctf file, from a pattern file that carries one, or
-  from the Indexing room.
+  figures, ODF sections and histograms. A map comes from an .ang, .ctf or map-only .h5oina file, from a pattern file that
+  carries one, or from the Indexing room.
 - **Results**: every measurement of a file in one table, exported as CSV. The SEM results have a table of their own and
   a session report, as PDF or Markdown.
 
@@ -95,7 +98,7 @@ Please open an issue. Bug reports with the file type and what you expected help 
 
 ## Citing
 
-If you use macTEM in published work, please cite it and the Python packages whose methods it follows. All are in
+If you use macEM in published work, please cite it and the Python packages whose methods it follows. All are in
 [`CITATION.cff`](CITATION.cff).
 
 ## Licence

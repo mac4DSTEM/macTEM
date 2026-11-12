@@ -177,11 +177,11 @@ nonisolated enum MapsRoomFormat {
         return fields
     }
 
-    /// The toolbar's detail: "100 × 117 · 2 phases".
+    /// The toolbar's detail: "117 × 100 · 2 phases", the map's width × height in points (X before Y, as AZtec's X and Y Cells).
     static func capsuleDetail(_ map: CrystalMap) -> String {
         let (rows, columns) = OrientationMaps.gridShape(map)
         let phases = indexedPhases(map).count
-        return "\(rows) × \(columns) · \(phases) \(phases == 1 ? "phase" : "phases")"
+        return "\(columns) × \(rows) · \(phases) \(phases == 1 ? "phase" : "phases")"
     }
 
     /// The indexed phases of the map's points, in id order.
@@ -390,6 +390,24 @@ nonisolated enum MapsRoomFormat {
         return "\(texture.phaseName): \(points), upper hemisphere, 1° bins smoothed 5°, multiples of random. IPF-Z in the colour key's sector."
     }
 
+    /// What the Pole figures and ODF panes say while no texture is shown or being made: no phase to make it for, refused for the phase
+    /// picked (`failure`, the status line's reason), stopped by ⌘., or not yet asked for; the last two name the inspector's Compute
+    /// Texture (macTEM#410), which a refusal leaves off.
+    static func textureUnavailable(stopped: Bool, failure: String?, hasPhases: Bool) -> (title: String, detail: String, systemImage: String) {
+        guard hasPhases else { return ("No texture", "No indexed phase with a point group.", "circle.grid.cross") }
+        if let failure { return ("No texture", failure, "circle.grid.cross") }
+        if stopped { return ("Texture stopped", "Compute Texture in the inspector's Texture section makes it again.", "stop.circle") }
+        return ("No texture", "Compute Texture in the inspector's Texture section makes it.", "circle.grid.cross")
+    }
+
+    /// The help of the Texture section's Compute Texture: what it makes, or why it is off.
+    static func computeTextureHelp(isTexturing: Bool, failure: String?, canCompute: Bool) -> String {
+        if isTexturing { return "The texture is being computed" }
+        if let failure { return failure }
+        return canCompute ? "The phase's pole figures, IPF-Z density and ODF sections, in the Pole figures and ODF tabs"
+            : "The Pole figures and ODF tabs show this phase's texture"
+    }
+
     /// The grain table as CSV: one header line, one line per grain; lengths in the scan unit, angles in degrees. The phase name is an
     /// RFC 4180 cell (`CSVText.quoted`, #338), as in the indexing results CSV.
     static func grainsCSV(_ analysis: MapAnalysis, slip: [GrainSlip], loadDirection: SampleDirection) -> String {
@@ -414,7 +432,7 @@ nonisolated enum MapsRoomFormat {
             EBSDBrowsing.Row("File", document.fileName),
             EBSDBrowsing.Row("Format", document.format),
             EBSDBrowsing.Row("Source", Self.infoSource(document.source)),
-            EBSDBrowsing.Row("Map", "\(rows) × \(columns)"),
+            EBSDBrowsing.Row("Map", "\(columns) × \(rows)"),
             EBSDBrowsing.Row("Step", "\(UnitDisplay.number(map.dx, locale: locale)) \(unit) × \(UnitDisplay.number(map.dy, locale: locale)) \(unit)"),
             EBSDBrowsing.Row("Points", "\(map.size)"),
         ]
@@ -425,7 +443,7 @@ nonisolated enum MapsRoomFormat {
             let count = ids.filter { $0 == id }.count
             out.append(EBSDBrowsing.Row("Phase", "\(phaseName(phase, id: id)) · \(phasePoints(phase, count: count))"))
         }
-        out.append(EBSDBrowsing.Row("Euler angles", Self.infoEuler(document.source)))
+        out.append(EBSDBrowsing.Row("Euler angles", Self.infoEuler(document)))
         out.append(EBSDBrowsing.Row("IPF colours", "TSL key of each phase's Laue group (Nolze and Hielscher 2016), as orix 0.15.0"))
         out.append(EBSDBrowsing.Row("Phase colours", Self.infoPhaseColours(document.source)))
         return out
@@ -439,8 +457,10 @@ nonisolated enum MapsRoomFormat {
         }
     }
 
-    private static func infoEuler(_ source: OrientationMapSession.Document.Source) -> String {
-        switch source {
+    private static func infoEuler(_ document: OrientationMapSession.Document) -> String {
+        switch document.source {
+        case .mapFile where document.format == OrientationMapSession.h5oinaFormat:
+            "Bunge (φ₁, Φ, φ₂), lab to crystal, as the H5OINA file stores them (read as its .ctf is)"
         case .mapFile, .patterns: "Bunge (φ₁, Φ, φ₂), lab to crystal, as orix reads the file"
         case .indexing: "Bunge (φ₁, Φ, φ₂), lab to crystal, from the run's rotations as orix converts them"
         }
@@ -634,10 +654,10 @@ nonisolated enum MapsFigure {
         return try encoded(image, fileName: fileName)
     }
 
-    /// A figure as PNG bytes through the app's one encoder (`ImageExport.encodePNG`), the file's name as its Title and macTEM as
+    /// A figure as PNG bytes through the app's one encoder (`ImageExport.encodePNG`), the file's name as its Title and macEM as
     /// its Software, as the Patterns room's map PNG carries them.
     private static func encoded(_ image: CGImage, fileName: String) throws -> Data {
-        guard let png = try? ImageExport.encodePNG(image, title: fileName, software: "macTEM") else {
+        guard let png = try? ImageExport.encodePNG(image, title: fileName, software: "macEM") else {
             throw Failure(text: "The figure could not be encoded.")
         }
         return png

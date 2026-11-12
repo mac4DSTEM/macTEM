@@ -39,23 +39,14 @@ nonisolated final class PaneKeysTests: XCTestCase {
             }))
     }
 
-    @MainActor private func until(_ what: String, _ condition: @MainActor () -> Bool) async throws {
-        for _ in 0..<1000 {
-            if condition() { return }
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        XCTFail("timed out waiting for \(what)")
-        throw FFTAnalysisTests.TimedOut()
-    }
-
     /// Region A set, its spectrum shown and one spot measured and SELECTED.
     @MainActor private func ownerWithASelectedSpot() async throws -> FFTAnalysis {
         let analysis = owner()
         analysis.setRegion(FFTAnalysisTests.regionA, committed: true)
         analysis.show(FFTAnalysisTests.plant(), contentVersion: 1)
-        try await until("the spectrum") { analysis.isSpectrumCurrent }
+        try await waitUntil("the spectrum", seconds: 5) { analysis.isSpectrumCurrent }
         analysis.measureSpot(row: 37, col: 40)
-        try await until("the spot") { analysis.hasMeasuredSpot }
+        try await waitUntil("the spot", seconds: 5) { analysis.hasMeasuredSpot }
         analysis.selection = try XCTUnwrap(analysis.spots.last).id
         return analysis
     }
@@ -252,13 +243,13 @@ nonisolated final class PaneKeysTests: XCTestCase {
             }))
         flaky.setRegion(FFTAnalysisTests.regionA, committed: true)
         flaky.show(FFTAnalysisTests.plant(), contentVersion: 1)
-        try await until("the spectrum") { flaky.isSpectrumCurrent }
+        try await waitUntil("the spectrum", seconds: 5) { flaky.isSpectrumCurrent }
         flaky.measureSpot(row: 37, col: 40)
-        try await until("the spot") { flaky.hasMeasuredSpot }
+        try await waitUntil("the spot", seconds: 5) { flaky.hasMeasuredSpot }
         XCTAssertTrue(fftKeys(flaky, .spectrum).canDelete)
         failing.on = true
         flaky.setRegion(FFTAnalysisTests.regionB, committed: false)   // another spectrum is asked for, and fails
-        try await until("the failure") { flaky.spectrumFailure != nil }
+        try await waitUntil("the failure", seconds: 5) { flaky.spectrumFailure != nil }
         XCTAssertNil(flaky.spectrum, "a failed ask drops the spectrum (so the no-failure guard is belt and braces)")
         XCTAssertFalse(fftKeys(flaky, .spectrum).canDelete, "a failed ask: nothing is keyed")
         XCTAssertFalse(fftKeys(flaky, .spectrum).canCopy)
@@ -271,7 +262,7 @@ nonisolated final class PaneKeysTests: XCTestCase {
         let analysis = owner()
         analysis.setRegion(FFTAnalysisTests.regionA, committed: true)
         analysis.show(FFTAnalysisTests.plant(), contentVersion: 1)
-        try await until("the spectrum") { analysis.isSpectrumCurrent }
+        try await waitUntil("the spectrum", seconds: 5) { analysis.isSpectrumCurrent }
         analysis.setSourceView(.region)
         let keys = fftKeys(analysis, .source)
         XCTAssertFalse(keys.handle(.arrow(.right)))

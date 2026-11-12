@@ -92,6 +92,8 @@ private struct ImageWindow: View {
             .onAppear {
                 windows.openWindow = { openWindow(id: "image") }
                 windows.enroll(appState)
+                // The agent door (Settings > Agents) lists this window, and opens when it was left on.
+                MacTEMAgentDoor.start(with: appState)
                 // The launch's other `--open` files, each in a tab of its own (one file per window).
                 if !appState.launchFilesForTabs.isEmpty {
                     windows.openInTabs(appState.launchFilesForTabs)
@@ -100,7 +102,10 @@ private struct ImageWindow: View {
             }
             // New windows join the front window's tabs (`WindowTabbing`, AppKit). The tab's title is the window's (`AppState.windowTitle`).
             .background(WindowTabbing(state: appState, windows: windows))
-            .onDisappear { windows.withdraw(appState) }
+            .onDisappear {
+                windows.withdraw(appState)
+                MacTEMAgentDoor.withdraw(appState)
+            }
             .onChange(of: appearsActive) { _, active in if active { windows.bringForward(appState) } }
             // Info.plist declares CFBundleDocumentTypes, which puts macTEM in Finder's "Open With" — this is
             // the handler that requires. It gets only the FIRST file of a multi-file open; `AppDelegate` gets
@@ -329,13 +334,16 @@ struct macTEMApp: App {
     private static let isUITesting = LaunchOptions().isUITesting
 
     var body: some Scene {
-        WindowGroup("macTEM", id: "image") {
+        WindowGroup("macEM", id: "image") {
             ImageWindow(menuRelay: menuRelay, windows: windows, recents: recents, lastSession: lastSession)
         }
             .handlesExternalEvents(matching: ["*"])
             .defaultLaunchBehavior(.presented)
-            // A UI-testing launch restores nothing, so the window is always presented (a saved "window closed" state hid it); a person's launch restores as usual.
-            .restorationBehavior(Self.isUITesting ? .disabled : .automatic)
+            // Not restored: a window comes back without its file (a file is never read before the person asks: File > Reopen Last
+            // Session, through bookmarks), so a restored window was an empty tab, and one restored from a Finder open had the open
+            // handed to it again by path, which the sandbox does not grant: refused, with an empty tab (driven 2026-11-11). A launch
+            // presents one window (`defaultLaunchBehavior`).
+            .restorationBehavior(.disabled)
             .defaultSize(width: LayoutPolicy.datasetWindowIdealSize.width,
                          height: LayoutPolicy.datasetWindowIdealSize.height)
             .windowStyle(.titleBar)
@@ -349,6 +357,8 @@ struct macTEMApp: App {
                 // View > Zoom In, Zoom Out, Zoom to Fit (⌘+ ⌘− ⌘0) on the pane that publishes its zoom (control placement §6).
                 ZoomCommands()
             }
+        // Settings (⌘,): the agent door's switch (`AgentSettingsView`).
+        Settings { AgentSettingsView() }
         // The Particles view's object table, beside the image (ImageRoomParticles.swift); never opened at launch.
         Window("Objects", id: ParticleTableWindow.id) { ObjectsWindow(windows: windows) }
             .defaultLaunchBehavior(.suppressed)

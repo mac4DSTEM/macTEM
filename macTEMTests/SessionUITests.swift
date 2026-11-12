@@ -72,10 +72,7 @@ nonisolated final class SessionUITests: XCTestCase {
         func script(outcomes: [SidecarOutcome], shifts: [Int] = []) { self.outcomes = outcomes; self.shifts = shifts }
         func hold() { holdFirst = true }
         func release() { gate?.resume(); gate = nil }
-        func untilHeld() async -> Bool {
-            for _ in 0..<400 { if gate != nil { return true }; try? await Task.sleep(for: .milliseconds(5)) }
-            return false
-        }
+        var isHeld: Bool { gate != nil }
 
         func read(_ request: ReadRequest) async throws -> OpenedImage {
             reads += 1
@@ -220,8 +217,7 @@ nonisolated final class SessionUITests: XCTestCase {
         await reader.hold()
         let items = makeItems(reader)
         items.open(urls: [source])
-        let held = await reader.untilHeld()
-        XCTAssertTrue(held)
+        try await waitUntil("the first read to be held", seconds: 2) { await reader.isHeld }
         let item = try XCTUnwrap(items.items.first)
         items.close(item.id)
         await reader.release()
@@ -407,7 +403,7 @@ nonisolated final class SessionUITests: XCTestCase {
         XCTAssertNil(SessionSaving.panelRefusal(chosen: expected, expected: expected))
         let decomposed = URL(fileURLWithPath: "/data/Å/scan.dm4.mactem.h5".decomposedStringWithCanonicalMapping)
         XCTAssertNil(SessionSaving.panelRefusal(chosen: decomposed, expected: expected), "NFC and NFD are one name")
-        let sentence = "Keep the name “scan.dm4.mactem.h5” and the image's folder, so macTEM finds the session file when you open the image."
+        let sentence = "Keep the name “scan.dm4.mactem.h5” and the image's folder, so macEM finds the session file when you open the image."
         XCTAssertEqual(SessionSaving.panelRefusal(chosen: URL(fileURLWithPath: "/data/Å/other.h5"), expected: expected), sentence)
         XCTAssertEqual(SessionSaving.panelRefusal(chosen: URL(fileURLWithPath: "/elsewhere/scan.dm4.mactem.h5"), expected: expected), sentence)
     }
@@ -475,8 +471,8 @@ nonisolated final class SessionUITests: XCTestCase {
     /// writer's refusal and from the owner's.
     /// Red under: the over-budget branch dropped from `Failure.errorDescription` (the generic sentence then lacks the advice).
     @MainActor func testASaveRefusedAsTooLargeSaysSoAndWhatToDo() {
-        let limit = SessionSidecarFile.maxTotalTextBytes.formatted()
-        let expected = "Could not save scan.dm4.mactem.h5. The marks and their record would take \(61_234.formatted()) bytes of "
+        let limit = String(SessionSidecarFile.maxTotalTextBytes)
+        let expected = "Could not save scan.dm4.mactem.h5. The marks and their record would take 61234 bytes of "
             + "text; a session file holds \(limit). Remove some marks, then save again."
         let writer = SessionSaving.Failure.refused(name: "scan.dm4.mactem.h5", .file(.sidecarTooLarge(bytes: 61_234)))
         XCTAssertEqual(writer.errorDescription, expected)
@@ -490,22 +486,22 @@ nonisolated final class SessionUITests: XCTestCase {
     /// a number, and the tail's standing line.
     /// Red under: a case of `MarkRefusalText` merged into another, or its advice dropped.
     @MainActor func testARefusedMarkSaysWhatHappenedAndWhatToDo() {
-        let limit = SessionSidecarFile.maxTotalTextBytes.formatted()
+        let limit = String(SessionSidecarFile.maxTotalTextBytes)
         let budget = SessionLineage.Refusal.tooLargeToSave(bytes: 60_300, limit: SessionSidecarFile.maxTotalTextBytes)
         XCTAssertEqual(MarkRefusalText.refused(budget, .added),
-                       "The mark was not added. With it the session record would take \(60_300.formatted()) bytes of text, over the "
+                       "The mark was not added. With it the session record would take 60300 bytes of text, over the "
                        + "\(limit) a session file holds. Remove a mark to make room.")
         XCTAssertEqual(MarkRefusalText.refused(nil, .moved),
                        "The mark was not moved. With it the session record would take more than the \(limit) bytes of text a "
                        + "session file holds. Remove a mark to make room.")
         XCTAssertTrue(MarkRefusalText.refused(nil, .widthChanged).hasPrefix("The width was not changed."))
-        let full = "The session record is full: it holds \(2000.formatted()) entries, removed marks included. "
+        let full = "The session record is full: it holds 2000 entries, removed marks included. "
             + "To start a new record, move the session file aside and open the image again."
         XCTAssertEqual(MarkRefusalText.refused(.tooManyNodes(2001), .added), "The mark was not added. " + full)
         XCTAssertEqual(MarkRefusalText.refused(.idsExhausted, .added), "The mark was not added. " + full)
         XCTAssertEqual(MarkRefusalText.refused(.notFinite, .added), "The mark was not added. A point of it is not a number.")
         XCTAssertEqual(MarkRefusalText.standing(budget),
-                       "The session record is full: another mark would take it to \(60_300.formatted()) bytes of text, over the "
+                       "The session record is full: another mark would take it to 60300 bytes of text, over the "
                        + "\(limit) a session file holds. Remove a mark to draw another.")
         XCTAssertEqual(MarkRefusalText.standing(.tooManyNodes(2001)), full)
     }
@@ -827,7 +823,7 @@ nonisolated final class SessionUITests: XCTestCase {
     @MainActor func testTheTailExplainsANewerFile() {
         let tail = SessionFormat.tail(input { $0.newerVersion = 2; $0.canSave = false })
         XCTAssertEqual(tail.lines[0].text,
-                       "scan.dm4.mactem.h5 was written by a newer macTEM (lineage version 2); its marks are not shown.")
+                       "scan.dm4.mactem.h5 was written by a newer macEM (lineage version 2); its marks are not shown.")
         XCTAssertTrue(tail.showsFinder)
         XCTAssertFalse(tail.showsSave)
     }

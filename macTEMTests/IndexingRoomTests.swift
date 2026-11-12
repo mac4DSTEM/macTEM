@@ -285,6 +285,122 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertTrue(indexing.phases.isEmpty)
     }
 
+    // MARK: - What an ended run keeps (#427)
+
+    /// The method record of the run on screen, as the room writes it.
+    @MainActor private func methodRecord(_ indexing: IndexingSession) throws -> [String: Any] {
+        try XCTUnwrap(try JSONSerialization.jsonObject(with: try XCTUnwrap(try indexing.methodJSON())) as? [String: Any])
+    }
+
+    /// A run that has ended lets go of the processed scan it read (#427): Process the demo scan, Index with Hough to the end, edit a
+    /// stage and Process again; once the pattern pane has drawn from the new scan (the room's band detector reads it), the first scan
+    /// is gone, and the run's result, exports and method record stay as they were. Red before: the Hough run's plan kept it alive.
+    @MainActor func testAnEndedRunLetsGoOfTheProcessedScanItRead() async throws {
+        let (patterns, indexing) = try await openNickel()
+        await patterns.process().value
+        weak let read = patterns.processed
+        XCTAssertNotNil(read, "Process landed")
+        XCTAssertEqual(try indexing.source().get().kind, .processedScan)
+        await indexing.index().value
+        XCTAssertEqual(indexing.result?.isComplete, true)
+        XCTAssertEqual(indexing.resultSource, .processedScan)
+        let indexed = try XCTUnwrap(indexing.result?.indexedCount)
+
+        patterns.editPipeline { $0.dynamicStage.std = 12 }
+        await patterns.process().value
+        await indexing.showPattern().value
+        XCTAssertNotNil(patterns.processed)
+        XCTAssertNil(indexing.patternFailure)
+        XCTAssertNil(read, "the ended run let go of the first processed scan")
+        XCTAssertEqual(indexing.result?.indexedCount, indexed, "the result stays")
+        XCTAssertNotNil(try indexing.crystalMap(), "the exports still write it")
+        XCTAssertEqual(try methodRecord(indexing)["patterns"] as? String, "Processed scan (in memory)")
+        XCTAssertEqual(try methodRecord(indexing)["indexed"] as? Int, indexed)
+    }
+
+    /// The same when Stop is pressed at once (#427): the run's plan, built while Stop is pressed (the task asks for cancellation only
+    /// between rows), lands after the Stop and lets go of the patterns as it lands. Red if only `finish` and `stop` let go.
+    @MainActor func testARunStoppedBeforeItsPlanLandsLetsGoOfTheProcessedScanItRead() async throws {
+        let (patterns, indexing) = try await openNickel()
+        await patterns.process().value
+        weak let read = patterns.processed
+        XCTAssertNotNil(read, "Process landed")
+        let stopped = indexing.index()
+        indexing.stop()
+        await stopped.value
+        XCTAssertTrue(indexing.wasStopped)
+        XCTAssertEqual(indexing.result?.rowsDone, 0, "no row lands after Stop")
+        XCTAssertEqual(try methodRecord(indexing)["patterns"] as? String, "Processed scan (in memory)", "the plan landed after the Stop")
+
+        patterns.editPipeline { $0.dynamicStage.std = 12 }
+        await patterns.process().value
+        await indexing.showPattern().value
+        XCTAssertNil(indexing.patternFailure)
+        XCTAssertNil(read, "the stopped run's plan let go of the first processed scan")
+    }
+
+    /// The room's band detector, kept between pattern draws and runs, keeps no patterns either (#427). A run hands the room the
+    /// detector it built, and a pattern drawn keeps its own; asked again with the same settings, it reads the patterns current then,
+    /// and a second run indexes each point as the first did. Then Patterns edits a stage and processes again while the Indexing room
+    /// is off screen, so no pattern is drawn from the new scan: the first scan is gone all the same. Red before: the band detector
+    /// the run handed the room kept the first scan until a pattern was drawn with other settings.
+    @MainActor func testTheRoomsBandDetectorLetsGoOfTheProcessedScanItRead() async throws {
+        let (patterns, indexing) = try await openNickel()
+        await patterns.process().value
+        weak let read = patterns.processed
+        XCTAssertNotNil(read, "Process landed")
+        await indexing.index().value
+        let first = try XCTUnwrap(indexing.result)
+        XCTAssertTrue(first.isComplete)
+
+        let position = EBSDPosition(row: 1, column: 2)
+        patterns.pin(position)
+        await indexing.showPattern().value
+        XCTAssertNil(indexing.patternFailure, "the kept detector reads the current patterns")
+        XCTAssertEqual(indexing.patternPosition, position)
+        XCTAssertFalse(indexing.detectedBands.isEmpty)
+        await indexing.index().value
+        let second = try XCTUnwrap(indexing.result)
+        XCTAssertTrue(second.isComplete, "the kept detector indexes the current patterns")
+        XCTAssertEqual(second.indexedCount, first.indexedCount)
+        XCTAssertEqual(second.solutions.map { $0?.quaternion }, first.solutions.map { $0?.quaternion }, "each point as the first run")
+
+        patterns.editPipeline { $0.dynamicStage.std = 12 }
+        await patterns.process().value
+        XCTAssertNotNil(patterns.processed)
+        XCTAssertNil(read, "the room's band detector let go of the first processed scan")
+        await indexing.showPattern().value
+        XCTAssertNil(indexing.patternFailure)
+    }
+
+    /// A released source keeps what the method record and Info read of it (the kind, the stages, the type and the shapes) and refuses
+    /// to read a pattern, in one sentence; it reads alike only a source of the same kind through the same stages.
+    func testAReleasedSourceKeepsWhatItReadAndReadsNoPattern() throws {
+        let side = 4
+        let dataset = EBSDDataset(format: .generated, manufacturer: "test", version: "", scanGroup: "s", scanGroups: ["s"], scanRows: 2,
+                                  scanColumns: 3, patternRows: side, patternColumns: side, dataType: .uint8, stepY: 1, stepX: 1,
+                                  detector: EBSDDetectorGeometry(rows: side, columns: side, projectionCenters: [SIMD3(0.5, 0.5, 0.5)]),
+                                  patterns: EBSDPatternSource(url: URL(fileURLWithPath: "/planted"), datasetPath: "",
+                                                              fileShape: [2, 3, side, side], dataType: .uint8))
+        let scan = try EBSDMemoryPatterns(dataset: dataset, bytes: Data(repeating: 7, count: 2 * 3 * side * side))
+        let source = IndexingSource(processed: scan)
+        XCTAssertFalse(source.isReleased)
+        XCTAssertEqual(try source.patterns(row: 1), Array(repeating: Array(repeating: 7.0, count: side * side), count: 3))
+
+        let released = source.released
+        XCTAssertTrue(released.isReleased)
+        XCTAssertEqual(released.kind, .processedScan)
+        XCTAssertNil(released.pipeline)
+        XCTAssertEqual(released.storedType, .uint8)
+        XCTAssertEqual([released.scanRows, released.scanColumns, released.patternRows, released.patternColumns], [2, 3, side, side])
+        let refusal = IndexingRefusal("The run has ended and let go of the patterns it read: Index again to read them.")
+        XCTAssertThrowsError(try released.patterns(row: 0)) { XCTAssertEqual($0 as? IndexingRefusal, refusal) }
+        XCTAssertThrowsError(try released.pattern(row: 0, column: 0)) { XCTAssertEqual($0 as? IndexingRefusal, refusal) }
+        XCTAssertTrue(released.readsAlike(source))
+        XCTAssertFalse(released.readsAlike(IndexingSource(stored: scan, pipeline: .roomDefault, background: nil)), "per pattern, through stages")
+        XCTAssertTrue(IndexingSource(stored: scan, pipeline: .roomDefault, background: nil).released.isReleased)
+    }
+
     // MARK: - The phases
 
     /// The reflector lists follow pyEBSDindex's defaults by lattice; the presets carry DiffractoKit's cells; a name already in the list

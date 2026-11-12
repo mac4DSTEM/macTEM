@@ -174,8 +174,9 @@ nonisolated final class BusyOperationTests: XCTestCase {
         XCTAssertNil(RoomProgress.fraction(room: .patterns, appState: state))
     }
 
-    /// The Maps toolbar names Segment and the texture while they run, and ⌘. ends the texture: its result never lands. Red before: the
-    /// toolbar showed the file, Stop was off during the texture, and `stop()` left it running.
+    /// The Maps toolbar names Segment and the texture while they run, and ⌘. ends the texture: its result never lands, the session
+    /// remembers it was stopped, and Compute Texture (`canComputeTexture`) makes it again (macTEM#410). Red before: the toolbar showed the
+    /// file, Stop was off during the texture, and `stop()` left it running; then nothing remembered the stop or offered to compute again.
     @MainActor func testTheMapsToolbarNamesSegmentAndTheTextureAndStopEndsIt() async {
         let state = AppState()
         state.navigation.workspaceArea = .maps
@@ -188,8 +189,11 @@ nonisolated final class BusyOperationTests: XCTestCase {
         await segmenting.value
         XCTAssertNil(BusyOperation.toolbarOperation(room: .maps, appState: state))
 
+        XCTAssertTrue(state.maps.canComputeTexture, "a map with a textured phase and no texture yet")
+        XCTAssertFalse(state.maps.textureStopped)
         let texturing = state.maps.showTexture()
         XCTAssertEqual(BusyOperation.toolbarOperation(room: .maps, appState: state), "Computing the texture…")
+        XCTAssertFalse(state.maps.canComputeTexture, "Compute Texture is off while the texture is made")
         XCTAssertTrue(RoomPrimaryAction.canStop(state), "⌘. reaches the texture")
         RoomPrimaryAction.stopActive(state)
         XCTAssertFalse(state.maps.isTexturing)
@@ -198,6 +202,13 @@ nonisolated final class BusyOperationTests: XCTestCase {
         XCTAssertEqual(state.statusText, "Stopped the texture")
         await texturing.value
         XCTAssertNil(state.maps.texture, "a stopped texture does not land")
+        XCTAssertTrue(state.maps.textureStopped, "the session remembers the stop")
+        XCTAssertTrue(state.maps.canComputeTexture, "Compute Texture makes it again")
+
+        await state.maps.showTexture().value
+        XCTAssertNotNil(state.maps.texture, "computed again after the stop")
+        XCTAssertFalse(state.maps.textureStopped)
+        XCTAssertFalse(state.maps.canComputeTexture, "Compute Texture is off while a texture is shown")
     }
 
     // MARK: A run in another room

@@ -76,7 +76,7 @@ nonisolated enum LineageFormat {
     static let footer = "Values are measured again on the image each time the session is opened."
     static let empty = "No marks recorded."
     static let newer = "No records shown: the file is a newer version."
-    static let opaqueHelp = "This macTEM does not draw this kind of record. It is saved back exactly as it was."
+    static let opaqueHelp = "This macEM does not draw this kind of record. It is saved back exactly as it was."
 }
 
 // MARK: - The section

@@ -75,7 +75,7 @@ def main() -> int:
         axes[0, i + 1].axis("off")
         if ours is not None:
             axes[1, i + 1].imshow(ours[i], cmap="gray", vmin=0, vmax=255)
-            axes[1, i + 1].set_title(f"macTEM {title}", fontsize=9)
+            axes[1, i + 1].set_title(f"macEM {title}", fontsize=9)
             axes[1, i + 1].axis("off")
             diff = ours[i].astype(int) - ref[i].astype(int)
             im = axes[2, i + 1].imshow(diff, cmap="coolwarm", vmin=-1, vmax=1)

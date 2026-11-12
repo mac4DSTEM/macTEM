@@ -111,11 +111,11 @@ package nonisolated enum SessionSaving {
             switch self {
             case .nothingToSave: return "There is nothing to save."
             case .grantLost:
-                return "macTEM no longer has access to the session file. Save again and choose the file in the panel."
+                return "macEM no longer has access to the session file. Save again and choose the file in the panel."
             case .refused(let name, let refusal):
                 if let bytes = refusal.tooLargeBytes {
-                    return "Could not save \(name). The marks and their record would take \(bytes.formatted()) bytes of text; "
-                        + "a session file holds \(SessionSidecarFile.maxTotalTextBytes.formatted()). "
+                    return "Could not save \(name). The marks and their record would take \(bytes) bytes of text; "
+                        + "a session file holds \(SessionSidecarFile.maxTotalTextBytes). "
                         + "Remove some marks, then save again."
                 }
                 var text = "Could not save \(name). \(Self.capitalised(refusal.reason))"
@@ -229,7 +229,7 @@ package nonisolated enum SessionSaving {
         let sameFolder = chosen.deletingLastPathComponent().standardizedFileURL.resolvingSymlinksInPath().path
             == expected.deletingLastPathComponent().standardizedFileURL.resolvingSymlinksInPath().path
         guard sameName && sameFolder else {
-            return "Keep the name “\(expected.lastPathComponent)” and the image's folder, so macTEM finds the session file when you open the image."
+            return "Keep the name “\(expected.lastPathComponent)” and the image's folder, so macEM finds the session file when you open the image."
         }
         return nil
     }

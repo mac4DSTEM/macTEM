@@ -115,6 +115,8 @@ Numbered so briefs and PRs can cite them, one number per decision across this ta
 | D-SEM-108 | 2026-11-10 | An SEM TIFF's Info › Acquisition shows each field once: the vendor rows (sem-image-room.md §5) and, above them, only the TEM readings they lack. A TEM row whose field an SEM row already shows (Instrument, Detector, HV, Magnification, Dwell, Date) is left out, and Camera length, Exposure and Mode, which an SEM micrograph never records, are left out as placeholders. | The design put the vendor rows beneath all nine TEM rows; on screen that read Instrument, Detector and Dwell twice and three "Not recorded" rows on every SEM file (drive 2026-11-08). Reverse: the nine TEM rows again. |
 | D-SEM-109 | 2026-11-10 | The Indexing room's Refine (design §3, §4) is a stage of the Dictionary run, not a third Method: `Refine › After indexing` on, `Index` runs the stale stages in order (Dictionary then Refine in the same main-actor turn, so Stop always reaches the running stage; Refine alone when the Dictionary run is current and complete and its refinement is missing, stale, stopped or incomplete; both again when nothing is stale). The refinement is a separate run kept beside the Dictionary run (`IndexingSession.refinedRun`, a copy of its result with the refined rows and, under PC or Both, each point's refined PC, its plans and a record of the settings), shown in its place while the switch is on and it has reached a point, dropped by the next Dictionary run, and Compare's `Refined`. It is refined block by block with `EBSDRefinement`'s pattern-level calls (refine_orientation, refine_projection_center, refine_orientation_projection_center) over row blocks of about 512 patterns, never more than the dictionary's block, landing in order, so the map fills row by row and Stop keeps the refined rows; the map-level calls and `refineOrientationsAsync` take every pattern at once and report no progress. Refine's settings are not a run's input: an edit stales the refinement (its base replaced or stale, or another target or trust region), never the Dictionary run. Defaults `Orientation`, ±2° and ±0.05 (the trust region of kikuchipy's tutorial `refine_orientation_projection_center`, [2, 2, 2, 0.05, 0.05, 0.05]); Nelder–Mead only at SciPy's defaults (D-SEM-86); the dictionary's signal mask; no pseudo-symmetry operators; one phase on (refused otherwise). The refined score is NCC whatever the dictionary's metric; the run keeps the dictionary's matches and OSM (kikuchipy's OSM is a dictionary quantity), so Best match simulates the refined orientation, it and the Kikuchi overlay at the point's refined PC under PC or Both (the pattern its NCC scores); the refined PCs stay with the refinement (mean and std in the inspector, every one in the method JSON, `projectionCentersBruker` in map order with null where not refined, and the Results CSV's `pcx_bruker`, `pcy_bruker`, `pcz_bruker`) and the run's PC stays the file's mean. A refinement's CSV names the dictionary's columns `dictionary_simulation_index` and `dictionary_osm` (the refined orientation is no dictionary entry) and adds `num_evals`. A refinement's crystal map is kikuchipy's refined map (identity and not_indexed where not refined, `scores`, `num_evals`), never rebuilt from the dictionary's matches; its method JSON is the Dictionary record plus an additive `refinement` object; `SEMMethod.patternRefinement` cites it. | kikuchipy refines an indexed crystal map, so refinement follows indexing in one pipeline under one verb (DNA 3). A third Method would show a `Refined` segment against design §4 and break every switch on `IndexingMethod`. Reverse: an `IndexingMethod.refined` case with the Refine settings in `IndexingInputs`. |
 | D-SEM-110 | 2026-11-11 | The SEM maps pick on a click or a drag, and hover only reads, as mac4DSTEM's real-space pane (reverses design D4 in `sem/design/README.md`; amends D-SEM-97, whose Compare tiles moved the pattern pane on hover). In Patterns, Indexing with its Compare, and Maps, a click or a drag on the map at 1× and below picks the scan point under the pointer and the pattern (or orientation) pane follows, streaming during the drag; zoomed in (zoom > 1 + 1e-4, mac4DSTEM's `RealSpacePointerPolicy`) a plain drag pans and only the marker's grab handle moves the pick; the pointer over a map only writes the status line; ← → ↑ ↓ step the pick (⇧ ten); Space no longer pins and there is no ⌥ ghost; a double-click still fits and Maps' ⌘-click still selects grains (at 1× and below the scrub's own, so it never holds a plain click back). A press on a map gives the room's root the keyboard explicitly (`@FocusState` bound to a value with `.focused(_:equals:)`, since a Bool reads true while a table inside the root has the keyboard; `.defaultFocus`, as `StackArrowKeys`), so the arrows work right after a click, after a Results row too. On the Patterns room's scan the Maps room's marker and its live pattern pane name one point: the map takes the point picked in Patterns or Indexing as the room shows, and the pane follows every change of the map's pick, a Grains-table row too. The marker is mac4DSTEM's: a white 1.5 pt circle over black 0.75 at 3.5 pt, 11 pt across, zoomed in a 20 pt grab handle with a 12 pt white centre, drawn in pane points (no division by the zoom: macTEM draws it outside the zoomed layer), adjustable for VoiceOver with Move left, right, up and down; it replaces the box-and-arms `ScanMarker`, whose arms were drawn at twice their offset from the point. The pattern headers read `Pattern · row r · col c` without `hovering` or `pinned`, the Compare histogram marks the picked point; code names keep `pin` and `pinned`. `SEMMapPointer`, `SEMMapScrubLayer` and `SEMScanMarker` live in `macTEM/UI/SEMMapPick.swift`. | Why: Paul 2026-11-11: "pattern moves wherever i move the cursor over the realspace image in EBSD which is untypical and not like in mac4DSTEM where i can choose a pixel". Established practice picks: HyperSpy and kikuchipy, and py4D-browser, drag a marker over the navigator and step it with the keys; EDAX APEX clicks and drags a beam-position marker; EMsoftWorkbench commits a pick on a double-click; Bruker ESPRIT is the hover-following exception. One gesture across the suite's two apps. Reverse: Paul's taste. |
+| D-SEM-111 | 2026-11-11 | An Oxford `.h5oina` that holds no patterns (AZtec's map export) opens in the Maps room as its orientation map, as a `.ctf` alone does (D-SEM-80), by double-click and through any Open panel (#513; it was refused with "the header has no 'Pattern Height' dataset", Paul: "this is not a shippable app"). No pinned reference reads an H5OINA map (kikuchipy 0.13.1 leaves an empty `xmap`, orix 0.15.0 has no plugin), so the reader follows the H5OINA specification and the two readers that do: MTEX (the header's cells and steps, row by row) and DREAM3D's EbsdLib (Laue ids as the `.ctf`'s, points placed by their X and Y where they fill the grid once). The map is read as the `.ctf` of it: Euler radians unrotated, the `.ctf`'s columns, MAD in degrees, the error codes renumbered to the `.ctf`'s | the map in the file is what the user exported; refusing it was a routing bug, not a missing file part. The pattern reader now names the Maps room for such a file instead of the missing 'Pattern Height' |
+| D-SEM-112 | 2026-11-11 | An EBSD scan's and an orientation map's size reads width × height, columns before rows ("484 × 305" for AZtec's X Cells 484, Y Cells 305), in the toolbar, the Info rows, the Opened line and the NLPAR refusal, and a pattern's as width × height px (#518). It read rows × columns, numpy's order, while the step beside it read x × y | AZtec's X and Y Cells, mac4DSTEM's scan (Rx × Ry), HyperSpy's navigation shape and macEM's own image rooms all give X before Y; a Mac drive found the map's header and the toolbar disagreeing. Positions keep "row 12 · col 40" |
 
 ## 2026-11-06 — NORDIF: follow kikuchipy on the damaged settings files, read Setting.txt by section and key
 
@@ -313,3 +315,54 @@ drawing over one it missed.
 **Reverse it.** If a reader learns where a render's bar is (a field in the file that states it), draw macTEM's bar by that
 instead. If renders without a bar of their own turn out to be the common case, return true from
 `ImagePresentation.startsWithScaleBar(notes:)` for every file and drop the Display note.
+## 2026-11-11 — A file that cannot be read is refused for that; a refused file gets no tab
+
+**What.** Before its format is asked, a file is opened once for reading (`FileRouting.accessRefusal`): one that is gone is
+refused as "no longer where it was", one macTEM may not read as "macTEM was not given access to … open it with File > Open…,
+drop it on the window or open it from the Finder". A file of a batch that would get a tab of its own is looked at first
+(`tabsChecked`): a refused one is named in the alert of the window it came from and gets no tab.
+
+**Why.** Driven 2026-11-11: a Ceta TIFF and a Velox EMD given by path at launch (`--open`, which the sandbox does not grant)
+were refused as "not a format macTEM opens", the sniff having read no bytes, and each left an empty tab. Preview opens no
+window for a file it cannot open.
+
+**What would reverse it.** A reader that needs to be handed an unreadable path (none does).
+
+**Also decided (same day).** The image windows are not restored at launch (`restorationBehavior(.disabled)`, was `.automatic`
+for a person's launch). A restored window came back without its file, because a file is read only when the person asks
+(File > Reopen Last Session, through bookmarks). So it was an empty tab. One restored from a Finder open had that open handed
+to it again by path, which the sandbox does not grant (driven 2026-11-11: a plain launch alerting on a TIFF opened in the
+previous run). A launch presents one window.
+
+## 2026-11-11 — The store build waits for a real-file sweep; EBSD files are refused in words that name them
+
+**What.** 2.0.1, the first build for the Mac App Store, is cut only when the real-file sweep (`RealFileSweepTests`,
+`tools/run-tests.sh real-files`, on the Mac with the owner's data) passes. Every file macEM claims must land in a room
+that holds its data, or be refused in a sentence that names the file and carries no internals (no error domain, no HDF5
+call or quoted path, no Swift type). A refusal left in the sweep must be a deliberate one. The EBSD `.h5` work of #514
+lands in two parts, in this order:
+1. Routing and wording. A file with patterns goes to Patterns, a map without patterns (Oxford, orix) to Maps, and the
+   rest is refused in plain words. That covers Bruker and EDAX files saved without patterns, which name the `.ang` or
+   `.ctf` export that opens, and an `.h5oina` holding only EDS (its reader is #521). A map that fails to read never
+   blocks the patterns beside it.
+2. Map readers for Bruker, EDAX and EMsoft `.h5` files. They wait for the sweep to show which of these files people have.
+
+**Why.** Paul 2026-11-11, after his own map-only `.h5oina` was refused with an HDF5 message: "we need to fix this, this
+is not a shippable app". Two refusals (#513, #518) were found by hand, one file at a time; the sweep finds the rest
+before review does.
+
+**What would reverse it.** Paul deciding to submit before the sweep passes.
+
+## 2026-11-11 — #514 part 1 merges with the map beside LZF patterns checked by tests, not yet on a real file
+
+The screen check of #528 (drive build, 11 Nov) passed on every file there was: Paul's map-only `.h5oina` in Maps, the
+public `ShotPRR1000.ctf` reading 2409 × 1226, the orix map and the plain-words refusals (EDS-only `.h5oina`, Bruker and
+EDAX files without patterns). The owner's data holds no AZtec `.h5oina` with both LZF patterns and a map. So on screen,
+the LZF patterns were only seen through the fixture (`ebsd-oxford-lzf.h5oina`, which has no map). The map read beside
+patterns is held by `EBSDH5ContentTests` on the planted `ebsd-oxford-map-patterns.h5oina` and
+`ebsd-oxford-map-unprocessed.h5oina`. #528 merges on that. A real AZtec file with patterns and a map stays owed to the
+real-file check before 2.0.1 (#523), and fails it there if it does not open both.
+
+**Why.** Holding a tested fix for a file nobody here has would block the plan. The real-file gate still catches it.
+
+**What would reverse it.** A real LZF `.h5oina` with patterns whose map does not reach the Maps room.

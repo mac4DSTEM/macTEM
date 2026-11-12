@@ -157,7 +157,8 @@ package nonisolated struct IndexingMasterPattern: Sendable, Identifiable {
 /// detector and the energy the dictionary is projected for, and the scan's row blocks. A run against several phases holds one per
 /// phase (`plans`, D-SEM-98).
 package nonisolated struct DictionaryIndexingPlan: Sendable {
-    package let source: IndexingSource
+    /// The patterns the run reads; `released` once it has ended (`releasePatterns()`).
+    package private(set) var source: IndexingSource
     package let phase: IndexingPhase
     package let master: IndexingMasterPattern
     package let settings: DictionaryIndexingSettings
@@ -352,6 +353,21 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         return DictionaryIndexing.usesMetal(.automatic, work: a || b ? .max : work) ? .metal : .cpu
     }
 
+    /// Lets go of the patterns (#427): a run that has ended reads none (Best match reads the master pattern, the detector and the
+    /// energy, the method record the source's kind and stages, which stay).
+    package mutating func releasePatterns() {
+        source = source.released
+    }
+
+    /// This plan reading its patterns from `source` again after `releasePatterns()`: the Refine stage of a Dictionary run that has
+    /// ended (D-SEM-109). nil unless `source` reads the patterns the run read (`IndexingSource.readsAlike`).
+    package func reading(_ source: IndexingSource) -> DictionaryIndexingPlan? {
+        guard source.readsAlike(self.source) else { return nil }
+        var plan = self
+        plan.source = source
+        return plan
+    }
+
     /// The scan's row blocks, in order.
     package var blocks: [Range<Int>] {
         stride(from: 0, to: source.scanRows, by: rowsPerBlock).map { $0 ..< min($0 + rowsPerBlock, source.scanRows) }
@@ -450,7 +466,7 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         let pc = detector.projectionCenters.first ?? SIMD3(0, 0, 0)
         let m = master.master
         let record = Record(
-            software: "macTEM", method: "Dictionary indexing (simulated patterns of a master pattern, normalised cross-correlation or dot product)",
+            software: "macEM", method: "Dictionary indexing (simulated patterns of a master pattern, normalised cross-correlation or dot product)",
             reference: "kikuchipy 0.13.1 EBSD.dictionary_indexing and EBSDMasterPattern.get_patterns; orix 0.15.0 sample_SO3 (cubochoric)",
             file: fileName, patterns: source.kind.title, processing: source.pipeline, phase: phase,
             masterPattern: Record.Master(file: master.fileName, phase: m.phase.name, spaceGroup: m.phase.spaceGroup, energies: m.energies,
@@ -519,7 +535,7 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         }
         let keep = plans.map { min(first.settings.keep, $0.rotations.count) }.min() ?? first.settings.keep
         let record = MergedRecord(
-            software: "macTEM",
+            software: "macEM",
             method: "Dictionary indexing against several phases (one dictionary each, simulated from the phase's master pattern), each point taking the phase whose best match scores highest",
             reference: "kikuchipy 0.13.1 EBSD.dictionary_indexing, EBSDMasterPattern.get_patterns, indexing.merge_crystal_maps and indexing.orientation_similarity_map; orix 0.15.0 sample_SO3 (cubochoric)",
             file: fileName, patterns: first.source.kind.title, processing: first.source.pipeline, phases: phases,

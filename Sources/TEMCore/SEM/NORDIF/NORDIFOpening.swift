@@ -62,7 +62,7 @@ package nonisolated enum NORDIFOpening {
     package static func unreadableSettingsRefusal(_ url: URL) -> String? {
         guard let code = settingsOpenError(url), code == EPERM || code == EACCES else { return nil }
         let settings = settingsURL(besides: url)
-        return "\(settings.lastPathComponent) beside \(url.lastPathComponent) cannot be read: macOS does not let macTEM open it "
+        return "\(settings.lastPathComponent) beside \(url.lastPathComponent) cannot be read: macOS does not let macEM open it "
             + "(\(String(cString: strerror(code)))); a NORDIF scan needs the acquisition's folder, not \(url.lastPathComponent) alone."
     }
 

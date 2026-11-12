@@ -73,16 +73,18 @@ struct MapsRoom: View {
                 VerticalPaneSplit(storageKey: "maps.lowerSplit", defaultFraction: 0.72, resizeLabel: "Resize the map and the colour key",
                                   topName: "Map and pattern", minimumTop: 160, minimumBottom: LayoutPolicy.mapsKeyPaneMinimum) {
                     upper(document)
+                        // The keys live on the map and the pattern; the Grains table below sits outside this focusable container,
+                        // so a click in it keeps the keyboard there (blue rows, ⌘C), as in the EELS room (#353).
+                        .modifier(MapsKeyedRoom(session: session, patterns: patternsDataset.map { _ in appState.ebsd }))
                 } bottom: {
                     MapsBottomPane(session: session, state: state)
                 }
                 .id(document.id)
-                .modifier(MapsKeyedRoom(session: session, patterns: patternsDataset.map { _ in appState.ebsd }))
             } else {
                 ContentUnavailableView {
                     Label("No orientation map open", systemImage: "map")
                 } description: {
-                    Text("Open an indexed map (.ang, .ctf) or an EBSD pattern file that carries one, or try the demo map from the Help menu.")
+                    Text("Open an indexed map (.ang, .ctf, an .h5oina saved without patterns, or orix's .h5) or an EBSD pattern file that carries one, or try the demo map from the Help menu.")
                 } actions: {
                     Button("Open Orientation Map…") { state.requestImport() }
                         .buttonStyle(.borderedProminent)
@@ -274,7 +276,7 @@ struct MapPane: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("maps.map")
         .accessibilityLabel("Orientation map, \(session.layer.title)")
-        .accessibilityValue("\(shape.rows) rows by \(shape.columns) columns, at row \(session.pinned.row) column \(session.pinned.column)")
+        .accessibilityValue(SEMMapPointer.spokenMap(rows: shape.rows, columns: shape.columns, at: session.pinned))
         .accessibilityHint(ZoomPan.accessibilityHint)
     }
 

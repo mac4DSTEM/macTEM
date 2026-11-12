@@ -40,7 +40,7 @@ LOCK = os.path.join(HERE, "..", "..", "lib", "references-lock.txt")
 PILLOW_VERSION = "12.3.0"
 NUMPY_VERSION = "2.5.4"
 PYTHON_MINOR = "3.14"
-SOFTWARE = "macTEM 0.1.0 (1)"
+SOFTWARE = "macEM 0.1.0 (1)"
 MASKED_GREY = (82, 82, 87)
 RECIP = "nm⁻¹"
 
@@ -252,7 +252,7 @@ def common_comments(rep, tag, comments, c, win, subject, kind):
     spec = f"{win['width']} x {win['height']} bins"
     dqx, dqy = win["spacingX"], win["spacingY"]
     fx, fy = unit_factor(win["unitsX"]), unit_factor(win["unitsY"])
-    want = [f"# macTEM {kind}",
+    want = [f"# macEM {kind}",
             f"# software: {SOFTWARE}",
             f"# file: {c['fileName']}",
             "# object: ImageList.1",

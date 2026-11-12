@@ -119,7 +119,12 @@ package final class EELSSession {
     package internal(set) var wholeMapPlot: EELSPlotData?
     @ObservationIgnored private(set) var fitUsed: EELSPlotFit?
     @ObservationIgnored var plotTask: Task<Void, Never>?
+    /// When the plot on screen is not the selected shape's (`refreshPlot`): the selected region's own spectrum (the whole map's when none is),
+    /// summed without the model and landed before the fitted plot.
+    @ObservationIgnored package internal(set) var plotInterimTask: Task<Void, Never>?
     @ObservationIgnored var plotRun = 0
+    /// The shape the plot on screen was made for, quick or fitted (`.wholeMap` for the whole map); nil while a drag's live spectrum or nothing is shown.
+    @ObservationIgnored var plottedRegion: EDXRegion?
     /// The live spectrum of a drag (`previewRegion`): the running sum, the shape waiting for it, and whether the plot shows a preview.
     @ObservationIgnored var previewTask: Task<Void, Never>?
     @ObservationIgnored var pendingPreview: EDXRegion?
@@ -138,6 +143,9 @@ package final class EELSSession {
     package internal(set) var pinRows: [EELSRegionRow] = []
     /// True while the regions' rows are being summed and fitted again: `pinRows` still holds the previous ones (the Results room lists none meanwhile).
     package internal(set) var isRefreshingRegions = false
+    /// Whether the running refresh of the regions' rows fits their edges: edges picked, a core loss to fit of the scan's size and the microscope, as
+    /// `EELSRegionCompute.row` needs them, taken when the refresh starts. Without them a refresh sums the regions and works out t/λ only.
+    package internal(set) var isFittingRegions = false
     /// What the regions' rows were made from: the thickness inputs and the fit inputs at the time (`thicknessSignature`, `fitSignature`).
     package internal(set) var pinRowsThicknessSignature = ""
     package internal(set) var pinRowsFitSignature = ""
@@ -187,6 +195,17 @@ package final class EELSSession {
     /// A file whose only cube is a core loss: no t/λ, no t, no zero-loss peak to align (the room's "only core loss" state).
     package var onlyCoreLoss: Bool { hasImage && !hasLowLoss && source?.coreLoss == nil }
     package var selectedPin: EDXPin? { selectedPinID.flatMap { id in pins.first { $0.id == id } } }
+    /// The name of what the results panel's rows belong to (`resultRows`): the selected region, else the whole map ("Spectrum" for a file of one pixel). The
+    /// results header says it, not the plot's name, which is a drag's shape while one runs (the 2026-11-11 drive read "Results · Selection").
+    package var selectedRegionName: String { selectedPin?.name ?? (isSingleSpectrum ? "Spectrum" : "Whole map") }
+    /// The selected region's fit is on its way: its rows are being made and it has none yet. The results say so instead of "Run fits them", which a region
+    /// drawn after a Run does not need (the 2026-11-11 drive read it for a second after the release).
+    /// Only while the running refresh fits edges (`isFittingRegions`): a refresh that cannot fit (no collection angle, a Fourier-ratio core loss not
+    /// made yet, an edge picked after it started) leaves the body on what it was.
+    package var isFittingSelectedRegion: Bool {
+        guard isRefreshingRegions, isFittingRegions, let pin = selectedPin else { return false }
+        return pinRows.first { $0.id == pin.id }?.edges.isEmpty ?? true
+    }
 
     package var fileName: String { source?.fileName ?? "" }
     /// The open file's path as it was read ("" for a document made in memory).
@@ -486,7 +505,9 @@ package final class EELSSession {
     package func close() {
         cancelPass()
         openTask?.cancel(); openTask = nil; isOpening = false
-        plotTask?.cancel(); plot = nil; wholeMapPlot = nil; fitUsed = nil; alignmentShiftTile = nil
+        // A plot, quick spectrum or live spectrum still on its way lands nothing on the closed room.
+        plotTask?.cancel(); plotInterimTask?.cancel(); plotRun += 1; isPreviewing = false; pendingPreview = nil; plottedRegion = nil
+        plot = nil; wholeMapPlot = nil; fitUsed = nil; alignmentShiftTile = nil
         deadTask?.cancel(); coreDeadStretches = []; editedWindows = [:]; references = []; modelReferenceNames = []
         fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
         deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil

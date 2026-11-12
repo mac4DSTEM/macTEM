@@ -345,7 +345,7 @@ package nonisolated enum SessionSave {
         package var reason: String {
             switch self {
             case .readOnly(let version):
-                "its marks were recorded by a newer macTEM (lineage version \(version)); this one does not rewrite them"
+                "its marks were recorded by a newer macEM (lineage version \(version)); this one does not rewrite them"
             case .sidecarRefused(let reason): "the session file beside it was not restored (\(reason))"
             case .mark(let refusal): refusal.reason
             case .identity(let refusal): refusal.reason

@@ -14,6 +14,7 @@ import TEMSession
 
 nonisolated final class PatternProcessAdmissionTests: XCTestCase {
     private static let sixteenGB: UInt64 = 16 << 30
+    private static let posix = Locale(identifier: "en_US_POSIX")
 
     /// A 500 x 500 scan of 120 x 120 uint8 patterns: 3.6 GB as stored.
     private func largeDataset() throws -> EBSDDataset {
@@ -30,7 +31,7 @@ nonisolated final class PatternProcessAdmissionTests: XCTestCase {
         var nlpar = PatternPipeline.roomDefault
         nlpar.nlpar.isOn = true
         XCTAssertEqual(nlpar.estimatedProcessBytes(for: large), 43_200_000_000, "three float32 copies of the scan")
-        let refusal = try XCTUnwrap(nlpar.processAdmission(for: large, heldBytes: 0, physicalMemory: Self.sixteenGB))
+        let refusal = try XCTUnwrap(nlpar.processAdmission(for: large, heldBytes: 0, physicalMemory: Self.sixteenGB, locale: Self.posix))
         XCTAssertEqual(refusal.stage, .nlpar)
         XCTAssertEqual(refusal.sentence,
                        "Process would hold about 40.2 GB in memory, more than half of this Mac's 16 GB. Bin the patterns or turn NLPAR off.")
@@ -47,7 +48,7 @@ nonisolated final class PatternProcessAdmissionTests: XCTestCase {
         let plain = PatternPipeline.roomDefault
         XCTAssertEqual(plain.estimatedProcessBytes(for: large), 3_600_000_000)
         XCTAssertNil(plain.processAdmission(for: large, heldBytes: 0, physicalMemory: Self.sixteenGB))
-        let beside = try XCTUnwrap(plain.processAdmission(for: large, heldBytes: 5 << 30, physicalMemory: Self.sixteenGB),
+        let beside = try XCTUnwrap(plain.processAdmission(for: large, heldBytes: 5 << 30, physicalMemory: Self.sixteenGB, locale: Self.posix),
                                    "the last processed scan stays held while the new one runs")
         XCTAssertEqual(beside.sentence, "Process would hold about 8.4 GB in memory, more than half of this Mac's 16 GB. Bin the patterns.")
 
@@ -63,6 +64,17 @@ nonisolated final class PatternProcessAdmissionTests: XCTestCase {
         nlpar.nlpar.isOn = true
         XCTAssertNil(nlpar.processAdmission(for: try DemoDocuments.ebsd().dataset, heldBytes: 0, physicalMemory: Self.sixteenGB),
                      "the demo is admitted")
+    }
+
+    /// The refusal is read in the status line, so its numbers take the reader's decimal mark, as `UnitDisplay.fixed` writes them. Red
+    /// before: no locale parameter, and `String(format:)` wrote "40.2 GB" on a German Mac.
+    func testTheRefusalWritesItsNumbersInTheReadersLocale() throws {
+        var nlpar = PatternPipeline.roomDefault
+        nlpar.nlpar.isOn = true
+        let refusal = try XCTUnwrap(nlpar.processAdmission(for: try largeDataset(), heldBytes: 0, physicalMemory: Self.sixteenGB,
+                                                           locale: Locale(identifier: "de_DE")))
+        XCTAssertEqual(refusal.sentence,
+                       "Process would hold about 40,2 GB in memory, more than half of this Mac's 16 GB. Bin the patterns or turn NLPAR off.")
     }
 
     /// The session asks before it starts: refused, Process says why and holds nothing, while the preview's refusal stays nil; with the

@@ -241,7 +241,7 @@ private struct EELSMapTileHost: View {
                            onPolygon: { state.linesFocused = false; session.drawRegion(.polygon($0.map { PixelPoint(x: $0.x, y: $0.y) })) },
                            onLine: { if session.drawLine(from: PixelPoint(x: $0.x, y: $0.y), to: PixelPoint(x: $1.x, y: $1.y)) != nil { state.linesFocused = true } },
                            onEdit: { EELSRegionBridge.edit($0, $1, in: session) },
-                           onDrag: { session.previewRegion($0.flatMap { EDXRegionBridge.region($0.geometry) }) },
+                           onDrag: { session.previewRegion($0.flatMap { EDXRegionBridge.region($0.geometry) }, editing: $0?.id) },
                            onSelect: { EELSRegionBridge.select($0, in: session, state: state) },
                            onDelete: { EELSRegionBridge.deleteSelected(in: session, state: state) })
         }
@@ -287,6 +287,9 @@ private struct EELSMapTileHost: View {
                 return EELSRegionBridge.nudgeSelected(dx: step.dx, dy: step.dy, in: session, state: state) ? .handled : .ignored
             }
             .opacity(isRunning ? 0.5 : 1)
+            // The tile went away under a drag (a room switch while the button is held): MacEMUI's drawing layer never reports that drag's end, so its live
+            // spectrum ends here and the selected region's comes back.
+            .onDisappear { session.previewRegion(nil) }
             .task(id: key) {
                 guard !members.isEmpty else { image = nil; return }
                 let count = w * h
@@ -685,7 +688,8 @@ private struct EELSSpectrumView: View {
                 }
                 // The region's name on the right: the counts axis's title owns the top left (they overlapped, the owner's drive 2026-10-23).
                 .overlay(alignment: .topTrailing) {
-                    Text("\(plot.regionName) · \(plot.pixels) px").font(.caption).foregroundStyle(.secondary).padding(.trailing, Self.right + 4).padding(.top, 2)
+                    Text(EELSRoomFormat.spectrumHeader(region: plot.regionName, pixels: plot.pixels))
+                        .font(.caption).foregroundStyle(.secondary).padding(.trailing, Self.right + 4).padding(.top, 2)
                 }
                 .help("Hover for energy and counts; drag a window or its edge to move or resize it, double-click it for its default; scroll or pinch to zoom, drag to pan, drag along an axis to zoom it, double-click elsewhere for the whole spectrum; right-click for a linear or log counts axis and to reset windows")
                 .accessibilityElement()
@@ -921,14 +925,21 @@ private struct EELSWindowElements: View {
 /// (model · background · convolution · deconvolution). The methods' references are here once, in the Methods tag's tooltip; the columns say only their names.
 struct EELSResultsPanel: View {
     let session: EELSSession
+    /// The fitted edges selected in the results table, for ⌘C (#353).
+    @State private var edgeSelection = Set<EELSEdgeRow.ID>()
+    /// Whether the edges table has the keyboard. A click that selects edges gives it, as the FFT spots and the Image room's marks take it, so Edit > Copy and ⌘C
+    /// reach the table's copy: on the 2026-11-11 drive the colour mix tile kept the keyboard, the selection stayed grey and Copy was dimmed.
+    @FocusState private var edgesFocused: Bool
 
     var body: some View {
         let plot = session.plot
         let rows = session.resultRows
         let failure = session.failure
+        let regionCount = session.pinRows.count
         VStack(spacing: 0) {
             HStack(spacing: LayoutPolicy.inspectorRowSpacing) {
-                Text(EELSRoomFormat.resultsHeader(region: plot?.regionName ?? "Whole map", lambdaNM: session.map?.meanFreePathNM,
+                // The region the rows below belong to, not the plot's: a drag's shape is on the plot while the rows are still the selected region's.
+                Text(EELSRoomFormat.resultsHeader(region: session.selectedRegionName, lambdaNM: session.map?.meanFreePathNM,
                                                   lambdaSource: EELSRoomFormat.lambdaSource(session.meanFreePath)))
                     .font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.tail)
                     .accessibilityIdentifier("eels.results.header")
@@ -951,51 +962,20 @@ struct EELSResultsPanel: View {
                 .help("The median and the interquartile range of the kit's t/λ over the region's pixels; λ and its source; t from the same pixels")
                 .accessibilityIdentifier("eels.thicknessLine")
             Divider()
-            Group {
-                if rows.isEmpty {
-                    ContentUnavailableView("No edges fitted yet", systemImage: "list.bullet.rectangle",
-                                           description: Text(session.pickedEdges.isEmpty ? "Pick edges in the periodic table, then Run."
-                                                             : "Picked: " + session.pickedEdges.map(EELSFitCompute.title).joined(separator: ", ") + ". Run fits them."))
-                } else {
-                    Table(rows) {
-                        TableColumn("Edge") { r in
-                            HStack(spacing: 4) {
-                                Text(r.title).fontWeight(.semibold)
-                                if let why = r.unavailable { Image(systemName: "exclamationmark.circle").foregroundStyle(.secondary).help(why).accessibilityLabel(why) }
-                            }
-                        }.width(min: EELSResultsColumns.edgeMinimum, ideal: EELSResultsColumns.edgeMinimum + 6)
-                        TableColumn(EELSColumnSpeech.header("I")) { r in
-                            Text(EELSRoomFormat.intensityText(r)).monospacedDigit().lineLimit(1)
-                                .help("± is 1σ from the counts, carried through the background fit (counts taken as Poisson)"
-                                      + (r.exponent.map { "\nPower-law exponent r under this edge: \(EELSRoomFormat.sig($0, 4))" } ?? ""))
-                        }.width(min: EELSResultsColumns.intensityMinimum, ideal: EELSResultsColumns.intensityMinimum + 6)
-                        TableColumn(EELSColumnSpeech.header("at%")) { r in
-                            Text(EELSRoomFormat.atomicText(r)).monospacedDigit().lineLimit(1)
-                                .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
-                                .help(r.fitOnly ? EELSEdgeRow.fitOnlyWords
-                                      : r.notDetected ? "The MLLS amount is at or below zero: " + EELSEdgeRow.notDetectedWords + ", counted as 0 at%"
-                                      : r.belowDetection ? "I is at or under 3σ: this edge is not detected in the region"
-                                      : r.atomicPercent == nil ? (r.atomicUnavailable ?? EELSEdgeRow.atomicNeedsTwo)
-                                      : r.atomicSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "The kit gives no σ for an amount: at% without σ")
-                        }.width(min: EELSResultsColumns.percentMinimum, ideal: EELSResultsColumns.percentMinimum + 6)
-                        TableColumn(EELSColumnSpeech.header("wt%")) { r in
-                            Text(EELSRoomFormat.weightText(r)).monospacedDigit().lineLimit(1)
-                                .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
-                                .help(r.weightSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "")
-                        }.width(min: EELSResultsColumns.percentMinimum, ideal: EELSResultsColumns.percentMinimum + 6)
+            // The edges table and the Regions section share what the lines above and below leave (`EELSResultsSplit`): every edge's row, up to six,
+            // whole and clear of the horizontal scroll bar before the Regions section takes any of it. A fixed height for the Regions grid left a
+            // short pane's edges table a row and a half.
+            GeometryReader { geo in
+                let split = EELSResultsSplit.heights(available: geo.size.height, edgeRows: rows.count, regionRows: regionCount)
+                VStack(spacing: 0) {
+                    edges(rows)
+                        .frame(height: split.edges)
+                    if regionCount > 0 {
+                        regions
+                            .frame(height: split.regions, alignment: .top)
+                            .clipped()
                     }
-                    .alternatingRowBackgrounds(.disabled)   // the edges' rows, not a page of stripes (as the EDS table)
-                    .accessibilityIdentifier("eels.results.table")
                 }
-            }
-            .frame(maxHeight: .infinity)
-            if !session.pinRows.isEmpty {
-                Divider()
-                Text("Regions").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding).padding(.top, 4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                EELSRegionsTable(session: session)
-                    .frame(height: min(CGFloat(session.pinRows.count) * 22 + 60, 190))   // science: a table's rows
             }
             if let failure {
                 InspectorWarning(failure, systemImage: "xmark.octagon.fill")
@@ -1018,6 +998,78 @@ struct EELSResultsPanel: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("eels.results")
+    }
+
+    /// One row per fitted edge (I, at%, wt%); before a fit, what to do. A pane narrower than the columns' minimum widths scrolls them sideways, as a
+    /// standard macOS table does, never squeezing at% or wt% to "95,88…". The table asks its scroll bars to flash when it appears or its edges change, so
+    /// a cut column shows that it scrolls even where the scroll bars hide until a scroll (unverified on screen for a Table).
+    @ViewBuilder private func edges(_ rows: [EELSEdgeRow]) -> some View {
+        if rows.isEmpty, session.isFittingSelectedRegion {
+            // A region just drawn or edited: its fit runs on its own, so the body says so rather than asking for a Run (the 2026-11-11 drive).
+            ProgressView(EELSRoomFormat.fittingLine(region: session.selectedRegionName))
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityIdentifier("eels.results.fitting")
+        } else if rows.isEmpty {
+            ContentUnavailableView("No edges fitted yet", systemImage: "list.bullet.rectangle",
+                                   description: Text(session.pickedEdges.isEmpty ? "Pick edges in the periodic table, then Run."
+                                                     : "Picked: " + session.pickedEdges.map(EELSFitCompute.title).joined(separator: ", ") + ". Run fits them."))
+        } else {
+            Table(rows, selection: $edgeSelection) {
+                TableColumn("Edge") { r in
+                    HStack(spacing: 4) {
+                        Text(r.title).fontWeight(.semibold)
+                        if let why = r.unavailable { Image(systemName: "exclamationmark.circle").foregroundStyle(.secondary).help(why).accessibilityLabel(why) }
+                    }
+                }.width(min: EELSResultsColumns.edgeMinimum, ideal: EELSResultsColumns.edgeMinimum + 6)
+                TableColumn(EELSColumnSpeech.header("I")) { r in
+                    Text(EELSRoomFormat.intensityText(r)).monospacedDigit().lineLimit(1)
+                        .help("± is 1σ from the counts, carried through the background fit (counts taken as Poisson)"
+                              + (r.exponent.map { "\nPower-law exponent r under this edge: \(EELSRoomFormat.sig($0, 4))" } ?? ""))
+                }.width(min: EELSResultsColumns.intensityMinimum, ideal: EELSResultsColumns.intensityMinimum + 6)
+                TableColumn(EELSColumnSpeech.header("at%")) { r in
+                    Text(EELSRoomFormat.atomicText(r)).monospacedDigit().lineLimit(1)
+                        .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
+                        .help(r.fitOnly ? EELSEdgeRow.fitOnlyWords
+                              : r.notDetected ? "The MLLS amount is at or below zero: " + EELSEdgeRow.notDetectedWords + ", counted as 0 at%"
+                              : r.belowDetection ? "I is at or under 3σ: this edge is not detected in the region"
+                              : r.atomicPercent == nil ? (r.atomicUnavailable ?? EELSEdgeRow.atomicNeedsTwo)
+                              : r.atomicSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "The kit gives no σ for an amount: at% without σ")
+                }.width(min: EELSResultsColumns.percentMinimum, ideal: EELSResultsColumns.percentMinimum + 6)
+                TableColumn(EELSColumnSpeech.header("wt%")) { r in
+                    Text(EELSRoomFormat.weightText(r)).monospacedDigit().lineLimit(1)
+                        .foregroundStyle(r.belowDetection || r.fitOnly || r.notDetected ? .secondary : .primary)
+                        .help(r.weightSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "")
+                }.width(min: EELSResultsColumns.percentMinimum, ideal: EELSResultsColumns.percentMinimum + 6)
+            }
+            .alternatingRowBackgrounds(.disabled)   // the edges' rows, not a page of stripes (as the EDS table)
+            .scrollIndicatorsFlash(onAppear: true)
+            .scrollIndicatorsFlash(trigger: rows.map(\.id))
+            // ⌘C copies the selected edges as the Indexing room's Results table copies its rows: a header line, then a line per edge.
+            .onCopyCommand(perform: rows.contains(where: { edgeSelection.contains($0.id) }) ? { copiedEdges(rows) } : nil)
+            .focused($edgesFocused)
+            .onChange(of: edgeSelection) { _, picked in if !picked.isEmpty { edgesFocused = true } }
+            .accessibilityIdentifier("eels.results.table")
+        }
+    }
+
+    /// The selected edges, in the table's order, as tab-separated text under the table's titles.
+    private func copiedEdges(_ rows: [EELSEdgeRow]) -> [NSItemProvider] {
+        let picked = rows.filter { edgeSelection.contains($0.id) }
+        guard !picked.isEmpty else { return [] }
+        return [NSItemProvider(object: EELSEdgeTableFormat.copyText(picked) as NSString)]
+    }
+
+    /// The Regions section: its caption over the regions' table, which scrolls both ways in whatever height the edges table leaves it.
+    private var regions: some View {
+        VStack(spacing: 0) {
+            Divider()
+            Text("Regions").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding).padding(.top, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            EELSRegionsTable(session: session)
+                .frame(maxHeight: .infinity)
+        }
     }
 }
 

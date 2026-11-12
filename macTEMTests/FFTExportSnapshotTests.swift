@@ -25,19 +25,8 @@ import ImagoFFT
 
 nonisolated final class FFTExportSnapshotTests: XCTestCase {
 
-    private static let software = "macTEM 0.1.0 (1)"
+    private static let software = "macEM 0.1.0 (1)"
     private static let url = URL(fileURLWithPath: "/data/run1/plant.dm4")
-
-    private struct TimedOut: Error {}
-
-    @MainActor private func until(_ what: String, _ condition: @MainActor () -> Bool) async throws {
-        for _ in 0..<2000 {
-            if condition() { return }
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        XCTFail("timed out waiting for: \(what)")
-        throw TimedOut()
-    }
 
     /// An owner showing the plant with region A transformed and its spectrum landed.
     @MainActor private func landed() async throws -> (image: CalibratedImage, analysis: FFTAnalysis) {
@@ -45,13 +34,13 @@ nonisolated final class FFTExportSnapshotTests: XCTestCase {
         let analysis = FFTAnalysis()
         analysis.setRegion(FFTAnalysisTests.regionA, committed: true)
         analysis.show(image, contentVersion: 1)
-        try await until("the spectrum lands") { analysis.isSpectrumCurrent }
+        try await waitUntil("the spectrum lands", seconds: 10) { analysis.isSpectrumCurrent }
         return (image, analysis)
     }
 
     @MainActor private func measure(_ analysis: FFTAnalysis, row: Int, col: Int, count: Int) async throws {
         analysis.measureSpot(row: row, col: col)
-        try await until("the spot is answered") {
+        try await waitUntil("the spot is answered", seconds: 10) {
             analysis.spots.count == count && !analysis.spots.contains { if case .measuring = $0.outcome { true } else { false } }
         }
     }
@@ -90,7 +79,7 @@ nonisolated final class FFTExportSnapshotTests: XCTestCase {
         analysis.setRegion(FFTAnalysisTests.regionA, committed: true)
         analysis.show(image, contentVersion: 1)
         XCTAssertNil(ExportSnapshot.transformSnapshot(image: image, url: Self.url, analysis: analysis, software: Self.software))
-        try await until("the spectrum lands") { analysis.isSpectrumCurrent }
+        try await waitUntil("the spectrum lands", seconds: 10) { analysis.isSpectrumCurrent }
         XCTAssertNotNil(ExportSnapshot.transformSnapshot(image: image, url: Self.url, analysis: analysis, software: Self.software))
         analysis.setRegion(FFTAnalysisTests.regionC, committed: false)       // another region asked for, the old one on screen
         XCTAssertFalse(analysis.isSpectrumCurrent)

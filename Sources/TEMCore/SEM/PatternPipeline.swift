@@ -330,7 +330,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             guard radius >= 1 else { return Refusal(.nlpar, "The search radius must be at least 1.") }
             // The radius is held against the scan before the window 2 r + 1 is formed, so no typed radius overflows it.
             guard radius <= (min(dataset.scanRows, dataset.scanColumns) - 1) / 2 else {
-                let scan = "this one is \(dataset.scanRows) × \(dataset.scanColumns)."
+                let scan = "this one is \(dataset.scanColumns) × \(dataset.scanRows)."
                 guard radius <= Int.max / 2 else { return Refusal(.nlpar, "A search radius of \(radius) is wider than any scan; " + scan) }
                 let window = 2 * radius + 1
                 return Refusal(.nlpar, "A search radius of \(radius) needs a scan of at least \(window) × \(window); " + scan)
@@ -469,13 +469,15 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
     /// Whether `process` fits beside what stays held (`heldBytes`: the last processed scan, kept until the new run lands) on a Mac of
     /// `physicalMemory` bytes: the two together may take half the memory, the other half being the app, the system and the file's
     /// pages. nil when it fits. Apart from `refusal(for:background:)`, which also gates the one-pattern preview and the indexer's
-    /// streamed patterns, neither of which holds the scan.
-    package func processAdmission(for dataset: EBSDDataset, heldBytes: Int, physicalMemory: UInt64) -> Refusal? {
+    /// streamed patterns, neither of which holds the scan. The sentence's numbers are in `locale` (the reader's: the status line shows
+    /// it), as `UnitDisplay.fixed` writes them: "about 40,2 GB" in German.
+    package func processAdmission(for dataset: EBSDDataset, heldBytes: Int, physicalMemory: UInt64,
+                                  locale: Locale = .autoupdatingCurrent) -> Refusal? {
         let total = estimatedProcessBytes(for: dataset) + Double(max(heldBytes, 0))
         let memory = Double(physicalMemory)
         guard total > memory / 2 else { return nil }
         let gb = 1_073_741_824.0
-        let held = String(format: "%.1f", total / gb), mac = String(format: "%.0f", memory / gb)
+        let held = UnitDisplay.fixed(total / gb, places: 1, locale: locale), mac = UnitDisplay.fixed(memory / gb, places: 0, locale: locale)
         let stage: Stage = nlpar.isOn ? .nlpar : averaging.isOn ? .averaging : .size
         let advice = nlpar.isOn ? "Bin the patterns or turn NLPAR off." : "Bin the patterns."
         return Refusal(stage, "Process would hold about \(held) GB in memory, more than half of this Mac's \(mac) GB. " + advice)
@@ -663,7 +665,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
                           "reference": "pyebsdindex 0.3.10.1"])
         }
         let root: [String: Any] = [
-            "software": "macTEM", "reference": "kikuchipy 0.13.1", "file": fileName,
+            "software": "macEM", "reference": "kikuchipy 0.13.1", "file": fileName,
             "scan": [dataset.scanRows, dataset.scanColumns], "pattern": [dataset.patternRows, dataset.patternColumns],
             "dtype": dataset.dataType.rawValue, "steps": steps,
         ]

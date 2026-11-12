@@ -43,33 +43,31 @@ nonisolated final class RunActivityTests: XCTestCase {
         defer { gated.release() }
         await state.ebsd.bind(EBSDSession.Document(fileName: demo.fileName, url: nil, dataset: demo.dataset, access: gated)).value
         // The map's pass at open is a run too: it holds the activity and lets it go when it lands.
-        for _ in 0..<6000 where !state.busyRooms.isEmpty || state.runActivity.isHeld { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertTrue(state.busyRooms.isEmpty, "setup: every room is idle")
-        XCTAssertFalse(state.runActivity.isHeld)
+        try await waitUntil("setup: every room to be idle and the activity let go", seconds: 30) {
+            state.busyRooms.isEmpty && !state.runActivity.isHeld
+        }
         XCTAssertEqual(counts.ended, counts.begun)
         let before = counts.begun
 
         // A run that lands.
         gated.hold()
         let landed = state.ebsd.process()
-        for _ in 0..<2000 where counts.begun == before { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the run to begin an activity", seconds: 10) { counts.begun != before }
         XCTAssertEqual(counts.begun, before + 1, "Process holds one activity")
         XCTAssertTrue(state.runActivity.isHeld)
         gated.release()
         await landed.value
         XCTAssertNotNil(state.ebsd.processed, "the run landed")
-        for _ in 0..<2000 where state.runActivity.isHeld { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertFalse(state.runActivity.isHeld, "a landed run lets the activity go")
+        try await waitUntil("a landed run to let the activity go", seconds: 10) { !state.runActivity.isHeld }
         XCTAssertEqual(counts.ended, before + 1)
 
         // A run that is stopped.
         gated.hold()
         let stopped = state.ebsd.process()
-        for _ in 0..<2000 where counts.begun == before + 1 { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("the second run to begin an activity", seconds: 10) { counts.begun != before + 1 }
         XCTAssertEqual(counts.begun, before + 2, "the second run holds its own activity")
         state.ebsd.stop()
-        for _ in 0..<2000 where state.runActivity.isHeld { try await Task.sleep(for: .milliseconds(5)) }
-        XCTAssertFalse(state.runActivity.isHeld, "a stopped run lets the activity go")
+        try await waitUntil("a stopped run to let the activity go", seconds: 10) { !state.runActivity.isHeld }
         XCTAssertEqual(counts.ended, before + 2)
         gated.release()
         await stopped.value

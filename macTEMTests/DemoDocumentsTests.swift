@@ -92,8 +92,8 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
     // MARK: Launch arguments
 
     @MainActor func testTheLaunchArgumentsAreRead() {
-        XCTAssertEqual(LaunchOptions(arguments: ["macTEM"]), LaunchOptions(arguments: []))
-        let all = LaunchOptions(arguments: ["macTEM", "--ui-testing", "--demo-fixture", "--demo-spectrum-fixture", "--demo-eels-fixture", "--demo-sem-eds", "--demo-ebsd-fixture", "--export-dir", "/tmp/out"])
+        XCTAssertEqual(LaunchOptions(arguments: ["macEM"]), LaunchOptions(arguments: []))
+        let all = LaunchOptions(arguments: ["macEM", "--ui-testing", "--demo-fixture", "--demo-spectrum-fixture", "--demo-eels-fixture", "--demo-sem-eds", "--demo-ebsd-fixture", "--export-dir", "/tmp/out"])
         XCTAssertTrue(all.isUITesting && all.demoImage && all.demoSpectrum && all.demoEELS && all.demoSEMSpectrum && all.demoEBSD)
         XCTAssertEqual(all.exportDirectory, URL(fileURLWithPath: "/tmp/out", isDirectory: true))
         XCTAssertNil(LaunchOptions(arguments: ["--export-dir"]).exportDirectory, "no path after the flag")
@@ -130,7 +130,7 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
     }
 
     @MainActor func testOpenArgumentsParseInOrderAndRefuseARelativePath() {
-        let two = LaunchOptions(arguments: ["macTEM", "--open", "/data/b.emd", "--ui-testing", "--open", "/data/a.emd"])
+        let two = LaunchOptions(arguments: ["macEM", "--open", "/data/b.emd", "--ui-testing", "--open", "/data/a.emd"])
         XCTAssertEqual(two.openFiles, [URL(fileURLWithPath: "/data/b.emd"), URL(fileURLWithPath: "/data/a.emd")], "the order given")
         XCTAssertTrue(LaunchOptions(arguments: ["--open", "data/relative.emd"]).openFiles.isEmpty, "a relative path is refused")
         XCTAssertTrue(LaunchOptions(arguments: ["--open"]).openFiles.isEmpty, "no path after the flag")

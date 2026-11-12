@@ -46,12 +46,12 @@ nonisolated class Journey: XCTestCase {
     /// Stops the journey unless macTEM is frontmost with its window on screen and hittable: a click on another app would land in that app. Call it before a click.
     @MainActor func requireFrontmost(file: StaticString = #filePath, line: UInt = #line) throws {
         guard app.state == .runningForeground else {
-            XCTFail("macTEM is not the frontmost app (state \(app.state.rawValue)): no click", file: file, line: line)
+            XCTFail("macEM is not the frontmost app (state \(app.state.rawValue)): no click", file: file, line: line)
             throw XCTSkip("not frontmost")
         }
         let window = app.windows.firstMatch
         guard window.exists, window.isHittable, window.frame.width > 0, window.frame.height > 0 else {
-            XCTFail("macTEM's window is not on screen: no click", file: file, line: line)
+            XCTFail("macEM's window is not on screen: no click", file: file, line: line)
             throw XCTSkip("no window on screen")
         }
     }
@@ -72,6 +72,17 @@ nonisolated class Journey: XCTestCase {
     @MainActor
     func element(_ id: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
+    }
+
+    /// The words of every element that carries this identifier, label and value, in order. An identifier set on a row of several
+    /// texts lands on each of them: MacEMUI's `InspectorValueRow` is a label text and a value text, and `element(_:)` finds only the
+    /// label (2026-11-11 drive: the Patterns Calibration row's first match was its label text, "Step"). A row that sets its own
+    /// `.accessibilityValue` needs none of this.
+    @MainActor
+    func allWords(_ id: String) -> String {
+        app.descendants(matching: .any).matching(identifier: id).allElementsBoundByIndex
+            .map { "\($0.label) \(($0.value as? String) ?? "")" }
+            .joined(separator: " ")
     }
 
     /// True when no element carries this identifier: for a control the sources declare and this state must not show (the EELS maps on a

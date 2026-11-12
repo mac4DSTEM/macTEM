@@ -182,6 +182,19 @@ enum IndexingInfoFormat {
         triple(pc, locale: locale) + " · mean of the file's"
     }
 
+    /// The Calibration section's PC help, its count never grouped: "The mean of the file's 4125 projection centres, …" (a Bruker
+    /// h5ebsd file holds one per pattern); "The file's projection centre, …" for one. A `String`, so `.help` does not take it as a
+    /// localized key, which groups an interpolated count ("4.125" in German).
+    nonisolated static func projectionCentreHelp(count n: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        n > 1 ? "The mean of the file's \(count(n, locale: locale)) projection centres, Bruker convention (kikuchipy's pc_average)"
+              : "The file's projection centre, Bruker convention"
+    }
+
+    /// The detected bands' spoken value: "6 of 9 matched", the counts never grouped.
+    nonisolated static func matchedBands(_ matched: Int, of total: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(count(matched, locale: locale)) of \(count(total, locale: locale)) matched"
+    }
+
     /// The Calibration section's tilts in the Patterns room's words (`EBSDBrowsing.calibrationRows`): "Sample tilt 70°", "Detector
     /// tilt 0°".
     nonisolated static func tiltRows(_ detector: EBSDDetectorGeometry, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {

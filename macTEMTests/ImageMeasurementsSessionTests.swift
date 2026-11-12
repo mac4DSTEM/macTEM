@@ -528,12 +528,12 @@ nonisolated final class ImageMeasurementsSessionTests: XCTestCase {
         let o = owner(clock)
         o.add(distance((0, 0), (3, 4)), on: image)
         XCTAssertNil(o.savingRefusal)
-        o.sidecarRefused("it is not a macTEM session file")
-        XCTAssertEqual(o.savingRefusal, .sidecarRefused("it is not a macTEM session file"))
+        o.sidecarRefused("it is not a macEM session file")
+        XCTAssertEqual(o.savingRefusal, .sidecarRefused("it is not a macEM session file"))
         XCTAssertThrowsError(try o.saveRequest(opened: identity)) {
-            XCTAssertEqual($0 as? SessionSave.Refusal, .sidecarRefused("it is not a macTEM session file"))
+            XCTAssertEqual($0 as? SessionSave.Refusal, .sidecarRefused("it is not a macEM session file"))
         }
-        XCTAssertEqual(o.sidecar, .refused("it is not a macTEM session file"))
+        XCTAssertEqual(o.sidecar, .refused("it is not a macEM session file"))
         o.replaceRefusedSidecar()
         XCTAssertNil(o.savingRefusal)
         let request = try o.saveRequest(opened: identity)

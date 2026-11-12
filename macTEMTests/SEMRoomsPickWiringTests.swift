@@ -82,7 +82,8 @@ nonisolated final class SEMRoomsPickWiringTests: XCTestCase {
     func testEachRoomsRootTakesTheKeyboardOnAPressOnItsMap() throws {
         for path in ["macTEM/UI/PatternsRoom.swift", "macTEM/UI/IndexingRoom.swift", "macTEM/UI/MapsRoom.swift"] {
             let text = try code(path)
-            XCTAssertTrue(text.contains(".modifier(SEMRoomFocus()) .onKeyPress(phases: .down)"), path)
+            XCTAssertTrue(text.contains(".modifier(SEMRoomFocus()) .onKeyPress(phases: .down)")
+                          || text.contains(".modifier(SEMRoomFocus(copy: pickedRow == nil ? nil : { copiedPickedRow() })) .onKeyPress(phases: .down)"), path)
             XCTAssertFalse(text.contains(".focusable()"), "\(path) makes its own focusable root")
         }
         let pick = try code("macTEM/UI/SEMMapPick.swift")
@@ -126,7 +127,7 @@ nonisolated final class SEMRoomsPickWiringTests: XCTestCase {
         XCTAssertTrue(maps.contains(".onChange(of: patterns?.pinned, initial: true) { appState.mapsFollowPatternsPin() } .onChange(of: session.pinned) { appState.followMapsPin() }"))
         let indexing = try code("macTEM/UI/IndexingRoom.swift")
         XCTAssertEqual(indexing.components(separatedBy: ".onChange(of: session.patterns.pinned)").count - 1, 1, "once, in IndexingKeyedRoom")
-        XCTAssertTrue(indexing.contains("return .handled } .onChange(of: session.patterns.pinned) { session.showPattern() }"))
+        XCTAssertTrue(indexing.contains("return .handled } .onChange(of: session.patterns.pinned) { if followsThePick { session.showPattern() } }"), "the upper panes' container shows the pattern; the Compare maps' one only takes the keys")
         XCTAssertTrue(indexing.contains(".modifier(SelectsThePickedRow(patterns: session.patterns, columns: dataset.scanColumns, rows: rows, selection: $selection))"))
         XCTAssertTrue(indexing.contains("content.task(id: patterns.pinned) { guard (try? await Task.sleep(for: Self.rest)) != nil else { return }"))
     }

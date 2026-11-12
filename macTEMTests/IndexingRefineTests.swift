@@ -496,6 +496,62 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         print("testRefineThroughTheRoom: \(String(format: "%.1f", Date().timeIntervalSince(started))) s")
     }
 
+    /// Index → Refine on the processed scan (#427). The Refine stage reads the patterns the Dictionary run read through its own copy
+    /// of the plan, so the chain still runs after the ended Dictionary run lets go of them; stopped after its first block, Refine alone
+    /// reads the scan again from the Patterns room and refines each point as the chain did. Once Patterns has processed a new scan the
+    /// first is gone, and the method record still says where the run read its patterns. Red before: the Dictionary run and its
+    /// refinement kept the first scan alive.
+    @MainActor func testAnEndedRefinementLetsGoOfTheProcessedScanItRead() async throws {
+        let (patterns, indexing) = try await openNickel()
+        await patterns.process().value
+        weak let read = patterns.processed
+        XCTAssertNotNil(read, "Process landed")
+        indexing.setMethod(.dictionary)
+        indexing.editDictionarySettings { $0.resolution = 10 }
+        indexing.setRefinesAfterIndexing(true)
+        XCTAssertNil(indexing.refusal, indexing.refusal ?? "")
+        var events: [String] = []
+        indexing.onEvent = { events.append($0) }
+
+        // Index → Refine, the Refine stage stopped once its first block has landed.
+        let chain = indexing.index()
+        try await waitUntil("the first refined block lands", seconds: 120) {
+            (indexing.refinedRun?.result.rowsDone ?? 0) > 0 || !indexing.isIndexing
+        }
+        indexing.stop()
+        await chain.value
+        let dictionary = try XCTUnwrap(indexing.runs[.dictionary])
+        XCTAssertTrue(dictionary.result.isComplete, "\(events)")
+        XCTAssertEqual(dictionary.source, .processedScan)
+        let kept = try XCTUnwrap(indexing.refinedRun, "\(events)")
+        XCTAssertTrue(kept.wasStopped, "\(events)")
+        XCTAssertGreaterThan(kept.result.rowsDone, 0, "the chain refined the patterns the Dictionary run read: \(events)")
+        XCTAssertFalse(events.contains { $0.hasPrefix("Error") }, "\(events)")
+
+        // Refine alone: the whole scan again, the Dictionary run as it was, each point as the chain refined it.
+        XCTAssertTrue(indexing.verbHelp.hasPrefix("Refine the orientations of the "), indexing.verbHelp)
+        let before = events.count
+        await indexing.index().value
+        XCTAssertEqual(indexing.runs[.dictionary]?.id, dictionary.id, "refined alone")
+        XCTAssertFalse(events[before...].contains { $0.hasPrefix("Indexed ") || $0.hasPrefix("Error") }, "\(events[before...])")
+        XCTAssertTrue(events.last?.hasPrefix("Refined ") == true, "\(events)")
+        let again = try XCTUnwrap(indexing.refinedRun)
+        XCTAssertTrue(again.result.isComplete)
+        // A refined solution's fit is NaN (no band is fitted), so the orientations and the NCC are compared.
+        let landed = kept.result.rowsDone * kept.result.scanColumns
+        XCTAssertEqual(again.result.solutions[..<landed].map { $0?.quaternion }, kept.result.solutions[..<landed].map { $0?.quaternion },
+                       "Refine alone refines each point as the chain did")
+        XCTAssertEqual(again.result.solutions[..<landed].map { $0?.confidence }, kept.result.solutions[..<landed].map { $0?.confidence })
+
+        patterns.editPipeline { $0.dynamicStage.std = 12 }
+        await patterns.process().value
+        await indexing.showPattern().value
+        XCTAssertNil(read, "the ended Dictionary run and its refinement let go of the first processed scan")
+        let method = try XCTUnwrap(try JSONSerialization.jsonObject(with: try XCTUnwrap(try indexing.methodJSON())) as? [String: Any])
+        XCTAssertEqual(method["patterns"] as? String, "Processed scan (in memory)")
+        XCTAssertNotNil(method["refinement"], "the refinement's record")
+    }
+
     // MARK: - The inspector's wiring
 
     /// The Refine section sits under Dictionary, closed, its switch and settings the session's, each control identified, the PC's

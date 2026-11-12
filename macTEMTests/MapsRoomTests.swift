@@ -75,7 +75,7 @@ nonisolated final class MapsRoomTests: XCTestCase {
                        "row 0 · col 0 · ferrite/ferrite · φ₁ 203.3° Φ 38.8° φ₂ 171.2° · dp 0.799 · iq 24.4")
         XCTAssertNil(OrientationMaps.readout(map, grid: grid, row: 100, column: 0, locale: en))
         XCTAssertNil(OrientationMaps.readout(map, grid: grid, row: 0, column: -1, locale: en))
-        XCTAssertEqual(MapsRoomFormat.capsuleDetail(map), "100 × 117 · 2 phases")
+        XCTAssertEqual(MapsRoomFormat.capsuleDetail(map), "117 × 100 · 2 phases", "width × height: 117 columns, 100 rows")
         XCTAssertEqual(MapsRoomFormat.mapTitle(.ipf(.x)), "Map · IPF-X")
     }
 

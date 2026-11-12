@@ -2,7 +2,7 @@
 //  TIFFImageReader.swift
 //  Role: open one 2D TIFF image as macTEM's `CalibratedImage`. The reading is FormatoKit's `TIFFAppImage` (FormatoTIFF, the first
 //        consumer's named option, pinned in the kit to this app's source and to RosettaSciIO 049e7d70 + tifffile 2026.9.20: a
-//        baseline TIFF's first directory, uncompressed, striped, chunky; one sample of 8/16/32 bits or float, or an
+//        baseline TIFF's first directory, uncompressed or LZW (FormatoKit 0.15.0), striped, chunky; one sample of 8/16/32 bits or float, or an
 //        equal-channel 8-bit RGB read as a grey render; the Velox XML, FEI SEM INI, Digital Micrograph and ImageJ
 //        calibrations in that order; everything else refused by name). This file is the seam: the app's refusal wording
 //        (`Refusal.reason`), the Cocoa error for an unreadable file, and `KitImages` (the one conversion of a kit image to a
@@ -47,12 +47,28 @@ package nonisolated enum TIFFImageReader {
             case .notTIFF: "it is not a TIFF file."
             case .truncated: "the file ends before its image does."
             case .multiPage: "it holds more than one page, and they are not grey frames of one size; other image stacks are not read yet."
-            case .compressed(let scheme): "its pixels are compressed (scheme \(scheme)); only uncompressed TIFF is read."
+            case .compressed(let scheme): "its pixels are compressed with \(TIFFImageReader.compressionName(scheme)), which macEM does not read yet."
             case .tiled: "its pixels are stored in tiles; only striped TIFF is read."
             case .unequalChannels(let row, let column):
                 "it is a colour image (row \(row), column \(column) differs between red, green and blue); only a grey render is read."
             case .sampleFormat(let what): "its pixel layout is not read (\(what))."
             }
+        }
+    }
+
+    /// TIFF Compression tag values by name (TIFF 6.0, libtiff's tiff.h), so a refusal names the scheme, not its number.
+    package static func compressionName(_ scheme: Int) -> String {
+        switch scheme {
+        case 2, 3, 4: "CCITT fax coding"
+        case 5: "LZW"
+        case 6, 7, 34892: "JPEG"
+        case 8, 32946: "Deflate (ZIP)"
+        case 32773: "PackBits"
+        case 34925: "LZMA"
+        case 50000: "Zstandard"
+        case 50001: "WebP"
+        case 34933, 50002: "JPEG XL"
+        default: "a scheme it does not know"
         }
     }
 

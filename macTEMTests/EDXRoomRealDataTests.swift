@@ -296,8 +296,9 @@ nonisolated final class EDXRoomRealDataTests: XCTestCase {
         let a = try url(Self.f1339), b = try url(Self.f1840)
         let state = AppState()
         // `AppState.open` starts the room's own read and returns before it lands; the session keeps that task private, so the wait is on its state (bounded, 60 s).
+        // A wait that runs out does not fail here, as before: the guards and the assertions below check what the room holds.
         func roomHolds(_ name: String) async throws {
-            for _ in 0..<600 where state.edx.isOpening || state.edx.fileName != name { try await Task.sleep(for: .milliseconds(100)) }
+            _ = try await conditionHolds(within: 60) { !state.edx.isOpening && state.edx.fileName == name }
             await state.edx.settled()
         }
         await state.open(urls: [a])?.value

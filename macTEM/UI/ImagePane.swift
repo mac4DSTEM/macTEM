@@ -332,7 +332,7 @@ struct DatabarStrip: View, Equatable {
         .accessibilityElement()
         .accessibilityIdentifier("image.sem.databarStrip")
         .accessibilityLabel("Databar")
-        .accessibilityValue("\(strip.height) rows under the scan")
+        .accessibilityValue(Text(verbatim: "\(strip.height) rows under the scan"))
     }
 
     /// 8-bit grey of `normalized` (0...1; a non-finite pixel is black).

@@ -14,7 +14,7 @@ import TEMCore
 nonisolated final class InfoPlistTypesTests: XCTestCase {
 
     func testDeclaredDocumentExtensionsAreExactlyTheReadableOnes() throws {
-        // The unit tests are hosted by the app: the bundle that holds `AppDelegate` is macTEM.app.
+        // The unit tests are hosted by the app: the bundle that holds `AppDelegate` is macEM.app.
         let bundle = Bundle(for: AppDelegate.self)
         let types = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CFBundleDocumentTypes") as? [[String: Any]])
         // The companion type (role None) claims nothing and is read only beside a picked file: the next test holds it.

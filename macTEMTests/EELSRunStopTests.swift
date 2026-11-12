@@ -37,6 +37,7 @@ nonisolated final class EELSRunStopTests: XCTestCase {
         XCTAssertTrue(session.canRun)
 
         let run = session.run()
+        // Yields, not the shared wait's 5 ms sleeps, in which Align could land before the Stop; the assertion below fails if it never starts.
         var turns = 0
         while !session.isComputing, turns < 1_000 {
             await Task.yield()

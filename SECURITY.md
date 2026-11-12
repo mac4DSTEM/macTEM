@@ -1,7 +1,8 @@
 # Security
 
-macTEM is a desktop application that reads microscopy files you choose. It runs in the macOS App Sandbox, makes no
-network connection, and has no telemetry or analytics. It reads and writes only the files you pick; security-scoped
+macEM is a desktop application that reads microscopy files you choose. It runs in the macOS App Sandbox, connects to no
+other computer, and has no telemetry or analytics. Its one listener is the agent door (Settings > Agents, off by default): on
+this Mac's loopback address only, for an AI agent you run on the same Mac, and only requests carrying its token. It reads and writes only the files you pick; security-scoped
 bookmarks let it reopen them.
 
 To report a vulnerability (a crafted file that crashes the app or escapes the sandbox, or a problem in the

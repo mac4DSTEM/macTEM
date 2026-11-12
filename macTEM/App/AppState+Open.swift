@@ -35,13 +35,23 @@ extension AppState {
     @discardableResult
     func open(urls batch: [URL], refused: [String] = []) -> Task<Void, Never>? {
         let urls: [URL]
+        let tabs: Task<[String], Never>?   // the files that get a tab of their own, looked at first (`tabsChecked`): the refused ones' sentences
         if let windows, windows.canOpenTabs {
             let split = OpenBatch.perWindow(batch, held: heldFiles, windowIsTaken: isTaken)
-            windows.openInTabs(split.elsewhere)
+            // A file another window holds comes forward there at once; a new one is looked at before its tab is made.
+            windows.openInTabs(split.elsewhere.filter { windows.holder(of: $0) != nil })
+            let fresh = split.elsewhere.filter { windows.holder(of: $0) == nil }
+            tabs = fresh.isEmpty ? nil : Task { await self.tabsChecked(fresh, windows: windows) }
             urls = split.here
-            if urls.isEmpty { presentRefusals(refused) }
+            if urls.isEmpty {
+                guard let tabs else { presentRefusals(refused); return nil }
+                let task = Task { presentRefusals(refused + (await tabs.value)) }
+                lastOpen = task
+                return task
+            }
         } else {
             urls = batch
+            tabs = nil
         }
         guard !urls.isEmpty else { return nil }
         opensInFlight += 1
@@ -93,7 +103,7 @@ extension AppState {
                 if inventory.eelsSpectrumImage { eelsFiles.insert(url); eelsBatch.append(url) }
                 if let found = inventory.landing, landing == nil || found.richness > landing!.richness { landing = found }
             }
-            presentRefusals(refused + refusals)
+            presentRefusals(refused + refusals + (await tabs?.value ?? []))
             // One file per spectrum room: the batch's first, the one Open Files selects when it is first in the list (the room followed the
             // selection only on the next click; two files at launch left the last in the room and the first selected, 2026-10-23). The others
             // are reached by selecting their row (`spectrumRoomsFollowSelection`).
@@ -108,7 +118,7 @@ extension AppState {
                 roomOpens.append(opening)
                 if let folder { Task { await opening.value; folder.release() } }
             }
-            // The Maps room holds one map: an `.ang` or `.ctf` opened on its own (a dataset's map comes through the Patterns room).
+            // The Maps room holds one map: an `.ang`, `.ctf`, map-only `.h5oina` or orix `.h5` opened on its own (a dataset's map comes through the Patterns room).
             if let first = mapBatch.first { roomOpens.append(maps.open(url: first)) }
             // The others of each room that no Open Files row reaches are named once the rooms' opens have landed (`reportLeftOut`),
             // not dropped without a word.
@@ -150,6 +160,16 @@ extension AppState {
         }
         lastOpen = task
         return task
+    }
+
+    /// The files of a batch that each get a tab of their own, looked at before the tab is made (`inventories`, off the main actor): a
+    /// file the routing refuses gets no tab and is named in this window's alert, as Preview opens no window for a file it cannot open,
+    /// so no empty tab is left behind. A NORDIF scan that asks for its folder is not refused here: its own tab asks. Returns the
+    /// refused files' sentences.
+    private func tabsChecked(_ urls: [URL], windows: AppWindows) async -> [String] {
+        let looked = await Self.inventories(urls)
+        windows.openInTabs(looked.filter { $0.inventory.refusal == nil || $0.asksForFolder }.map(\.url))
+        return looked.compactMap { $0.asksForFolder ? nil : $0.inventory.refusal }
     }
 
     /// The refused files of one Open (a drop's own lines, then the route's sentences) as one alert, a line each: a `present` per file
@@ -348,7 +368,7 @@ extension AppState {
     }
 
     static let needsAccessSentence =
-        "A session file for this image is beside it, but macOS has not given macTEM access to read it."
+        "A session file for this image is beside it, but macOS has not given macEM access to read it."
 
     /// What the infobar's "Opened …" line adds about the file's session (the design's table): the persistent words are
     /// in the Measure section, this is the event.

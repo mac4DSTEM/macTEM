@@ -3,8 +3,8 @@
 //  The SEM rooms' number words go through `UnitDisplay`, as every other room's: the Maps room's angles, numbers, fractions and grain
 //  lengths, the orientation pane's Euler angles and the Indexing table's cells take printf's digits in the reader's decimal mark, never a
 //  negative zero, and one dash where there is no value; the Patterns room's readouts and Info rows take the locale they are given; the
-//  typed fields of both rooms share `Num`'s styles, never grouped; a count of one reads in the singular. The EDS room's SEM rows follow
-//  with that room's rework.
+//  typed fields of both rooms share `Num`'s styles, never grouped; a count of one reads in the singular. The EDS room's SEM rows go
+//  through `UnitDisplay` too (SEMEDSStateTests).
 //
 
 import XCTest

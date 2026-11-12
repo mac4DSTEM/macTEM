@@ -34,7 +34,7 @@ nonisolated final class ProfileCSVTests: XCTestCase {
     }
 
     private func source(_ image: CalibratedImage) -> ExportSource {
-        ExportSource(image: image, software: "macTEM 0.1.0 (1)")
+        ExportSource(image: image, software: "macEM 0.1.0 (1)")
     }
 
     /// v = 100 + 3 r + 2 c on 8 × 6 pixels at 0.5 × 0.8 nm, the line (1, 2) → (5, 2): five samples on row 2, 0.5 nm apart,
@@ -88,8 +88,8 @@ nonisolated final class ProfileCSVTests: XCTestCase {
     func testTheTextIsExactForAPlantedProfile() throws {
         let text = try csv(planted())
         let expected = [
-            "# macTEM line profile",
-            "# software: macTEM 0.1.0 (1)",
+            "# macEM line profile",
+            "# software: macEM 0.1.0 (1)",
             "# file: planted.dm4",
             "# object: ImageList.1",
             "# image: 8 x 6 px",
@@ -123,13 +123,13 @@ nonisolated final class ProfileCSVTests: XCTestCase {
         let parsed = parse(text)
         XCTAssertEqual(parsed.header.compactMap(key), [
             "software", "file", "object", "image", "start", "end", "width", "samples", "length", "x scale", "y scale",
-            "position", "shown in macTEM as", "method", "notes", "validation", "lineage", "numbers",
+            "position", "shown in macEM as", "method", "notes", "validation", "lineage", "numbers",
         ])
-        XCTAssertEqual(parsed.header.first, "# macTEM line profile")
+        XCTAssertEqual(parsed.header.first, "# macEM line profile")
         XCTAssertEqual(parsed.columns, "position (nm),value")
         XCTAssertEqual(parsed.rows.count, p.profile.samples.count)
         // Without `shown` the same file has the same keys minus that one.
-        XCTAssertEqual(parse(try csv(p)).header.compactMap(key).filter { $0 == "shown in macTEM as" }, [])
+        XCTAssertEqual(parse(try csv(p)).header.compactMap(key).filter { $0 == "shown in macEM as" }, [])
     }
 
     /// A Velox pixel is 4.46179e-11 m: the file states metres, the positions stay in metres (the column header says so),
@@ -145,11 +145,11 @@ nonisolated final class ProfileCSVTests: XCTestCase {
         let withShown = try XCTUnwrap(ProfileCSV.text(profile, start: start, end: end, source: src,
                                                       shown: (unit: "nm", factor: 1e9)))
         let without = try XCTUnwrap(ProfileCSV.text(profile, start: start, end: end, source: src))
-        XCTAssertTrue(withShown.contains("\n# shown in macTEM as: nm (x 1000000000.0)\n"))
-        XCTAssertFalse(without.contains("shown in macTEM"))
-        XCTAssertEqual(lines(withShown).filter { $0.hasPrefix("# shown in macTEM as") }.count, 1)
+        XCTAssertTrue(withShown.contains("\n# shown in macEM as: nm (x 1000000000.0)\n"))
+        XCTAssertFalse(without.contains("shown in macEM"))
+        XCTAssertEqual(lines(withShown).filter { $0.hasPrefix("# shown in macEM as") }.count, 1)
         // The line sits between the position line and the method line, and nothing else differs.
-        XCTAssertEqual(lines(withShown).filter { !$0.hasPrefix("# shown in macTEM as") }, lines(without))
+        XCTAssertEqual(lines(withShown).filter { !$0.hasPrefix("# shown in macEM as") }, lines(without))
         for text in [withShown, without] {
             let parsed = parse(text)
             XCTAssertEqual(parsed.columns, "position (m),value")
@@ -270,7 +270,7 @@ nonisolated final class ProfileCSVTests: XCTestCase {
                         fileName: hostile, object: hostile, notes: [hostile, "second\rnote"]) { r, c in Float(r + c) }
         let start = ImagePoint(x: 0, y: 1), end = ImagePoint(x: 4, y: 1)
         let profile = LineProfile.sample(img, from: start, to: end, width: 1)
-        let src = ExportSource(image: img, software: "macTEM\n0.1.0")
+        let src = ExportSource(image: img, software: "macEM\n0.1.0")
         let text = try XCTUnwrap(ProfileCSV.text(profile, start: start, end: end, source: src,
                                                  shown: (unit: "u\u{2028}x", factor: 2)))
         for bad: UInt32 in [0x0D, 0x85, 0x2028, 0x2029, 0x7F, 0x09, 0x00] {
@@ -283,9 +283,9 @@ nonisolated final class ProfileCSVTests: XCTestCase {
         XCTAssertTrue(parsed.header.allSatisfy { $0.hasPrefix("# ") })
         XCTAssertTrue(parsed.header.contains("# file: a b  c d e f g h i"))
         XCTAssertTrue(parsed.header.contains("# object: a b  c d e f g h i"))
-        XCTAssertTrue(parsed.header.contains("# software: macTEM 0.1.0"))
+        XCTAssertTrue(parsed.header.contains("# software: macEM 0.1.0"))
         XCTAssertTrue(parsed.header.contains("# notes: a b  c d e f g h i; second note"))
-        XCTAssertTrue(parsed.header.contains("# shown in macTEM as: u x (x 2.0)"))
+        XCTAssertTrue(parsed.header.contains("# shown in macEM as: u x (x 2.0)"))
         XCTAssertTrue(parsed.header.contains("# x scale: 0.5 n m per px, origin 0.0 px"))
         XCTAssertEqual(parsed.columns, "position (n m),value")
     }

@@ -118,4 +118,15 @@ nonisolated final class EELSRegionsTests: XCTestCase {
         XCTAssertTrue(source.contains(".accessibilityValue(EELSRegionSpeech.tOverLambdaValue(row.tOverLambda))"))
         XCTAssertFalse(source.contains("String(format:"), "no accessibility value of the table is written with a fixed point")
     }
+
+    /// The Pixels cell's text, `pixelsText`, writes a region's pixel count never grouped, in any locale, as the total beside it. Red under: a
+    /// count written with the locale's grouping ("1.722" in German, as the cell's literal `Text("\(row.pixels)")` drew it).
+    func testThePixelsCellWritesItsCountWithoutGrouping() {
+        let german = Locale(identifier: "de_DE"), english = Locale(identifier: "en_US")
+        XCTAssertEqual(EELSRegionSpeech.pixelsText(1722, locale: german), "1722", "a whole number, never grouped")
+        XCTAssertEqual(EELSRegionSpeech.pixelsText(1722, locale: english), "1722")
+        XCTAssertEqual(EELSRegionSpeech.pixelsText(12_432, locale: german), EELSRegionSpeech.totalText(12_432, locale: german),
+                       "written as the total beside it")
+        XCTAssertEqual(EELSRegionSpeech.pixelsText(16, locale: german), "16")
+    }
 }

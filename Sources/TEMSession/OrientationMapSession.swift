@@ -1,7 +1,7 @@
 //
 //  OrientationMapSession.swift
 //  Role: the one owner of the Maps room's state (docs/sem/design/orientation-maps-room.md, brief P3-04): the orientation map shown (a
-//        `CrystalMap` from an `.ang` or `.ctf` opened on its own, the crystal map of the EBSD dataset the Patterns room holds, or a run
+//        `CrystalMap` from an `.ang`, `.ctf` or map-only `.h5oina` opened on its own, the crystal map of the EBSD dataset the Patterns room holds, or a run
 //        of the Indexing room on that dataset, handed over by its `Open in Maps`, D-SEM-99) and the others held for `Source`, which layer
 //        the map pane draws (IPF-Z, IPF-X, IPF-Y, Phase or a property) and its picture, the colour keys of the map's phases, and the
 //        picked scan point (`pinned`). The room's views read it; they hold none of it.
@@ -26,7 +26,7 @@ package final class OrientationMapSession {
     /// The map shown and where it came from.
     package nonisolated struct Document: Sendable {
         package enum Source: Sendable, Hashable {
-            /// An `.ang` or `.ctf` opened on its own: the map without patterns.
+            /// An `.ang`, `.ctf` or map-only `.h5oina` opened on its own: the map without patterns.
             case mapFile
             /// The crystal map of the EBSD dataset open in the Patterns room: the patterns are there for the live pane.
             case patterns
@@ -164,6 +164,11 @@ package final class OrientationMapSession {
     package private(set) var texture: MapTexture?
     package private(set) var texturePhaseID: Int?
     package private(set) var isTexturing = false
+    /// Whether ⌘. stopped the texture before it landed: the Pole figures and ODF panes say so until it is made again (macTEM#410).
+    package private(set) var textureStopped = false
+    /// Why the texture of `texturePhaseID` could not be made, the status line's reason, until a texture is asked for again or the map
+    /// changes: the panes say it, and Compute Texture stays off, since the same map and phase refuse the same way (macTEM#410).
+    package private(set) var textureFailure: String?
 
     /// The picked point: where the marker stands and what the orientation or pattern pane shows. The pointer over the map picks nothing
     /// (D-SEM-110).
@@ -210,7 +215,7 @@ package final class OrientationMapSession {
 
     // MARK: Opening
 
-    /// Reads the `.ang` or `.ctf` at `url` off the main actor (inside its security scope), then shows it.
+    /// Reads the `.ang`, `.ctf`, map-only `.h5oina` or orix `.h5` at `url` off the main actor (inside its security scope), then shows it.
     @discardableResult
     package func open(url: URL) -> Task<Void, Never> {
         openTask?.cancel()
@@ -232,7 +237,8 @@ package final class OrientationMapSession {
         return task
     }
 
-    /// The map in an `.ang` (orix's reader port) or a `.ctf`.
+    /// The map in an `.ang` (orix's reader port), a `.ctf`, an Oxford `.h5oina` that holds no patterns, or orix's own `.h5`
+    /// (`EBSDH5Reader.readMap`).
     @concurrent
     nonisolated package static func read(_ url: URL) async throws -> Document {
         let scoped = url.startAccessingSecurityScopedResource()
@@ -251,10 +257,28 @@ package final class OrientationMapSession {
             } catch let refusal as CTFReader.Refusal {
                 throw MapReadError(text: "\(url.lastPathComponent): \(refusal.reason)")
             }
+        case let ext where EBSDOpening.h5Extensions.contains(ext):
+            // An Oxford H5OINA without patterns, AZtec's map export (#513), or orix's own HDF5 file (#514): routing sends it here;
+            // its refusals come out in its words.
+            do {
+                let found = try EBSDH5Reader.readMap(url: url)
+                let format = switch found.layout {
+                case .oxford: Self.h5oinaFormat
+                case .orix: Self.orixFormat
+                }
+                return Document(fileName: url.lastPathComponent, url: url, map: found.map, source: .mapFile, format: format)
+            } catch let refusal as EBSDReadError {
+                throw MapReadError(text: refusal.text)
+            }
         default:
-            throw MapReadError(text: "\(url.lastPathComponent) is not an orientation map (.ang or .ctf).")
+            throw MapReadError(text: "\(url.lastPathComponent) is not an orientation map (.ang, .ctf, .h5oina or orix's .h5).")
         }
     }
+
+    /// The format an H5OINA map is shown with (Info names its Euler angles by it).
+    package nonisolated static let h5oinaFormat = ".h5oina (Oxford Instruments)"
+    /// The format a map in orix's own HDF5 file is shown with.
+    package nonisolated static let orixFormat = ".h5 (orix)"
 
     nonisolated static func angFormat(_ vendor: ANGMap.Vendor) -> String {
         switch vendor {
@@ -299,9 +323,19 @@ package final class OrientationMapSession {
         slipFiles = Self.defaultSlipFiles(document.map)
         grid = OrientationMaps.pointIndexGrid(document.map)
         let phases = document.map.phasesInData.names.filter { $0 != PhaseList.notIndexedName }.count
-        onEvent?("Opened \(document.fileName) — orientation map \(rows) × \(columns), \(UnitDisplay.count(phases, "phase", "phases"))")
+        onEvent?("Opened \(document.fileName) — orientation map \(columns) × \(rows), \(UnitDisplay.count(phases, "phase", "phases"))")
         startKeys(document)
         return draw()
+    }
+
+    /// File > Close Map (⌘W in the Maps room): the map shown goes, and the next map held is shown in its place at the same point and on
+    /// the same layer where it has them (`Source`'s order); with none left the room goes back to its door. The other maps stay held.
+    @discardableResult
+    package func closeShown() -> Task<Void, Never>? {
+        guard let shown = document else { close(); return nil }
+        sources.removeAll { $0.id == shown.id }
+        guard let next = sources.first else { close(); return nil }
+        return bind(next, layer: layer, pinned: pinned)
     }
 
     /// Closes the map and every map held: the room goes back to its door.
@@ -349,7 +383,8 @@ package final class OrientationMapSession {
 
     /// ⌘.: ends the open, Segment and the texture in flight; a layer's picture still lands. Segment stops at its next row or grain and
     /// stays busy until its pass has returned (`segmentEnded`), so a second one never runs beside it; what it made is dropped. The
-    /// texture's own loops run on to their end, but what they make is dropped; the texture pane asks again the next time it appears.
+    /// texture's own loops run on to their end, but what they make is dropped; the session remembers it was stopped (`textureStopped`),
+    /// and Compute Texture or the texture pane's next appearance asks again.
     package func stop() {
         if isOpening { openTask?.cancel(); isOpening = false; onEvent?("Stopped opening") }
         if isSegmenting, let task = segmentTask, !task.isCancelled {
@@ -360,6 +395,7 @@ package final class OrientationMapSession {
         if isTexturing {
             textureTask?.cancel()
             isTexturing = false
+            textureStopped = true
             onEvent?("Stopped the texture")
         }
     }
@@ -573,9 +609,7 @@ package final class OrientationMapSession {
         phaseBoundaryEdges = edges.phase
         updateSlip()
         followPinnedGrain()
-        let s = result.settings
-        onEvent?("Segmented \(UnitDisplay.count(result.table.count, "grain", "grains")) (boundaries above \(Self.degrees(s.boundaryDegrees))°, "
-                 + "at least \(UnitDisplay.count(s.minimumSize, "point", "points")))")
+        onEvent?(Self.segmentedLine(grains: result.table.count, settings: result.settings))
         if case .derived(let d) = layer, !derivedLayers.contains(d) { layer = .derived(.grains) }
         if case .derived = layer { draw() }
     }
@@ -587,10 +621,16 @@ package final class OrientationMapSession {
         segmentTask?.cancel(); textureTask?.cancel()
         analysis = nil; slip = []; setSelectedGrain(nil)
         grainBoundaryEdges = []; phaseBoundaryEdges = []
-        texture = nil; texturePhaseID = nil; isTexturing = false
+        texture = nil; texturePhaseID = nil; isTexturing = false; textureStopped = false; textureFailure = nil
     }
 
-    nonisolated private static func degrees(_ v: Double) -> String { v.formatted(.number.grouping(.never).precision(.fractionLength(0...2))) }
+    /// The Output line a Segment lands with: "Segmented 14 grains (boundaries above 5°, at least 5 points)". The angle in `locale` as the
+    /// Grains section's "Made with" row writes it (`MapsRoomFormat.number`, four significant digits): "2.675°", where two decimals by
+    /// FormatStyle read "2.68°".
+    nonisolated package static func segmentedLine(grains: Int, settings s: MapAnalysisSettings, locale: Locale = .autoupdatingCurrent) -> String {
+        "Segmented \(UnitDisplay.count(grains, "grain", "grains")) (boundaries above \(UnitDisplay.number(s.boundaryDegrees, digits: 4, locale: locale))°, "
+            + "at least \(UnitDisplay.count(s.minimumSize, "point", "points")))"
+    }
 
     // MARK: Grains
 
@@ -699,6 +739,13 @@ package final class OrientationMapSession {
         map?.phasesInData.entries.filter { $0.id != PhaseList.notIndexedID && $0.phase.pointGroup != nil } ?? []
     }
 
+    /// Whether Compute Texture can make the texture: a map with a textured phase, no texture shown or being made, and none refused for
+    /// the phase picked (`textureFailure`). In practice that is after a stop: a texture pane that appears asks for the texture itself,
+    /// after a Source switch too, since the room's panes are rebuilt on `Document.ID`.
+    package var canComputeTexture: Bool {
+        document != nil && !texturePhases.isEmpty && texture == nil && !isTexturing && textureFailure == nil
+    }
+
     /// Makes the texture of phase `phaseID` (the first textured phase when nil) off the main actor, unless it is the one shown or being made.
     @discardableResult
     package func showTexture(phaseID: Int? = nil) -> Task<Void, Never> {
@@ -707,6 +754,8 @@ package final class OrientationMapSession {
         texturePhaseID = id
         texture = nil
         isTexturing = true
+        textureStopped = false
+        textureFailure = nil
         textureTask?.cancel()
         let map = document.map
         let task = Task { [weak self] in
@@ -715,13 +764,16 @@ package final class OrientationMapSession {
             do {
                 made = try await MapTexture.computeAsync(map, phaseID: id)
             } catch {
-                failure = ": " + ((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+                failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
             guard let self, !Task.isCancelled, self.texturePhaseID == id, self.document?.fileName == document.fileName else { return }
             self.texture = made
             self.isTexturing = false
             // The texture's own sentence (a phase without a point group, orientations that cannot be read) says why.
-            if made == nil { self.onEvent?("No texture for this phase" + failure) }
+            if made == nil {
+                self.textureFailure = failure
+                self.onEvent?("No texture for this phase" + (failure.isEmpty ? "" : ": " + failure))
+            }
         }
         textureTask = task
         return task

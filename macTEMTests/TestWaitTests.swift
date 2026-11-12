@@ -3,9 +3,12 @@
 //  The tests' shared wait (TestWait.swift, #270): a condition that holds ends the wait at the ask that found it, and a wait
 //  that runs out has asked through its whole bound before it says no. The failure a run-out wait records cannot be asserted
 //  here without failing this test, so `waitUntil` is only run where its condition comes to hold.
-//  Red under: the last ask dropped, a wait that goes on asking after its condition held, a bound counted in asks of no fixed
-//  length. Not told apart here: a condition asked after each sleep instead of before it, which asks as often and only differs
-//  in time (a wait that holds at once would sleep 5 ms first).
+//  The async overloads, for a condition that awaits, are held to the same: a condition that never holds is asked through the
+//  whole bound and comes back false, and one that comes to hold ends the wait at the ask that found it.
+//  Red under, in either overload: the last ask dropped, a wait that goes on asking after its condition held, a bound counted in
+//  asks of no fixed length, a wait that answers held when its condition never did. Not told apart here: a condition asked after
+//  each sleep instead of before it, which asks as often and only differs in time (a wait that holds at once would sleep 5 ms
+//  first).
 //
 
 import XCTest
@@ -70,5 +73,35 @@ nonisolated final class TestWaitTests: XCTestCase {
         }
         XCTAssertTrue(held)
         XCTAssertEqual(asks, 1)
+    }
+
+    /// A condition that awaits (an actor's count, as the FFT rig's are) is asked as a synchronous one is: one that never holds
+    /// is asked before each 5 ms sleep of 0.125 s and once at its end, 26 asks in 125 ms at least, and comes back false; one
+    /// that holds on the third ask ends the wait there.
+    @MainActor func testAnAsyncConditionIsAskedThroughItsWholeBoundAndEndsWhereItHolds() async throws {
+        let never = Asks()
+        let start = ContinuousClock.now
+        let held = try await conditionHolds(within: 0.125) { await never.ask() == 0 }
+        let waited = ContinuousClock.now - start
+        XCTAssertFalse(held, "an ask is counted from 1, so this condition never holds")
+        let neverAsked = await never.count
+        XCTAssertEqual(neverAsked, 26)
+        XCTAssertGreaterThanOrEqual(waited, .milliseconds(125), "a wait is never shorter than its bound")
+
+        let third = Asks()
+        try await waitUntil("the third ask", seconds: 30) { await third.ask() == 3 }
+        let thirdAsked = await third.count
+        XCTAssertEqual(thirdAsked, 3)
+    }
+
+    /// The asks of a condition that awaits, counted on their own actor.
+    actor Asks {
+        private(set) var count = 0
+
+        /// Counts this ask and returns how many there have been, this one included.
+        func ask() -> Int {
+            count += 1
+            return count
+        }
     }
 }

@@ -121,19 +121,10 @@ nonisolated final class ResultsLedgerTests: XCTestCase {
         addTeardownBlock { await rig.drain() }
         rig.owner.setRegion(region, committed: true)
         rig.owner.show(FFTAnalysisTests.plant(), contentVersion: 1)
-        try await until("the spectrum is asked for") { await rig.spectra.asked.count == 1 }
+        try await waitUntil("the spectrum is asked for", seconds: 8) { await rig.spectra.asked.count == 1 }
         await rig.finishSpectrum(0)
-        try await until("the spectrum lands") { rig.owner.isSpectrumCurrent }
+        try await waitUntil("the spectrum lands", seconds: 8) { rig.owner.isSpectrumCurrent }
         return rig
-    }
-
-    @MainActor private func until(_ what: String, _ condition: @MainActor () async -> Bool) async throws {
-        for _ in 0..<1600 {
-            if await condition() { return }
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        XCTFail("timed out waiting for: \(what)")
-        throw FFTAnalysisTests.TimedOut()
     }
 
     /// Four clicks: a measurement, a refusal, a click with no peak, and one still measuring. The first three are listed in the order
@@ -144,13 +135,13 @@ nonisolated final class ResultsLedgerTests: XCTestCase {
         let image = FFTAnalysisTests.plant()
         for (n, click) in [(37, 40), (31, 33), (29, 44), (20, 50)].enumerated() {
             rig.owner.measureSpot(row: click.0, col: click.1)
-            try await until("click \(n) is asked for") { await rig.spotJobs.asked.count == n + 1 }
+            try await waitUntil("click \(n) is asked for", seconds: 8) { await rig.spotJobs.asked.count == n + 1 }
             if n == 0 { await rig.spotJobs.finish(0, .success(.measured(try FFTAnalysisTests.measured(row: 37, col: 40)))) }
             if n == 1 { await rig.spotJobs.finish(1, .success(.refused(.nearDC))) }
             if n == 2 { await rig.spotJobs.finish(2, .success(.refused(.noPower))) }
             // n == 3 stays parked: the spot is still measuring.
         }
-        try await until("the first three are answered") {
+        try await waitUntil("the first three are answered", seconds: 8) {
             rig.owner.spots.count == 4 && rig.owner.spots.prefix(3).allSatisfy { if case .measuring = $0.outcome { false } else { true } }
         }
         let rows = ResultsLedger.rows(image: image, measurements: ImageMeasurements(), analysis: rig.owner)
@@ -170,7 +161,9 @@ nonisolated final class ResultsLedgerTests: XCTestCase {
 
         // The fourth lands: the next call lists it, in place, nothing else changed.
         await rig.spotJobs.finish(3, .success(.measured(try FFTAnalysisTests.measured(row: 20, col: 50))))
-        try await until("the fourth is answered") { rig.owner.spots.count == 4 && !rig.owner.spots.contains { if case .measuring = $0.outcome { true } else { false } } }
+        try await waitUntil("the fourth is answered", seconds: 8) {
+            rig.owner.spots.count == 4 && !rig.owner.spots.contains { if case .measuring = $0.outcome { true } else { false } }
+        }
         let later = ResultsLedger.rows(image: image, measurements: ImageMeasurements(), analysis: rig.owner)
         XCTAssertEqual(later.map(\.label), ["Spot 1", "Spot 2", "Spot 3", "Spot 4"])
         XCTAssertEqual(Array(later.prefix(3)), rows)
@@ -181,9 +174,9 @@ nonisolated final class ResultsLedgerTests: XCTestCase {
     @MainActor func testASpotCarriesItsRegion() async throws {
         let rig = try await landedRig(region: FFTAnalysisTests.regionA)
         rig.owner.measureSpot(row: 37, col: 40)
-        try await until("the click is asked for") { await rig.spotJobs.asked.count == 1 }
+        try await waitUntil("the click is asked for", seconds: 8) { await rig.spotJobs.asked.count == 1 }
         await rig.spotJobs.finish(0, .success(.measured(try FFTAnalysisTests.measured(row: 37, col: 40))))
-        try await until("the spot is answered") { rig.owner.hasMeasuredSpot }
+        try await waitUntil("the spot is answered", seconds: 8) { rig.owner.hasMeasuredSpot }
         // A live drag moves the room's region; the spot stays the one made on region A.
         rig.owner.setRegion(FFTAnalysisTests.regionB, committed: false)
         let rows = ResultsLedger.rows(image: FFTAnalysisTests.plant(), measurements: ImageMeasurements(), analysis: rig.owner)
@@ -196,9 +189,9 @@ nonisolated final class ResultsLedgerTests: XCTestCase {
 
         let whole = try await landedRig(region: nil)
         whole.owner.measureSpot(row: 40, col: 60)
-        try await until("the whole-image click is asked for") { await whole.spotJobs.asked.count == 1 }
+        try await waitUntil("the whole-image click is asked for", seconds: 8) { await whole.spotJobs.asked.count == 1 }
         await whole.spotJobs.finish(0, .success(.refused(.nearEdge)))
-        try await until("the whole-image spot is answered") {
+        try await waitUntil("the whole-image spot is answered", seconds: 8) {
             whole.owner.spots.count == 1 && !whole.owner.spots.contains { if case .measuring = $0.outcome { true } else { false } }
         }
         let wholeRows = ResultsLedger.rows(image: FFTAnalysisTests.plant(), measurements: ImageMeasurements(), analysis: whole.owner)
@@ -212,9 +205,9 @@ nonisolated final class ResultsLedgerTests: XCTestCase {
     @MainActor func testMarksComeBeforeSpots() async throws {
         let rig = try await landedRig()
         rig.owner.measureSpot(row: 37, col: 40)
-        try await until("the click is asked for") { await rig.spotJobs.asked.count == 1 }
+        try await waitUntil("the click is asked for", seconds: 8) { await rig.spotJobs.asked.count == 1 }
         await rig.spotJobs.finish(0, .success(.measured(try FFTAnalysisTests.measured(row: 37, col: 40))))
-        try await until("the spot is answered") { rig.owner.hasMeasuredSpot }
+        try await waitUntil("the spot is answered", seconds: 8) { rig.owner.hasMeasuredSpot }
         let image = FFTAnalysisTests.plant()
         let owner = ImageMeasurements()
         owner.add(ImageMark(kind: .distance, points: [ImagePoint(x: 0, y: 0), ImagePoint(x: 3, y: 4)]), on: image)

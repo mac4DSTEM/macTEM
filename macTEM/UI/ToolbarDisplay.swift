@@ -26,7 +26,7 @@ enum ToolbarDisplay {
         }
         switch room {
         case .edx, .eels:
-            guard !appState.windowTitle.isEmpty, appState.windowTitle != "macTEM" else { return nil }
+            guard !appState.windowTitle.isEmpty, appState.windowTitle != "macEM" else { return nil }
             let busy = room == .edx ? appState.edx.isBusy : appState.eels.isBusy
             if busy {
                 return .busy(operation: BusyOperation.name(room: room, appState: appState) ?? room.title, progress: RoomProgress.fraction(room: room, appState: appState),
@@ -41,12 +41,12 @@ enum ToolbarDisplay {
                 return .busy(operation: operation, progress: RoomProgress.fraction(room: room, appState: appState),
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
-            return .idle(file: session.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
+            return .idle(file: session.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan width × height in points, of patterns of width × height in pixels")
         case .indexing:
             let session = appState.indexing
             guard let dataset = session.patterns.dataset else { return nil }
             if session.isBusy {
-                // "Hough · 2 340 of 4 125", "Dictionary · 1 of 3 chunks · NCC" (`BusyOperation.indexingLine`).
+                // "Hough · 2340 of 4125", "Dictionary · 1 of 3 chunks · NCC" (`BusyOperation.indexingLine`).
                 return .busy(operation: BusyOperation.indexingLine(session, dataset: dataset), progress: RoomProgress.fraction(room: room, appState: appState),
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
@@ -55,7 +55,7 @@ enum ToolbarDisplay {
                 return .busy(operation: operation, progress: nil,
                              metrics: { now in RunClock.reading(since: appState.busySince[.patterns], progress: nil, now: now) })
             }
-            return .idle(file: session.patterns.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan rows × columns of pattern rows × columns")
+            return .idle(file: session.patterns.fileName, room: room.title, detail: EBSDBrowsing.capsuleDetail(dataset), help: "Scan width × height in points, of patterns of width × height in pixels")
         case .maps:
             let session = appState.maps
             // The open, Segment, the texture or a layer's picture; none reports a fraction.
@@ -64,7 +64,7 @@ enum ToolbarDisplay {
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: nil, now: now) })
             }
             guard let map = session.map else { return nil }
-            return .idle(file: session.fileName, room: room.title, detail: MapsRoomFormat.capsuleDetail(map), help: "Map rows × columns and its indexed phases")
+            return .idle(file: session.fileName, room: room.title, detail: MapsRoomFormat.capsuleDetail(map), help: "Map width × height in points, and its indexed phases")
         default:
             guard !appState.imageSession.isLoading, let image = appState.imageSession.image else { return nil }
             return .idle(file: image.fileName, room: room.title, detail: "\(image.width) × \(image.height) px", help: nil)

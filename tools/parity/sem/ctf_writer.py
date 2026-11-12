@@ -56,7 +56,7 @@ def _property(xmap, key: str, size: int):
     return None
 
 
-def ctf_text(xmap, project: str = "macTEM", author: str = "macTEM") -> str:
+def ctf_text(xmap, project: str = "macEM", author: str = "macEM") -> str:
     from orix.crystal_map import create_coordinate_arrays
 
     nrows, ncols, dy, dx = _shape_steps(xmap)

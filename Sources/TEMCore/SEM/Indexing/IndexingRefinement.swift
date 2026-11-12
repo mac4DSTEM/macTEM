@@ -97,9 +97,11 @@ package nonisolated struct IndexingRefineSettings: Sendable, Equatable {
     package var words: String { self.words(locale: .autoupdatingCurrent) }
 
     /// `words` with its numbers in `locale`: the session report passes its own (`en_US_POSIX`), so a German Mac writes "±2.5°" there
-    /// and "±2,5°" on screen.
+    /// and "±2,5°" on screen. Four significant digits, as the Refine section's typed fields show the trust region (the app's
+    /// `Num.decimalField`), in printf's digits by `UnitDisplay.number`, never grouped: a trust typed as 2.675° reads "±2.675°", where
+    /// three digits dropped the last one ("±2.68°" by FormatStyle, "±2.67°" by printf).
     package func words(locale: Locale) -> String {
-        let f = { (v: Double) in v.formatted(.number.locale(locale).precision(.significantDigits(1...3))) }
+        let f = { (v: Double) in UnitDisplay.number(v, digits: 4, locale: locale) }
         let bounds = switch target {
         case .orientation: "±\(f(trustAngle))°"
         case .projectionCenter: "PC ±\(f(trustPC))"
@@ -161,7 +163,7 @@ package nonisolated enum IndexingRefinement {
     /// Whether the source's patterns are float32 data (kikuchipy then rescales each to −1 … 1): the pipeline's output type
     /// (float32 under Normalise or NLPAR, `PatternPipeline.outputType`), else the stored or processed scan's own type.
     package static func isFloat32(_ source: IndexingSource) -> Bool {
-        let stored = source.access.dataset.dataType
+        let stored = source.storedType
         return (source.pipeline?.outputType(stored) ?? stored) == .float32
     }
 

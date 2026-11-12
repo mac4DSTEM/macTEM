@@ -79,7 +79,7 @@ def main() -> int:
         dl = np.abs(lines - ref_lines).max() if lines.shape == ref_lines.shape else float("nan")
         da = np.abs(axes_px - ref_axes).max() if axes_px.shape == ref_axes.shape else float("nan")
         draw(axs[0, 1], pattern, lines, axes_px, labels if len(axes_px) == len(labels) else [],
-             f"macTEM: max |d| lines {dl:.1e} px, zone axes {da:.1e} px")
+             f"macEM: max |d| lines {dl:.1e} px, zone axes {da:.1e} px")
     fig.suptitle("F14: geometrical simulation of nickel_ebsd_large, pattern (0, 0)", fontsize=10)
     fig.savefig(args.out, dpi=200, bbox_inches="tight")
     print(f"simulation_figure.py: wrote {args.out}")

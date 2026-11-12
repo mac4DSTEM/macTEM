@@ -21,8 +21,8 @@ nonisolated final class ToolbarDisplayTests: XCTestCase {
         .appendingPathComponent("Fixtures").appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")
     private static let scan = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         .appendingPathComponent("Fixtures").appendingPathComponent("ebsd-kikuchipy-h5ebsd.h5")
-    private static let scanHelp = "Scan rows × columns of pattern rows × columns"
-    private static let mapHelp = "Map rows × columns and its indexed phases"
+    private static let scanHelp = "Scan width × height in points, of patterns of width × height in pixels"
+    private static let mapHelp = "Map width × height in points, and its indexed phases"
 
     /// What the busy line's clock reads 42 s after `room` became busy (`AppState.markBusy`, which the window calls at each room's busy
     /// edge): the elapsed time, or nil when it reads nothing. The start is cleared after, so the next reading starts from none.
@@ -35,7 +35,7 @@ nonisolated final class ToolbarDisplayTests: XCTestCase {
     }
 
     /// A window with nothing open shows nothing, whichever room is shown. Red under: the spectrum rooms' guard on the window's title
-    /// dropped (the line then reads "macTEM · EDS · spectrum image").
+    /// dropped (the line then reads "macEM · EDS · spectrum image").
     @MainActor func testNothingShowsWithoutADocument() {
         let state = AppState(launch: LaunchOptions(arguments: []))
         for room in WorkspaceArea.allCases {
@@ -140,7 +140,7 @@ nonisolated final class ToolbarDisplayTests: XCTestCase {
         }
         XCTAssertEqual(file, "Demo EBSD")
         XCTAssertEqual(room, "Patterns")
-        XCTAssertEqual(detail, "30 × 40 of 60 × 60")
+        XCTAssertEqual(detail, "40 × 30 of 60 × 60", "the scan's 40 columns before its 30 rows, X before Y")
         XCTAssertEqual(help, Self.scanHelp)
 
         state.ebsd.showMap(.imageQuality)
@@ -169,7 +169,7 @@ nonisolated final class ToolbarDisplayTests: XCTestCase {
         }
         XCTAssertEqual(file, "Demo EBSD")
         XCTAssertEqual(room, "Indexing")
-        XCTAssertEqual(detail, "30 × 40 of 60 × 60")
+        XCTAssertEqual(detail, "40 × 30 of 60 × 60", "the scan's 40 columns before its 30 rows, X before Y")
         XCTAssertEqual(help, Self.scanHelp)
 
         XCTAssertTrue(state.indexing.canIndex, state.indexing.refusal ?? "")
@@ -220,7 +220,7 @@ nonisolated final class ToolbarDisplayTests: XCTestCase {
         }
         XCTAssertEqual(file, "ebsd-sdss-ferrite-austenite.ang")
         XCTAssertEqual(room, "Maps")
-        XCTAssertEqual(detail, "100 × 117 · 2 phases")
+        XCTAssertEqual(detail, "117 × 100 · 2 phases", "117 columns before 100 rows, X before Y")
         XCTAssertEqual(help, Self.mapHelp)
 
         let segmenting = state.maps.segment()

@@ -66,10 +66,10 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         // Title, Software and what is drawn are text chunks, as the Image room's PNGs carry theirs (#331).
         let text = try FormatoPNG.textEntries(in: png)
         XCTAssertEqual(text.first { $0.keyword == "Title" }?.value, "patterns_v2.h5")
-        XCTAssertEqual(text.first { $0.keyword == "Software" }?.value, "macTEM")
+        XCTAssertEqual(text.first { $0.keyword == "Software" }?.value, "macEM")
         let bands = overlay.simulation.lines.count, axes = overlay.simulation.zoneAxes.count
         XCTAssertEqual(text.first { $0.keyword == "Description" }?.value,
-                       "Kikuchi overlay of \(overlay.phase): \(bands) bands, \(axes) zone axes; pattern enlarged 8x; macTEM")
+                       "Kikuchi overlay of \(overlay.phase): \(bands) bands, \(axes) zone axes; pattern enlarged 8x; macEM")
 
         // The overlay is in the picture: the enlarged plain pattern differs from it, and the accent blue is drawn where a band runs.
         let plain = try PatternsRoomState.patternPNG(canvas: try XCTUnwrap(session.patternPresentation.canvas), presentation: session.patternPresentation,
