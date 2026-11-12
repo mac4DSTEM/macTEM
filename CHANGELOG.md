@@ -8,6 +8,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). App
 - **Runs on macOS 26** (was macOS 27) on Apple silicon. MacEMUI 0.3.2. CI builds and runs the unit tests, on Xcode 26.6.
 - Exports no longer carry internal milestone ids: the `validation` and `lineage` text in PNG metadata, FFT CSVs and the line profile and measurement CSVs names what each number is checked against (numpy, scikit-image, ImagoKit's parity tests), without "V1-…" or "until V1-2".
 
+## [2.0.2](https://github.com/mac4DSTEM/macTEM/compare/v2.0.1...v2.0.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* a slip-plane row names its trace's colour, and the Maps overlay speaks its colours ([#568](https://github.com/mac4DSTEM/macTEM/issues/568)) ([b7ec490](https://github.com/mac4DSTEM/macTEM/commit/b7ec490f083920b752e9bfca3074a5d0f0195cab))
+* release files, cubes and canvases when no longer shown (memory for 2.0.2) ([#582](https://github.com/mac4DSTEM/macTEM/issues/582)) ([3021de6](https://github.com/mac4DSTEM/macTEM/commit/3021de697ef16b5e271116537663992bcde7b4e6))
+* slip traces past DefDAP's colour list take its last colour, not black ([#575](https://github.com/mac4DSTEM/macTEM/issues/575)) ([acab31f](https://github.com/mac4DSTEM/macTEM/commit/acab31ff7ce251dd2e84738fa04535960dcec819))
+* VoiceOver hears the scan point's values, the Maps histogram and the IPF keys' colours ([#565](https://github.com/mac4DSTEM/macTEM/issues/565)) ([3469aa3](https://github.com/mac4DSTEM/macTEM/commit/3469aa32b52a511a153d12c81052d2ecf03cc7b3))
+
 ## [2.0.1](https://github.com/mac4DSTEM/macTEM/compare/v2.0.0...v2.0.1) (2026-11-12)
 
 
