@@ -115,8 +115,9 @@ package nonisolated enum TIFFImageReader {
             for i in 0..<count { pixels[i] = Float(max(p[3 * i], p[3 * i + 1], p[3 * i + 2])) }
         }
         let notes = calibrated.notes.filter { $0 != Note.render } + [Note.colourRender]
+        let axes = CalibratedImage(calibrated)   // the kit's calibration, as every TIFF reading gets it
         return CalibratedImage(width: calibrated.width, height: calibrated.height, pixels: pixels,
-                               x: calibrated.x.map(AxisCalibration.init), y: calibrated.y.map(AxisCalibration.init),
+                               x: axes.x, y: axes.y,
                                fileName: calibrated.fileName,
                                source: calibrated.source.replacingOccurrences(of: Note.render, with: "colour render shown as grey, not counts"),
                                voltage: nil, notes: notes)
