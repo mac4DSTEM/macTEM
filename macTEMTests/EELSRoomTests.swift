@@ -799,6 +799,10 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(EELSMapTile(id: "x", title: "t/λ", unit: "", width: 1, height: 1, values: [0.5], version: 1, footer: nil).detailText, "every pixel 0.5")
         XCTAssertEqual(EELSMapTile(id: "x", title: "t/λ", unit: "", width: 2, height: 1, values: [0.5, 0.6], version: 1, footer: nil).detailText, nil)
         XCTAssertEqual(EELSMapTile(id: "x", title: "I", unit: "counts", width: 2, height: 1, values: [1, 2], version: 1, footer: nil).detailText, "counts")
+        // The ZLP shift map names its range (red before: "eV" alone beside a tile one colour but for a few far pixels, 145_STEM 12 Nov).
+        let shift = EELSMapTile(id: "zlpShift", title: "ZLP shift", unit: "eV", width: 3, height: 1, values: [-8.12, 5e-5, 5e-5], version: 1, footer: nil)
+        XCTAssertEqual(shift.detailText(locale: Locale(identifier: "en_US")), "\(EELSRoomFormat.sig(-8.12, 3, locale: Locale(identifier: "en_US"))) to "
+                       + "\(EELSRoomFormat.sig(5e-5, 3, locale: Locale(identifier: "en_US"))) eV")
         XCTAssertEqual(EELSMapsComposition.aspect(nx: 432, ny: 172), 432.0 / 172.0, accuracy: 1e-12)
         XCTAssertEqual(EELSMapsComposition.aspect(nx: nil, ny: nil), 1)
         let room = squeezed(try source("macTEM/UI/EELSRoom.swift"))
