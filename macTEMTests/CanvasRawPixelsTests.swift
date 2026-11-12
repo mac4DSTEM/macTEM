@@ -17,8 +17,13 @@ nonisolated final class CanvasRawPixelsTests: XCTestCase {
 
     /// 230 × 150 with masked values and a spread of values, so the thumbnail boxes are uneven.
     private static let width = 230, height = 150
-    private static let pixels: [Float] = (0..<(width * height)).map { i in
-        i % 97 == 0 ? .nan : (i % 211 == 0 ? .infinity : Float((i * 7919) % 1013) * 0.37 - 40)
+    private static let pixels: [Float] = (0..<(width * height)).map(value(at:))
+
+    private static func value(at i: Int) -> Float {
+        if i % 97 == 0 { return .nan }
+        if i % 211 == 0 { return .infinity }
+        let step = Float((i * 7919) % 1013)
+        return step * 0.37 - 40
     }
 
     /// The canvas holds the image's own pixel storage: no copy, so the bytes kept per pixel are the image's alone.
