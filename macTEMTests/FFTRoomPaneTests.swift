@@ -379,11 +379,11 @@ nonisolated final class FFTRoomPaneTests: XCTestCase {
         // The whole image unprocessed holds no copy of its own: the Region view draws the file's canvas, linear (12 Nov alite).
         let whole = FFTSpectrumProduct(key: FFTSpectrumKey(contentVersion: 9, crop: nil), width: 64, height: 64, spacingX: 0.1, spacingY: 0.1,
                                        unitsX: "1/nm", unitsY: "1/nm", canvas: canvas(2), defaultWindow: nil, profile: nil, region: nil)
-        let w = layer(.region, spectrum: whole)
-        XCTAssertEqual(w?.canvas, original)
-        XCTAssertEqual(w?.window.low, 0)
-        XCTAssertEqual(w?.window.high, 1)
-        XCTAssertEqual(w?.gamma, 1)
+        let wholeLayer = layer(.region, spectrum: whole)
+        XCTAssertEqual(wholeLayer?.canvas, original)
+        XCTAssertEqual(wholeLayer?.window.low, 0)
+        XCTAssertEqual(wholeLayer?.window.high, 1)
+        XCTAssertEqual(wholeLayer?.gamma, 1)
 
         let m = layer(.maskedInverse, inverse: inverse)
         XCTAssertEqual(m?.canvas, inverse.canvas)

@@ -1146,7 +1146,8 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         let key = FFTSpectrumKey(contentVersion: 5, crop: Self.regionA)
         let one = try await FFTCompute.live.spectrum(Self.plant(), key)
         let two = try await FFTCompute.live.spectrum(Self.plant(), key)
-        let versions = [one.canvas.contentVersion, one.region.contentVersion, two.canvas.contentVersion, two.region.contentVersion]
+        let oneRegion = try XCTUnwrap(one.region, "a crop has a canvas of its own"), twoRegion = try XCTUnwrap(two.region)
+        let versions = [one.canvas.contentVersion, oneRegion.contentVersion, two.canvas.contentVersion, twoRegion.contentVersion]
         XCTAssertEqual(Set(versions).count, 4, "each canvas, each time")
         for version in versions { XCTAssertGreaterThanOrEqual(version, 1 << 62) }
         XCTAssertEqual(one.canvas.normalized, two.canvas.normalized, "equal in value, still two textures")
