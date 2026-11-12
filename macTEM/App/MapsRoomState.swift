@@ -461,7 +461,7 @@ nonisolated enum MapsRoomFormat {
     /// no H5OINA reader, #539); the other map files and pattern files' maps through orix's readers or their ports.
     private static func infoEuler(_ document: OrientationMapSession.Document) -> String {
         let h5oina = [OrientationMapSession.h5oinaFormat, EBSDFileFormat.oxfordH5OINA.rawValue].contains(document.format)
-        switch document.source {
+        return switch document.source {
         case .mapFile where h5oina, .patterns where h5oina:
             "Bunge (φ₁, Φ, φ₂), lab to crystal, as the H5OINA file stores them (read as its .ctf is)"
         case .mapFile, .patterns: "Bunge (φ₁, Φ, φ₂), lab to crystal, as orix reads the file"
