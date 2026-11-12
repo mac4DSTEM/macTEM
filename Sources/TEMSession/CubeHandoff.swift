@@ -11,7 +11,7 @@ import Foundation
 import Synchronization
 
 /// One value, taken once.
-package final class CubeHandoff<Value: Sendable>: Sendable {
+nonisolated package final class CubeHandoff<Value: Sendable>: Sendable {
     private let slot: Mutex<Value?>
 
     package init(_ value: Value) { slot = Mutex(value) }
