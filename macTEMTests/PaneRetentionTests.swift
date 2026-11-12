@@ -57,4 +57,20 @@ nonisolated final class PaneRetentionTests: XCTestCase {
         let text = try Self.source("macTEM/UI/DiffractionRoom.swift")
         XCTAssertTrue(text.contains(".onDisappear { view.presentation.releaseCanvas() }"))
     }
+
+    /// No EELS view binds the file or a cube to a name in its body: a closure there (a text field's commit, a section's content) captures it and AppKit
+    /// keeps the closure, so the file's cubes outlived Align (12 Nov memgraph on 145_STEM: the two original cubes in one closure context reached from
+    /// the inspector's text field, 1.45 GB too many). The views read numbers from the session instead. Red before: `let file = session.source` in
+    /// the Fitting section and `let image = session.source?.image` in the room.
+    func testNoEELSViewHoldsTheFileOrACube() throws {
+        let files = ["macTEM/UI/EELSRoomInspector.swift", "macTEM/UI/EELSRoom.swift", "macTEM/UI/EELSRegionBridge.swift"]
+        let pattern = try NSRegularExpression(pattern: #"let \w+ = session\.(source|workingLowLoss|workingCoreLoss|shownCoreLoss|fitCoreLoss|alignment)(\?\.(image|coreLoss))?\s*$"#,
+                                              options: [.anchorsMatchLines])
+        for path in files {
+            let text = try Self.source(path)
+            let hits = pattern.matches(in: text, range: NSRange(text.startIndex..., in: text)).map { (text as NSString).substring(with: $0.range) }
+            XCTAssertTrue(hits.isEmpty, "\(path): \(hits)")
+        }
+        XCTAssertTrue(try Self.source("macTEM/UI/EELSRoomInspector.swift").contains("let file = EELSFileMicroscope(session.source)"))
+    }
 }
