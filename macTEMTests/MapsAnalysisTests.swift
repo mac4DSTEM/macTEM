@@ -451,4 +451,20 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("MapsRoomAnalysis.swift")
             .contains(".accessibilityValue(MapsRoomFormat.histogramSpeech(histogram, unit: unit, ticks: ticks))"))
     }
+
+    /// #356: a slip-plane row names the colour its trace is drawn in, so the row and its line on the map match in words, and the
+    /// overlay speaks what its colours mean. Red before: "trace 132°" with no colour, and no `colourWord` or `tracesSpeech`.
+    func testASlipPlaneRowNamesItsTracesColour() throws {
+        let en = Locale(identifier: "en_US")
+        XCTAssertEqual(MapsRoomFormat.traceText(132 * .pi / 180, colour: "blue", locale: en), "trace 132° in blue")
+        XCTAssertEqual(MapsRoomFormat.traceText(30 * .pi / 180, colour: "m", locale: en), "trace 30° in magenta")
+        XCTAssertEqual(MapsRoomFormat.traceText(.nan, colour: "green", locale: en), "no trace", "a plane parallel to the map draws no line")
+        for name in ["blue", "green", "red", "purple", "orange", "yellow", "cyan", "m", "w", "gray", "brown"] {
+            XCTAssertFalse(MapsRoomFormat.colourWord(name).count < 3, name)
+        }
+        XCTAssertEqual(MapsRoomFormat.colourWord("Purple"), "purple")
+        let squeezed = try FFTRoomWiringTests.squeezedUI("MapsRoomAnalysis.swift")
+        XCTAssertTrue(squeezed.contains("MapsRoomFormat.tracesSpeech(slip.planes)"), "the overlay speaks the traces")
+        XCTAssertTrue(squeezed.contains("grain boundaries white, phase boundaries black"), "and what the boundary colours mean")
+    }
 }

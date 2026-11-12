@@ -46,13 +46,22 @@ struct MapsAnalysisOverlay: View {
         .accessibilityLabel(spokenLabel)
     }
 
-    /// "Grain 12 outlined, boundaries shown", "3 grains outlined, …", or the boundaries alone.
+    /// "Grain 12 outlined, boundaries shown (grain boundaries white, phase boundaries black), traces (111) in blue, …", "3 grains
+    /// outlined, …", or the boundaries alone: what each colour on the overlay means, in words (#356).
     private var spokenLabel: String {
-        let boundaries = "boundaries " + (session.showsBoundaries ? "shown" : "hidden")
+        let boundaries = session.showsBoundaries ? "boundaries shown (grain boundaries white, phase boundaries black)" : "boundaries hidden"
         let count = session.selectedGrains.count
-        if count > 1 { return "\(count) grains outlined, " + boundaries }
-        if let grain = session.selectedGrain { return "Grain \(grain) outlined, " + boundaries }
-        return "Grain " + boundaries
+        var text = "Grain " + boundaries
+        if count > 1 {
+            text = "\(count) grains outlined, " + boundaries
+        } else if let grain = session.selectedGrain {
+            text = "Grain \(grain) outlined, " + boundaries
+        }
+        if session.showsSlipTraces, session.selectedRow != nil, let slip = session.selectedSlip,
+           let traces = MapsRoomFormat.tracesSpeech(slip.planes) {
+            text += ", " + traces
+        }
+        return text
     }
 
     /// DefDAP's matplotlib trace colour names as colours.
