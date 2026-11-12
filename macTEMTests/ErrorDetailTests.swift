@@ -89,4 +89,3 @@ nonisolated final class ErrorDetailTests: XCTestCase {
         XCTAssertTrue(content.contains(".alert(\n            appState.errorTitle,"), "the alert takes its title from the state")
     }
 }
-
