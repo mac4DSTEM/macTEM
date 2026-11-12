@@ -148,6 +148,23 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertEqual(state.openItems.items.count, 1, "a refused file opens nothing")
     }
 
+    /// A GMS spectrum image saved with the spectra picked from it (#553): the EELS cube and two single spectra, no image. It opens in
+    /// the EELS room only; the image path took the single spectra as an image and raised "holds no 2D image" beside the open room.
+    /// A file of single spectra alone, which no room takes, still goes to the image reader so its refusal names what it holds.
+    func testADMSpectrumImageWithItsPickedSpectraIsNoImage() throws {
+        let ev = DM4TestFile.Axis(origin: 0, scale: 0.5, units: "eV")
+        let nm = DM4TestFile.Axis(origin: 0, scale: 2, units: "nm")
+        let cube = DM4TestFile.object(name: "EELS SI", dims: [4, 3, 16], axes: [nm, nm, ev])
+        let picked = DM4TestFile.object(name: "Spectrum 1", dims: [16], axes: [ev])
+        let both = try DM4TestFile.write(DM4TestFile.file([cube, picked, picked]), named: "(1) Picker of STEM SI.dm4", for: self)
+        let found = FileRouting.inventory(path: both)
+        XCTAssertTrue(found.eelsSpectrumImage)
+        XCTAssertFalse(found.image, "the picked spectra are not an image")
+        XCTAssertEqual(found.landing, .eels)
+        let spectraOnly = try DM4TestFile.write(DM4TestFile.file([picked, picked]), named: "spectra.dm4", for: self)
+        XCTAssertTrue(FileRouting.inventory(path: spectraOnly).image, "no room takes it, so the image reader refuses it in words")
+    }
+
     // MARK: Example files (read from References, not committed)
 
     /// A real Velox single spectrum (the FEI example in the parity set): it routes to the EDX room and reads as 4096 channels with a
