@@ -69,6 +69,17 @@ nonisolated enum SEMMapPointer {
             + "at row \(n(pick.row)) column \(n(pick.column))"
     }
 
+    /// The Patterns room's scan map as VoiceOver hears it: `spokenMap`, then the picked point's mean intensity and the shown virtual
+    /// image's value, the numbers the status line shows over the map (`EBSDBrowsing.mapReadout`) but heard without hovering (#327):
+    /// "60 rows by 80 columns, at row 3 column 4, mean 118.3, r2 c1 12034".
+    static func spokenPinnedMap(rows: Int, columns: Int, at pick: EBSDPosition, mean: Float?, map: (label: String, value: Float)?,
+                                locale: Locale = .autoupdatingCurrent) -> String {
+        var text = spokenMap(rows: rows, columns: columns, at: pick, locale: locale)
+        if let mean { text += ", mean \(UnitDisplay.number(Double(mean), digits: 4, locale: locale))" }
+        if let map { text += ", \(map.label) \(UnitDisplay.number(Double(map.value), digits: 6, locale: locale))" }
+        return text
+    }
+
     /// The picked point's spoken value: "row 1100, column 7", never grouped.
     static func spokenPosition(_ pick: EBSDPosition, locale: Locale = .autoupdatingCurrent) -> String {
         "row \(IndexingInfoFormat.count(pick.row, locale: locale)), column \(IndexingInfoFormat.count(pick.column, locale: locale))"
