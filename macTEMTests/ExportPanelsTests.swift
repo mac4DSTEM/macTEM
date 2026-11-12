@@ -28,4 +28,26 @@ nonisolated final class ExportPanelsTests: XCTestCase {
         XCTAssertTrue(source.contains("rows.filter { $0.kind != .export }.compactMap { defaultFolder(for: $0.file) }.first"),
                       "the session report's panel takes its folder from defaultFolder(for:)")
     }
+
+    /// #507: the demos Help > Open Demo Data writes to the temporary folder (the stack, the SEM image, the spectrum) give nil, as the
+    /// generated and shipped ones do, so no export panel suggests that scratch folder; a file of the same name elsewhere keeps its folder.
+    /// Every export snapshot takes its folder from `defaultFolder(for:)`. Red before: each gave its `macEM-demo-*` folder, and the image,
+    /// profile, FFT and results snapshots took the file's folder as it was.
+    func testTheOnDiskDemosGiveNoExportFolder() throws {
+        for file in [try DemoDocuments.stackFile(), try DemoDocuments.semImageFile(), try DemoDocuments.spectrumFile()] {
+            XCTAssertTrue(DemoDocuments.isWrittenDemo(file), file.path)
+            XCTAssertNil(ExportPanels.defaultFolder(for: file), file.path)
+        }
+        let elsewhere = URL(fileURLWithPath: "/data/macEM-demo-sem/Demo SEM image.tif")
+        XCTAssertFalse(DemoDocuments.isWrittenDemo(elsewhere))
+        XCTAssertEqual(ExportPanels.defaultFolder(for: elsewhere)?.path, "/data/macEM-demo-sem")
+
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        for name in ["ExportSnapshot", "FFTExportSnapshot", "ResultsExportSnapshot"] {
+            let source = try String(contentsOf: root.appendingPathComponent("macTEM/App/\(name).swift"), encoding: .utf8)
+            XCTAssertFalse(source.contains("directory: url?.deletingLastPathComponent()"), name)
+            XCTAssertFalse(source.contains("directory: item.url.deletingLastPathComponent()"), name)
+            XCTAssertTrue(source.contains("ExportPanels.defaultFolder(for:"), name)
+        }
+    }
 }

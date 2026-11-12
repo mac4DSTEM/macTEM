@@ -165,9 +165,10 @@ enum ExportPanels {
 
     /// The folder a panel opens in for a file the session read: the file's own, or nil (the system's choice) for a shipped demo,
     /// whose folder is inside the app's bundle (an App Store install cannot be written to, and a write would change the signed
-    /// bundle), and for a generated demo, whose `/macTEM-demo/` path does not exist.
+    /// bundle), for a generated demo, whose `/macTEM-demo/` path does not exist, and for an on-disk demo in the temporary folder
+    /// (`DemoDocuments.isWrittenDemo`), where an export would be lost. Every export snapshot takes its folder from here (#507).
     nonisolated static func defaultFolder(for file: URL?) -> URL? {
-        guard let file, !DemoDocuments.isDemo(file) else { return nil }
+        guard let file, !DemoDocuments.isDemo(file), !DemoDocuments.isWrittenDemo(file) else { return nil }
         let folder = file.deletingLastPathComponent()
         let bundle = Bundle.main.bundleURL.resolvingSymlinksInPath().standardizedFileURL.pathComponents
         return folder.resolvingSymlinksInPath().standardizedFileURL.pathComponents.starts(with: bundle) ? nil : folder

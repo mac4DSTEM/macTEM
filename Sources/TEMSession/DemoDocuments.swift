@@ -98,6 +98,18 @@ package nonisolated enum DemoDocuments {
     package static let ebsdURL = URL(fileURLWithPath: "/macTEM-demo/Demo EBSD")
     package static func isDemo(_ url: URL) -> Bool { url.path.hasPrefix("/macTEM-demo/") }
 
+    /// The folders in the app's temporary folder that Help > Open Demo Data writes its on-disk demos to (the stack, the SEM image, the
+    /// spectrum): opened through the File menu's own path, but scratch, never a folder to save into (#507).
+    package static let writtenFolders = ["macEM-demo-stack", "macEM-demo-sem", "macEM-demo-spectrum"]
+
+    /// Whether `url` is one of the on-disk demo files (`writtenFolders`, in the temporary folder).
+    package static func isWrittenDemo(_ url: URL) -> Bool {
+        let folder = url.deletingLastPathComponent()
+        guard writtenFolders.contains(folder.lastPathComponent) else { return false }
+        let tmp = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        return folder.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL.pathComponents == tmp
+    }
+
     // MARK: Shipped demo data
 
     /// A real, public, licensed dataset the app bundle carries under `Contents/Resources/DemoData/` (the repository's `DemoData/` folder
@@ -253,7 +265,7 @@ package nonisolated enum DemoDocuments {
 
     /// Writes the demo stack as a multi-page TIFF (little-endian, baseline, one strip per page) and returns its URL in the temporary folder.
     package static func stackFile() throws -> URL {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macEM-demo-stack")
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(writtenFolders[0])
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("Demo stack.tif")
         try writeStackTIFF(to: url, frames: stackFrames, width: stackSide, height: stackSide, pixel: stackPixel)
@@ -329,7 +341,7 @@ package nonisolated enum DemoDocuments {
     /// Writes the demo SEM image and returns its URL in the temporary folder. The write is atomic: Help > Open Demo Data can ask for
     /// the file again while a window is still reading the one written before, and a reader never sees half a file.
     package static func semImageFile() throws -> URL {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macEM-demo-sem")
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(writtenFolders[1])
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("Demo SEM image.tif")
         try semTIFF().write(to: url, options: .atomic)
@@ -402,7 +414,7 @@ package nonisolated enum DemoDocuments {
     /// The demo EDX image's pooled spectrum as an `.msa` file in the temporary folder (what a person would open from the File menu).
     package static func spectrumFile() throws -> URL {
         let demo = edx()
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("macEM-demo-spectrum")
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(writtenFolders[2])
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("Demo EDX spectrum.msa")
         try EDXExports.msa(counts: demo.image.sum(mask: nil), axis: demo.energyAxis, title: "Demo EDX spectrum", beamEnergyKeV: Truth.edxBeamKeV, host: .macTEM).write(to: url)
