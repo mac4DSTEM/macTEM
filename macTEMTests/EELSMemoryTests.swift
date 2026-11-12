@@ -55,6 +55,41 @@ nonisolated final class EELSMemoryTests: XCTestCase {
         XCTAssertEqual(Self.address(try XCTUnwrap(session.source).image.storedCounts), Self.address(again.aligned.storedCounts))
     }
 
+    /// After Align nothing but the test holds the file's low-loss cube, and after close nothing holds its core-loss cube (macTEM#584). The probe: the
+    /// test keeps its own reference to each original array; a write lands in place only when no one else holds it. The low loss is probed after Align,
+    /// the core loss after close, so one run says which of the two still has a holder. Red before: the probe after Align copied (12 Nov CI), while
+    /// `settled()` did not wait for the quick plot started at open, which reads the file's cubes.
+    @MainActor func testAfterAlignNoPassKeepsTheFilesCubes() async throws {
+        let session = EELSSession()
+        await session.open(url: Self.planted).value
+        await session.settled()
+        var low = try XCTUnwrap(session.source?.image.storedCounts.singles)
+        var core = try XCTUnwrap(session.source?.coreLoss?.storedCounts.singles, "the planted file holds a core loss")
+        let lowAddress = Self.base(of: low), coreAddress = Self.base(of: core)
+        await session.align()?.value
+        await session.settled()
+        XCTAssertNotNil(session.alignment, session.failure ?? "no alignment")
+        // The room's one cube may be the file's own array: Align writes nothing where every shift is zero, so the aligned cube can keep the file's
+        // storage (12 Nov CI: the probe found it held after Align and free after close). Then the room holding it is the one cube, not a second.
+        let room = Self.address(try XCTUnwrap(session.source).image.storedCounts)
+        if room != lowAddress {
+            XCTAssertEqual(Self.writtenInPlace(&low), lowAddress, "after Align the file's low-loss cube is still held beside the aligned one")
+        }
+        session.close()
+        await session.settled()
+        XCTAssertEqual(Self.writtenInPlace(&core), coreAddress, "after close the file's core-loss cube is still held by something other than this test")
+    }
+
+    private static func base(of a: [Float]) -> UInt { a.withUnsafeBufferPointer { UInt(bitPattern: $0.baseAddress) } }
+
+    /// The address a write lands at: the array's own when no one else holds it, a fresh copy's otherwise.
+    private static func writtenInPlace(_ a: inout [Float]) -> UInt {
+        a.withUnsafeMutableBufferPointer { b in
+            b[0] = b[0]
+            return UInt(bitPattern: b.baseAddress)
+        }
+    }
+
     /// A box gives its value once.
     func testAHandoffGivesItsValueOnce() {
         let box = CubeHandoff([Float](repeating: 1, count: 4))

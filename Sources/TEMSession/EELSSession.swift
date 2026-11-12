@@ -650,6 +650,7 @@ package final class EELSSession {
             await passTask?.value
             await pinDataTask?.value
             await plotTask?.value
+            await plotInterimTask?.value
             await previewTask?.value
             await deadTask?.value
             if generation == seen && !isComputing { return }
