@@ -165,6 +165,21 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertTrue(FileRouting.inventory(path: spectraOnly).image, "no room takes it, so the image reader refuses it in words")
     }
 
+    /// A GMS EELS line scan ("C K Signal (EELS).dm4": one [channels, positions] object, its position axis without a unit) is refused by the EELS room in
+    /// words and is not also drawn as a 432 × 172 picture of spectra in an Image tab (#559). The same shape with no EELS role is not an image either.
+    func testADMEELSLineScanIsNotAlsoAnImage() throws {
+        let ev = DM4TestFile.Axis(origin: 0, scale: 0.5, units: "eV")
+        let bare = DM4TestFile.Axis(origin: 0, scale: 1, units: "")
+        let lineScan = DM4TestFile.object(name: "C K Signal (EELS)", dims: [16, 5], axes: [ev, bare])
+        let path = try DM4TestFile.write(DM4TestFile.file([lineScan]), named: "C K Signal (EELS).dm4", for: self)
+        let found = FileRouting.inventory(path: path)
+        XCTAssertTrue(found.eelsSpectrumImage)
+        XCTAssertFalse(found.image, "the line scan is not an image")
+        let unnamed = DM4TestFile.object(name: "Spectrum line", dims: [16, 5], axes: [ev, bare])
+        let other = try DM4TestFile.write(DM4TestFile.file([unnamed]), named: "line.dm4", for: self)
+        XCTAssertThrowsError(try ImageOpening.openNow(path: other), "a line scan with an energy axis is not opened as an image")
+    }
+
     // MARK: Example files (read from References, not committed)
 
     /// A real Velox single spectrum (the FEI example in the parity set): it routes to the EDX room and reads as 4096 channels with a
