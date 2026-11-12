@@ -51,6 +51,18 @@ package final class ImageSession {
         return true
     }
 
+    /// Lets go of the image and its records, and drops any open still running: the file was closed or went cold. The object may outlive
+    /// this (a SwiftUI binding held by a control can keep it), so the pixels must not live as long as it does (#562: a closed 375 MB SEM
+    /// TIFF's image stayed reachable that way).
+    package func release() {
+        latestOpen &+= 1
+        image = nil
+        metadata = AcquisitionMetadata()
+        sem = nil
+        url = nil
+        isLoading = false
+    }
+
     /// Ends the open `token` started without an image; the image already shown stays. Returns false, changing
     /// nothing, when a later open superseded it — its failure is then no longer the user's news.
     @discardableResult

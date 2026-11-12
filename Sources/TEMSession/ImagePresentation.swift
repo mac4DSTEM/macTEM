@@ -246,6 +246,12 @@ package final class ImagePresentation {
 
     package init() {}
 
+    /// Lets go of the canvas; the settings stay. The object may outlive its file (a SwiftUI binding held by a control, as the gamma
+    /// slider's, can keep it: measured on the closed 375 MB SEM TIFF, #562), so the pixels must not live as long as it does.
+    package func releaseCanvas() {
+        canvas = nil
+    }
+
     /// Shows `canvas`. A picture with `defaultQuantiles` gets the new canvas's quantile window while its window is still the default one
     /// (a new map, a new tile); a window the person set stays.
     package func show(_ canvas: CanvasPixels) {

@@ -452,26 +452,23 @@ nonisolated final class OpenItemsTests: XCTestCase {
         XCTAssertEqual(items.selectedID, b.id)
     }
 
-    /// A closed file's pixels are given back: nothing in `OpenItems` keeps the item, its session or its read alive once it is
-    /// closed (macTEM#562: the 375 MB SEM TIFF's 2.9 GB stayed after its tab closed). Red under: a closed item kept in the read
-    /// queue, a finished read's task kept on the item, or the selection left on the closed item.
-    @MainActor func testAClosedItemAndItsImageAreReleased() async throws {
+    /// A closed file's pixels are given back even while something still holds its session and presentation (#562: on the Mac a SwiftUI
+    /// binding of the gamma control kept the closed 375 MB SEM TIFF's presentation, and with it a 1.5 GB canvas, alive after its tab
+    /// closed). Here the test holds them, as that binding did. Red before: `close` dropped the item from the list and left the image and
+    /// the canvas on the objects.
+    @MainActor func testClosingAFileLetsGoOfItsPixelsEvenWhileItsObjectsAreHeld() async throws {
         let fake = FakeReader()
         let items = makeItems(fake)
         items.open(urls: [Self.a, Self.b])
         await items.settled()
-        weak var closed: OpenItem?
-        weak var session: ImageSession?
-        do {
-            let a = try item(items, Self.a)
-            XCTAssertNotNil(a.session.image, "setup: a was read")
-            closed = a
-            session = a.session
-            items.close(a.id)
-        }
+        let a = try item(items, Self.a)
+        let session = a.session, presentation = a.presentation
+        XCTAssertNotNil(session.image, "setup: a was read")
+        XCTAssertNotNil(presentation.canvas, "setup: a has its canvas")
+        items.close(a.id)
         await items.settled()
-        XCTAssertNil(closed, "the closed item is released")
-        XCTAssertNil(session, "and with it the session that holds its image")
+        XCTAssertNil(session.image, "the held session no longer holds the image")
+        XCTAssertNil(presentation.canvas, "the held presentation no longer holds the canvas")
         XCTAssertEqual(items.items.map(\.url), [Self.b])
     }
 
