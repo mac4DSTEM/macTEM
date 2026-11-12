@@ -4,7 +4,7 @@
 //        extension and, in a file that holds several objects, the object to show by the rule below.
 //
 //  OBJECT RULE (pre-registered): the first object in the file's own order that
-//  is not the thumbnail, has exactly two dimensions larger than one, whose two axes do not carry two different
+//  is not the thumbnail nor an EELS object (the EELS room's), has no axis in eV or keV, has exactly two dimensions larger than one, whose two axes do not carry two different
 //  units, and whose `Meta Data.Format` is not "Spectrum image". A GMS file stores its RGBA thumbnail first; a
 //  [170, 1] line scan or a [w, h, n] stack is not an image; a 2D object whose axes are in different units
 //  (wavelength nm × position µm, energy × position) or that GMS itself tags "Spectrum image" is a spectrum
@@ -94,8 +94,15 @@ package nonisolated enum ImageOpening {
 
     /// The object rule above.
     package static func primaryImageObject(in objects: [DM4ImageObject]) -> DM4ImageObject? {
-        objects.first { $0.role != .thumbnail && imageAxes($0) != nil
-            && !hasMixedUnits($0) && !isSpectrumImage($0) }
+        objects.first { $0.role != .thumbnail && $0.role != .eels && imageAxes($0) != nil
+            && !hasMixedUnits($0) && !isSpectrumImage($0) && !hasEnergyAxis($0) }
+    }
+
+    /// One of the two image axes is in eV or keV: a line scan (positions × channels), whose other axis may carry no unit, so `hasMixedUnits`
+    /// does not see it. Drawn as an image it would be a picture of spectra, opened beside the EELS room's refusal (#559).
+    private static func hasEnergyAxis(_ object: DM4ImageObject) -> Bool {
+        guard let (x, y) = imageAxes(object) else { return false }
+        return [x, y].contains { isEnergy($0?.units ?? "") }
     }
 
     /// The axes of an object's two dimensions larger than one, in file order (x first); nil unless exactly two.
