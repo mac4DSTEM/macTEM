@@ -310,7 +310,7 @@ struct PatternsProcessingSections: View {
             SegmentedPicker(label: "Bin", items: PatternPipeline.binnings.map { k in
                 let fits = dataset.patternRows % k == 0 && dataset.patternColumns % k == 0
                 return (k, .title("\(k)", help: k == 1 ? "No binning" : "Sum \(k) × \(k) pixels (kikuchipy downsample)",
-                                  disabledReason: fits ? nil : "\(k) does not divide the \(dataset.patternRows) × \(dataset.patternColumns) px pattern"))
+                                  disabledReason: fits ? nil : "\(k) does not divide the \(dataset.patternColumns) × \(dataset.patternRows) px pattern"))
             }, selection: Binding(get: { pipeline.binning }, set: { v in session.editPipeline { $0.binning = v } }))
                 .accessibilityIdentifier("patterns.size.bin")
             refusalNote(.size)

@@ -261,8 +261,8 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             }
             let shape = background.shape
             guard shape.count == 2, shape[0] == dataset.patternRows, shape[1] == dataset.patternColumns, background.dataType == dataset.dataType else {
-                let size = shape.map(String.init).joined(separator: " × ")
-                return Refusal(.staticBackground, "Static background is \(size) \(background.dataType.rawValue), the patterns are \(dataset.patternRows) × \(dataset.patternColumns) \(dataset.dataType.rawValue).")
+                let size = shape.reversed().map(String.init).joined(separator: " × ")
+                return Refusal(.staticBackground, "Static background is \(size) \(background.dataType.rawValue), the patterns are \(dataset.patternColumns) × \(dataset.patternRows) \(dataset.dataType.rawValue).")
             }
         }
         if dynamicStage.isOn {
@@ -296,7 +296,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             if let k = intensity.equalizeKernel, k > max(dataset.patternRows, dataset.patternColumns) {
                 let padded = (Double(dataset.patternRows) + 2 * Double(k)) * (Double(dataset.patternColumns) + 2 * Double(k))
                 if padded > Double(1 << 24) {
-                    return Refusal(.intensity, "The equalisation kernel of \(k) px is far larger than the \(dataset.patternRows) × \(dataset.patternColumns) px pattern.")
+                    return Refusal(.intensity, "The equalisation kernel of \(k) px is far larger than the \(dataset.patternColumns) × \(dataset.patternRows) px pattern.")
                 }
             }
             guard intensity.clipLimit.isFinite, intensity.clipLimit >= 0 else { return Refusal(.intensity, "The clip limit must be 0 or more.") }
@@ -320,7 +320,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
             }
         }
         if binning > 1, dataset.patternRows % binning != 0 || dataset.patternColumns % binning != 0 {
-            return Refusal(.size, "Bin \(binning) does not divide the \(dataset.patternRows) × \(dataset.patternColumns) px pattern.")
+            return Refusal(.size, "Bin \(binning) does not divide the \(dataset.patternColumns) × \(dataset.patternRows) px pattern.")
         }
         if averaging.isOn, intensity.mode == .normalize {
             return Refusal(.averaging, "Average neighbours reads 8 and 16 bit patterns; Normalise makes them float32. Rescale or leave the intensities instead.")

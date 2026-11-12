@@ -157,7 +157,7 @@ package nonisolated enum EBSDBrowsing {
             Row("File", fileName),
             Row("Format", dataset.version.isEmpty ? dataset.format.rawValue : "\(dataset.format.rawValue) \(dataset.version)"),
             Row("Scan", dataset.scanGroups.count > 1 ? "\(dataset.scanGroup) · of \(dataset.scanGroups.count)" : dataset.scanGroup),
-            Row("Patterns", "\(dataset.patternCount) · \(dataset.patternRows) × \(dataset.patternColumns) px · \(dataset.dataType.rawValue)"),
+            Row("Patterns", "\(dataset.patternCount) · \(dataset.patternColumns) × \(dataset.patternRows) px · \(dataset.dataType.rawValue)"),
             Row("Detector pixel", "\(n(dataset.detector.pixelSize)) µm"),
         ]
         if let microscope = dataset.sem.microscope, !microscope.isEmpty { rows.append(Row("Microscope", microscope)) }
