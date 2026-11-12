@@ -391,3 +391,17 @@ when 65003 to 65005 are present. The scale GMS burnt in as a bar is not read. Ta
 
 **What would reverse it.** Paul choosing to see these files in colour (a colour picture in the image room, measurements on
 distance only), or a real file where the brightest channel hides structure the colours carried.
+
+## 2026-11-12 — CI: the macOS gates do not run again on a push to main
+
+**What.** `unit`, `core` and `inventory` skip a push to main; they run on pull requests, tags, by hand and in the nightly
+(`core` and `inventory` join the nightly). The Linux jobs still run on main. mac4DSTEM does the same.
+
+**Why.** GitHub runs at most five macOS jobs at once for the whole org, and both apps' `unit` jobs run there. On 12 Nov
+a PR's `unit` waited 13 to 22 minutes for a slot before running 13 to 16. Every merge ran the three macOS jobs a second
+time on the same change. Folding `core` and `inventory` into
+`unit` was weighed and left: it saves no slot time, only a queue entry. Skipping CI for docs-only changes was left too:
+the unit tests read docs/architecture.md, docs/parity.md and docs/sem/north-star.md.
+
+**What would reverse it.** A break between two PRs that each passed alone reaching a tag, or the nightly turning red on
+main often enough that a per-merge run is cheaper than finding the culprit.
