@@ -124,6 +124,18 @@ nonisolated final class IndexingMapsHandOffTests: XCTestCase {
         XCTAssertTrue(state.maps.sources.isEmpty)
     }
 
+    /// A pattern file that carries its own map opens with the Patterns room's line: the Maps room takes the map quietly. Red before:
+    /// the Maps room's "Opened … orientation map" line came after and took the status line (#522).
+    @MainActor func testAPatternFileWithAMapKeepsThePatternsLineInTheStatusLine() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        let demo = try DemoDocuments.ebsd()
+        await state.ebsd.bind(demo).value
+        XCTAssertEqual(state.maps.document?.source, .patterns, "the demo carries its own crystal map")
+        XCTAssertTrue(state.statusText.hasPrefix("Opened \(demo.fileName) — "), state.statusText)
+        XCTAssertFalse(state.statusText.contains("orientation map"), state.statusText)
+        state.ebsd.stop()
+    }
+
     // MARK: - The maps the room holds
 
     /// One map of each source: a map file, the dataset's own map, the Indexing run. `Source` moves between them at the same point and
