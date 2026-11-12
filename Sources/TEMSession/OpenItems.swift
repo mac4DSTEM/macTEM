@@ -539,11 +539,21 @@ package final class OpenItem: Identifiable {
 
     fileprivate func goCold() {
         let kept = presentation
+        releasePixels()
         session = ImageSession()
         presentation = ImagePresentation()
         presentation.keepSettings(of: kept)
         databar = nil
         residency = .cold
+    }
+
+    /// Lets go of every full-size array this item holds (the image, its canvas, the databar, the FFT room's copy), on the objects themselves:
+    /// a view or a control may still hold the session or the presentation after the item is closed or goes cold (#562).
+    fileprivate func releasePixels() {
+        session.release()
+        presentation.releaseCanvas()
+        fft.release()
+        databar = nil
     }
 }
 
@@ -833,6 +843,7 @@ package final class OpenItems {
     private func remove(_ item: OpenItem, selectionPreferred: OpenItem.ID?) {
         item.cancelRead()
         item.closeStack()
+        item.releasePixels()
         queue.removeAll { $0 === item }
         guard let index = items.firstIndex(where: { $0 === item }) else { return }
         items.remove(at: index)

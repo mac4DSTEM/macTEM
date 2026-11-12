@@ -18,12 +18,13 @@ package nonisolated enum EELSInfoFormat {
     package static func rows(_ source: LoadedEELS, beamEnergyKeV: Double?, beamEnergySource: BeamEnergySource?,
                              locale: Locale = .autoupdatingCurrent) -> [EELSInfoRow] {
         func sig(_ v: Double, _ digits: Int) -> String { EELSRoomFormat.sig(v, digits, locale: locale) }
-        let image = source.image
+        // The file's axes as read, also after Align has replaced the cubes (`LoadedEELS.fileAxis`).
+        let image = source.image, axis = source.fileAxis
         var out = [EELSInfoRow("File", source.fileName), EELSInfoRow("Read as", source.origin), EELSInfoRow("Scan", "\(image.nx) × \(image.ny) px"),
-                   EELSInfoRow("Channels", "\(image.channels)"),
-                   EELSInfoRow("Energy axis", "\(sig(image.energyOffsetEV, 4)) eV + i × \(sig(image.energyScaleEV, 4)) eV")]
-        if let core = source.coreLoss {
-            out.append(EELSInfoRow("Core loss", "\(core.channels) ch from \(sig(core.energyOffsetEV, 5)) eV"))
+                   EELSInfoRow("Channels", "\(axis.channels)"),
+                   EELSInfoRow("Energy axis", "\(sig(axis.offsetEV, 4)) eV + i × \(sig(axis.scaleEV, 4)) eV")]
+        if let channels = axis.coreChannels, let offset = axis.coreOffsetEV {
+            out.append(EELSInfoRow("Core loss", "\(channels) ch from \(sig(offset, 5)) eV"))
             if let origin = source.coreLossOrigin { out.append(EELSInfoRow("Core loss from", origin)) }
         }
         if let kv = beamEnergyKeV {

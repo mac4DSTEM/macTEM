@@ -230,9 +230,10 @@ nonisolated struct FFTSourceLayer {
                                   border: .plain, drawsRegion: true)
         case .region:
             guard let spectrum else { return nil }
-            return product(spectrum.region, border: .plain,
-                           plate: FFTPaneFormat.regionPlate(crop: spectrum.key.crop, width: spectrum.region.width,
-                                                            height: spectrum.region.height))
+            // The whole image unprocessed is the file's own pixels: its canvas, drawn linear over its range as a product is.
+            let region = spectrum.region ?? original
+            return product(region, border: .plain,
+                           plate: FFTPaneFormat.regionPlate(crop: spectrum.key.crop, width: region.width, height: region.height))
         case .maskedInverse:
             guard let inverse else { return nil }
             let first = inverse.key.spots.first
@@ -365,9 +366,11 @@ struct FFTRegionOverlay: View {
 // MARK: - The pane
 
 struct FFTSourceImagePane: View {
-    let image: CalibratedImage
-    let canvas: CanvasPixels
     let item: OpenItem
+    /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
+    /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
+    private var canvas: CanvasPixels { item.presentation.canvas ?? ImagePane.blankCanvas }
     /// The room's keys and View > Zoom are for the pane pressed last; any press in this pane says it is this one (`FFTPanePress`).
     @Binding var keyPane: FFTKeyPane?
     @State private var zoomModel = PaneZoomModel()
@@ -496,9 +499,9 @@ struct FFTSourceImagePane: View {
                 .frame(width: box.width, height: box.height)
                 .background {
                     MetalImageView(
-                        pixels: shown.normalized, width: shown.width, height: shown.height,
+                        pixels: shown.values, width: shown.width, height: shown.height,
                         contentVersion: shown.contentVersion, colormap: layer.colormap,
-                        displayLo: layer.window.low, displayHi: layer.window.high, gamma: layer.gamma
+                        displayLo: layer.window.low, displayHi: layer.window.high, gamma: layer.gamma, pixelScale: shown.scale
                     )
                     .displayTransform(geometry.transform)
                     .frame(width: box.width, height: box.height)

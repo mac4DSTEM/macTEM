@@ -62,7 +62,9 @@ nonisolated final class ImageExportGPUTests: XCTestCase {
         let engine = MetalEngine.shared
         let values = Self.canvas()
         XCTAssertEqual(values.count, Self.columns * Self.rows)
-        let data = try XCTUnwrap(engine.device.makeFloatTexture(pixels: values, width: Self.columns, height: Self.rows))
+        let data: MTLBuffer = try XCTUnwrap(engine.device.makeImageBuffer(pixels: values, width: Self.columns, height: Self.rows))
+        let size = SIMD2<UInt32>(UInt32(Self.columns), UInt32(Self.rows))
+        let normalized = SIMD4<Float>(0, 1, Float(DisplayImage.Encoding.normalizedFloat.rawValue), 0)
         let windows: [(Float, Float)] = [(0, 1), (0.1, 0.9), (0.4, 0.45), (0.5, 1), (0, 1e-7), (0.9, 0.1)]
         let gammas: [Double] = [0.5, 1, 2.2, 0.04]
 
@@ -79,12 +81,16 @@ nonisolated final class ImageExportGPUTests: XCTestCase {
                     let bgra = try Self.render(engine.displayPSO, width: Self.columns, height: Self.rows) { encoder in
                         var display = SIMD4<Float>(low, high, Float(gamma), 0)
                         encoder.setFragmentBytes(&display, length: MemoryLayout<SIMD4<Float>>.stride, index: 0)
-                        encoder.setFragmentTexture(data, index: 0)
+                        encoder.setFragmentBuffer(data, offset: 0, index: 1)
+                        var shape = size, parameters = normalized
+                        encoder.setFragmentBytes(&shape, length: MemoryLayout<SIMD2<UInt32>>.stride, index: 2)
+                        encoder.setFragmentBytes(&parameters, length: MemoryLayout<SIMD4<Float>>.stride, index: 3)
                         encoder.setFragmentTexture(lut, index: 1)
                     }
                     draws += 1
                     for i in 0..<values.count {
-                        let gpu = [Int(bgra[4 * i + 2]), Int(bgra[4 * i + 1]), Int(bgra[4 * i])]
+                        let red = Int(bgra[4 * i + 2]), green = Int(bgra[4 * i + 1]), blue = Int(bgra[4 * i])
+                        let gpu: [Int] = [red, green, blue]
                         let mine = ImageExport.rgb(values[i], low: low, high: high, gamma: gamma, lut: lutBytes)
                         let export = [Int(mine.0), Int(mine.1), Int(mine.2)]
                         XCTAssertEqual(bgra[4 * i + 3], 255, "alpha")

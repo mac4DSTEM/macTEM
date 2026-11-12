@@ -24,8 +24,10 @@ import TEMCore
 import TEMSession
 
 struct ResultsRoom: View {
-    let image: CalibratedImage
     let item: OpenItem
+    /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
+    /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
     @Environment(AppState.self) private var appState
 
     var body: some View {
@@ -47,7 +49,7 @@ struct ResultsRoom: View {
                 ContentUnavailableView(ResultsFormat.allHiddenTitle, systemImage: "eye.slash",
                                        description: Text(ResultsFormat.allHiddenDetail))
             } else {
-                ResultsTable(image: image, sections: sections, state: state)
+                ResultsTable(item: item, sections: sections, state: state)
             }
             if !sessionRows.isEmpty {
                 Divider()
@@ -91,7 +93,10 @@ private struct ResultsHeader: View {
 
 /// The native table: a `Section` per group, one row per result, the selection the state's.
 private struct ResultsTable: View {
-    let image: CalibratedImage
+    let item: OpenItem
+    /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
+    /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
     let sections: [ResultsSection]
     @Bindable var state: ResultsRoomState
 

@@ -365,7 +365,7 @@ nonisolated final class ResultsWiringTests: XCTestCase {
     /// The shell's three slots mount the room; nothing else of the frozen shell files is named here. Red under: a slot removed.
     func testTheShellMountsTheRoomInItsSlots() throws {
         let view = squeezed(try source("macTEM/UI/WorkspaceView.swift"))
-        XCTAssertTrue(view.contains("else if appState.navigation.workspaceArea == .results { ResultsRoom(image: image, item: item) }"))
+        XCTAssertTrue(view.contains("else if appState.navigation.workspaceArea == .results { ResultsRoom(item: item) }"))
         let inspector = squeezed(try source("macTEM/UI/WorkspaceInspector.swift"))
         XCTAssertTrue(inspector.contains("case .results: if let item = appState.openItems.selected { ResultsRoomSettings(image: image, item: item)"))
         XCTAssertTrue(inspector.contains("if appState.navigation.workspaceArea == .results, let item = appState.openItems.selected { ResultsRoomInfo(image: image, item: item) }"))

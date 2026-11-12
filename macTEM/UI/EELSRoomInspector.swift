@@ -332,7 +332,7 @@ struct EELSProcessingSection: View {
     }
 
     private func select(_ new: Kind) {
-        let file = session.source
+        let file = EELSFileMicroscope(session.source)
         lambdaNotice = nil
         switch new {
         case .none: session.setMeanFreePath(.none)
@@ -370,7 +370,9 @@ struct EELSFittingSection: View {
     let session: EELSSession
 
     var body: some View {
-        let file = session.source
+        // The file's three numbers, never the file: a closure below that captured `session.source` kept its two cubes (the text field's commit,
+        // held by AppKit) after Align had replaced them (12 Nov memgraph on 145_STEM, 1.45 GB too many; macTEM#571).
+        let file = EELSFileMicroscope(session.source)
         let stage = session.fittingState
         InspectorSection("Fitting", status: stage?.word, statusGlyph: EELSSectionStatus.glyph(stage)) {
             SegmentedPicker(label: "Model", items: EELSFitModel.allCases.map { ($0, .title($0.title, help: $0.help)) },
@@ -562,9 +564,10 @@ struct EELSRoomInfo: View {
 
     var body: some View {
         let session = appState.eels
-        if let source = session.source {
+        // The rows, made here: the section's content closure holds them, never the file and its cubes (macTEM#571).
+        if let rows = session.source.map({ EELSInfoFormat.rows($0, beamEnergyKeV: session.beamEnergyKeV, beamEnergySource: session.beamEnergySource) }) {
             InspectorSection("Spectrum Image") {
-                ForEach(EELSInfoFormat.rows(source, beamEnergyKeV: session.beamEnergyKeV, beamEnergySource: session.beamEnergySource)) { row in
+                ForEach(rows) { row in
                     InspectorValueRow(row.label, row.value)
                 }
                 InspectorNote("Counts are as the file stores them (no gain or dark reference).")
@@ -573,5 +576,18 @@ struct EELSRoomInfo: View {
             ContentUnavailableView("No EELS spectrum image open", systemImage: "chart.xyaxis.line",
                                    description: Text("The file, its grid and its energy axis appear here."))
         }
+    }
+}
+
+/// What the inspector reads of the file's microscope: three numbers, so a view or its closures never hold the file (and with it the cubes).
+struct EELSFileMicroscope {
+    let beamEnergyKeV: Double?
+    let convergenceMrad: Double?
+    let collectionMrad: Double?
+
+    /// Nil without a file, as `session.source` is.
+    init?(_ loaded: LoadedEELS?) {
+        guard let loaded else { return nil }
+        beamEnergyKeV = loaded.beamEnergyKeV; convergenceMrad = loaded.convergenceMrad; collectionMrad = loaded.collectionMrad
     }
 }

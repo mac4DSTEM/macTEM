@@ -411,7 +411,7 @@ extension AppState {
             let image = request.url == DemoDocuments.patternURL ? DemoDocuments.diffractionPattern() : DemoDocuments.lattice()
             let canvas = canvas(for: image)
             return OpenedImage(image: image, canvas: canvas, metadata: AcquisitionMetadata(), url: request.url,
-                               thumbnail: Thumbnail.make(normalized: canvas.normalized, width: canvas.width, height: canvas.height, maxSide: Thumbnail.defaultMaxSide),
+                               thumbnail: canvas.thumbnail(maxSide: Thumbnail.defaultMaxSide),
                                bookmark: nil)
         }
         var url = request.url
@@ -437,7 +437,7 @@ extension AppState {
             let identity = SessionSourceIdentity.ofStack(firstFrame: first, frameCount: stack.frameCount, fileByteSize: size)
             let sidecar = SessionGrants.outcome(source: url, opened: identity, image: first)
             return OpenedImage(image: first, canvas: canvas, metadata: AcquisitionMetadata.read(path: url.path), url: url,
-                               thumbnail: Thumbnail.make(normalized: canvas.normalized, width: canvas.width, height: canvas.height, maxSide: Thumbnail.defaultMaxSide),
+                               thumbnail: canvas.thumbnail(maxSide: Thumbnail.defaultMaxSide),
                                bookmark: nil, identity: identity, sidecar: sidecar, stack: stack,
                                hasGrant: SessionGrants.bookmark(forSource: url) != nil, sem: sem)
         }
@@ -450,8 +450,7 @@ extension AppState {
         let sidecar = request.bookmark == nil
             ? SessionGrants.outcome(source: url, opened: identity, image: image) : SidecarOutcome.none
         try Task.checkCancellation()
-        let thumbnail = Thumbnail.make(normalized: canvas.normalized, width: canvas.width, height: canvas.height,
-                                      maxSide: Thumbnail.defaultMaxSide)
+        let thumbnail = canvas.thumbnail(maxSide: Thumbnail.defaultMaxSide)
         try Task.checkCancellation()
         // Nil when none can be made: the item then keeps its pixels for its life (`OpenItems`' memory rule).
         let bookmark = try? SecurityScopedBookmark.make(for: url)
@@ -471,7 +470,7 @@ extension AppState {
         try Task.checkCancellation()
         let canvas = canvas(for: image)
         // The sidebar's thumbnail follows the frame shown (it was the first frame's before).
-        let thumbnail = Thumbnail.make(normalized: canvas.normalized, width: canvas.width, height: canvas.height, maxSide: Thumbnail.defaultMaxSide)
+        let thumbnail = canvas.thumbnail(maxSide: Thumbnail.defaultMaxSide)
         return OpenedImage(image: image, canvas: canvas, metadata: AcquisitionMetadata(), url: stack.url, thumbnail: thumbnail, bookmark: nil, sem: sem)
     }
 

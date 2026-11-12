@@ -177,8 +177,8 @@ struct EELSMapsBlock: View {
         let composition = EELSMapsComposition.compose(selection: availability.effective(state.maps), onlyCoreLoss: availability.onlyCoreLoss, tiles: session.tiles,
                                                       shiftTile: session.alignmentShiftTile, modelTiles: session.modelTiles)
         let regions = EELSRegionBridge.set(session, linesFocused: state.linesFocused)
-        let image = session.source?.image
-        let aspect = EELSMapsComposition.aspect(nx: image?.nx, ny: image?.ny)
+        // The grid's size, never the cube: a closure of this body would hold it (macTEM#571).
+        let aspect = EELSMapsComposition.aspect(nx: session.source?.image.nx, ny: session.source?.image.ny)
         let (align, thickness, fit) = (session.alignState, session.thicknessState, session.fitState)
         let running = session.isComputing
         Group {

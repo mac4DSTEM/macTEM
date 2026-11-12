@@ -146,7 +146,7 @@ package nonisolated struct EELSFitQuality: Equatable, Sendable {
             return EELSFitQuality(rss: rss, channels: channels.count, parameters: parameters, reducedChiSquared: nil, chiSquaredUnavailable: notCounts)
         }
         let n = core.channels
-        let counts = Array(core.counts[(pixel * n)..<((pixel + 1) * n)])
+        let counts = core.storedCounts.withRow(start: pixel * n, count: n) { Array($0) }
         guard let curve = result.modelCurve(pixel: pixel) else {
             return EELSFitQuality(rss: rss, channels: channels.count, parameters: parameters, reducedChiSquared: nil, chiSquaredUnavailable: modelNotPositive)
         }

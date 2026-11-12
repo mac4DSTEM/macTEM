@@ -357,10 +357,10 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertTrue(EELSMapsComposition.isStale("at-Mg", thickness: .current, fit: .stale, align: .current))
     }
 
-    /// The colour scales: the zero-loss shift is centred on 0 (diverging), t/λ runs from its smallest to its largest, an edge from 0; NaN stays NaN (drawn at
+    /// The colour scales: the zero-loss centre is centred on 0 (diverging), t/λ runs from its smallest to its largest, an edge from 0; NaN stays NaN (drawn at
     /// the bottom of the scale, never as a value).
     func testTheTileScalesAreCentredOrMinToMaxOrFromZero() {
-        let d = EELSMapScale.scaled([-2, 0, 1, .nan], mode: EELSMapScale.mode(forTileID: "zlpShift"))
+        let d = EELSMapScale.scaled([-2, 0, 1, .nan], mode: EELSMapScale.mode(forTileID: "zlpCentre"))
         // Centred on 0 out to max(|p1|, |p99|) = 1.96 (NumPy's linear percentiles of [-2, 0, 1]); -2 is past the end and takes the end colour.
         XCTAssertEqual(d.low, -1.96, accuracy: 1e-12); XCTAssertEqual(d.high, 1.96, accuracy: 1e-12)
         XCTAssertEqual(d.values[0], 0); XCTAssertEqual(d.values[1], 0.5); XCTAssertEqual(d.values[2], 2.96 / 3.92, accuracy: 1e-12); XCTAssertTrue(d.values[3].isNaN)
@@ -799,11 +799,15 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertEqual(EELSMapTile(id: "x", title: "t/λ", unit: "", width: 1, height: 1, values: [0.5], version: 1, footer: nil).detailText, "every pixel 0.5")
         XCTAssertEqual(EELSMapTile(id: "x", title: "t/λ", unit: "", width: 2, height: 1, values: [0.5, 0.6], version: 1, footer: nil).detailText, nil)
         XCTAssertEqual(EELSMapTile(id: "x", title: "I", unit: "counts", width: 2, height: 1, values: [1, 2], version: 1, footer: nil).detailText, "counts")
+        // The ZLP shift map names its range (red before: "eV" alone beside a tile one colour but for a few far pixels, 145_STEM 12 Nov).
+        let shift = EELSMapTile(id: "zlpShift", title: "ZLP shift", unit: "eV", width: 3, height: 1, values: [-8.12, 5e-5, 5e-5], version: 1, footer: nil)
+        XCTAssertEqual(shift.detailText(locale: Locale(identifier: "en_US")), "\(EELSRoomFormat.sig(-8.12, 3, locale: Locale(identifier: "en_US"))) to "
+                       + "\(EELSRoomFormat.sig(5e-5, 3, locale: Locale(identifier: "en_US"))) eV")
         XCTAssertEqual(EELSMapsComposition.aspect(nx: 432, ny: 172), 432.0 / 172.0, accuracy: 1e-12)
         XCTAssertEqual(EELSMapsComposition.aspect(nx: nil, ny: nil), 1)
         let room = squeezed(try source("macTEM/UI/EELSRoom.swift"))
         XCTAssertTrue(room.contains("aspect: CGFloat(aspect)"), "AnchoredMapsBlock fits the tiles to the scan")
-        XCTAssertTrue(room.contains("EELSMapsComposition.aspect(nx: image?.nx, ny: image?.ny)"))
+        XCTAssertTrue(room.contains("EELSMapsComposition.aspect(nx: session.source?.image.nx, ny: session.source?.image.ny)"))
         XCTAssertTrue(room.contains("coloring: .colormap(.gray)"), "a flat map is grey, not the diverging scale's white")
         XCTAssertTrue(room.contains("detail: tile.detailText"))
     }

@@ -154,12 +154,14 @@ package nonisolated final class FFTSpectrumProduct: Sendable {
     package let defaultWindow: SpectrumDisplay.Window?
     /// `RadialProfile.compute` at its default width; nil when refused (the axes in different units).
     package let profile: RadialProfile?
-    /// The transformed pixels alone, linear over their own finite range: the source pane's Region view.
-    package let region: CanvasPixels
+    /// The transformed pixels alone, linear over their own finite range: the source pane's Region view. Nil when they are the file's own
+    /// pixels (the whole image, no preprocessing): the view draws the file's canvas over its range, and no second full-size copy is
+    /// held (12 Nov: the whole-image FFT of the 187 MP alite SEM image held one more 750 MB array).
+    package let region: CanvasPixels?
 
     package init(key: FFTSpectrumKey, width: Int, height: Int, spacingX: Double, spacingY: Double, unitsX: String,
                  unitsY: String, canvas: CanvasPixels, defaultWindow: SpectrumDisplay.Window?, profile: RadialProfile?,
-                 region: CanvasPixels) {
+                 region: CanvasPixels?) {
         self.key = key
         self.width = width
         self.height = height
@@ -305,7 +307,8 @@ private nonisolated enum FFTWork {
             unitsX: unitsX, unitsY: unitsY,
             canvas: canvas(display.values, width: display.width, height: display.height, histogram: true),
             defaultWindow: display.defaultWindow, profile: profile,
-            region: canvas(source.pixels, width: source.width, height: source.height, histogram: false))
+            region: key.crop == nil && key.preprocess.isNone ? nil
+                : canvas(source.pixels, width: source.width, height: source.height, histogram: false))
     }
 
     /// The pixels the transform sees for `key`: the region, then the key's smoothing, band-pass and window.

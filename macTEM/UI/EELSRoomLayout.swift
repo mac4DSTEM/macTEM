@@ -15,7 +15,7 @@ import TEMCore
 
 // MARK: - The maps
 
-/// A tile's colours until the person changes them: t/λ, t and I total on viridis, the zero-loss shift diverging (centred on 0), an edge or an at% map black to its
+/// A tile's colours until the person changes them: t/λ, t, I total and the zero-loss shift on viridis, the zero-loss centres diverging (centred on 0), an edge or an at% map black to its
 /// element's colour. The scale of each is `EELSMapScale`.
 nonisolated enum EELSTileStyle {
     static func hue(forID id: String) -> Double {
@@ -26,7 +26,7 @@ nonisolated enum EELSTileStyle {
     static func defaultColoring(_ id: String) -> MapColoring {
         switch EELSMapScale.mode(forTileID: id) {
         case .diverging: return .colormap(.rdbu)
-        case .minToMax: return .colormap(.viridis)
+        case .minToMax, .robustMinToMax: return .colormap(.viridis)
         case .zeroToMax:
             let rgb = EDXRoomFormat.rgb(hue: hue(forID: id))
             return .color(RegionColor(red: rgb.0, green: rgb.1, blue: rgb.2))

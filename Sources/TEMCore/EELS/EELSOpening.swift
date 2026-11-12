@@ -16,7 +16,8 @@ import SpectroEELS
 /// it a core loss).
 private nonisolated struct EELSCube {
     let nx: Int, ny: Int, channels: Int
-    let counts: [Double]
+    /// At the file's own precision: a GMS float32 cube stays four bytes a count (macTEM#571; SpectroKit `EELSCounts`).
+    let counts: EELSCounts
     let offsetEV: Double, scaleEV: Double
     let origin: String
     var holdsZeroLoss: Bool { offsetEV <= 0 && offsetEV + scaleEV * Double(channels - 1) >= 0 }
@@ -25,7 +26,9 @@ private nonisolated struct EELSCube {
 /// A low-loss spectrum image with what its file says about the instrument.
 package struct LoadedEELS: Sendable {
     package let fileName: String
-    package let image: LowLossSpectrumImage
+    /// The low-loss cube the room holds: the file's, until Align replaces it with the aligned one (`replaceCubes`), so the room keeps one cube,
+    /// not the file's and the aligned (macTEM#571: 8.9 GB after Align on the 1.46 GB 145_STEM). The file's own axis stays in `fileAxis`.
+    package private(set) var image: LowLossSpectrumImage
     package let beamEnergyKeV: Double?
     package let convergenceMrad: Double?
     package let collectionMrad: Double?
@@ -33,7 +36,11 @@ package struct LoadedEELS: Sendable {
     package let origin: String
     /// The file's core-loss cube, when it holds one next to the low loss (a Dual-EELS file): same scan, its own energy window. The room
     /// aligns it with the low loss, and the edge model fits it.
-    package let coreLoss: CoreLossSpectrumImage?
+    package private(set) var coreLoss: CoreLossSpectrumImage?
+    /// The file's own axes, as read (the Info rows and Align's "before"): they stay when Align replaces the cubes.
+    package let fileAxis: EELSFileAxis
+    /// The cubes are Align's output, not the file's (`replaceCubes`): another Align reads the file again.
+    package private(set) var cubesAreAligned = false
     /// Where the core loss came from, in words, or nil.
     package let coreLossOrigin: String?
     /// The scan's pixel size along x and its unit as the file states them ("µm" in a GMS file: `ImageData.Calibrations.Dimension.1`, FormatoKit's `xAxis`,
@@ -58,7 +65,26 @@ package struct LoadedEELS: Sendable {
         self.alphaTiltDegrees = alphaTiltDegrees; self.betaTiltDegrees = betaTiltDegrees; self.instrument = instrument
         self.scanPixelSize = scanPixelSize; self.scanPixelUnit = scanPixelUnit
         self.filePath = filePath
+        fileAxis = EELSFileAxis(channels: image.channels, offsetEV: image.energyOffsetEV, scaleEV: image.energyScaleEV,
+                                coreChannels: coreLoss?.channels, coreOffsetEV: coreLoss?.energyOffsetEV)
     }
+
+    /// Holds Align's cubes in place of the file's: the file's let go, so the room holds one cube. The aligned core loss replaces the file's
+    /// when Align aligned one.
+    package mutating func replaceCubes(with alignment: ZeroLossAlignment) {
+        image = alignment.aligned
+        if let core = alignment.alsoAligned.first { coreLoss = core }
+        cubesAreAligned = true
+    }
+}
+
+/// The energy axes of an EELS file's cubes, as read.
+package nonisolated struct EELSFileAxis: Sendable, Equatable {
+    package let channels: Int
+    package let offsetEV: Double
+    package let scaleEV: Double
+    package let coreChannels: Int?
+    package let coreOffsetEV: Double?
 }
 
 package enum EELSOpeningError: Error, Equatable, LocalizedError {
@@ -81,8 +107,8 @@ package enum EELSOpening {
 
     /// The bytes `cubes` EELS cubes of `nx` x `ny` pixels and `channels` channels take as the room holds them: every count a Double, 8 bytes. In
     /// Double, so no file's size overflows it.
-    package static func estimatedBytes(nx: Int, ny: Int, channels: Int, cubes: Int = 1) -> Double {
-        Double(max(nx, 0)) * Double(max(ny, 0)) * Double(max(channels, 0)) * Double(max(cubes, 0)) * 8
+    package static func estimatedBytes(nx: Int, ny: Int, channels: Int, cubes: Int = 1, bytesPerCount: Int = 8) -> Double {
+        Double(max(nx, 0)) * Double(max(ny, 0)) * Double(max(channels, 0)) * Double(max(cubes, 0)) * Double(bytesPerCount)
     }
 
     /// The share of the Mac's memory a file's cubes may take once read: half. The other half is the reader's own copy of the cube it is converting,
@@ -118,7 +144,8 @@ package enum EELSOpening {
             guard !objects.isEmpty else { throw EELSOpeningError.notEELS(name) }
             // Before a cube is read: what the cubes take once read, from the object list (the header only; GMS writes [x, y, energy]).
             let sized = objects.map(\.dimensions).filter { $0.count == 3 }
-            let bytes = sized.reduce(0.0) { $0 + Self.estimatedBytes(nx: $1[0], ny: $1[1], channels: $1[2]) }
+            // A GMS cube is held as read, float32: four bytes a count (macTEM#571).
+            let bytes = sized.reduce(0.0) { $0 + Self.estimatedBytes(nx: $1[0], ny: $1[1], channels: $1[2], bytesPerCount: 4) }
             if let refusal = memoryRefusal(name: name, cubes: sized.count, bytes: bytes, physicalMemory: physicalMemory) { throw refusal }
             var firstFailure: (any Error)?
             for object in objects {
@@ -138,7 +165,7 @@ package enum EELSOpening {
                 if beam == nil { beam = si.beamEnergyKeV; convergence = si.convergenceSemiAngleMrad; collection = si.collectionSemiAngleMrad }
                 if stated == nil { stated = Self.stated(numbers: si.object.imageTagNumbers, strings: si.object.imageTagStrings) }
                 if pixel == nil, let x = si.xAxis, x.scale > 0, !x.units.isEmpty { pixel = (x.scale, x.units) }
-                cubes.append(EELSCube(nx: si.nx, ny: si.ny, channels: si.channels, counts: si.counts.map { Double($0) },
+                cubes.append(EELSCube(nx: si.nx, ny: si.ny, channels: si.channels, counts: EELSCounts(si.counts),
                                       offsetEV: -si.energyAxis.origin * si.energyAxis.scale, scaleEV: si.energyAxis.scale,
                                       origin: "GMS DM4 object \(object.index) (EELS)"))
             }
@@ -162,7 +189,7 @@ package enum EELSOpening {
                 guard axis.units == "eV" else { throw EELSOpeningError.unsupportedShape("\(name): the energy axis is in \"\(axis.units)\", not eV.") }
                 if beam == nil, let kv = signal.metadata["Acquisition_instrument.TEM.beam_energy"]?.value.number, kv > 0 { beam = kv }
                 if pixel == nil, signal.axes[1].scale > 0, !signal.axes[1].units.isEmpty { pixel = (signal.axes[1].scale, signal.axes[1].units) }
-                cubes.append(EELSCube(nx: signal.data.shape[1], ny: signal.data.shape[0], channels: signal.data.shape[2], counts: signal.data.doubles(),
+                cubes.append(EELSCube(nx: signal.data.shape[1], ny: signal.data.shape[0], channels: signal.data.shape[2], counts: EELSCounts(signal.data.doubles()),
                                       offsetEV: axis.offset, scaleEV: axis.scale, origin: "Velox EMD (EELS stream \(i + 1) of \(count))"))
             }
         case "msa":
@@ -177,15 +204,15 @@ package enum EELSOpening {
             convergence = number("Acquisition_instrument.TEM.convergence_angle")
             collection = number("Acquisition_instrument.TEM.Detector.EELS.collection_angle")
             let counts = signal.data.doubles()
-            cubes.append(EELSCube(nx: 1, ny: 1, channels: counts.count, counts: counts, offsetEV: axis.offset, scaleEV: axis.scale,
+            cubes.append(EELSCube(nx: 1, ny: 1, channels: counts.count, counts: EELSCounts(counts), offsetEV: axis.offset, scaleEV: axis.scale,
                                   origin: "EMSA/MSA spectrum (EELS)"))
         default:
             throw EELSOpeningError.notEELS(name)
         }
         let low = cubes.first(where: \.holdsZeroLoss) ?? cubes[0]
         let core = cubes.first(where: { !$0.holdsZeroLoss && $0.offsetEV > 0 && $0.nx == low.nx && $0.ny == low.ny && $0.origin != low.origin })
-        let image = try LowLossSpectrumImage(nx: low.nx, ny: low.ny, channels: low.channels, counts: low.counts, energyOffsetEV: low.offsetEV, energyScaleEV: low.scaleEV)
-        let coreImage = try core.map { try CoreLossSpectrumImage(nx: $0.nx, ny: $0.ny, channels: $0.channels, counts: $0.counts, energyOffsetEV: $0.offsetEV, energyScaleEV: $0.scaleEV) }
+        let image = try LowLossSpectrumImage(nx: low.nx, ny: low.ny, channels: low.channels, storedCounts: low.counts, energyOffsetEV: low.offsetEV, energyScaleEV: low.scaleEV)
+        let coreImage = try core.map { try CoreLossSpectrumImage(nx: $0.nx, ny: $0.ny, channels: $0.channels, storedCounts: $0.counts, energyOffsetEV: $0.offsetEV, energyScaleEV: $0.scaleEV) }
         return LoadedEELS(fileName: name, image: image, beamEnergyKeV: beam, convergenceMrad: convergence, collectionMrad: collection, origin: low.origin,
                           coreLoss: coreImage, coreLossOrigin: core?.origin, alphaTiltDegrees: stated?.alphaTiltDegrees, betaTiltDegrees: stated?.betaTiltDegrees,
                           instrument: stated?.instrument, scanPixelSize: pixel?.size, scanPixelUnit: pixel?.unit, filePath: url.path)
@@ -219,7 +246,7 @@ package enum EELSOpening {
         let stack = "source.Tags at creation."
         let fromStack = object.imageTagNumbers.keys.contains { $0.hasPrefix(stack) } || object.imageTagStrings.keys.contains { $0.hasPrefix(stack) }
         let base = fromStack ? stack : "", conditions = base + "EELS.Experimental Conditions."
-        let cube = EELSCube(nx: 1, ny: 1, channels: counts.count, counts: counts, offsetEV: -axis.origin * axis.scale, scaleEV: axis.scale,
+        let cube = EELSCube(nx: 1, ny: 1, channels: counts.count, counts: EELSCounts(counts), offsetEV: -axis.origin * axis.scale, scaleEV: axis.scale,
                             origin: "GMS DM4 object \(object.index) (EELS spectrum)")
         return (cube, object.imageTagNumbers[base + "Microscope Info.Voltage"].map { $0 / 1e3 },
                 object.imageTagNumbers[conditions + "Convergence semi-angle (mrad)"], object.imageTagNumbers[conditions + "Collection semi-angle (mrad)"])

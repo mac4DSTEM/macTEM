@@ -215,9 +215,9 @@ struct MapPane: View {
                             .allowsHitTesting(false)
                     } else if let canvas = presentation.canvas {
                         // A property: the values through the Display section's colormap, window and gamma.
-                        MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                        MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
                                        colormap: presentation.colormap, displayLo: presentation.displayFractions.low,
-                                       displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma))
+                                       displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma), pixelScale: canvas.scale)
                             .displayTransform(transform)
                             .frame(width: box.width, height: box.height)
                             .allowsHitTesting(false)

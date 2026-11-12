@@ -24,8 +24,10 @@ import TEMSession
 import DiffractoGeometry
 
 struct DiffractionRoom: View {
-    let image: CalibratedImage
     let item: OpenItem
+    /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
+    /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
 
     private struct DisplayKey: Equatable { var id: OpenItem.ID; var log: Bool; var width: Int; var height: Int }
 
@@ -36,9 +38,9 @@ struct DiffractionRoom: View {
         let view = item.diffractionView
         let rows = analysis.readout(image: image)
         VStack(spacing: 0) {
-            DiffractionHeader(image: image, analysis: analysis, view: view)
-            DiffractionPatternPane(image: image, analysis: analysis, view: view, rows: rows)
-                .modifier(DiffractionZoomCommands(image: image, view: view))
+            DiffractionHeader(item: item, analysis: analysis, view: view)
+            DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
+                .modifier(DiffractionZoomCommands(item: item, view: view))
             Divider()
             DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                 .frame(height: LayoutPolicy.diffractionReadoutHeight)
@@ -50,13 +52,19 @@ struct DiffractionRoom: View {
         }
         // The ring or spot just added is the selected row.
         .onChange(of: analysis.lastAdded) { if let id = analysis.lastAdded { view.selection = id } }
+        // The room's display canvas (the pattern, log or linear, 4 B/px) goes when the room does; the task above builds it again on
+        // return, keeping the window. 12 Nov: the room held 1.4 GB more than the Image room on the 187 MP alite image for as long as it was open.
+        .onDisappear { view.presentation.releaseCanvas() }
     }
 }
 
 // MARK: - Header
 
 private struct DiffractionHeader: View {
-    let image: CalibratedImage
+    let item: OpenItem
+    /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
+    /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
 
@@ -133,7 +141,10 @@ private nonisolated struct DiffractionLayout {
 }
 
 private struct DiffractionPatternPane: View {
-    let image: CalibratedImage
+    let item: OpenItem
+    /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
+    /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
     let rows: [DiffractionReadoutRow]
@@ -153,9 +164,9 @@ private struct DiffractionPatternPane: View {
                 Color.black
                 if let canvas = view.presentation.canvas {
                     let display = view.presentation
-                    MetalImageView(pixels: canvas.normalized, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                    MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
                                    colormap: display.colormap, displayLo: display.displayFractions.low, displayHi: display.displayFractions.high,
-                                   gamma: Float(display.gamma))
+                                   gamma: Float(display.gamma), pixelScale: canvas.scale)
                         .displayTransform(MetalDisplayTransform(paneSize: box, imageBox: box, zoom: layout.zoom, offset: layout.offset))
                         .allowsHitTesting(false)
                 }
@@ -303,7 +314,10 @@ nonisolated enum DiffractionZoomCommand: Equatable {
 /// Publishes the pattern's zoom to View > Zoom In, Zoom Out and Zoom to Fit while the room is shown. Its own modifier with the model as
 /// its state, so a zoom step re-evaluates this and not the room around it.
 private struct DiffractionZoomCommands: ViewModifier {
-    let image: CalibratedImage
+    let item: OpenItem
+    /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
+    /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
     let view: DiffractionViewState
     @State private var model = PaneZoomModel()
 

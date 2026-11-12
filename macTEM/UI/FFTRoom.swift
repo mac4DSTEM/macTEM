@@ -26,16 +26,18 @@ import TEMSession
 
 /// The room's canvas: the source pane beside the transform pane.
 struct FFTRoom: View {
-    let image: CalibratedImage
-    let canvas: CanvasPixels
     let item: OpenItem
+    /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
+    /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
+    private var canvas: CanvasPixels { item.presentation.canvas ?? ImagePane.blankCanvas }
     /// The pane the keys are for: the one pressed last, nil until one is (`PaneKeys.swift`). Owned here, written by the panes on a press.
     /// View > Zoom acts on the same pane (`FFTZoomTarget`).
     @State private var keyPane: FFTKeyPane?
 
     var body: some View {
         HStack(spacing: 0) {
-            FFTSourceImagePane(image: image, canvas: canvas, item: item, keyPane: $keyPane)
+            FFTSourceImagePane(item: item, keyPane: $keyPane)
                 .frame(minWidth: LayoutPolicy.imagePaneMinimum, maxWidth: .infinity)
             Divider()
             FFTSpectrumImagePane(analysis: item.fft, keyPane: $keyPane)

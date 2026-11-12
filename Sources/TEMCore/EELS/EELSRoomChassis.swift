@@ -152,7 +152,7 @@ package nonisolated enum EELSMapDisplay {
 
 /// How a tile's values become the 0...1 of its colour scale, and what its colour bar says.
 package nonisolated enum EELSMapScale {
-    package enum Mode: Equatable, Sendable { case zeroToMax, minToMax, diverging }
+    package enum Mode: Equatable, Sendable { case zeroToMax, minToMax, robustMinToMax, diverging }
 
     package struct Scaled: Equatable, Sendable {
         package let values: [Double]
@@ -160,9 +160,12 @@ package nonisolated enum EELSMapScale {
         package let high: Double
     }
 
-    /// t/λ, t and I total run from their smallest to their largest (viridis), the zero-loss shift is centred on 0 (diverging), edges and at% run from 0 (black to the element's colour).
+    /// t/λ, t and I total run from their smallest to their largest (viridis); the zero-loss shift from its 1st to its 99th percentile (viridis), as exSpy
+    /// users look at it: with Calibrate the shift is mostly the spectrometer's one offset, so a scale centred on 0 drew every pixel at its end (solid red,
+    /// drive 2026-11-12) and hid the drift across the scan; the zero-loss centres are centred on 0 (diverging); edges and at% run from 0.
     package static func mode(forTileID id: String) -> Mode {
-        if id == "zlpShift" || id == "zlpCentre" || id == "zlpCentreBefore" { return .diverging }
+        if id == "zlpShift" { return .robustMinToMax }
+        if id == "zlpCentre" || id == "zlpCentreBefore" { return .diverging }
         if id.hasPrefix("edge-") || id.hasPrefix("at-") || id.hasPrefix("wt-") || id == "i0" { return .zeroToMax }
         return .minToMax
     }
@@ -195,6 +198,21 @@ package nonisolated enum EELSMapScale {
                 return Scaled(values: values.map { $0.isFinite ? 0 : .nan }, low: finite.min() ?? 0, high: finite.max() ?? 1)
             }
             return Scaled(values: values.map { $0.isFinite ? ($0 - lo) / (hi - lo) : .nan }, low: lo, high: hi)
+        case .robustMinToMax:
+            // The 1st to 99th percentile (NumPy's linear percentiles): one pixel far out (a zero-loss peak the alignment lost at the scan's edge) takes the
+            // end colour instead of squeezing every other pixel into one. Min to max when the percentiles meet.
+            let sorted = finite.sorted()
+            guard let first = sorted.first, let last = sorted.last else {
+                return Scaled(values: values.map { _ in .nan }, low: 0, high: 1)
+            }
+            // Percentiles a rounding error apart also meet: a file already aligned at acquisition gives one shift on almost every pixel, equal but
+            // for the last bits (drive 2026-11-12, 145_STEM: 5e-5 eV everywhere), and stretching those bits over the colour scale drew the tile
+            // solid at its top. A range that is rounding error on either fallback draws the map flat, at the middle of the scale.
+            func meets(_ lo: Double, _ hi: Double) -> Bool { !(hi - lo > 1e-6 * max(abs(lo), abs(hi))) }
+            var lo = percentile(sorted, 0.01), hi = percentile(sorted, 0.99)
+            if meets(lo, hi) { (lo, hi) = (first, last) }
+            guard !meets(lo, hi) else { return Scaled(values: values.map { $0.isFinite ? flatLevel : .nan }, low: lo, high: hi) }
+            return Scaled(values: values.map { $0.isFinite ? min(max(($0 - lo) / (hi - lo), 0), 1) : .nan }, low: lo, high: hi)
         case .diverging:
             // Centred on 0, reaching the larger of |1st percentile| and |99th percentile| (the display range the EDS room gives a filtered map): one
             // pixel far out (a zero-loss peak the alignment lost at the scan's edge) no longer squeezes every other pixel into the white of the centre.
@@ -204,6 +222,12 @@ package nonisolated enum EELSMapScale {
             guard m > 0 else { return Scaled(values: values.map { $0.isFinite ? 0.5 : .nan }, low: -1, high: 1) }
             return Scaled(values: values.map { $0.isFinite ? min(max(($0 + m) / (2 * m), 0), 1) : .nan }, low: -m, high: m)
         }
+    }
+
+    /// NumPy's default percentile (linear between ranks) of ascending `sorted`, which is not empty.
+    static func percentile(_ sorted: [Double], _ q: Double) -> Double {
+        let position = q * Double(sorted.count - 1), i = Int(position.rounded(.down)), j = min(i + 1, sorted.count - 1)
+        return sorted[i] + (sorted[j] - sorted[i]) * (position - Double(i))
     }
 
     /// The half range of a diverging scale: max(|p1|, |p99|) of the finite values, percentiles linear between ranks as NumPy's default.

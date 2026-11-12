@@ -129,7 +129,7 @@ nonisolated final class ZoomCommandTargetTests: XCTestCase {
         XCTAssertTrue(try ui("FFTSourceImagePane.swift").contains(
             ".zoomCommandTarget(zoomModel, isTarget: FFTZoomTarget.isTarget(pane: .source, lastClicked: keyPane, hasPicture: layer != nil))"))
         let diffraction = try ui("DiffractionRoom.swift")
-        XCTAssertTrue(diffraction.contains("DiffractionPatternPane(image: image, analysis: analysis, view: view, rows: rows) .modifier(DiffractionZoomCommands(image: image, view: view))"))
+        XCTAssertTrue(diffraction.contains("DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows) .modifier(DiffractionZoomCommands(item: item, view: view))"))
         XCTAssertTrue(diffraction.contains(".zoomCommandTarget(model, isTarget: true)"))
         XCTAssertTrue(diffraction.contains(".onChange(of: DiffractionZoomCommand.mirrored(view, image: image), initial: true) { DiffractionZoomCommand.follow(view, image: image, with: model) }"))
         // After a menu step the model follows the pane too: a step the pane did not take changes no mirrored value.

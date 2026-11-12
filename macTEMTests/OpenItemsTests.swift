@@ -452,6 +452,26 @@ nonisolated final class OpenItemsTests: XCTestCase {
         XCTAssertEqual(items.selectedID, b.id)
     }
 
+    /// A closed file's pixels are given back even while something still holds its session and presentation (#562: on the Mac a SwiftUI
+    /// binding of the gamma control kept the closed 375 MB SEM TIFF's presentation, and with it a 1.5 GB canvas, alive after its tab
+    /// closed). Here the test holds them, as that binding did. Red before: `close` dropped the item from the list and left the image and
+    /// the canvas on the objects.
+    @MainActor func testClosingAFileLetsGoOfItsPixelsEvenWhileItsObjectsAreHeld() async throws {
+        let fake = FakeReader()
+        let items = makeItems(fake)
+        items.open(urls: [Self.a, Self.b])
+        await items.settled()
+        let a = try item(items, Self.a)
+        let session = a.session, presentation = a.presentation
+        XCTAssertNotNil(session.image, "setup: a was read")
+        XCTAssertNotNil(presentation.canvas, "setup: a has its canvas")
+        items.close(a.id)
+        await items.settled()
+        XCTAssertNil(session.image, "the held session no longer holds the image")
+        XCTAssertNil(presentation.canvas, "the held presentation no longer holds the canvas")
+        XCTAssertEqual(items.items.map(\.url), [Self.b])
+    }
+
     /// ⌘W. Red under: `closeSelected` closing the first item (`remove(items[0], …)`) instead of the selected one.
     @MainActor func testCloseSelectedClosesTheSelectedItemAndWithNoneOpenDoesNothing() async throws {
         let fake = FakeReader()

@@ -192,8 +192,8 @@ sdss_ferrite_austenite.ang (both CC BY 4.0).
 SpectroKit (a Swift package the app is built with)
 ================================================================================
 
-The app links SpectroKit (https://github.com/mac4DSTEM/SpectroKit, tag 0.13.2, commit
-ae793cbac432c1d4dbe3fe468ddd08bf786e02d4), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the EDS and EELS rooms: the spectrum image, line
+The app links SpectroKit (https://github.com/mac4DSTEM/SpectroKit, tag 0.14.0, commit
+7df648ee378bd17512135a8270b8a5cb0a47571e), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the EDS and EELS rooms: the spectrum image, line
 windows and maps, Auto ID, the pooled Cliff-Lorimer quantification, and the EELS alignment, thickness and edge fits. The app embeds its resource bundle
 `SpectroKit_SpectroEDX.bundle` in Contents/Resources: the NIST EPQ mass-absorption, line-weight, ionisation cross-section and Krause fluorescence-yield
 tables, with the terms and citations in SpectroKit's NOTICE, which applies to them here. For the EELS room it embeds `SpectroKit_SpectroEELS.bundle`: the
@@ -238,8 +238,8 @@ its oracle and none of its code is copied. Its own third-party notices are in it
 ImagoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links ImagoKit (https://github.com/mac4DSTEM/ImagoKit, tag 0.9.1, commit
-5cabf7d590833a39fb358b673d14fec1ebe2b027), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the exact-length 2D FFT, the
+The app links ImagoKit (https://github.com/mac4DSTEM/ImagoKit, tag 0.9.2, commit
+8454f1de245ad0f47fed5c1be8e99aeb728f87aa), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the exact-length 2D FFT, the
 centred power spectrum, the radial profile, the spot spacing, the masked inverse FFT, the HRTEM filters, line profiles and the
 histogram. Its references are NumPy, SciPy and scikit-image; none of their code is copied. Its own notices are in its NOTICE.
 
@@ -247,8 +247,8 @@ histogram. Its references are NumPy, SciPy and scikit-image; none of their code 
 MacEMUI (a Swift package the app is built with)
 ================================================================================
 
-The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.6.0, commit
-b8d3c7c7dc868ab5c306dc427700553c69beaf6a), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
+The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.9.0, commit
+bb7941e3e0ea5808731764dbc65ef5b61b13fa7f), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
 inspector, the controls, the Metal image view, the EDS room and the agent door macEM shares with mac4DSTEM.
 
 ================================================================================

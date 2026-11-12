@@ -95,7 +95,7 @@ struct WorkspaceView: View {
         } else if appState.navigation.workspaceArea == .maps {
             MapsRoom()
         } else if let item = appState.openItems.selected {
-            if let image = item.session.image, let canvas = item.presentation.canvas {
+            if item.session.image != nil, item.presentation.canvas != nil {
                 // Keyed by the item: switching items is a new pane, which starts from the item's own committed zoom
                 // and pan (`ImagePane`), not the last pane's. (Not `canvas.contentVersion`: two files with equal
                 // pixels are two items.)
@@ -103,13 +103,13 @@ struct WorkspaceView: View {
                     // The room switch: the FFT room shows the image beside its transform, the Results room the file's
                     // measurements; the Image room its pane.
                     if appState.navigation.workspaceArea == .fft {
-                        FFTRoom(image: image, canvas: canvas, item: item)
+                        FFTRoom(item: item)
                     } else if appState.navigation.workspaceArea == .results {
-                        ResultsRoom(image: image, item: item)
+                        ResultsRoom(item: item)
                     } else if appState.navigation.workspaceArea == .diffraction {
-                        DiffractionRoom(image: image, item: item)
+                        DiffractionRoom(item: item)
                     } else {
-                        ImagePane(image: image, canvas: canvas, item: item)
+                        ImagePane(item: item)
                     }
                 }
                     .id(item.id)

@@ -53,6 +53,15 @@ package struct EELSMapTile: Identifiable, Equatable, Sendable {
     /// `detailText` in `locale` (the maps figure passes the export's).
     package func detailText(locale: Locale) -> String? {
         if let flat = self.flatValueText(locale: locale) { return "every pixel \(flat)" }
+        // The ZLP shift map says its range in words, as a colour bar's end labels would: on a file aligned at acquisition nearly every pixel
+        // has one shift and a few far ones carry the scale's far end, so the tile is one colour with its few outliers too small to see
+        // (145_STEM, 12 Nov: "shifts up to 8,12 eV" beside a solid tile).
+        if id == "zlpShift" {
+            let finite = values.filter { $0.isFinite }
+            if let lo = finite.min(), let hi = finite.max() {
+                return EELSRoomFormat.sig(lo, 3, locale: locale) + " to " + EELSRoomFormat.sig(hi, 3, locale: locale) + (unit.isEmpty ? "" : " \(unit)")
+            }
+        }
         return unit.isEmpty ? nil : unit
     }
     package init(id: String, title: String, unit: String, width: Int, height: Int, values: [Double], version: Int, footer: String?) {
