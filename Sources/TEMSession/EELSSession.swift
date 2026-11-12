@@ -594,7 +594,9 @@ package final class EELSSession {
         isComputing = true
         computingStage = .thickness
         progress = 0
+        let cubes = CubeHandoff(image)
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let image = cubes.take() else { return }
             do {
                 let interval = Signposts.begin("eels.map"); defer { Signposts.end(interval) }
                 // One hop to the main actor per percent, not per callback (the kit reports at its own rate).
@@ -784,7 +786,9 @@ package final class EELSSession {
     private func refreshDeadStretches() {
         deadTask?.cancel()
         guard let core = workingCoreLoss else { coreDeadStretches = []; return }
+        let cubes = CubeHandoff(core)
         deadTask = Task.detached(priority: .utility) { [weak self] in
+            guard let core = cubes.take() else { return }
             let sums = EELSDeadStretch.channelSums(of: core)
             let stretches = EELSDeadStretch.stretches(counts: sums, origin: core.energyOffsetEV, step: core.energyScaleEV)
             if Task.isCancelled { return }
@@ -818,7 +822,10 @@ package final class EELSSession {
         isComputing = true
         computingStage = .fit
         progress = 0
+        let cubes = CubeHandoff((core: core, low: low))
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let given = cubes.take() else { return }
+            let core = given.core, low = given.low
             do {
                 let interval = Signposts.begin("eels.fit"); defer { Signposts.end(interval) }
                 let gate = ProgressGate()
@@ -899,7 +906,10 @@ package final class EELSSession {
         isComputing = true
         computingStage = .deconvolve
         progress = 0
+        let cubes = CubeHandoff((low: low, core: core))
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let given = cubes.take() else { return }
+            let low = given.low, core = given.core
             do {
                 let interval = Signposts.begin("eels.deconvolve"); defer { Signposts.end(interval) }
                 let gate = ProgressGate()
@@ -989,8 +999,8 @@ package final class EELSSession {
         passTask?.cancel()
         generation += 1
         let gen = generation
-        let low = loaded.image
-        let core = loaded.coreLoss
+        // The cubes go to the pass in a box it empties, never captured by value (`CubeHandoff`).
+        let cubes = CubeHandoff((low: loaded.image, core: loaded.coreLoss))
         // The cubes are an earlier Align's: this one starts from the file again (read off the main actor, in the pass).
         let reread = loaded.cubesAreAligned ? sourceURL : nil
         let choice = alignChoice
@@ -1002,7 +1012,8 @@ package final class EELSSession {
             do {
                 let interval = Signposts.begin("eels.align"); defer { Signposts.end(interval) }
                 let gate = ProgressGate()
-                var input = low, alsoInput = core.map { [$0] } ?? []
+                var input: LowLossSpectrumImage, alsoInput: [CoreLossSpectrumImage]
+                if let given = cubes.take() { input = given.low; alsoInput = given.core.map { [$0] } ?? [] } else { return }
                 if let reread {
                     let fresh = try await Self.read(reread)
                     input = fresh.image; alsoInput = fresh.coreLoss.map { [$0] } ?? []

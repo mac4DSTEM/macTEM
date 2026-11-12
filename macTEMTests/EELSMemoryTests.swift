@@ -54,4 +54,43 @@ nonisolated final class EELSMemoryTests: XCTestCase {
         XCTAssertEqual(session.alignmentReadout?.contains("of \(file.channels) channels"), true, session.alignmentReadout ?? "")
         XCTAssertEqual(Self.address(try XCTUnwrap(session.source).image.storedCounts), Self.address(again.aligned.storedCounts))
     }
+
+    /// After Align nothing but the test still holds the file's cubes: the passes' closures took them from a box (`CubeHandoff`), so a context that
+    /// outlives its pass holds an empty box. Red before: 12 Nov memgraph after Align on 145_STEM, the file's low-loss and core-loss cubes held by
+    /// closure contexts (2.9 GB where 1.45 GB was due). The probe: the test keeps its own reference to each original array; once Align has landed
+    /// and every pass has ended, a write to that array happens in place (no other holder), not into a copy.
+    @MainActor func testAfterAlignNoPassKeepsTheFilesCubes() async throws {
+        let session = EELSSession()
+        await session.open(url: Self.planted).value
+        await session.settled()
+        var low = try XCTUnwrap(session.source?.image.storedCounts.singles)
+        var core = session.source?.coreLoss?.storedCounts.singles
+        let lowAddress = Self.base(of: low)
+        let coreAddress = core.map(Self.base(of:))
+        await session.align()?.value
+        await session.settled()
+        XCTAssertNotNil(session.alignment, session.failure ?? "no alignment")
+        XCTAssertTrue(session.source?.cubesAreAligned == true)
+        XCTAssertEqual(Self.writtenInPlace(&low), lowAddress, "the file's low-loss cube is still held by something other than this test")
+        if var c = core.take() { XCTAssertEqual(Self.writtenInPlace(&c), coreAddress, "the file's core-loss cube is still held") }
+    }
+
+    /// A box gives its value once.
+    func testAHandoffGivesItsValueOnce() {
+        let box = CubeHandoff([Float](repeating: 1, count: 4))
+        XCTAssertFalse(box.isEmpty)
+        XCTAssertEqual(box.take(), [1, 1, 1, 1])
+        XCTAssertTrue(box.isEmpty)
+        XCTAssertNil(box.take())
+    }
+
+    private static func base(of a: [Float]) -> UInt { a.withUnsafeBufferPointer { UInt(bitPattern: $0.baseAddress) } }
+
+    /// The address a write lands at: the array's own when no one else holds it, a fresh copy's otherwise.
+    private static func writtenInPlace(_ a: inout [Float]) -> UInt {
+        a.withUnsafeMutableBufferPointer { b in
+            b[0] = b[0]
+            return UInt(bitPattern: b.baseAddress)
+        }
+    }
 }

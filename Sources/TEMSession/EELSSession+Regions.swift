@@ -167,7 +167,11 @@ extension EELSSession {
         let threshold = threshold, lambda = try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)
         // What `EELSRegionCompute.row` needs to fit a region's edges, as this refresh takes them (the results say "Fitting" only then).
         isFittingRegions = !edges.isEmpty && microscope != nil && fitCore.map { $0.nx == low.nx && $0.ny == low.ny } == true
+        // The cubes go to the task in a box it empties, never captured by value (`CubeHandoff`).
+        let cubes = CubeHandoff((low: low, core: core, fitCore: fitCore))
         pinDataTask = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let given = cubes.take() else { return }
+            let low = given.low, core = given.core, fitCore = given.fitCore
             var spectra: [EDXPin.ID: [Double]] = [:], coreSpectra: [EDXPin.ID: [Double]] = [:]
             var rows: [EELSRegionRow] = []
             for pin in pins {
@@ -206,8 +210,13 @@ extension EELSSession {
         let quickFirst = isPreviewing || plottedRegion != region || plot?.regionName != name
         // The model is drawn only over the core loss it was fitted to (stored or Fourier-ratio deconvolved).
         let fit = model != nil && fitUsed?.deconvolved == (answered != nil) ? fitUsed : nil
+        // The cubes go to each task in a box it empties, never captured by value (`CubeHandoff`).
+        let quickCubes = CubeHandoff((low: low, core: core, deconvolvedLow: deconvolvedLow))
+        let cubes = CubeHandoff((low: low, core: core, deconvolvedLow: deconvolvedLow))
         let interim: Task<Void, Never>? = if quickFirst {
             Task.detached(priority: .userInitiated) { [weak self] in
+                guard let given = quickCubes.take() else { return }
+                let low = given.low, core = given.core, deconvolvedLow = given.deconvolvedLow
                 let quick = EELSPlotCompute.make(name: name, region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: nil,
                                                  deconvolvedLow: deconvolvedLow, answered: answered)
                 if Task.isCancelled { return }
@@ -218,6 +227,8 @@ extension EELSSession {
         }
         plotInterimTask = interim
         plotTask = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let given = cubes.take() else { return }
+            let low = given.low, core = given.core, deconvolvedLow = given.deconvolvedLow
             let data = EELSPlotCompute.make(name: name, region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: fit,
                                             deconvolvedLow: deconvolvedLow, answered: answered)
             let whole = pin == nil ? data : EELSPlotCompute.make(name: "Whole map", region: .wholeMap, low: low, core: core, map: map, threshold: threshold,
@@ -275,7 +286,10 @@ extension EELSSession {
         let name = editing.flatMap { id in pins.first { $0.id == id }?.name } ?? "Region \(regionsIssued + 1)"
         let core = shownCoreLoss, map = map, threshold = threshold, answered = shownAnswered
         let lambda = (try? EELSCompute.source(meanFreePath, beamEnergyKeV: beamEnergyKeV)) ?? nil
+        let cubes = CubeHandoff((low: low, core: core))
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let given = cubes.take() else { return }
+            let low = given.low, core = given.core
             var next: EDXRegion? = shape
             while let region = next {
                 let data = EELSPlotCompute.make(name: name, region: region, low: low, core: core, map: map, threshold: threshold, meanFreePath: lambda, fit: nil,
