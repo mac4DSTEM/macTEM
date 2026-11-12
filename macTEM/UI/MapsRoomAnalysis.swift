@@ -375,6 +375,7 @@ struct MapsHistogramPane: View {
                     }
                     .accessibilityElement()
                     .accessibilityLabel(MapsRoomFormat.histogramSpoken(kind, histogram: histogram))
+                    .accessibilityValue(MapsRoomFormat.histogramSpeech(histogram, unit: unit, ticks: ticks))
                     .accessibilityIdentifier("maps.histogram.bars")
                     HStack {
                         Text(verbatim: "\(MapsRoomFormat.number(histogram.edges.first ?? 0)) \(unit)")

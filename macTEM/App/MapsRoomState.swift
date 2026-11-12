@@ -294,6 +294,24 @@ nonisolated enum MapsRoomFormat {
         return "Histogram of \(kind.rawValue), \(UnitDisplay.count(n, "value", "values")) in \(UnitDisplay.count(histogram.counts.count, "bin", "bins"))"
     }
 
+    /// What the bars show, for VoiceOver (#299): the range, the tallest bin with its count, and the selected grains' ticks; "0 to 5°, most
+    /// values 0.5 to 0.625° (812), selected grain at 1.2°". "no values" for an empty histogram.
+    static func histogramSpeech(_ histogram: AngleHistogram, unit: String, ticks: [Double], locale: Locale = .autoupdatingCurrent) -> String {
+        let n = { (v: Double) in number(v, locale: locale) }
+        let space = unit == "°" ? "" : " "
+        let edges = histogram.edges, counts = histogram.counts
+        guard let low = edges.first, let high = edges.last, let top = counts.max(), top > 0, let k = counts.firstIndex(of: top) else {
+            return "no values"
+        }
+        var text = "\(n(low)) to \(n(high))\(space)\(unit), most values \(n(edges[k])) to \(n(edges[k + 1]))\(space)\(unit) (\(top))"
+        let marks = ticks.filter(\.isFinite)
+        if !marks.isEmpty {
+            text += ", " + (marks.count == 1 ? "selected grain at " : "selected grains at ")
+                + marks.map { "\(n($0))\(space)\(unit)" }.joined(separator: ", ")
+        }
+        return text
+    }
+
     /// "102 grains · mean ECD 3.14 µm · ASTM 14.2", the length as the grain table writes it.
     static func grainSummary(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> String {
         var parts = [UnitDisplay.count(analysis.table.count, "grain", "grains")]
