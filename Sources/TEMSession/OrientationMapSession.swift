@@ -290,8 +290,15 @@ package final class OrientationMapSession {
         }
     }
 
+    /// The Format row of a `.ctf` map, the writer in words (#522: the vendor's code name, "oxford_or_bruker", reached the screen).
     nonisolated static func ctfFormat(_ vendor: CTFReader.Vendor) -> String {
-        vendor == .orientationTable ? ".ctf (orientation table)" : ".ctf (\(vendor.rawValue))"
+        switch vendor {
+        case .oxfordOrBruker: ".ctf (Oxford or Bruker)"
+        case .emsoft: ".ctf (EMsoft)"
+        case .astar: ".ctf (NanoMegas ASTAR)"
+        case .mtex: ".ctf (MTEX)"
+        case .orientationTable: ".ctf (orientation table)"
+        }
     }
 
     /// The EBSD dataset's crystal map, when it carries one whose points fill its scan: the Maps room shows it with the patterns beside.
@@ -304,9 +311,11 @@ package final class OrientationMapSession {
     }
 
     /// Starts the room over on `document` (and holds it as its kind's map): `layer` where the map has it, else IPF-Z; `pinned` where
-    /// the map reaches it, else the origin; the picture and the keys made.
+    /// the map reaches it, else the origin; the picture and the keys made. `announcing` false keeps the "Opened" line back: a pattern
+    /// file's own map (`patternsChanged`) opens with the Patterns room's line, which the status line keeps (#522).
     @discardableResult
-    package func bind(_ document: Document, layer: OrientationMapLayer = .ipf(.z), pinned: EBSDPosition = .origin) -> Task<Void, Never> {
+    package func bind(_ document: Document, layer: OrientationMapLayer = .ipf(.z), pinned: EBSDPosition = .origin,
+                      announcing: Bool = true) -> Task<Void, Never> {
         generation += 1
         mapGeneration += 1
         openTask?.cancel()
@@ -323,7 +332,9 @@ package final class OrientationMapSession {
         slipFiles = Self.defaultSlipFiles(document.map)
         grid = OrientationMaps.pointIndexGrid(document.map)
         let phases = document.map.phasesInData.names.filter { $0 != PhaseList.notIndexedName }.count
-        onEvent?("Opened \(document.fileName) — orientation map \(columns) × \(rows), \(UnitDisplay.count(phases, "phase", "phases"))")
+        if announcing {
+            onEvent?("Opened \(document.fileName) — orientation map \(columns) × \(rows), \(UnitDisplay.count(phases, "phase", "phases"))")
+        }
         startKeys(document)
         return draw()
     }
@@ -356,7 +367,7 @@ package final class OrientationMapSession {
     package func patternsChanged(to map: Document?) {
         sources.removeAll { $0.source.followsPatterns }
         if let map {
-            bind(map)
+            bind(map, announcing: false)
         } else if document?.source.followsPatterns == true {
             if let file = sources.first { bind(file) } else { close() }
         }

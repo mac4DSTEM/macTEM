@@ -118,6 +118,19 @@ nonisolated final class EBSDH5OxfordMapTests: XCTestCase {
         }
     }
 
+    /// #522: a .ctf map's Format row names its writer in words, never the reader's code name ("oxford_or_bruker").
+    /// Red before: ".ctf (oxford_or_bruker)", ".ctf (emsoft)", ".ctf (astar)", ".ctf (mtex)".
+    func testACTFMapsFormatNamesItsWriterInWords() async throws {
+        let folder = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/sem/oxford")
+        let want = ["oxford": ".ctf (Oxford or Bruker)", "bruker": ".ctf (Oxford or Bruker)", "emsoft": ".ctf (EMsoft)",
+                    "astar": ".ctf (NanoMegas ASTAR)", "mtex": ".ctf (MTEX)"]
+        for (name, format) in want.sorted(by: { $0.key < $1.key }) {
+            let document = try await OrientationMapSession.read(folder.appendingPathComponent("\(name).ctf"))
+            XCTAssertEqual(document.format, format, name)
+            XCTAssertFalse(document.format.contains("_"), name)
+        }
+    }
+
     /// The Maps room's reader makes the document of the map, named for Info; a file with neither patterns nor Euler angles is refused
     /// in words that name it.
     func testTheMapsRoomReadsTheMapAndRefusesAFileWithoutOrientations() async throws {
