@@ -467,7 +467,7 @@ package final class EELSSession {
             } catch {
                 guard let self, !Task.isCancelled else { return }
                 self.isOpening = false
-                if !(error is CancellationError) && !(error is SpectroCancelled) { self.onFailure?(error) }
+                if !(error is CancellationError) && !(error is SpectroCancelled) { self.onFailure?(FileOpenFailure(error)) }
             }
         }
         openTask = task

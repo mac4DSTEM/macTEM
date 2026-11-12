@@ -490,7 +490,7 @@ package final class EBSDSession {
             } catch {
                 guard let self, !Task.isCancelled else { return }
                 self.isOpening = false
-                if !(error is CancellationError) { self.onFailure?(error) }
+                if !(error is CancellationError) { self.onFailure?(FileOpenFailure(error)) }
             }
         }
         openTask = task

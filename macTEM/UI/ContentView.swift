@@ -56,7 +56,7 @@ struct ContentView: View {
             }
         }
         .alert(
-            "Something went wrong",
+            appState.errorTitle,
             isPresented: Binding(
                 get: { appState.errorMessage != nil },
                 set: { if !$0 { appState.errorMessage = nil } }

@@ -10,6 +10,7 @@
 
 import XCTest
 import TEMCore
+@testable import macTEM
 
 nonisolated final class ErrorDetailTests: XCTestCase {
 
@@ -58,5 +59,33 @@ nonisolated final class ErrorDetailTests: XCTestCase {
         let bcfText = refusal { _ = try BrukerSFS(url: bcf) }
         XCTAssertTrue(bcfText.hasPrefix("gone.bcf could not be opened: "), bcfText)
         XCTAssertTrue(bcfText.contains("ErrorDomain"), bcfText)
+    }
+
+    /// #529: a file that could not be opened is titled so, not "Something went wrong"; the sentence is unchanged (a system error
+    /// keeps its domain and code through the wrapper); a refusal list says "this file" or "these files"; dismissing the alert puts
+    /// the generic title back for an alert raised by its text alone. Red before: every alert was "Something went wrong".
+    @MainActor func testAFileThatCannotBeOpenedIsTitledSo() throws {
+        let refusal = ImageOpening.Refusal.unreadableFormat(file: "notes.txt", ext: "txt")
+        XCTAssertEqual(ErrorDetail.title(FileOpenFailure(refusal)), "macEM can't open this file")
+        XCTAssertEqual(ErrorDetail.title(refusal), "Something went wrong")
+        XCTAssertEqual(ErrorDetail.text(FileOpenFailure(refusal)), ErrorDetail.text(refusal))
+        let denied = CocoaError(.fileReadNoPermission)
+        XCTAssertEqual(ErrorDetail.text(FileOpenFailure(denied)), ErrorDetail.text(denied))
+        XCTAssertTrue(ErrorDetail.text(FileOpenFailure(denied)).contains("NSCocoaErrorDomain 257"))
+
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        state.present(FileOpenFailure(refusal))
+        XCTAssertEqual(state.errorTitle, "macEM can't open this file")
+        XCTAssertEqual(state.errorMessage, ErrorDetail.text(refusal))
+        state.errorMessage = nil
+        XCTAssertEqual(state.errorTitle, "Something went wrong")
+        state.presentRefusals(["a.txt is a .txt file.", "b.doc is a .doc file."])
+        XCTAssertEqual(state.errorTitle, "macEM can't open these files")
+        state.errorMessage = nil
+        state.present(CocoaError(.fileWriteNoPermission))
+        XCTAssertEqual(state.errorTitle, "Something went wrong", "a failure that is not an open keeps the generic title")
+        let content = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("macTEM/UI/ContentView.swift"), encoding: .utf8)
+        XCTAssertTrue(content.contains(".alert(\n            appState.errorTitle,"), "the alert takes its title from the state")
     }
 }

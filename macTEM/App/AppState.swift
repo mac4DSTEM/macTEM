@@ -116,8 +116,14 @@ final class AppState {
         didSet { activityLog.record(statusText) }
     }
 
-    /// The alert's text; nil when no alert is up.
-    var errorMessage: String?
+    /// The alert's text; nil when no alert is up. Dismissing it puts the title back to the generic one, so an alert raised by
+    /// setting this alone is never titled by the one before.
+    var errorMessage: String? {
+        didSet { if errorMessage == nil { errorTitle = ErrorDetail.genericTitle } }
+    }
+
+    /// The alert's title (#529): "macEM can't open this file" for a file that could not be opened, else "Something went wrong".
+    var errorTitle = ErrorDetail.genericTitle
 
     /// The question up before files with unsaved marks close (`requestClose`, CloseGuard.swift); nil when none is asked.
     var closeRequest: CloseRequest?
@@ -175,7 +181,7 @@ final class AppState {
             self?.spectrumRoomsFollowSelection()
             self?.recordLastSession()
         }
-        openItems.onReadFailure = { [weak self] _, error in self?.present(error) }
+        openItems.onReadFailure = { [weak self] _, error in self?.present(FileOpenFailure(error)) }
         // A stack frame that could not be read: the status line, Output and VoiceOver say which and why (the slider is back on the frame shown).
         openItems.onFrameFailure = { [weak self] in self?.report(event: $0, in: nil) }
         // Every session's event line: the infobar, the SEM rooms' session record, and VoiceOver for a line that ends something.
@@ -329,6 +335,7 @@ final class AppState {
     func present(_ error: any Error) {
         let detail = ErrorDetail.text(error)
         errorMessage = detail
+        errorTitle = ErrorDetail.title(error)
         statusText = "Error: \(detail)"
     }
 }
