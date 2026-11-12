@@ -69,7 +69,12 @@ nonisolated final class EELSMemoryTests: XCTestCase {
         await session.align()?.value
         await session.settled()
         XCTAssertNotNil(session.alignment, session.failure ?? "no alignment")
-        XCTAssertEqual(Self.writtenInPlace(&low), lowAddress, "after Align the file's low-loss cube is still held by something other than this test")
+        // The room's one cube may be the file's own array: Align writes nothing where every shift is zero, so the aligned cube can keep the file's
+        // storage (12 Nov CI: the probe found it held after Align and free after close). Then the room holding it is the one cube, not a second.
+        let room = Self.address(try XCTUnwrap(session.source).image.storedCounts)
+        if room != lowAddress {
+            XCTAssertEqual(Self.writtenInPlace(&low), lowAddress, "after Align the file's low-loss cube is still held beside the aligned one")
+        }
         session.close()
         await session.settled()
         XCTAssertEqual(Self.writtenInPlace(&core), coreAddress, "after close the file's core-loss cube is still held by something other than this test")
