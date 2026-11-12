@@ -51,10 +51,12 @@ struct MapsAnalysisOverlay: View {
     private var spokenLabel: String {
         let boundaries = session.showsBoundaries ? "boundaries shown (grain boundaries white, phase boundaries black)" : "boundaries hidden"
         let count = session.selectedGrains.count
-        var text: String
-        if count > 1 { text = "\(count) grains outlined, " + boundaries }
-        else if let grain = session.selectedGrain { text = "Grain \(grain) outlined, " + boundaries }
-        else { text = "Grain " + boundaries }
+        var text = "Grain " + boundaries
+        if count > 1 {
+            text = "\(count) grains outlined, " + boundaries
+        } else if let grain = session.selectedGrain {
+            text = "Grain \(grain) outlined, " + boundaries
+        }
         if session.showsSlipTraces, session.selectedRow != nil, let slip = session.selectedSlip,
            let traces = MapsRoomFormat.tracesSpeech(slip.planes) {
             text += ", " + traces
