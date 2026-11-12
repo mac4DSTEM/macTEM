@@ -134,6 +134,15 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         let traces = SlipTraceAnalysis.traces(orientation: row.orientation, systems: set)
         XCTAssertEqual(first.planes.map(\.traceAngle), traces.map(\.angle))
         XCTAssertTrue(slip.allSatisfy { $0.maximumSchmid > 0 && $0.maximumSchmid <= 0.5 + 1e-12 })
+        // DefDAP's `add_traces` gives a trace past the colour list the list's last colour (`colours[len(colours) - 1]`), never black: the
+        // ferrite's cubic_bcc file has fewer colours than plane groups (#573: the extra traces were drawn black).
+        let bcc = try XCTUnwrap(slip.first { g in files[analysis.table.first { $0.id == g.grain }?.phaseID ?? -1] == .cubicBCC })
+        let bccRow = try XCTUnwrap(analysis.table.first { $0.id == bcc.grain })
+        let bccSet = try XCTUnwrap(MapAnalysis.slipSystems(.cubicBCC, phase: try XCTUnwrap(map.phases[id: try XCTUnwrap(bccRow.phaseID)])))
+        XCTAssertLessThan(bccSet.traceColours.count, bcc.planes.count, "setup: more plane groups than colours")
+        for (k, plane) in bcc.planes.enumerated() {
+            XCTAssertEqual(plane.colour, k < bccSet.traceColours.count ? bccSet.traceColours[k] : bccSet.traceColours.last, "plane \(k)")
+        }
 
         // The Schmid layer: each grain's points carry its largest factor.
         let values = try XCTUnwrap(analysis.values(.schmid, slip: slip))

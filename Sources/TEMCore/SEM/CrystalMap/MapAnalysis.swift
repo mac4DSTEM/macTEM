@@ -431,7 +431,8 @@ package nonisolated struct MapAnalysis: Sendable {
             let planes = set.groups.indices.map { k in
                 GrainSlip.Plane(label: set.groups[k].first?.planeLabel ?? "", traceAngle: traces[k].angle, inclination: traces[k].inclination,
                                 schmid: schmid[k].max() ?? .nan,
-                                colour: k < set.traceColours.count ? set.traceColours[k] : "black")
+                                // DefDAP's `add_traces`: a trace past the colour list takes the list's last colour.
+                                colour: k < set.traceColours.count ? set.traceColours[k] : (set.traceColours.last ?? "black"))
             }
             return GrainSlip(grain: row.id, planes: planes)
         }
