@@ -994,11 +994,12 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertEqual(profile.count, expected.count)
 
         let cropped = try XCTUnwrap(image.micrograph.cropped(Self.regionA))
-        XCTAssertEqual(product.region.width, 64)
-        XCTAssertEqual(product.region.height, 64)
-        XCTAssertEqual(product.region.normalized, FloatImage(width: 64, height: 64, pixels: cropped.pixels).normalized())
-        XCTAssertEqual(product.region.rawRange, finite(cropped.pixels))
-        XCTAssertNil(product.region.histogram)
+        let region = try XCTUnwrap(product.region)
+        XCTAssertEqual(region.width, 64)
+        XCTAssertEqual(region.height, 64)
+        XCTAssertEqual(region.normalized, FloatImage(width: 64, height: 64, pixels: cropped.pixels).normalized())
+        XCTAssertEqual(region.rawRange, finite(cropped.pixels))
+        XCTAssertNil(region.histogram)
     }
 
     /// The whole image: any shape, no crop. Red under: the width and height swapped; a crop made up for the whole image.
@@ -1012,7 +1013,10 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertEqual(product.canvas.width, 96)
         XCTAssertEqual(product.canvas.height, 64)
         XCTAssertEqual(product.canvas.normalized, FloatImage(width: 96, height: 64, pixels: display.values).normalized())
-        XCTAssertEqual(product.region.normalized, FloatImage(width: 96, height: 64, pixels: image.pixels).normalized())
+        // The whole image unprocessed is the file's own pixels: no second copy (red before: a full-size normalised array, 12 Nov alite).
+        XCTAssertNil(product.region)
+        let smoothed = try await FFTCompute.live.spectrum(image, FFTSpectrumKey(contentVersion: 5, crop: nil, preprocess: FFTPreprocess(window: .hann)))
+        XCTAssertNotNil(smoothed.region, "preprocessed pixels are not the file's: their own canvas")
         XCTAssertEqual(product.spacingX, spectrum.spacingX)
         XCTAssertEqual(product.spacingY, spectrum.spacingY)
     }

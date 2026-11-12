@@ -52,6 +52,9 @@ struct DiffractionRoom: View {
         }
         // The ring or spot just added is the selected row.
         .onChange(of: analysis.lastAdded) { if let id = analysis.lastAdded { view.selection = id } }
+        // The room's display canvas (the pattern, log or linear, 4 B/px) goes when the room does; the task above builds it again on
+        // return, keeping the window. 12 Nov: the room held 1.4 GB more than the Image room on the 187 MP alite image for as long as it was open.
+        .onDisappear { view.presentation.releaseCanvas() }
     }
 }
 

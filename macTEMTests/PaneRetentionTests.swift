@@ -50,4 +50,11 @@ nonisolated final class PaneRetentionTests: XCTestCase {
         XCTAssertFalse(stored.isEmpty, "the overlay's properties were found")
         XCTAssertTrue(stored.allSatisfy { !$0.contains("CalibratedImage") && !$0.contains("CanvasPixels") }, "\(stored)")
     }
+
+    /// The Diffraction room's display canvas (4 B/px) goes with the room: on the 187 MP alite image it held 1.4 GB over the Image room for as
+    /// long as the file was open (12 Nov drive). Red before: no release on leaving.
+    func testTheDiffractionRoomLetsGoOfItsCanvasWhenLeft() throws {
+        let text = try Self.source("macTEM/UI/DiffractionRoom.swift")
+        XCTAssertTrue(text.contains(".onDisappear { view.presentation.releaseCanvas() }"))
+    }
 }

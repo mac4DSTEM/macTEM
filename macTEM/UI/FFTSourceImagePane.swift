@@ -230,9 +230,10 @@ nonisolated struct FFTSourceLayer {
                                   border: .plain, drawsRegion: true)
         case .region:
             guard let spectrum else { return nil }
-            return product(spectrum.region, border: .plain,
-                           plate: FFTPaneFormat.regionPlate(crop: spectrum.key.crop, width: spectrum.region.width,
-                                                            height: spectrum.region.height))
+            // The whole image unprocessed is the file's own pixels: its canvas, drawn linear over its range as a product is.
+            let region = spectrum.region ?? original
+            return product(region, border: .plain,
+                           plate: FFTPaneFormat.regionPlate(crop: spectrum.key.crop, width: region.width, height: region.height))
         case .maskedInverse:
             guard let inverse else { return nil }
             let first = inverse.key.spots.first
