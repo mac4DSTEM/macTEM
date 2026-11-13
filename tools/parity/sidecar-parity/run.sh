@@ -438,7 +438,7 @@ source_mutant SessionMarks.swift marks-samples-not-recorded \
   'if mark.kind == .profile, let samples { results["samples"] = String(samples) }' ''
 source_mutant SessionMarks.swift marks-lineage-text-not-kept \
   'swift marks lineage text aniso' \
-  'calibrationDiffers: calibrationDiffers, lineageText: lineageText)' 'calibrationDiffers: calibrationDiffers, lineageText: "")'
+  'lineageText: lineageText, sourceText: sourceText)' 'lineageText: "", sourceText: sourceText)'
 source_mutant SessionMarks.swift marks-kept-count-not-counted \
   'swift marks kept restore-three-kinds-and-kept' \
   'guard let mark else { kept += 1; continue }' 'guard let mark else { kept += 0; continue }'
