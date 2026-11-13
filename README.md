@@ -4,12 +4,12 @@
 
 TEM and SEM images, EDS and EELS spectrum images, electron diffraction and EBSD, analysed natively on the Mac.
 
-macEM is the companion to [mac4DSTEM](https://github.com/mac4DSTEM/mac4DSTEM). Both are free, open source and built for
+macEM is the companion to [mac4DSTEM](https://github.com/macEMSuite/mac4DSTEM). Both are free, open source and built for
 Apple silicon.
 
 ## Download
 
-Get the signed and notarised DMG from the [latest release](https://github.com/mac4DSTEM/macTEM/releases/latest). It needs
+Get the signed and notarised DMG from the [latest release](https://github.com/macEMSuite/macTEM/releases/latest). It needs
 macOS 26 or later on an Apple silicon Mac. The SEM rooms and SEM files below are not in a release yet: to use them
 now, build the app yourself.
 
@@ -70,10 +70,10 @@ The rooms:
 ## Where the numbers come from
 
 The TEM methods compute with the suite's Swift kits, each checked against the Python package it ports, within that
-package's own tolerance: [FormatoKit](https://github.com/mac4DSTEM/FormatoKit) (file readers),
-[ImagoKit](https://github.com/mac4DSTEM/ImagoKit) (FFT and image maths),
-[DiffractoKit](https://github.com/mac4DSTEM/DiffractoKit) (crystallography) and
-[SpectroKit](https://github.com/mac4DSTEM/SpectroKit) (EDS and EELS). The SEM methods are ported into the app itself and
+package's own tolerance: [FormatoKit](https://github.com/macEMSuite/FormatoKit) (file readers),
+[ImagoKit](https://github.com/macEMSuite/ImagoKit) (FFT and image maths),
+[DiffractoKit](https://github.com/macEMSuite/DiffractoKit) (crystallography) and
+[SpectroKit](https://github.com/macEMSuite/SpectroKit) (EDS and EELS). The SEM methods are ported into the app itself and
 checked the same way, against pinned versions of [kikuchipy](https://github.com/pyxem/kikuchipy) (pattern files,
 processing and dictionary indexing), [PyEBSDIndex](https://github.com/USNavalResearchLaboratory/PyEBSDIndex) (Hough
 indexing and NLPAR), [orix](https://github.com/pyxem/orix) (orientations, colour keys, texture, and .ang and .ctf

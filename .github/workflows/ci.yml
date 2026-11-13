@@ -49,7 +49,7 @@
 # XCODE: every macOS job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
 # change the toolchain on an unchanged tree.
 #
-# KITS: Package.swift takes the kits and MacEMUI by version range from github.com/mac4DSTEM (public repos, no token);
+# KITS: Package.swift takes the kits and MacEMUI by version range from github.com/macEMSuite (public repos, no token);
 # Package.resolved pins the exact versions. The SwiftPM repository cache is restored per Package.resolved so the clones
 # are not fetched again on an unchanged pin set; the builds themselves start from scratch (the warnings gate needs that).
 #
