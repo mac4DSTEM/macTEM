@@ -9,7 +9,7 @@ Apple silicon.
 
 ## Download
 
-Get the signed and notarised DMG from the [latest release](https://github.com/macEMSuite/macTEM/releases/latest). It needs
+Get the signed and notarised DMG from the [latest release](https://github.com/macEMSuite/macEM/releases/latest). It needs
 macOS 26 or later on an Apple silicon Mac. The SEM rooms and SEM files below are not in a release yet: to use them
 now, build the app yourself.
 

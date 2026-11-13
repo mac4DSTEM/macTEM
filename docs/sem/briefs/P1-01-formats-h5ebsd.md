@@ -12,7 +12,7 @@
 Each sample file in `macTEMTests/Fixtures/sem/` (the in-package kikuchipy and EDAX files, the dummy Bruker and Oxford files written by the parity scripts) reads with every field equal to the kikuchipy reference JSON and the first and last pattern bit-exact; the north-star file reads in under 1 s on the CI runner; a non-EBSD HDF5 file is refused with a sentence naming the missing group.
 
 ## Gates (every brief)
-- Branch from `main`, one PR, conventional-commit title, `Fixes mac4DSTEM/macTEM#<n>`, auto-merge on green. Never stack on another open branch.
+- Branch from `main`, one PR, conventional-commit title, `Fixes macEMSuite/macEM#<n>`, auto-merge on green. Never stack on another open branch.
 - A test that fails before and passes after. Numerics compare against `tools/parity/sem` references within the upstream tolerance stated in `docs/parity.md`; the before/after table goes in the PR body.
 - `tools/run-tests.sh unit` and `core` green; the Swift 6 rules (TEMCore nonisolated, heavy work through `@concurrent`, no SwiftUI below the app).
 - UI work loads the `swiftui-macos` skill; pure SwiftUI, AppKit only where named in code; a change to what the app draws carries a screenshot in the PR and an XCUITest journey; say "unverified on screen" for anything no drive saw.

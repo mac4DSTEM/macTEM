@@ -27,7 +27,7 @@ YOUR DATA STAYS ON YOUR MAC
 No account, no analytics, no telemetry, and no connection to the internet. An optional door for AI agents on this Mac, off by default, listens on this Mac only. Your files are read from and written to your own storage only.
 
 OPEN SOURCE
-macEM is free software under GPL-3.0. The source and the issue tracker are at github.com/mac4DSTEM/macTEM.
+macEM is free software under GPL-3.0. The source and the issue tracker are at github.com/macEMSuite/macEM.
 
 Its companion app, mac4DSTEM, analyses 4D-STEM data: virtual images, strain, orientation, ptychography and EDS.
 
