@@ -156,7 +156,8 @@ package nonisolated enum ANGReader {
 
         let list = PhaseList(ids: phases.filter { $0.id != -1 }.map(\.id),
                              phases: phases.filter { $0.id != -1 }.map {
-                                 CrystalPhase(name: $0.name, formula: $0.formula, pointGroup: $0.pointGroup, lattice: $0.lattice)
+                                 CrystalPhase(name: $0.name, formula: $0.formula, pointGroup: $0.pointGroup, lattice: $0.lattice,
+                                              latticeUnit: .angstrom)
                              }, assignColors: true)
         let map = try CrystalMap(rotations: euler.map(quaternion(fromBungeEuler:)), euler: euler, phaseIDs: phaseIDs, x: x, y: y,
                                  phaseList: list, properties: properties, scanUnit: vendor == .astar ? "nm" : "um")

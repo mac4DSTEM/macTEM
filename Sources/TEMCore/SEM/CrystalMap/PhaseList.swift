@@ -18,15 +18,36 @@ package nonisolated struct CrystalPhase: Sendable, Equatable {
     package var spaceGroup: Int?
     /// The point group as orix names it (`m-3m`, `6/mmm`, `622`, `432`, ...); nil for `not_indexed`.
     package var pointGroupName: String?
-    /// a, b, c (the file's unit), alpha, beta, gamma (degrees).
+    /// a, b, c (the file's unit, `latticeUnit`), alpha, beta, gamma (degrees).
     package var lattice: [Double]?
     /// A matplotlib colour name (`tab:blue`, `white`).
     package var color: String
+    /// The unit of a, b, c where the source states it (.ang and .ctf: Å; an EMsoft master pattern: nm); nil where it does not (orix's
+    /// .h5 keeps whatever its writer had, and kikuchipy keeps EMsoft's nm), and only then is the unit guessed (macEM#614).
+    package var latticeUnit: LatticeUnit?
+
+    package enum LatticeUnit: String, Sendable, Equatable, Codable {
+        case angstrom, nanometre
+    }
 
     package init(name: String, formula: String? = nil, spaceGroup: Int? = nil, pointGroup: String? = nil, lattice: [Double]? = nil,
-                 color: String = "tab:blue") {
+                 color: String = "tab:blue", latticeUnit: LatticeUnit? = nil) {
         self.name = name; self.formula = formula; self.spaceGroup = spaceGroup; self.pointGroupName = pointGroup; self.lattice = lattice
-        self.color = color
+        self.color = color; self.latticeUnit = latticeUnit
+    }
+
+    /// a, b, c in ångström, alpha, beta, gamma in degrees: by the stated unit, else by the guess a source with no unit leaves (every
+    /// length under 2 is nm: no crystal has a cell edge under 2 Å, and EBSD phases rarely one over 2 nm). nil without six parameters.
+    package var latticeInAngstrom: [Double]? {
+        guard var p = lattice, p.count == 6 else { return nil }
+        let nanometres: Bool
+        switch latticeUnit {
+        case .angstrom: nanometres = false
+        case .nanometre: nanometres = true
+        case nil: nanometres = p[0] < 2 && p[1] < 2 && p[2] < 2
+        }
+        if nanometres { p[0] *= 10; p[1] *= 10; p[2] *= 10 }
+        return p
     }
 
     /// The point group as an orientation symmetry; nil when the phase names none or orix knows no group of that name.

@@ -62,6 +62,8 @@ package nonisolated struct IndexingPhase: Sendable, Equatable, Identifiable, Cod
     package var spaceGroup: Int
     /// a, b, c (any one length unit) and alpha, beta, gamma in degrees.
     package var lattice: [Double]
+    /// The unit of a, b, c: Å for a preset or a CIF, the file's where it states one (macEM#614); nil where it does not.
+    package var latticeUnit: CrystalPhase.LatticeUnit?
     package var source: Source
     package var isOn: Bool
     package var reflectors: Reflectors
@@ -71,10 +73,11 @@ package nonisolated struct IndexingPhase: Sendable, Equatable, Identifiable, Cod
     package var id: String { name }
 
     package init(name: String, spaceGroup: Int, lattice: [Double], source: Source, isOn: Bool = true, reflectors: Reflectors? = nil,
-                 color: String = "tab:blue") {
+                 color: String = "tab:blue", latticeUnit: CrystalPhase.LatticeUnit? = nil) {
         self.name = name
         self.spaceGroup = spaceGroup
         self.lattice = lattice
+        self.latticeUnit = latticeUnit ?? (source == .file ? nil : .angstrom)
         self.source = source
         self.isOn = isOn
         self.reflectors = reflectors ?? Self.defaultReflectors(spaceGroup: spaceGroup)
@@ -107,7 +110,7 @@ package nonisolated struct IndexingPhase: Sendable, Equatable, Identifiable, Cod
 
     /// The phase as a crystal map writes it (orix's `Phase`).
     package var crystalPhase: CrystalPhase {
-        CrystalPhase(name: name, spaceGroup: spaceGroup, pointGroup: pointGroupName, lattice: lattice, color: color)
+        CrystalPhase(name: name, spaceGroup: spaceGroup, pointGroup: pointGroupName, lattice: lattice, color: color, latticeUnit: latticeUnit)
     }
 
     /// Why the phase cannot be indexed against, in the room's words; nil when it can.
@@ -158,7 +161,8 @@ package nonisolated struct IndexingPhase: Sendable, Equatable, Identifiable, Cod
                 skipped.append(phase.name)
                 continue
             }
-            kept.append(IndexingPhase(name: phase.name, spaceGroup: spaceGroup, lattice: lattice, source: .file, color: phase.color))
+            kept.append(IndexingPhase(name: phase.name, spaceGroup: spaceGroup, lattice: lattice, source: .file, color: phase.color,
+                                      latticeUnit: phase.latticeUnit))
         }
         return (kept, skipped)
     }
