@@ -953,7 +953,12 @@ def planted_cases(pixels, out_dir):
         {"outcome": "decoded", "next_id": 3, "nodes": [], "canonical": lineage_of([bare_node("s1", kind="hologram"), bare_node("s2", kind="export")], 3), "count": 2})
     lin("lineage-absent-collections", canon({"version": 1, "next_id": 2, "nodes": [{"id": "s1", "kind": "distance", "recorded": 5, "zzz": 1}],
                                               "unknown": True}),
-        {"outcome": "decoded", "next_id": 2, "nodes": [], "canonical": lineage_of([{"external": [], "id": "s1", "inputs": [], "kind": "distance", "parameters": {}, "recorded": 5, "results": {}}], 2), "count": 1})
+        # absent collections are written empty; another writer's keys, on the node and at the root, are written back as read
+        # (SessionLineage's contract: a re-save never drops a key it does not know)
+        {"outcome": "decoded", "next_id": 2, "nodes": [], "count": 1,
+         "canonical": canon({"version": 1, "next_id": 2, "unknown": True,
+                             "nodes": [{"external": [], "id": "s1", "inputs": [], "kind": "distance", "parameters": {}, "recorded": 5,
+                                        "results": {}, "zzz": 1}]})})
     # the identity's own guards
     def src(name, text, outcome):
         attrs = [(IDENTITY, "str", "1"), (MIN_READER, "str", "1"), (SOURCE, "str", text), (LINEAGE, "str", "{}")]

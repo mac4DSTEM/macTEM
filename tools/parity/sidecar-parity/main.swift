@@ -612,7 +612,10 @@ func checkPlanted(_ manifest: Manifest, ref: URL, out: URL, _ report: inout Repo
                     }
                     if let canonical = spec.canonical {
                         let again = try lineage.jsonString()
-                        if !utf8Equal(again, canonical) { problems.append("re-encoded text differs from Python's canonical text") }
+                        if !utf8Equal(again, canonical) {
+                            // Both texts, so a failure names its cause (key order, a dropped or kept key, an empty collection)
+                            problems.append("re-encoded text differs from Python's canonical text\n      swift:  \(again)\n      python: \(canonical)")
+                        }
                         if try SessionLineage.decode(again) != lineage { problems.append("a re-read of the re-encoded text differs") }
                     }
                     if spec.exhausted == true {
@@ -673,8 +676,11 @@ func checkPlanted(_ manifest: Manifest, ref: URL, out: URL, _ report: inout Repo
                     if identity.object != spec.object { problems.append("object \(identity.object)") }
                     if identity.width != spec.width || identity.height != spec.height { problems.append("shape \(identity.width) x \(identity.height)") }
                     if identity.pixelSHA256 != spec.pixel_sha256 { problems.append("fingerprint \(identity.pixelSHA256)") }
-                    if let canonical = spec.canonical, !utf8Equal(try identity.jsonString(), canonical) {
-                        problems.append("re-encoded text differs from Python's canonical text")
+                    if let canonical = spec.canonical {
+                        let again = try identity.jsonString()
+                        if !utf8Equal(again, canonical) {
+                            problems.append("re-encoded text differs from Python's canonical text\n      swift:  \(again)\n      python: \(canonical)")
+                        }
                     }
                 } catch {
                     problems.append("refused: \(error)")
