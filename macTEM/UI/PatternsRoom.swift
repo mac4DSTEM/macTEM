@@ -202,8 +202,8 @@ struct ScanMapPane: View {
         case .bse: "Scan map · BSE (whole detector)"
         case .tile(let tile): "Scan map · tile \(tile.label)"
         case .mix: "Scan map · colour mix " + session.mixTiles.compactMap { $0?.label }.joined(separator: " + ")
-        case .imageQuality: "Scan map · image quality (raw patterns)"
-        case .dotProduct: "Scan map · average dot product (raw patterns)"
+        case .imageQuality: "Scan map · image quality " + EBSDSession.qualitySourceWords(ofProcessed: session.qualityOfProcessed)
+        case .dotProduct: "Scan map · average dot product " + EBSDSession.qualitySourceWords(ofProcessed: session.qualityOfProcessed)
         }
     }
 
