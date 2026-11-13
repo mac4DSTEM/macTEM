@@ -132,7 +132,7 @@ jobs:
         name: SwiftLint candidate rules on the app's sources
         run: |
           app=$(basename "$(ls -d *.xcodeproj | head -1)" .xcodeproj)
-          dirs=$(for d in "$app" Sources HDF5Helper QuickLook; do [ -d "$d" ] && printf '%s, ' "$d"; done)
+          dirs=$(for d in "$app" Sources HDF5Helper QuickLook; do [ -d "$d" ] && printf '%s, ' "$d"; done; true)
           cat > .audit-swiftlint.yml <<YML
           included: [${dirs%, }]
           only_rules:
