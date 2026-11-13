@@ -302,7 +302,8 @@ package nonisolated struct HoughIndexer: Sendable {
             let largest = column.max() ?? 0
             let total = column.reduce(0, +)
             // int32 truncation of the float sums, as pyEBSDindex stores mxvote and tvotes.
-            let mxvote = Double(Int(largest)), tvotes = Double(Int(total))
+            // A sum that is not a number (NaN weights) votes nothing rather than trapping in the cast.
+            let mxvote = Double(CheckedConversion.int(largest) ?? 0), tvotes = Double(CheckedConversion.int(total) ?? 0)
             var cm = 0.0
             if tvotes >= 1 {
                 let sorted = column.sorted()
@@ -446,7 +447,11 @@ package nonisolated struct HoughIndexer: Sendable {
         for r in 0..<3 { for col in 0..<3 { M[r * 3 + col] += beta * S[r * 3 + col] + (r == col ? alpha : 0) } }
         let X = apply(M, z)
         var q = SIMD4(gamma, X[0], X[1], X[2])
-        q /= (q * q).sum().squareRoot()
+        let norm = (q * q).sum().squareRoot()
+        // A zero or non-finite quaternion (degenerate or NaN band normals) has no rotation: the point is not indexed, as with
+        // fewer than three weighted bands.
+        guard norm > 0, norm.isFinite else { return (SIMD4(1, 0, 0, 0), -1, dots) }
+        q /= norm
         if gamma < 0 { q = -q }
         var sum = 0.0
         for g in good {

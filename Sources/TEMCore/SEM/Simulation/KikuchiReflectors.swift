@@ -47,6 +47,9 @@ package nonisolated struct KikuchiReflectors: Sendable, Equatable {
 
     package var count: Int { hkl.count }
 
+    /// The highest index `minDSpacing` takes along an axis: (2 · 50 + 1)³ ≈ 1 M index triplets at most.
+    package static let maximumIndex = 50
+
     /// The families' symmetrically equivalent planes (diffsims' `symmetrise`), family by family, each in order of appearance through
     /// the point group's elements (orix's `outer`, an improper element negating the vector), rounded and made unique as orix's
     /// `Vector3d.unique`, then written back as hkl. `multiplicity` is each family's count.
@@ -67,7 +70,11 @@ package nonisolated struct KikuchiReflectors: Sendable, Equatable {
     /// Every plane with a spacing of at least `minDSpacing` (diffsims' `from_min_dspacing`): the highest index along each axis whose
     /// spacing is still above the bound (orix's `_get_highest_hkl`), every index triplet within them in reversed product order with
     /// (000) left out (`_get_indices_from_highest`), then those with d ≥ the bound.
+    /// A bound that is not a positive number, or one that would walk an axis past `maximumIndex` (a bound far below the cell, or a
+    /// degenerate lattice whose spacing never falls), gives no plane instead of a loop that never ends.
     package static func minDSpacing(_ minDSpacing: Double, lattice: CrystalLattice) -> KikuchiReflectors {
+        let none = KikuchiReflectors(lattice: lattice, hkl: [])
+        guard minDSpacing > 0, minDSpacing.isFinite else { return none }
         var highest = [1, 1, 1]
         for axis in 0..<3 {
             var index = SIMD3<Double>(0, 0, 0)
@@ -75,6 +82,7 @@ package nonisolated struct KikuchiReflectors: Sendable, Equatable {
             var d = 1 / lattice.rnorm(index)
             while d > minDSpacing {
                 index[axis] += 1
+                guard index[axis] <= Double(maximumIndex) else { return none }
                 d = 1 / lattice.rnorm(index)
             }
             highest[axis] = Int(index[axis]) - 1

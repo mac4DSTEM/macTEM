@@ -35,6 +35,8 @@ package nonisolated enum EBSDRefinement {
         case moreThanOnePhase([String])
         case phaseMismatch(map: String, master: String)
         case solver(Int, String)
+        /// A pattern was given no starting orientation.
+        case noStart(Int)
 
         package var errorDescription: String? {
             switch self {
@@ -49,6 +51,7 @@ package nonisolated enum EBSDRefinement {
             case .moreThanOnePhase(let names): return "Refine one phase at a time; the points to refine are \(names.joined(separator: ", "))."
             case .phaseMismatch(let m, let mp): return "The map's phase is \(m) but the master pattern's is \(mp)."
             case .solver(let i, let text): return "Refining pattern \(i) failed: \(text)"
+            case .noStart(let i): return "Pattern \(i) has no starting orientation to refine from."
             }
         }
     }
@@ -159,7 +162,7 @@ package nonisolated enum EBSDRefinement {
     }
 
     /// `1 − NCC` of the centred experimental pattern and the pattern projected for `q` along `dc` (the objective functions).
-    static func objective(_ q: SIMD4<Double>, _ dc: [SIMD3<Double>], experiment: [Float], squaredNorm: Double, master: Master) -> Double {
+    package static func objective(_ q: SIMD4<Double>, _ dc: [SIMD3<Double>], experiment: [Float], squaredNorm: Double, master: Master) -> Double {
         let n = dc.count
         var sim = [Float](repeating: 0, count: n)
         master.upper.withUnsafeBufferPointer { up in
@@ -178,7 +181,10 @@ package nonisolated enum EBSDRefinement {
             cross += Double(experiment[i]) * s
             simNorm += s * s
         }
-        return 1 - cross / (squaredNorm * simNorm).squareRoot()
+        let score = 1 - cross / (squaredNorm * simNorm).squareRoot()
+        // A simulation that is not a number (a trial pattern centre at z = 0 sends every direction to NaN) scores as the worst
+        // match, 2 (NCC −1), so the search moves away from it instead of comparing NaN.
+        return score.isFinite ? score : 2
     }
 
     /// `rotation_from_euler`: Bunge angles to the unit quaternion with a non-negative scalar part.
@@ -266,11 +272,12 @@ package nonisolated enum EBSDRefinement {
                     objective(rotation(x), dc, experiment: exp.values, squaredNorm: exp.squaredNorm, master: master)
                 }, x0: x0, bounds: bounds(x0, trustRegion: tr, lower: eulerLower, upper: eulerUpper), options: checked)
                 // `np.argmax` of the scores: the first of equal ones.
-                if best == nil || 1 - res.fun > 1 - best!.result.fun { best = (res, k) }
+                if best.map({ 1 - res.fun > 1 - $0.result.fun }) ?? true { best = (res, k) }
             }
-            let r = best!.result
+            guard let chosen = best else { throw Error.noStart(i) }
+            let r = chosen.result
             return OrientationResult(score: 1 - r.fun, evaluations: r.nfev, euler: SIMD3(r.x[0], r.x[1], r.x[2]),
-                                     pseudoSymmetryIndex: starts[i].count > 1 ? best!.index : nil)
+                                     pseudoSymmetryIndex: starts[i].count > 1 ? chosen.index : nil)
         }
     }
 
@@ -324,12 +331,13 @@ package nonisolated enum EBSDRefinement {
                     return objective(rotation(x), dc, experiment: exp.values, squaredNorm: exp.squaredNorm, master: master)
                 }, x0: x0, bounds: bounds(x0, trustRegion: tr, lower: eulerLower + pcLower, upper: eulerUpper + pcUpper),
                    options: settings.options)
-                if best == nil || 1 - res.fun > 1 - best!.result.fun { best = (res, k) }
+                if best.map({ 1 - res.fun > 1 - $0.result.fun }) ?? true { best = (res, k) }
             }
-            let x = best!.result.x
-            return OrientationProjectionCenterResult(score: 1 - best!.result.fun, evaluations: best!.result.nfev,
+            guard let chosen = best else { throw Error.noStart(i) }
+            let x = chosen.result.x
+            return OrientationProjectionCenterResult(score: 1 - chosen.result.fun, evaluations: chosen.result.nfev,
                                                      euler: SIMD3(x[0], x[1], x[2]), pc: SIMD3(x[3], x[4], x[5]),
-                                                     pseudoSymmetryIndex: starts[i].count > 1 ? best!.index : nil)
+                                                     pseudoSymmetryIndex: starts[i].count > 1 ? chosen.index : nil)
         }
     }
 

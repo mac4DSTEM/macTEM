@@ -178,8 +178,13 @@ package nonisolated struct DirectionColorKeyTSL: Sendable {
     /// the sector's, as orix's `_create_rgba_grid` takes it.
     package func keyImage(step: Double = 0.001, extent: (x: ClosedRange<Double>, y: ClosedRange<Double>)? = nil) -> IPFKeyImage {
         let e = extent ?? sector.stereographicExtent ?? (-1...1, -1...1)
-        let width = Int((( e.x.upperBound - e.x.lowerBound) / step).rounded(.up))
-        let height = Int(((e.y.upperBound - e.y.lowerBound) / step).rounded(.up))
+        // A step that is not a positive number, or one so fine the key would pass 16 M pixels, draws an empty key, not a trap.
+        var width = CheckedConversion.int(((e.x.upperBound - e.x.lowerBound) / step).rounded(.up)) ?? 0
+        var height = CheckedConversion.int(((e.y.upperBound - e.y.lowerBound) / step).rounded(.up)) ?? 0
+        if width <= 0 || height <= 0 || width > IPFKeyImage.maximumSide || height > IPFKeyImage.maximumSide || width * height > IPFKeyImage.maximumPixels {
+            width = 0
+            height = 0
+        }
         let projection = StereographicProjection(pole: -1)
         var rgba = [Float](repeating: 0, count: width * height * 4)
         for row in 0..<height {
@@ -202,6 +207,9 @@ package nonisolated struct DirectionColorKeyTSL: Sendable {
 
 /// A colour key drawn in the stereographic projection: RGBA in [0, 1], row-major from the top row.
 package nonisolated struct IPFKeyImage: Sendable {
+    /// The largest key `keyImage` draws: 16 M pixels, 16 384 a side.
+    package static let maximumPixels = 1 << 24
+    package static let maximumSide = 1 << 14
     package let width: Int
     package let height: Int
     package let rgba: [Float]
@@ -219,8 +227,8 @@ package nonisolated struct IPFKeyImage: Sendable {
         var out = [UInt8](repeating: 0, count: rgba.count)
         for p in stride(from: 0, to: rgba.count, by: 4) {
             let a = rgba[p + 3]
-            for c in 0..<3 { out[p + c] = UInt8((min(max(rgba[p + c] * a, 0), 1) * 255).rounded()) }
-            out[p + 3] = UInt8((min(max(a, 0), 1) * 255).rounded())
+            for c in 0..<3 { out[p + c] = CheckedConversion.unitByte(rgba[p + c] * a) }
+            out[p + 3] = CheckedConversion.unitByte(a)
         }
         return out
     }

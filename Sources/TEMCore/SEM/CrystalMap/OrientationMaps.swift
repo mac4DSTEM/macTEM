@@ -100,7 +100,7 @@ package nonisolated struct OrientationMapRaster: Sendable, Equatable {
     }
 
     /// A channel (0...1) to the nearest byte; NaN, the colour of a cell past the last point of a map that does not fill its grid, is 0.
-    static func byte(_ v: Double) -> UInt8 { v.isNaN ? 0 : UInt8((min(max(v, 0), 1) * 255).rounded()) }
+    static func byte(_ v: Double) -> UInt8 { CheckedConversion.unitByte(v) }
 }
 
 package nonisolated enum OrientationMaps {

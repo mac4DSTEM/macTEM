@@ -91,11 +91,14 @@ package nonisolated enum OrientationDensity {
     }
 
     /// numpy's `arange(0, stop, step)` in degrees: 0, step, 2 step, ... below `stop`.
+    /// A step that is not a positive number, or one that would make more than `maximumNodes` nodes, gives none.
     package static func nodes(below stop: Double, step: Double) -> [Double] {
-        precondition(step > 0, "a positive step")
-        let n = Int(((stop - 0) / step).rounded(.up))
+        guard step > 0, step.isFinite, let n = CheckedConversion.int(((stop - 0) / step).rounded(.up)), n <= maximumNodes else { return [] }
         return (0..<max(n, 0)).map { Double($0) * step }
     }
+
+    /// The most nodes `nodes(below:step:)` gives along one Euler angle: a 0.01° step over 360°.
+    package static let maximumNodes = 36_000
 
     /// The Bunge ranges of a section plot for a crystal symmetry with a triclinic sample (MTEX's default section ranges):
     /// φ2 over 360° divided by the order of the rotation about z (90° cubic and tetragonal, 60° hexagonal, 120° trigonal,
