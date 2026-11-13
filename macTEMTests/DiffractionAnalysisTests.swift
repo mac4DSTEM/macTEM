@@ -24,6 +24,25 @@ nonisolated final class DiffractionAnalysisTests: XCTestCase {
         return (analysis, image)
     }
 
+    /// macEM#610: a ring fit started before the centre moved is about the old centre, so it neither lands nor sets the scale.
+    /// Red before: `setCentre` and `useCentre` left the generation alone and the old-centre ring calibrated the scale.
+    @MainActor func testARingFitStartedBeforeACentreMoveIsDropped() async throws {
+        let image = DemoDocuments.diffractionPattern()
+        let analysis = DiffractionAnalysis()
+        analysis.bind(image)
+        let family = try XCTUnwrap(analysis.standardFamilies().first { $0.name == "{111}" })
+        let task = analysis.fitRing(image: image, inner: 29, outer: 37, calibrateOn: family.family)
+        XCTAssertTrue(analysis.isFitting)
+        analysis.setCentre(row: 250, column: 262)
+        await task?.value
+        XCTAssertTrue(analysis.rings.isEmpty, "the old-centre ring landed")
+        XCTAssertFalse(analysis.ringCalibrationExists)
+        XCTAssertFalse(analysis.isFitting)
+        // A fit started after the move lands as before.
+        await analysis.fitRing(image: image, inner: 29, outer: 37)?.value
+        XCTAssertEqual(analysis.rings.count, 1)
+    }
+
     @MainActor func testTheCentreStartsAtTheImageCentreAndKMaxFromTheScale() {
         let image = DemoDocuments.diffractionPattern()
         let analysis = DiffractionAnalysis()
