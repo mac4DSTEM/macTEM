@@ -141,6 +141,8 @@ package nonisolated struct MapAnalysis: Sendable {
     package let meanLinealIntercept: Double?
     /// The scan unit of the lengths.
     package let scanUnit: String
+    /// Why `gnd` is nil although the phase has a structure DefDAP knows (a step in no length unit); nil otherwise.
+    package let gndRefusal: String?
 
     /// The analysis of `map` with `settings` (a whole map: the points in data fill rows × columns in row order). `isCancelled` is asked
     /// through the grain analysis (`GrainAnalysis.run`) and before the GND and the table; it throws `CancellationError` once it says so
@@ -166,11 +168,16 @@ package nonisolated struct MapAnalysis: Sendable {
 
         // GND: DefDAP takes the primary phase's crystal structure for the whole map; the step in micrometres.
         var gnd: [Double]?
+        var gndRefusal: String?
         if let first = indexed.first, let group = first.phase.pointGroup, let structure = DefDAPCrystalStructure(pointGroup: group) {
-            let micrometres = Self.micrometres(grainMap.step, unit: map.scanUnit)
-            let result = NyeTensor.compute(quaternions: grainMap.quaternions, rows: rows, columns: columns, stepMicrons: micrometres,
-                                           structure: structure)
-            gnd = zip(result.gnd, grainMap.phase).map { $1 == 0 ? .nan : $0 }
+            // A step in no length unit refuses the GND rather than guessing µm (macEM#611).
+            if let micrometres = Self.micrometres(grainMap.step, unit: map.scanUnit) {
+                let result = NyeTensor.compute(quaternions: grainMap.quaternions, rows: rows, columns: columns, stepMicrons: micrometres,
+                                               structure: structure)
+                gnd = zip(result.gnd, grainMap.phase).map { $1 == 0 ? .nan : $0 }
+            } else {
+                gndRefusal = Self.gndNeedsALength(unit: map.scanUnit)
+            }
         }
         if isCancelled() { throw CancellationError() }
 
@@ -199,7 +206,7 @@ package nonisolated struct MapAnalysis: Sendable {
         return MapAnalysis(settings: settings, rows: rows, columns: columns, grainMap: grainMap, grains: analysis, gnd: gnd, table: table,
                            phaseIDs: phaseIDs,
                            meanLinealIntercept: GrainSegmentation.meanLinealIntercept(boundaries: analysis.boundaries, step: grainMap.step),
-                           scanUnit: map.scanUnit)
+                           scanUnit: map.scanUnit, gndRefusal: gndRefusal)
     }
 
     /// The same off the caller's actor; a cancelled task stops at its next row or grain and throws `CancellationError`.
@@ -207,13 +214,20 @@ package nonisolated struct MapAnalysis: Sendable {
         try run(map, settings: settings, isCancelled: { Task.isCancelled })
     }
 
-    /// A length in `unit` in micrometres (the readers write "um"; nm and mm convert; any other unit is taken as micrometres).
-    package static func micrometres(_ length: Double, unit: String) -> Double {
+    /// A length in `unit` in micrometres (the readers write "um"; nm and mm convert); nil for a unit that is no length ("px", or one
+    /// the app does not know), which before macEM#611 was taken as micrometres.
+    package static func micrometres(_ length: Double, unit: String) -> Double? {
         switch unit.lowercased() {
         case "nm": length / 1000
         case "mm": length * 1000
-        default: length
+        case "um", "µm", "μm", "micron", "microns": length
+        default: nil
         }
+    }
+
+    /// Why the map has no GND density although its phase has a structure: its step is in no length unit.
+    package static func gndNeedsALength(unit: String) -> String {
+        "No GND density: the map's step is in \(unit.isEmpty ? "no unit" : "\"\(unit)\"") rather than a length, so a density per m² cannot be given. The grains, KAM and GOS do not need one."
     }
 
     // MARK: Numbers
@@ -230,8 +244,8 @@ package nonisolated struct MapAnalysis: Sendable {
 
     /// ASTM E112's grain size number from the mean lineal intercept; nil without a boundary or with a scan unit that is no length.
     package var astmGrainSizeNumber: Double? {
-        guard let l = meanLinealIntercept, ["um", "µm", "μm", "nm", "mm"].contains(scanUnit.lowercased()) else { return nil }
-        return GrainSegmentation.astmGrainSizeNumber(meanLinealInterceptMillimetres: Self.micrometres(l, unit: scanUnit) / 1000)
+        guard let l = meanLinealIntercept, let um = Self.micrometres(l, unit: scanUnit) else { return nil }
+        return GrainSegmentation.astmGrainSizeNumber(meanLinealInterceptMillimetres: um / 1000)
     }
 
     /// The grain number (1, 2, ...) at a grid cell; nil for a point of no grain (too small, or not indexed).
