@@ -109,6 +109,8 @@ package nonisolated struct GrainSegmentation: Sendable, Equatable {
     package let rows: Int
     package let columns: Int
     package let step: Double
+    /// The step along y (`GrainMap.stepY`); equal to `step` on a square grid, which is all DefDAP knows.
+    package let stepY: Double
     /// DefDAP's grain map: 1, 2, ... a grain's number; −2 a point of a region below the minimum size; 0 a point never
     /// filled (not indexed).
     package let grainMap: [Int]
@@ -177,15 +179,16 @@ package nonisolated struct GrainSegmentation: Sendable, Equatable {
             while k < left.count { if left[k] { found = k; break }; k += 1 }
             next = found
         }
-        return GrainSegmentation(rows: h, columns: w, step: map.step, grainMap: grains, grains: list, minimumSize: minimumSize)
+        return GrainSegmentation(rows: h, columns: w, step: map.step, stepY: map.stepY, grainMap: grains, grains: list, minimumSize: minimumSize)
     }
 
     // MARK: Sizes
 
     /// Points per grain.
     package var sizes: [Int] { grains.map(\.size) }
-    /// Area per grain: points × step² (square grid), in the scan unit squared.
-    package var areas: [Double] { grains.map { Double($0.size) * step * step } }
+    /// Area per grain: points × dx × dy, in the scan unit squared (DefDAP's points × step² on its square grid; macEM#613: a map
+    /// whose rows are spaced apart from its columns took dx² before).
+    package var areas: [Double] { grains.map { Double($0.size) * step * stepY } }
     /// The diameter of the circle of the grain's area.
     package var equivalentCircleDiameters: [Double] { areas.map { 2 * ($0 / .pi).squareRoot() } }
 
@@ -220,11 +223,11 @@ package nonisolated struct GrainSegmentation: Sendable, Equatable {
 
     /// The mean lineal intercept (Heyn): the length of every row and column as test lines over the number of grain
     /// boundary crossings on them, in the scan unit; nil without a crossing.
-    package static func meanLinealIntercept(boundaries: GrainBoundaries, step: Double) -> Double? {
+    package static func meanLinealIntercept(boundaries: GrainBoundaries, step: Double, stepY: Double? = nil) -> Double? {
         let crossings = boundaries.grainX.reduce(0) { $0 + ($1 ? 1 : 0) } + boundaries.grainY.reduce(0) { $0 + ($1 ? 1 : 0) }
         guard crossings > 0 else { return nil }
         let (h, w) = (Double(boundaries.rows), Double(boundaries.columns))
-        let length = h * (w - 1) * step + w * (h - 1) * step
+        let length = h * (w - 1) * step + w * (h - 1) * (stepY ?? step)
         return length / Double(crossings)
     }
 

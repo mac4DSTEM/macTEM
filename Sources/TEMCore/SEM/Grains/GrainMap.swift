@@ -45,11 +45,13 @@ package nonisolated struct GrainMap: Sendable, Equatable {
     /// The symmetry operators of each phase, phase 1 first.
     package let symmetries: [[SIMD4<Double>]]
     package let phaseNames: [String]
-    /// The scan step (both directions, DefDAP's `step_size`), in the scan unit.
+    /// The scan step along x (DefDAP's `step_size`, one for both directions), in the scan unit.
     package let step: Double
+    /// The scan step along y: DefDAP has one step, so this is `step` unless the map's rows are spaced differently (macEM#613).
+    package let stepY: Double
 
     package init(rows: Int, columns: Int, quaternions: [SIMD4<Double>], phase: [Int], symmetries: [[SIMD4<Double>]],
-                 phaseNames: [String]? = nil, step: Double) throws {
+                 phaseNames: [String]? = nil, step: Double, stepY: Double? = nil) throws {
         guard rows >= 1, columns >= 1, quaternions.count == rows * columns, phase.count == rows * columns else {
             throw Refusal.shape(rows: rows, columns: columns, points: quaternions.count)
         }
@@ -61,13 +63,14 @@ package nonisolated struct GrainMap: Sendable, Equatable {
         self.symmetries = symmetries
         self.phaseNames = phaseNames ?? symmetries.indices.map { "phase \($0 + 1)" }
         self.step = step
+        self.stepY = stepY ?? step
     }
 
     /// From Bunge angles in radians, through DefDAP's quaternion formula.
     package init(rows: Int, columns: Int, euler: [SIMD3<Double>], phase: [Int], symmetries: [[SIMD4<Double>]],
-                 phaseNames: [String]? = nil, step: Double) throws {
+                 phaseNames: [String]? = nil, step: Double, stepY: Double? = nil) throws {
         try self.init(rows: rows, columns: columns, quaternions: euler.map(DefDAPQuat.fromEuler), phase: phase,
-                      symmetries: symmetries, phaseNames: phaseNames, step: step)
+                      symmetries: symmetries, phaseNames: phaseNames, step: step, stepY: stepY)
     }
 
     /// A crystal map's points in data, which must fill their rectangle: the indexed phases in id order become DefDAP's
@@ -82,6 +85,7 @@ package nonisolated struct GrainMap: Sendable, Equatable {
         let phase = map.phaseIDs.map { number[$0] ?? 0 }
         try self.init(rows: r, columns: c, euler: map.eulerInData, phase: phase,
                       symmetries: indexed.map { DefDAPCrystalStructure.operators(for: $0.phase.pointGroup) },
-                      phaseNames: indexed.map { $0.phase.name }, step: map.dx != 0 ? map.dx : 1)
+                      phaseNames: indexed.map { $0.phase.name }, step: map.dx != 0 ? map.dx : 1,
+                      stepY: map.dy != 0 ? map.dy : (map.dx != 0 ? map.dx : 1))
     }
 }
