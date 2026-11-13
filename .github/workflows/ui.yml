@@ -51,6 +51,23 @@ jobs:
         run: |
           echo "DEVELOPER_DIR=/Applications/Xcode_26.6.app/Contents/Developer" >> "$GITHUB_ENV"
           sudo automationmodetool enable-automationmode-without-authentication
+      - name: GitHub runner — a screen as wide as a laptop's
+        # The image's virtual display may be narrower than the shell's step-aside line, and the sidebar then starts hidden, so a
+        # journey that clicks a room in the sidebar finds none. The display is set to the widest mode it offers, as on record.
+        if: runner.environment == 'github-hosted'
+        run: |
+          system_profiler SPDisplaysDataType | grep -E "Resolution|Display Type|UI Looks like" || true
+          brew install displayplacer >/dev/null 2>&1 || true
+          if command -v displayplacer >/dev/null; then
+            displayplacer list | sed -n '1,12p'
+            id=$(displayplacer list | awk -F': ' '/^Persistent screen id/ {print $2; exit}')
+            mode=$(displayplacer list | grep -E '^  mode [0-9]+: res:' | sed -E 's/.*res:([0-9]+)x([0-9]+).*/\1 \2/' | sort -n -k1,1 -k2,2 | tail -1)
+            if [ -n "$id" ] && [ -n "$mode" ]; then
+              set -- $mode
+              displayplacer "id:$id res:${1}x${2} origin:(0,0) degree:0" || true
+            fi
+          fi
+          system_profiler SPDisplaysDataType | grep -E "Resolution|UI Looks like" || true
       - name: Toolchain on record
         run: |
           sw_vers
