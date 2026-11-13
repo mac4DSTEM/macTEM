@@ -21,7 +21,7 @@ nonisolated final class FFTJourney: Journey {
             waitFor("fft.room", timeout: 30)
         }
         try step("show the inspector") {
-            // The inspector is hidden at launch; the spot's spacing is read there.
+            // The spot's spacing is read in the inspector: shown at launch (#587), the key is pressed only if it is not.
             if !element("fft.region.centredSquare").waitForExistence(timeout: 3) { app.typeKey("i", modifierFlags: [.command, .option]) }
             waitFor("fft.region.centredSquare", timeout: 20)
         }
