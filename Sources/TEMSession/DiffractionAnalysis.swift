@@ -83,6 +83,7 @@ package final class DiffractionAnalysis {
         guard boundSize?.0 != image.width || boundSize?.1 != image.height else { return }
         boundSize = (image.width, image.height)
         centre = .imageCentre(width: image.width, height: image.height)
+        dropFitInFlight()
         let dq = fileDeltaQ(image) ?? 0.0125
         setKMax(min(4, max(0.5, (Double(min(image.width, image.height)) / 2 * dq * 10).rounded() / 10)))
     }
@@ -122,12 +123,21 @@ package final class DiffractionAnalysis {
     package func setCentre(row: Double, column: Double) {
         guard row.isFinite, column.isFinite else { return }
         centre = DiffractionCentre(row: row, column: column, source: .typed)
+        dropFitInFlight()
     }
 
     /// Takes the fitted ring's centre as the pattern's (offered, never applied by itself).
     package func useCentre(ofRing id: UUID) {
         guard let fit = rings.first(where: { $0.id == id })?.fit?.fit else { return }
         centre = DiffractionCentre(row: fit.centerQX, column: fit.centerQY, source: .ring)
+        dropFitInFlight()
+    }
+
+    /// A ring fit measures its radius about the centre it started with: once the centre moves its answer is about the wrong point, so
+    /// it must not land and set the scale (macEM#610). The fit is cancelled and its generation retired.
+    private func dropFitInFlight() {
+        guard isFitting else { return }
+        stop()
     }
 
     // MARK: Crystal
