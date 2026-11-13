@@ -102,9 +102,9 @@ package nonisolated enum DictionaryIndexing {
         package var pointCount: Int { isInData.count }
 
         /// The best match of each point.
-        package var bestScores: [Double] { stride(from: 0, to: scores.count, by: keepN).map { scores[$0] } }
-        package var bestSimulationIndices: [Int] { stride(from: 0, to: simulationIndices.count, by: keepN).map { simulationIndices[$0] } }
-        package var bestRotations: [SIMD4<Double>] { stride(from: 0, to: rotations.count, by: keepN).map { rotations[$0] } }
+        package var bestScores: [Double] { stride(from: 0, to: scores.count, by: Swift.max(keepN, 1)).map { scores[$0] } }
+        package var bestSimulationIndices: [Int] { stride(from: 0, to: simulationIndices.count, by: Swift.max(keepN, 1)).map { simulationIndices[$0] } }
+        package var bestRotations: [SIMD4<Double>] { stride(from: 0, to: rotations.count, by: Swift.max(keepN, 1)).map { rotations[$0] } }
 
         /// The result as the app's `CrystalMap`, as kikuchipy builds it: the best match's rotation per point (the identity where the
         /// navigation mask left the point out, which is then not in the data), the dictionary's phase as id 0, orix's

@@ -85,7 +85,7 @@ package nonisolated struct HoughReflectorLibrary: Sendable {
     package init(name: String, spaceGroup: Int, lattice: [Double], reflectors: [[Int]]? = nil,
                  earlyExitBands: Int = 10, angleTolerance: Double = 2.0) throws {
         guard (1...230).contains(spaceGroup) else { throw Error.spaceGroup(spaceGroup) }
-        guard lattice.count == 6, lattice[0] > 0, lattice[1] > 0, lattice[2] > 0 else { throw Error.lattice }
+        guard lattice.count == 6, lattice.allSatisfy(\.isFinite), lattice[0] > 0, lattice[1] > 0, lattice[2] > 0 else { throw Error.lattice }
         let laue = Self.laueCode(spaceGroup: spaceGroup)
         let symmetry = Self.laueRotations(laue)
         guard !symmetry.isEmpty else { throw Error.spaceGroup(spaceGroup) }
@@ -363,7 +363,7 @@ package nonisolated struct HoughReflectorLibrary: Sendable {
             let ca = cos(p[3] * r), cb = cos(p[4] * r), cg = cos(p[5] * r)
             let sa = sin(p[3] * r), sb = sin(p[4] * r), sg = sin(p[5] * r), tg = tan(p[5] * r)
             let det = (a * b * c) * (a * b * c) * (1 - ca * ca - cb * cb - cg * cg + 2 * ca * cb * cg)
-            guard det > 0, sg != 0 else { throw Error.lattice }
+            guard det > 0, det.isFinite, sg != 0 else { throw Error.lattice }
             let volume = det.squareRoot()
             // Symmetric, so the transpose pyEBSDindex takes changes nothing.
             var rmt = Matrix3([(b * c * sa) * (b * c * sa), a * b * c * c * (ca * cb - cg), a * b * b * c * (cg * ca - cb),

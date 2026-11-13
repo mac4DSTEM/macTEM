@@ -157,7 +157,8 @@ package nonisolated enum VirtualBSEImaging {
         for i in 0..<n {
             for c in 0..<3 {
                 let scaled = Double(channels[c][i] - lo) / span * 255
-                out[3 * i + c] = UInt8(min(max(scaled, 0), 255))   // `astype(uint8)`: toward zero
+                // `astype(uint8)`: toward zero; a NaN (a tile with no counts) is 0, as numpy's cast gives it.
+                out[3 * i + c] = scaled.isNaN ? 0 : UInt8(min(max(scaled, 0), 255))
             }
         }
         return out

@@ -127,7 +127,11 @@ package nonisolated enum ANGWriter {
 
     /// orix's `_get_column_width`: the digits of the integer part of the column's largest value, a point, five decimals and
     /// a sign.
-    static func width(_ largest: Double) -> Int { String(Int(largest.rounded(.down))).count + 7 }
+    /// A column whose largest value is not a finite number is as wide as "nan" (orix's `int(nan)` raises there instead).
+    package static func width(_ largest: Double) -> Int {
+        guard let whole = CheckedConversion.int(largest.rounded(.down)) else { return 3 + 7 }
+        return String(whole).count + 7
+    }
 
     /// One property column on the extent, rounded to five decimals and held in float32 (orix's `_get_prop_array`); zeros
     /// when the map has no such property.

@@ -701,7 +701,7 @@ package nonisolated enum IndexingRaster {
         return words.isEmpty ? nil : "grey: " + words.joined(separator: " · ")
     }
 
-    private static func byte(_ v: Double) -> UInt8 { UInt8((min(max(v, 0), 1) * 255).rounded()) }
+    private static func byte(_ v: Double) -> UInt8 { CheckedConversion.unitByte(v) }
 
     private static func meanRange(_ means: [Float]?, count: Int) -> ClosedRange<Float>? {
         guard let means, means.count == count else { return nil }
