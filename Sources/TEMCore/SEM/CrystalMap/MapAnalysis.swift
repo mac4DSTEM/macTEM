@@ -474,14 +474,35 @@ package nonisolated struct MapTexture: Sendable {
     package let phaseID: Int
     package let phaseName: String
     package let points: Int
-    /// The points the ODF sections used (every k-th point of the phase, at most `odfPointLimit`).
+    /// The points the ODF sections used (all of the phase's, or a seeded sample of `odfPointLimit`).
     package let odfPoints: Int
     package let poleFigures: [Figure]
     package let inversePoleFigure: Figure?
     package let odfSections: [Figure]
 
-    /// The ODF sums its kernel over every orientation at every node: past this many points the sections take every k-th point.
+    /// The ODF sums its kernel over every orientation at every node: past this many points the sections take a sample of this many.
     package static let odfPointLimit = 5000
+
+    /// The points the ODF sections take: all up to `limit`, else `limit` of them drawn without replacement by a seeded shuffle, in map
+    /// order. Every k-th point of a row-major map aliased with its columns (macEM#615: a map whose texture alternates by column, with
+    /// a column count that k divides, showed only one of its components). Seeded, so the same map gives the same sections.
+    package static func odfSampleIndices(count: Int, limit: Int = odfPointLimit) -> [Int] {
+        guard count > limit, limit > 0 else { return Array(0..<max(count, 0)) }
+        var indices = Array(0..<count)
+        var state: UInt64 = 0x9E37_79B9_7F4A_7C15
+        func next() -> UInt64 {   // SplitMix64
+            state &+= 0x9E37_79B9_7F4A_7C15
+            var z = state
+            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+            return z ^ (z >> 31)
+        }
+        for i in 0..<limit {
+            let j = i + Int(next() % UInt64(count - i))
+            indices.swapAt(i, j)
+        }
+        return indices[0..<limit].sorted()
+    }
 
     /// The pole families shown for a point group: {100} {110} {111} for cubic, {0001} {10-10} {11-20} for hexagonal, {100} {010}
     /// {001} otherwise.
@@ -531,10 +552,9 @@ package nonisolated struct MapTexture: Sendable {
         let extent = key.sector.stereographicExtent ?? (-1...1, -1...1)
         let inverse = Figure(title: "IPF-Z", raster: TextureRaster.stereographic(ipf, size: size, extent: extent), maximum: ipf.maximum)
 
-        let stride = max(1, (orientations.count + odfPointLimit - 1) / odfPointLimit)
-        let sample = stride == 1 ? orientations
-            : Orientations(quaternions: Swift.stride(from: 0, to: orientations.count, by: stride).map { orientations.quaternions[$0] },
-                           symmetry: orientations.symmetry)
+        let picked = odfSampleIndices(count: orientations.count)
+        let sample = picked.count == orientations.count ? orientations
+            : Orientations(quaternions: picked.map { orientations.quaternions[$0] }, symmetry: orientations.symmetry)
         let odf = sections(for: group).map { phi2 -> Figure in
             let s = OrientationDensity.section(sample, phi2Degrees: phi2, halfWidthDegrees: odfHalfWidth)
             return Figure(title: "φ₂ = \(Int(phi2.rounded()))°", raster: TextureRaster.section(s), maximum: s.maximum)
