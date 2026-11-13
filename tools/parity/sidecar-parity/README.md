@@ -85,7 +85,7 @@ planted doubles round-trip through `repr`), so a planted file can never pass as 
   can be minted), an id not below `next_id`, malformed ids, 2001 nodes (2000 accepted), not JSON, the wrong shape, a missing
   `next_id`, a string where the version belongs; an **unknown version** read as a read-only lineage with no nodes (never
   rewritten, never extended, not refused); an unknown kind kept; an `external` input kept and written back as read; absent
-  collections empty and unknown keys ignored; an id with a sign ("s+1"); and the identity's guards (not JSON, a zero width, a
+  collections empty and unknown keys (on a node and at the root) kept and written back as read; an id with a sign ("s+1"); and the identity's guards (not JSON, a zero width, a
   negative size, an upper-case fingerprint, a missing field).
 - **The name rule** (`urls`): `SCAN.DM4` gives `SCAN.DM4.mactem.h5` verbatim (and `scan.dm4`, `SCAN.TIF`, `a.tif`, `x.emd`,
   names with spaces, dots, a leading dot, "Å" and "µ" in NFC and NFD), beside the source; a source that already ends in
