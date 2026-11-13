@@ -4,11 +4,11 @@
 # Weekly: keeps one open issue, "Periphery weekly scan", up to date with the findings. Findings are for triage; nothing is
 # deleted here.
 # On a pull request that touches Swift: the same scan without the findings .periphery-baseline.json records (triaged and
-# kept) and without Codable properties. A finding that is left is new: it is annotated on the PR as a warning and the job
-# stays green. GitHub keeps only 10 annotations per step and its log shows the warnings without their files, so the job
-# also lists every new finding with its file, line and column: as a table in the job summary (capped at 400 rows), as
-# plain lines in the log of the step "List every new finding", and in the raw scan output, uploaded as the artifact
-# periphery-findings-<run>. Delete the code or, for a false positive, write the baseline again in the same PR:
+# kept) and without Codable properties. A finding that is left is new: it is annotated on the PR and the job fails (since
+# macEM#332; a warning only before). GitHub keeps only 10 annotations per step and its log shows the warnings without
+# their files, so the job also lists every new finding with its file, line and column: as a table in the job summary
+# (capped at 400 rows), as plain lines in the log of the step "List every new finding", and in the raw scan output,
+# uploaded as the artifact periphery-findings-<run>. Delete the code or, for a false positive, write the baseline again in the same PR:
 #   periphery scan --project macTEM.xcodeproj --schemes macTEM --retain-codable-properties \
 #     --write-baseline .periphery-baseline.json -- CODE_SIGNING_ALLOWED=NO
 # Without a Mac: run this workflow by hand on the PR's branch with `write_baseline` ticked, from the Actions page or with
@@ -75,7 +75,7 @@ jobs:
           if [ -n "$n" ]; then gh issue edit "$n" --body-file body.md; else gh issue create --title "$title" --body-file body.md; fi
 
   new-findings:
-    name: New unused code (warning only)
+    name: New unused code
     if: github.event_name == 'pull_request'
     runs-on: macos-26
     timeout-minutes: 60
@@ -100,7 +100,7 @@ jobs:
       - name: List every new finding
         # The scan step's ::warning lines are the findings. Each one goes to this step's log as a plain line (one that does
         # not start with "::", so it stays text) and to the job summary as a table row, both with its file, line and column.
-        # Never fails on a finding: the job is a warning only.
+        # Never fails here: the step "Fail on a new finding" below does, after the upload.
         run: |
           python3 -I - periphery.txt <<'PY'
           import os
@@ -205,6 +205,15 @@ jobs:
           retention-days: 14
           # A re-run of the job uploads under the same name.
           overwrite: true
+      - name: Fail on a new finding
+        # The baseline holds every triaged finding (macEM#332, 2026-11-13), so a finding left is new: delete the code, or for a
+        # false positive write the baseline again in the same PR (the header says how, with or without a Mac).
+        run: |
+          count=$(grep -c '^::warning' periphery.txt || true)
+          if [ "$count" -gt 0 ]; then
+            echo "Periphery: ${count} new finding(s); the step \"List every new finding\" names each" >&2
+            exit 1
+          fi
 
   baseline:
     name: Write the baseline (artifact)
@@ -231,6 +240,11 @@ jobs:
             -- CODE_SIGNING_ALLOWED=NO
           # How the written file differs from the committed one, for the log; the count is for the summary and never fails the step.
           git diff --stat -- .periphery-baseline.json
+          # The file itself, between markers, for a session that cannot download artifacts (a cloud session's proxy refuses
+          # the artifact store): copy the line between the markers into .periphery-baseline.json.
+          echo "----- .periphery-baseline.json -----"
+          python3 -c 'import json; print(json.dumps(json.load(open(".periphery-baseline.json")), separators=(",", ":")))'
+          echo "----- end -----"
           entries=$(python3 -c 'import json; print(len(json.load(open(".periphery-baseline.json"))["v1"]["usrs"]))' || echo "?")
           echo "Periphery: baseline written with ${entries} entries at ${GITHUB_SHA::7}; the artifact periphery-baseline-${GITHUB_RUN_NUMBER} holds the file to commit" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload the baseline
