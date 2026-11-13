@@ -133,6 +133,7 @@ package nonisolated struct GrainOrientationStatistics: Sendable, Equatable {
 
     package static func compute(_ map: GrainMap, segmentation: GrainSegmentation) -> GrainOrientationStatistics {
         // Never nil: nothing cancels it.
+        // swiftlint:disable:next force_unwrapping
         compute(map, segmentation: segmentation, isCancelled: { false })!
     }
 

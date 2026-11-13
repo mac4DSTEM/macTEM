@@ -137,7 +137,7 @@ package nonisolated enum KikuchiOverlay {
             let present = members.filter { planes.contains($0) }
             assigned.formUnion(present)
             assigned.insert(h)
-            let rep = (present + [h]).max { ($0.x, $0.y, $0.z) < ($1.x, $1.y, $1.z) }!
+            let rep = present.reduce(h) { ($0.x, $0.y, $0.z) < ($1.x, $1.y, $1.z) ? $1 : $0 }   // the largest of the family and h
             families.append((rep, lattice.dSpacing(SIMD3(Double(rep.x), Double(rep.y), Double(rep.z)))))
         }
         families.sort { $0.d != $1.d ? $0.d > $1.d : ($0.rep.x, $0.rep.y, $0.rep.z) > ($1.rep.x, $1.rep.y, $1.rep.z) }

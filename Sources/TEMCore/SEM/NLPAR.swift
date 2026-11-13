@@ -311,7 +311,7 @@ package nonisolated enum NLPAR {
     /// numpy's `pairwise_sum` (blocks of 128, eight accumulators below that), the order `np.sum` and `np.mean` add in.
     static func pairwiseSum(_ a: [Double]) -> Double {
         guard !a.isEmpty else { return 0 }
-        return a.withUnsafeBufferPointer { pairwiseSum($0.baseAddress!, a.count) }
+        return a.withUnsafeBufferPointer { b in b.baseAddress.map { pairwiseSum($0, a.count) } ?? 0 }
     }
 
     private static func pairwiseSum(_ a: UnsafePointer<Double>, _ n: Int) -> Double {
@@ -446,7 +446,9 @@ package nonisolated enum NLPAR {
         data.withUnsafeBufferPointer { d in
             indices.withUnsafeBufferPointer { idx in
                 sigma.withUnsafeBufferPointer { sg in
-                    let shared = Shared(data: d.baseAddress!, indices: idx.baseAddress!, sigma: sg.baseAddress!, out: out)
+                    // A tile with no pattern, no neighbour index or no sigma has nothing to average.
+                    guard let dataBase = d.baseAddress, let indexBase = idx.baseAddress, let sigmaBase = sg.baseAddress else { return }
+                    let shared = Shared(data: dataBase, indices: indexBase, sigma: sigmaBase, out: out)
                     let nIdx = idx.count
                     DispatchQueue.concurrentPerform(iterations: calcColumns.count) { ii in
                         let dp = shared.data, ip = shared.indices, sp = shared.sigma, op = shared.out
@@ -547,9 +549,10 @@ package nonisolated enum NLPAR {
                     for (li, i) in cc.enumerated() { tileSigma[lj * cc.count + li] = sigma[j * columns + i] }
                 }
                 result.values.withUnsafeMutableBufferPointer { dst in
+                    guard let target = dst.baseAddress else { return }   // an empty result has no tile to write
                     tileAverage(data, rows: rr.count, columns: cc.count, pixels: px, sigma: tileSigma, lambda: Float(lambda),
                                 searchRadius: sr, dthresh: dthresh, indices: indices, saturationProtect: saturationProtect,
-                                calcColumns: cStart..<cEnd, calcRows: rStart..<rEnd, into: dst.baseAddress!,
+                                calcColumns: cStart..<cEnd, calcRows: rStart..<rEnd, into: target,
                                 origin: (row: rr.lowerBound, column: cc.lowerBound), scanColumns: columns, isCancelled: isCancelled)
                 }
                 if isCancelled() { throw CancellationError() }

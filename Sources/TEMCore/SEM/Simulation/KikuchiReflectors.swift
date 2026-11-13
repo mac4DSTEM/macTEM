@@ -143,7 +143,7 @@ package nonisolated struct KikuchiReflectors: Sendable, Equatable {
         for (i, f) in family.enumerated() where firstOfFamily[f] == nil { firstOfFamily[f] = i }
         var memo: [Int: Double] = [:]
         return family.map { f in
-            let i = firstOfFamily[f]!
+            let i = firstOfFamily[f, default: 0]   // every family was entered above
             if let known = memo[i] { return known }
             let v = hkl[i]
             let g = l.rnorm(v)

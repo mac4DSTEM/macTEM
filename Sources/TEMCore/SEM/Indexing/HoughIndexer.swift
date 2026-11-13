@@ -90,7 +90,7 @@ package nonisolated struct HoughIndexer: Sendable {
         self.projectionCenter = projectionCenter
         self.sampleTilt = sampleTilt
         self.cameraElevation = cameraElevation
-        earlyExitBands = phases.map(\.earlyExitBands).max()!
+        earlyExitBands = phases.map(\.earlyExitBands).max() ?? 0   // no phase, no band to wait for
     }
 
     // MARK: - One pattern

@@ -235,8 +235,10 @@ package nonisolated enum ImageExport {
     private static func fillPixels(_ display: Display, into bytes: UnsafeMutablePointer<UInt8>, bytesPerRow: Int) {
         let width = display.width, height = display.height
         // `render` has checked the 1024-byte LUT.
+        // swiftlint:disable:next force_unwrapping — `render` has checked the 1024-byte LUT, the one thing that makes this nil.
         let mapping = DisplayMapping(low: display.low, high: display.high, gamma: display.gamma, lut: display.lut)!
         display.normalized.withUnsafeBufferPointer { canvas in
+            // swiftlint:disable:next force_unwrapping — the canvas holds width × height > 0 values (`render` refused an empty image).
             let shared = SharedBuffers(source: canvas.baseAddress!, target: bytes)
             let bands = max(1, min(height, ProcessInfo.processInfo.activeProcessorCount * 4))
             DispatchQueue.concurrentPerform(iterations: bands) { band in

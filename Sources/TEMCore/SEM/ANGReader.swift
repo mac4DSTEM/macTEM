@@ -235,7 +235,7 @@ package nonisolated enum ANGReader {
         else if n > phaseIDs.count {
             // The phases without a `Phase` line take the ids after the largest; an id with no room after it in an Int is refused
             // (orix's Python ints never run out).
-            let largest = phaseIDs.max()!
+            let largest = phaseIDs.max() ?? 0   // a phase list with no id starts after 0
             let next = largest.addingReportingOverflow(1)
             let end = next.partialValue.addingReportingOverflow(n - phaseIDs.count)
             guard !next.overflow, !end.overflow else {

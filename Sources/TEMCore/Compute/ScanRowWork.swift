@@ -59,7 +59,8 @@ private nonisolated final class ColumnSlots<T: Sendable>: @unchecked Sendable {
     func results() throws -> [T] {
         try lock.withLock { () throws -> [T] in
             if let first = firstFailure { throw first.error }
-            return slots.map { $0! }
+            // Every slot was filled: no failure was recorded, so each row ran to its end.
+            return slots.compactMap { $0 }
         }
     }
 }

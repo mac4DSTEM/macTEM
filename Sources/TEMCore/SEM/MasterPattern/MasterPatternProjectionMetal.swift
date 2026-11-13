@@ -70,8 +70,8 @@ package nonisolated enum MasterPatternProjectionMetal {
         let outputBytes = rotations.count * pixels * MemoryLayout<Float>.stride
         guard let qBuffer = p.device.makeBuffer(bytes: quaternions, length: quaternions.count * MemoryLayout<SIMD4<Float>>.stride, options: .storageModeShared),
               let dcBuffer = p.device.makeBuffer(bytes: cosines, length: cosines.count * MemoryLayout<SIMD4<Float>>.stride, options: .storageModeShared),
-              let upBuffer = Array(upper).withUnsafeBytes({ p.device.makeBuffer(bytes: $0.baseAddress!, length: $0.count, options: .storageModeShared) }),
-              let loBuffer = Array(lower).withUnsafeBytes({ p.device.makeBuffer(bytes: $0.baseAddress!, length: $0.count, options: .storageModeShared) }),
+              let upBuffer = Array(upper).withUnsafeBytes({ b in b.baseAddress.flatMap { p.device.makeBuffer(bytes: $0, length: b.count, options: .storageModeShared) } }),
+              let loBuffer = Array(lower).withUnsafeBytes({ b in b.baseAddress.flatMap { p.device.makeBuffer(bytes: $0, length: b.count, options: .storageModeShared) } }),
               let outBuffer = p.device.makeBuffer(length: outputBytes, options: .storageModeShared),
               let commands = p.queue.makeCommandBuffer(),
               let encoder = commands.makeComputeCommandEncoder() else {

@@ -114,7 +114,7 @@ extension EBSDDetectorGeometry {
         let b = gnomonicBounds(pc)
         let corners = [b.xMin * b.xMin + b.yMin * b.yMin, b.xMax * b.xMax + b.yMin * b.yMin,
                        b.xMax * b.xMax + b.yMax * b.yMax, b.xMin * b.xMin + b.yMin * b.yMin]
-        return corners.max()!.squareRoot()
+        return (corners.max() ?? 0).squareRoot()   // four corners, never empty
     }
 
     /// Pixel coordinates (y, x) to gnomonic (gy, gx) for the Bruker centre `pc` (`to_gnomonic_coords`): linear over the

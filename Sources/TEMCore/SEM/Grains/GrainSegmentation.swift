@@ -43,6 +43,7 @@ package nonisolated struct GrainBoundaries: Sendable, Equatable {
     /// The boundaries at `thresholdDegrees` (DefDAP's default 10°).
     package static func find(in map: GrainMap, thresholdDegrees: Double = 10) -> GrainBoundaries {
         // Never nil: nothing cancels it.
+        // swiftlint:disable:next force_unwrapping
         find(in: map, thresholdDegrees: thresholdDegrees, isCancelled: { false })!
     }
 
@@ -118,6 +119,7 @@ package nonisolated struct GrainSegmentation: Sendable, Equatable {
     /// `find_grains(min_grain_size)` on boundaries found in `map`.
     package static func find(in map: GrainMap, boundaries: GrainBoundaries, minimumSize: Int = 10) -> GrainSegmentation {
         // Never nil: nothing cancels it.
+        // swiftlint:disable:next force_unwrapping
         find(in: map, boundaries: boundaries, minimumSize: minimumSize, isCancelled: { false })!
     }
 

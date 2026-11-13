@@ -214,8 +214,9 @@ package nonisolated enum EELSWindowPlan {
     package static func groups(of edges: [CoreLossEdge]) -> [[CoreLossEdge]] {
         var byKey: [String: [CoreLossEdge]] = [:]
         for e in edges { byKey[e.element + " " + e.family, default: []].append(e) }
-        let groups = byKey.values.map { $0.sorted { $0.subshell < $1.subshell } }
-        return groups.sorted { ($0.last!.onsetEV, $0.last!.element) < ($1.last!.onsetEV, $1.last!.element) }
+        // Each group holds at least the edge that created its key, so `last` is never nil; the empty ones are dropped anyway.
+        let groups = byKey.values.map { $0.sorted { $0.subshell < $1.subshell } }.filter { !$0.isEmpty }
+        return groups.sorted { ($0[$0.count - 1].onsetEV, $0[$0.count - 1].element) < ($1[$1.count - 1].onsetEV, $1[$1.count - 1].element) }
     }
 
     /// The window of every group in onset order. A group not in `edited` has the kit's defaults, squeezed by the neighbours' final windows.
@@ -223,14 +224,14 @@ package nonisolated enum EELSWindowPlan {
         let groups = groups(of: edges)
         var out: [Entry] = []
         for (i, group) in groups.enumerated() {
-            let master = group.last!
+            guard let master = group.last else { continue }
             let key = EELSFitCompute.id(master)
             if let w = edited[key] { out.append(Entry(master: master, edges: group, windows: w, isEdited: true)); continue }
             // The preceding edge's window and name are handed over, so the kit's close-edge rule (a window narrower than 20 eV shares the preceding
             // edge's window, with a note) can apply. Not its onset: the stretch between the onsets holds the preceding edge, which only a stripping
             // fit removes, and the room does not strip (`EELSModelOptions.stripPrecedingEdges` is off: it over-strips O K on the real a-C maps).
             let defaults = EdgeWindows.defaults(onsetEV: master.onsetEV, family: master.family, precedingSignalEndEV: out.last?.windows.signal.upperBound,
-                                                nextOnsetEV: i + 1 < groups.count ? groups[i + 1].last!.onsetEV : nil, axis: axis,
+                                                nextOnsetEV: i + 1 < groups.count ? groups[i + 1].last?.onsetEV : nil, axis: axis,
                                                 precedingOnsetEV: nil, precedingBackgroundEV: out.last?.windows.background,
                                                 precedingName: out.last.map { EELSFitCompute.id($0.master) })
             out.append(Entry(master: master, edges: group, windows: EELSEdgeWindows(defaults), isEdited: false))

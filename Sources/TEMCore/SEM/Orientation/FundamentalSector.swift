@@ -128,7 +128,8 @@ package nonisolated struct FundamentalSector: Sendable {
         let xy = StereographicProjection(pole: -1).vectorToXY(edges)
         guard !xy.isEmpty else { return nil }
         let xs = xy.map { Rotation.round($0.x, decimals: 11) }, ys = xy.map { Rotation.round($0.y, decimals: 11) }
-        return (xs.min()!...xs.max()!, ys.min()!...ys.max()!)
+        guard let x0 = xs.min(), let x1 = xs.max(), let y0 = ys.min(), let y1 = ys.max() else { return nil }
+        return (x0...x1, y0...y1)
     }
 }
 
