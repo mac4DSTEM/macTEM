@@ -497,6 +497,10 @@ package nonisolated enum EBSDH5Reader {
         guard contiguousEvenCounts(rows), contiguousEvenCounts(columns) else { return nil }
         let ny = maxRow - minRow + 1
         let nx = maxColumn - minColumn + 1
+        // Every position of the rectangle once: kikuchipy's reshape to (ny, nx) fails on any other count, and a sparse region would
+        // size the index map by ny · nx, not by the patterns there are.
+        let (area, overflow) = ny.multipliedReportingOverflow(by: nx)
+        guard !overflow, area == rows.count else { return nil }
         let ravelled = (0..<rows.count).map { (rows[$0] - minRow) * nx + (columns[$0] - minColumn) }
         let argsort = ravelled.indices.sorted { ravelled[$0] < ravelled[$1] }
         var order = [Int?](repeating: nil, count: ny * nx)

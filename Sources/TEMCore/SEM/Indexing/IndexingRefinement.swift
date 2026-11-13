@@ -227,8 +227,6 @@ package nonisolated enum IndexingRefinement {
                     pcs[p] = res[k].pc
                 }
             }
-        } catch EBSDRefinement.Error.flatPattern(let k) {
-            throw IndexingRefusal("The pattern at \(scanPoint(k)) is flat, so it cannot be compared.")
         } catch EBSDRefinement.Error.solver(let k, let text) {
             throw IndexingRefusal("Refining the pattern at \(scanPoint(k)) failed: \(text)")
         }

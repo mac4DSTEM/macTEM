@@ -164,9 +164,20 @@ package nonisolated struct CSRSpectrumImage: SpectrumImage, Equatable {
     package let channelIndex: [UInt16]
     package let counts: [UInt32]
 
-    package init(ny: Int, nx: Int, channels: Int, rowOffsets: [Int], channelIndex: [UInt16], counts: [UInt32]) {
-        precondition(rowOffsets.count == ny * nx + 1 && channelIndex.count == counts.count && rowOffsets.last == counts.count,
-                     "CSRSpectrumImage: the rows must describe the counts")
+    /// Checked whole, so no later read can index past the counts or past a spectrum: `ny · nx + 1` offsets from 0, never
+    /// decreasing, ending at the count of entries, and every channel below `channels`. A reader's damaged file is refused here.
+    package init(ny: Int, nx: Int, channels: Int, rowOffsets: [Int], channelIndex: [UInt16], counts: [UInt32]) throws {
+        let pixels = ny.multipliedReportingOverflow(by: nx)
+        guard ny >= 0, nx >= 0, channels > 0, !pixels.overflow, rowOffsets.count == pixels.partialValue + 1,
+              rowOffsets.first == 0, rowOffsets.last == counts.count, channelIndex.count == counts.count else {
+            throw SEMEDSReadError("The spectrum image's pixel table does not describe its \(counts.count) counts for \(ny) x \(nx) pixels.")
+        }
+        for (a, b) in zip(rowOffsets, rowOffsets.dropFirst()) where b < a {
+            throw SEMEDSReadError("The spectrum image's pixel table runs backwards (offset \(b) after \(a)).")
+        }
+        if let wide = channelIndex.first(where: { Int($0) >= channels }) {
+            throw SEMEDSReadError("The spectrum image has a count in channel \(wide), beyond its \(channels) channels.")
+        }
         self.ny = ny; self.nx = nx; self.channels = channels
         self.rowOffsets = rowOffsets; self.channelIndex = channelIndex; self.counts = counts
     }
@@ -190,12 +201,13 @@ package nonisolated struct CSRSpectrumImage: SpectrumImage, Equatable {
     }
 
     package func sum(mask: PixelMask?) -> [UInt64] {
-        // The closure never answers true, so the throwing core cannot throw.
-        try! sum(mask: mask, cancelled: { false }, progress: nil)
+        // The closure never answers true, so the throwing core cannot throw; the zeros are never returned.
+        (try? sum(mask: mask, cancelled: { false }, progress: nil)) ?? [UInt64](repeating: 0, count: channels)
     }
 
     package func sum(mask: PixelMask?, cancelled: @Sendable () -> Bool, progress: (@Sendable (Double) -> Void)?) throws -> [UInt64] {
-        precondition(mask == nil || mask!.count == ny * nx, "mask length must be ny*nx")
+        // `SpectrumImage`'s contract: a mask of the wrong length is a programming error (masks are made from ny and nx), not file data.
+        precondition(mask.map { $0.count == ny * nx } ?? true, "mask length must be ny*nx")
         var out = [UInt64](repeating: 0, count: channels)
         let n = ny * nx
         for start in stride(from: 0, to: n, by: Self.blockPixels) {
@@ -211,7 +223,8 @@ package nonisolated struct CSRSpectrumImage: SpectrumImage, Equatable {
     }
 
     package func windowSums(_ ranges: [Range<Int>]) -> [[UInt64]] {
-        try! windowSums(ranges, cancelled: { false }, progress: nil)
+        // Never cancelled, so the throwing core cannot throw; the empty answer is never returned.
+        (try? windowSums(ranges, cancelled: { false }, progress: nil)) ?? []
     }
 
     package func windowSums(_ ranges: [Range<Int>], cancelled: @Sendable () -> Bool,
@@ -274,10 +287,14 @@ package nonisolated struct CSRSpectrumImageBuilder {
         rowOffsets.append(counts.count)
     }
 
-    /// Empty pixels up to the end of the image, then the image.
-    package mutating func finish() -> CSRSpectrumImage {
+    /// Empty pixels up to the end of the image, then the image, checked whole (`CSRSpectrumImage.init`): more pixels than the
+    /// image holds, or a channel past its last, is refused.
+    package mutating func finish() throws -> CSRSpectrumImage {
+        guard rowOffsets.count <= ny * nx + 1 else {
+            throw SEMEDSReadError("The spectrum image holds \(rowOffsets.count - 1) pixels, more than its \(ny) x \(nx).")
+        }
         while rowOffsets.count < ny * nx + 1 { rowOffsets.append(counts.count) }
-        return CSRSpectrumImage(ny: ny, nx: nx, channels: channels, rowOffsets: rowOffsets, channelIndex: channelIndex, counts: counts)
+        return try CSRSpectrumImage(ny: ny, nx: nx, channels: channels, rowOffsets: rowOffsets, channelIndex: channelIndex, counts: counts)
     }
 }
 

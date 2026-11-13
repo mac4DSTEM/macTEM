@@ -231,15 +231,16 @@ package final class EBSDSession {
             do {
                 // NLPAR's λ travels with this run's result, so a stopped run never hands its λ to the run that stays.
                 var chosenLambda: Double?
+                var unusable: [EBSDPosition] = []
                 let result = try await withTaskCancellationHandler {
                     try pipeline.process(access, background: background, progress: { f in
                         Task { @MainActor in self?.landProcessProgress(f, generation: gen, processRun: runID) }
-                    }, isCancelled: { stopped.isRaised }, lambda: { chosenLambda = $0 })
+                    }, isCancelled: { stopped.isRaised }, lambda: { chosenLambda = $0 }, unusable: { unusable = $0 })
                 } onCancel: {
                     stopped.raise()
                 }
                 await self?.landProcessed(result, with: pipeline, lambda: chosenLambda, failure: nil, seconds: Date().timeIntervalSince(started),
-                                          generation: gen, processRun: runID)
+                                          generation: gen, processRun: runID, unusable: unusable)
             } catch {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 await self?.landProcessed(nil, with: pipeline, lambda: nil, failure: words, seconds: 0, generation: gen, processRun: runID)
@@ -249,13 +250,21 @@ package final class EBSDSession {
         return Task { await task.value }
     }
 
+    /// " · 1 pattern not usable (row r, column c)" or " · n patterns not usable, the first at row r, column c": a pattern no stage
+    /// could take (a flat one cannot be rescaled) holds 0 or NaN in the processed scan. Empty when every pattern was usable.
+    package static func unusableWords(_ positions: [EBSDPosition]) -> String {
+        guard let first = positions.first else { return "" }
+        let at = "row \(first.row), column \(first.column)"
+        return positions.count == 1 ? " · 1 pattern not usable (\(at))" : " · \(positions.count) patterns not usable, the first at \(at)"
+    }
+
     private func landProcessProgress(_ f: Double, generation gen: Int, processRun runID: Int) {
         guard gen == generation, runID == processRun, isProcessing else { return }
         processProgress = f
     }
 
     private func landProcessed(_ result: EBSDMemoryPatterns?, with run: PatternPipeline, lambda: Double?, failure: String?, seconds: Double,
-                               generation gen: Int, processRun runID: Int) {
+                               generation gen: Int, processRun runID: Int, unusable: [EBSDPosition] = []) {
         guard gen == generation, runID == processRun, isProcessing else { return }
         isProcessing = false
         if let result {
@@ -266,7 +275,7 @@ package final class EBSDSession {
             let mb = Double(result.bytes.count) / 1_000_000
             let nlpar = run.nlpar.isOn ? lambda.map { " · NLPAR λ \(SessionEventFormat.fixed($0, 3))" } ?? "" : ""
             onEvent?("Processed \(result.dataset.patternCount) patterns in \(SessionEventFormat.fixed(seconds, 1)) s · \(SessionEventFormat.fixed(mb, 1)) MB in memory"
-                + nlpar)
+                + nlpar + Self.unusableWords(unusable))
             // Already showing Processed: re-draw, so the pane trades the one-pattern preview for the run (the whole-scan stages show).
             if patternDisplay == .processed { showPattern(at: pinned) } else { setPatternDisplay(.processed) }
         } else if let failure {

@@ -30,7 +30,6 @@ package nonisolated enum EBSDRefinement {
         case trustRegion(expected: Int, got: Int)
         case maskSize(mask: Int, pixels: Int)
         case emptyMask
-        case flatPattern(Int)
         case noIndexedPoints
         case moreThanOnePhase([String])
         case phaseMismatch(map: String, master: String)
@@ -44,7 +43,6 @@ package nonisolated enum EBSDRefinement {
             case .trustRegion(let e, let g): return "The trust region needs \(e) values, not \(g)."
             case .maskSize(let m, let p): return "The signal mask has \(m) pixels; the detector has \(p)."
             case .emptyMask: return "The signal mask leaves no detector pixel to compare."
-            case .flatPattern(let i): return "Pattern \(i) is flat, so it cannot be compared."
             case .noIndexedPoints: return "The crystal map has no indexed point to refine."
             case .moreThanOnePhase(let names): return "Refine one phase at a time; the points to refine are \(names.joined(separator: ", "))."
             case .phaseMismatch(let m, let mp): return "The map's phase is \(m) but the master pattern's is \(mp)."
@@ -256,7 +254,9 @@ package nonisolated enum EBSDRefinement {
         return try perPattern(patterns.count, isCancelled: isCancelled) { (i: Int) throws -> OrientationResult in
             let base = patterns.values[(i * patterns.pixels)..<((i + 1) * patterns.pixels)]
             guard let exp = prepare(ArraySlice(kept.map { base[base.startIndex + $0] }), rescale: patterns.isFloat32) else {
-                throw Error.flatPattern(i)
+                // A flat pattern: kikuchipy's NCC is NaN there and the run carries on, so this one is NaN, its start kept.
+                let start = starts[i].first ?? SIMD3(repeating: .nan)
+                return OrientationResult(score: .nan, evaluations: 0, euler: start, pseudoSymmetryIndex: nil)
             }
             let dc = shared ?? directionCosines(detector, pc: pcs[i], sampleToDetector: m, kept: kept)
             var best: (result: NelderMead.Result, index: Int)?
@@ -286,11 +286,11 @@ package nonisolated enum EBSDRefinement {
         let pcs = detector.projectionCenters
         return try perPattern(patterns.count, isCancelled: isCancelled) { (i: Int) throws -> ProjectionCenterResult in
             let base = patterns.values[(i * patterns.pixels)..<((i + 1) * patterns.pixels)]
+            let pc0 = pcs.count == 1 ? pcs[0] : pcs[i]
             guard let exp = prepare(ArraySlice(kept.map { base[base.startIndex + $0] }), rescale: patterns.isFloat32) else {
-                throw Error.flatPattern(i)
+                return ProjectionCenterResult(score: .nan, evaluations: 0, pc: pc0)   // flat: NaN, as kikuchipy carries on
             }
             let q = rotations[i]
-            let pc0 = pcs.count == 1 ? pcs[0] : pcs[i]
             let x0 = [pc0.x, pc0.y, pc0.z]
             let res = try NelderMead.minimize({ x in
                 let dc = directionCosines(detector, pc: SIMD3(x[0], x[1], x[2]), sampleToDetector: m, kept: kept)
@@ -312,10 +312,11 @@ package nonisolated enum EBSDRefinement {
         let pcs = detector.projectionCenters
         return try perPattern(patterns.count, isCancelled: isCancelled) { (i: Int) throws -> OrientationProjectionCenterResult in
             let base = patterns.values[(i * patterns.pixels)..<((i + 1) * patterns.pixels)]
-            guard let exp = prepare(ArraySlice(kept.map { base[base.startIndex + $0] }), rescale: patterns.isFloat32) else {
-                throw Error.flatPattern(i)
-            }
             let pc0 = pcs.count == 1 ? pcs[0] : pcs[i]
+            guard let exp = prepare(ArraySlice(kept.map { base[base.startIndex + $0] }), rescale: patterns.isFloat32) else {
+                let start = starts[i].first ?? SIMD3(repeating: .nan)   // flat: NaN, as kikuchipy carries on
+                return OrientationProjectionCenterResult(score: .nan, evaluations: 0, euler: start, pc: pc0, pseudoSymmetryIndex: nil)
+            }
             var best: (result: NelderMead.Result, index: Int)?
             for (k, start) in starts[i].enumerated() {
                 let x0 = [start.x, start.y, start.z, pc0.x, pc0.y, pc0.z]

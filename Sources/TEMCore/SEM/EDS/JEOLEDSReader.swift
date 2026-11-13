@@ -184,6 +184,16 @@ package nonisolated enum JEOLEDSReader {
         return n
     }
 
+    /// rsciio's field of view in µm, `ScanSize / Mag · 1000`; a magnification of zero, below zero or not a number gives no length,
+    /// so the file is refused in words rather than calibrated with an infinite scale.
+    package static func fieldWidth(scanSize: Double, magnification: Double, file: String) throws -> Double {
+        let width = scanSize / magnification * 1.0e3
+        guard magnification > 0, width.isFinite else {
+            throw SEMEDSReadError("\(file) states a magnification of \(magnification), so its map has no length scale.")
+        }
+        return width
+    }
+
     static func number(_ root: Node, _ keys: String..., file: String) throws -> Double {
         var n = root
         for k in keys {
@@ -239,7 +249,7 @@ package nonisolated enum JEOLEDSReader {
         for i in 0..<min(bits.count, pixels.count) { pixels[i] = UInt32(bits[i]) }
         let scanSize = try number(tree, "Instrument", "ScanSize", file: name)
         let mag = try number(tree, "Instrument", "Mag", file: name)
-        let scale = scanSize / mag * 1.0e3
+        let scale = try Self.fieldWidth(scanSize: scanSize, magnification: mag, file: name)
         let created = try number(tree, "Image", "Created", file: name)
         let hv = try number(tree, "Instrument", "AccV", file: name)
         var md = SEMEDSMetadata()
@@ -372,7 +382,7 @@ package nonisolated enum JEOLEDSReader {
         let channels = 4096
         let mag = try number(meas, "MeasCond", "Mag", file: name)
         let scanSize = try number(header, "PTTD Param", "Params", "PARAMPAGE0_SEM", "ScanSize", file: name)
-        let scale = scanSize / mag * 1.0e3
+        let scale = try Self.fieldWidth(scanSize: scanSize, magnification: mag, file: name)
         let template = try string(meas, "Meas Cond", "Tpl", file: name)
         let coefA = try number(meas, "Doc", "CoefA", file: name), coefB = try number(meas, "Doc", "CoefB", file: name)
         let digZ = try number(header, "PTTD Param", "Params", "PARAMPAGE1_EDXRF", "Tpl", template, "DigZ", file: name)
@@ -400,7 +410,7 @@ package nonisolated enum JEOLEDSReader {
             }
             builder.append(channels: cs, counts: vs)
         }
-        let cube = builder.finish()
+        let cube = try builder.finish()
 
         let hv = try number(meas, "MeasCond", "AccKV", file: name)
         let m = mode(hv)

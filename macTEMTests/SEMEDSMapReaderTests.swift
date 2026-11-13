@@ -257,8 +257,8 @@ nonisolated final class SEMEDSMapReaderTests: XCTestCase {
     }
 
     /// The CSR store sums as a dense cube does: a mask, windows. Mutation: a window's upper bound made inclusive.
-    func testTheSparseStoreSumsExactly() {
-        let cube = CSRSpectrumImage(ny: 1, nx: 3, channels: 4, rowOffsets: [0, 2, 2, 4], channelIndex: [0, 3, 1, 2], counts: [5, 7, 1, 2])
+    func testTheSparseStoreSumsExactly() throws {
+        let cube = try CSRSpectrumImage(ny: 1, nx: 3, channels: 4, rowOffsets: [0, 2, 2, 4], channelIndex: [0, 3, 1, 2], counts: [5, 7, 1, 2])
         XCTAssertEqual(cube.sum(mask: nil), [5, 1, 2, 7])
         XCTAssertEqual(cube.sum(mask: [false, true, true]), [0, 1, 2, 0])
         XCTAssertEqual(cube.windowSums([0..<2, 2..<4]), [[5, 0, 1], [7, 0, 2]])
