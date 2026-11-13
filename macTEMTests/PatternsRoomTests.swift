@@ -260,11 +260,11 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         XCTAssertTrue(info["Patterns"]?.contains("· 5 × 4 px ·") == true, info["Patterns"] ?? "none")
         XCTAssertEqual(EBSDBrowsing.calibrationRows(dataset).first { $0.label == "Pattern" }?.value.hasPrefix("5 × 4 px"), true)
         var bin = PatternPipeline.roomDefault
-        bin.binning = 3
+        bin.binning = 2  // one of the offered binnings (#607 refuses any other first), which 5 columns do not divide
         bin.staticStage.isOn = false  // the fixture carries no static background, which would be refused first
         bin.dynamicStage.isOn = false
         XCTAssertEqual(bin.refusal(for: dataset, background: nil)?.sentence,
-                       "Bin 3 does not divide the 5 × 4 px pattern.")
+                       "Bin 2 does not divide the 5 × 4 px pattern.")
         let wrong = try FormatoArray(dataType: .uint8, shape: [2, 3], bytes: Data([1, 2, 3, 4, 5, 6]))
         XCTAssertEqual(PatternPipeline.roomDefault.refusal(for: dataset, background: wrong)?.sentence.hasPrefix(
             "Static background is 3 × 2 uint8, the patterns are 5 × 4 "), true)
