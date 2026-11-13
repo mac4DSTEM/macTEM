@@ -98,15 +98,17 @@ final class IndexingRoomState {
                 data = Data(result.csv(stepX: document.dataset.stepX, stepY: document.dataset.stepY).utf8)
             case .ang:
                 guard let map = try session.crystalMap() else { report("Nothing to export yet: the run has not started."); return }
-                let options = result.method == .dictionary ? IndexingResult.dictionaryAngOptions : IndexingResult.angOptions
+                var options = result.method == .dictionary ? IndexingResult.dictionaryAngOptions : IndexingResult.angOptions
+                options.acquisition = session.exportAcquisition(software: ExportSnapshot.provenance())
                 data = Data(try ANGWriter.text(of: map, options: options).utf8)
             case .ctf:
                 guard let map = try session.crystalMap() else { report("Nothing to export yet: the run has not started."); return }
                 let project = (document.fileName as NSString).deletingPathExtension
-                data = Data(try CTFWriter.text(of: IndexingResult.ctfColumns(map), project: project).utf8)
+                data = Data(try CTFWriter.text(of: IndexingResult.ctfColumns(map), project: project, author: ExportSnapshot.softwareName(),
+                                               acquisition: session.exportAcquisition(software: ExportSnapshot.provenance())).utf8)
             case .methodJSON:
                 guard let json = try session.methodJSON() else { report("Nothing to export yet: the run has not started."); return }
-                data = json
+                data = try ExportSnapshot.stampingProvenance(json)
             }
         } catch {
             report("Export failed: \(error.localizedDescription)"); return

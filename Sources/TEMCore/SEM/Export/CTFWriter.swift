@@ -28,8 +28,10 @@ package nonisolated enum CTFWriter {
     /// orix's reader's Laue group ids (`_get_phases_from_header`), inverted.
     package static let laueIDs = ["-1": 1, "2/m": 2, "mmm": 3, "4/m": 4, "4/mmm": 5, "-3": 6, "-3m": 7, "6/m": 8, "6/mmm": 9, "m-3": 10, "m-3m": 11]
 
-    /// The file's text; `project` is the `Prj` line, `author` the `Author` line.
-    package static func text(of map: CrystalMap, project: String = "macEM", author: String = "macEM") throws -> String {
+    /// The file's text; `project` is the `Prj` line, `author` the `Author` line. `acquisition` fills the CS0 line's Mag, KV and TiltAngle
+    /// where the session knows them (0, the reference writer's, otherwise; macEM#616).
+    package static func text(of map: CrystalMap, project: String = "macEM", author: String = "macEM",
+                             acquisition: CrystalMapAcquisition? = nil) throws -> String {
         let grid = try CrystalMapExtent(map)
         let n = grid.count
         let phases = map.phases.entries.filter { $0.id != PhaseList.notIndexedID }
@@ -37,7 +39,9 @@ package nonisolated enum CTFWriter {
         var out = "Channel Text File\nPrj\t\(project)\nAuthor\t\(author)\nJobMode\tGrid\nXCells\t\(grid.columns)\nYCells\t\(grid.rows)\n"
         out += "XStep\t\(String(format: "%.4f", grid.dx))\nYStep\t\(String(format: "%.4f", grid.dy))\n"
         out += "AcqE1\t0.0000\nAcqE2\t0.0000\nAcqE3\t0.0000\n"
-        out += "Euler angles refer to Sample Coordinate system (CS0)!\tMag\t0\tCoverage\t100\tDevice\t0\tKV\t0\tTiltAngle\t0\tTiltAxis\t0\n"
+        let number = CrystalMapAcquisition.headerNumber
+        out += "Euler angles refer to Sample Coordinate system (CS0)!\tMag\t\(number(acquisition?.magnification))\tCoverage\t100\tDevice\t0"
+            + "\tKV\t\(number(acquisition?.beamEnergyKeV))\tTiltAngle\t\(number(acquisition?.sampleTiltDegrees))\tTiltAxis\t0\n"
         out += "Phases\t\(phases.count)\n"
         for (i, entry) in phases.enumerated() {
             let phase = entry.phase

@@ -715,7 +715,7 @@ nonisolated enum MapsFigure {
     /// A figure as PNG bytes through the app's one encoder (`ImageExport.encodePNG`), the file's name as its Title and macEM as
     /// its Software, as the Patterns room's map PNG carries them.
     private static func encoded(_ image: CGImage, fileName: String) throws -> Data {
-        guard let png = try? ImageExport.encodePNG(image, title: fileName, software: "macEM") else {
+        guard let png = try? ImageExport.encodePNG(image, title: fileName, software: ExportSnapshot.provenance()) else {
             throw Failure(text: "The figure could not be encoded.")
         }
         return png

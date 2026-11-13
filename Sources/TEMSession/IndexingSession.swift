@@ -1226,6 +1226,22 @@ package final class IndexingSession {
         }
     }
 
+    /// What the .ang and .ctf headers state about the run on screen (macEM#616): the pattern centre it used (Hough: its indexer's;
+    /// Dictionary: the mean of its detector's), the file's working distance, magnification and beam energy, the detector's sample tilt,
+    /// and `software`. nil before a run.
+    package func exportAcquisition(software: String?) -> CrystalMapAcquisition? {
+        guard let result, let dataset = patterns.document?.dataset else { return nil }
+        var pc: SIMD3<Double>?
+        switch result.method {
+        case .hough:
+            pc = runPlan?.projectionCenter
+        case .dictionary:
+            let centres = dictionaryPlans.first?.detector.projectionCenters ?? []
+            if !centres.isEmpty { pc = centres.reduce(.zero, +) / Double(centres.count) }
+        }
+        return CrystalMapAcquisition(dataset: dataset, projectionCenterBruker: pc, software: software)
+    }
+
     /// The method record of the run on screen (every input, in pyEBSDindex's, kikuchipy's and orix's names); nil before a run has its plan.
     /// A refinement's is its Dictionary run's with the refinement under "refinement" (D-SEM-109).
     package func methodJSON() throws -> Data? {
