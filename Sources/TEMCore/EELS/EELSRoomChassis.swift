@@ -210,7 +210,13 @@ package nonisolated enum EELSMapScale {
             // solid at its top. A range that is rounding error on either fallback draws the map flat, at the middle of the scale.
             func meets(_ lo: Double, _ hi: Double) -> Bool { !(hi - lo > 1e-6 * max(abs(lo), abs(hi))) }
             var lo = percentile(sorted, 0.01), hi = percentile(sorted, 0.99)
-            if meets(lo, hi) { (lo, hi) = (first, last) }
+            if meets(lo, hi) {
+                // The bulk is one value and only the far pixels differ: centre the scale on the bulk and reach the farthest pixel on either
+                // side, so the bulk takes the middle colour and the far pixels their own. Min to max put the bulk at the scale's end when every
+                // far pixel lay on one side (macEM#586, 145_STEM: −8.12 to 0.00005 eV drew the tile solid yellow).
+                let bulk = percentile(sorted, 0.5), reach = max(bulk - first, last - bulk)
+                (lo, hi) = (bulk - reach, bulk + reach)
+            }
             guard !meets(lo, hi) else { return Scaled(values: values.map { $0.isFinite ? flatLevel : .nan }, low: lo, high: hi) }
             return Scaled(values: values.map { $0.isFinite ? min(max(($0 - lo) / (hi - lo), 0), 1) : .nan }, low: lo, high: hi)
         case .diverging:
