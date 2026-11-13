@@ -671,7 +671,7 @@ struct IndexingRoomInfo: View {
                     }
                     if let source = session.resultSource { InspectorValueRow("Patterns", source.title) }
                     if let pc = session.resultProjectionCenter {
-                        InspectorValueRow("PC", IndexingInfoFormat.projectionCentre(pc))
+                        InspectorValueRow("PC", IndexingInfoFormat.projectionCentre(pc, assumed: session.detectorAssumed.contains(.projectionCenter)))
                     }
                     let plans = result.method == .dictionary ? session.dictionaryPlans : []
                     if plans.count == 1, let plan = plans.first {

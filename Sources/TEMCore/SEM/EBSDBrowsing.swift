@@ -122,22 +122,26 @@ package nonisolated enum EBSDBrowsing {
         let detector = dataset.detector
         let n = { (v: Double) in UnitDisplay.number(v, locale: locale) }
         let four = { (v: Double) in UnitDisplay.number(v, digits: 4, locale: locale) }
+        // A value the opener assumed (the file states none: kikuchipy's default) says so beside it (macEM#612).
+        let assumed = { (value: EBSDDetectorGeometry.Assumed) in detector.assumed.contains(value) ? " · assumed" : "" }
         var rows = [
             Row("Step", "\(n(dataset.stepX)) \(unit) × \(n(dataset.stepY)) \(unit)"),
             Row("Scan", "\(dataset.scanColumns) × \(dataset.scanRows)"),
             Row("Pattern", "\(dataset.patternColumns) × \(dataset.patternRows) px" + (detector.binning > 1 ? " · binned \(detector.binning)×" : "")),
             Row("Beam", dataset.sem.beamEnergyKeV.map { "\(n($0)) kV" } ?? "None in the file"),
-            Row("Sample tilt", "\(n(detector.sampleTilt))°"),
+            Row("Sample tilt", "\(n(detector.sampleTilt))°" + assumed(.sampleTilt)),
             Row("Detector tilt", "\(n(detector.tilt))°"),
         ]
         if detector.azimuthal != 0 { rows.append(Row("Azimuthal", "\(n(detector.azimuthal))°")) }
         if detector.twist != 0 { rows.append(Row("Twist", "\(n(detector.twist))°")) }
         if let pc = detector.projectionCenters.first {
             let one = UnitDisplay.triple(pc, digits: 4, locale: locale)
-            rows.append(Row("Projection centre", detector.projectionCenters.count > 1 ? "\(one) · first of \(detector.projectionCenters.count)" : one))
+            rows.append(Row("Projection centre", (detector.projectionCenters.count > 1 ? "\(one) · first of \(detector.projectionCenters.count)" : one)
+                                                 + assumed(.projectionCenter)))
         } else {
             rows.append(Row("Projection centre", "None in the file"))
         }
+        if detector.assumed.contains(.pixelSize) { rows.append(Row("Detector pixel", "\(n(detector.pixelSize)) µm" + assumed(.pixelSize))) }
         rows.append(Row("Convention", "Bruker"))
         if let map = dataset.crystalMap {
             for (id, phase) in map.phases.entries where id != PhaseList.notIndexedID {

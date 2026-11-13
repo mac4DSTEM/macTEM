@@ -327,6 +327,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         let record = try XCTUnwrap(try JSONSerialization.jsonObject(with: try XCTUnwrap(try indexing.methodJSON())) as? [String: Any])
         let listed = try XCTUnwrap(record["phases"] as? [[String: Any]])
         XCTAssertEqual(listed.map { $0["dictionarySize"] as? Int }, [single, single])
+        XCTAssertNil(record["assumed"], "the demo states its detector: nothing assumed (macEM#612)")
         XCTAssertEqual(listed.map { $0["indexed"] as? Int }, [4125, 0])
         XCTAssertNotNil(record["merge"] as? String)
         XCTAssertNotNil(record["orientationSimilarityMap"] as? String)

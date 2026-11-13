@@ -48,12 +48,35 @@ package nonisolated struct EBSDDetectorGeometry: Sendable, Equatable {
     package var sampleTilt: Double
     /// One centre for the whole scan, or one per map position in row-major scan order.
     package var projectionCenters: [SIMD3<Double>]
+    /// The values the file did not state and the opener took as kikuchipy's defaults (macEM#612): a result made with them looks
+    /// calibrated when it is not, so the rooms, the method record and the report say "assumed" beside them. Nothing is refused.
+    package var assumed: Set<Assumed> = []
+
+    /// A detector value an opener assumed.
+    package enum Assumed: String, Sendable, Equatable, Hashable, CaseIterable, Comparable {
+        case projectionCenter, pixelSize, sampleTilt
+
+        /// "projection centre", "detector pixel size", "sample tilt".
+        package var title: String {
+            switch self {
+            case .projectionCenter: "projection centre"
+            case .pixelSize: "detector pixel size"
+            case .sampleTilt: "sample tilt"
+            }
+        }
+
+        package static func < (a: Assumed, b: Assumed) -> Bool { allCases.firstIndex(of: a)! < allCases.firstIndex(of: b)! }
+    }
+
+    /// The assumed values in a fixed order, as words ("projection centre, sample tilt"); nil when every value came from the file.
+    package var assumedText: String? { assumed.isEmpty ? nil : assumed.sorted().map(\.title).joined(separator: ", ") }
 
     package init(rows: Int, columns: Int, pixelSize: Double = 1, binning: Int = 1, tilt: Double = 0, azimuthal: Double = 0, twist: Double = 0,
-                 sampleTilt: Double = 70, projectionCenters: [SIMD3<Double>]) {
+                 sampleTilt: Double = 70, projectionCenters: [SIMD3<Double>], assumed: Set<Assumed> = []) {
         self.rows = rows; self.columns = columns; self.pixelSize = pixelSize; self.binning = binning
         self.tilt = tilt; self.azimuthal = azimuthal; self.twist = twist; self.sampleTilt = sampleTilt
         self.projectionCenters = projectionCenters
+        self.assumed = assumed
     }
 
     /// Columns over rows, kikuchipy's `aspect_ratio`.

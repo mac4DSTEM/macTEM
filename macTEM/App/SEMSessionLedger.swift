@@ -214,7 +214,11 @@ enum SEMSessionLedger {
             fields.append(SEMSessionField("Mean \(result.scoreTitle)", "\(UnitDisplay.number(mean, digits: 4, locale: locale)) over the indexed points"))
         }
         fields.append(SEMSessionField("Patterns", run.source.title))
-        if let pc = run.projectionCenter { fields.append(SEMSessionField("PC", IndexingInfoFormat.projectionCentre(pc, locale: locale))) }
+        if let pc = run.projectionCenter {
+            fields.append(SEMSessionField("PC", IndexingInfoFormat.projectionCentre(pc, assumed: session.detectorAssumed.contains(.projectionCenter),
+                                                                                      locale: locale)))
+        }
+        if let assumed = session.detectorAssumedText { fields.append(SEMSessionField("Assumed", assumed)) }
         if result.method == .dictionary, !run.dictionaryPlans.isEmpty {
             fields += dictionaryFields(run.dictionaryPlans, locale: locale)
         } else if result.method == .hough {
