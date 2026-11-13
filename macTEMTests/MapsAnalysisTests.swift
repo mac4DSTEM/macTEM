@@ -150,6 +150,34 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         XCTAssertEqual(values[p], first.maximumSchmid)
     }
 
+    /// macEM#611: a step in no length unit ("px") refuses the GND in words; nm, µm and mm convert as before. Red before: "px" was
+    /// taken as micrometres and the GND reported in m⁻² as if it were.
+    func testGNDOnAMapWithoutALengthUnitIsRefusedAndTheGrainsStay() throws {
+        var map = try ANGReader.read(url: Self.sdss).map
+        let inMicrometres = try MapAnalysis.run(map, settings: Self.defdap)
+        map.scanUnit = "px"
+        let inPixels = try MapAnalysis.run(map, settings: Self.defdap)
+        XCTAssertNil(inPixels.gnd)
+        XCTAssertTrue(inPixels.gndRefusal?.contains("\"px\"") ?? false, inPixels.gndRefusal ?? "no refusal")
+        XCTAssertNil(inPixels.astmGrainSizeNumber)
+        XCTAssertEqual(inPixels.table.count, inMicrometres.table.count)
+        XCTAssertNil(inMicrometres.gndRefusal)
+
+        XCTAssertNil(MapAnalysis.micrometres(1, unit: "px"))
+        XCTAssertNil(MapAnalysis.micrometres(1, unit: ""))
+        XCTAssertEqual(MapAnalysis.micrometres(1, unit: "um"), 1)
+        XCTAssertEqual(MapAnalysis.micrometres(1, unit: "µm"), 1)
+        XCTAssertEqual(MapAnalysis.micrometres(500, unit: "nm"), 0.5)
+        XCTAssertEqual(MapAnalysis.micrometres(0.002, unit: "mm"), 2)
+
+        // The same step written in nm gives the same density.
+        map.scanUnit = "nm"
+        let inNanometres = try MapAnalysis.run(map, settings: Self.defdap)
+        let expected = NyeTensor.compute(quaternions: inNanometres.grainMap.quaternions, rows: inNanometres.rows,
+                                         columns: inNanometres.columns, stepMicrons: inNanometres.grainMap.step / 1000, structure: .cubic).gnd
+        XCTAssertEqual(minusOneForNaN(try XCTUnwrap(inNanometres.gnd)), minusOneForNaN(expected))
+    }
+
     func testGNDIsTheNyeTensorOfTheMapsQuaternions() throws {
         let map = try ANGReader.read(url: Self.sdss).map
         let analysis = try MapAnalysis.run(map, settings: Self.defdap)

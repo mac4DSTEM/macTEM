@@ -621,6 +621,7 @@ package final class OrientationMapSession {
         updateSlip()
         followPinnedGrain()
         onEvent?(Self.segmentedLine(grains: result.table.count, settings: result.settings))
+        if let why = result.gndRefusal { onEvent?(why) }
         if case .derived(let d) = layer, !derivedLayers.contains(d) { layer = .derived(.grains) }
         if case .derived = layer { draw() }
     }
