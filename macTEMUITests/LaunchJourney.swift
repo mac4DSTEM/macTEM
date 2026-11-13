@@ -27,6 +27,17 @@ nonisolated final class LaunchJourney: Journey {
         }
     }
 
+    /// A first launch with no saved window state shows the inspector (#587): nothing is pressed before the check, and the launch
+    /// ignores restored state (`-ApplePersistenceIgnoreState YES`), so the shell's default decides. The inspector's tab picker is on
+    /// screen whichever tab the last run left selected.
+    @MainActor func testTheInspectorIsShownOnAFirstLaunch() throws {
+        try step("launch with the demo image and no saved state") { launch(["--demo-fixture"]) }
+        try step("the inspector is shown without a key or a click") {
+            waitFor("toolbar.display.idle", timeout: 30)
+            XCTAssertTrue(element("inspector.tabPicker").waitForExistence(timeout: 10), "the inspector is hidden on a first launch")
+        }
+    }
+
     /// The rooms in light mode (the overnight review had no light screenshot), one screenshot each, to be read for contrast of the badges,
     /// colour bars, hatching and the periodic table. The assertion is only that each room draws; the judgement is the screenshot's.
     @MainActor func testTheDiffractionRoomInLightMode() throws {
