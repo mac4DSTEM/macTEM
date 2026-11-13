@@ -178,6 +178,23 @@ mac4DSTEM does it". The flat list was drift, not a decision: the first rooms had
 
 **Reverse it.** Paul names other workspaces or another grouping after his drive; the names live in `WorkspaceGroup.title`.
 
+## 2026-11-13 — CI: the UI journeys run on GitHub's macos-26 (macEM#592)
+
+**What.** `ui.yml` falls back to GitHub's `macos-26` when the org variable `MACEM_MAC_RUNNER` is empty, as every other
+workflow in the org does, instead of to the fixed labels of the org's Mac runner, which was removed on 2026-11-13. On a
+GitHub runner the job builds with Xcode 26.6, turns on automation mode
+(`automationmodetool enable-automationmode-without-authentication`) and sets the virtual display to its widest mode with
+`displayplacer` (the image starts at 1024 x 768, narrower than the shell's step-aside line, so the sidebar started
+hidden and the journeys that click a room in it failed). Still by hand only, still not a pull-request trigger and not
+a required check.
+
+**Why.** Without the Mac runner a dispatched run queued for 24 hours and produced nothing. Run 43494687296 on the
+trial branch ran `LaunchJourney` and `FFTJourney` there: 6 journeys, 6 passed, 22 screenshots, screen 1920 x 1080.
+Journeys no longer fight a person for the Mac's screen, so a nightly trigger could come back; that is left for a
+later decision.
+
+**Reversal.** Set `MACEM_MAC_RUNNER` to a self-hosted Mac's labels; the job then uses that Mac's own Xcode and grants.
+
 ## 2026-11-10 — CI: the UI journeys run by hand only
 
 **What.** `ui.yml` keeps `workflow_dispatch` only; the nightly `schedule` trigger (03:30 UTC) that macTEM#391 parked

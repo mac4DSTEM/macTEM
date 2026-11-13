@@ -1,19 +1,17 @@
-# UI journeys on the org's Mac: the one job that needs a screen. Everything a PR waits on runs on GitHub's runners
-# (ci.yml); this workflow is never a required check and never runs on a pull request, so an offline Mac holds no PR
-# (SEM program, 2026-11-06; docs/decisions.md).
+# UI journeys: the one job that needs a screen. Everything a PR waits on runs on GitHub's runners (ci.yml); this
+# workflow is never a required check and never runs on a pull request (SEM program, 2026-11-06; docs/decisions.md).
 #
-# WHAT RUNS: `tools/run-tests.sh ui` — the XCUITest journeys (macTEMUITests, scheme macTEMUI): the real app, signed,
-# walked as a user would, one screenshot per step. The screenshots and the result bundle are uploaded as artifacts of
-# the run; this is the on-screen record a review reads, and the source of a room PR's release-assets shots.
+# WHAT RUNS: `tools/run-tests.sh ui` — the XCUITest journeys (macTEMUITests, scheme macTEMUI): the real app, built for
+# this run, walked as a user would, one screenshot per step. The screenshots and the result bundle are uploaded as
+# artifacts of the run; this is the on-screen record a review reads, and the source of a room PR's release-assets shots.
 #
-# WHEN: by hand only (docs/decisions.md, 2026-11-10): the journeys drive the screen and must not run under a person's
-# hands, and the Mac is in use at any hour. A run takes an optional list of journeys. The job targets the Mac by label,
-# with no fallback to a GitHub runner: while the Mac is offline the job queues, and runs when the Mac is back (GitHub
-# drops a job no runner has taken within 24 hours).
+# WHEN: by hand only (docs/decisions.md, 2026-11-10). A run takes an optional list of journeys.
 #
-# XCODE: the Mac's selected Xcode (xcode-select), the one the app is driven and released with, not ci.yml's pinned
-# 26.6: the UI runner app at ~/Library/Caches/macEM-ui-tests/macTEM holds its Screen Recording and Accessibility grants
-# by path, and that path is built by the Mac's own toolchain.
+# WHERE (docs/decisions.md, 2026-11-13, macEM#592): GitHub's `macos-26`, as every other workflow in the org, since the
+# org's own Mac runner was removed on 2026-11-13. The org variable MACEM_MAC_RUNNER, when set, names a self-hosted Mac
+# instead. On a GitHub runner the job turns on macOS automation mode first (XCUITest needs it, and the image allows it
+# without a password) and builds with ci.yml's Xcode 26.6; on a self-hosted Mac it uses that Mac's selected Xcode, whose
+# UI runner app at ~/Library/Caches/macEM-ui-tests/macTEM holds its Screen Recording and Accessibility grants by path.
 name: UI journeys
 
 on:
@@ -35,9 +33,9 @@ concurrency:
 
 jobs:
   journeys:
-    name: UI journeys (Mac runner, screenshots)
-    # The org variable MACEM_MAC_RUNNER names the Mac's labels; its fixed labels are the fallback, never a GitHub runner.
-    runs-on: ${{ vars.MACEM_MAC_RUNNER && fromJSON(vars.MACEM_MAC_RUNNER) || fromJSON('["self-hosted","macOS","macem-mac"]') }}
+    name: UI journeys (screenshots)
+    # The org variable MACEM_MAC_RUNNER names a self-hosted Mac's labels; without it, GitHub's macos-26.
+    runs-on: ${{ vars.MACEM_MAC_RUNNER && fromJSON(vars.MACEM_MAC_RUNNER) || 'macos-26' }}
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
@@ -46,6 +44,30 @@ jobs:
       # file, and every push since 2026-11-06 showed this workflow as a failed run that never started.
       - name: Gate folder
         run: echo "MACTEM_GATE_DIR=$RUNNER_TEMP/gate" >> "$GITHUB_ENV"
+      - name: GitHub runner — Xcode 26.6 and automation mode
+        # A hosted image's default Xcode can change under us (ci.yml's XCODE paragraph), and XCUITest cannot drive the app
+        # until automation mode is on; a self-hosted Mac keeps its own Xcode and its grants.
+        if: runner.environment == 'github-hosted'
+        run: |
+          echo "DEVELOPER_DIR=/Applications/Xcode_26.6.app/Contents/Developer" >> "$GITHUB_ENV"
+          sudo automationmodetool enable-automationmode-without-authentication
+      - name: GitHub runner — a screen as wide as a laptop's
+        # The image's virtual display may be narrower than the shell's step-aside line, and the sidebar then starts hidden, so a
+        # journey that clicks a room in the sidebar finds none. The display is set to the widest mode it offers, as on record.
+        if: runner.environment == 'github-hosted'
+        run: |
+          brew install displayplacer >/dev/null 2>&1 || true
+          if command -v displayplacer >/dev/null; then
+            displayplacer list | grep -E '^Resolution:|^  mode [0-9]+: res:' | sort -u | tail -8
+            id=$(displayplacer list | awk -F': ' '/^Persistent screen id/ {print $2; exit}')
+            mode=$(displayplacer list | grep -E '^  mode [0-9]+: res:' | sed -E 's/.*res:([0-9]+)x([0-9]+).*/\1 \2/' | sort -n -k1,1 -k2,2 | tail -1)
+            if [ -n "$id" ] && [ -n "$mode" ]; then
+              set -- $mode
+              echo "ui.yml: setting the screen to ${1}x${2}"
+              displayplacer "id:$id res:${1}x${2} origin:(0,0) degree:0" || true
+            fi
+            displayplacer list | grep -E '^Resolution:' || true
+          fi
       - name: Toolchain on record
         run: |
           sw_vers
