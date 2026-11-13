@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/DiffractoKit",
       "state" : {
-        "revision" : "8ce71cff3a1df943ad9617fad325199a154edefa",
-        "version" : "0.11.0"
+        "revision" : "76ea90dc889551f547b4708b754b6f2a69e9a942",
+        "version" : "0.15.1"
       }
     },
     {
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/MacEMUI",
       "state" : {
-        "revision" : "bb7941e3e0ea5808731764dbc65ef5b61b13fa7f",
-        "version" : "0.9.0"
+        "revision" : "f74006ebc20aca6cb0a3d71a095c6b3c24d3486c",
+        "version" : "0.9.1"
       }
     },
     {
