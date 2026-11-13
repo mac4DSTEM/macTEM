@@ -17,7 +17,6 @@ import ShellControls
 import ShellInspector
 import SwiftUI
 import TEMCore
-import TEMSession
 
 /// The SEM rows, in the design's order, as text. Pure.
 nonisolated enum SEMRows {
