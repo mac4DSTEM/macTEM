@@ -368,42 +368,6 @@ package nonisolated enum EBSDRefinement {
                               evaluations: res.map(\.evaluations), pseudoSymmetry: ops.isEmpty ? nil : res.map { $0.pseudoSymmetryIndex ?? 0 })
     }
 
-    /// `EBSD.refine_projection_center(xmap, ...)` with `compute_refine_projection_center_results`: the scores, the detector
-    /// with one refined PC per refined point, and the evaluation counts.
-    package static func refineProjectionCenters(map: CrystalMap, patterns: Patterns, detector: EBSDDetectorGeometry, master: Master,
-                                                settings: Settings = Settings(), isCancelled: @Sendable () -> Bool = { false })
-        throws -> (scores: [Double], detector: EBSDDetectorGeometry, evaluations: [Int]) {
-        let (points, _) = try pointsToRefine(map, master: master)
-        let subset = try select(patterns, points: points, of: map.pointCount)
-        let det = try detectorFor(points, detector, pointCount: map.pointCount)
-        let res = try refineProjectionCenters(subset, rotations: points.map { map.rotations[$0] }, detector: det, master: master,
-                                              settings: settings, isCancelled: isCancelled)
-        var out = detector
-        out.projectionCenters = res.map(\.pc)
-        return (res.map(\.score), out, res.map(\.evaluations))
-    }
-
-    /// `EBSD.refine_orientation_projection_center(xmap, ...)`: the refined map (as `refineOrientations(map:)`) and the
-    /// detector with one PC per refined point.
-    package static func refineOrientationsAndProjectionCenters(map: CrystalMap, patterns: Patterns, detector: EBSDDetectorGeometry,
-                                                               master: Master, settings: Settings = Settings(),
-                                                               pseudoSymmetry ops: [SIMD4<Double>] = [],
-                                                               isCancelled: @Sendable () -> Bool = { false })
-        throws -> (map: CrystalMap, detector: EBSDDetectorGeometry) {
-        let (points, id) = try pointsToRefine(map, master: master)
-        let subset = try select(patterns, points: points, of: map.pointCount)
-        let starts = startingEuler(rotations: points.map { map.rotations[$0] }, pseudoSymmetry: ops)
-        let det = try detectorFor(points, detector, pointCount: map.pointCount)
-        let res = try refineOrientationsAndProjectionCenters(subset, starts: starts, detector: det, master: master, settings: settings,
-                                                             isCancelled: isCancelled)
-        let refined = try refinedMap(map, points: points, phaseID: id, master: master, euler: res.map(\.euler),
-                                     scores: res.map(\.score), evaluations: res.map(\.evaluations),
-                                     pseudoSymmetry: ops.isEmpty ? nil : res.map { $0.pseudoSymmetryIndex ?? 0 })
-        var out = detector
-        out.projectionCenters = res.map(\.pc)
-        return (refined, out)
-    }
-
     // MARK: - Helpers
 
     private static func check(_ patterns: Patterns, count: Int, detector: EBSDDetectorGeometry) throws {

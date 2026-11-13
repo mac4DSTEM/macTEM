@@ -11,7 +11,6 @@ import ImagoCore
 import ShellMetal
 import TEMCore
 import TEMSession
-@testable import macTEM
 
 nonisolated final class CanvasRawPixelsTests: XCTestCase {
 
