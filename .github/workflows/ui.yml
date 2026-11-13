@@ -56,18 +56,18 @@ jobs:
         # journey that clicks a room in the sidebar finds none. The display is set to the widest mode it offers, as on record.
         if: runner.environment == 'github-hosted'
         run: |
-          system_profiler SPDisplaysDataType | grep -E "Resolution|Display Type|UI Looks like" || true
           brew install displayplacer >/dev/null 2>&1 || true
           if command -v displayplacer >/dev/null; then
-            displayplacer list | sed -n '1,12p'
+            displayplacer list | grep -E '^Resolution:|^  mode [0-9]+: res:' | sort -u | tail -8
             id=$(displayplacer list | awk -F': ' '/^Persistent screen id/ {print $2; exit}')
             mode=$(displayplacer list | grep -E '^  mode [0-9]+: res:' | sed -E 's/.*res:([0-9]+)x([0-9]+).*/\1 \2/' | sort -n -k1,1 -k2,2 | tail -1)
             if [ -n "$id" ] && [ -n "$mode" ]; then
               set -- $mode
+              echo "ui.yml: setting the screen to ${1}x${2}"
               displayplacer "id:$id res:${1}x${2} origin:(0,0) degree:0" || true
             fi
+            displayplacer list | grep -E '^Resolution:' || true
           fi
-          system_profiler SPDisplaysDataType | grep -E "Resolution|UI Looks like" || true
       - name: Toolchain on record
         run: |
           sw_vers
