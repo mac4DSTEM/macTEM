@@ -12,7 +12,7 @@ The Patterns room ⌘6 (sidebar after Diffraction; Results moves to ⌘9): `EBSD
 The north-star file opens from ⌘O into the room in under 1 s, the pattern pane follows the cursor and the keys, the XCUITest journey `PatternsJourney` drives open, hover, arrow keys and the Display popover with screenshots in `release-assets/sem/`; unit tests pin the session's position arithmetic and the routing.
 
 ## Gates (every brief)
-- Branch from `main`, one PR, conventional-commit title, `Fixes mac4DSTEM/macTEM#<n>`, auto-merge on green. Never stack on another open branch.
+- Branch from `main`, one PR, conventional-commit title, `Fixes macEMSuite/macEM#<n>`, auto-merge on green. Never stack on another open branch.
 - A test that fails before and passes after. Numerics compare against `tools/parity/sem` references within the upstream tolerance stated in `docs/parity.md`; the before/after table goes in the PR body.
 - `tools/run-tests.sh unit` and `core` green; the Swift 6 rules (TEMCore nonisolated, heavy work through `@concurrent`, no SwiftUI below the app).
 - UI work loads the `swiftui-macos` skill; pure SwiftUI, AppKit only where named in code; a change to what the app draws carries a screenshot in the PR and an XCUITest journey; say "unverified on screen" for anything no drive saw.

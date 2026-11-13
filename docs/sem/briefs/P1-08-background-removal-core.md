@@ -12,7 +12,7 @@
 F2 reproduced: pattern (0,0) of nickel_ebsd_large after static (subtract) then dynamic (subtract, frequency, sigma default) removal equals the reference within kikuchipy's own tolerance (uint8 output exact after rescale; the float32 intermediate at rtol 1e-5), the whole 55 x 75 set within the same bound; rows in `docs/parity.md`.
 
 ## Gates (every brief)
-- Branch from `main`, one PR, conventional-commit title, `Fixes mac4DSTEM/macTEM#<n>`, auto-merge on green. Never stack on another open branch.
+- Branch from `main`, one PR, conventional-commit title, `Fixes macEMSuite/macEM#<n>`, auto-merge on green. Never stack on another open branch.
 - A test that fails before and passes after. Numerics compare against `tools/parity/sem` references within the upstream tolerance stated in `docs/parity.md`; the before/after table goes in the PR body.
 - `tools/run-tests.sh unit` and `core` green; the Swift 6 rules (TEMCore nonisolated, heavy work through `@concurrent`, no SwiftUI below the app).
 - UI work loads the `swiftui-macos` skill; pure SwiftUI, AppKit only where named in code; a change to what the app draws carries a screenshot in the PR and an XCUITest journey; say "unverified on screen" for anything no drive saw.

@@ -12,7 +12,7 @@ Ship `nickel_ebsd_large/patterns_v2.h5` (15.4 MB, CC BY 4.0, Aanes et al.) in th
 "Try Demo Data" lists the EBSD set and opens it; `DemoDataTests` pins the md5 and the shape; `inventory` passes with the allow row; the journey `DemoDataJourney` extended; the App Store build size stays under the store's cellular limit note in `docs/app-store/`.
 
 ## Gates (every brief)
-- Branch from `main`, one PR, conventional-commit title, `Fixes mac4DSTEM/macTEM#<n>`, auto-merge on green. Never stack on another open branch.
+- Branch from `main`, one PR, conventional-commit title, `Fixes macEMSuite/macEM#<n>`, auto-merge on green. Never stack on another open branch.
 - A test that fails before and passes after. Numerics compare against `tools/parity/sem` references within the upstream tolerance stated in `docs/parity.md`; the before/after table goes in the PR body.
 - `tools/run-tests.sh unit` and `core` green; the Swift 6 rules (TEMCore nonisolated, heavy work through `@concurrent`, no SwiftUI below the app).
 - UI work loads the `swiftui-macos` skill; pure SwiftUI, AppKit only where named in code; a change to what the app draws carries a screenshot in the PR and an XCUITest journey; say "unverified on screen" for anything no drive saw.
