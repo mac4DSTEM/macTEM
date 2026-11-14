@@ -2,5 +2,5 @@
 // release-please rewrites the line between the markers in each Release PR (release-please-config.json, extra-files);
 // tools/release.sh refuses to build a tag whose version differs from the built app's.
 // x-release-please-start-version
-MARKETING_VERSION = 2.0.2
+MARKETING_VERSION = 2.0.3
 // x-release-please-end
