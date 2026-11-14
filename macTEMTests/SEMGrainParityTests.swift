@@ -196,6 +196,27 @@ nonisolated final class SEMGrainParityTests: XCTestCase {
         XCTAssertNil(GrainSegmentation.meanLinealIntercept(boundaries: GrainBoundaries.find(in: map, thresholdDegrees: 45), step: 2))
     }
 
+    /// macEM#613: the same two grains on rows spaced 3 apart and columns 2 apart: each point covers 2 x 3, so a grain of 4 points is
+    /// 24, and the column test lines are 3 long per step. Red before: the area took dx² (16) and the intercept dx on both directions.
+    /// The other points of #613 match DefDAP and orix and stay: a NaN misorientation is no boundary in DefDAP either, the GROD axis
+    /// is NaN at zero misorientation in DefDAP's formula too, and orix's `qu2ax` takes `arccos` unclamped; hexagonal maps are refused
+    /// when opened.
+    func testAreaAndInterceptOnAGridWhoseRowsAndColumnsAreSpacedApart() throws {
+        let a = SIMD3<Double>(0, 0, 0), b = SIMD3<Double>(0.5, 0, 0)
+        let map = try GrainMap(rows: 2, columns: 4, euler: [a, a, b, b, a, a, b, b], phase: Array(repeating: 1, count: 8),
+                               symmetries: [DefDAPCrystalStructure.cubic.symmetries], step: 2, stepY: 3)
+        let boundaries = GrainBoundaries.find(in: map)
+        let seg = GrainSegmentation.find(in: map, boundaries: boundaries, minimumSize: 1)
+        XCTAssertEqual(seg.areas, [24, 24])
+        // Rows: 2 lines of 3 steps x 2; columns: 4 lines of 1 step x 3; two crossings.
+        XCTAssertEqual(try XCTUnwrap(GrainSegmentation.meanLinealIntercept(boundaries: boundaries, step: 2, stepY: 3)), (12.0 + 12.0) / 2,
+                       accuracy: 1e-12)
+        // A square grid is unchanged.
+        let square = try GrainMap(rows: 2, columns: 4, euler: [a, a, b, b, a, a, b, b], phase: Array(repeating: 1, count: 8),
+                                  symmetries: [DefDAPCrystalStructure.cubic.symmetries], step: 2)
+        XCTAssertEqual(GrainSegmentation.find(in: square, boundaries: GrainBoundaries.find(in: square), minimumSize: 1).areas, [16, 16])
+    }
+
     /// Two cube orientations that are one 90° rotation apart are the same crystal: the symmetric KAM reads 0 where DefDAP's
     /// reads the 90° between the stored quaternions, and no grain boundary separates them.
     func testSymmetricKAMSeesThroughEquivalentQuaternions() throws {

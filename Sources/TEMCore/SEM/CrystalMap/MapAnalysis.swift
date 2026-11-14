@@ -205,7 +205,7 @@ package nonisolated struct MapAnalysis: Sendable {
         }
         return MapAnalysis(settings: settings, rows: rows, columns: columns, grainMap: grainMap, grains: analysis, gnd: gnd, table: table,
                            phaseIDs: phaseIDs,
-                           meanLinealIntercept: GrainSegmentation.meanLinealIntercept(boundaries: analysis.boundaries, step: grainMap.step),
+                           meanLinealIntercept: GrainSegmentation.meanLinealIntercept(boundaries: analysis.boundaries, step: grainMap.step, stepY: grainMap.stepY),
                            scanUnit: map.scanUnit, gndRefusal: gndRefusal)
     }
 
