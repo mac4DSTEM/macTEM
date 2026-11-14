@@ -183,7 +183,7 @@ package nonisolated enum NelderMead {
         }
 
         let status = calls >= maxfun ? 1 : (iterations >= maxiter ? 2 : 0)
-        let fval = fsim.contains(where: \.isNaN) ? .nan : fsim.min()!
+        let fval = fsim.contains(where: \.isNaN) ? .nan : (fsim.min() ?? .nan)   // the simplex has n + 1 values
         return Result(x: sim[0], fun: fval, nfev: calls, nit: iterations, status: status, finalSimplex: sim, finalValues: fsim)
     }
 

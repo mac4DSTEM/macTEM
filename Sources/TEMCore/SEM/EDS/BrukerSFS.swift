@@ -264,6 +264,8 @@ package nonisolated final class BrukerSFS {
         var out: [UInt8] = []
         let body = Array(zlib[2...])
         try body.withUnsafeBufferPointer { src in
+            // Never nil: the guard above asks for more than the 2 header bytes, so the body is not empty.
+            // swiftlint:disable:next force_unwrapping
             stream.pointee.src_ptr = src.baseAddress!
             stream.pointee.src_size = src.count
             var status = COMPRESSION_STATUS_OK

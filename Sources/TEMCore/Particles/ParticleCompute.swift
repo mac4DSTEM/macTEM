@@ -183,8 +183,9 @@ package nonisolated enum ParticleFormat {
     /// The objects as CSV with provenance comment lines; lengths in the scale's unit beside the pixels.
     package static func csv(_ r: ParticleReport, scale: ParticleScale, fileName: String) -> String {
         let u = scale.isCalibrated ? scale.unit : "px"
-        let densityLine = scale.isCalibrated && r.summary.arealDensity != nil
-            ? "# areal density: \(String(format: "%.6g", r.summary.arealDensity!)) per \(scale.unit)^2, counted objects weighted by Miles-Lantuejoul's edge correction (ImagoKit ObjectStatistics.arealDensity)"
+        let density = scale.isCalibrated ? r.summary.arealDensity : nil
+        let densityLine = density != nil
+            ? "# areal density: \(String(format: "%.6g", density ?? 0)) per \(scale.unit)^2, counted objects weighted by Miles-Lantuejoul's edge correction (ImagoKit ObjectStatistics.arealDensity)"
             : "# areal density: none (the image is not calibrated)"
         var out = ["# macEM particles, file: \(CSVText.headerValue(fileName))",
                    "# threshold: \(r.settings.polarity.rawValue) objects, \(threshold(r)), smoothing sigma \(csvNumber(r.settings.sigma)) px, connectivity \(r.settings.connectivity.rawValue), minimum area \(r.settings.minimumArea) px (smaller objects removed: ImagoKit BinaryMorphology.removeSmallObjects)",

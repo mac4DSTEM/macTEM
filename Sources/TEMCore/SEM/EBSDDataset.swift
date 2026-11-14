@@ -331,16 +331,22 @@ package nonisolated final class EBSDPatternReader: @unchecked Sendable {
         if source.fileIndexByPosition == nil, fileCount == total {
             return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: whole)
         }
+        guard whole.count >= fileCount * bytesPerPattern else {
+            throw EBSDReadError(text: "\(source.url.lastPathComponent) holds \(whole.count) bytes of patterns where its header names "
+                + "\(fileCount) patterns of \(bytesPerPattern) bytes.")
+        }
         var out = Data(count: total * bytesPerPattern)
         whole.withUnsafeBytes { src in
             out.withUnsafeMutableBytes { dst in
+                // Nil only for zero bytes, when there is nothing to copy.
+                guard let srcBase = src.baseAddress, let dstBase = dst.baseAddress else { return }
                 for position in 0..<total {
                     let index: Int?
                     if let order = source.fileIndexByPosition { index = position < order.count ? order[position] : nil }
                     else { index = position < fileCount ? position : nil }
                     guard let index, index < fileCount else { continue }
-                    let from = src.baseAddress!.advanced(by: index * bytesPerPattern)
-                    dst.baseAddress!.advanced(by: position * bytesPerPattern).copyMemory(from: from, byteCount: bytesPerPattern)
+                    let from = srcBase.advanced(by: index * bytesPerPattern)
+                    dstBase.advanced(by: position * bytesPerPattern).copyMemory(from: from, byteCount: bytesPerPattern)
                 }
             }
         }

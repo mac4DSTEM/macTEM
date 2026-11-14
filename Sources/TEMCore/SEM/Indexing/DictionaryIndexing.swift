@@ -143,8 +143,9 @@ package nonisolated enum DictionaryIndexing {
         let all = kept.count == pixels
         out.withUnsafeMutableBufferPointer { o in
             for p in 0 ..< count {
-                let src = values.baseAddress! + p * pixels
-                let dst = o.baseAddress! + p * n
+                guard let source = values.baseAddress, let target = o.baseAddress else { return }   // no pattern, nothing to copy
+                let src = source + p * pixels
+                let dst = target + p * n
                 if all { for k in 0 ..< n { dst[k] = src[k] } } else { for k in 0 ..< n { dst[k] = src[kept[k]] } }
                 if metric.centres {
                     var sum = 0.0
@@ -173,7 +174,9 @@ package nonisolated enum DictionaryIndexing {
         e.withUnsafeBufferPointer { ep in
             d.withUnsafeBufferPointer { dp in
                 scores.withUnsafeMutableBufferPointer { sp in
-                    let shared = MatchBuffers(e: ep.baseAddress!, d: dp.baseAddress!, s: sp.baseAddress!)
+                    // An empty pattern or dictionary has no score to compute.
+                    guard let e = ep.baseAddress, let dBase = dp.baseAddress, let s = sp.baseAddress else { return }
+                    let shared = MatchBuffers(e: e, d: dBase, s: s)
                     DispatchQueue.concurrentPerform(iterations: expBlocks * dictBlocks) { job in
                         let eb = job / dictBlocks, db = job % dictBlocks
                         let i0 = eb * expBlock, i1 = min(nExp, i0 + expBlock)

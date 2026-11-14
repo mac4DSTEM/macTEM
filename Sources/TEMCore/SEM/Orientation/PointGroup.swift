@@ -215,7 +215,7 @@ package nonisolated struct PointGroup: Sendable, CustomStringConvertible {
                                        "222": [360, 90, 180], "4": [360, 180, 90], "422": [360, 90, 90], "3": [360, 180, 120],
                                        "312": [360, 90, 120], "32": [360, 90, 120], "6": [360, 180, 60], "622": [360, 90, 60],
                                        "23": [360, 90, 180], "432": [360, 90, 90]]
-        return properSubgroup.name.flatMap { angles[$0] } ?? angles["1"]!
+        return properSubgroup.name.flatMap { angles[$0] } ?? [360, 180, 360]   // angles["1"], the triclinic sector
     }
 
     /// `_primary_axis_order`.
@@ -242,7 +242,7 @@ package nonisolated struct PointGroup: Sendable, CustomStringConvertible {
             let k = Vector3.key(a)
             if let e = counts[k] { counts[k] = (e.axis, e.count + 1) } else { counts[k] = (a, 1) }
         }
-        return counts.keys.sorted().map { k in (counts[k]!.axis, counts[k]!.count + 1) }
+        return counts.sorted { $0.key < $1.key }.map { ($0.value.axis, $0.value.count + 1) }
     }
 
     /// `get_highest_order_axis`: the axes of the highest order (z and nil when there is no axis).

@@ -83,7 +83,7 @@ package nonisolated struct OrientationRegion: Sendable {
             let k = Vector3.key(a)
             if let g = groups[k] { groups[k] = (g.axis, max(g.angle, n.angle)) } else { groups[k] = (a, n.angle) }
         }
-        return groups.keys.sorted().map { k in Rotation.fromAxisAngle(groups[k]!.axis, groups[k]!.angle) }
+        return groups.sorted { $0.key < $1.key }.map { Rotation.fromAxisAngle($0.value.axis, $0.value.angle) }
     }
 
     /// `OrientationRegion.from_symmetry(s1, s2)`: the region of an orientation (s2 = 1) or of a misorientation between

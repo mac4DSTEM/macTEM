@@ -208,6 +208,12 @@ package nonisolated enum OxfordBinaryReader {
             return data.float64(at: recordStart(record) + headerSize + patternBytes + beamXOffset)
         }
 
+        /// A beam position that is there, or `.beamPositions` (a footer past its record).
+        func beam(_ value: Double?) throws -> Double {
+            guard let value else { throw Refusal.beamPositions }
+            return value
+        }
+
         func beamY(data: Data, record: Int) -> Double? {
             guard let beamYOffset else { return nil }
             return data.float64(at: recordStart(record) + headerSize + patternBytes + beamYOffset)
@@ -238,9 +244,12 @@ package nonisolated enum OxfordBinaryReader {
             var found = Order(fileOrder: fileOrder, map1DIDs: map1DIDs, scanRows: 1, scanColumns: n, step: 1, scanUnit: "px")
             if allPresent, footerSize > 0, hasBeamX, hasBeamY, n >= 2 {
                 let firstRecord = fileOrder[0], secondRecord = fileOrder[1], lastRecord = fileOrder[n - 1]
-                let firstX = beamX(data: data, record: firstRecord)!, secondX = beamX(data: data, record: secondRecord)!
-                let lastX = beamX(data: data, record: lastRecord)!
-                let firstY = beamY(data: data, record: firstRecord)!, lastY = beamY(data: data, record: lastRecord)!
+                // A footer whose beam position lies past the record (a damaged file) gives no map.
+                guard let firstX = beamX(data: data, record: firstRecord), let secondX = beamX(data: data, record: secondRecord),
+                      let lastX = beamX(data: data, record: lastRecord),
+                      let firstY = beamY(data: data, record: firstRecord), let lastY = beamY(data: data, record: lastRecord) else {
+                    throw Refusal.beamPositions
+                }
                 let step = secondX - firstX
                 guard step != 0, step.isFinite else { throw Refusal.step(step) }
                 let rowSpan = abs((lastY / step).rounded(.toNearestOrEven) - (firstY / step).rounded(.toNearestOrEven))
@@ -275,8 +284,8 @@ package nonisolated enum OxfordBinaryReader {
         func metadata(data: Data) throws -> Metadata {
             let found = try order(data: data)
             let fileOrder = found.fileOrder
-            let beamXs: [Double]? = hasBeamX ? fileOrder.map { beamX(data: data, record: $0)! } : nil
-            let beamYs: [Double]? = hasBeamY ? fileOrder.map { beamY(data: data, record: $0)! } : nil
+            let beamXs: [Double]? = hasBeamX ? try fileOrder.map { try beam(beamX(data: data, record: $0)) } : nil
+            let beamYs: [Double]? = hasBeamY ? try fileOrder.map { try beam(beamY(data: data, record: $0)) } : nil
             var mapX: [Int]?
             var mapY: [Int]?
             if version >= 5 {
