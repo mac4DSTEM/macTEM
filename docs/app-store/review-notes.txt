@@ -23,7 +23,14 @@ Results, in the sidebar, lists every measurement and the SEM results in tables. 
 
 No account, sign-in, purchase or network connection is needed anywhere in the app. macEM makes no outgoing network requests.
 
-Agent access (com.apple.security.network.server): Settings > Agents has one switch, off by default. When the person turns it on, macEM listens on this Mac's loopback address (127.0.0.1) only, so that an AI assistant the person runs on the same Mac (for example Claude Code) can read what macEM's windows show through the Model Context Protocol. It answers only requests that carry the token shown in that pane, refuses requests from web pages, cannot change anything in the app, and is not reachable from other computers. The app itself sends nothing anywhere; what the assistant does with what it reads is governed by that assistant and its provider.
+Agent access (com.apple.security.network.server): macEM uses this entitlement for one feature. It is off by default. When the person turns it on, macEM opens a listening socket (Network.framework NWListener) on this Mac's loopback address, 127.0.0.1, port 47812. It answers incoming Model Context Protocol requests over HTTP from an AI assistant the person runs on the same Mac (for example Claude Code), so the assistant can read what macEM's windows show. The sandbox refuses the listener without this entitlement. It answers only requests that carry the token shown in that pane and refuses requests from web pages. It is not reachable from other computers. macEM makes no outgoing connections, so it has no network.client entitlement. What the assistant does with what it reads is governed by that assistant and its provider.
+
+To see the listener:
+1. Choose macEM > Settings… and open Agents.
+2. Turn on the switch. Status shows "On (port 47812)".
+3. Click Copy Connection Command. The copied line contains the access token.
+4. In Terminal, run: curl -H "Authorization: Bearer TOKEN" http://127.0.0.1:47812/v1 (replace TOKEN with the token from the copied line). macEM answers with its name and the list of its agent tools.
+Turn the switch off and the port closes.
 
 Open source:
 macEM is free software under GPL-3.0. Source: https://github.com/macEMSuite/macEM
