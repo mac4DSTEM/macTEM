@@ -456,9 +456,9 @@ package nonisolated enum EBSDH5Reader {
         let sx = try header.requiredInt("PatternWidth")
         let dy = try header.required("YSTEP")
         let dx = try header.required("XSTEP")
-        let fullHeight = try header.double("DetectorFullHeightMicrons") ?? 1
-        let unclippedHeight = try header.double("UnClippedPatternHeight") ?? 1
-        let pxSize = fullHeight / unclippedHeight
+        let statedFullHeight = try header.double("DetectorFullHeightMicrons")
+        let statedUnclippedHeight = try header.double("UnClippedPatternHeight")
+        let pxSize = (statedFullHeight ?? 1) / (statedUnclippedHeight ?? 1)
         let source = try patternSource(file, data: data, name: "RawPatterns", scanRows: ny, scanColumns: nx, rows: sy, columns: sx, order: order)
         // PCs stay in file order for a region of interest, as kikuchipy 0.13.1 leaves them (docs/parity.md).
         let pcx = try data.doubles("PCX")
@@ -467,9 +467,12 @@ package nonisolated enum EBSDH5Reader {
         let pc = centers(x: pcx, y: pcy, z: dd, scanCount: ny * nx)
         let tilt = try header.double("CameraTilt") ?? 0
         // kikuchipy reads 'Sample Tilt' (with the space) and so takes 0 where Esprit writes 'SampleTilt'; matched (docs/parity.md).
-        let sampleTilt = try header.double("Sample Tilt") ?? 0
-        let detector = EBSDDetectorGeometry(rows: sy, columns: sx, pixelSize: pxSize, binning: 1, tilt: tilt, azimuthal: 0, twist: 0,
-                                            sampleTilt: sampleTilt, projectionCenters: pc)
+        let statedSampleTilt = try header.double("Sample Tilt")
+        var detector = EBSDDetectorGeometry(rows: sy, columns: sx, pixelSize: pxSize, binning: 1, tilt: tilt, azimuthal: 0, twist: 0,
+                                            sampleTilt: statedSampleTilt ?? 0, projectionCenters: pc)
+        if statedFullHeight == nil || statedUnclippedHeight == nil { detector.assumed.insert(.pixelSize) }
+        if pcx == nil || pcy == nil || dd == nil { detector.assumed.insert(.projectionCenter) }
+        if statedSampleTilt == nil { detector.assumed.insert(.sampleTilt) }
         let kv = try header.double("KV")
         let magnification = try header.double("Magnification")
         let wd = try header.double("WD")
@@ -523,18 +526,21 @@ package nonisolated enum EBSDH5Reader {
         let dx = try header.double("Step X") ?? 1
         let source = try patternSource(file, data: data, name: "Pattern", scanRows: ny, scanColumns: nx, rows: sy, columns: sx)
         var pc = SIMD3(0.5, 0.5, 0.5)
+        var pcStated = false
         if let calibration = try header.subgroup("Pattern Center Calibration") {
-            let x = try calibration.double("x-star") ?? 0.5
-            let y = try calibration.double("y-star") ?? 0.5
-            let z = try calibration.double("z-star") ?? 0.5
-            pc = SIMD3(x, y, z)
+            let x = try calibration.double("x-star"), y = try calibration.double("y-star"), z = try calibration.double("z-star")
+            pc = SIMD3(x ?? 0.5, y ?? 0.5, z ?? 0.5)
+            pcStated = x != nil && y != nil && z != nil
         }
         let tilt = try header.double("Camera Elevation Angle") ?? 0
         let azimuthal = try header.double("Camera Azimuthal Angle") ?? 0
-        let sampleTilt = try header.double("Sample Tilt") ?? 70
+        let statedSampleTilt = try header.double("Sample Tilt")
         var detector = EBSDDetectorGeometry(rows: sy, columns: sx, pixelSize: 1, binning: 1, tilt: tilt, azimuthal: azimuthal, twist: 0,
-                                            sampleTilt: sampleTilt, projectionCenters: [])
+                                            sampleTilt: statedSampleTilt ?? 70, projectionCenters: [])
         detector.projectionCenters = [detector.brukerCenter(pc, from: .tsl)]
+        detector.assumed = [.pixelSize]
+        if !pcStated { detector.assumed.insert(.projectionCenter) }
+        if statedSampleTilt == nil { detector.assumed.insert(.sampleTilt) }
         let prias = try H5Group(file, "/\(scan)/SEM-PRIAS Images/Header")
         let magnification = try prias.double("Mag")
         let wd = try header.double("Working Distance")
@@ -573,7 +579,8 @@ package nonisolated enum EBSDH5Reader {
         // nearest (3.1415927); Swift's `Float.pi` is rounded toward zero (3.1415925) and lands one ulp away.
         let pi32 = Float(Double.pi)
         func degrees(_ radians: Double) -> Double { Double(Float(radians) * 180 / pi32) }
-        if let tiltAngle = try header.double("Tilt Angle") { detector.sampleTilt = degrees(tiltAngle) }
+        detector.assumed = [.pixelSize, .sampleTilt]
+        if let tiltAngle = try header.double("Tilt Angle") { detector.sampleTilt = degrees(tiltAngle); detector.assumed.remove(.sampleTilt) }
         if let euler = try header.doubles("Detector Orientation Euler"), euler.count > 1 { detector.tilt = Double(Float(degrees(euler[1])) - 90) }
         if let binning = try oxfordBinning(header: header, version: version) { detector.binning = binning }
         let pcx = try data.doubles("Pattern Center X")
@@ -581,6 +588,7 @@ package nonisolated enum EBSDH5Reader {
         let dd = try data.doubles("Detector Distance")
         let oxfordCenters = centers(x: pcx, y: pcy, z: dd, scanCount: ny * nx)
         detector.projectionCenters = oxfordCenters.map { detector.brukerCenter($0, from: .oxford) }
+        if pcx == nil || pcy == nil || dd == nil { detector.assumed.insert(.projectionCenter) }
         let kv = try header.double("Beam Voltage")
         let magnification = try header.double("Magnification")
         let wd = try header.double("Working Distance")

@@ -132,7 +132,8 @@ package nonisolated enum NORDIFOpening {
             detector: EBSDDetectorGeometry(rows: detector.rows, columns: detector.columns, pixelSize: detector.pixelSizeUM,
                                            binning: detector.binning, tilt: detector.tiltDeg, azimuthal: detector.azimuthalDeg, twist: 0,
                                            sampleTilt: detector.sampleTiltDeg,
-                                           projectionCenters: [SIMD3(detector.pcx, detector.pcy, detector.pcz)]),
+                                           projectionCenters: [SIMD3(detector.pcx, detector.pcy, detector.pcz)],
+                                           assumed: [.projectionCenter, .pixelSize]),   // Setting.txt states neither; it states the tilt
             staticBackground: try background.map { try FormatoArray(dataType: .uint8, shape: [$0.height, $0.width], bytes: Data($0.pixels)) },
             sem: EBSDSEMHeader(beamEnergyKeV: settings.acceleratingVoltageKV, magnification: Double(settings.magnification),
                                workingDistanceMM: settings.workingDistanceMM, microscope: settings.microscope),

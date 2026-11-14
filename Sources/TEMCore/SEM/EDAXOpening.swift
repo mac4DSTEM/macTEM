@@ -79,9 +79,13 @@ package nonisolated enum EDAXOpening {
         }
 
         var detector = EBSDDetectorGeometry(rows: patterns.patternRows, columns: patterns.patternColumns, projectionCenters: [SIMD3(0.5, 0.5, 0.5)])
+        detector.assumed = [.projectionCenter, .pixelSize, .sampleTilt]
         var sem = EBSDSEMHeader()
         if let map {
-            if let pc = map.header.projectionCenter { detector.projectionCenters = [detector.brukerCenter(pc, from: .tsl)] }
+            if let pc = map.header.projectionCenter {
+                detector.projectionCenters = [detector.brukerCenter(pc, from: .tsl)]
+                detector.assumed.remove(.projectionCenter)
+            }
             sem.workingDistanceMM = map.header.workingDistance
         }
         let source = EBSDPatternSource(url: patterns.url, layout: .records(offset: patterns.patternOffset, recordBytes: patterns.bytesPerPattern, patternOffset: 0),

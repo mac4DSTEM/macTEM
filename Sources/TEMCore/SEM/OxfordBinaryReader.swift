@@ -265,7 +265,8 @@ package nonisolated enum OxfordBinaryReader {
             let source = EBSDPatternSource(url: url, layout: .records(offset: firstPatternPosition, recordBytes: bytesPerRecord, patternOffset: headerSize),
                                            fileShape: [n, patternRows, patternColumns], dataType: sixteenBit ? .uint16 : .uint8,
                                            fileIndexByPosition: consecutive ? nil : found.fileOrder.map { Optional($0) })
-            let detector = EBSDDetectorGeometry(rows: patternRows, columns: patternColumns, projectionCenters: [SIMD3(0.5, 0.5, 0.5)])
+            var detector = EBSDDetectorGeometry(rows: patternRows, columns: patternColumns, projectionCenters: [SIMD3(0.5, 0.5, 0.5)])
+            detector.assumed = [.projectionCenter, .pixelSize, .sampleTilt]   // the binary file states none of them
             return EBSDDataset(format: .oxfordBinary, manufacturer: "oxford instruments", version: String(version), scanGroup: "", scanGroups: [],
                                scanRows: found.scanRows, scanColumns: found.scanColumns, patternRows: patternRows, patternColumns: patternColumns,
                                dataType: source.dataType, stepY: found.step, stepX: found.step, scanUnit: found.scanUnit, detector: detector, patterns: source)
