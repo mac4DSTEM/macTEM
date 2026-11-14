@@ -345,9 +345,12 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
         var doomed = Set<String>()
         while let id = work.popLast() {
             doomed.insert(id)
-            for edge in nodes[position[id]!].inputs {
-                citations[edge.step]! -= 1
-                if citations[edge.step] == 0, let at = position[edge.step], nodes[at].removed != nil { work.append(edge.step) }
+            // Cannot miss (see above); a lookup that did would skip the edge, never trap.
+            guard let at = position[id] else { continue }
+            for edge in nodes[at].inputs {
+                guard let cited = citations[edge.step] else { continue }
+                citations[edge.step] = cited - 1
+                if cited == 1, let input = position[edge.step], nodes[input].removed != nil { work.append(edge.step) }
             }
         }
         nodes.removeAll { doomed.contains($0.id) }
