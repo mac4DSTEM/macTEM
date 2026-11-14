@@ -29,11 +29,14 @@ package nonisolated enum ANGWriter {
         package var patternFit: String?
         package var extraProperties: [String]
         package var operatorName: String
+        /// The pattern centre, working distance and writing software the header states; nil writes orix's zeros (macEM#616).
+        package var acquisition: CrystalMapAcquisition?
 
         package init(imageQuality: String? = nil, confidenceIndex: String? = nil, detectorSignal: String? = nil, patternFit: String? = nil,
-                     extraProperties: [String] = [], operatorName: String = "macEM") {
+                     extraProperties: [String] = [], operatorName: String = "macEM", acquisition: CrystalMapAcquisition? = nil) {
             self.imageQuality = imageQuality; self.confidenceIndex = confidenceIndex; self.detectorSignal = detectorSignal
             self.patternFit = patternFit; self.extraProperties = extraProperties; self.operatorName = operatorName
+            self.acquisition = acquisition
         }
     }
 
@@ -50,8 +53,12 @@ package nonisolated enum ANGWriter {
         let n = grid.count
         let phases = map.phases.entries.filter { $0.id != PhaseList.notIndexedID }
 
-        var header = "TEM_PIXperUM           1.000000\nx-star                 0.000000\ny-star                 0.000000\n"
-            + "z-star                 0.000000\nWorkingDistance        0.000000\n\n"
+        // The pattern centre (EDAX TSL convention) and working distance where the session knows them; orix writes zeros.
+        let pc = options.acquisition?.patternCentreTSL ?? .zero
+        let wd = options.acquisition?.workingDistanceMM ?? 0
+        var header = "TEM_PIXperUM           1.000000\n"
+            + String(format: "x-star                 %.6f\ny-star                 %.6f\nz-star                 %.6f\n", pc.x, pc.y, pc.z)
+            + String(format: "WorkingDistance        %.6f\n\n", wd)
         for (i, entry) in phases.enumerated().reversed() {
             let phase = entry.phase
             let lattice = (phase.lattice ?? CrystalMapExtent.defaultLattice).map { String(format: "%.3f", $0) }.joined(separator: " ")
@@ -67,6 +74,16 @@ package nonisolated enum ANGWriter {
         header += "GRID: SqrGrid\nXSTEP: \(String(format: "%.6f", map.dx))\nYSTEP: \(String(format: "%.6f", map.dy))\n"
             + "NCOLS_ODD: \(grid.columns)\nNCOLS_EVEN: \(grid.columns)\nNROWS: \(grid.rows)\n\nOPERATOR: \(options.operatorName)\n\n"
             + "SAMPLEID:\n\nSCANID:\n"
+        if let software = options.acquisition?.software {
+            // EDAX's notes block: the build that wrote the file, and what the session knows that the header has no field for.
+            var notes = ["Written by \(software)"]
+            if let a = options.acquisition {
+                if let kv = a.beamEnergyKeV { notes.append("Beam energy \(CrystalMapAcquisition.headerNumber(kv)) kV") }
+                if let mag = a.magnification { notes.append("Magnification \(CrystalMapAcquisition.headerNumber(mag))") }
+                if let tilt = a.sampleTiltDegrees { notes.append("Sample tilt \(CrystalMapAcquisition.headerNumber(tilt)) deg") }
+            }
+            header += "\nNOTES: Start\n" + notes.map { "NOTES: \($0.replacingOccurrences(of: "\n", with: " "))\n" }.joined() + "NOTES: End\n"
+        }
         header += "\nColumn names: phi1, Phi, phi2, x, y, image_quality, confidence_index, phase_id, detector_signal, pattern_fit"
         for name in options.extraProperties { header += ", \(name)" }
         header += "\n"

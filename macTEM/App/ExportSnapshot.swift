@@ -112,6 +112,20 @@ enum ExportSnapshot {
         return "macEM \(version) (\(build))"
     }
 
+    /// "macEM 2.1.0 (42) with FormatoKit 0.15.0, ImagoKit 0.9.2, ...": the app and the kits it is built with, so a written file can be
+    /// traced to the build that made it (macEM#616).
+    nonisolated static func provenance(info: [String: Any]? = Bundle.main.infoDictionary) -> String {
+        "\(softwareName(info: info)) with \(CrystalMapAcquisition.kitVersions)"
+    }
+
+    /// A method record with the app's version under "software" and the kits under "builtWith" (name: version).
+    nonisolated static func stampingProvenance(_ json: Data, info: [String: Any]? = Bundle.main.infoDictionary) throws -> Data {
+        guard var object = try JSONSerialization.jsonObject(with: json) as? [String: Any] else { return json }
+        object["software"] = softwareName(info: info)
+        object["builtWith"] = Dictionary(SEMReferenceVersions.builtWith.map { ($0.name, $0.value) }, uniquingKeysWith: { a, _ in a })
+        return try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+    }
+
     // MARK: Names
 
     /// The file's name without its extension ("scan" for "scan.dm4", "scan.v2" for "scan.v2.dm4"); "image" for a name

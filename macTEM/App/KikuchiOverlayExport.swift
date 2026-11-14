@@ -109,7 +109,7 @@ nonisolated enum KikuchiOverlayExport {
         let description = "Kikuchi overlay of \(overlay.phase): \(overlay.drawnWords); "
             + "pattern enlarged \(s)x; macEM"
         // A tEXt Description, as the Image room's PNGs carry theirs: ImageIO's PNG property would become an XMP packet instead.
-        return try? ImageExport.encodePNG(image, title: fileName, software: "macEM", description: description)
+        return try? ImageExport.encodePNG(image, title: fileName, software: ExportSnapshot.provenance(), description: description)
     }
 
     /// A label centred on `point` with a dark shadow, so it reads on any part of the pattern.

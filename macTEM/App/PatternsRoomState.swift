@@ -207,7 +207,7 @@ final class PatternsRoomState {
     /// `fileName` as Title and macEM as Software, as the map PNG carries them.
     nonisolated static func mixPNG(rgba: [UInt8], width: Int, height: Int, fileName: String) -> Data? {
         guard let image = EDXMapRaster.cgImage(rgba: rgba, width: width, height: height) else { return nil }
-        return try? ImageExport.encodePNG(image, title: fileName, software: "macEM")
+        return try? ImageExport.encodePNG(image, title: fileName, software: ExportSnapshot.provenance())
     }
 
     static func mapName(_ choice: EBSDSession.MapChoice) -> String {
@@ -248,7 +248,7 @@ final class PatternsRoomState {
                                     fileName: fileName, source: "scan map \(map)", voltage: dataset.sem.beamEnergyKeV.map { $0 * 1000 },
                                     notes: ["\(dataset.format.rawValue)"])
         let display = ExportSnapshot.display(canvas: canvas, presentation: presentation)
-        return try ImageExport.render(source: ExportSource(image: image, software: "macEM"), display: display, marks: [],
+        return try ImageExport.render(source: ExportSource(image: image, software: ExportSnapshot.provenance()), display: display, marks: [],
                                       options: ImageExport.Options(scaleBar: presentation.showsScaleBar, marks: false)).png
     }
 
@@ -260,7 +260,7 @@ final class PatternsRoomState {
                                     fileName: fileName, source: "pattern row \(position.row) col \(position.column)", voltage: dataset.sem.beamEnergyKeV.map { $0 * 1000 },
                                     notes: ["\(dataset.format.rawValue)"])
         let display = ExportSnapshot.display(canvas: canvas, presentation: presentation)
-        return try ImageExport.render(source: ExportSource(image: image, software: "macEM"), display: display, marks: [],
+        return try ImageExport.render(source: ExportSource(image: image, software: ExportSnapshot.provenance()), display: display, marks: [],
                                       options: ImageExport.Options(scaleBar: false, marks: false)).png
     }
 }
