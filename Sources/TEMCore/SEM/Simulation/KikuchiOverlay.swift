@@ -94,8 +94,7 @@ package nonisolated enum KikuchiOverlay {
 
     /// The lattice of a phase in Å, in orix's frame; nil without six parameters.
     package static func lattice(of phase: CrystalPhase) -> CrystalLattice? {
-        guard var p = phase.lattice, p.count == 6, p[0] > 0, p[1] > 0, p[2] > 0 else { return nil }
-        if p[0] < 2, p[1] < 2, p[2] < 2 { p[0] *= 10; p[1] *= 10; p[2] *= 10 }
+        guard let p = phase.latticeInAngstrom, p[0] > 0, p[1] > 0, p[2] > 0 else { return nil }
         return CrystalLattice(parameters: p)
     }
 

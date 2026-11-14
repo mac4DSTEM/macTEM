@@ -54,17 +54,36 @@ nonisolated final class EELSMapTilesTests: XCTestCase {
 
     /// A file aligned at acquisition: one shift on almost every pixel (5e-5 eV, equal but for the last bits) and a few pixels far out (a lost
     /// zero-loss peak, up to 8 eV). Red before (drive 2026-11-12, 145_STEM): the percentiles were a rounding error apart, so the bulk was
-    /// stretched to the top of the scale and the tile was solid yellow. The bulk now takes one colour and the far pixels their own.
+    /// stretched to the top of the scale and the tile was solid yellow. The bulk now takes the middle colour and the far pixels their own,
+    /// the scale centred on the bulk and reaching the farthest pixel.
     func testAShiftMapFlatButForRoundingShowsItsFarPixels() {
         var values = (0..<1000).map { 5e-5 + Double($0 % 3) * 1e-19 }
         values[10] = 8.12; values[20] = -3
         let scaled = EELSMapScale.scaled(values, mode: EELSMapScale.mode(forTileID: "zlpShift"))
-        XCTAssertEqual(scaled.low, -3); XCTAssertEqual(scaled.high, 8.12)
-        XCTAssertEqual(scaled.values[10], 1); XCTAssertEqual(scaled.values[20], 0)
+        XCTAssertEqual(scaled.low, 5e-5 - (8.12 - 5e-5), accuracy: 1e-12); XCTAssertEqual(scaled.high, 8.12, accuracy: 1e-12)
+        XCTAssertEqual(scaled.values[10], 1, accuracy: 1e-12)
+        XCTAssertEqual(scaled.values[20], (-3 - scaled.low) / (scaled.high - scaled.low), accuracy: 1e-12)
+        XCTAssertEqual(scaled.values[0], 0.5, accuracy: 1e-9, "the bulk sits mid-scale")
         XCTAssertEqual(Set(scaled.values.enumerated().filter { $0.offset != 10 && $0.offset != 20 }.map { ($0.element * 1e6).rounded() }).count, 1,
                        "the bulk is one colour")
         let flat = EELSMapScale.scaled((0..<1000).map { 5e-5 + Double($0 % 3) * 1e-19 }, mode: .robustMinToMax)
         XCTAssertTrue(flat.values.allSatisfy { $0 == EELSMapScale.flatLevel }, "rounding error alone draws flat, mid-scale")
+    }
+
+    /// macEM#586 (the 2.0.2 walk, 145_STEM): every far pixel on ONE side of the flat bulk. Red before: the range fell back to min to max,
+    /// −8.12 to 0.00005 eV, which put the bulk at the top of viridis and drew the tile solid yellow.
+    func testAFlatShiftWithFarPixelsOnOneSideKeepsTheBulkOffTheEnd() {
+        var values = (0..<1000).map { 5e-5 + Double($0 % 3) * 1e-19 }
+        values[3] = -8.12; values[500] = -2.5; values[900] = -0.4
+        let scaled = EELSMapScale.scaled(values, mode: EELSMapScale.mode(forTileID: "zlpShift"))
+        XCTAssertEqual(scaled.values[0], 0.5, accuracy: 1e-9, "the bulk sits mid-scale, not at the top")
+        XCTAssertEqual(scaled.values[3], 0, accuracy: 1e-12)
+        XCTAssertLessThan(scaled.values[900], scaled.values[0])
+        XCTAssertGreaterThan(scaled.values[900], scaled.values[500])
+        XCTAssertEqual(scaled.low, 5e-5 - (8.12 + 5e-5), accuracy: 1e-12)
+        XCTAssertEqual(scaled.high, 5e-5 + (8.12 + 5e-5), accuracy: 1e-12)
+        let tile = EELSMapTile(id: "zlpShift", title: "ZLP shift", unit: "eV", width: 40, height: 25, values: values, version: 1, footer: nil)
+        XCTAssertGreaterThanOrEqual(Set(Self.render(tile)).count, 4, "the bulk and the three far pixels, four colours")
     }
 
     /// The colours move; the numbers do not: the tile's values are untouched and the readout reads them raw.

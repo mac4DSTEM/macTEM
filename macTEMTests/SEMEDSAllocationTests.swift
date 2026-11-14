@@ -76,7 +76,7 @@ nonisolated final class SEMEDSAllocationTests: XCTestCase {
         XCTAssertThrowsError(try CSRSpectrumImageBuilder(ny: 2, nx: SEMEDSFile.largestArray, channels: 16))
         var builder = try CSRSpectrumImageBuilder(ny: 2, nx: 2, channels: 4)
         builder.append(channels: [UInt16(1)], counts: [UInt32(3)])
-        let cube = builder.finish()
+        let cube = try builder.finish()
         XCTAssertEqual(cube.rowOffsets, [0, 1, 1, 1, 1])
         XCTAssertEqual(cube.spectrum(pixel: 0), [0, 3, 0, 0])
     }

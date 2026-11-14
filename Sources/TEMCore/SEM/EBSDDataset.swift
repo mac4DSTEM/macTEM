@@ -413,6 +413,9 @@ private nonisolated final class RecordFile: @unchecked Sendable {
     func bytes(from start: Int, count: Int) throws -> Data {
         guard let mapping else { return try read(from: start, count: count) }
         guard isStillThere else { throw gone }
+        guard start >= 0, count >= 0, start <= mapping.count, count <= mapping.count - start else {
+            throw EBSDReadError(text: "\(url.lastPathComponent) ends before byte \(start) + \(count); the file is truncated.")
+        }
         return mapping.subdata(in: (mapping.startIndex + start)..<(mapping.startIndex + start + count))
     }
 
@@ -427,6 +430,7 @@ private nonisolated final class RecordFile: @unchecked Sendable {
     private var gone: EBSDReadError { EBSDReadError(text: "\(url.lastPathComponent) is no longer available.") }
 
     private func read(from start: Int, count: Int) throws -> Data {
+        guard start >= 0, count >= 0 else { throw gone }
         // The handle hands its bytes back autoreleased, and a pass reads every row of a scan in one call that drains no pool. In a
         // pool of its own, a row's bytes go when the caller lets go of them, not when the whole pass ends.
         let data = lock.withLock { () -> Data? in
