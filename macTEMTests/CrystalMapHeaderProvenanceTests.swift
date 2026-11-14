@@ -68,12 +68,12 @@ nonisolated final class CrystalMapHeaderProvenanceTests: XCTestCase {
     func testTheMethodRecordAndThePNGsNameTheAppAndTheKits() throws {
         let provenance = ExportSnapshot.provenance(info: Self.info)
         XCTAssertTrue(provenance.hasPrefix("macEM 2.1.0 (42) with "))
-        for kit in SEMMethod.builtWith { XCTAssertTrue(provenance.contains("\(kit.name) \(kit.value)"), kit.name) }
+        for kit in SEMReferenceVersions.builtWith { XCTAssertTrue(provenance.contains("\(kit.name) \(kit.value)"), kit.name) }
         let json = try ExportSnapshot.stampingProvenance(Data(#"{"software": "macEM", "points": 4}"#.utf8), info: Self.info)
         let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: json) as? [String: Any])
         XCTAssertEqual(object["software"] as? String, "macEM 2.1.0 (42)")
         XCTAssertEqual(object["points"] as? Int, 4)
         let kits = try XCTUnwrap(object["builtWith"] as? [String: String])
-        XCTAssertEqual(kits.count, SEMMethod.builtWith.count)
+        XCTAssertEqual(kits.count, SEMReferenceVersions.builtWith.count)
     }
 }

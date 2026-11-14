@@ -122,7 +122,7 @@ enum ExportSnapshot {
     nonisolated static func stampingProvenance(_ json: Data, info: [String: Any]? = Bundle.main.infoDictionary) throws -> Data {
         guard var object = try JSONSerialization.jsonObject(with: json) as? [String: Any] else { return json }
         object["software"] = softwareName(info: info)
-        object["builtWith"] = Dictionary(SEMMethod.builtWith.map { ($0.name, $0.value) }, uniquingKeysWith: { a, _ in a })
+        object["builtWith"] = Dictionary(SEMReferenceVersions.builtWith.map { ($0.name, $0.value) }, uniquingKeysWith: { a, _ in a })
         return try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
     }
 
