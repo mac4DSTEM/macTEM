@@ -19,9 +19,15 @@ nonisolated final class LauePairingAndODFSampleTests: XCTestCase {
         XCTAssertEqual(PointGroup.laueClassName("m-3m"), "m-3m")
         // The orix port itself stays orix's.
         XCTAssertNil(PointGroup.laueName("m"))
-        // By elements the mirror's Laue group is 2/m's.
+        // By elements the mirror's Laue group is 2/m's (as a set: the two groups list their elements in different orders).
         let cs = try XCTUnwrap(PointGroup.named("m")), c2h = try XCTUnwrap(PointGroup.named("2/m"))
-        XCTAssertTrue(cs.laue.hasSameElements(as: c2h.laue))
+        XCTAssertEqual(cs.laue.order, c2h.laue.order)
+        for x in cs.laue.elements {
+            XCTAssertTrue(c2h.laue.elements.contains { y in
+                x.improper == y.improper && ((0..<4).allSatisfy { abs(x.q[$0] - y.q[$0]) <= 1e-8 }
+                    || (0..<4).allSatisfy { abs(x.q[$0] + y.q[$0]) <= 1e-8 })
+            }, "\(x.q) improper \(x.improper) is not in 2/m's Laue group")
+        }
 
         let mirror = IndexingComparison.Side.Phase(name: "monoclinic", pointGroupName: "m")
         let twoOverM = IndexingComparison.Side.Phase(name: "monoclinic", pointGroupName: "2/m")
