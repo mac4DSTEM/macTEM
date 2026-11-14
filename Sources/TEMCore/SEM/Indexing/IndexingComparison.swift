@@ -51,8 +51,8 @@ package nonisolated struct IndexingComparison: Sendable {
             }
 
             package var pointGroup: PointGroup? { pointGroupName.flatMap(PointGroup.named) }
-            /// orix's Laue group name of the point group; nil without one.
-            package var laueName: String? { pointGroup == nil ? nil : PointGroup.laueName(pointGroupName) }
+            /// The Laue class of the point group (orix's name, "m" as 2/m); nil without one.
+            package var laueName: String? { pointGroup == nil ? nil : PointGroup.laueClassName(pointGroupName) }
         }
 
         package var phases: [Phase]

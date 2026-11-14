@@ -154,7 +154,8 @@ package nonisolated enum CTFReader {
             guard parts.count >= 5 else { throw Refusal.phase(line: lineNumber + 1, "it has \(parts.count) tab-separated fields, 5 are needed") }
             let constants = (parts[0] + ";" + parts[1]).split(separator: ";", omittingEmptySubsequences: false)
                 .map { Double($0.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)) }
-            guard constants.count == 6, !constants.contains(where: { $0 == nil }) else {
+            let lattice = constants.compactMap { $0 }
+            guard constants.count == 6, lattice.count == 6 else {
                 throw Refusal.phase(line: lineNumber + 1, "its lattice `\(parts[0])\t\(parts[1])` is not six numbers")
             }
             guard let laue = Int(parts[3].trimmingCharacters(in: .whitespaces)), let group = laueGroups[laue] else {
@@ -164,7 +165,7 @@ package nonisolated enum CTFReader {
                 throw Refusal.phase(line: lineNumber + 1, "its space group `\(parts[4])` is not a number")
             }
             phases.append(CrystalPhase(name: parts[2], spaceGroup: spaceGroup == 0 ? nil : spaceGroup, pointGroup: group,
-                                       lattice: constants.map { $0! }))
+                                       lattice: lattice, latticeUnit: .angstrom))
         }
         // orix's `PhaseList(**phases)`: ids 1, 2, ... in header order, colours in matplotlib's Tableau order.
         return PhaseList(ids: (0..<count).map { $0 + 1 }, phases: phases, assignColors: true)
@@ -251,16 +252,19 @@ package nonisolated enum CTFReader {
         }
         var euler = [SIMD3<Double>]()
         euler.reserveCapacity(rows.count)
-        let i1 = names.firstIndex(of: "phi1")!, i2 = names.firstIndex(of: "Phi")!, i3 = names.firstIndex(of: "phi2")!
+        guard let i1 = names.firstIndex(of: "phi1"), let i2 = names.firstIndex(of: "Phi"), let i3 = names.firstIndex(of: "phi2") else {
+            throw Refusal.noColumnLine
+        }
         for row in rows { euler.append(SIMD3(radians(row[i1]), radians(row[i2]), radians(row[i3]))) }
-        let phaseID = column("phase").map { $0.map { Int($0) == 0 ? -1 : Int($0) } } ?? [Int](repeating: 1, count: rows.count)
+        // A phase that is not a whole number (NaN in a damaged export) is not indexed, -1, never `Int(NaN)`.
+        let phaseID = column("phase").map { $0.map { CheckedConversion.int($0).map { $0 == 0 ? -1 : $0 } ?? -1 } } ?? [Int](repeating: 1, count: rows.count)
         let taken: Set<String> = ["phi1", "Phi", "phi2", "phase", "x", "y"]
         let propertyNames = names.filter { !taken.contains($0) }
         var seen: Set<String> = []
         for name in propertyNames {
             guard seen.insert(name).inserted else { throw Refusal.repeatedColumn(name) }
         }
-        let properties = Dictionary(uniqueKeysWithValues: propertyNames.map { ($0, column($0)!) })
+        let properties = Dictionary(uniqueKeysWithValues: propertyNames.map { ($0, column($0) ?? []) })   // every name is a column
         let map = try CrystalMap(euler: euler, phaseIDs: phaseID, x: column("x"), y: column("y"), properties: properties, scanUnit: "um")
         return File(map: map, vendor: .orientationTable, header: [String(lines[nameLine])], propertyNames: propertyNames)
     }

@@ -234,7 +234,7 @@ package nonisolated enum PatternQuality {
             try Task.checkCancellation()
             for rr in r...min(r + below, scanRows - 1) { try load(rr) }
             for key in band.keys where key < r - window.origin.row { band[key] = nil }
-            let centreRow = band[r]!
+            guard let centreRow = band[r] else { throw Error.shape }   // loaded on the line above; never missing
             for c in 0..<scanColumns {
                 var sum = 0.0, n = 0
                 for (dr, dc) in offsets {
@@ -295,7 +295,8 @@ private nonisolated final class RowPatterns: Sendable {
                 rows[row] = try access.row(row).doubles()
                 for key in rows.keys where key < row - 2 { rows[key] = nil }
             }
-            let values = rows[row]!
+            let values = try rows[row] ?? access.row(row).doubles()   // kept just above; read again if not
+            guard column >= 0, (column + 1) * pixels <= values.count else { throw PatternQuality.Error.shape }
             return Array(values[(column * pixels)..<((column + 1) * pixels)])
         }
     }

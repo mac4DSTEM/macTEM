@@ -260,10 +260,11 @@ package nonisolated enum DemoDocuments {
     package static let stackSide = 128
     package static func stackPixel(frame f: Int, x: Int, y: Int) -> UInt16 {
         let block = x >= 8 + 4 * f && x < 24 + 4 * f && y >= 56 && y < 72
-        return UInt16(1000 + (x + y) + (block ? 20_000 : 0))
+        return UInt16(clamping: 1000 + (x + y) + (block ? 20_000 : 0))   // clamped: a planted stack wider than 44 000 px saturates
     }
 
     /// Writes the demo stack as a multi-page TIFF (little-endian, baseline, one strip per page) and returns its URL in the temporary folder.
+    /// The write is atomic (a new file renamed over the old): a window still reading the stack written before never sees half a file.
     package static func stackFile() throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(writtenFolders[0])
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -274,6 +275,14 @@ package nonisolated enum DemoDocuments {
 
     /// A multi-page baseline TIFF of 16-bit grey pages, `pixel(frame, x, y)` in every pixel (also what a test writes its planted stacks with).
     package static func writeStackTIFF(to url: URL, frames: Int, width: Int, height: Int, pixel: (Int, Int, Int) -> UInt16) throws {
+        // Every offset is a 32-bit TIFF LONG: a stack whose bytes pass 4 GB, or of no page, is refused before anything is written.
+        let ifdSize = 2 + 9 * 12 + 4
+        let page = width.multipliedReportingOverflow(by: min(height, Int.max / 2) * 2)
+        let total = (page.partialValue + ifdSize).multipliedReportingOverflow(by: frames)
+        guard frames > 0, width > 0, height > 0, height <= Int.max / 2, !page.overflow, !total.overflow, total.partialValue + 8 <= Int(UInt32.max) else {
+            throw CocoaError(.fileWriteInvalidFileName, userInfo: [NSLocalizedDescriptionKey:
+                "A stack of \(frames) frames of \(width) x \(height) pixels does not fit a TIFF's 4 GB."])
+        }
         var out = Data()
         func u16(_ v: Int) { var x = UInt16(v).littleEndian; withUnsafeBytes(of: &x) { out.append(contentsOf: $0) } }
         func u32(_ v: Int) { var x = UInt32(v).littleEndian; withUnsafeBytes(of: &x) { out.append(contentsOf: $0) } }
@@ -289,7 +298,7 @@ package nonisolated enum DemoDocuments {
             u32(nextAt)
             for y in 0..<height { for x in 0..<width { var v = pixel(f, x, y).littleEndian; withUnsafeBytes(of: &v) { out.append(contentsOf: $0) } } }
         }
-        try out.write(to: url)
+        try out.write(to: url, options: .atomic)
     }
 
     // MARK: The SEM image
@@ -411,13 +420,14 @@ package nonisolated enum DemoDocuments {
                                    scanImage: (0..<(n * n)).map { Float(100 + $0 % n) })
     }
 
-    /// The demo EDX image's pooled spectrum as an `.msa` file in the temporary folder (what a person would open from the File menu).
+    /// The demo EDX image's pooled spectrum as an `.msa` file in the temporary folder (what a person would open from the File menu),
+    /// written atomically as the other demo files are.
     package static func spectrumFile() throws -> URL {
         let demo = edx()
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(writtenFolders[2])
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("Demo EDX spectrum.msa")
-        try EDXExports.msa(counts: demo.image.sum(mask: nil), axis: demo.energyAxis, title: "Demo EDX spectrum", beamEnergyKeV: Truth.edxBeamKeV, host: .macTEM).write(to: url)
+        try EDXExports.msa(counts: demo.image.sum(mask: nil), axis: demo.energyAxis, title: "Demo EDX spectrum", beamEnergyKeV: Truth.edxBeamKeV, host: .macTEM).write(to: url, options: .atomic)
         return url
     }
 

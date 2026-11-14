@@ -101,7 +101,7 @@ extension AppState {
                 if let scan = inventory.scan { spectrumScans[url] = scan }
                 if inventory.opensInEDS { edsFiles.insert(url); edsBatch.append(url) }
                 if inventory.eelsSpectrumImage { eelsFiles.insert(url); eelsBatch.append(url) }
-                if let found = inventory.landing, landing == nil || found.richness > landing!.richness { landing = found }
+                if let found = inventory.landing, found.richness > (landing?.richness ?? Int.min) { landing = found }
             }
             presentRefusals(refused + refusals + (await tabs?.value ?? []))
             // One file per spectrum room: the batch's first, the one Open Files selects when it is first in the list (the room followed the

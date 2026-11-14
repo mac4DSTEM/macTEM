@@ -319,6 +319,8 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
                 return Refusal(.fftFilter, "Band keeps the frequencies between the highpass and lowpass cutoffs: the highpass cutoff must be the lower.")
             }
         }
+        // A saved session holds the factor as written: one outside the offered set (0 divides by zero) is refused, not trusted.
+        guard Self.binnings.contains(binning) else { return Refusal(.size, "Bin \(binning) is not one of 1, 2, 4 or 8.") }
         if binning > 1, dataset.patternRows % binning != 0 || dataset.patternColumns % binning != 0 {
             return Refusal(.size, "Bin \(binning) does not divide the \(dataset.patternColumns) × \(dataset.patternRows) px pattern.")
         }
@@ -361,6 +363,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
 
     private func run<P: FixedWidthInteger & UnsignedInteger>(_ pattern: [P], background: [P]?, rows: Int, columns: Int,
                                                              type: FormatoDataType) throws -> FormatoArray {
+        guard Self.binnings.contains(binning) else { throw Refusal(.size, "Bin \(binning) is not one of 1, 2, 4 or 8.") }
         var x = pattern
         if staticStage.isOn {
             guard let background else { throw Refusal(.staticBackground, "No static background to remove.") }
@@ -435,6 +438,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
     /// the static background binned as kikuchipy's `downsample` bins it.
     package func processedDataset(_ dataset: EBSDDataset) -> EBSDDataset {
         var out = dataset
+        let binning = Self.binnings.contains(binning) ? binning : 1   // `process` refuses any other factor first
         out.patternRows = dataset.patternRows / binning
         out.patternColumns = dataset.patternColumns / binning
         out.dataType = outputType(dataset.dataType)
@@ -490,9 +494,14 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
     /// ask it on NLPAR's worker threads (so it must read a flag such as `CancellationFlag`, not `Task.isCancelled`). Where it can, the
     /// scan is held once: averaging lets its input bytes go before it writes its output, NLPAR takes the per-pattern output as float32
     /// and the bytes go, and each result is written out in one copy.
+    ///
+    /// A pattern a stage cannot take (a flat pattern cannot be rescaled) does not stop the run: as kikuchipy's division by zero
+    /// gives NaN there and carries on, its place holds NaN (float32 output) or 0 (8 and 16 bit output, numpy's cast of NaN), and
+    /// `unusable` is told every such position, in scan order, once the per-pattern pass is done.
     package func process(_ access: any EBSDPatternAccess, background: FormatoArray?,
                          progress: (Double) -> Void = { _ in }, isCancelled: @Sendable () -> Bool = { false },
-                         lambda: (Double) -> Void = { _ in }) throws -> EBSDMemoryPatterns? {
+                         lambda: (Double) -> Void = { _ in },
+                         unusable: ([EBSDPosition]) -> Void = { _ in }) throws -> EBSDMemoryPatterns? {
         let dataset = access.dataset
         if let problem = refusal(for: dataset, background: background) { throw problem }
         let out = processedDataset(dataset)
@@ -501,22 +510,37 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         let perPattern: FormatoDataType = intensity.mode == .normalize ? .float32 : dataset.dataType
         var bytes = Data()
         bytes.reserveCapacity(out.patternCount * out.patternPixels * perPattern.byteSize)
+        // The place of a pattern no stage could take: NaN in float32, 0 in the integer types.
+        let unusablePattern = Self.unusablePattern(pixels: out.patternPixels, type: perPattern)
+        var unusablePositions: [EBSDPosition] = []
         for row in 0..<dataset.scanRows {
             if isCancelled() { return nil }
             let slab = try access.row(row)
+            let base = slab.bytes.startIndex   // a slab may be a slice of a larger buffer: index from its start
+            guard slab.bytes.count >= dataset.scanColumns * inSize else {
+                throw EBSDReadError(text: "Scan row \(row) holds \(slab.bytes.count) bytes, fewer than its \(dataset.scanColumns) patterns need; the file is truncated.")
+            }
             // Each pattern through `apply` on its own, in its column's place: the bytes are the serial loop's.
-            let patterns = try ScanRowWork.map(columns: dataset.scanColumns) { (column: Int) throws -> Data in
+            let patterns = try ScanRowWork.map(columns: dataset.scanColumns) { (column: Int) throws -> Data? in
                 let one = try FormatoArray(dataType: dataset.dataType, shape: [dataset.patternRows, dataset.patternColumns],
-                                           bytes: slab.bytes.subdata(in: (column * inSize)..<((column + 1) * inSize)))
+                                           bytes: slab.bytes.subdata(in: (base + column * inSize)..<(base + (column + 1) * inSize)))
                 do {
                     return try apply(one, rows: dataset.patternRows, columns: dataset.patternColumns, background: background).bytes
-                } catch let refusal as Refusal {
-                    throw refusal.at(row: row, column: column)
+                } catch is Refusal {
+                    return nil   // what the pipeline would refuse for every pattern was refused before the run (`refusal(for:)`)
                 }
             }
-            for pattern in patterns { bytes.append(pattern) }
+            for (column, pattern) in patterns.enumerated() {
+                if let pattern {
+                    bytes.append(pattern)
+                } else {
+                    bytes.append(unusablePattern)
+                    unusablePositions.append(EBSDPosition(row: row, column: column))
+                }
+            }
             progress(Double(row + 1) / Double(dataset.scanRows) * (nlpar.isOn || averaging.isOn ? 0.5 : 1))
         }
+        unusable(unusablePositions)
         if averaging.isOn {
             if isCancelled() { return nil }
             do {
@@ -542,6 +566,12 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         lambda(result.lambda)
         progress(1)
         return try EBSDMemoryPatterns(dataset: out, bytes: Self.littleEndianBytes(result.denoised.values))
+    }
+
+    /// One pattern of `pixels` values of `type` that no stage could take: NaN for float32, 0 for the integer types.
+    static func unusablePattern(pixels: Int, type: FormatoDataType) -> Data {
+        guard type == .float32 else { return Data(count: pixels * type.byteSize) }
+        return littleEndianBytes([Float](repeating: .nan, count: pixels))
     }
 
     /// The per-pattern output of the scan in `bytes` (`type`, uint8 or uint16, in `dataset`'s shapes; not `dataset.dataType`, which is

@@ -46,7 +46,8 @@ extension KinematicMasterPattern {
         let axis = Vector3.linspace(-1, 1, size)
         var values = [Float](repeating: 0, count: 2 * size * size)
         values.withUnsafeMutableBufferPointer { out in
-            let shared = FloatPointer(base: out.baseAddress!)
+            guard let base = out.baseAddress else { return }   // size 0: no hemisphere to fill
+            let shared = FloatPointer(base: base)
             DispatchQueue.concurrentPerform(iterations: size) { row in
                 let y = axis[row]
                 for column in 0..<size {

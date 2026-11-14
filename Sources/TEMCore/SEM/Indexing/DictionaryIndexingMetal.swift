@@ -72,7 +72,10 @@ package nonisolated enum DictionaryIndexingMetal {
             p = pipeline
             guard values.count <= Int(UInt32.max) else { throw Error.tooLarge(values.count) }
             let floats = values.map { Float($0) }
-            guard let buffer = floats.withUnsafeBytes({ pipeline.device.makeBuffer(bytes: $0.baseAddress!, length: max($0.count, 4), options: .storageModeShared) }) else {
+            guard let buffer = floats.withUnsafeBytes({ bytes in
+                bytes.baseAddress.flatMap { pipeline.device.makeBuffer(bytes: $0, length: max(bytes.count, 4), options: .storageModeShared) }
+                    ?? pipeline.device.makeBuffer(length: 4, options: .storageModeShared)
+            }) else {
                 throw Error.metal("could not allocate \(floats.count * 4) bytes on the GPU")
             }
             experimental = buffer
@@ -88,7 +91,10 @@ package nonisolated enum DictionaryIndexingMetal {
             let floats = values.map { Float($0) }
             let outputBytes = count * dictionaryCount * MemoryLayout<Float>.stride
             var params = Params(experimental: UInt32(count), dictionary: UInt32(dictionaryCount), length: UInt32(length))
-            guard let dBuffer = floats.withUnsafeBytes({ p.device.makeBuffer(bytes: $0.baseAddress!, length: max($0.count, 4), options: .storageModeShared) }),
+            guard let dBuffer = floats.withUnsafeBytes({ bytes in
+                      bytes.baseAddress.flatMap { p.device.makeBuffer(bytes: $0, length: max(bytes.count, 4), options: .storageModeShared) }
+                          ?? p.device.makeBuffer(length: 4, options: .storageModeShared)
+                  }),
                   let sBuffer = p.device.makeBuffer(length: max(outputBytes, 4), options: .storageModeShared),
                   let commands = p.queue.makeCommandBuffer(),
                   let encoder = commands.makeComputeCommandEncoder() else {

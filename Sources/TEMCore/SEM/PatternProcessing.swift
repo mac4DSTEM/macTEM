@@ -106,7 +106,7 @@ package nonisolated enum PatternProcessing {
         guard !pattern.isEmpty, pattern.count == background.count else { throw Error.shape }
         let p = pattern.map { Double($0) }
         var b = background.map { Double($0) }
-        if scaleBackground { b = try rescale(b, toMin: p.min()!, max: p.max()!) }
+        if scaleBackground, let lo = p.min(), let hi = p.max() { b = try rescale(b, toMin: lo, max: hi) }   // an empty pattern has nothing to scale to
         let (omin, omax) = range(of: P.self)
         return try rescale(combine(p, b, operation), toMin: omin, max: omax)
     }
@@ -202,8 +202,8 @@ package nonisolated enum PatternProcessing {
             imax = try percentile(p, percentiles.high)
             p = p.map { Swift.min(Swift.max($0, imin), imax) }
         } else {
-            imin = p.min()!
-            imax = p.max()!
+            imin = p.min() ?? 0   // not empty (guarded above)
+            imax = p.max() ?? 0
         }
         let (omin, omax) = range(of: P.self)
         let span = imax - imin

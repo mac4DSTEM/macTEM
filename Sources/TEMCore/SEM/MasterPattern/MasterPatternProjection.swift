@@ -248,7 +248,8 @@ package nonisolated enum MasterPatternProjection {
         upper.withUnsafeBufferPointer { up in
             lower.withUnsafeBufferPointer { lo in
                 values.withUnsafeMutableBufferPointer { out in
-                    let shared = SharedBuffers(upper: up, lower: lo, out: out.baseAddress!)
+                    guard let base = out.baseAddress else { return }   // no rotation or no pixel: nothing to project
+                    let shared = SharedBuffers(upper: up, lower: lo, out: base)
                     DispatchQueue.concurrentPerform(iterations: rotations.count) { n in
                         let upperRows = shared.upper, lowerRows = shared.lower, base = shared.out
                         let dc = cosines[centres == 1 ? 0 : n]

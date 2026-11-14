@@ -83,7 +83,7 @@ package nonisolated struct GeometricalKikuchiSimulation: Sendable, Equatable {
     /// `braggAngles` (one per reflector, radians; `KikuchiReflectors.braggAngles`) adds each line's two band edges at `edgeSteps` points.
     package static func simulate(reflectors: KikuchiReflectors, rotation: SIMD4<Double>, detector: EBSDDetectorGeometry, pc: SIMD3<Double>,
                                  maxRGnomonic: Double? = nil, braggAngles: [Double]? = nil, edgeSteps: Int = 360) -> GeometricalKikuchiSimulation {
-        precondition(braggAngles == nil || braggAngles!.count == reflectors.count, "one Bragg angle per reflector")
+        precondition(braggAngles.map { $0.count == reflectors.count } ?? true, "one Bragg angle per reflector")
         let lattice = reflectors.lattice
         // u_os = U_o · U_sᵀ with U_s the sample-to-detector matrix (kikuchipy transposes `sample_to_detector.to_matrix()`).
         let uo = Rotation(rotation).matrix.rows

@@ -69,7 +69,7 @@ struct PatternsVirtualImagesSection: View {
                 .accessibilityIdentifier("patterns.map.choice")
             }
             if session.mapChoice == .imageQuality || session.mapChoice == .dotProduct {
-                InspectorNote("Of the patterns as stored, before any background is removed. Image quality: the FFT spectrum's inertia (Krieger Lassen); average dot product: with the four nearest neighbours (kikuchipy's defaults).")
+                InspectorNote(EBSDSession.qualityNote(ofProcessed: session.qualityOfProcessed))
             }
             if session.virtualGrid.tileCount > 1 {
                 ForEach(Array(["Red", "Green", "Blue"].enumerated()), id: \.offset) { channel, name in

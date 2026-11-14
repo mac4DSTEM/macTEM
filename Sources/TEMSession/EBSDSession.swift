@@ -84,6 +84,18 @@ package final class EBSDSession {
     /// map order, nil until that pass lands.
     package private(set) var imageQualityMap: [Float]?
     package private(set) var dotProductMap: [Float]?
+    /// Whether the landed quality maps were computed on the processed scan (the room's last Process run) rather than the patterns as
+    /// stored (macEM#192): a run that lands remakes them from its patterns.
+    package private(set) var qualityOfProcessed = false
+    /// The map title's words for the quality maps' patterns: "(processed patterns)", "(raw patterns)".
+    package nonisolated static func qualitySourceWords(ofProcessed: Bool) -> String {
+        ofProcessed ? "(processed patterns)" : "(raw patterns)"
+    }
+    /// The inspector's note on the quality maps' patterns and methods.
+    package nonisolated static func qualityNote(ofProcessed: Bool) -> String {
+        (ofProcessed ? "Of the processed scan, the last Process run's patterns." : "Of the patterns as stored, before any background is removed; a Process run remakes them from its patterns.")
+            + " Image quality: the FFT spectrum's inertia (Krieger Lassen); average dot product: with the four nearest neighbours (kikuchipy's defaults)."
+    }
     /// The quality pass: running, and how far (0...1).
     package private(set) var isQualityMapping = false
     package private(set) var qualityProgress = 0.0
@@ -231,15 +243,16 @@ package final class EBSDSession {
             do {
                 // NLPAR's λ travels with this run's result, so a stopped run never hands its λ to the run that stays.
                 var chosenLambda: Double?
+                var unusable: [EBSDPosition] = []
                 let result = try await withTaskCancellationHandler {
                     try pipeline.process(access, background: background, progress: { f in
                         Task { @MainActor in self?.landProcessProgress(f, generation: gen, processRun: runID) }
-                    }, isCancelled: { stopped.isRaised }, lambda: { chosenLambda = $0 })
+                    }, isCancelled: { stopped.isRaised }, lambda: { chosenLambda = $0 }, unusable: { unusable = $0 })
                 } onCancel: {
                     stopped.raise()
                 }
                 await self?.landProcessed(result, with: pipeline, lambda: chosenLambda, failure: nil, seconds: Date().timeIntervalSince(started),
-                                          generation: gen, processRun: runID)
+                                          generation: gen, processRun: runID, unusable: unusable)
             } catch {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 await self?.landProcessed(nil, with: pipeline, lambda: nil, failure: words, seconds: 0, generation: gen, processRun: runID)
@@ -249,13 +262,21 @@ package final class EBSDSession {
         return Task { await task.value }
     }
 
+    /// " · 1 pattern not usable (row r, column c)" or " · n patterns not usable, the first at row r, column c": a pattern no stage
+    /// could take (a flat one cannot be rescaled) holds 0 or NaN in the processed scan. Empty when every pattern was usable.
+    package static func unusableWords(_ positions: [EBSDPosition]) -> String {
+        guard let first = positions.first else { return "" }
+        let at = "row \(first.row), column \(first.column)"
+        return positions.count == 1 ? " · 1 pattern not usable (\(at))" : " · \(positions.count) patterns not usable, the first at \(at)"
+    }
+
     private func landProcessProgress(_ f: Double, generation gen: Int, processRun runID: Int) {
         guard gen == generation, runID == processRun, isProcessing else { return }
         processProgress = f
     }
 
     private func landProcessed(_ result: EBSDMemoryPatterns?, with run: PatternPipeline, lambda: Double?, failure: String?, seconds: Double,
-                               generation gen: Int, processRun runID: Int) {
+                               generation gen: Int, processRun runID: Int, unusable: [EBSDPosition] = []) {
         guard gen == generation, runID == processRun, isProcessing else { return }
         isProcessing = false
         if let result {
@@ -263,10 +284,11 @@ package final class EBSDSession {
             processedWith = run
             nlparLambda = lambda
             processProgress = 1
+            remakeQualityFromProcessed()
             let mb = Double(result.bytes.count) / 1_000_000
             let nlpar = run.nlpar.isOn ? lambda.map { " · NLPAR λ \(SessionEventFormat.fixed($0, 3))" } ?? "" : ""
             onEvent?("Processed \(result.dataset.patternCount) patterns in \(SessionEventFormat.fixed(seconds, 1)) s · \(SessionEventFormat.fixed(mb, 1)) MB in memory"
-                + nlpar)
+                + nlpar + Self.unusableWords(unusable))
             // Already showing Processed: re-draw, so the pane trades the one-pattern preview for the run (the whole-scan stages show).
             if patternDisplay == .processed { showPattern(at: pinned) } else { setPatternDisplay(.processed) }
         } else if let failure {
@@ -332,6 +354,8 @@ package final class EBSDSession {
     @ObservationIgnored private var openTask: Task<Void, Never>?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
     @ObservationIgnored private var qualityTask: Task<Void, Never>?
+    /// The quality pass in flight: a pass replaced by a newer one (a Process run landed) never lands.
+    @ObservationIgnored private var qualityRun = 0
     @ObservationIgnored private var patternTask: Task<Void, Never>?
     @ObservationIgnored private var processTask: Task<Void, Never>?
     @ObservationIgnored private var meanTask: Task<Void, Never>?
@@ -631,20 +655,33 @@ package final class EBSDSession {
         let gen = generation
         isQualityMapping = true
         qualityProgress = 0
-        let access = document.access
+        // The processed scan when a run has landed (its background removed), else the patterns as stored.
+        let access: any EBSDPatternAccess = processed ?? document.access
+        let ofProcessed = processed != nil
+        qualityRun += 1
+        let run = qualityRun
         qualityTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 let maps = try await PatternQuality.maps(of: access, progress: { f in
                     Task { @MainActor in self?.landQualityProgress(f, generation: gen) }
                 })
-                await self?.landQuality(maps.imageQuality.map(Float.init), maps.dotProduct.map(Float.init), failure: nil, generation: gen)
+                await self?.landQuality(maps.imageQuality.map(Float.init), maps.dotProduct.map(Float.init), failure: nil, generation: gen,
+                                        run: run, ofProcessed: ofProcessed)
             } catch is CancellationError {
                 return
             } catch {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                await self?.landQuality(nil, nil, failure: words, generation: gen)
+                await self?.landQuality(nil, nil, failure: words, generation: gen, run: run)
             }
         }
+    }
+
+    /// A Process run landed: quality maps made from other patterns are dropped, and made again from the run's when one is on the map.
+    private func remakeQualityFromProcessed() {
+        guard imageQualityMap != nil || isQualityMapping else { return }
+        qualityTask?.cancel(); imageQualityMap = nil; dotProductMap = nil; isQualityMapping = false; qualityProgress = 0
+        if mapChoice == .imageQuality || mapChoice == .dotProduct, let document { startQuality(document) }
+        remakeMap()
     }
 
     private func landQualityProgress(_ f: Double, generation gen: Int) {
@@ -652,12 +689,14 @@ package final class EBSDSession {
         qualityProgress = f
     }
 
-    private func landQuality(_ iq: [Float]?, _ adp: [Float]?, failure: String?, generation gen: Int) {
-        guard gen == generation else { return }
+    private func landQuality(_ iq: [Float]?, _ adp: [Float]?, failure: String?, generation gen: Int, run: Int,
+                             ofProcessed: Bool = false) {
+        guard gen == generation, run == qualityRun else { return }
         isQualityMapping = false
         if let iq, let adp {
             imageQualityMap = iq
             dotProductMap = adp
+            qualityOfProcessed = ofProcessed
             qualityProgress = 1
             remakeMap()
         } else if let failure {

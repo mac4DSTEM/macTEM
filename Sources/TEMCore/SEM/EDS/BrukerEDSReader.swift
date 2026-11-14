@@ -419,7 +419,7 @@ package nonisolated enum BrukerEDSReader {
                 }
             }
         }
-        return builder.finish()
+        return try builder.finish()
     }
 
     static func unpack16(_ src: ArraySlice<UInt8>, pulses: Int, into line: inout [UInt32], base: Int, cutoff: Int, name: String) throws {

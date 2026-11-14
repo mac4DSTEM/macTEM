@@ -235,8 +235,8 @@ package nonisolated enum EELSDeconvolveCompute {
         }
         guard !order.isEmpty else { return nil }
         let total = counts.values.reduce(0, +)
-        let parts = order.enumerated().sorted { (counts[$0.element]!, -$0.offset) > (counts[$1.element]!, -$1.offset) }
-            .map { "\(counts[$0.element]!): \(words($0.element))" }
+        let parts = order.enumerated().sorted { (counts[$0.element, default: 0], -$0.offset) > (counts[$1.element, default: 0], -$1.offset) }
+            .map { "\(counts[$0.element, default: 0]): \(words($0.element))" }
         return "\(total) px unanswered (" + parts.joined(separator: "; ") + ")"
     }
 }

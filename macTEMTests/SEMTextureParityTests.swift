@@ -45,14 +45,27 @@ nonisolated final class SEMTextureParityTests: XCTestCase {
     /// Counts equal orix's, except that each of the `ambiguous` vectors the bundle found on a bin edge may have gone to the
     /// neighbouring bin: the sum is the same and at most 2 x ambiguous counts differ in total. Returns whether they are equal.
     @discardableResult
-    private func assertCounts(_ ours: [Double], _ reference: SEMParityReference.LoadedArray, ambiguous: Int,
+    /// The total is exact but for the vectors on the grid's outer polar edge (the equator, within 1e-12 rad): the last edge is
+    /// inclusive and the bin past it is outside, so the last bit of the rotation and of arccos keeps such a vector in or drops it.
+    /// On the full Ti map that is point 34070 (Φ = 90.000°): its c axis has z = ±1.25e-16, and orix itself counts its IPF vector on
+    /// Linux and drops it on the Mac the reference was written on (macEM#511).
+    private func assertCounts(_ ours: [Double], _ reference: SEMParityReference.LoadedArray, ambiguous: Int, onOuterEdge: Int = 0,
                               file: StaticString = #filePath, line: UInt = #line) -> Bool {
         XCTAssertEqual(ours.count, reference.values.count, "\(reference.name): bins", file: file, line: line)
-        XCTAssertEqual(ours.reduce(0, +), reference.values.reduce(0, +), "\(reference.name): total", file: file, line: line)
+        let totalMoved = abs(ours.reduce(0, +) - reference.values.reduce(0, +))
+        XCTAssertLessThanOrEqual(totalMoved, Double(onOuterEdge),
+                                 "\(reference.name): total \(ours.reduce(0, +)) against \(reference.values.reduce(0, +)), \(onOuterEdge) vectors on the outer edge",
+                                 file: file, line: line)
         let moved = zip(ours, reference.values).reduce(0.0) { $0 + abs($1.0 - $1.1) }
         XCTAssertLessThanOrEqual(moved, Double(2 * ambiguous), "\(reference.name): \(moved) counts differ, \(ambiguous) vectors on an edge",
                                  file: file, line: line)
         return moved == 0
+    }
+
+    /// The vectors within 1e-12 rad of the grid's last polar edge.
+    static func onOuterEdge(_ v: [SIMD3<Double>], _ grid: EqualAreaGrid) -> Int {
+        guard let last = grid.polarEdges.last else { return 0 }
+        return v.reduce(0) { $0 + (abs(EqualAreaGrid.angles($1).polar - last) < 1e-12 ? 1 : 0) }
     }
 
     /// A pole figure: poles, counts, the smoothing of orix's own counts, and the whole chain when no edge vector moved.
@@ -64,7 +77,7 @@ nonisolated final class SEMTextureParityTests: XCTestCase {
         let (counts, grid) = PoleDensityFunction.counts(v)
         XCTAssertEqual([grid.azimuthBins, grid.polarBins], try ref.array("counts_\(tag)").shape)
         let refCounts = try ref.array("counts_\(tag)")
-        let same = assertCounts(counts, refCounts, ambiguous: try int(ref, "ambiguous_\(tag)"))
+        let same = assertCounts(counts, refCounts, ambiguous: try int(ref, "ambiguous_\(tag)"), onOuterEdge: Self.onOuterEdge(v, grid))
         let pdf = try ref.array("pdf_\(tag)")
         SEMAssertParity(PoleDensityFunction.density(counts: refCounts.values).values, pdf, shape: [360, 90])
         if same { SEMAssertParity(PoleFigures.poleFigure(orientations, poles: poles).values, pdf) }
@@ -77,7 +90,8 @@ nonisolated final class SEMTextureParityTests: XCTestCase {
         let (counts, grid) = PoleDensityFunction.counts(v, symmetry: laue)
         XCTAssertEqual(grid.resolution, 0.5)
         let refCounts = try ref.array("ipf_z_counts")
-        let same = assertCounts(counts, refCounts, ambiguous: try int(ref, "ipf_z_ambiguous"))
+        let same = assertCounts(counts, refCounts, ambiguous: try int(ref, "ipf_z_ambiguous"),
+                                onOuterEdge: Self.onOuterEdge(laue.projectToFundamentalSector(v), grid))
         let fromTheirs = PoleDensityFunction.density(counts: refCounts.values, symmetry: laue)
         SEMAssertParity(fromTheirs.mask.map { $0 ? 1.0 : 0.0 }, try ref.array("ipf_z_mask"))
         let filled = zip(fromTheirs.values, fromTheirs.mask).map { $0.1 ? -1 : $0.0 }

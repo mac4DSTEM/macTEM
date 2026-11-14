@@ -102,7 +102,7 @@ extension ExportSnapshot {
     static func fftAvailability(of appState: AppState) -> FFTExportAvailability {
         let analysis = appState.openItems.selected?.fft
         let spectrum = analysis?.isSpectrumCurrent == true ? analysis?.spectrum : nil
-        let spots = (analysis != nil && spectrum != nil) ? measuredSpots(on: spectrum!.key, in: analysis!.spots) : []
+        let spots = analysis.flatMap { a in spectrum.map { measuredSpots(on: $0.key, in: a.spots) } } ?? []
         return fftAvailability(hasImage: appState.hasImage, area: appState.navigation.workspaceArea,
                                isLoading: appState.imageSession.isLoading, spectrumIsCurrent: spectrum != nil,
                                profileHasBins: spectrum?.profile.map { !$0.points.isEmpty } ?? false,

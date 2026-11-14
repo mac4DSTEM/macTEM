@@ -180,8 +180,10 @@ enum IndexingInfoFormat {
     }
 
     /// "(0.4215, 0.2163, 0.5323) · mean of the file's"; "(0,4215; 0,2163; 0,5323) · …" where the decimal mark is a comma.
-    nonisolated static func projectionCentre(_ pc: SIMD3<Double>, locale: Locale = .autoupdatingCurrent) -> String {
-        triple(pc, locale: locale) + " · mean of the file's"
+    /// "(0.4215, 0.2163, 0.5323) · mean of the file's"; with `assumed`, the file states none and the centre is kikuchipy's default
+    /// (macEM#612), which the row says instead.
+    nonisolated static func projectionCentre(_ pc: SIMD3<Double>, assumed: Bool = false, locale: Locale = .autoupdatingCurrent) -> String {
+        triple(pc, locale: locale) + (assumed ? " · assumed (the file states none)" : " · mean of the file's")
     }
 
     /// The Calibration section's PC help, its count never grouped: "The mean of the file's 4125 projection centres, …" (a Bruker
@@ -200,7 +202,8 @@ enum IndexingInfoFormat {
     /// The Calibration section's tilts in the Patterns room's words (`EBSDBrowsing.calibrationRows`): "Sample tilt 70°", "Detector
     /// tilt 0°".
     nonisolated static func tiltRows(_ detector: EBSDDetectorGeometry, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
-        [EBSDBrowsing.Row("Sample tilt", "\(UnitDisplay.number(detector.sampleTilt, locale: locale))°"),
+        [EBSDBrowsing.Row("Sample tilt", "\(UnitDisplay.number(detector.sampleTilt, locale: locale))°"
+                          + (detector.assumed.contains(.sampleTilt) ? " · assumed" : "")),
          EBSDBrowsing.Row("Detector tilt", "\(UnitDisplay.number(detector.tilt, locale: locale))°")]
     }
 

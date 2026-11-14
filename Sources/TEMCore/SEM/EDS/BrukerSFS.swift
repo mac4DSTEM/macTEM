@@ -264,6 +264,8 @@ package nonisolated final class BrukerSFS {
         var out: [UInt8] = []
         let body = Array(zlib[2...])
         try body.withUnsafeBufferPointer { src in
+            // Never nil: the guard above asks for more than the 2 header bytes, so the body is not empty.
+            // swiftlint:disable:next force_unwrapping
             stream.pointee.src_ptr = src.baseAddress!
             stream.pointee.src_size = src.count
             var status = COMPRESSION_STATUS_OK
@@ -304,8 +306,16 @@ package nonisolated struct SEMEDSByteStream {
         }
     }
 
-    package mutating func seek(_ offset: Int) throws { try skip(offset - consumed - position) }
-    package mutating func skip(_ n: Int) throws { try need(n); position += n }
+    /// Only forward: a stated offset behind what was read (a damaged pixel table) is refused, never a negative index.
+    package mutating func seek(_ offset: Int) throws {
+        let (behind, overflow) = offset.subtractingReportingOverflow(consumed + position)
+        guard !overflow else { throw SEMEDSReadError("The spectral data of \(name) points outside itself.") }
+        try skip(behind)
+    }
+    package mutating func skip(_ n: Int) throws {
+        guard n >= 0 else { throw SEMEDSReadError("The spectral data of \(name) points back to byte \(consumed + position + n), behind what was read.") }
+        try need(n); position += n
+    }
     package mutating func u16() throws -> UInt16 {
         try need(2); defer { position += 2 }
         return UInt16(buffer[position]) | UInt16(buffer[position + 1]) << 8

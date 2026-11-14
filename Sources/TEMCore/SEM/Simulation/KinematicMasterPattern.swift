@@ -55,7 +55,7 @@ package nonisolated enum KinematicMasterPattern {
         return hemisphere.poles.map { pole in
             var pattern = [Double](repeating: 0, count: size * size)
             pattern.withUnsafeMutableBufferPointer { out in
-                let base = out.baseAddress!
+                guard let base = out.baseAddress else { return }   // size 0: no pattern to fill
                 let shared = SendablePointer(base: base)
                 DispatchQueue.concurrentPerform(iterations: size) { row in
                     let y = axis[row]

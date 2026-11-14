@@ -141,6 +141,8 @@ package nonisolated struct MapAnalysis: Sendable {
     package let meanLinealIntercept: Double?
     /// The scan unit of the lengths.
     package let scanUnit: String
+    /// Why `gnd` is nil although the phase has a structure DefDAP knows (a step in no length unit); nil otherwise.
+    package let gndRefusal: String?
 
     /// The analysis of `map` with `settings` (a whole map: the points in data fill rows × columns in row order). `isCancelled` is asked
     /// through the grain analysis (`GrainAnalysis.run`) and before the GND and the table; it throws `CancellationError` once it says so
@@ -166,11 +168,16 @@ package nonisolated struct MapAnalysis: Sendable {
 
         // GND: DefDAP takes the primary phase's crystal structure for the whole map; the step in micrometres.
         var gnd: [Double]?
+        var gndRefusal: String?
         if let first = indexed.first, let group = first.phase.pointGroup, let structure = DefDAPCrystalStructure(pointGroup: group) {
-            let micrometres = Self.micrometres(grainMap.step, unit: map.scanUnit)
-            let result = NyeTensor.compute(quaternions: grainMap.quaternions, rows: rows, columns: columns, stepMicrons: micrometres,
-                                           structure: structure)
-            gnd = zip(result.gnd, grainMap.phase).map { $1 == 0 ? .nan : $0 }
+            // A step in no length unit refuses the GND rather than guessing µm (macEM#611).
+            if let micrometres = Self.micrometres(grainMap.step, unit: map.scanUnit) {
+                let result = NyeTensor.compute(quaternions: grainMap.quaternions, rows: rows, columns: columns, stepMicrons: micrometres,
+                                               structure: structure)
+                gnd = zip(result.gnd, grainMap.phase).map { $1 == 0 ? .nan : $0 }
+            } else {
+                gndRefusal = Self.gndNeedsALength(unit: map.scanUnit)
+            }
         }
         if isCancelled() { throw CancellationError() }
 
@@ -198,8 +205,8 @@ package nonisolated struct MapAnalysis: Sendable {
         }
         return MapAnalysis(settings: settings, rows: rows, columns: columns, grainMap: grainMap, grains: analysis, gnd: gnd, table: table,
                            phaseIDs: phaseIDs,
-                           meanLinealIntercept: GrainSegmentation.meanLinealIntercept(boundaries: analysis.boundaries, step: grainMap.step),
-                           scanUnit: map.scanUnit)
+                           meanLinealIntercept: GrainSegmentation.meanLinealIntercept(boundaries: analysis.boundaries, step: grainMap.step, stepY: grainMap.stepY),
+                           scanUnit: map.scanUnit, gndRefusal: gndRefusal)
     }
 
     /// The same off the caller's actor; a cancelled task stops at its next row or grain and throws `CancellationError`.
@@ -207,13 +214,20 @@ package nonisolated struct MapAnalysis: Sendable {
         try run(map, settings: settings, isCancelled: { Task.isCancelled })
     }
 
-    /// A length in `unit` in micrometres (the readers write "um"; nm and mm convert; any other unit is taken as micrometres).
-    package static func micrometres(_ length: Double, unit: String) -> Double {
+    /// A length in `unit` in micrometres (the readers write "um"; nm and mm convert); nil for a unit that is no length ("px", or one
+    /// the app does not know), which before macEM#611 was taken as micrometres.
+    package static func micrometres(_ length: Double, unit: String) -> Double? {
         switch unit.lowercased() {
         case "nm": length / 1000
         case "mm": length * 1000
-        default: length
+        case "um", "µm", "μm", "micron", "microns": length
+        default: nil
         }
+    }
+
+    /// Why the map has no GND density although its phase has a structure: its step is in no length unit.
+    package static func gndNeedsALength(unit: String) -> String {
+        "No GND density: the map's step is in \(unit.isEmpty ? "no unit" : "\"\(unit)\"") rather than a length, so a density per m² cannot be given. The grains, KAM and GOS do not need one."
     }
 
     // MARK: Numbers
@@ -230,8 +244,8 @@ package nonisolated struct MapAnalysis: Sendable {
 
     /// ASTM E112's grain size number from the mean lineal intercept; nil without a boundary or with a scan unit that is no length.
     package var astmGrainSizeNumber: Double? {
-        guard let l = meanLinealIntercept, ["um", "µm", "μm", "nm", "mm"].contains(scanUnit.lowercased()) else { return nil }
-        return GrainSegmentation.astmGrainSizeNumber(meanLinealInterceptMillimetres: Self.micrometres(l, unit: scanUnit) / 1000)
+        guard let l = meanLinealIntercept, let um = Self.micrometres(l, unit: scanUnit) else { return nil }
+        return GrainSegmentation.astmGrainSizeNumber(meanLinealInterceptMillimetres: um / 1000)
     }
 
     /// The grain number (1, 2, ...) at a grid cell; nil for a point of no grain (too small, or not indexed).
@@ -474,14 +488,35 @@ package nonisolated struct MapTexture: Sendable {
     package let phaseID: Int
     package let phaseName: String
     package let points: Int
-    /// The points the ODF sections used (every k-th point of the phase, at most `odfPointLimit`).
+    /// The points the ODF sections used (all of the phase's, or a seeded sample of `odfPointLimit`).
     package let odfPoints: Int
     package let poleFigures: [Figure]
     package let inversePoleFigure: Figure?
     package let odfSections: [Figure]
 
-    /// The ODF sums its kernel over every orientation at every node: past this many points the sections take every k-th point.
+    /// The ODF sums its kernel over every orientation at every node: past this many points the sections take a sample of this many.
     package static let odfPointLimit = 5000
+
+    /// The points the ODF sections take: all up to `limit`, else `limit` of them drawn without replacement by a seeded shuffle, in map
+    /// order. Every k-th point of a row-major map aliased with its columns (macEM#615: a map whose texture alternates by column, with
+    /// a column count that k divides, showed only one of its components). Seeded, so the same map gives the same sections.
+    package static func odfSampleIndices(count: Int, limit: Int = odfPointLimit) -> [Int] {
+        guard count > limit, limit > 0 else { return Array(0..<max(count, 0)) }
+        var indices = Array(0..<count)
+        var state: UInt64 = 0x9E37_79B9_7F4A_7C15
+        func next() -> UInt64 {   // SplitMix64
+            state &+= 0x9E37_79B9_7F4A_7C15
+            var z = state
+            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+            return z ^ (z >> 31)
+        }
+        for i in 0..<limit {
+            let j = i + Int(next() % UInt64(count - i))
+            indices.swapAt(i, j)
+        }
+        return indices[0..<limit].sorted()
+    }
 
     /// The pole families shown for a point group: {100} {110} {111} for cubic, {0001} {10-10} {11-20} for hexagonal, {100} {010}
     /// {001} otherwise.
@@ -531,10 +566,9 @@ package nonisolated struct MapTexture: Sendable {
         let extent = key.sector.stereographicExtent ?? (-1...1, -1...1)
         let inverse = Figure(title: "IPF-Z", raster: TextureRaster.stereographic(ipf, size: size, extent: extent), maximum: ipf.maximum)
 
-        let stride = max(1, (orientations.count + odfPointLimit - 1) / odfPointLimit)
-        let sample = stride == 1 ? orientations
-            : Orientations(quaternions: Swift.stride(from: 0, to: orientations.count, by: stride).map { orientations.quaternions[$0] },
-                           symmetry: orientations.symmetry)
+        let picked = odfSampleIndices(count: orientations.count)
+        let sample = picked.count == orientations.count ? orientations
+            : Orientations(quaternions: picked.map { orientations.quaternions[$0] }, symmetry: orientations.symmetry)
         let odf = sections(for: group).map { phi2 -> Figure in
             let s = OrientationDensity.section(sample, phi2Degrees: phi2, halfWidthDegrees: odfHalfWidth)
             return Figure(title: "φ₂ = \(Int(phi2.rounded()))°", raster: TextureRaster.section(s), maximum: s.maximum)
