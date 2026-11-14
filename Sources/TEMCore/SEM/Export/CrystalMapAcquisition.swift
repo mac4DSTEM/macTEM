@@ -36,7 +36,7 @@ package nonisolated struct CrystalMapAcquisition: Sendable, Equatable {
     }
 
     /// The names and versions of the Swift packages the app is built with ("FormatoKit 0.15.0, ImagoKit 0.9.2, ...").
-    package static var kitVersions: String { SEMMethod.builtWith.map { "\($0.name) \($0.value)" }.joined(separator: ", ") }
+    package static var kitVersions: String { SEMReferenceVersions.builtWith.map { "\($0.name) \($0.value)" }.joined(separator: ", ") }
 
     /// A number for a header: an integer without decimals, else up to 6 significant digits; 0 for none.
     package static func headerNumber(_ v: Double?) -> String {
