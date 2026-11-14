@@ -424,7 +424,7 @@ package nonisolated enum EBSDRefinement {
         }
         let mp = master.phase
         var list = PhaseList([(id: phaseID, phase: CrystalPhase(name: mp.name, spaceGroup: mp.spaceGroup, pointGroup: mp.pointGroup,
-                                                                lattice: mp.lattice))])
+                                                                lattice: mp.lattice, latticeUnit: .nanometre))])
         if map.phases.contains(id: PhaseList.notIndexedID) { list.addNotIndexed() }
         var properties = ["scores": score, "num_evals": evals]
         if pseudoSymmetry != nil { properties["pseudo_symmetry_index"] = psi }

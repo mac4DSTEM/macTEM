@@ -164,7 +164,7 @@ package nonisolated enum CTFReader {
                 throw Refusal.phase(line: lineNumber + 1, "its space group `\(parts[4])` is not a number")
             }
             phases.append(CrystalPhase(name: parts[2], spaceGroup: spaceGroup == 0 ? nil : spaceGroup, pointGroup: group,
-                                       lattice: constants.map { $0! }))
+                                       lattice: constants.map { $0! }, latticeUnit: .angstrom))
         }
         // orix's `PhaseList(**phases)`: ids 1, 2, ... in header order, colours in matplotlib's Tableau order.
         return PhaseList(ids: (0..<count).map { $0 + 1 }, phases: phases, assignColors: true)
