@@ -439,7 +439,7 @@ nonisolated enum MapsRoomFormat {
     static func textureCaption(_ texture: MapTexture, odf: Bool) -> String {
         let points = UnitDisplay.count(texture.points, "point", "points")
         if odf {
-            let used = texture.odfPoints == texture.points ? "all \(points)" : "\(texture.odfPoints) of \(points) (every \((texture.points + texture.odfPoints - 1) / max(texture.odfPoints, 1))th)"
+            let used = texture.odfPoints == texture.points ? "all \(points)" : "\(texture.odfPoints) of \(points) (a seeded random sample)"
             return "\(texture.phaseName): ODF φ₂ sections from \(used), de la Vallée Poussin kernel 10°, multiples of random."
         }
         return "\(texture.phaseName): \(points), upper hemisphere, 1° bins smoothed 5°, multiples of random. IPF-Z in the colour key's sector."

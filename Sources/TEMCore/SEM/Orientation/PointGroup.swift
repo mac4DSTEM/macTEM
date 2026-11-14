@@ -157,6 +157,12 @@ package nonisolated struct PointGroup: Sendable, CustomStringConvertible {
     /// `laue_proper_subgroup`.
     package var laueProperSubgroup: PointGroup { laue.properSubgroup }
 
+    /// The Laue class of a point group by name, for pairing and file headers: orix's `_get_laue_group_name`, plus "m" (orix's `Cs`,
+    /// the 11m mirror under its short name), which orix's list leaves out although `Cs.laue` is 2/m by its elements (macEM#615).
+    package static func laueClassName(_ name: String?) -> String? {
+        name == "m" ? "2/m" : laueName(name)
+    }
+
     /// `_get_laue_group_name`.
     package static func laueName(_ name: String?) -> String? {
         switch name ?? "" {
