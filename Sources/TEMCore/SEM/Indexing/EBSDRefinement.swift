@@ -472,6 +472,8 @@ package nonisolated enum EBSDRefinement {
                 if firstError.error is CancellationError || firstError.error is EBSDRefinement.Error { throw firstError.error }
                 throw EBSDRefinement.Error.solver(firstError.index, firstError.error.localizedDescription)
             }
+            // Never nil: with no error recorded, every slot was written.
+            // swiftlint:disable:next force_unwrapping
             return snapshot.slots.map { $0! }
         }
     }

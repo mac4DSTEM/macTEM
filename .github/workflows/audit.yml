@@ -156,6 +156,12 @@ jobs:
           lines = [f"{v['file'].replace('/work/', '')}:{v['line']} {v['rule_id']}" for v in found[:200]]
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
               f.write(f"### SwiftLint candidates (app sources): {counts}\n```\n" + "\n".join(lines) + "\n```\n")
+          # macEM#638: every force-unwrap and try! is handled or carries a reason, so a new one fails the audit.
+          crashes = [f"{v['file'].replace('/work/', '')}:{v['line']} {v['rule_id']}" for v in found if v["rule_id"] in ("force_unwrapping", "force_try")]
+          if crashes:
+              print("::error::New force-unwraps or try!: handle them, or keep one with a comment saying why it cannot fail")
+              print("\n".join(crashes))
+              raise SystemExit(1)
           PY
 
   benchmarks:

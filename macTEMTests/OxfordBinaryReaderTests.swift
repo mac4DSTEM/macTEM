@@ -274,4 +274,13 @@ nonisolated final class OxfordBinaryReaderTests: XCTestCase {
         let refused = FileRouting.inventory(path: compressed.path).refusal ?? ""
         XCTAssertTrue(refused.hasPrefix("dummy-v2-compressed.ebsp: "), refused)
     }
+
+    /// macEM#638: a file cut inside the last record's footer (its beam position past the end) is refused, not trapped on a
+    /// force-unwrap. Red before: `beamX(...)!` trapped.
+    func testAFooterCutShortIsRefusedNotTrapped() throws {
+        let whole = try Data(contentsOf: Self.url("patterns.ebsp"))
+        let cut = whole.prefix(whole.count - 18)   // the last record in the file loses its 18-byte footer
+        XCTAssertThrowsError(try OxfordBinaryReader.metadata(data: cut))
+        XCTAssertThrowsError(try OxfordBinaryReader.read(data: cut, url: Self.url("patterns.ebsp")))
+    }
 }
