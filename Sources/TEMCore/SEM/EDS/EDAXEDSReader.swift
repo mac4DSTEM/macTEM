@@ -229,7 +229,7 @@ package nonisolated enum EDAXEDSReader {
             }
             p += n
         }
-        let cube = builder.finish()
+        let cube = try builder.finish()
         return SEMEDSFile(url: url, signals: [.spectrumImage(SEMEDSSpectrumImage(shape: shape, axes: axes, dtype: "uint\(countBytes * 8)",
                                                                                 cube: cube, metadata: md))], notes: notes)
     }
