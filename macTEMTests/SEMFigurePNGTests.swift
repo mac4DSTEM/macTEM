@@ -58,7 +58,7 @@ nonisolated final class SEMFigurePNGTests: XCTestCase {
         let png = try MapsFigure.png(raster: OrientationMaps.raster(.phase, of: map), layer: .phase, map: map, keys: [],
                                      presentation: ImagePresentation(), fileName: "sdss.ang")
         XCTAssertEqual(try Self.text(png), [PNGTextEntry(keyword: "Title", value: "sdss.ang"),
-                                            PNGTextEntry(keyword: "Software", value: "macEM")])
+                                            PNGTextEntry(keyword: "Software", value: ExportSnapshot.provenance())])
     }
 
     /// The Patterns room's colour mix: the planted pixels come back as they went in, as ImageIO wrote them before, and the file's
@@ -66,7 +66,7 @@ nonisolated final class SEMFigurePNGTests: XCTestCase {
     func testTheColourMixKeepsItsPixelsAndCarriesItsFileName() throws {
         let png = try XCTUnwrap(PatternsRoomState.mixPNG(rgba: Self.planted, width: 3, height: 2, fileName: "patterns_v2.h5"))
         XCTAssertEqual(try Self.text(png), [PNGTextEntry(keyword: "Title", value: "patterns_v2.h5"),
-                                            PNGTextEntry(keyword: "Software", value: "macEM")])
+                                            PNGTextEntry(keyword: "Software", value: ExportSnapshot.provenance())])
         XCTAssertEqual(try Self.rgba(png), Self.planted)
     }
 
