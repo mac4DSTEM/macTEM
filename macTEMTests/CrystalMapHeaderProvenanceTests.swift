@@ -6,6 +6,7 @@
 //  (CrystalMapWriterParityTests).
 //
 
+import FormatoCore
 import Foundation
 import TEMCore
 import XCTest
