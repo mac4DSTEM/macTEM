@@ -15,7 +15,7 @@ nonisolated final class CrystalMapHeaderProvenanceTests: XCTestCase {
 
     private static let sdss = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         .appendingPathComponent("Fixtures/ebsd-sdss-ferrite-austenite.ang")
-    private static let info: [String: Any] = ["CFBundleShortVersionString": "2.1.0", "CFBundleVersion": "42"]
+    private static var info: [String: Any] { ["CFBundleShortVersionString": "2.1.0", "CFBundleVersion": "42"] }
 
     private static let acquisition = CrystalMapAcquisition(patternCentreTSL: SIMD3(0.4512, 0.6271, 0.5983), workingDistanceMM: 15.2,
                                                            magnification: 2000, beamEnergyKeV: 20, sampleTiltDegrees: 70,
